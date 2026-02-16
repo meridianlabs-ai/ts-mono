@@ -1,0 +1,11 @@
+.container {
+  display: grid;
+  grid-template-rows: max-content max-content 1fr;
+  height: 100vh;
+}
+
+.transcriptContainer {
+  overflow-y: auto;
+  width: 100%;
+  min-height: 0;
+}

@@ -1,0 +1,1 @@
+export { useMapAsyncData } from "./useMapAsyncData";

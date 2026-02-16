@@ -1,0 +1,25 @@
+node_modules/
+dist/
+lib/
+.turbo/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# Test output
+playwright-report/
+test-results/
+coverage/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Storybook
+storybook-static/
+
+# Claude Code
+.claude/settings.local.json

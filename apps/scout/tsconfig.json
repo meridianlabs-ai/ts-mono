@@ -1,0 +1,10 @@
+{
+  "extends": "@tsmono/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["css-modules"],
+    "noImplicitAny": false,
+    "noImplicitThis": false
+  },
+  "include": ["src", "e2e"],
+  "exclude": ["node_modules", "dist", "lib", "*.config.js", "*.config.ts"]
+}

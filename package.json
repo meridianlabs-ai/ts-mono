@@ -1,0 +1,38 @@
+{
+  "name": "tsmono",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run check",
+    "manypkg:check": "manypkg check",
+    "manypkg:fix": "manypkg fix",
+    "test": "turbo run test",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check"
+  },
+  "//": "manypkg requires root deps in 'dependencies', not 'devDependencies'. The root is private and never published, so the distinction is meaningless here — it's a consistency convention.",
+  "dependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "@manypkg/cli": "^0.22.0",
+    "@tsmono/prettier-config": "workspace:*",
+    "picocolors": "^1.1.1",
+    "prettier": "^3.7.4",
+    "turbo": "^2.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "yaml": "^2.4.2"
+    }
+  },
+  "manypkg": {
+    "defaultBranch": "main",
+    "workspaceProtocol": "require"
+  }
+}
