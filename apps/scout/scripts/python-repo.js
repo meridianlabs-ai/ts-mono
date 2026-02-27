@@ -1,7 +1,7 @@
 /**
  * Detect whether this app is mounted as a submodule of the inspect_scout Python repo.
  *
- * When the TS monorepo lives at src/inspect_scout/_view/frontend/, the Python
+ * When the TS monorepo lives at src/inspect_scout/_view/ts-mono/, the Python
  * repo root is six directories up from apps/scout/.  We verify by checking for
  * pyproject.toml containing `name = "inspect_scout"`.
  */
@@ -38,7 +38,7 @@ export function requirePythonRepoRoot() {
     throw new Error(
       "Not running as an inspect_scout submodule. " +
         "Type generation requires the TS monorepo to be mounted at " +
-        "src/inspect_scout/_view/frontend/ inside the Python repo."
+        "src/inspect_scout/_view/ts-mono/ inside the Python repo."
     );
   }
   return root;
