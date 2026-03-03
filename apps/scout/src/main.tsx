@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRoot } from "react-dom/client";
 
-import { defaultRetry, getVscodeApi } from "@tsmono/util";
+import { getVscodeApi } from "@tsmono/util";
 
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+
+import { defaultRetry } from "@tsmono/react";
 
 import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";

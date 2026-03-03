@@ -4,6 +4,6 @@
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },
-  "include": ["src"],
+  "include": ["src", "../react/src/react-query.ts"],
   "exclude": ["node_modules", "dist"]
 }
