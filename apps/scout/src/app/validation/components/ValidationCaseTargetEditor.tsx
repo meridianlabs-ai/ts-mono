@@ -5,7 +5,7 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useEffect, useState } from "react";
 
-import { useDebouncedCallback } from "@tsmono/util";
+import { useDebouncedCallback } from "@tsmono/react";
 
 import { JsonValue } from "../../../types/api-types";
 

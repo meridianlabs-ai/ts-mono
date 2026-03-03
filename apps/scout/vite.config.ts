@@ -91,9 +91,18 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: resolveOutputDir(),
         emptyOutDir: true,
-        minify: true,
+        minify: mode !== "development",
         rollupOptions: {
           output: {
+            manualChunks(id) {
+              // Let mathxyjax3's pre-built chunks stay separate —
+              // they use a global MathJax object set up by their entry
+              // and break if inlined out of order.
+              if (id.includes("mathxyjax3/dist/") && !id.endsWith("index.js")) {
+                return undefined;
+              }
+              // Everything else goes into the main bundle
+            },
             entryFileNames: `assets/[name]-[hash].js`,
             chunkFileNames: `assets/[name]-[hash].js`,
             assetFileNames: `assets/[name]-[hash].[ext]`,

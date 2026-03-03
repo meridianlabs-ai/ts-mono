@@ -18,7 +18,8 @@
     "storybook:build": "storybook build"
   },
   "dependencies": {
-    "@tsmono/util": "workspace:*"
+    "@tsmono/util": "workspace:*",
+    "lodash-es": "^4.17.23"
   },
   "peerDependencies": {
     "react": "^19.0.0"
@@ -29,6 +30,7 @@
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
+    "@types/lodash-es": "^4.17.12",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.2",

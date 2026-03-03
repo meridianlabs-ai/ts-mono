@@ -231,6 +231,9 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
+      lodash-es:
+        specifier: ^4.17.23
+        version: 4.17.23
     devDependencies:
       '@storybook/react':
         specifier: ^10.2.9
@@ -247,6 +250,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@types/lodash-es':
+        specifier: ^4.17.12
+        version: 4.17.12
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.14
