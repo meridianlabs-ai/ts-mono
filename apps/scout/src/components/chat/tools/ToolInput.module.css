@@ -1,0 +1,20 @@
+.outputPre {
+  padding: 0.5em;
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+
+.toolView {
+  margin-top: 0.25em;
+  padding: 0.5em !important;
+}
+
+.toolView pre {
+  margin-bottom: 0;
+}
+
+.outputCode {
+  font-size: 0.8rem !important;
+  overflow-wrap: anywhere !important;
+  white-space: pre-wrap !important;
+}

@@ -1,0 +1,30 @@
+import { skipToken } from "@tanstack/react-query";
+import { useEffect } from "react";
+
+import { AsyncData } from "@tsmono/util";
+
+import { useStore } from "../../state/store";
+import { Status } from "../../types/api-types";
+import { useScan } from "../server/useScan";
+
+import { useScanRoute } from "./useScanRoute";
+
+export const useSelectedScan = (): AsyncData<Status> => {
+  const { resolvedScansDir, scanPath } = useScanRoute();
+
+  // Set selectedScanLocation for nav restoration
+  const setSelectedScanLocation = useStore(
+    (state) => state.setSelectedScanLocation
+  );
+  useEffect(() => {
+    if (scanPath) {
+      setSelectedScanLocation(scanPath);
+    }
+  }, [scanPath, setSelectedScanLocation]);
+
+  return useScan(
+    resolvedScansDir && scanPath
+      ? { scansDir: resolvedScansDir, scanPath }
+      : skipToken
+  );
+};
