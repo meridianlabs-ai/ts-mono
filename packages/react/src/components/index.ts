@@ -1,1 +1,1 @@
-export { StickyScroll } from "./StickyScroll";
+export * from "./StickyScroll";

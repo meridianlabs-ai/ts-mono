@@ -1,13 +1,12 @@
-import js from "@eslint/js";
-import prettierConfig from "eslint-config-prettier";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 import reactRefreshPlugin from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+import baseConfig from "./base.js";
+
 export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  ...baseConfig,
   {
     files: ["**/*.{ts,tsx}"],
     plugins: {
@@ -26,6 +25,5 @@ export default tseslint.config(
         version: "detect",
       },
     },
-  },
-  prettierConfig
+  }
 );

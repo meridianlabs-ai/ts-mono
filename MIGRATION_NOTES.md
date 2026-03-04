@@ -46,6 +46,58 @@ The trial repo did not originally wire up `pnpm test`. Added:
 
 Ensure the real repo includes these from the start.
 
+### Import ordering — restore prettier plugin post-migration
+
+During migration, `@ianvs/prettier-plugin-sort-imports` was removed from
+`@tsmono/prettier-config` and replaced with `eslint-plugin-import`'s
+`import/order` rule (in `@tsmono/eslint-config/base.js`). This was done so
+ts-mono produces identical import formatting to www, minimizing diff noise
+while both locations coexist.
+
+**Post-migration**, consider restoring the prettier plugin for a single-tool
+import formatting story. Steps:
+
+1. Add `@ianvs/prettier-plugin-sort-imports` back to
+   `tooling/prettier-config/package.json`:
+   ```json
+   "dependencies": {
+     "@ianvs/prettier-plugin-sort-imports": "^4.7.1"
+   }
+   ```
+
+2. Restore the plugin config in `tooling/prettier-config/index.js`:
+   ```js
+   export default {
+     trailingComma: "es5",
+     plugins: ["@ianvs/prettier-plugin-sort-imports"],
+     importOrder: [
+       "<BUILTIN_MODULES>",
+       "",
+       "<THIRD_PARTY_MODULES>",
+       "",
+       "^@tsmono/",
+       "",
+       "^[.][.]",
+       "",
+       "^[.]/",
+     ],
+   };
+   ```
+   Note: the `importOrder` above splits parent (`^[.][.]`) and sibling
+   (`^[.]/`) relative imports into separate groups with a blank line, matching
+   eslint's `import/order` group behavior.
+
+3. Decide whether to keep or drop `eslint-plugin-import`:
+   - The prettier plugin also **alphabetizes named specifiers** inside `{}`
+     (e.g. `{ FC, createContext }` → `{ createContext, FC }`). The eslint rule
+     does not enforce this unless `named: true` is set in `alphabetize`.
+   - If you keep both, they may conflict on blank-line placement. Pick one as
+     the source of truth, or configure them to agree.
+   - Recommendation: use the prettier plugin for formatting and remove the
+     eslint `import/order` rule to avoid conflicts.
+
+4. Run `pnpm format` and `pnpm lint:fix` across all packages to normalize.
+
 ### Preserve `.prettierignore` files when updating source
 
 When pulling in new source from upstream, do not overwrite the `.prettierignore`
