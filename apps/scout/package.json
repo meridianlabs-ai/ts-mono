@@ -109,7 +109,7 @@
     "mathjax-full": "^3.2.2",
     "prismjs": "^1.30.0",
     "react-popper": "^2.3.0",
-    "react-router-dom": "^7.9.4",
+    "react-router-dom": "^7.11.0",
     "react-virtuoso": "^4.17.0",
     "zustand": "^5.0.9"
   }
