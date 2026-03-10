@@ -24,17 +24,17 @@ import {
 } from "./debugging/navigationDebugging";
 import { useWindowMessaging } from "./hooks/useWindowMessaging";
 import {
+  isValidScanPath,
+  kProjectRouteUrlPattern,
+  kScanRouteUrlPattern,
   kScansRootRouteUrlPattern,
   kScansRouteUrlPattern,
   kScansWithPathRouteUrlPattern,
-  kScanRouteUrlPattern,
-  isValidScanPath,
-  parseScanParams,
-  kTranscriptsRouteUrlPattern,
-  kTranscriptDetailRoute,
-  kProjectRouteUrlPattern,
   kTimelineRouteUrlPattern,
+  kTranscriptDetailRoute,
+  kTranscriptsRouteUrlPattern,
   kValidationRouteUrlPattern,
+  parseScanParams,
   scanResultRoute,
   scanRoute,
   scansRoute,

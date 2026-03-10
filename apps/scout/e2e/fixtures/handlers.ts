@@ -65,13 +65,13 @@ export const defaultHandlers = [
 
   http.get("/api/v2/transcripts/:dir/:id/info", () => {
     return HttpResponse.json<TranscriptInfo>(
-      createTranscriptInfo({ transcript_id: "default" }),
+      createTranscriptInfo({ transcript_id: "default" })
     );
   }),
 
   http.get("/api/v2/transcripts/:dir/:id/messages-events", () => {
     return HttpResponse.json<MessagesEventsResponse>(
-      createMessagesEventsResponse(),
+      createMessagesEventsResponse()
     );
   }),
 ];

@@ -7,7 +7,7 @@ import {
 import type { ScalarValue } from "../../../api/api";
 import type { SimpleCondition } from "../../../query/types";
 import type { ColumnFilter, FilterType } from "../../../state/store";
-import type { ExtendedColumnDef, BaseColumnMeta } from "../columnTypes";
+import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 
 /**
  * Props for the shared DataGrid component.

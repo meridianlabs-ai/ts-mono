@@ -2,7 +2,7 @@ import { skipToken } from "@tanstack/react-query";
 import { ColumnTable } from "arquero";
 
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { decodeArrowBytes, AsyncData } from "@tsmono/util";
+import { AsyncData, decodeArrowBytes } from "@tsmono/util";
 
 import { useApi } from "../../state/store";
 import { expandResultsetRows } from "../utils/arrow";

@@ -1,13 +1,13 @@
 import type {
-  OperatorModel,
-  LogicalOperatorModel,
-  ConditionValue,
-  Condition,
-  SimpleCondition,
   CompoundCondition,
+  Condition,
   ConditionBase,
   ConditionModel,
+  ConditionValue,
+  LogicalOperatorModel,
+  OperatorModel,
   ScalarValue,
+  SimpleCondition,
 } from "./types";
 import { isScalarArray, isTuple } from "./types";
 

@@ -1,5 +1,5 @@
 import { ColumnTable } from "arquero";
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ScanResultSummary } from "../types";
 import { parseScanResultSummaries } from "../utils/arrowHelpers";

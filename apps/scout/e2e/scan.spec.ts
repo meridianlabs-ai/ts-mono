@@ -4,7 +4,7 @@ import { encodeBase64Url } from "@tsmono/util";
 
 import type { ScansResponse, Status } from "../src/types/api-types";
 
-import { test, expect } from "./fixtures/app";
+import { expect, test } from "./fixtures/app";
 import {
   createScanRow,
   createScansResponse,

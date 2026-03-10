@@ -5,7 +5,7 @@ import { formatNumber, printObject } from "@tsmono/util";
 import { ApplicationIcons } from "../../components/icons";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
-import { ExtendedColumnDef, BaseColumnMeta } from "../components/columnTypes";
+import { BaseColumnMeta, ExtendedColumnDef } from "../components/columnTypes";
 
 import styles from "./columns.module.css";
 

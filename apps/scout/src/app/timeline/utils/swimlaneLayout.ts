@@ -9,13 +9,13 @@ import { formatPrettyDecimal } from "@tsmono/util";
 
 import type { TimelineSpan } from "../../../components/transcript/timeline";
 
-import { type MarkerDepth, type MarkerKind, collectMarkers } from "./markers";
+import { collectMarkers, type MarkerDepth, type MarkerKind } from "./markers";
 import {
-  type RowSpan,
-  type SwimlaneRow,
   getAgents,
   isParallelSpan,
   isSingleSpan,
+  type RowSpan,
+  type SwimlaneRow,
 } from "./swimlaneRows";
 
 // =============================================================================

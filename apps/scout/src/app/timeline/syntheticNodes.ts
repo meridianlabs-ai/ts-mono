@@ -1,6 +1,6 @@
 import type {
-  TimelineBranch,
   Timeline,
+  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";

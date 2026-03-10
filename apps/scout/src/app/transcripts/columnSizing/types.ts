@@ -1,3 +1,11 @@
+// Import for transcript-specific types
+import { TranscriptInfo } from "../../../types/api-types";
+import {
+  SizingStrategy as GenericSizingStrategy,
+  SizingStrategyContext as GenericSizingStrategyContext,
+} from "../../components/columnSizing";
+import { TranscriptColumn } from "../columns";
+
 /**
  * Column sizing types for TranscriptsGrid.
  * Re-exports shared types and provides transcript-specific type aliases.
@@ -14,14 +22,6 @@ export type {
   ColumnSizeConstraints,
   ColumnSizingStrategyKey,
 } from "../../components/columnSizing";
-
-// Import for transcript-specific types
-import { TranscriptInfo } from "../../../types/api-types";
-import {
-  SizingStrategy as GenericSizingStrategy,
-  SizingStrategyContext as GenericSizingStrategyContext,
-} from "../../components/columnSizing";
-import { TranscriptColumn } from "../columns";
 
 /**
  * Context provided to sizing strategies for computing column sizes.

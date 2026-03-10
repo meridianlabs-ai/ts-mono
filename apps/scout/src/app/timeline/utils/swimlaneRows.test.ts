@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { TimelineSpan } from "../../../components/transcript/timeline";
 import {
+  getScenarioRoot,
+  makeSpan,
   S1_SEQUENTIAL,
   S2_ITERATIVE,
   S3_DEEP,
@@ -9,8 +11,6 @@ import {
   S7_FLAT,
   S8_MANY,
   S10_UTILITY,
-  getScenarioRoot,
-  makeSpan,
   timelineScenarios,
   ts,
 } from "../testHelpers";

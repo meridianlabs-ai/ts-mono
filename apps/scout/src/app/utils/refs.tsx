@@ -7,12 +7,12 @@ import { TranscriptView } from "../../components/transcript/TranscriptView";
 import { scanResultRoute } from "../../router/url";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
-  ScanResultInputData,
   isEventInput,
   isEventsInput,
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
+  ScanResultInputData,
   ScanResultSummary,
 } from "../types";
 

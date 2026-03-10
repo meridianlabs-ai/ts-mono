@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures/app";
+import { expect, test } from "./fixtures/app";
 
 test("activity bar renders with expected items", async ({ page }) => {
   await page.goto("/");

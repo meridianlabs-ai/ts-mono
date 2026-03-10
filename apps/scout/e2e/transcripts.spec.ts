@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 
 import type { TranscriptsResponse } from "../src/types/api-types";
 
-import { test, expect } from "./fixtures/app";
+import { expect, test } from "./fixtures/app";
 import {
   createTranscriptInfo,
   createTranscriptsResponse,
@@ -25,9 +25,9 @@ test("transcripts page renders grid with data", async ({ page, network }) => {
             model: "gpt-4",
             success: false,
           }),
-        ]),
-      ),
-    ),
+        ])
+      )
+    )
   );
 
   await page.goto("/#/transcripts");
@@ -56,8 +56,8 @@ test("transcripts page shows error panel on API failure", async ({
 }) => {
   network.use(
     http.post("*/api/v2/transcripts/:dir", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 }),
-    ),
+      HttpResponse.text("Internal Server Error", { status: 500 })
+    )
   );
 
   await page.goto("/#/transcripts");

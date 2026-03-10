@@ -1,11 +1,11 @@
 import { FC } from "react";
 
 import {
+  ChatMessage,
   ChatMessageAssistant,
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
-  ChatMessage,
 } from "../../types/api-types";
 import { Buckets, ContentRenderer } from "../content/types";
 import { NavPills } from "../NavPills";

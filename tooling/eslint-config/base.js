@@ -13,31 +13,6 @@ export default tseslint.config(
     },
     rules: {
       "import/no-duplicates": "error",
-      "import/order": [
-        "error",
-        {
-          groups: [
-            "builtin",
-            "external",
-            "internal",
-            "parent",
-            "sibling",
-            "index",
-          ],
-          pathGroups: [
-            {
-              pattern: "@tsmono/**",
-              group: "internal",
-            },
-          ],
-          pathGroupsExcludedImportTypes: ["builtin"],
-          "newlines-between": "always",
-          alphabetize: {
-            order: "asc",
-            caseInsensitive: true,
-          },
-        },
-      ],
     },
     settings: {
       "import/resolver": {

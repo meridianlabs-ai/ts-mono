@@ -1,10 +1,10 @@
 import {
+  ColumnSizingState,
   flexRender,
   getCoreRowModel,
   OnChangeFn,
   RowSelectionState,
   SortingState,
-  ColumnSizingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -28,9 +28,9 @@ import { openRouteInNewTab } from "../../../router/url";
 import { FilterType } from "../../../state/store";
 import { ColumnFilterControl } from "../columnFilter";
 import {
-  getCellTitleValue,
-  ExtendedColumnDef,
   BaseColumnMeta,
+  ExtendedColumnDef,
+  getCellTitleValue,
 } from "../columnTypes";
 
 import styles from "./DataGrid.module.css";

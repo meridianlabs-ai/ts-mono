@@ -1,8 +1,8 @@
 import {
   Event,
-  StepEvent,
   SpanBeginEvent,
   SpanEndEvent,
+  StepEvent,
 } from "../../../types/api-types";
 
 import { hasSpans } from "./utils";

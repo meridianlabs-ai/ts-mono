@@ -3,6 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useStore } from "../../../state/store";
 import { TranscriptColumn } from "../columns";
 
 import { useColumnSizing } from "./useColumnSizing";
@@ -22,10 +23,6 @@ vi.mock("../../../state/store", () => ({
     selector(mockStoreState)
   ),
 }));
-
-// Import useStore after mocking - eslint-disable required since mock must be defined first
-// eslint-disable-next-line import/order
-import { useStore } from "../../../state/store";
 
 describe("useColumnSizing", () => {
   const mockColumns: TranscriptColumn[] = [

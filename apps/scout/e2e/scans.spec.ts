@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 
 import type { ScansResponse } from "../src/types/api-types";
 
-import { test, expect } from "./fixtures/app";
+import { expect, test } from "./fixtures/app";
 import { createScanRow, createScansResponse } from "./fixtures/test-data";
 
 test("scans page renders grid with data", async ({ page, network }) => {
@@ -22,9 +22,9 @@ test("scans page renders grid with data", async ({ page, network }) => {
             status: "active",
             total_results: 10,
           }),
-        ]),
-      ),
-    ),
+        ])
+      )
+    )
   );
 
   await page.goto("/#/scans");
@@ -51,8 +51,8 @@ test("scans page shows error panel on API failure", async ({
 }) => {
   network.use(
     http.post("*/api/v2/scans/:dir", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 }),
-    ),
+      HttpResponse.text("Internal Server Error", { status: 500 })
+    )
   );
 
   await page.goto("/#/scans");

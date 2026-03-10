@@ -1,5 +1,5 @@
 import { VscodeTextfield } from "@vscode-elements/react-elements";
-import { FC, useState, useRef, useEffect, useMemo } from "react";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { dirname } from "@tsmono/util";

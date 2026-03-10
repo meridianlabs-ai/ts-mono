@@ -8,7 +8,7 @@ import type {
   TranscriptsResponse,
 } from "../src/types/api-types";
 
-import { test, expect } from "./fixtures/app";
+import { expect, test } from "./fixtures/app";
 import {
   createMessagesEventsResponse,
   createTranscriptInfo,
@@ -32,8 +32,8 @@ test("clicking a transcript row opens the transcript detail panel", async ({
             model: "claude-3",
             date: "2024-01-15T10:30:00Z",
           }),
-        ]),
-      ),
+        ])
+      )
     ),
     http.get("*/api/v2/transcripts/:dir/:id/info", () =>
       HttpResponse.json<TranscriptInfo>(
@@ -42,12 +42,12 @@ test("clicking a transcript row opens the transcript detail panel", async ({
           task_id: "my-task",
           model: "claude-3",
           date: "2024-01-15T10:30:00Z",
-        }),
-      ),
+        })
+      )
     ),
     http.get("*/api/v2/transcripts/:dir/:id/messages-events", () =>
-      HttpResponse.json<MessagesEventsResponse>(createMessagesEventsResponse()),
-    ),
+      HttpResponse.json<MessagesEventsResponse>(createMessagesEventsResponse())
+    )
   );
 
   await page.goto("/#/transcripts");
@@ -64,14 +64,12 @@ test("transcript panel shows error state when API fails", async ({
 }) => {
   network.use(
     http.get("*/api/v2/transcripts/:dir/:id/info", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 }),
-    ),
+      HttpResponse.text("Internal Server Error", { status: 500 })
+    )
   );
 
   const encodedDir = encodeBase64Url(TRANSCRIPTS_DIR);
-  await page.goto(
-    `/#/transcripts/${encodedDir}/${TRANSCRIPT_ID}`,
-  );
+  await page.goto(`/#/transcripts/${encodedDir}/${TRANSCRIPT_ID}`);
 
   await expect(page.getByText("Error Loading Transcript")).toBeVisible();
 });

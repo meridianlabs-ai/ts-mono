@@ -1,7 +1,4 @@
-import {
-  createNetworkFixture,
-  type NetworkFixture,
-} from "@msw/playwright";
+import { createNetworkFixture, type NetworkFixture } from "@msw/playwright";
 import { test as base } from "@playwright/test";
 
 import { defaultHandlers } from "./handlers";
@@ -73,7 +70,7 @@ export const test = base.extend<AppFixtures>({
       await page.addInitScript(() => {
         globalThis.__TEST_DISABLE_RETRY = true;
       });
-      await use();  
+      await use();
     },
     { auto: false },
   ],

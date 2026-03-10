@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { skipToken } from "@tanstack/react-query";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 

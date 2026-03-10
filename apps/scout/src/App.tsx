@@ -1,4 +1,4 @@
-import { FC, createContext, useMemo } from "react";
+import { createContext, FC, useMemo } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import "prismjs";
@@ -9,6 +9,7 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
 import "./app/App.css";
+
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { AppErrorBoundary } from "./AppErrorBoundary";

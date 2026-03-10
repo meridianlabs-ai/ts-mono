@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, Fragment } from "react";
 
 import styles from "./ToolTitle.module.css";
+
 interface ToolTitleProps {
   title: string;
   description?: string;

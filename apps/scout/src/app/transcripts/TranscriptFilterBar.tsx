@@ -8,8 +8,8 @@ import { FilterBar, type ColumnInfo } from "../components/FilterBar";
 import { useFilterBarHandlers } from "../components/useFilterBarHandlers";
 
 import {
-  COLUMN_LABELS,
   COLUMN_HEADER_TITLES,
+  COLUMN_LABELS,
   DEFAULT_COLUMN_ORDER,
   DEFAULT_VISIBLE_COLUMNS,
   FILTER_COLUMNS,

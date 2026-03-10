@@ -7,9 +7,9 @@ import { TranscriptInfo } from "../../types/api-types";
 import { DataGrid } from "../components/dataGrid";
 
 import {
-  TranscriptColumn,
-  getTranscriptColumns,
   DEFAULT_COLUMN_ORDER,
+  getTranscriptColumns,
+  TranscriptColumn,
 } from "./columns";
 import { useColumnSizing } from "./columnSizing";
 

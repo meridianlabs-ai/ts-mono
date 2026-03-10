@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { formatDateTime, toRelativePath, prettyDirUri } from "@tsmono/util";
+import { formatDateTime, prettyDirUri, toRelativePath } from "@tsmono/util";
 
 import { CopyButton } from "../../components/CopyButton";
 import { ApplicationIcons } from "../../components/icons";

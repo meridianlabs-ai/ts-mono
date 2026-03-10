@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 
 import {
-  eventTypeValues,
   EventTypeValue,
+  eventTypeValues,
 } from "../../../components/transcript/types";
 import { useStore } from "../../../state/store";
 

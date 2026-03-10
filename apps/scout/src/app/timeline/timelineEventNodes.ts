@@ -20,10 +20,10 @@ import type {
 import type { MinimapSelection } from "./components/TimelineMinimap";
 import { parsePathSegment } from "./hooks/useTimeline";
 import {
-  type SwimlaneRow,
   getAgents,
   isParallelSpan,
   isSingleSpan,
+  type SwimlaneRow,
 } from "./utils/swimlaneRows";
 
 // =============================================================================

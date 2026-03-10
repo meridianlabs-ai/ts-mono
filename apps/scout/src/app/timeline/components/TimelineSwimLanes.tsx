@@ -11,10 +11,10 @@ import type {
 } from "../../../components/transcript/timeline";
 import { useProperty } from "../../../state/hooks/useProperty";
 import {
-  type BreadcrumbSegment,
   createBranchSpan,
   findBranchesByForkedAt,
   parsePathSegment,
+  type BreadcrumbSegment,
 } from "../hooks/useTimeline";
 import type {
   PositionedMarker,

@@ -11,11 +11,11 @@ import type {
   ToolEvent,
 } from "../../../types/api-types";
 import {
-  S11A_BRANCHES,
-  S5_MARKERS,
-  S7_FLAT,
   getScenarioRoot,
   makeSpan,
+  S5_MARKERS,
+  S7_FLAT,
+  S11A_BRANCHES,
   ts,
 } from "../testHelpers";
 

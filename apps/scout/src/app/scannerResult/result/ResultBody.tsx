@@ -13,13 +13,13 @@ import {
   ColumnHeaderButton,
 } from "../../components/ColumnHeader";
 import {
-  ScanResultInputData,
   isEventInput,
   isEventsInput,
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
   ScanResultData,
+  ScanResultInputData,
 } from "../../types";
 
 import styles from "./ResultBody.module.css";

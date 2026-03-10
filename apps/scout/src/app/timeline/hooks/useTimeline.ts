@@ -15,9 +15,9 @@ import type {
   TimelineSpan,
 } from "../../../components/transcript/timeline";
 import {
-  type SwimlaneRow,
   compareByTime,
   computeSwimlaneRows,
+  type SwimlaneRow,
 } from "../utils/swimlaneRows";
 
 // =============================================================================

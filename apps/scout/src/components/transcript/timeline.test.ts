@@ -12,11 +12,11 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "../../types/api-types";
 
 import {
+  buildTimeline,
   TimelineBranch,
-  type Timeline,
   TimelineEvent,
   TimelineSpan,
-  buildTimeline,
+  type Timeline,
 } from "./timeline";
 
 // =============================================================================

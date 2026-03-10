@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { type PropsWithChildren, createElement } from "react";
+import { createElement, type PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import type { TimelineSpan } from "../../../components/transcript/timeline";
 import {
+  getTimeline,
   S1_SEQUENTIAL,
   S2_ITERATIVE,
   S3_DEEP,
   S4_PARALLEL,
   S7_FLAT,
   S11A_BRANCHES,
-  getTimeline,
 } from "../testHelpers";
 import { isParallelSpan, isSingleSpan } from "../utils/swimlaneRows";
 

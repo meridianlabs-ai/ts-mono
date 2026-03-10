@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getScenarioRoot,
+  makeSpan,
   S1_SEQUENTIAL,
   S2_ITERATIVE,
   S4_PARALLEL,
   S5_MARKERS,
   S7_FLAT,
   S8_MANY,
-  getScenarioRoot,
-  makeSpan,
   ts,
 } from "../testHelpers";
 

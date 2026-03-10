@@ -1,3 +1,4 @@
+import { sortingStateToOrderBy } from ".";
 import { keepPreviousData } from "@tanstack/react-query";
 import { SortingState } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -8,8 +9,6 @@ import { AsyncData } from "@tsmono/util";
 import { Condition } from "../../query";
 import { useApi } from "../../state/store";
 import { TranscriptsResponse } from "../../types/api-types";
-
-import { sortingStateToOrderBy } from ".";
 
 export const useServerTranscripts = (
   location: string,

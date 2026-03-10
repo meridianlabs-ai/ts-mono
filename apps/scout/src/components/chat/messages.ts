@@ -1,4 +1,5 @@
 import {
+  ChatMessage,
   ChatMessageAssistant,
   ChatMessageSystem,
   ChatMessageTool,
@@ -12,7 +13,6 @@ import {
   ContentToolUse,
   ContentVideo,
   Event,
-  ChatMessage,
 } from "../../types/api-types";
 import { ApplicationIcons } from "../icons";
 

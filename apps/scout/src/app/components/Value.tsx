@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
-import { printArray, formatPrettyDecimal, printObject } from "@tsmono/util";
+import { formatPrettyDecimal, printArray, printObject } from "@tsmono/util";
 
 import { RecordTree } from "../../components/content/RecordTree";
 import {
@@ -9,13 +9,13 @@ import {
   MarkdownReference,
 } from "../../components/MarkdownDivWithReferences";
 import {
-  ScanResultSummary,
-  isStringValue,
-  isNumberValue,
+  isArrayValue,
   isBooleanValue,
   isNullValue,
-  isArrayValue,
+  isNumberValue,
   isObjectValue,
+  isStringValue,
+  ScanResultSummary,
 } from "../types";
 
 import styles from "./Value.module.css";

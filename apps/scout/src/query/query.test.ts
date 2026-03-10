@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ConditionModel } from "./types";
-
 import { transcriptColumns } from "./index";
+import type { ConditionModel } from "./types";
 
 describe("Column comparisons", () => {
   it("eq with scalar", () => {

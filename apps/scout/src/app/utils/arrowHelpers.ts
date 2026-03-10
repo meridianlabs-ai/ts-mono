@@ -1,6 +1,6 @@
 import { ColumnTable } from "arquero";
 
-import { isJson, asyncJsonParse } from "@tsmono/util";
+import { asyncJsonParse, isJson } from "@tsmono/util";
 
 import { Event, JsonValue, ModelUsage } from "../../types/api-types";
 import {
