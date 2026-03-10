@@ -16,7 +16,6 @@ import { ChatViewVirtualList } from "../../components/chat/ChatViewVirtualList";
 import { DisplayModeContext } from "../../components/content/DisplayModeContext";
 import { MetaDataGrid } from "../../components/content/MetaDataGrid";
 import { ApplicationIcons } from "../../components/icons";
-import { StickyScroll } from "../../components/StickyScroll";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import { ToolButton } from "../../components/ToolButton";
 import { ToolDropdownButton } from "../../components/ToolDropdownButton";
@@ -37,6 +36,7 @@ import { ValidationCaseEditor } from "../validation/components/ValidationCaseEdi
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
+import { StickyScroll } from "@tsmono/react/components";
 
 export const kTranscriptMessagesTabId = "transcript-messages";
 export const kTranscriptEventsTabId = "transcript-events";
