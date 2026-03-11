@@ -5,23 +5,21 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "lib/**"]
     },
-    "lint": {
-      "dependsOn": ["^build"]
-    },
-    "typecheck": {
-      "dependsOn": ["^build"]
-    },
+    "lint": {},
+    "typecheck": {},
     "format": {},
     "format:check": {},
     "check": {
       "dependsOn": ["lint", "typecheck", "format:check"]
     },
     "test": {
+      "cache": false
+    },
+    "dev": {
       "cache": false,
-      "dependsOn": ["^build"]
+      "persistent": true
     },
     "storybook:build": {
-      "dependsOn": ["^build"],
       "outputs": ["storybook-static/**"]
     }
   }

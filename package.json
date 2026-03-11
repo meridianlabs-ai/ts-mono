@@ -15,7 +15,8 @@
     "manypkg:fix": "manypkg fix",
     "test": "turbo run test",
     "format": "turbo run format",
-    "format:check": "turbo run format:check"
+    "format:check": "turbo run format:check",
+    "dev": "turbo run dev"
   },
   "//": "manypkg requires root deps in 'dependencies', not 'devDependencies'. The root is private and never published, so the distinction is meaningless here — it's a consistency convention.",
   "dependencies": {
