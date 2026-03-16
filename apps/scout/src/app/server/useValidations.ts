@@ -1,9 +1,8 @@
 import { skipToken, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
+import { ApiError, AsyncData } from "@tsmono/util";
 
-import { ApiError } from "../../api/request";
 import { useApi } from "../../state/store";
 import {
   CreateValidationSetRequest,

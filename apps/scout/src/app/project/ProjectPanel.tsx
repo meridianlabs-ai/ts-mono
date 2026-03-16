@@ -7,8 +7,8 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router-dom";
 
 import { useDocumentTitle } from "@tsmono/react/hooks";
+import { ApiError } from "@tsmono/util";
 
-import { ApiError } from "../../api/request";
 import { Modal } from "../../components/Modal";
 import { AppConfig, ProjectConfigInput } from "../../types/api-types";
 import { appAliasedPath } from "../server/useAppConfig";
@@ -16,7 +16,6 @@ import {
   useProjectConfig,
   useUpdateProjectConfig,
 } from "../server/useProjectConfig";
-
 import {
   computeConfigToSave,
   configsEqual,
