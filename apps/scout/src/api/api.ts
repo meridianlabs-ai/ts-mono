@@ -1,6 +1,5 @@
 import { StateStorage } from "zustand/middleware";
 
-import { ScanResultInputData } from "../app/types";
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
@@ -11,6 +10,7 @@ import {
   ProjectConfig,
   ProjectConfigInput,
   ScanJobConfig,
+  ScannerInput,
   ScannersResponse,
   ScansResponse,
   Status,
@@ -64,7 +64,7 @@ export interface ScoutApiV2 {
     scanPath: string,
     scanner: string,
     uuid: string
-  ): Promise<ScanResultInputData>;
+  ): Promise<ScannerInput>;
   getActiveScans(): Promise<ActiveScansResponse>;
   postCode(condition: Condition): Promise<Record<string, string>>;
   getProjectConfig(): Promise<{ config: ProjectConfig; etag: string }>;
@@ -91,6 +91,8 @@ export interface ScoutApiV2 {
   deleteValidationCase(uri: string, caseId: string): Promise<void>;
   deleteValidationSet(uri: string): Promise<void>;
   renameValidationSet(uri: string, newName: string): Promise<string>;
+
+  downloadScan?(scansDir: string, scanPath: string): Promise<Blob>;
 
   storage: ClientStorage;
   capability: "scans" | "workbench";

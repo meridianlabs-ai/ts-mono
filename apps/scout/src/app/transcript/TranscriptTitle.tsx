@@ -1,8 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { formatDateTime, formatNumber, formatTime } from "@tsmono/util";
+import {
+  formatDateTime,
+  formatNumber,
+  formatTime,
+  isRecord,
+} from "@tsmono/util";
 
+import { CopyButton } from "../../components/CopyButton";
 import { Transcript } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
 import { ScoreValue } from "../components/ScoreValue";
@@ -14,10 +20,25 @@ interface TranscriptTitleProps {
   transcript: Transcript;
 }
 
+const labelClassName = clsx(
+  "text-style-label",
+  "text-size-smallestest",
+  "text-style-secondary"
+);
+const valueClassName = clsx("text-size-small");
+
 export const TranscriptTitle: FC<TranscriptTitleProps> = ({ transcript }) => {
   const cols: HeadingValue[] = [
     {
-      label: "Transcript",
+      label: (
+        <>
+          Transcript —{" "}
+          <span className={styles.transcriptId}>
+            {transcript.transcript_id}
+          </span>
+          <CopyButton value={transcript.transcript_id} />
+        </>
+      ),
       value: (
         <TaskName
           taskId={transcript.task_id}
@@ -84,7 +105,11 @@ export const TranscriptTitle: FC<TranscriptTitleProps> = ({ transcript }) => {
     });
   }
 
-  if (transcript.score) {
+  // Tabular scores (objects/dicts) get their own column on the right;
+  // simple scores (strings, numbers, arrays) go inline with other headings.
+  const tabularScore = transcript.score != null && isRecord(transcript.score);
+
+  if (transcript.score != null && !tabularScore) {
     cols.push({
       label: "Score",
       value: <ScoreValue score={transcript.score} />,
@@ -92,15 +117,26 @@ export const TranscriptTitle: FC<TranscriptTitleProps> = ({ transcript }) => {
   }
 
   return (
-    <HeadingGrid
-      headings={cols}
-      className={clsx(styles.titleContainer)}
-      labelClassName={clsx(
-        "text-style-label",
-        "text-size-smallestest",
-        "text-style-secondary"
+    <div
+      className={clsx(
+        styles.titleContainer,
+        tabularScore && styles.titleWithScore
       )}
-      valueClassName={clsx("text-size-small")}
-    />
+    >
+      <HeadingGrid
+        headings={cols}
+        className={tabularScore ? styles.metadataRegion : undefined}
+        labelClassName={labelClassName}
+        valueClassName={valueClassName}
+      />
+      {transcript.score != null && tabularScore && (
+        <div className={styles.scoreRegion}>
+          <span className={labelClassName}>Score</span>
+          <span className={valueClassName}>
+            <ScoreValue score={transcript.score} maxRows={5} />
+          </span>
+        </div>
+      )}
+    </div>
   );
 };

@@ -2,6 +2,7 @@
   --bs-border-radius: 3px;
   --bs-border-radius-lg: 4px;
   --bs-popover-max-width: 50%;
+  --bs-code-color: #8b0000;
   --inspect-find-background: var(--bs-body-bg);
   --inspect-find-foreground: var(--bs-body-color);
   --inspect-input-background: var(--bs-body-bg);
@@ -438,6 +439,7 @@ body[class^="vscode-"] .accordion-button::after {
 }
 
 .copy-button i.bi,
+.download-scan-button i.bi,
 body[class^="vscode-"] .navbar-text i.bi {
   color: var(--vscode-editor-foreground);
 }
@@ -705,6 +707,10 @@ body {
   width: 100%;
   text-align: center;
   padding-top: 10em;
+}
+
+pre > code {
+  color: var(--bs-body-color);
 }
 
 code:not(.sourceCode):not(.source-code):not([class^="language-"]) {
@@ -1009,12 +1015,14 @@ table.table.table-sm td {
   overflow: unset;
 }
 
+pre[class*="language-"],
 .markdown-content pre[class*="language-"],
 pre[class*="language-"].tool-output,
 .tool-output {
   background-color: #f8f8f8;
 }
 
+.vscode-dark pre[class*="language-"],
 .vscode-dark .model-call pre[class*="language-"],
 .vscode-dark .markdown-content pre[class*="language-"],
 .vscode-dark pre[class*="language-"].tool-output,

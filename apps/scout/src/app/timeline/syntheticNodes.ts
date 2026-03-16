@@ -41,6 +41,7 @@ const NULL_CONFIG: ModelEvent["config"] = {
   logit_bias: null,
   logprobs: null,
   max_connections: null,
+  modalities: null,
   max_retries: null,
   max_tokens: null,
   max_tool_output: null,
@@ -78,6 +79,7 @@ function makeModelEventNode(
     event: "model",
     model: "claude-sonnet-4-5-20250929",
     input: [],
+    input_refs: null,
     tools: [],
     tool_choice: "auto",
     config: NULL_CONFIG,
@@ -134,6 +136,7 @@ function makeModelEventNode(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: tokens,
+    idleTime: 0,
   };
 }
 
@@ -175,6 +178,7 @@ function makeToolEventNode(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: tokens,
+    idleTime: 0,
   };
 }
 
@@ -216,6 +220,7 @@ function makeToolErrorEventNode(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: tokens,
+    idleTime: 0,
   };
 }
 
@@ -230,6 +235,7 @@ function makeModelErrorEventNode(
     event: "model",
     model: "claude-sonnet-4-5-20250929",
     input: [],
+    input_refs: null,
     tools: [],
     tool_choice: "auto",
     config: NULL_CONFIG,
@@ -272,6 +278,7 @@ function makeModelErrorEventNode(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: tokens,
+    idleTime: 0,
   };
 }
 
@@ -300,6 +307,7 @@ function makeCompactionEventNode(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: 0,
+    idleTime: 0,
   };
 }
 
@@ -333,6 +341,7 @@ function makeSpan(
     startTime: ts(BASE, startSec),
     endTime: ts(BASE, endSec),
     totalTokens: tokens,
+    idleTime: 0,
   };
 }
 
@@ -356,6 +365,7 @@ function makeTimeline(
         content: newContent,
         endTime,
         totalTokens: root.totalTokens + scoring.totalTokens,
+        idleTime: 0,
       },
     };
   }
@@ -1451,6 +1461,7 @@ function branchesSingleFork(): TimelineScenario {
     startTime: ts(BASE, 15),
     endTime: ts(BASE, 28),
     totalTokens: 8700,
+    idleTime: 0,
   };
 
   const branch2Rewrite = makeSpan(
@@ -1486,6 +1497,7 @@ function branchesSingleFork(): TimelineScenario {
     startTime: ts(BASE, 15),
     endTime: ts(BASE, 25),
     totalTokens: 5100,
+    idleTime: 0,
   };
 
   const code = makeSpan("code", "Code", "agent", 2, 24, 15200, [
@@ -1606,6 +1618,7 @@ function branchesMultipleForks(): TimelineScenario {
     startTime: ts(BASE, 8),
     endTime: ts(BASE, 14),
     totalTokens: 4200,
+    idleTime: 0,
   };
 
   const lateRetry = makeSpan("late-retry", "Retry", "agent", 30, 38, 3800, [
@@ -1628,6 +1641,7 @@ function branchesMultipleForks(): TimelineScenario {
     startTime: ts(BASE, 30),
     endTime: ts(BASE, 38),
     totalTokens: 3800,
+    idleTime: 0,
   };
 
   const lateAlt = makeSpan("late-alt", "Alternative", "agent", 30, 42, 6100, [
@@ -1663,6 +1677,7 @@ function branchesMultipleForks(): TimelineScenario {
     startTime: ts(BASE, 30),
     endTime: ts(BASE, 42),
     totalTokens: 6100,
+    idleTime: 0,
   };
 
   const code = makeSpan("code", "Code", "agent", 2, 28, 15200, [

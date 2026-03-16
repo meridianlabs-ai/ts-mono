@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 import { FC, useState } from "react";
 
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ActiveScanView } from "./ActiveScanView";
 import { DefineScannerSection } from "./DefineScannerSection";

@@ -4,7 +4,7 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { useApi } from "../../state/store";
-import { ScanResultInputData } from "../types";
+import { ScannerInput } from "../../types/api-types";
 
 type ScanDataframeInputParams = {
   scansDir: string;
@@ -15,7 +15,7 @@ type ScanDataframeInputParams = {
 
 export const useScanDataframeInput = (
   params: ScanDataframeInputParams | typeof skipToken
-): AsyncData<ScanResultInputData> => {
+): AsyncData<ScannerInput> => {
   const api = useApi();
 
   return useAsyncDataFromQuery({

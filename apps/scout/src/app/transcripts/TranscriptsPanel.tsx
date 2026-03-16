@@ -2,9 +2,10 @@ import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo } from "react";
 
+import { useDocumentTitle } from "@tsmono/react/hooks";
+
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { LoadingBar } from "../../components/LoadingBar";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useStore } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import { Footer } from "../components/Footer";

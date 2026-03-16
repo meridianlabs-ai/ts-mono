@@ -4,6 +4,7 @@ import { FC, useMemo } from "react";
 import {
   ContentAudio,
   ContentData,
+  ContentDocument,
   ContentImage,
   ContentReasoning,
   ContentText,
@@ -11,8 +12,9 @@ import {
   ToolCallContent,
 } from "../../../types/api-types";
 import ExpandablePanel from "../../ExpandablePanel";
+import { MarkdownDiv } from "../../MarkdownDiv";
 import { MessageContent } from "../MessageContent";
-import { defaultContext } from "../MessageContents";
+import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
 import { getCustomToolView } from "./customToolRendering";
@@ -39,6 +41,7 @@ export interface ToolCallViewProps {
     | ContentTool
     | ContentReasoning
     | ContentData
+    | ContentDocument
     | (
         | ContentText
         | ContentAudio
@@ -47,6 +50,7 @@ export interface ToolCallViewProps {
         | ContentTool
         | ContentReasoning
         | ContentData
+        | ContentDocument
       )[];
   mode?: "compact";
   collapsible?: boolean;
@@ -80,6 +84,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       | ContentTool
       | ContentReasoning
       | ContentData
+      | ContentDocument
   ) {
     if (value && typeof value === "object") {
       if (value.type === "image") {
@@ -145,17 +150,35 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         ) : (
           ""
         )}
-        <ToolInput
-          contentType={contentType}
-          contents={contents}
-          toolCallView={view}
-        />
-      </div>
-      {hasContent && collapsible ? (
         <ExpandablePanel
           id={`${id}-tool-input`}
+          collapse={true}
+          border={false}
+          lines={20}
+          className={clsx("text-size-small")}
+        >
+          <ToolInput
+            contentType={contentType}
+            contents={contents}
+            toolCallView={view}
+          />
+        </ExpandablePanel>
+      </div>
+      {contentType === "markdown" && hasContent ? (
+        <ExpandablePanel
+          id={`${id}-tool-content`}
           collapse={collapse}
-          border={true}
+          border={false}
+          lines={15}
+          className={clsx("text-size-small")}
+        >
+          <MarkdownToolOutput contents={normalizedContent} context={context} />
+        </ExpandablePanel>
+      ) : hasContent && collapsible ? (
+        <ExpandablePanel
+          id={`${id}-tool-content`}
+          collapse={collapse}
+          border={false}
           lines={15}
           className={clsx("text-size-small")}
         >
@@ -171,6 +194,45 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
 /**
  * Renders the ToolCallView component.
  */
+type NormalizedContentItem =
+  | ContentText
+  | ContentImage
+  | ContentAudio
+  | ContentVideo
+  | ContentTool
+  | ContentReasoning
+  | ContentData
+  | ContentDocument;
+
+/**
+ * Renders tool output with text as markdown, passing non-text content
+ * (e.g. images) through MessageContent for normal rendering.
+ */
+const MarkdownToolOutput: FC<{
+  contents: NormalizedContentItem[];
+  context: MessagesContext;
+}> = ({ contents, context }) => {
+  // Flatten tool wrapper to get inner content items
+  const items = contents.flatMap((c) => (c.type === "tool" ? c.content : [c]));
+
+  return (
+    <>
+      {items.map((item, i) => {
+        if (item.type === "text" && item.text) {
+          return <MarkdownDiv key={`md-${i}`} markdown={item.text} />;
+        }
+        return (
+          <MessageContent
+            key={`content-${i}`}
+            contents={[item] as NormalizedContentItem[]}
+            context={context}
+          />
+        );
+      })}
+    </>
+  );
+};
+
 const normalizeContent = (
   output:
     | string
@@ -183,6 +245,7 @@ const normalizeContent = (
     | ContentTool
     | ContentReasoning
     | ContentData
+    | ContentDocument
     | (
         | ContentText
         | ContentImage
@@ -191,6 +254,7 @@ const normalizeContent = (
         | ContentTool
         | ContentReasoning
         | ContentData
+        | ContentDocument
       )[]
 ): (
   | ContentText
@@ -200,6 +264,7 @@ const normalizeContent = (
   | ContentTool
   | ContentReasoning
   | ContentData
+  | ContentDocument
 )[] => {
   if (Array.isArray(output)) {
     return output;

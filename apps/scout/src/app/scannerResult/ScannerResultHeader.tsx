@@ -6,6 +6,7 @@ import {
   AppConfig,
   ChatMessage,
   Event,
+  ScannerInput,
   Status,
   Transcript,
 } from "../../types/api-types";
@@ -18,14 +19,13 @@ import {
   isMessagesInput,
   isTranscriptInput,
   MessageType,
-  ScanResultInputData,
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
 
 interface ScannerResultHeaderProps {
   scan?: Status;
-  inputData?: ScanResultInputData;
+  inputData?: ScannerInput;
   appConfig: AppConfig;
 }
 
@@ -93,7 +93,7 @@ const classForCols = (numCols: number) => {
 
 const colsForResult: (
   appConfig: AppConfig,
-  inputData?: ScanResultInputData,
+  inputData?: ScannerInput,
   status?: Status
 ) => Column[] | undefined = (appConfig, inputData, status) => {
   if (!inputData) {

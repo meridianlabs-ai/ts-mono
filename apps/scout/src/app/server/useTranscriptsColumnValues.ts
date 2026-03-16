@@ -20,7 +20,9 @@ export const useTranscriptsColumnValues = (
 
   return useAsyncDataFromQuery({
     queryKey:
-      params === skipToken ? [skipToken] : ["transcriptsColumnValues", params],
+      params === skipToken
+        ? [skipToken]
+        : ["transcripts-inv", "columnValues", params],
     queryFn:
       params === skipToken
         ? skipToken

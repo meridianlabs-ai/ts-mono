@@ -149,10 +149,6 @@ export const useVirtuosoState = (
     useCallback((state) => state.setListPosition, [])
   );
 
-  const clearListPosition = useStore(
-    useCallback((state) => state.clearListPosition, [])
-  );
-
   // Properly type the debounced function ref
   const debouncedFnRef = useRef<DebouncedFunction<
     (isScrolling: boolean) => void
@@ -178,11 +174,8 @@ export const useVirtuosoState = (
       element.getState(handleStateChange);
     }, delay) as DebouncedFunction<(isScrolling: boolean) => void>;
 
-    return () => {
-      // Clear the stored position when component unmounts
-      clearListPosition(elementKey);
-    };
-  }, [delay, elementKey, handleStateChange, clearListPosition, virtuosoRef]);
+    return undefined;
+  }, [delay, elementKey, handleStateChange, virtuosoRef]);
 
   // Return a stable function reference that uses the ref internally
   const isScrolling = useCallback((scrolling: boolean) => {
@@ -207,7 +200,7 @@ export const useVirtuosoState = (
   const setVisibleRangeRaw = useStore((state) => state.setVisibleRange);
 
   const setVisibleRange = useCallback(
-    (value: { startIndex: number; endIndex: number }) => {
+    (value: { startIndex: number; endIndex: number; totalCount: number }) => {
       setVisibleRangeRaw(elementKey, value);
     },
     [setVisibleRangeRaw, elementKey]
