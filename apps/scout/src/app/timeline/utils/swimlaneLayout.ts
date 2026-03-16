@@ -77,6 +77,8 @@ export interface RowLayout {
   totalTokens: number;
   /** Parallel agent count for label display, or null if not parallel. */
   parallelCount: number | null;
+  /** True when this row represents a timeline branch. */
+  branch?: boolean;
 }
 
 // =============================================================================
@@ -234,6 +236,7 @@ export function computeRowLayouts(
       markers,
       totalTokens: row.totalTokens,
       parallelCount: rowParallelCount,
+      branch: row.branch,
     };
   });
 }

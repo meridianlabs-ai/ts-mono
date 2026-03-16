@@ -10,6 +10,7 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
+  createBranchSpan,
   type Timeline,
   type TimelineBranch,
   type TimelineSpan,
@@ -18,6 +19,9 @@ import {
   computeFlatSwimlaneRows,
   type SwimlaneRow,
 } from "../utils/swimlaneRows";
+
+// Re-export so existing consumers don't break.
+export { createBranchSpan };
 
 // =============================================================================
 // Query Parameter Constants
@@ -84,50 +88,6 @@ export function findBranchesByForkedAt(
   return null;
 }
 
-/**
- * Creates a TimelineSpan for a branch's content (informational display).
- *
- * If the branch has exactly one child span, returns that span directly
- * (with a ↳ prefix on its name). Otherwise creates a synthetic container.
- */
-export function createBranchSpan(
-  branch: TimelineBranch,
-  index: number
-): TimelineSpan {
-  const label = deriveBranchLabel(branch, index);
-
-  const childSpans = branch.content.filter(
-    (item): item is TimelineSpan => item.type === "span"
-  );
-  if (childSpans.length === 1) {
-    return {
-      ...childSpans[0]!,
-      name: `\u21B3 ${childSpans[0]!.name}`,
-    };
-  }
-
-  return {
-    type: "span",
-    id: `branch-${branch.forkedAt}-${index}`,
-    name: `\u21B3 ${label}`,
-    spanType: "branch",
-    content: branch.content,
-    branches: [],
-    utility: false,
-    startTime: branch.startTime,
-    endTime: branch.endTime,
-    totalTokens: branch.totalTokens,
-    idleTime: branch.idleTime,
-  };
-}
-
-function deriveBranchLabel(branch: TimelineBranch, index: number): string {
-  for (const item of branch.content) {
-    if (item.type === "span") return item.name;
-  }
-  return `Branch ${index}`;
-}
-
 // =============================================================================
 // Hook
 // =============================================================================
@@ -141,6 +101,8 @@ function deriveBranchLabel(branch: TimelineBranch, index: number): string {
 export interface TimelineOptions {
   /** Include utility agents in the swimlane rows. Default: false. */
   includeUtility?: boolean;
+  /** Show branches as swimlane rows. Default: false. */
+  showBranches?: boolean;
 }
 
 export function useTimeline(
@@ -149,16 +111,24 @@ export function useTimeline(
 ): TimelineState {
   const [searchParams, setSearchParams] = useSearchParams();
   const includeUtility = options?.includeUtility ?? false;
+  const showBranchesOption = options?.showBranches ?? false;
 
   const selectedParam = searchParams.get(kSelectedParam) ?? null;
+
+  // Force branches on when the URL selection references a branch row,
+  // so that reloading a page with a branch selected works even if the
+  // persistent showBranches preference is off.
+  const showBranches =
+    showBranchesOption ||
+    (selectedParam !== null && /\/branch-/.test(selectedParam));
 
   // Always use the root node
   const node = timeline.root;
 
   // Compute flat swimlane rows for the entire tree
   const rows = useMemo(
-    () => computeFlatSwimlaneRows(node, { includeUtility }),
-    [node, includeUtility]
+    () => computeFlatSwimlaneRows(node, { includeUtility, showBranches }),
+    [node, includeUtility, showBranches]
   );
 
   // Default selection: explicit param > root row key.

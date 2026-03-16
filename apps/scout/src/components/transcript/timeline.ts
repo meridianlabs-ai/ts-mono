@@ -95,6 +95,53 @@ export interface TimelineBranch extends TimelineNode {
   content: (TimelineEvent | TimelineSpan)[];
 }
 
+// =============================================================================
+// Branch → Span Conversion
+// =============================================================================
+
+/**
+ * Creates a TimelineSpan for a branch's content.
+ *
+ * If the branch has exactly one child span, returns that span directly.
+ * Otherwise creates a synthetic container. The returned span's name is
+ * clean (no arrow prefix) — callers that need a display prefix (e.g. the
+ * swimlane row label) should add it themselves.
+ */
+export function createBranchSpan(
+  branch: TimelineBranch,
+  index: number
+): TimelineSpan {
+  const label = deriveBranchLabel(branch, index);
+
+  const childSpans = branch.content.filter(
+    (item): item is TimelineSpan => item.type === "span"
+  );
+  if (childSpans.length === 1) {
+    return { ...childSpans[0]! };
+  }
+
+  return {
+    type: "span",
+    id: `branch-${branch.forkedAt}-${index}`,
+    name: label,
+    spanType: "branch",
+    content: branch.content,
+    branches: [],
+    utility: false,
+    startTime: branch.startTime,
+    endTime: branch.endTime,
+    totalTokens: branch.totalTokens,
+    idleTime: branch.idleTime,
+  };
+}
+
+function deriveBranchLabel(branch: TimelineBranch, index: number): string {
+  for (const item of branch.content) {
+    if (item.type === "span") return item.name;
+  }
+  return `Branch ${index}`;
+}
+
 /**
  * A node in an agent's outline, referencing an event by UUID.
  */

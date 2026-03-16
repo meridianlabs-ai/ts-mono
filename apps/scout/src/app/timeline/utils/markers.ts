@@ -192,35 +192,21 @@ function addEventMarker(
 /**
  * Collects branch markers from a span's branches.
  *
- * Groups branches by forkedAt UUID so a single marker represents all branches
- * at a fork point. Resolves each forkedAt to a timestamp by searching the
- * span's content. Fork points with unresolvable forkedAt are silently dropped.
+ * Emits one marker per branch, positioned at the branch's start time so that
+ * markers align with branch swimlane bars. Clicking a branch marker toggles
+ * the showBranches display option.
  */
 function collectBranchMarkers(
   node: TimelineSpan,
   markers: TimelineMarker[]
 ): void {
-  // Group branches by forkedAt UUID
-  const groups = new Map<string, TimelineBranch[]>();
   for (const branch of node.branches) {
-    const existing = groups.get(branch.forkedAt);
-    if (existing) {
-      existing.push(branch);
-    } else {
-      groups.set(branch.forkedAt, [branch]);
-    }
-  }
-
-  for (const [forkedAt, branches] of groups) {
-    const timestamp = resolveForkedAtTimestamp(node, forkedAt);
-    if (timestamp) {
-      markers.push({
-        kind: "branch",
-        timestamp,
-        reference: forkedAt,
-        tooltip: branchTooltip(branches),
-      });
-    }
+    markers.push({
+      kind: "branch",
+      timestamp: branch.startTime,
+      reference: branch.forkedAt,
+      tooltip: branchTooltip([branch]),
+    });
   }
 }
 
@@ -245,22 +231,4 @@ function branchTooltip(branches: TimelineBranch[]): string {
  */
 function formatCompactTokens(tokens: number): string {
   return `${formatTokenCount(tokens)} tokens`;
-}
-
-/**
- * Resolves a forkedAt UUID to a timestamp by searching for the matching
- * event in the span's content.
- */
-function resolveForkedAtTimestamp(
-  node: TimelineSpan,
-  forkedAt: string
-): Date | null {
-  if (!forkedAt) return null;
-
-  for (const item of node.content) {
-    if (item.type === "event" && item.event.uuid === forkedAt) {
-      return item.startTime;
-    }
-  }
-  return null;
 }
