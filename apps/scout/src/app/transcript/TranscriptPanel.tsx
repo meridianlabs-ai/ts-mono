@@ -20,6 +20,7 @@ import { useTranscript } from "../server/useTranscript";
 import { TRANSCRIPTS_INFINITE_SCROLL_CONFIG } from "../transcripts/constants";
 import { getTranscriptDisplayName } from "../utils/transcript";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
+
 import { TranscriptBody } from "./TranscriptBody";
 import { TranscriptNav } from "./TranscriptNav";
 import styles from "./TranscriptPanel.module.css";
