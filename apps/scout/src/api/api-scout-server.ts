@@ -2,7 +2,6 @@ import { decompress as decompressZstd } from "fzstd";
 
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
-import { Input, InputType, ScanResultInputData } from "../app/types";
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
@@ -14,6 +13,8 @@ import {
   ProjectConfigInput,
   RawEncoding,
   ScanJobConfig,
+  ScannerInput,
+  ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
   Status,
@@ -26,6 +27,7 @@ import {
 
 import { NoPersistence, ScalarValue, ScoutApiV2, TopicVersions } from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
+import { expandInputEvents } from "./expandInputEvents";
 import { serverRequestApi } from "./request";
 
 export type HeaderProvider = () => Promise<Record<string, string>>;
@@ -184,6 +186,14 @@ export const apiScoutServer = (
 
       return asyncJsonParse<Status>(result.raw);
     },
+    downloadScan: async (scansDir: string, scanPath: string): Promise<Blob> => {
+      const result = await requestApi.fetchBytes(
+        "GET",
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}`,
+        { Accept: "application/zip" }
+      );
+      return new Blob([result.data], { type: "application/zip" });
+    },
 
     getScans: async (
       scansDir: string,
@@ -232,29 +242,23 @@ export const apiScoutServer = (
       scanPath: string,
       scanner: string,
       uuid: string
-    ): Promise<ScanResultInputData> => {
-      // Fetch the data
-      const response = await requestApi.fetchType<Input>(
-        "GET",
-        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/input`
+    ): Promise<ScannerInput> => {
+      const result = await asyncJsonParse<ScannerInputResponse>(
+        (
+          await requestApi.fetchString(
+            "GET",
+            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/input`
+          )
+        ).raw
       );
-      const input = response.parsed;
-
-      // Read header to determine the input type
-      const inputType = response.headers.get("X-Input-Type");
-      if (!inputType) {
-        throw new Error("Missing input type from server");
-      }
-      if (
-        !["transcript", "message", "messages", "event", "events"].includes(
-          inputType
-        )
-      ) {
-        throw new Error(`Unknown input type from server: ${inputType}`);
-      }
-
-      // Return the DataFrameInput
-      return { input, inputType: inputType as InputType };
+      return {
+        input_type: result.input_type,
+        input: expandInputEvents(
+          result.input,
+          result.input_type,
+          result.input_data
+        ),
+      };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
       asyncJsonParse<ActiveScansResponse>(

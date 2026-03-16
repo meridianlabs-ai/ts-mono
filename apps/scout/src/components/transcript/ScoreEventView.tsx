@@ -35,7 +35,6 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
   return (
     <EventPanel
       eventNodeId={eventNode.id}
-      depth={eventNode.depth}
       title={(event.intermediate ? "Intermediate " : "") + "Score"}
       className={clsx(className, "text-size-small")}
       subTitle={

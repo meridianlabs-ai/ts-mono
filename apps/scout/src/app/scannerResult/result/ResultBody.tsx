@@ -5,13 +5,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChatViewVirtualList } from "../../../components/chat/ChatViewVirtualList";
 import { ApplicationIcons } from "../../../components/icons";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
-import { TranscriptView } from "../../../components/transcript/TranscriptView";
 import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";
+import { ScannerInput } from "../../../types/api-types";
 import {
   ColumnHeader,
   ColumnHeaderButton,
 } from "../../components/ColumnHeader";
+import { TimelineEventsView } from "../../timeline/components/TimelineEventsView";
 import {
   isEventInput,
   isEventsInput,
@@ -19,14 +20,13 @@ import {
   isMessagesInput,
   isTranscriptInput,
   ScanResultData,
-  ScanResultInputData,
 } from "../../types";
 
 import styles from "./ResultBody.module.css";
 
 export interface ResultBodyProps {
   resultData: ScanResultData;
-  inputData: ScanResultInputData;
+  inputData: ScannerInput;
   transcriptDir: string;
   hasTranscript: boolean;
 }
@@ -65,7 +65,7 @@ export const ResultBody: FC<ResultBodyProps> = ({
   ) : undefined;
 
   return (
-    <div className={styles.container}>
+    <div className={clsx(styles.container, containerClass(inputData))}>
       <ColumnHeader label="Input" actions={transcriptAction} />
       <div ref={scrollRef} className={clsx(styles.scrollable)}>
         <InputRenderer
@@ -84,12 +84,24 @@ export const ResultBody: FC<ResultBodyProps> = ({
 interface InputRendererProps {
   className?: string | string[];
   resultData?: ScanResultData;
-  inputData: ScanResultInputData;
-  scrollRef?: React.RefObject<HTMLDivElement | null>;
+  inputData: ScannerInput;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   initialMessageId?: string | null;
   initialEventId?: string | null;
   highlightLabeled?: boolean;
 }
+
+const containerClass = (
+  inputData: ScannerInput
+): string | string[] | undefined => {
+  if (isTranscriptInput(inputData)) {
+    return styles.transcriptInputContainer;
+  } else if (isEventsInput(inputData)) {
+    return styles.eventsInputContainer;
+  } else {
+    return styles.chatInputContainer;
+  }
+};
 
 const InputRenderer: FC<InputRendererProps> = ({
   resultData,
@@ -129,11 +141,12 @@ const InputRenderer: FC<InputRendererProps> = ({
       );
     } else if (inputData.input.events && inputData.input.events.length > 0) {
       return (
-        <TranscriptView
-          id={"scan-input-transcript"}
+        <TimelineEventsView
           events={inputData.input.events}
           scrollRef={scrollRef}
+          id="scan-input-events"
           initialEventId={initialEventId}
+          initialMessageId={initialMessageId}
         />
       );
     } else {
@@ -167,20 +180,24 @@ const InputRenderer: FC<InputRendererProps> = ({
     );
   } else if (isEventsInput(inputData)) {
     return (
-      <TranscriptView
-        id={"scan-input-transcript"}
+      <TimelineEventsView
         events={inputData.input}
         scrollRef={scrollRef}
+        id="scan-input-events"
         initialEventId={initialEventId}
+        initialMessageId={initialMessageId}
+        timeline={false}
       />
     );
   } else if (isEventInput(inputData)) {
     return (
-      <TranscriptView
-        id={"scan-input-transcript"}
+      <TimelineEventsView
         events={[inputData.input]}
         scrollRef={scrollRef}
+        id="scan-input-events"
         initialEventId={initialEventId}
+        initialMessageId={initialMessageId}
+        timeline={false}
       />
     );
   } else {

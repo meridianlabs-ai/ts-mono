@@ -3,10 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useStore } from "../../../state/store";
 import { TranscriptColumn } from "../columns";
-
-import { useColumnSizing } from "./useColumnSizing";
 
 // Mock the store
 const mockSetTableState = vi.fn();
@@ -25,6 +22,14 @@ vi.mock("../../../state/store", () => ({
 }));
 
 describe("useColumnSizing", () => {
+  // Dynamic imports ensure modules resolve against the vi.mock above
+  const loadUseStore = async () =>
+    (await import("../../../state/store")).useStore as unknown as ReturnType<
+      typeof vi.fn
+    >;
+  const loadUseColumnSizing = async () =>
+    (await import("./useColumnSizing")).useColumnSizing;
+
   const mockColumns: TranscriptColumn[] = [
     {
       accessorKey: "col1",
@@ -48,7 +53,9 @@ describe("useColumnSizing", () => {
 
   const mockData: never[] = [];
 
-  beforeEach(() => {
+  let useColumnSizing: Awaited<ReturnType<typeof loadUseColumnSizing>>;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
 
     // Reset mock store state
@@ -58,15 +65,19 @@ describe("useColumnSizing", () => {
       manuallyResizedColumns: [],
     };
 
+    const useStore = await loadUseStore();
+    useColumnSizing = await loadUseColumnSizing();
+
     // Setup useStore mock to return setTableState
-    (useStore as ReturnType<typeof vi.fn>).mockImplementation(
+    useStore.mockImplementation(
       (
-        selector: (
+        selector?: (
           state: typeof mockStoreState & {
             setTranscriptsTableState: typeof mockSetTableState;
           }
         ) => unknown
       ) => {
+        if (!selector) return undefined;
         if (selector.toString().includes("setTranscriptsTableState")) {
           return mockSetTableState;
         }

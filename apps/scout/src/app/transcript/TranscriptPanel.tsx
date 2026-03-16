@@ -2,12 +2,15 @@ import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
 import { FC, useRef } from "react";
 
-import { useRequiredParams } from "@tsmono/react/hooks";
+import {
+  useDocumentTitle,
+  useRequiredParams,
+  useScrollDirection,
+} from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { LoadingBar } from "../../components/LoadingBar";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useStore } from "../../state/store";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useFilterConditions } from "../hooks/useFilterConditions";
@@ -70,6 +73,12 @@ export const TranscriptPanel: FC = () => {
   );
   const [prevId, nextId] = adjacentIds.data ?? [undefined, undefined];
 
+  // Headroom: show title on scroll-up, hide on scroll-down.
+  // Shared with the swimlane headroom in TimelineEventsView so both
+  // collapse/expand in sync from a single scroll-direction signal.
+  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
+    useScrollDirection(scrollRef);
+
   return (
     <div className={clsx(styles.container)}>
       <TranscriptsNavbar
@@ -88,10 +97,26 @@ export const TranscriptPanel: FC = () => {
       <LoadingBar loading={loading} />
 
       {!error && transcript && (
-        <div className={styles.transcriptContainer} ref={scrollRef}>
-          <TranscriptTitle transcript={transcript} />
-          <TranscriptBody transcript={transcript} scrollRef={scrollRef} />
-        </div>
+        <>
+          <div
+            className={clsx(
+              styles.titleHeadroom,
+              headroomHidden && styles.titleHidden
+            )}
+          >
+            <div className={styles.titleHeadroomInner}>
+              <TranscriptTitle transcript={transcript} />
+            </div>
+          </div>
+          <div className={styles.transcriptContainer} ref={scrollRef}>
+            <TranscriptBody
+              transcript={transcript}
+              scrollRef={scrollRef}
+              headroomHidden={headroomHidden}
+              onHeadroomResetAnchor={headroomResetAnchor}
+            />
+          </div>
+        </>
       )}
       {error && (
         <ErrorPanel

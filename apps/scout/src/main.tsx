@@ -12,8 +12,8 @@ import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";
 import { App } from "./App";
+import { getEmbeddedAppMessage } from "./app/hooks/useWindowMessaging";
 import { ExtendedFindProvider } from "./components/ExtendedFindProvider";
-import { getEmbeddedAppMessage } from "./hooks/useWindowMessaging";
 import { ApiProvider, createStore, StoreProvider } from "./state/store";
 
 declare global {

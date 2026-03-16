@@ -5,6 +5,7 @@ import { ChatView } from "../../components/chat/ChatView";
 import { MarkdownReference } from "../../components/MarkdownDivWithReferences";
 import { TranscriptView } from "../../components/transcript/TranscriptView";
 import { scanResultRoute } from "../../router/url";
+import { ScannerInput } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
   isEventInput,
@@ -12,7 +13,6 @@ import {
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
-  ScanResultInputData,
   ScanResultSummary,
 } from "../types";
 
@@ -23,7 +23,7 @@ export type MakeReferenceUrl = (
 
 export const useMarkdownRefs = (
   summary?: ScanResultSummary,
-  inputData?: ScanResultInputData
+  inputData?: ScannerInput
 ) => {
   const { scansDir, scanPath } = useScanRoute();
   const [currentSearchParams] = useSearchParams();
@@ -58,9 +58,9 @@ export const useMarkdownRefs = (
         summary,
         (refId: string, type: "message" | "event") => {
           if (type === "message") {
-            return buildUrl(`tab=Result&message=${encodeURIComponent(refId)}`);
+            return buildUrl(`message=${encodeURIComponent(refId)}`);
           } else {
-            return buildUrl(`tab=Result&event=${encodeURIComponent(refId)}`);
+            return buildUrl(`event=${encodeURIComponent(refId)}`);
           }
         },
         inputData
@@ -72,7 +72,7 @@ export const useMarkdownRefs = (
 export const toMarkdownRefs = (
   summary: ScanResultSummary,
   makeReferenceUrl: MakeReferenceUrl,
-  inputData?: ScanResultInputData
+  inputData?: ScannerInput
 ) => {
   const refLookup = referenceTable(inputData);
 
@@ -106,7 +106,7 @@ export const toMarkdownRefs = (
 };
 
 const referenceTable = (
-  inputData?: ScanResultInputData
+  inputData?: ScannerInput
 ): Record<string, () => ReactNode> => {
   if (!inputData) {
     return {};

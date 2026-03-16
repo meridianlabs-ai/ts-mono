@@ -1,7 +1,5 @@
 import { ApiError, asyncJsonParse } from "@tsmono/util";
 
-export { ApiError };
-
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "HEAD";
 
 export interface Request<T> {

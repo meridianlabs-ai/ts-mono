@@ -157,7 +157,7 @@ export interface paths {
         };
         /**
          * Get scan status
-         * @description Returns detailed status and metadata for a single scan.
+         * @description Returns detailed status and metadata for a single scan. Send Accept: application/zip to download the scan directory as a zip archive.
          */
         get: operations["scan_scans__dir___scan__get"];
         put?: never;
@@ -200,8 +200,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get scanner input for a specific transcript
-         * @description Returns the original input text for a specific scanner result. The input type is returned in the X-Input-Type response header.
+         * Get scanner input for a specific result
+         * @description Returns a JSON envelope with input, input_type, and input_data (EventsData pools for condensed events, or null).
          */
         get: operations["scanner_input_scans__dir___scan___scanner___uuid__input_get"];
         put?: never;
@@ -1017,7 +1017,7 @@ export interface components {
              * @default auto
              * @enum {string}
              */
-            detail: "auto" | "low" | "high";
+            detail: "auto" | "low" | "high" | "original";
             /** Image */
             image: string;
             /** @default null */
@@ -1276,6 +1276,16 @@ export interface components {
         };
         Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /**
+         * EventsData
+         * @description Pooled data extracted by :func:`condense_events`.
+         */
+        EventsData: {
+            /** Calls */
+            calls: components["schemas"]["JsonValue"][];
+            /** Messages */
+            messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+        };
+        /**
          * GenerateConfig
          * @description Model generation options.
          */
@@ -1366,6 +1376,11 @@ export interface components {
              * @default null
              */
             max_tool_output: number | null;
+            /**
+             * Modalities
+             * @default null
+             */
+            modalities: ("image" | components["schemas"]["ImageOutput"])[] | null;
             /**
              * Num Choices
              * @default null
@@ -1492,6 +1507,8 @@ export interface components {
             max_tokens?: number | null;
             /** Max Tool Output */
             max_tool_output?: number | null;
+            /** Modalities */
+            modalities?: ("image" | components["schemas"]["ImageOutput"])[] | null;
             /** Num Choices */
             num_choices?: number | null;
             /** Parallel Tool Calls */
@@ -1569,6 +1586,8 @@ export interface components {
             max_tokens?: number | null;
             /** Max Tool Output */
             max_tool_output?: number | null;
+            /** Modalities */
+            modalities?: ("image" | components["schemas"]["ImageOutput"])[] | null;
             /** Num Choices */
             num_choices?: number | null;
             /** Parallel Tool Calls */
@@ -1607,6 +1626,24 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImageOutput
+         * @description Image output configuration.
+         *
+         *     Use the `options` field to pass provider-specific options directly
+         *     to the underlying API (e.g. OpenAI image_generation tool parameters).
+         */
+        ImageOutput: {
+            /**
+             * Options
+             * @default null
+             */
+            options: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
         };
         /**
          * InfoEvent
@@ -1701,7 +1738,7 @@ export interface components {
             working_start: number;
         };
         /** @enum {string} */
-        InvalidationTopic: "project-config" | "scans";
+        InvalidationTopic: "project-config" | "scans" | "transcripts";
         /**
          * JSONSchema
          * @description JSON Schema for type.
@@ -2001,6 +2038,19 @@ export interface components {
          */
         ModelCall: {
             /**
+             * Call Key
+             * @default null
+             */
+            call_key: string | null;
+            /**
+             * Call Refs
+             * @default null
+             */
+            call_refs: [
+                number,
+                number
+            ][] | null;
+            /**
              * Error
              * @default null
              */
@@ -2083,6 +2133,14 @@ export interface components {
             event: "model";
             /** Input */
             input: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /**
+             * Input Refs
+             * @default null
+             */
+            input_refs: [
+                number,
+                number
+            ][] | null;
             /**
              * Metadata
              * @default null
@@ -2989,6 +3047,24 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * ScannerInputResponse
+         * @description Response body for GET /scans/{dir}/{scan}/scanners/{scanner}/input/{uuid}.
+         *
+         *     Used only for OpenAPI schema generation — the endpoint returns a
+         *     pre-serialized JSON string via ``Response`` to avoid parsing/re-encoding
+         *     the raw parquet payloads.
+         */
+        ScannerInputResponse: {
+            /** Input */
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input_data?: components["schemas"]["EventsData"] | null;
+            /**
+             * Input Type
+             * @enum {string}
+             */
+            input_type: "transcript" | "event" | "events" | "message" | "messages" | "timeline" | "timelines";
+        };
         /** ScannerParam */
         ScannerParam: {
             /** Default */
@@ -3639,6 +3715,11 @@ export interface components {
          * @description A span of execution — agent, scorer, tool, or root.
          */
         TimelineSpan: {
+            /**
+             * Agent Result
+             * @default null
+             */
+            agent_result: string | null;
             /** Branches */
             branches: components["schemas"]["TimelineBranch"][];
             /** Content */
@@ -3794,7 +3875,7 @@ export interface components {
              */
             pending: boolean | null;
             /** Result */
-            result: string | number | boolean | components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | (components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"])[];
+            result: string | number | boolean | components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentDocument"] | (components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentDocument"])[];
             /**
              * Span Id
              * @default null
@@ -4468,6 +4549,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Status"];
+                    /** @description Zip archive of the scan directory when Accept: application/zip is sent. */
+                    "application/zip": unknown;
                 };
             };
         };
@@ -4546,7 +4629,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ScannerInputResponse"];
                 };
             };
         };

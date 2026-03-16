@@ -51,6 +51,9 @@ export type CompactionEvent = components["schemas"]["CompactionEvent"];
 export type Event = components["schemas"]["Event"];
 export type InvalidationTopic = components["schemas"]["InvalidationTopic"];
 export type RawEncoding = components["schemas"]["RawEncoding"];
+export type ScannerInputResponse =
+  components["schemas"]["ScannerInputResponse"];
+export type EventsData = components["schemas"]["EventsData"];
 
 export type JsonChange = components["schemas"]["JsonChange"];
 
@@ -76,6 +79,12 @@ export type ContentReasoning = components["schemas"]["ContentReasoning"];
 export type ContentText = components["schemas"]["ContentText"];
 export type ContentToolUse = components["schemas"]["ContentToolUse"];
 export type ContentVideo = components["schemas"]["ContentVideo"];
+
+// Timeline types (server-provided, snake_case)
+export type ServerTimeline = components["schemas"]["Timeline"];
+export type ServerTimelineSpan = components["schemas"]["TimelineSpan"];
+export type ServerTimelineEvent = components["schemas"]["TimelineEvent"];
+export type ServerTimelineBranch = components["schemas"]["TimelineBranch"];
 
 export type Score = components["schemas"]["Score"];
 
@@ -134,3 +143,5 @@ export type ToolChoice = ("auto" | "any" | "none") | ToolFunction;
 export interface ToolFunction {
   name: string;
 }
+
+export type ScannerInput = Omit<ScannerInputResponse, "input_data">;

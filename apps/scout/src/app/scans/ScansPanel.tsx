@@ -1,12 +1,13 @@
 import { clsx } from "clsx";
 import { FC, useCallback, useEffect, useMemo } from "react";
 
+import { useDocumentTitle } from "@tsmono/react/hooks";
+
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { ExtendedFindProvider } from "../../components/ExtendedFindProvider";
 import { ApplicationIcons } from "../../components/icons";
 import { LoadingBar } from "../../components/LoadingBar";
 import { NoContentsPanel } from "../../components/NoContentsPanel";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useStore } from "../../state/store";
 import { ScanRow } from "../../types/api-types";
 import { Footer } from "../components/Footer";

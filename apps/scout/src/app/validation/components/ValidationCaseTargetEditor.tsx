@@ -59,14 +59,10 @@ export const ValidationCaseTargetEditor: FC<
   const [isTyping, setIsTyping] = useState(false);
 
   // Sync mode and customValue when target prop changes externally
-  // (e.g., data loads, switching cases, or after our save completes)
+  // (e.g., data loads, switching cases/sets, or after our save completes)
   // Skip sync while user is typing to avoid overwriting during debounce
   useEffect(() => {
     if (isTyping) return;
-
-    // Only sync when target has a valid value.
-    // The initial "unset" state is handled by useState.
-    if (target === undefined || target === null) return;
 
     const newMode = getTargetMode(target);
     // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
@@ -74,6 +70,8 @@ export const ValidationCaseTargetEditor: FC<
     setMode(newMode);
     if (newMode === "other") {
       setCustomValue(String(target ?? ""));
+    } else {
+      setCustomValue("");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [target, isTyping]);

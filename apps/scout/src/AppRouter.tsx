@@ -7,13 +7,13 @@ import {
 } from "react-router-dom";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
+import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
 import { ScanPanel } from "./app/scan/ScanPanel";
 import { ScannerResultPanel } from "./app/scannerResult/ScannerResultPanel";
 import { ScansPanel } from "./app/scans/ScansPanel";
 import { useAppConfig } from "./app/server/useAppConfig";
-import { TimelinePanel } from "./app/timeline/TimelinePanel";
 import { TranscriptPanel } from "./app/transcript/TranscriptPanel";
 import { TranscriptsPanel } from "./app/transcripts/TranscriptsPanel";
 import { ValidationPanel } from "./app/validation/ValidationPanel";
@@ -22,7 +22,6 @@ import {
   LoggingNavigate,
   useLoggingNavigate,
 } from "./debugging/navigationDebugging";
-import { useWindowMessaging } from "./hooks/useWindowMessaging";
 import {
   isValidScanPath,
   kProjectRouteUrlPattern,
@@ -30,7 +29,6 @@ import {
   kScansRootRouteUrlPattern,
   kScansRouteUrlPattern,
   kScansWithPathRouteUrlPattern,
-  kTimelineRouteUrlPattern,
   kTranscriptDetailRoute,
   kTranscriptsRouteUrlPattern,
   kValidationRouteUrlPattern,
@@ -157,10 +155,6 @@ export const createAppRouter = (config: AppRouterConfig) => {
           {
             path: kTranscriptDetailRoute,
             element: <TranscriptPanel />,
-          },
-          {
-            path: kTimelineRouteUrlPattern,
-            element: <TimelinePanel />,
           },
           {
             path: "/run",
