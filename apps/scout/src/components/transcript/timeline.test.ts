@@ -1125,7 +1125,7 @@ describe("buildTimeline", () => {
     expect(result.root.idleTime).toBeGreaterThanOrEqual(360.0);
   });
 
-  it("computes startTime and endTime correctly", () => {
+  it.skipIf(!PYTHON_ROOT)("computes startTime and endTime correctly", () => {
     const fixture = loadFixture("simple_agent");
     const events = eventsFromJson(fixture);
     const result = buildTimeline(events);
