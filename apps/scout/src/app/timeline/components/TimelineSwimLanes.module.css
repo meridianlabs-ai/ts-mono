@@ -252,9 +252,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* White halo behind icons so transparent cutouts (e.g. the ! in ▲) don't bleed bar color */
-  filter: drop-shadow(0 0 1px var(--bs-body-bg))
-    drop-shadow(0 0 1px var(--bs-body-bg));
+}
+
+/* White disc behind icon so transparent cutouts don't bleed bar color */
+.marker::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bs-body-bg);
+  z-index: -1;
 }
 
 .marker > * {
@@ -297,7 +305,7 @@
 }
 
 .markerBranch {
-  color: var(--vscode-descriptionForeground);
+  color: var(--vscode-foreground);
   cursor: pointer;
 }
 
