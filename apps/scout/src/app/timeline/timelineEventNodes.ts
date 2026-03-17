@@ -11,6 +11,7 @@ import type {
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
+import { createBranchSpan } from "../../components/transcript/timeline";
 import { EventNode } from "../../components/transcript/types";
 import type {
   Event,
@@ -293,6 +294,10 @@ export function collectRawEvents(
       agentSpanId,
       includeUtility
     );
+
+    // Emit branches from the root span (collectFromContent only sees
+    // branches on nested spans it encounters in the content array).
+    emitBranchSpans(span, events, sourceSpans);
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
     // groups them, matching the drilled-in container behavior.
@@ -300,6 +305,48 @@ export function collectRawEvents(
     collectFromContent(spans, events, sourceSpans, undefined, includeUtility);
   }
   return { events, sourceSpans };
+}
+
+/**
+ * Emit each branch on a span as an empty span_begin/span_end pair (like
+ * agents). Content is accessed by selecting the branch swimlane row.
+ */
+function emitBranchSpans(
+  span: TimelineSpan,
+  out: Event[],
+  sourceSpans: Map<string, TimelineSpan>
+): void {
+  for (let i = 0; i < span.branches.length; i++) {
+    const branchSpan = createBranchSpan(span.branches[i]!, i + 1);
+    sourceSpans.set(branchSpan.id, branchSpan);
+
+    const branchBegin: SpanBeginEvent = {
+      event: "span_begin",
+      name: branchSpan.name,
+      id: branchSpan.id,
+      span_id: branchSpan.id,
+      type: branchSpan.spanType,
+      timestamp: branchSpan.startTime.toISOString(),
+      parent_id: null,
+      pending: false,
+      working_start: 0,
+      uuid: branchSpan.id,
+      metadata: null,
+    };
+    out.push(branchBegin);
+
+    const branchEnd: SpanEndEvent = {
+      event: "span_end",
+      id: `${branchSpan.id}-end`,
+      span_id: branchSpan.id,
+      timestamp: branchSpan.endTime.toISOString(),
+      pending: false,
+      working_start: 0,
+      uuid: null,
+      metadata: null,
+    };
+    out.push(branchEnd);
+  }
 }
 
 function collectFromContent(
@@ -395,6 +442,8 @@ function collectFromContent(
           undefined,
           includeUtility
         );
+
+        emitBranchSpans(item, out, sourceSpans);
       }
 
       // Emit synthetic span_end

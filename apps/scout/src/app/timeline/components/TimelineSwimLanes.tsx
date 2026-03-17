@@ -510,7 +510,14 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
         ) : (
           <span className={styles.chevronSpacer} />
         )}
-        {displayName ?? (layout.branch ? `\u21B3 ${layout.name}` : layout.name)}
+        {displayName ??
+          (layout.branch ? (
+            <>
+              <i className={ApplicationIcons.solvers.default} /> {layout.name}
+            </>
+          ) : (
+            layout.name
+          ))}
       </div>
 
       {/* Bar area cell */}
