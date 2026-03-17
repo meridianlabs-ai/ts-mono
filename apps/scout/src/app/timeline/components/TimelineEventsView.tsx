@@ -224,6 +224,15 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     [timelineState, select, clearSelection]
   );
 
+  // Reset scroll + Virtuoso state when switching between timelines
+  const resetActiveTimeline = useCallback(
+    (index: number) => {
+      resetScrollForSelection(null);
+      setActiveTimeline(index);
+    },
+    [resetScrollForSelection, setActiveTimeline]
+  );
+
   // ---------------------------------------------------------------------------
   // Span selection context (agent card clicks → swimlane selection)
   // ---------------------------------------------------------------------------
@@ -503,7 +512,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
                       ? {
                           timelines,
                           activeIndex: activeTimelineIndex,
-                          onSelect: setActiveTimeline,
+                          onSelect: resetActiveTimeline,
                         }
                       : undefined,
                 }}
