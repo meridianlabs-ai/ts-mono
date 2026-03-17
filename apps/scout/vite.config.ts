@@ -1,23 +1,28 @@
+import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
 import react from "@vitejs/plugin-react";
 import pc from "picocolors";
+import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
 import { findPythonRepoRoot } from "./scripts/python-repo.js";
 
-function resolveOutputDir(): string {
-  const pythonRoot = findPythonRepoRoot();
-  if (pythonRoot) {
-    const outDir = join(pythonRoot, "src/inspect_scout/_view/dist");
-    console.log(
-      `${pc.cyan("[vite]")} ${pc.bold(pc.red("Running as inspect_scout submodule"))} — output: ${pc.dim(outDir)}`
-    );
-    return outDir;
-  }
-
-  return "dist";
+function copyToPythonRepo(): Plugin {
+  return {
+    name: "copy-to-python-repo",
+    closeBundle() {
+      const pythonRoot = findPythonRepoRoot();
+      if (!pythonRoot) return;
+      const target = join(pythonRoot, "src/inspect_scout/_view/dist");
+      rmSync(target, { recursive: true, force: true });
+      cpSync("dist", target, { recursive: true });
+      console.log(
+        `${pc.cyan("[vite]")} ${pc.bold("Copied")} dist → ${pc.dim(target)}`
+      );
+    },
+  };
 }
 
 export default defineConfig(({ mode }) => {
@@ -79,6 +84,7 @@ export default defineConfig(({ mode }) => {
     // App build configuration
     return {
       ...baseConfig,
+      plugins: [...baseConfig.plugins, copyToPythonRepo()],
       base: "",
       server: {
         proxy: {
@@ -89,7 +95,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       build: {
-        outDir: resolveOutputDir(),
+        outDir: "dist",
         emptyOutDir: true,
         minify: mode !== "development",
         rollupOptions: {
