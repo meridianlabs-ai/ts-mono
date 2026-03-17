@@ -6,7 +6,10 @@
  * and parallel (overlapping) span patterns.
  */
 
-import type { TimelineSpan } from "../../../components/transcript/timeline";
+import {
+  createBranchSpan,
+  type TimelineSpan,
+} from "../../../components/transcript/timeline";
 
 // =============================================================================
 // Sorting
@@ -47,6 +50,8 @@ export interface SwimlaneRow {
   totalTokens: number;
   startTime: Date;
   endTime: Date;
+  /** True when this row represents a timeline branch. */
+  branch?: boolean;
 }
 
 // =============================================================================
@@ -285,15 +290,17 @@ function buildRowFromGroup(
  */
 export function computeFlatSwimlaneRows(
   root: TimelineSpan,
-  options?: { includeUtility?: boolean }
+  options?: { includeUtility?: boolean; showBranches?: boolean }
 ): SwimlaneRow[] {
   const includeUtility = options?.includeUtility ?? false;
+  const showBranches = options?.showBranches ?? false;
   const parentRow = buildParentRow(root);
   const childRows = flattenChildren(
     [root],
     0,
     root.name.toLowerCase(),
-    includeUtility
+    includeUtility,
+    showBranches
   );
   return [parentRow, ...childRows];
 }
@@ -339,7 +346,8 @@ function flattenChildren(
   nodes: TimelineSpan[],
   parentDepth: number,
   parentKey: string,
-  includeUtility: boolean
+  includeUtility: boolean,
+  showBranches: boolean
 ): SwimlaneRow[] {
   // Collect child spans, optionally filtering utility agents
   const children: TimelineSpan[] = [];
@@ -350,7 +358,7 @@ function flattenChildren(
       }
     }
   }
-  if (children.length === 0) return [];
+  if (children.length === 0 && !showBranches) return [];
 
   const groups = groupByName(children);
   const depth = parentDepth + 1;
@@ -463,8 +471,46 @@ function flattenChildren(
       endTime: entry.endTime,
     });
     result.push(
-      ...flattenChildren(entry.spans, depth, entry.key, includeUtility)
+      ...flattenChildren(
+        entry.spans,
+        depth,
+        entry.key,
+        includeUtility,
+        showBranches
+      )
     );
+  }
+
+  // Emit branch rows when enabled. Each branch becomes a child row of the
+  // node that owns it, with its own bar and optional nested children.
+  if (showBranches) {
+    for (const node of nodes) {
+      for (let i = 0; i < node.branches.length; i++) {
+        const branch = node.branches[i]!;
+        const branchSpan = createBranchSpan(branch, i + 1);
+        const branchKey = `${parentKey}/branch-${branch.forkedAt}-${i + 1}`;
+        result.push({
+          key: branchKey,
+          name: branchSpan.name,
+          depth,
+          spans: [{ agent: branchSpan }],
+          totalTokens: branchSpan.totalTokens,
+          startTime: branchSpan.startTime,
+          endTime: branchSpan.endTime,
+          branch: true,
+        });
+        // Recurse into branch content for nested agents
+        result.push(
+          ...flattenChildren(
+            [branchSpan],
+            depth,
+            branchKey,
+            includeUtility,
+            showBranches
+          )
+        );
+      }
+    }
   }
 
   return result;

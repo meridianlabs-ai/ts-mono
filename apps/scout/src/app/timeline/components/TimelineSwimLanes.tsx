@@ -1,18 +1,10 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
-import { formatTime } from "@tsmono/util";
-
 import { ApplicationIcons } from "../../../components/icons";
-import { PopOver } from "../../../components/PopOver";
-import type { TimelineBranch } from "../../../components/transcript/timeline";
 import { useProperty } from "../../../state/hooks/useProperty";
 import { useStore } from "../../../state/store";
-import {
-  createBranchSpan,
-  findBranchesByForkedAt,
-  type TimelineState,
-} from "../hooks/useTimeline";
+import { type TimelineState } from "../hooks/useTimeline";
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
 import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
 import type {
@@ -85,7 +77,7 @@ export function buildBreadcrumbs(
 /** Navigation subset of TimelineState needed by the swimlane component. */
 export type TimelineNavigation = Pick<
   TimelineState,
-  "node" | "selected" | "select" | "clearSelection"
+  "selected" | "select" | "clearSelection"
 >;
 
 /** Header configuration: root label + optional minimap + breadcrumbs. */
@@ -103,6 +95,8 @@ export interface TimelineHeaderProps {
   timelineConfig?: UseTimelineConfigResult;
   /** Timeline selector for switching between multiple timelines. */
   timelineSelector?: TimelineSelectorProps;
+  /** Called when the branches toggle is clicked (handles selection cleanup). */
+  onToggleBranches?: () => void;
 }
 
 interface TimelineSwimLanesProps {
@@ -156,7 +150,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   regionCounts,
   defaultCollapsed: defaultCollapsedProp,
 }) => {
-  const { node, selected, select: onSelect, clearSelection } = timeline;
+  const { selected, select: onSelect, clearSelection } = timeline;
 
   // Collapse state — persisted across sessions.
   // Auto-collapse when the transcript is flat (single row, no children).
@@ -260,22 +254,16 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     [isRowCollapsed, setRowCollapsed]
   );
 
-  // Branch popover state
-  const [branchPopover, setBranchPopover] = useState<{
-    forkedAt: string;
-    element: HTMLElement;
-  } | null>(null);
-
-  const handleBranchHover = useCallback(
-    (forkedAt: string, element: HTMLElement) => {
-      setBranchPopover({ forkedAt, element });
-    },
-    []
-  );
-
-  const handleBranchLeave = useCallback(() => {
-    setBranchPopover(null);
-  }, []);
+  // Branch marker click → toggle showBranches.
+  // When turning branches off, clear selection if it points to a branch row
+  // so the URL override in useTimeline doesn't force branches back on.
+  const handleBranchToggle = useCallback(() => {
+    const turningOff = header?.timelineConfig?.showBranches;
+    header?.timelineConfig?.setShowBranches(!turningOff);
+    if (turningOff && selected && /\/branch-/.test(selected)) {
+      clearSelection();
+    }
+  }, [header?.timelineConfig, selected, clearSelection]);
 
   // Parse selection into row key + optional span index
   const parsedSelection = useMemo(() => parseSelection(selected), [selected]);
@@ -313,23 +301,13 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         }
         case "Escape": {
           e.preventDefault();
-          if (branchPopover) {
-            setBranchPopover(null);
-          } else {
-            clearSelection();
-          }
+          clearSelection();
           break;
         }
       }
     },
-    [visibleLayouts, selectedRowKey, onSelect, clearSelection, branchPopover]
+    [visibleLayouts, selectedRowKey, onSelect, clearSelection]
   );
-
-  // Find branches matching the popover's forkedAt UUID.
-  const branchLookup = useMemo(() => {
-    if (!branchPopover) return null;
-    return findBranchesByForkedAt(node, branchPopover.forkedAt);
-  }, [branchPopover, node]);
 
   const parentRow = visibleLayouts[0];
   const childRows = visibleLayouts.slice(1);
@@ -365,8 +343,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onSelectRegion={(spanIndex, regionIndex) =>
           onSelect(buildSelectionKey(layout.key, spanIndex, regionIndex))
         }
-        onBranchHover={handleBranchHover}
-        onBranchLeave={handleBranchLeave}
+        onBranchToggle={handleBranchToggle}
         onMarkerNavigate={onMarkerNavigate}
       />
     );
@@ -387,6 +364,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
             {...header}
             breadcrumbs={breadcrumbs}
             onBreadcrumbSelect={onSelect}
+            onToggleBranches={handleBranchToggle}
           />
         )}
       </div>
@@ -426,13 +404,6 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
           }
         />
       </button>
-
-      <BranchPopover
-        isOpen={branchPopover !== null && branchLookup !== null}
-        anchor={branchPopover?.element ?? null}
-        branches={branchLookup?.branches ?? []}
-        onClose={() => setBranchPopover(null)}
-      />
     </div>
   );
 };
@@ -463,8 +434,7 @@ interface SwimlaneRowProps {
   onSelectSpan: (spanIndex: number) => void;
   /** Select a specific region within a span. */
   onSelectRegion: (spanIndex: number | undefined, regionIndex: number) => void;
-  onBranchHover: (forkedAt: string, element: HTMLElement) => void;
-  onBranchLeave: () => void;
+  onBranchToggle: () => void;
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
 }
 
@@ -480,8 +450,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   onSelectRow,
   onSelectSpan,
   onSelectRegion,
-  onBranchHover,
-  onBranchLeave,
+  onBranchToggle,
   onMarkerNavigate,
 }) => {
   const hasMultipleSpans = layout.spans.length > 1;
@@ -541,7 +510,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
         ) : (
           <span className={styles.chevronSpacer} />
         )}
-        {displayName ?? layout.name}
+        {displayName ?? (layout.branch ? `\u21B3 ${layout.name}` : layout.name)}
       </div>
 
       {/* Bar area cell */}
@@ -614,8 +583,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
             <MarkerGlyph
               key={i}
               marker={marker}
-              onBranchHover={onBranchHover}
-              onBranchLeave={onBranchLeave}
+              onBranchToggle={onBranchToggle}
               onMarkerNavigate={handleMarkerNavigate}
             />
           ))}
@@ -642,6 +610,7 @@ const HeaderRow: FC<TimelineHeaderProps> = ({
   onBreadcrumbSelect,
   timelineConfig,
   timelineSelector,
+  onToggleBranches,
 }) => {
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
   const rootDisplay = rootLabel === "solvers" ? "main" : rootLabel;
@@ -698,13 +667,14 @@ const HeaderRow: FC<TimelineHeaderProps> = ({
         </button>
       )}
       {minimap && <TimelineMinimap {...minimap} />}
-      {timelineConfig && (
+      {timelineConfig && onToggleBranches && (
         <TimelineOptionsPopover
           isOpen={optionsOpen}
           setIsOpen={setOptionsOpen}
           // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver handles this in effects
           positionEl={optionsButtonRef.current}
           config={timelineConfig}
+          onToggleBranches={onToggleBranches}
         />
       )}
     </div>
@@ -963,15 +933,13 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
 
 interface MarkerGlyphProps {
   marker: PositionedMarker;
-  onBranchHover: (forkedAt: string, element: HTMLElement) => void;
-  onBranchLeave: () => void;
+  onBranchToggle: () => void;
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
 }
 
 const MarkerGlyph: FC<MarkerGlyphProps> = ({
   marker,
-  onBranchHover,
-  onBranchLeave,
+  onBranchToggle,
   onMarkerNavigate,
 }) => {
   const icon = MARKER_ICONS[marker.kind]?.icon ?? "bi bi-question-circle";
@@ -984,113 +952,29 @@ const MarkerGlyph: FC<MarkerGlyphProps> = ({
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLSpanElement>) => {
+      e.stopPropagation();
       if (marker.kind === "branch") {
-        e.stopPropagation();
-        onBranchHover(marker.reference, e.currentTarget);
+        onBranchToggle();
       } else if (marker.reference && onMarkerNavigate) {
-        e.stopPropagation();
         onMarkerNavigate(marker.reference);
       }
     },
-    [marker.kind, marker.reference, onMarkerNavigate, onBranchHover]
+    [marker.kind, marker.reference, onMarkerNavigate, onBranchToggle]
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLSpanElement>) => {
-      if (marker.kind === "branch" && (e.key === "Enter" || e.key === " ")) {
-        e.preventDefault();
-        e.stopPropagation();
-        onBranchHover(marker.reference, e.currentTarget);
-      }
-    },
-    [marker.kind, marker.reference, onBranchHover]
-  );
-
-  const handleMouseEnter = useCallback(
-    (e: React.MouseEvent<HTMLSpanElement>) => {
-      if (marker.kind === "branch") {
-        onBranchHover(marker.reference, e.currentTarget);
-      }
-    },
-    [marker.kind, marker.reference, onBranchHover]
-  );
-
-  const handleMouseLeave = useCallback(() => {
-    if (marker.kind === "branch") {
-      onBranchLeave();
-    }
-  }, [marker.kind, onBranchLeave]);
-
-  // Branch markers show a popover on hover — no tooltip needed
   const isBranch = marker.kind === "branch";
 
   return (
     <span
       className={clsx(styles.marker, kindClass)}
       style={{ left: `${marker.left}%` }}
-      title={isBranch ? undefined : marker.tooltip}
+      title={marker.tooltip}
       onClick={handleClick}
-      onKeyDown={isBranch ? handleKeyDown : undefined}
-      onMouseEnter={isBranch ? handleMouseEnter : undefined}
-      onMouseLeave={isBranch ? handleMouseLeave : undefined}
       tabIndex={isBranch ? 0 : undefined}
       role={isBranch ? "button" : undefined}
-      aria-haspopup={isBranch ? "true" : undefined}
-      aria-label={isBranch ? "Show branches" : undefined}
+      aria-label={isBranch ? "Toggle branches" : undefined}
     >
       {marker.kind !== "error" && <i className={icon} />}
     </span>
-  );
-};
-
-// =============================================================================
-// BranchPopover (internal — informational only)
-// =============================================================================
-
-interface BranchPopoverProps {
-  isOpen: boolean;
-  anchor: HTMLElement | null;
-  branches: Array<{ branch: TimelineBranch; index: number }>;
-  onClose: () => void;
-}
-
-const BranchPopover: FC<BranchPopoverProps> = ({
-  isOpen,
-  anchor,
-  branches,
-  onClose,
-}) => {
-  return (
-    <PopOver
-      id="branch-popover"
-      isOpen={isOpen}
-      setIsOpen={(open) => {
-        if (!open) onClose();
-      }}
-      positionEl={anchor}
-      placement="bottom"
-      showArrow={true}
-      hoverDelay={0}
-      closeOnMouseLeave={true}
-      styles={{ padding: "4px 0" }}
-    >
-      <div className={styles.branchPopover}>
-        {branches.map(({ branch, index }) => {
-          const span = createBranchSpan(branch, index);
-          const durationSec =
-            (branch.endTime.getTime() - branch.startTime.getTime()) / 1000;
-          return (
-            <div key={`branch-${index}`} className={styles.branchEntry}>
-              <span className={styles.branchLabel}>{span.name}</span>
-              <span className={styles.branchMeta}>
-                {formatTokenCount(branch.totalTokens)}
-                {" \u00B7 "}
-                {formatTime(durationSec)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </PopOver>
   );
 };

@@ -29,10 +29,13 @@ export interface UseTimelineConfigResult {
   markerDepth: MarkerDepth;
   /** Whether utility agents are shown. */
   includeUtility: boolean;
+  /** Whether branches are shown as swimlane rows. */
+  showBranches: boolean;
 
   setMarkerKinds: (kinds: MarkerKind[]) => void;
   setMarkerDepth: (depth: MarkerDepth) => void;
   setIncludeUtility: (include: boolean) => void;
+  setShowBranches: (show: boolean) => void;
   toggleMarkerKind: (kind: MarkerKind) => void;
   resetToDefaults: () => void;
   /** True when all settings match their defaults. */
@@ -46,6 +49,7 @@ export interface UseTimelineConfigResult {
 const kDefaultMarkerKinds = defaultMarkerConfig.kinds;
 const kDefaultMarkerDepth = defaultMarkerConfig.depth;
 const kDefaultIncludeUtility = false;
+const kDefaultShowBranches = false;
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
@@ -74,10 +78,16 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     "includeUtility",
     { cleanup: false }
   );
+  const [storedShowBranches, setStoredShowBranches] = useProperty<boolean>(
+    "timeline",
+    "showBranches",
+    { cleanup: false }
+  );
 
   const markerKinds = storedKinds ?? kDefaultMarkerKinds;
   const markerDepth = storedDepth ?? kDefaultMarkerDepth;
   const includeUtility = storedUtility ?? kDefaultIncludeUtility;
+  const showBranches = storedShowBranches ?? kDefaultShowBranches;
 
   const markerConfig: MarkerConfig = useMemo(
     () => ({ kinds: markerKinds, depth: markerDepth }),
@@ -85,14 +95,15 @@ export function useTimelineConfig(): UseTimelineConfigResult {
   );
 
   const agentConfig: TimelineOptions = useMemo(
-    () => ({ includeUtility }),
-    [includeUtility]
+    () => ({ includeUtility, showBranches }),
+    [includeUtility, showBranches]
   );
 
   const isDefault =
     arraysEqual(markerKinds, kDefaultMarkerKinds) &&
     markerDepth === kDefaultMarkerDepth &&
-    includeUtility === kDefaultIncludeUtility;
+    includeUtility === kDefaultIncludeUtility &&
+    showBranches === kDefaultShowBranches;
 
   const toggleMarkerKind = useCallback(
     (kind: MarkerKind) => {
@@ -109,7 +120,8 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     setStoredKinds(kDefaultMarkerKinds);
     setStoredDepth(kDefaultMarkerDepth);
     setStoredUtility(kDefaultIncludeUtility);
-  }, [setStoredKinds, setStoredDepth, setStoredUtility]);
+    setStoredShowBranches(kDefaultShowBranches);
+  }, [setStoredKinds, setStoredDepth, setStoredUtility, setStoredShowBranches]);
 
   return {
     markerConfig,
@@ -117,9 +129,11 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     markerKinds,
     markerDepth,
     includeUtility,
+    showBranches,
     setMarkerKinds: setStoredKinds,
     setMarkerDepth: setStoredDepth,
     setIncludeUtility: setStoredUtility,
+    setShowBranches: setStoredShowBranches,
     toggleMarkerKind,
     resetToDefaults,
     isDefault,

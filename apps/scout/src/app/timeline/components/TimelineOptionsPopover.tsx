@@ -15,6 +15,8 @@ interface TimelineOptionsPopoverProps {
   setIsOpen: (open: boolean) => void;
   positionEl: HTMLElement | null;
   config: UseTimelineConfigResult;
+  /** Called when the branches toggle is clicked (handles selection cleanup). */
+  onToggleBranches: () => void;
 }
 
 // =============================================================================
@@ -24,7 +26,6 @@ interface TimelineOptionsPopoverProps {
 const kMarkerKindLabels: Array<{ kind: MarkerKind; label: string }> = [
   { kind: "error", label: "Errors" },
   { kind: "compaction", label: "Compaction" },
-  { kind: "branch", label: "Branches" },
 ];
 
 // =============================================================================
@@ -36,6 +37,7 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
   setIsOpen,
   positionEl,
   config,
+  onToggleBranches,
 }) => {
   return (
     <PopOver
@@ -81,6 +83,17 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
             }}
           />
           Utility agents
+        </div>
+        <div className={styles.row} onClick={onToggleBranches}>
+          <input
+            type="checkbox"
+            checked={config.showBranches}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleBranches();
+            }}
+          />
+          Branches
         </div>
       </div>
     </PopOver>

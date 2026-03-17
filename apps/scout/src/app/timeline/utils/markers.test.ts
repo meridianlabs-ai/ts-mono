@@ -347,7 +347,7 @@ describe("collectMarkers", () => {
   // Branch markers
   // ---------------------------------------------------------------------------
   describe("branch markers", () => {
-    it("creates branch markers when forkedAt matches an event UUID", () => {
+    it("creates branch markers positioned at branch start time", () => {
       const event1 = makeModelEventNode(0, { uuid: "evt-1" });
       const event2 = makeModelEventNode(5, { uuid: "evt-2" });
       const branch: TimelineBranch = {
@@ -368,11 +368,11 @@ describe("collectMarkers", () => {
 
       expect(markers).toHaveLength(1);
       expect(markers[0]!.kind).toBe("branch");
-      expect(markers[0]!.timestamp).toEqual(ts(0)); // evt-1's timestamp
+      expect(markers[0]!.timestamp).toEqual(ts(2)); // branch's startTime
       expect(markers[0]!.reference).toBe("evt-1");
     });
 
-    it("silently drops branch markers when forkedAt UUID is not found", () => {
+    it("falls back to branch start time when forkedAt UUID is not found", () => {
       const branch: TimelineBranch = {
         type: "branch",
         forkedAt: "nonexistent",
@@ -389,10 +389,12 @@ describe("collectMarkers", () => {
 
       const markers = collectMarkers(parent, "direct");
 
-      expect(markers).toHaveLength(0);
+      expect(markers).toHaveLength(1);
+      expect(markers[0]!.kind).toBe("branch");
+      expect(markers[0]!.timestamp).toEqual(ts(2));
     });
 
-    it("silently drops branch markers with empty forkedAt", () => {
+    it("falls back to branch start time when forkedAt is empty", () => {
       const branch: TimelineBranch = {
         type: "branch",
         forkedAt: "",
@@ -409,10 +411,12 @@ describe("collectMarkers", () => {
 
       const markers = collectMarkers(parent, "direct");
 
-      expect(markers).toHaveLength(0);
+      expect(markers).toHaveLength(1);
+      expect(markers[0]!.kind).toBe("branch");
+      expect(markers[0]!.timestamp).toEqual(ts(2));
     });
 
-    it("S11a: resolves branch markers from fork-point UUID", () => {
+    it("S11a: emits one marker per branch", () => {
       const transcript = getScenarioRoot(S11A_BRANCHES);
       const buildSpan = transcript.content.find(
         (c): c is TimelineSpan => c.type === "span" && c.name === "Build"
@@ -422,11 +426,13 @@ describe("collectMarkers", () => {
 
       const markers = collectMarkers(buildSpan!, "direct");
 
-      // Both branches share forkedAt "model-call-5" → grouped into 1 marker
+      // Each branch gets its own marker positioned at its startTime
       const branchMarkers = markers.filter((m) => m.kind === "branch");
-      expect(branchMarkers).toHaveLength(1);
+      expect(branchMarkers).toHaveLength(2);
       expect(branchMarkers[0]!.reference).toBe("model-call-5");
-      expect(branchMarkers[0]!.tooltip).toContain("2 branches");
+      expect(branchMarkers[1]!.reference).toBe("model-call-5");
+      expect(branchMarkers[0]!.tooltip).toContain("1 branch");
+      expect(branchMarkers[1]!.tooltip).toContain("1 branch");
     });
   });
 
@@ -475,7 +481,7 @@ describe("collectMarkers", () => {
       const markers = collectMarkers(parent, "direct");
 
       expect(markers).toHaveLength(3);
-      expect(markers[0]!.kind).toBe("branch"); // ts(5)
+      expect(markers[0]!.kind).toBe("branch"); // ts(6) — branch.startTime
       expect(markers[1]!.kind).toBe("error"); // ts(15)
       expect(markers[2]!.kind).toBe("compaction"); // ts(25)
     });

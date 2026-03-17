@@ -303,46 +303,6 @@
 
 /* Branch popover */
 
-.branchPopover {
-  display: flex;
-  flex-direction: column;
-  min-width: 180px;
-}
-
-.branchEntry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 4px 12px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: var(--inspect-font-size-small);
-  color: var(--vscode-foreground);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.branchEntry:hover {
-  background-color: var(--bs-primary);
-  color: var(--bs-white, #fff);
-}
-
-.branchLabel {
-  font-weight: 500;
-}
-
-.branchMeta {
-  color: var(--vscode-descriptionForeground);
-  font-size: var(--inspect-font-size-smaller, 0.75rem);
-}
-
-.branchEntry:hover .branchMeta {
-  color: inherit;
-  opacity: 0.8;
-}
-
 /* Breadcrumb row */
 
 .breadcrumbRow {
