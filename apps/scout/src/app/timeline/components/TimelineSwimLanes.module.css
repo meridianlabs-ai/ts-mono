@@ -252,9 +252,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* White halo behind icons so transparent cutouts (e.g. the ! in ▲) don't bleed bar color */
-  filter: drop-shadow(0 0 1px var(--bs-body-bg))
-    drop-shadow(0 0 1px var(--bs-body-bg));
+}
+
+/* White disc behind icon so transparent cutouts don't bleed bar color */
+.marker::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bs-body-bg);
+  z-index: -1;
 }
 
 .marker > * {
@@ -297,8 +305,32 @@
 }
 
 .markerBranch {
-  color: var(--vscode-descriptionForeground);
+  color: var(--vscode-foreground);
   cursor: pointer;
+}
+
+/* Branch connector line from parent marker to branch bar */
+.branchConnector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Right-pointing arrowhead for branch connectors (CSS border triangle) */
+.connectorArrow {
+  position: absolute;
+  top: 50%;
+  transform: translate(-1px, -50%);
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 4px solid var(--vscode-foreground);
+  pointer-events: none;
 }
 
 /* Branch popover */

@@ -81,7 +81,7 @@ export const ApplicationIcons = {
   filter: "bi bi-funnel",
   folder: "bi bi-folder",
   "folder-fill": "bi bi-folder-fill",
-  fork: "bi bi-signpost-split-fill",
+  fork: "bi bi-sign-intersection-y-fill",
   home: "bi bi-house",
   highlight: "bi bi-highlighter",
   info: "bi bi-info-circle",

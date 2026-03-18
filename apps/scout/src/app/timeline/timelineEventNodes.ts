@@ -11,6 +11,7 @@ import type {
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
+import { createBranchSpan } from "../../components/transcript/timeline";
 import { EventNode } from "../../components/transcript/types";
 import type {
   Event,
@@ -264,10 +265,15 @@ export interface CollectedEvents {
  */
 export function collectRawEvents(
   spans: TimelineSpan[],
-  options?: { includeUtility?: boolean; regionIndex?: number | null }
+  options?: {
+    includeUtility?: boolean;
+    regionIndex?: number | null;
+    showBranches?: boolean;
+  }
 ): CollectedEvents {
   const includeUtility = options?.includeUtility ?? false;
   const regionIndex = options?.regionIndex ?? null;
+  const showBranches = options?.showBranches ?? false;
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   if (spans.length === 1) {
@@ -291,15 +297,71 @@ export function collectRawEvents(
       events,
       sourceSpans,
       agentSpanId,
-      includeUtility
+      includeUtility,
+      showBranches
     );
+
+    // Emit branches from the root span (collectFromContent only sees
+    // branches on nested spans it encounters in the content array).
+    if (showBranches) {
+      emitBranchSpans(span, events, sourceSpans);
+    }
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
     // groups them, matching the drilled-in container behavior.
     // Region selection does not apply to multi-span views.
-    collectFromContent(spans, events, sourceSpans, undefined, includeUtility);
+    collectFromContent(
+      spans,
+      events,
+      sourceSpans,
+      undefined,
+      includeUtility,
+      showBranches
+    );
   }
   return { events, sourceSpans };
+}
+
+/**
+ * Emit each branch on a span as an empty span_begin/span_end pair (like
+ * agents). Content is accessed by selecting the branch swimlane row.
+ */
+function emitBranchSpans(
+  span: TimelineSpan,
+  out: Event[],
+  sourceSpans: Map<string, TimelineSpan>
+): void {
+  for (let i = 0; i < span.branches.length; i++) {
+    const branchSpan = createBranchSpan(span.branches[i]!, i + 1);
+    sourceSpans.set(branchSpan.id, branchSpan);
+
+    const branchBegin: SpanBeginEvent = {
+      event: "span_begin",
+      name: branchSpan.name,
+      id: branchSpan.id,
+      span_id: branchSpan.id,
+      type: branchSpan.spanType,
+      timestamp: branchSpan.startTime.toISOString(),
+      parent_id: null,
+      pending: false,
+      working_start: 0,
+      uuid: branchSpan.id,
+      metadata: null,
+    };
+    out.push(branchBegin);
+
+    const branchEnd: SpanEndEvent = {
+      event: "span_end",
+      id: `${branchSpan.id}-end`,
+      span_id: branchSpan.id,
+      timestamp: branchSpan.endTime.toISOString(),
+      pending: false,
+      working_start: 0,
+      uuid: null,
+      metadata: null,
+    };
+    out.push(branchEnd);
+  }
 }
 
 function collectFromContent(
@@ -307,7 +369,8 @@ function collectFromContent(
   out: Event[],
   sourceSpans: Map<string, TimelineSpan>,
   skipAgentSpanId?: string,
-  includeUtility: boolean = false
+  includeUtility: boolean = false,
+  showBranches: boolean = false
 ): void {
   // Track agent tool_call_ids whose results are shown on the AgentCard,
   // so we can filter them from the next model event's input.
@@ -393,8 +456,13 @@ function collectFromContent(
           out,
           sourceSpans,
           undefined,
-          includeUtility
+          includeUtility,
+          showBranches
         );
+
+        if (showBranches) {
+          emitBranchSpans(item, out, sourceSpans);
+        }
       }
 
       // Emit synthetic span_end

@@ -126,6 +126,9 @@ export const iconForNode = (node: EventNode): string | undefined => {
   if (node.sourceSpan?.spanType === "agent") {
     return ApplicationIcons.subagent;
   }
+  if (node.sourceSpan?.spanType === "branch") {
+    return ApplicationIcons.fork;
+  }
 
   switch (node.event.event) {
     case "sample_limit":
@@ -152,6 +155,10 @@ const tooltipForNode = (node: EventNode): string | undefined => {
 const labelForNode = (node: EventNode): string => {
   // Agent card nodes: use the lowercase span name
   if (node.sourceSpan?.spanType === "agent") {
+    return node.sourceSpan.name.toLowerCase();
+  }
+  // Branch nodes: use the branch span name
+  if (node.sourceSpan?.spanType === "branch") {
     return node.sourceSpan.name.toLowerCase();
   }
 

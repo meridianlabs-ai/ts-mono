@@ -32,11 +32,15 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const resultOutput = useMemo(() => getSpanToolResult(span), [span]);
 
   const isUtility = span.utility;
+  const isBranch = span.spanType === "branch";
   const title = isUtility
     ? getUtilityAgentLabel(span)
     : span.name.toLowerCase();
   const tokens = formatTokenCount(span.totalTokens);
   const duration = formatDurationShort(span.startTime, span.endTime);
+
+  const iconClass = isBranch ? ApplicationIcons.fork : ApplicationIcons.agent;
+  const label = isBranch ? "branch" : isUtility ? "utility" : "sub-agent";
 
   return (
     <div
@@ -44,13 +48,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
       onClick={handleClick}
     >
       <div className={clsx(styles.header, "text-size-small")}>
-        <i
-          className={clsx(
-            ApplicationIcons.agent,
-            styles.icon,
-            "text-style-secondary"
-          )}
-        />
+        <i className={clsx(iconClass, styles.icon, "text-style-secondary")} />
         <div
           className={clsx(
             styles.title,
@@ -58,7 +56,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
             "text-style-label"
           )}
         >
-          {isUtility ? "utility" : "sub-agent"}: {title}
+          {label}: {title}
         </div>
         <div />
         <div className={clsx(styles.meta, "text-style-secondary")}>
