@@ -39,7 +39,7 @@ interface ChildProps {
 }
 
 /**
- * Renders the StateEventView component.
+ * Renders the EventPanel component.
  */
 export const EventPanel: FC<EventPanelProps> = ({
   eventNodeId,
