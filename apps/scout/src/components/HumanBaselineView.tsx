@@ -1,16 +1,15 @@
 import { FC, ReactNode, useEffect } from "react";
 
+import { AsciinemaPlayer } from "@tsmono/react/components";
 import { formatDateTime, formatTime } from "@tsmono/util";
-
-import { AsciinemaPlayer } from "./AsciinemaPlayer";
 
 import "./HumanBaselineView.css";
 
 import { LightboxCarousel } from "./LightboxCarousel";
 
 export interface SessionLog {
-  name: string;
-  user: string;
+  name?: string;
+  user?: string;
   input: string;
   output: string;
   timing: string;

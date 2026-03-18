@@ -94,7 +94,6 @@
     "ansi-output": "^0.0.9",
     "apache-arrow": "^21.1.0",
     "arquero": "^8.0.3",
-    "asciinema-player": "^3.13.5",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "clsx": "^2.1.1",

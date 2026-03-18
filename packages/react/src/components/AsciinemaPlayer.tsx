@@ -1,4 +1,4 @@
-import * as AsciicinemaPlayerJS from "asciinema-player";
+import { create } from "asciinema-player";
 
 import "asciinema-player/dist/bundle/asciinema-player.css";
 
@@ -41,7 +41,7 @@ export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = ({
   useEffect(() => {
     if (!playerContainerRef.current) return;
 
-    const player = AsciicinemaPlayerJS.create(
+    const player = create(
       {
         url: [timingUrl, outputUrl, inputUrl],
         parser: "typescript",
@@ -59,7 +59,7 @@ export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = ({
       }
     );
 
-    player.play();
+    void player.play();
 
     return () => {
       player.dispose();
