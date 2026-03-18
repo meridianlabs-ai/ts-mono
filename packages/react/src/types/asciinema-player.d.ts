@@ -30,13 +30,13 @@ declare module "asciinema-player" {
     seek: (pos: number | string) => Promise<void>;
     addEventListener: (
       name: string,
-      callback: (...args: unknown[]) => void,
+      callback: (...args: unknown[]) => void
     ) => void;
   }
 
   export function create(
     src: string | { url: string | string[]; parser?: string },
     elem: HTMLElement,
-    opts?: AsciinemaPlayerOptions,
+    opts?: AsciinemaPlayerOptions
   ): AsciinemaPlayer;
 }

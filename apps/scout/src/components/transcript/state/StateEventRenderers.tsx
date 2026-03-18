@@ -143,7 +143,12 @@ const human_baseline_session: ChangeType = {
         const entry = partial.get(timestamp) ?? {};
         partial.set(timestamp, entry);
 
-        if (type === "input" || type === "output" || type === "timing" || type === "name") {
+        if (
+          type === "input" ||
+          type === "output" ||
+          type === "timing" ||
+          type === "name"
+        ) {
           entry[type] = value;
         }
         if (user) {
@@ -153,7 +158,7 @@ const human_baseline_session: ChangeType = {
     }
 
     const sessionLogs = [...partial.values()].filter(
-      (s): s is SessionLog => !!s.input && !!s.output && !!s.timing,
+      (s): s is SessionLog => !!s.input && !!s.output && !!s.timing
     );
 
     return (
