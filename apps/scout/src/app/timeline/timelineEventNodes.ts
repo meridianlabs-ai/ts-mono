@@ -265,10 +265,15 @@ export interface CollectedEvents {
  */
 export function collectRawEvents(
   spans: TimelineSpan[],
-  options?: { includeUtility?: boolean; regionIndex?: number | null }
+  options?: {
+    includeUtility?: boolean;
+    regionIndex?: number | null;
+    showBranches?: boolean;
+  }
 ): CollectedEvents {
   const includeUtility = options?.includeUtility ?? false;
   const regionIndex = options?.regionIndex ?? null;
+  const showBranches = options?.showBranches ?? false;
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   if (spans.length === 1) {
@@ -292,17 +297,27 @@ export function collectRawEvents(
       events,
       sourceSpans,
       agentSpanId,
-      includeUtility
+      includeUtility,
+      showBranches
     );
 
     // Emit branches from the root span (collectFromContent only sees
     // branches on nested spans it encounters in the content array).
-    emitBranchSpans(span, events, sourceSpans);
+    if (showBranches) {
+      emitBranchSpans(span, events, sourceSpans);
+    }
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
     // groups them, matching the drilled-in container behavior.
     // Region selection does not apply to multi-span views.
-    collectFromContent(spans, events, sourceSpans, undefined, includeUtility);
+    collectFromContent(
+      spans,
+      events,
+      sourceSpans,
+      undefined,
+      includeUtility,
+      showBranches
+    );
   }
   return { events, sourceSpans };
 }
@@ -354,7 +369,8 @@ function collectFromContent(
   out: Event[],
   sourceSpans: Map<string, TimelineSpan>,
   skipAgentSpanId?: string,
-  includeUtility: boolean = false
+  includeUtility: boolean = false,
+  showBranches: boolean = false
 ): void {
   // Track agent tool_call_ids whose results are shown on the AgentCard,
   // so we can filter them from the next model event's input.
@@ -440,10 +456,13 @@ function collectFromContent(
           out,
           sourceSpans,
           undefined,
-          includeUtility
+          includeUtility,
+          showBranches
         );
 
-        emitBranchSpans(item, out, sourceSpans);
+        if (showBranches) {
+          emitBranchSpans(item, out, sourceSpans);
+        }
       }
 
       // Emit synthetic span_end

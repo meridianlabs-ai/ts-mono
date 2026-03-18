@@ -312,6 +312,11 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   const parentRow = visibleLayouts[0];
   const childRows = visibleLayouts.slice(1);
 
+  const branchConnectors = useMemo(
+    () => computeBranchConnectors(visibleLayouts),
+    [visibleLayouts]
+  );
+
   const renderRow = (layout: RowLayout, displayName?: string) => {
     const isRowSelected = selectedRowKey === layout.key;
     const selectedSpanIndex = isRowSelected
@@ -345,6 +350,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         }
         onBranchToggle={handleBranchToggle}
         onMarkerNavigate={onMarkerNavigate}
+        connector={branchConnectors.get(layout.key)}
       />
     );
   };
@@ -409,6 +415,71 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
 };
 
 // =============================================================================
+// Branch connectors
+// =============================================================================
+
+/** Describes the L-shaped connector from a parent's branch marker to a branch row. */
+interface BranchConnector {
+  /** Percentage position of the fork marker on the parent row. */
+  markerLeft: number;
+  /** Percentage position of the branch bar's left edge. */
+  barLeft: number;
+  /** Number of rows between the parent and this branch row. */
+  rowGap: number;
+}
+
+const kBranchKeyPattern = /\/branch-([^/]*)-(\d+)$/;
+
+/**
+ * For each branch row, compute the connector from its parent's fork marker
+ * down to the branch bar start.
+ */
+function computeBranchConnectors(
+  layouts: RowLayout[]
+): ReadonlyMap<string, BranchConnector> {
+  const connectors = new Map<string, BranchConnector>();
+
+  // Build index of layout positions by key for fast lookup.
+  const indexByKey = new Map<string, number>();
+  for (let i = 0; i < layouts.length; i++) {
+    indexByKey.set(layouts[i]!.key, i);
+  }
+
+  for (let i = 0; i < layouts.length; i++) {
+    const layout = layouts[i]!;
+    if (!layout.branch) continue;
+
+    // Extract forkedAt UUID from the branch key.
+    const match = kBranchKeyPattern.exec(layout.key);
+    if (!match) continue;
+    const forkedAt = match[1]!;
+
+    // Find parent: strip the /branch-... suffix to get the parent key.
+    const parentKey = layout.key.replace(kBranchKeyPattern, "");
+    const parentIndex = indexByKey.get(parentKey);
+    if (parentIndex === undefined) continue;
+    const parentLayout = layouts[parentIndex]!;
+
+    // Find the branch marker on the parent with matching reference.
+    const marker = parentLayout.markers.find(
+      (m) => m.kind === "branch" && m.reference === forkedAt
+    );
+    if (!marker) continue;
+
+    // Branch bar start position.
+    const barLeft = layout.spans[0]?.bar.left ?? 0;
+
+    connectors.set(layout.key, {
+      markerLeft: marker.left,
+      barLeft,
+      rowGap: i - parentIndex,
+    });
+  }
+
+  return connectors;
+}
+
+// =============================================================================
 // SwimlaneRow (internal)
 // =============================================================================
 
@@ -436,6 +507,8 @@ interface SwimlaneRowProps {
   onSelectRegion: (spanIndex: number | undefined, regionIndex: number) => void;
   onBranchToggle: () => void;
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
+  /** Connector line from parent's branch marker to this branch row. */
+  connector?: BranchConnector;
 }
 
 const SwimlaneRow: FC<SwimlaneRowProps> = ({
@@ -452,6 +525,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   onSelectRegion,
   onBranchToggle,
   onMarkerNavigate,
+  connector,
 }) => {
   const hasMultipleSpans = layout.spans.length > 1;
   const hasChildren = isExpanded !== undefined;
@@ -594,6 +668,9 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
               onMarkerNavigate={handleMarkerNavigate}
             />
           ))}
+
+          {/* Branch connector line */}
+          {connector && <BranchConnectorLine connector={connector} />}
         </div>
       </div>
 
@@ -930,6 +1007,58 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
           />
         );
       })}
+    </>
+  );
+};
+
+// =============================================================================
+// BranchConnectorLine (internal)
+// =============================================================================
+
+const kRowHeight = 18; // matches --swimlane-row-height
+
+const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
+  connector,
+}) => {
+  const { markerLeft, barLeft, rowGap } = connector;
+  // y=0 is the top of the current (branch) row's barInner.
+  // The parent row is rowGap rows above, so the vertical line starts at
+  // the center of the parent row and drops to the center of this row.
+  // Start at the top of the parent row so the line visually originates from
+  // behind the branch marker icon. The collapsible section adds padding
+  // between the parent and branch rows that isn't captured by rowGap alone.
+  const topY = -(rowGap * kRowHeight);
+  const midY = kRowHeight / 2; // vertical center of this row
+
+  // Always draw an L-shape: vertical down then horizontal right with arrow.
+  // The horizontal goes from markerLeft to barLeft. When they're the same,
+  // we still need a short stub so the ▸ arrow is visible.
+  const endLeft = Math.max(barLeft, markerLeft + 0.5);
+
+  return (
+    <>
+      <svg className={styles.branchConnector}>
+        {/* Vertical segment: extends 0.5px past midY to overlap with the horizontal line at the corner */}
+        <line
+          x1={`${markerLeft}%`}
+          y1={topY}
+          x2={`${markerLeft}%`}
+          y2={midY + 0.5}
+          stroke="var(--vscode-foreground)"
+          strokeWidth={1}
+        />
+        {/* Horizontal segment: from marker position rightward to branch bar */}
+        <line
+          x1={`${markerLeft}%`}
+          y1={midY}
+          x2={`${endLeft}%`}
+          y2={midY}
+          stroke="var(--vscode-foreground)"
+          strokeWidth={1}
+        />
+      </svg>
+      {/* Right-pointing arrowhead: CSS border-triangle, 6px tall */}
+      <div className={styles.connectorArrow} style={{ left: `${endLeft}%` }} />
     </>
   );
 };
