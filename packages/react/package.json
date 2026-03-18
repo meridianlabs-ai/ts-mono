@@ -21,8 +21,8 @@
   },
   "dependencies": {
     "@tsmono/util": "workspace:*",
-    "lodash-es": "^4.17.23",
-    "asciinema-player": "^3.13.5"
+    "asciinema-player": "^3.13.5",
+    "lodash-es": "^4.17.23"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
