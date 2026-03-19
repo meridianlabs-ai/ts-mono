@@ -128,42 +128,38 @@ const human_baseline_session: ChangeType = {
     // Tweak the date value
     const startedDate = started ? new Date(started * 1000) : undefined;
 
-    // Convert raw sessions into session logs
-    const sessions: Record<string, SessionLog> = {};
+    // Collect raw parts keyed by timestamp, then keep only entries with required fields
+    const partial = new Map<string, Partial<SessionLog>>();
     if (rawSessions) {
       for (const key of Object.keys(rawSessions)) {
         const value = rawSessions[key] as string;
-        // this pulls the key apart into
         // <user>_<timestamp>.<type>
         const match = key.match(/(.*)_(\d+_\d+)\.(.*)/);
-        if (match) {
-          const user = match[1];
-          const timestamp = match[2];
-          const type = match[3];
-          if (timestamp) {
-            sessions[timestamp] = sessions[timestamp]!;
-            switch (type) {
-              case "input":
-                sessions[timestamp].input = value;
-                break;
-              case "output":
-                sessions[timestamp].output = value;
-                break;
-              case "timing":
-                sessions[timestamp].timing = value;
-                break;
-              case "name":
-                sessions[timestamp].name = value;
-                break;
-            }
+        if (!match) continue;
 
-            if (user) {
-              sessions[timestamp].user = user;
-            }
-          }
+        const [, user, timestamp, type] = match;
+        if (!timestamp) continue;
+
+        const entry = partial.get(timestamp) ?? {};
+        partial.set(timestamp, entry);
+
+        if (
+          type === "input" ||
+          type === "output" ||
+          type === "timing" ||
+          type === "name"
+        ) {
+          entry[type] = value;
+        }
+        if (user) {
+          entry.user = user;
         }
       }
     }
+
+    const sessionLogs = [...partial.values()].filter(
+      (s): s is SessionLog => !!s.input && !!s.output && !!s.timing
+    );
 
     return (
       <HumanBaselineView
@@ -173,7 +169,7 @@ const human_baseline_session: ChangeType = {
         completed={completed}
         answer={answer}
         runtime={runtime}
-        sessionLogs={Object.values(sessions)}
+        sessionLogs={sessionLogs}
       />
     );
   },

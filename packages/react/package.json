@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@tsmono/util": "workspace:*",
+    "asciinema-player": "^3.13.5",
     "lodash-es": "^4.17.23"
   },
   "peerDependencies": {
