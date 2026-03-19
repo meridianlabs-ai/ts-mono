@@ -14,10 +14,10 @@ import {
   useState,
 } from "react";
 
+import { Modal } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../components/icons";
-import { Modal } from "../../components/Modal";
 import { NonIdealState } from "../../components/NonIdealState";
 import { TextInput } from "../../components/TextInput";
 import { useStore } from "../../state/store";

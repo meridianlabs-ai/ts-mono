@@ -6,7 +6,8 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useMemo, useState } from "react";
 
-import { Modal } from "../../../components/Modal";
+import { Modal } from "@tsmono/react/components";
+
 import { ValidationCase } from "../../../types/api-types";
 import { extractUniqueSplits } from "../utils";
 

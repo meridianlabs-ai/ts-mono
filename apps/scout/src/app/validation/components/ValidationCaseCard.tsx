@@ -2,8 +2,9 @@ import { VscodeCheckbox } from "@vscode-elements/react-elements";
 import React, { CSSProperties, FC, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Modal } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { Modal } from "../../../components/Modal";
 import { transcriptRoute } from "../../../router/url";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { getIdText } from "../utils";
