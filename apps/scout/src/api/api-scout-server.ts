@@ -2,6 +2,7 @@ import { decompress as decompressZstd } from "fzstd";
 
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
+import { expandEvents } from "../app/utils/expandEvents";
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
@@ -148,11 +149,13 @@ export const apiScoutServer = (
         fetchMessagesEvents(requestApi, encodedDir, encodedId),
       ]);
 
-      const [info, { messages, events, timelines, attachments }] =
-        await Promise.all([
-          asyncJsonParse<TranscriptInfo>(infoResult.raw),
-          asyncJsonParse<MessagesEventsResponse>(messagesEventsJson),
-        ]);
+      const [info, parsed] = await Promise.all([
+        asyncJsonParse<TranscriptInfo>(infoResult.raw),
+        asyncJsonParse<MessagesEventsResponse>(messagesEventsJson),
+      ]);
+
+      const { messages, timelines, attachments } = parsed;
+      const events = expandEvents(parsed.events, parsed.events_data ?? null);
 
       return {
         ...info,
