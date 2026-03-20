@@ -253,6 +253,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@types/css-modules':
+        specifier: ^1.0.5
+        version: 1.0.5
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
