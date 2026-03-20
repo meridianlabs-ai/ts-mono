@@ -30,7 +30,11 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
     // Apply post-processing to get final HTML
     const applyPostProcess = (html: string): string => {
       const processed = postProcess ? postProcess(html) : html;
-      return unescapeAllowedHtmlTags(processed);
+      return unescapeSupHtmlEntities(processed);
+    };
+
+    const sanitizeMarkdown = (md: string): string => {
+      return escapeHtmlCharacters(md).replace(/\n/g, "<br/>");
     };
 
     // Initialize with content (cached or unrendered markdown)
@@ -38,7 +42,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       if (cachedHtml) {
         return applyPostProcess(cachedHtml);
       }
-      return markdown.replace(/\n/g, "<br/>");
+      return sanitizeMarkdown(markdown);
     });
 
     useEffect(() => {
@@ -54,8 +58,8 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         return;
       }
 
-      // Reset to raw markdown text when markdown changes (keep this synchronous for immediate feedback)
-      setRenderedHtml(markdown.replace(/\n/g, "<br/>"));
+      // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
+      setRenderedHtml(sanitizeMarkdown(markdown));
 
       // Process markdown asynchronously using the queue
       const { promise, cancel } = renderQueue.enqueue(async () => {
@@ -146,13 +150,47 @@ export const MarkdownDiv = memo(MarkdownDivComponent);
 const renderCache = new Map<string, string>();
 const MAX_CACHE_SIZE = 500;
 
+/** Unescape HTML entities within math token content before MathJax processing.
+ *  This is safe because MathJax renders TeX to SVG/MathML, not raw HTML. */
+const unescapeHtmlForMath = (content: string): string => {
+  return content
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"');
+};
+
+/** Wrap math_inline and math_block renderers to unescape HTML entities
+ *  in TeX content before MathJax processes them. */
+const wrapMathRenderers = (md: markdownit): void => {
+  const origInline = md.renderer.rules.math_inline;
+  const origBlock = md.renderer.rules.math_block;
+
+  if (origInline) {
+    md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
+      tokens[idx]!.content = unescapeHtmlForMath(tokens[idx]!.content);
+      return origInline(tokens, idx, options, env, self);
+    };
+  }
+  if (origBlock) {
+    md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
+      tokens[idx]!.content = unescapeHtmlForMath(tokens[idx]!.content);
+      return origBlock(tokens, idx, options, env, self);
+    };
+  }
+};
+
 // Pre-initialize markdown-it instances to avoid recreation overhead
 const mdInstance = markdownit({ breaks: true, html: true }).use(
   markdownitMathjax3
 );
+wrapMathRenderers(mdInstance);
+
 const mdInstanceNoMedia = markdownit({ breaks: true, html: true })
   .use(markdownitMathjax3)
   .disable(["image"]);
+wrapMathRenderers(mdInstanceNoMedia);
 
 // Markdown rendering queue to make markdown rendering async while limiting concurrency
 interface QueueTask {
@@ -261,26 +299,17 @@ const protectBackslashesInLatex = (content: string): string => {
     // Match block math: $$...$$
     const blockRegex = /\$\$([\s\S]*?)\$\$/g;
 
-    // Replace backslashes and HTML characters in LaTeX blocks with placeholders
+    // Replace backslashes in LaTeX blocks with placeholders to protect them
+    // from HTML escaping. Only backslashes need protection — other characters
+    // (<, >, &, ', ") are left for escapeHtmlCharacters to handle, and then
+    // unescaped specifically within MathJax token rendering.
     let result = content.replace(inlineRegex, (_match, latex) => {
-      const protectedTex = latex
-        .replace(/\\/g, "___LATEX_BACKSLASH___")
-        .replace(/</g, "___LATEX_LT___")
-        .replace(/>/g, "___LATEX_GT___")
-        .replace(/&/g, "___LATEX_AMP___")
-        .replace(/'/g, "___LATEX_APOS___")
-        .replace(/"/g, "___LATEX_QUOT___");
+      const protectedTex = latex.replace(/\\/g, "___LATEX_BACKSLASH___");
       return `$${protectedTex}$`;
     });
 
     result = result.replace(blockRegex, (_match, latex) => {
-      const protectedTex = latex
-        .replace(/\\/g, "___LATEX_BACKSLASH___")
-        .replace(/</g, "___LATEX_LT___")
-        .replace(/>/g, "___LATEX_GT___")
-        .replace(/&/g, "___LATEX_AMP___")
-        .replace(/'/g, "___LATEX_APOS___")
-        .replace(/"/g, "___LATEX_QUOT___");
+      const protectedTex = latex.replace(/\\/g, "___LATEX_BACKSLASH___");
       return `$$${protectedTex}$$`;
     });
 
@@ -297,14 +326,9 @@ const restoreBackslashesForLatex = (content: string): string => {
   }
 
   try {
-    // Restore all protected LaTeX content
-    let result = content
-      .replace(/___LATEX_BACKSLASH___/g, "\\")
-      .replace(/___LATEX_LT___/g, "<")
-      .replace(/___LATEX_GT___/g, ">")
-      .replace(/___LATEX_AMP___/g, "&")
-      .replace(/___LATEX_APOS___/g, "'")
-      .replace(/___LATEX_QUOT___/g, '"');
+    // Restore only backslash placeholders — other characters (<, >, &, ', ")
+    // are kept as HTML entities and unescaped within MathJax token rendering.
+    let result = content.replace(/___LATEX_BACKSLASH___/g, "\\");
 
     // Then fix dots notation for better MathJax compatibility
     // This replaces \dots with \ldots which has better support
@@ -394,17 +418,14 @@ const unprotectMarkdown = (txt: string): string => {
   return txt;
 };
 
-function unescapeAllowedHtmlTags(str: string): string {
+function unescapeSupHtmlEntities(str: string): string {
+  // replace &lt;sup&gt; with <sup>
   if (!str) {
     return str;
   }
   return str
     .replace(/&lt;sup&gt;/g, "<sup>")
-    .replace(/&lt;\/sup&gt;/g, "</sup>")
-    .replace(/&lt;details&gt;/g, "<details>")
-    .replace(/&lt;\/details&gt;/g, "</details>")
-    .replace(/&lt;summary&gt;/g, "<summary>")
-    .replace(/&lt;\/summary&gt;/g, "</summary>");
+    .replace(/&lt;\/sup&gt;/g, "</sup>");
 }
 
 function unescapeCodeHtmlEntities(str: string): string {
