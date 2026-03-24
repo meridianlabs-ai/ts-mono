@@ -44,6 +44,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve dist directory
+         * @description Returns the absolute path to the frontend dist directory, downloading from Git LFS if needed.
+         */
+        get: operations["dist_dist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/project/config": {
         parameters: {
             query?: never;
@@ -1150,6 +1170,11 @@ export interface components {
         CreateValidationSetRequest: {
             /** Cases */
             cases: components["schemas"]["ValidationCaseRequest"][];
+            /** Path */
+            path: string;
+        };
+        /** DistResponse */
+        DistResponse: {
             /** Path */
             path: string;
         };
@@ -4386,6 +4411,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    dist_dist_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistResponse"];
                 };
             };
         };
