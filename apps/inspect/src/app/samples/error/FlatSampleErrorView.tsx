@@ -1,9 +1,10 @@
-import { ApplicationIcons } from "../../appearance/icons";
-
 import clsx from "clsx";
 import { FC } from "react";
-import styles from "./FlatSampleErrorView.module.css";
+
+import { ApplicationIcons } from "../../appearance/icons";
+
 import { errorType } from "./error";
+import styles from "./FlatSampleErrorView.module.css";
 
 interface FlatSampleErrorViewProps {
   message?: string;

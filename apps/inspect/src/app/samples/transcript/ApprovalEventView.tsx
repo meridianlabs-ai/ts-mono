@@ -1,6 +1,8 @@
 import { FC } from "react";
+
 import { ApprovalEvent } from "../../../@types/log";
 import { ApplicationIcons } from "../../appearance/icons";
+
 import { EventRow } from "./event/EventRow";
 import { eventTitle } from "./event/utils";
 import { EventNode } from "./types";

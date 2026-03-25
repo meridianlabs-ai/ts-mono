@@ -1,13 +1,14 @@
 import clsx from "clsx";
-import { LoggerEvent } from "../../../@types/log";
-import { ApplicationIcons } from "../../appearance/icons";
-import { EventRow } from "./event/EventRow";
-import { eventTitle } from "./event/utils";
-
 import { FC } from "react";
+
+import { LoggerEvent } from "../../../@types/log";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { parsedJson as maybeParseJson } from "../../../utils/json";
+import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
+
+import { EventRow } from "./event/EventRow";
+import { eventTitle } from "./event/utils";
 import styles from "./LoggerEventView.module.css";
 import { EventNode } from "./types";
 

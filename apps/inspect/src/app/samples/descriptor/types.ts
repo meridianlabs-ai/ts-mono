@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+
 import { Value2 } from "../../../@types/log";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
@@ -8,15 +9,15 @@ export interface EvalDescriptor {
   scoreDescriptor: (scoreLabel: ScoreLabel) => ScoreDescriptor;
   scorerDescriptor: (
     sample: BasicSampleData,
-    scoreLabel: ScoreLabel,
+    scoreLabel: ScoreLabel
   ) => ScorerDescriptor;
   score: (
     sample: BasicSampleData,
-    scoreLabel?: ScoreLabel,
+    scoreLabel?: ScoreLabel
   ) => SelectedScore | undefined;
   scoreAnswer: (
     sample: BasicSampleData,
-    scorer: ScoreLabel,
+    scorer: ScoreLabel
   ) => string | undefined;
 }
 

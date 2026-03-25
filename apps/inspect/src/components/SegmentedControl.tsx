@@ -25,7 +25,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
     (segmentId: string, index: number) => {
       onSegmentChange(segmentId, index);
     },
-    [onSegmentChange],
+    [onSegmentChange]
   );
 
   if (selectedId === undefined) {
@@ -43,7 +43,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
               [styles.selected]: selectedId === segment.id,
             },
             "text-size-smallest",
-            "text-style-secondary",
+            "text-style-secondary"
           )}
           onClick={() => handleSegmentClick(segment.id, index)}
           aria-pressed={selectedId === segment.id}

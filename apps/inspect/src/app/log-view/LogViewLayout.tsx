@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { ExtendedFindProvider } from "../../components/ExtendedFindContext";
@@ -7,6 +8,7 @@ import { FindBand } from "../../components/FindBand";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams } from "../routing/url";
+
 import { LogView } from "./LogView";
 
 /**
@@ -71,7 +73,7 @@ export const LogViewLayout: FC = () => {
           "app-main-grid",
           fullScreen ? "full-screen" : undefined,
           singleFileMode ? "single-file-mode" : undefined,
-          "log-view",
+          "log-view"
         )}
         tabIndex={0}
       >

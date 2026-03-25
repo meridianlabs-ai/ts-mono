@@ -1,8 +1,12 @@
 import { FC } from "react";
+
 import { formatDateTime, formatTime } from "../utils/format";
+
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import { useRevokableUrls } from "./hooks";
+
 import "./HumanBaselineView.css";
+
 import { LightboxCarousel } from "./LightboxCarousel";
 
 export interface SessionLog {
@@ -136,7 +140,7 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
 const extractSize = (
   value: string,
   label: string,
-  defaultValue: number,
+  defaultValue: number
 ): number => {
   const regex = new RegExp(`${label}="(\\d+)"`);
   const match = value.match(regex);

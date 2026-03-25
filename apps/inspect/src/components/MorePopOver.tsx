@@ -1,5 +1,6 @@
 import { Popover } from "bootstrap";
 import { FC, ReactNode, useEffect, useRef } from "react";
+
 import "./MorePopover.css";
 
 interface MorePopoverProps {
@@ -24,7 +25,7 @@ export const MorePopover: FC<MorePopoverProps> = ({
 
     // Clone children into popover content
     Array.from(contentEl.childNodes).forEach((child) =>
-      popOverContent.appendChild(child.cloneNode(true)),
+      popOverContent.appendChild(child.cloneNode(true))
     );
 
     // Capture the current ref value for cleanup

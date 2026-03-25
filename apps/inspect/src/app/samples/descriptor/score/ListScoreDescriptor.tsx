@@ -20,7 +20,7 @@ export const listScoreDescriptor = (_values: Value2[]): ScoreDescriptor => {
       (score as []).forEach((value) => {
         if (!Array.isArray(score)) {
           throw new Error(
-            "Unexpected use of list score descriptor for non-lisß object",
+            "Unexpected use of list score descriptor for non-lisß object"
           );
         }
         const formattedValue =
@@ -28,7 +28,7 @@ export const listScoreDescriptor = (_values: Value2[]): ScoreDescriptor => {
             ? formatPrettyDecimal(
                 typeof value === "number"
                   ? value
-                  : parseFloat(value === true ? "1" : value),
+                  : parseFloat(value === true ? "1" : value)
               )
             : String(value);
         formattedScores.push(formattedValue);

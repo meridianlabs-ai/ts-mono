@@ -1,11 +1,11 @@
 import {
   arrayToString,
-  formatTime,
-  formatPrettyDecimal,
   formatDecimalNoTrailingZeroes,
-  toTitleCase,
-  formatNoDecimal,
   formatDuration,
+  formatNoDecimal,
+  formatPrettyDecimal,
+  formatTime,
+  toTitleCase,
 } from "../../utils/format";
 
 describe("arrayToString", () => {

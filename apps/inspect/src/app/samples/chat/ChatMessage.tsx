@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
+
 import { ChatMessageTool } from "../../../@types/log";
 import { CopyButton } from "../../../components/CopyButton";
 import ExpandablePanel from "../../../components/ExpandablePanel";
@@ -12,10 +13,11 @@ import {
   toFullUrl,
   useSampleMessageUrl,
 } from "../../routing/url";
+
 import styles from "./ChatMessage.module.css";
 import { MessageContents } from "./MessageContents";
-import { ChatViewToolCallStyle } from "./types";
 import { Message } from "./messages";
+import { ChatViewToolCallStyle } from "./types";
 
 interface ChatMessageProps {
   id: string;
@@ -65,7 +67,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
           styles.message,
           message.role === "system" ? styles.systemRole : undefined,
           message.role === "user" ? styles.userRole : undefined,
-          mouseOver ? styles.hover : undefined,
+          mouseOver ? styles.hover : undefined
         )}
         onMouseEnter={() => setMouseOver(true)}
         onMouseLeave={() => setMouseOver(false)}
@@ -75,7 +77,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
             className={clsx(
               styles.messageGrid,
               message.role === "tool" ? styles.toolMessageGrid : undefined,
-              "text-style-label",
+              "text-style-label"
             )}
           >
             <div>
@@ -101,7 +103,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
         <div
           className={clsx(
             styles.messageContents,
-            indented ? styles.indented : undefined,
+            indented ? styles.indented : undefined
           )}
         >
           <ExpandablePanel
@@ -135,5 +137,5 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
         </div>
       </div>
     );
-  },
+  }
 );

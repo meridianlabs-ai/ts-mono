@@ -43,7 +43,7 @@ export async function decompressData(
   data: Uint8Array,
   compressionMethod: number,
   uncompressedSize: number,
-  filename: string,
+  filename: string
 ): Promise<Uint8Array> {
   switch (compressionMethod) {
     case CompressionMethod.STORED:
@@ -65,7 +65,7 @@ export async function decompressData(
  */
 async function decompressDeflate(
   data: Uint8Array,
-  size: number,
+  size: number
 ): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     decompress(data, { size }, (err, result) => {

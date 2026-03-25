@@ -9,6 +9,7 @@
  */
 
 import { LogDetails, LogHandle, LogPreview, SampleSummary } from "../api/types";
+
 import { createDatabaseService, DatabaseService } from "./service";
 
 // Helper function to create test LogSummary
@@ -74,7 +75,7 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
 
 // Helper function to create test SampleSummary
 function createTestSampleSummary(
-  overrides: Partial<SampleSummary> = {},
+  overrides: Partial<SampleSummary> = {}
 ): SampleSummary {
   return {
     id: 1,
@@ -157,10 +158,10 @@ describe("Database Service", () => {
       const files = await databaseService.readLogs();
       expect(files).toHaveLength(2);
       expect(files?.find((f) => f.name === "/test/logs/eval1.json")?.task).toBe(
-        "updated-task",
+        "updated-task"
       );
       expect(files?.find((f) => f.name === "/test/logs/eval2.json")?.task).toBe(
-        "additional-task",
+        "additional-task"
       );
     });
   });
@@ -179,7 +180,7 @@ describe("Database Service", () => {
       // Cache the summaries
       await databaseService.writeLogPreviews(
         summaries,
-        logHandles.map((logHandle) => logHandle.name),
+        logHandles.map((logHandle) => logHandle.name)
       );
 
       // Retrieve cached summaries
@@ -197,7 +198,7 @@ describe("Database Service", () => {
       // Cache only one summary
       await databaseService.writeLogPreviews(
         [summary],
-        ["/test/logs/eval1.json"],
+        ["/test/logs/eval1.json"]
       );
 
       // Request multiple summaries
@@ -241,7 +242,7 @@ describe("Database Service", () => {
 
       // Retrieve cached log info
       const cached = await databaseService.readLogDetailsForFile(
-        "/test/logs/eval1.json",
+        "/test/logs/eval1.json"
       );
 
       expect(cached).not.toBeNull();
@@ -252,7 +253,7 @@ describe("Database Service", () => {
 
     test("should return null for non-cached log info", async () => {
       const cached = await databaseService.readLogDetailsForFile(
-        "/test/logs/nonexistent.json",
+        "/test/logs/nonexistent.json"
       );
       expect(cached).toBeNull();
     });
@@ -275,7 +276,7 @@ describe("Database Service", () => {
 
       // Get samples for the file
       const retrievedSamples = await databaseService.readSampleSummariesForFile(
-        "/test/logs/eval1.json",
+        "/test/logs/eval1.json"
       );
 
       expect(retrievedSamples).toHaveLength(3);
@@ -286,7 +287,7 @@ describe("Database Service", () => {
 
     test("should return empty array for file without cached info", async () => {
       const samples = await databaseService.readSampleSummariesForFile(
-        "/test/logs/nonexistent.json",
+        "/test/logs/nonexistent.json"
       );
       expect(samples).toEqual([]);
     });
@@ -399,14 +400,14 @@ describe("Database Service", () => {
 
       await databaseService.writeLogPreviews(
         [createTestLogSummary()],
-        ["/test/logs/eval1.json"],
+        ["/test/logs/eval1.json"]
       );
 
       await databaseService.writeLogDetail(
         "/test/logs/eval1.json",
         createTestLogInfo({
           sampleSummaries: [createTestSampleSummary()],
-        }),
+        })
       );
 
       const stats1 = await databaseService.getCacheStats();
@@ -432,7 +433,7 @@ describe("Database Service", () => {
             createTestSampleSummary({ id: 1 }),
             createTestSampleSummary({ id: 2 }),
           ],
-        }),
+        })
       );
 
       await databaseService.writeLogDetail(
@@ -443,7 +444,7 @@ describe("Database Service", () => {
             createTestSampleSummary({ id: 4 }),
             createTestSampleSummary({ id: 5 }),
           ],
-        }),
+        })
       );
 
       const stats = await databaseService.getCacheStats();

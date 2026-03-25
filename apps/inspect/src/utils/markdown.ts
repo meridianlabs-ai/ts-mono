@@ -12,7 +12,7 @@ import MarkdownIt from "markdown-it";
 export function truncateMarkdown(
   markdown: string,
   maxLength: number = 250,
-  ellipsis: string = "...",
+  ellipsis: string = "..."
 ): string {
   // Handle edge cases
   if (!markdown || markdown.length <= maxLength) {
@@ -62,7 +62,7 @@ export function truncateMarkdown(
         // Look for word boundary within the token
         const truncatedToken = truncateAtWordBoundary(
           tokenContent,
-          remainingSpace,
+          remainingSpace
         );
         if (truncatedToken.length > 0) {
           accumulated += truncatedToken;
@@ -234,7 +234,7 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 export function simpleMarkdownTruncate(
   markdown: string,
   maxLength: number = 250,
-  ellipsis: string = "...",
+  ellipsis: string = "..."
 ): string {
   if (!markdown || markdown.length <= maxLength) {
     return markdown;

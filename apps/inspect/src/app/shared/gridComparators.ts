@@ -9,13 +9,13 @@ import type { IRowNode } from "ag-grid-community";
  * @returns A comparator function suitable for ag-grid ColDef
  */
 export function createFolderFirstComparator<T extends { type?: string }>(
-  compareFn: (valueA: unknown, valueB: unknown, itemA: T, itemB: T) => number,
+  compareFn: (valueA: unknown, valueB: unknown, itemA: T, itemB: T) => number
 ) {
   return (
     valueA: unknown,
     valueB: unknown,
     nodeA: IRowNode<T>,
-    nodeB: IRowNode<T>,
+    nodeB: IRowNode<T>
   ): number => {
     const itemA = nodeA.data;
     const itemB = nodeB.data;

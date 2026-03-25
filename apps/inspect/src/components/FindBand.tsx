@@ -7,9 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { useStore } from "../state/store";
 import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
 import { debounce } from "../utils/sync";
+
 import { useExtendedFind } from "./ExtendedFindContext";
 import { FindBandUI } from "./FindBandUI";
 
@@ -70,7 +72,7 @@ export const FindBand: FC<FindBandProps> = () => {
       }
       return undefined;
     },
-    [],
+    []
   );
 
   const handleSearch = useCallback(
@@ -121,7 +123,7 @@ export const FindBand: FC<FindBandProps> = () => {
         searchTerm,
         back,
         lastFoundItem.current,
-        extendedFindTerm,
+        extendedFindTerm
       );
 
       if (searchIdRef.current !== thisSearchId) {
@@ -190,7 +192,7 @@ export const FindBand: FC<FindBandProps> = () => {
 
       focusedElement?.focus();
     },
-    [getParentExpandablePanel, extendedFindTerm, countAllMatches],
+    [getParentExpandablePanel, extendedFindTerm, countAllMatches]
   );
 
   useEffect(() => {
@@ -235,7 +237,7 @@ export const FindBand: FC<FindBandProps> = () => {
         searchBoxRef.current?.select();
       }
     },
-    [storeHideFind, handleSearch],
+    [storeHideFind, handleSearch]
   );
 
   const findPrevious = useCallback(() => {
@@ -264,7 +266,7 @@ export const FindBand: FC<FindBandProps> = () => {
         // Mark for cursor restore on next keypress (keeps find highlight visible)
         needsCursorRestoreRef.current = true;
       }, 300),
-    [handleSearch],
+    [handleSearch]
   );
 
   const handleInputChange = useCallback(() => {
@@ -360,7 +362,7 @@ function windowFind(searchTerm: string, back: boolean): boolean {
     findConfig.wrapAround,
     findConfig.wholeWord,
     findConfig.searchInFrames,
-    findConfig.showDialog,
+    findConfig.showDialog
   ) as boolean;
 }
 
@@ -386,8 +388,8 @@ async function findExtendedInDOM(
   } | null,
   extendedFindTerm: (
     term: string,
-    direction: "forward" | "backward",
-  ) => Promise<boolean>,
+    direction: "forward" | "backward"
+  ) => Promise<boolean>
 ) {
   let result = false;
   let hasTriedExtendedSearch = false;
@@ -415,7 +417,7 @@ async function findExtendedInDOM(
 
             const foundInVirtual = await extendedFindTerm(
               searchTerm,
-              back ? "backward" : "forward",
+              back ? "backward" : "forward"
             );
 
             if (foundInVirtual) {
@@ -456,7 +458,7 @@ async function findExtendedInDOM(
 
       const foundInVirtual = await extendedFindTerm(
         searchTerm,
-        back ? "backward" : "forward",
+        back ? "backward" : "forward"
       );
 
       if (foundInVirtual) {
@@ -499,7 +501,7 @@ function isLastFoundItem(
     text: string;
     offset: number;
     parentElement: Element;
-  } | null,
+  } | null
 ) {
   if (!lastFoundItem) return false;
 
@@ -566,7 +568,7 @@ function selectionParentElement(range: Range) {
  */
 function waitForTextInDOM(
   searchTerm: string,
-  timeoutMs = 2000,
+  timeoutMs = 2000
 ): Promise<boolean> {
   const lowerTerm = searchTerm.toLowerCase();
 
@@ -585,7 +587,7 @@ function waitForTextInDOM(
           }
           return NodeFilter.FILTER_ACCEPT;
         },
-      },
+      }
     );
     while (walker.nextNode()) {
       if (walker.currentNode.textContent?.toLowerCase().includes(lowerTerm)) {

@@ -24,7 +24,7 @@ export interface ServerRequestApi {
     method: HttpMethod,
     path: string,
     headers?: Record<string, string>,
-    body?: string,
+    body?: string
   ) => Promise<{
     parsed: any;
     raw: string;
@@ -33,13 +33,13 @@ export interface ServerRequestApi {
   fetchType: <T>(
     method: HttpMethod,
     path: string,
-    request: Request<T>,
+    request: Request<T>
   ) => Promise<{ raw: string; parsed: T }>;
 }
 
 export function serverRequestApi(
   baseUrl?: string,
-  getHeaders?: HeaderProvider,
+  getHeaders?: HeaderProvider
 ): ServerRequestApi {
   const apiUrl = baseUrl || "";
 
@@ -55,7 +55,7 @@ export function serverRequestApi(
   function isApiCrossOrigin(): boolean {
     try {
       return Boolean(
-        apiUrl && new URL(apiUrl).origin !== window.location.origin,
+        apiUrl && new URL(apiUrl).origin !== window.location.origin
       );
     } catch (error) {
       return false;
@@ -65,7 +65,7 @@ export function serverRequestApi(
   const fetchType = async <T>(
     method: HttpMethod,
     path: string,
-    request: Request<T>,
+    request: Request<T>
   ): Promise<{ raw: string; parsed: T }> => {
     const url = buildApiUrl(path);
 
@@ -105,7 +105,7 @@ export function serverRequestApi(
       const message = (await response.text()) || response.statusText;
       throw new ApiError(
         response.status,
-        `API Error ${response.status}: ${message}`,
+        `API Error ${response.status}: ${message}`
       );
     }
 
@@ -121,7 +121,7 @@ export function serverRequestApi(
     method: HttpMethod,
     path: string,
     headers?: Record<string, string>,
-    body?: string,
+    body?: string
   ): Promise<{ parsed: any; raw: string }> => {
     const url = buildApiUrl(path);
 
@@ -163,7 +163,7 @@ export function serverRequestApi(
 
   const fetchBytes = async (
     method: HttpMethod,
-    path: string,
+    path: string
   ): Promise<Uint8Array> => {
     const url = buildApiUrl(path);
 
@@ -189,7 +189,7 @@ export function serverRequestApi(
       const message = (await response.text()) || response.statusText;
       throw new ApiError(
         response.status,
-        `HTTP ${response.status}: ${message}`,
+        `HTTP ${response.status}: ${message}`
       );
     }
 

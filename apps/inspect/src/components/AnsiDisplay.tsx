@@ -1,9 +1,9 @@
 import { ANSIColor, ANSIOutput, ANSIOutputRun, ANSIStyle } from "ansi-output";
 import clsx from "clsx";
 import { CSSProperties, FC, useState } from "react";
-import { ToolButton } from "./ToolButton";
 
 import styles from "./AnsiDisplay.module.css";
+import { ToolButton } from "./ToolButton";
 
 interface ANSIDisplayProps {
   output: string;
@@ -41,7 +41,7 @@ export const ANSIDisplay: FC<ANSIDisplayProps> = ({
         totalLinesWithBackground++;
         backgroundColorCounts.set(
           lineBackgroundColor,
-          (backgroundColorCounts.get(lineBackgroundColor) || 0) + 1,
+          (backgroundColorCounts.get(lineBackgroundColor) || 0) + 1
         );
       }
     }
@@ -138,11 +138,11 @@ const computeCSSProperties = (outputRun: ANSIOutputRun) => {
         ...computeStyles(outputRun.format.styles || []),
         ...computeForegroundBackgroundColor(
           kForeground,
-          outputRun.format.foregroundColor,
+          outputRun.format.foregroundColor
         ),
         ...computeForegroundBackgroundColor(
           kBackground,
-          outputRun.format.backgroundColor,
+          outputRun.format.backgroundColor
         ),
       };
 };
@@ -237,7 +237,7 @@ const computeStyles = (styles: ANSIStyle[]) => {
 
 const computeForegroundBackgroundColor = (
   colorType: number,
-  color?: string,
+  color?: string
 ) => {
   switch (color) {
     // Undefined.

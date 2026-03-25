@@ -1,12 +1,12 @@
-import { FC, ReactNode } from "react";
-import { ContentDocument } from "../../../../@types/log";
-import { isImage } from "../../../../utils/mime";
-
 import clsx from "clsx";
-import { iconForMimeType } from "../../../appearance/icons";
+import { FC, ReactNode } from "react";
 
+import { ContentDocument } from "../../../../@types/log";
 import api from "../../../../client/api";
 import { useStore } from "../../../../state/store";
+import { isImage } from "../../../../utils/mime";
+import { iconForMimeType } from "../../../appearance/icons";
+
 import styles from "./ContentDocumentView.module.css";
 
 interface ContentDocumentProps {
@@ -19,7 +19,7 @@ export const ContentDocumentView: FC<ContentDocumentProps> = ({
   document,
 }) => {
   const canDownloadFiles = useStore(
-    (state) => state.capabilities.downloadFiles,
+    (state) => state.capabilities.downloadFiles
   );
 
   if (isImage(document.mime_type)) {
@@ -59,7 +59,7 @@ const ContentDocumentFrame: FC<ContentDocumentFrameProps> = ({
       className={clsx(
         styles.documentFrame,
         "text-size-small",
-        "text-style-secondary",
+        "text-style-secondary"
       )}
     >
       <div className={clsx(styles.documentFrameTitle)}>

@@ -1,13 +1,15 @@
 import clsx from "clsx";
+
 import { PulsingDots } from "../../../components/PulsingDots";
 import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
+
 import styles from "./sampleStatus.module.css";
 
 type SampleStatus = "running" | "ok" | "error" | "cancelled";
 export const sampleStatus = (
   completed?: boolean,
-  error?: string,
+  error?: string
 ): SampleStatus => {
   if (error) {
     return errorType(error) === "CancelledError" ? "cancelled" : "error";
@@ -21,7 +23,7 @@ export const sampleStatus = (
 export const kDefaultSampleSortValue = "3:ok";
 export const sampleStatusSortValue = (
   status: SampleStatus,
-  error?: string,
+  error?: string
 ): string => {
   switch (status) {
     case "running":

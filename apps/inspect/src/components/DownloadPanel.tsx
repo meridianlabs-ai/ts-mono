@@ -1,5 +1,7 @@
 import { FC } from "react";
+
 import { DownloadButton } from "../components/DownloadButton";
+
 import "./DownloadPanel.css";
 
 interface DownloadPanelProps {

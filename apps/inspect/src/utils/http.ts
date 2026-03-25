@@ -4,7 +4,7 @@
 export const fetchRange = async (
   url: string,
   start: number,
-  end: number,
+  end: number
 ): Promise<Uint8Array> => {
   const response = await fetch(url, {
     headers: { Range: `bytes=${start}-${end}` },

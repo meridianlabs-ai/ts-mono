@@ -1,4 +1,5 @@
 import { GridState } from "ag-grid-community";
+
 import { EvalSet } from "../@types/log";
 import { DisplayedSample, LogsState } from "../app/types";
 import {
@@ -10,6 +11,7 @@ import {
 import { DatabaseService } from "../client/database";
 import { createLogger } from "../utils/logger";
 import { isUri, join } from "../utils/uri";
+
 import { StoreState } from "./store";
 
 const log = createLogger("Log Slice");
@@ -91,7 +93,7 @@ const initialState: LogsState = {
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: any
 ): [LogsSlice, () => void] => {
   const slice = {
     // State
@@ -242,7 +244,7 @@ export const createLogsSlice = (
         if (initDatabase) {
           // Initialize the database
           const initializeDatabase = async (
-            logDir?: string,
+            logDir?: string
           ): Promise<DatabaseService | undefined> => {
             if (!logDir) {
               // No database service available
@@ -328,7 +330,7 @@ export const createLogsSlice = (
                   state.logs.dbStats = stats;
                 });
               },
-            },
+            }
           );
         }
 
@@ -361,7 +363,7 @@ export const createLogsSlice = (
         const state = get();
         const isInFileList =
           state.logs.logs.findIndex((val: { name: string }) =>
-            val.name.endsWith(logFile),
+            val.name.endsWith(logFile)
           ) !== -1;
 
         if (!isInFileList) {
@@ -371,7 +373,7 @@ export const createLogsSlice = (
           ) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>
-              val.name.endsWith(logFile),
+              val.name.endsWith(logFile)
             );
             if (!logHandle) {
               throw new Error(`Log file not found: ${logFile}`);
@@ -485,7 +487,7 @@ export const createLogsSlice = (
 };
 
 export const initializeLogsSlice = <T extends LogsSlice>(
-  set: (fn: (state: T) => void) => void,
+  set: (fn: (state: T) => void) => void
 ) => {
   set((state) => {
     if (!state.logs) {
@@ -496,7 +498,7 @@ export const initializeLogsSlice = <T extends LogsSlice>(
 
 const displaySamplesEqual = (
   a: DisplayedSample[] | undefined,
-  b: DisplayedSample[] | undefined,
+  b: DisplayedSample[] | undefined
 ): boolean => {
   if (!a && !b) return true;
   if (!a || !b) return false;

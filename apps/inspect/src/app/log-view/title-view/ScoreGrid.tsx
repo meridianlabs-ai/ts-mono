@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
-import { formatPrettyDecimal } from "../../../utils/format";
 
 import { ScoreSummary } from "../../../scoring/types";
+import { formatPrettyDecimal } from "../../../utils/format";
+
 import styles from "./ScoreGrid.module.css";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
@@ -40,11 +41,11 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
               "text-style-label",
               "text-style-secondary",
               "text-size-small",
-              styles.label,
+              styles.label
             )}
           >
             {metrics[i].name}
-          </th>,
+          </th>
         );
       } else {
         cells.push(<td></td>);
@@ -67,7 +68,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
           cells.push(
             <td className={clsx(styles.value, "text-size-small")}>
               {formatPrettyDecimal(g.metrics[i].value)}
-            </td>,
+            </td>
           );
         } else {
           cells.push(<td className={clsx(styles.value)}></td>);
@@ -84,7 +85,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
             />
           </th>
           {cells}
-        </tr>,
+        </tr>
       );
     });
 
@@ -104,7 +105,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
         <tbody className={clsx("table-group-divider", styles.tableBody)}>
           {rows}
         </tbody>
-      </>,
+      </>
     );
 
     index++;
@@ -117,7 +118,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
         "table",
         striped ? "table-striped" : undefined,
         styles.table,
-        "table-bordered",
+        "table-bordered"
       )}
     >
       {subTables}

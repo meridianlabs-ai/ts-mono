@@ -1,9 +1,10 @@
+import clsx from "clsx";
 import { FC } from "react";
+
 import { PopOver } from "../../../components/PopOver";
 
-import clsx from "clsx";
-import styles from "./TranscriptFilter.module.css";
 import { useTranscriptFilter } from "./hooks";
+import styles from "./TranscriptFilter.module.css";
 
 export interface TranscriptFilterProps {
   showing: boolean;
@@ -42,7 +43,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
         <a
           className={clsx(
             styles.link,
-            isDefaultFilter ? styles.selected : undefined,
+            isDefaultFilter ? styles.selected : undefined
           )}
           onClick={() => setDefaultFilter()}
         >
@@ -52,7 +53,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
         <a
           className={clsx(
             styles.link,
-            isDebugFilter ? styles.selected : undefined,
+            isDebugFilter ? styles.selected : undefined
           )}
           onClick={() => setDebugFilter()}
         >
@@ -62,7 +63,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
         <a
           className={clsx(
             styles.link,
-            isNoneFilter ? styles.selected : undefined,
+            isNoneFilter ? styles.selected : undefined
           )}
           onClick={() => setNoneFilter()}
         >

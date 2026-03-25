@@ -1,6 +1,10 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { useStore } from "../../state/store";
+import { useLoadLog } from "../../state/useLoadLog";
+import { useLoadSample } from "../../state/useLoadSample";
+import { usePollSample } from "../../state/usePollSample";
 import { directoryRelativeUrl } from "../../utils/uri";
 import {
   samplesSampleUrl,
@@ -8,10 +12,6 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-
-import { useLoadLog } from "../../state/useLoadLog";
-import { useLoadSample } from "../../state/useLoadSample";
-import { usePollSample } from "../../state/usePollSample";
 
 /**
  * Component that displays a single sample in detail view within the samples route.
@@ -44,12 +44,12 @@ export const SampleDetailView: FC = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
   const displayedSamples = useStore(
-    (state) => state.logs.samplesListState.displayedSamples,
+    (state) => state.logs.samplesListState.displayedSamples
   );
 
   // Cleanup actions
   const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails,
+    (state) => state.logActions.clearSelectedLogDetails
   );
   const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
@@ -85,7 +85,7 @@ export const SampleDetailView: FC = () => {
         relativePath,
         prev.sampleId,
         prev.epoch,
-        tabId,
+        tabId
       );
       navigate(url);
     }
@@ -105,7 +105,7 @@ export const SampleDetailView: FC = () => {
         relativePath,
         next.sampleId,
         next.epoch,
-        tabId,
+        tabId
       );
       navigate(url);
     }

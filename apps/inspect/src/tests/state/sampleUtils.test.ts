@@ -17,7 +17,7 @@ const modelEvent = (input: unknown[], input_refs?: unknown[] | null) => ({
 const modelEventWithCall = (
   request: Record<string, unknown>,
   call_refs?: unknown[] | null,
-  call_key?: string | null,
+  call_key?: string | null
 ) => ({
   event: "model",
   input: [],
@@ -124,7 +124,7 @@ describe("resolveSample", () => {
             [
               [0, 1],
               [3, 5],
-            ],
+            ]
           ),
         ],
       }),

@@ -1,12 +1,13 @@
+import clsx from "clsx";
+import { FC } from "react";
+
+import styles from "./SampleFooter.module.css";
+
 interface SampleFooterProps {
   sampleCount: number;
   totalSampleCount: number;
   running: boolean;
 }
-
-import clsx from "clsx";
-import { FC } from "react";
-import styles from "./SampleFooter.module.css";
 
 export const SampleFooter: FC<SampleFooterProps> = ({
   sampleCount,

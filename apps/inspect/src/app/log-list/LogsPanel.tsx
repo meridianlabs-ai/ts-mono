@@ -1,8 +1,8 @@
-import clsx from "clsx";
 import { AgGridReact } from "ag-grid-react";
+import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { useNavigate } from "react-router-dom";
+
 import { EvalSet } from "../../@types/log";
 import { ProgressBar } from "../../components/ProgressBar";
 import { useClientEvents } from "../../state/clientEvents";
@@ -23,9 +23,10 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, useLogRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
+
 import { useLogListColumns } from "./grid/columns/hooks";
-import { LogListGrid } from "./grid/LogListGrid";
 import { LogListRow } from "./grid/columns/types";
+import { LogListGrid } from "./grid/LogListGrid";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
@@ -50,7 +51,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
 
   const showRetriedLogs = useStore((state) => state.logs.showRetriedLogs);
   const setShowRetriedLogs = useStore(
-    (state) => state.logsActions.setShowRetriedLogs,
+    (state) => state.logsActions.setShowRetriedLogs
   );
   const logDir = useStore((state) => state.logs.logDir);
   const logFiles = useLogsWithretried();
@@ -142,7 +143,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
         const fileOrFolderName = decodeURIComponent(rootName(relativePath));
         const path = join(
           decodeURIComponent(relativePath),
-          decodeURIComponent(dirName),
+          decodeURIComponent(dirName)
         );
 
         if (logFile.retried) {
@@ -173,7 +174,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
             type: "folder",
             url: logsUrl(url, logDir),
             itemCount: logFiles.filter((file) =>
-              file.name.startsWith(dirname(name)),
+              file.name.startsWith(dirname(name))
             ).length,
           });
           processedFolders.add(dirName);
@@ -186,7 +187,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
     const _logFiles = appendPendingItems(
       evalSet,
       existingLogTaskIds,
-      orderedItems,
+      orderedItems
     );
 
     return [_logFiles, _hasRetriedLogs];
@@ -217,7 +218,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
 
       setColumnVisibility(newVisibility);
     },
-    [setColumnVisibility],
+    [setColumnVisibility]
   );
 
   const progress = useMemo(() => {
@@ -348,7 +349,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
 const appendPendingItems = (
   evalSet: EvalSet | undefined,
   tasksWithLogFiles: Set<string>,
-  collapsedLogItems: (FileLogItem | FolderLogItem | PendingTaskItem)[],
+  collapsedLogItems: (FileLogItem | FolderLogItem | PendingTaskItem)[]
 ): (FileLogItem | FolderLogItem | PendingTaskItem)[] => {
   const pendingTasks = new Array<PendingTaskItem>();
   for (const task of evalSet?.tasks || []) {

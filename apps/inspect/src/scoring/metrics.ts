@@ -1,4 +1,5 @@
 import { EvalResults, Scores } from "../@types/log";
+
 import { MetricSummary, ScoreSummary } from "./types";
 
 export const metricDisplayName = (metric: MetricSummary): string => {
@@ -36,7 +37,7 @@ export const firstMetric = (results: EvalResults) => {
 type MetricModifier = (metric: MetricSummary) => string | undefined;
 
 const clusterMetricModifier: MetricModifier = (
-  metric: MetricSummary,
+  metric: MetricSummary
 ): string | undefined => {
   if (metric.name !== "stderr") {
     return undefined;
@@ -128,7 +129,7 @@ const normalizeMetricName = (name: string): string => {
 };
 
 export const expandGroupedMetrics = (
-  scorers: ScoreSummary[],
+  scorers: ScoreSummary[]
 ): ScoreSummary[] => {
   const result: ScoreSummary[] = [];
 

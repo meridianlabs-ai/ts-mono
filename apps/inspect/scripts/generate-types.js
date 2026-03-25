@@ -33,7 +33,7 @@ execSync(
     "--bannerComment",
     JSON.stringify(BANNER),
   ].join(" "),
-  { cwd: appRoot, stdio: "inherit" },
+  { cwd: appRoot, stdio: "inherit" }
 );
 
 execSync(`npx prettier --write ${typesPath}`, {

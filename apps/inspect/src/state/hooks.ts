@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+
 import { EvalSample, EvalSpec, Events, Status } from "../@types/log";
 import {
   createEvalDescriptor,
@@ -9,6 +10,7 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHandle, SampleSummary } from "../client/api/types";
 import { createLogger } from "../utils/logger";
 import { prettyDirUri } from "../utils/uri";
+
 import { getAvailableScorers, getDefaultScorer } from "./scoring";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -46,13 +48,13 @@ export const useRefreshLog = () => {
 export const useSampleSummaries = () => {
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const pendingSampleSummaries = useStore(
-    (state) => state.log.pendingSampleSummaries,
+    (state) => state.log.pendingSampleSummaries
   );
 
   return useMemo(() => {
     return mergeSampleSummaries(
       selectedLogDetails?.sampleSummaries || [],
-      pendingSampleSummaries?.samples || [],
+      pendingSampleSummaries?.samples || []
     );
   }, [selectedLogDetails, pendingSampleSummaries]);
 };
@@ -78,7 +80,7 @@ export const useSelectedScores = () => {
     } else if (selectedLogDetails) {
       const defaultScorer = getDefaultScorer(
         selectedLogDetails,
-        sampleSummaries,
+        sampleSummaries
       );
       if (defaultScorer) {
         return [defaultScorer];
@@ -132,7 +134,7 @@ export const useFilteredSamples = () => {
   const filter = useStore((state) => state.log.filter);
   const setFilterError = useStore((state) => state.logActions.setFilterError);
   const clearFilterError = useStore(
-    (state) => state.logActions.clearFilterError,
+    (state) => state.logActions.clearFilterError
   );
 
   return useMemo(() => {
@@ -179,7 +181,7 @@ export const useFilteredSamples = () => {
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   const sampleSummaries = useSampleSummaries();
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
   return useMemo(() => {
     const selectedSampleSummary = sampleSummaries.find((sample) => {
@@ -197,15 +199,15 @@ export const useSampleData = () => {
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
   const sampleError = useStore((state) => state.sample.sampleError);
   const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample,
+    (state) => state.sampleActions.getSelectedSample
   );
   const selectedSampleIdentifier = useStore(
-    (state) => state.sample.sample_identifier,
+    (state) => state.sample.sample_identifier
   );
   const sampleNeedsReload = useStore((state) => state.sample.sampleNeedsReload);
   const eventsCleared = useStore((state) => state.sample.eventsCleared);
   const runningEvents = useStore(
-    (state) => state.sample.runningEvents,
+    (state) => state.sample.runningEvents
   ) as Events;
   const downloadProgress = useStore((state) => state.sample.downloadProgress);
   return useMemo(() => {
@@ -235,7 +237,7 @@ export const useSampleData = () => {
 // Returns a tuple of [invalidation, sampleIdentifier]
 export const useSampleInvalidation = () => {
   const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample,
+    (state) => state.sampleActions.getSelectedSample
   );
   const sampleIdentifier = useStore((state) => state.sample.sample_identifier);
   return useMemo(() => {
@@ -260,7 +262,7 @@ export const useLogSelection = () => {
 
 export const useCollapseSampleEvent = (
   scope: string,
-  id: string,
+  id: string
 ): [boolean, (collapsed: boolean) => void] => {
   const collapsed = useStore((state) => state.sample.collapsedEvents);
   const collapseEvent = useStore((state) => state.sampleActions.collapseEvent);
@@ -276,14 +278,14 @@ export const useCollapseSampleEvent = (
 };
 
 export const useCollapsibleIds = (
-  key: string,
+  key: string
 ): [
   Record<string, boolean>,
   (id: string, value: boolean) => void,
   () => void,
 ] => {
   const collapsedIds = useStore(
-    (state) => state.sample.collapsedIdBuckets[key],
+    (state) => state.sample.collapsedIdBuckets[key]
   );
 
   const setCollapsed = useStore((state) => state.sampleActions.collapseId);
@@ -291,11 +293,11 @@ export const useCollapsibleIds = (
     (id: string, value: boolean) => {
       setCollapsed(key, id, value);
     },
-    [setCollapsed, key],
+    [setCollapsed, key]
   );
 
   const clearCollapsedIds = useStore(
-    (state) => state.sampleActions.clearCollapsedIds,
+    (state) => state.sampleActions.clearCollapsedIds
   );
   const clearIds = useCallback(() => {
     clearCollapsedIds(key);
@@ -309,12 +311,12 @@ export const useCollapsibleIds = (
 export const useCollapsedState = (
   id: string,
   defaultValue?: boolean,
-  scope?: string,
+  scope?: string
 ): [boolean, (value: boolean) => void] => {
   const stateId = scope ? `${scope}-${id}` : id;
 
   const collapsed = useStore((state) =>
-    state.appActions.getCollapsed(stateId, defaultValue),
+    state.appActions.getCollapsed(stateId, defaultValue)
   );
   const setCollapsed = useStore((state) => state.appActions.setCollapsed);
   return useMemo(() => {
@@ -328,14 +330,14 @@ export const useCollapsedState = (
 
 export const useMessageVisibility = (
   id: string,
-  scope: "sample" | "eval",
+  scope: "sample" | "eval"
 ): [boolean, (visible: boolean) => void] => {
   const visible = useStore((state) =>
-    state.appActions.getMessageVisible(id, true),
+    state.appActions.getMessageVisible(id, true)
   );
   const setVisible = useStore((state) => state.appActions.setMessageVisible);
   const clearVisible = useStore(
-    (state) => state.appActions.clearMessageVisible,
+    (state) => state.appActions.clearMessageVisible
   );
 
   // Track if this is the first render (rehydrate)
@@ -356,7 +358,7 @@ export const useMessageVisibility = (
 
   // Maybe reset state if sample changes
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
 
   useEffect(() => {
@@ -387,14 +389,14 @@ export function useProperty<T>(
   options?: {
     defaultValue?: T;
     cleanup?: boolean;
-  },
+  }
 ): [T, (value: T) => void, () => void] {
   options = options || { cleanup: true };
   const setPropertyValue = useStore(
-    (state) => state.appActions.setPropertyValue,
+    (state) => state.appActions.setPropertyValue
   );
   const removePropertyValue = useStore(
-    (state) => state.appActions.removePropertyValue,
+    (state) => state.appActions.removePropertyValue
   );
   const propertyValue = useStore(
     useCallback(
@@ -402,17 +404,17 @@ export function useProperty<T>(
         state.appActions.getPropertyValue(
           id,
           propertyName,
-          options.defaultValue,
+          options.defaultValue
         ),
-      [id, propertyName, options.defaultValue],
-    ),
+      [id, propertyName, options.defaultValue]
+    )
   );
 
   const setValue = useCallback(
     (value: T) => {
       setPropertyValue(id, propertyName, value);
     },
-    [id, propertyName, setPropertyValue],
+    [id, propertyName, setPropertyValue]
   );
 
   const removeValue = useCallback(() => {
@@ -443,16 +445,16 @@ export const usePrevious = <T>(value: T) => {
 
 export const useSetSelectedLogIndex = () => {
   const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile,
+    (state) => state.logsActions.setSelectedLogFile
   );
   const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample,
+    (state) => state.sampleActions.clearSelectedSample
   );
   const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails,
+    (state) => state.logActions.clearSelectedLogDetails
   );
   const clearCollapsedEvents = useStore(
-    (state) => state.sampleActions.clearCollapsedEvents,
+    (state) => state.sampleActions.clearCollapsedEvents
   );
   const allLogFiles = useStore((state) => state.logs.logs);
 
@@ -471,16 +473,16 @@ export const useSetSelectedLogIndex = () => {
       clearSelectedLogDetails,
       clearSelectedSample,
       clearCollapsedEvents,
-    ],
+    ]
   );
 };
 
 export const useSamplePopover = (id: string) => {
   const setVisiblePopover = useStore(
-    (store) => store.sampleActions.setVisiblePopover,
+    (store) => store.sampleActions.setVisiblePopover
   );
   const clearVisiblePopover = useStore(
-    (store) => store.sampleActions.clearVisiblePopover,
+    (store) => store.sampleActions.clearVisiblePopover
   );
   const visiblePopover = useStore((store) => store.sample.visiblePopover);
   const timerRef = useRef<number | null>(null);
@@ -535,7 +537,7 @@ export const useLogs = () => {
   // Loading logs and eval set info
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const syncEvalSetInfo = useStore(
-    (state) => state.logsActions.syncEvalSetInfo,
+    (state) => state.logsActions.syncEvalSetInfo
   );
   const setLoading = useStore((state) => state.appActions.setLoading);
 
@@ -547,12 +549,12 @@ export const useLogs = () => {
         setLoading(false, e as Error);
       });
     },
-    [syncLogs, setLoading, syncEvalSetInfo],
+    [syncLogs, setLoading, syncEvalSetInfo]
   );
 
   // Loading overviews
   const syncLogPreviews = useStore(
-    (state) => state.logsActions.syncLogPreviews,
+    (state) => state.logsActions.syncLogPreviews
   );
   const logPreviews = useStore((state) => state.logs.logPreviews);
   const allLogFiles = useStore((state) => state.logs.logs);
@@ -561,7 +563,7 @@ export const useLogs = () => {
     async (logs: LogHandle[] = allLogFiles) => {
       await syncLogPreviews(logs);
     },
-    [syncLogPreviews, allLogFiles],
+    [syncLogPreviews, allLogFiles]
   );
 
   const loadAllLogOverviews = useCallback(async () => {
@@ -581,19 +583,19 @@ export const useLogs = () => {
 export const useLogsListing = () => {
   const filteredCount = useStore((state) => state.logs.listing.filteredCount);
   const setFilteredCount = useStore(
-    (state) => state.logsActions.setFilteredCount,
+    (state) => state.logsActions.setFilteredCount
   );
 
   const gridState = useStore((state) => state.logs.listing.gridState);
   const setGridState = useStore((state) => state.logsActions.setLogsGridState);
   const clearGridState = useStore(
-    (state) => state.logsActions.clearLogsGridState,
+    (state) => state.logsActions.clearLogsGridState
   );
   const previousLogPath = useStore(
-    (state) => state.logs.listing.previousLogPath,
+    (state) => state.logs.listing.previousLogPath
   );
   const setPreviousLogPath = useStore(
-    (state) => state.logsActions.setPreviousLogsPath,
+    (state) => state.logsActions.setPreviousLogsPath
   );
 
   return {
@@ -656,7 +658,7 @@ export const useLogsWithretried = (): LogHandleWithretried[] => {
         }
         return acc;
       },
-      {},
+      {}
     );
     // For each task_id, select the best item (prefer running/complete over error)
     // Sort by status priority: started > success > error, cancelled, or missing if logPreview is not loaded
@@ -665,10 +667,10 @@ export const useLogsWithretried = (): LogHandleWithretried[] => {
     for (const items of Object.values(logsByTaskId)) {
       items.sort((a, b) => {
         const as = simplifiedStatusForDeduplication(
-          logPreviews[a.name]?.status,
+          logPreviews[a.name]?.status
         );
         const bs = simplifiedStatusForDeduplication(
-          logPreviews[b.name]?.status,
+          logPreviews[b.name]?.status
         );
         const am = a.mtime ?? 0;
         const bm = b.mtime ?? 0;
@@ -693,7 +695,7 @@ export const useLogsWithretried = (): LogHandleWithretried[] => {
           ...log,
           // task_id is optional for backward compatibility, only new logs files can be skippable
           retried: log.task_id ? true : undefined,
-        },
+        }
     );
   }, [logs, logPreviews]);
 

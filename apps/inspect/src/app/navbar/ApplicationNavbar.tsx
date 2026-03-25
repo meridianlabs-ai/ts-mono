@@ -1,8 +1,10 @@
 import { FC, ReactNode, useMemo, useRef } from "react";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { useStore } from "../../state/store";
 import { ViewerOptionsButton } from "../log-list/ViewerOptionsButton";
 import { ViewerOptionsPopover } from "../log-list/ViewerOptionsPopover";
+
 import { Navbar } from "./Navbar";
 
 interface ApplicationNavbarProps {
@@ -28,7 +30,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
 
   const isShowing = useStore((state) => state.app.dialogs.options);
   const setShowing = useStore(
-    (state) => state.appActions.setShowingOptionsDialog,
+    (state) => state.appActions.setShowingOptionsDialog
   );
 
   const hasActivity = useMemo(() => {

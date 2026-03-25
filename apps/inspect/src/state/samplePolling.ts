@@ -11,6 +11,7 @@ import {
 import { resolveAttachments } from "../utils/attachments";
 import { createLogger } from "../utils/logger";
 import { createPolling } from "../utils/polling";
+
 import { resolveSample } from "./sampleUtils";
 import { StoreState } from "./store";
 
@@ -35,7 +36,7 @@ interface PollingState {
 }
 
 export function createSamplePolling(
-  store: UseBoundStore<StoreApi<StoreState>>,
+  store: UseBoundStore<StoreApi<StoreState>>
 ) {
   // The polling function that will be returned
   let currentPolling: ReturnType<typeof createPolling> | null = null;
@@ -106,7 +107,7 @@ export function createSamplePolling(
         summary.id,
         summary.epoch,
         eventId,
-        attachmentId,
+        attachmentId
       );
 
       if (abortController.signal.aborted) {
@@ -127,12 +128,12 @@ export function createSamplePolling(
         if (state.sample.runningEvents.length > 0) {
           try {
             log.debug(
-              `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`,
+              `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`
             );
             const sample = await api.get_log_sample(
               logFile,
               summary.id,
-              summary.epoch,
+              summary.epoch
             );
 
             if (sample) {
@@ -145,7 +146,7 @@ export function createSamplePolling(
             } else {
               sampleActions.setSampleStatus("error");
               sampleActions.setSampleError(
-                new Error("Unable to load sample - an unknown error occurred"),
+                new Error("Unable to load sample - an unknown error occurred")
               );
               sampleActions.setRunningEvents([]);
             }
@@ -181,14 +182,14 @@ export function createSamplePolling(
             sampleDataResponse.sampleData,
             pollingState,
             api,
-            logFile,
+            logFile
           );
 
           // update max attachment id
           if (sampleDataResponse.sampleData.attachments.length > 0) {
             const maxAttachment = findMaxId(
               sampleDataResponse.sampleData.attachments,
-              pollingState.attachmentId,
+              pollingState.attachmentId
             );
             log.debug(`New max attachment ${maxAttachment}`);
             pollingState.attachmentId = maxAttachment;
@@ -198,7 +199,7 @@ export function createSamplePolling(
           if (sampleDataResponse.sampleData.events.length > 0) {
             const maxEvent = findMaxId(
               sampleDataResponse.sampleData.events,
-              pollingState.eventId,
+              pollingState.eventId
             );
             log.debug(`New max event ${maxEvent}`);
             pollingState.eventId = maxEvent;
@@ -259,7 +260,7 @@ const resetPollingState = (state: PollingState) => {
 
 function processAttachments(
   sampleData: SampleData,
-  pollingState: PollingState,
+  pollingState: PollingState
 ) {
   log.debug(`Processing ${sampleData.attachments.length} attachments`);
   Object.values(sampleData.attachments).forEach((v) => {
@@ -271,7 +272,7 @@ function processEvents(
   sampleData: SampleData,
   pollingState: PollingState,
   api: ClientAPI,
-  log_file: string,
+  log_file: string
 ) {
   // Go through each event and resolve it, either appending or replacing
   log.debug(`Processing ${sampleData.events.length} events`);
@@ -298,11 +299,11 @@ function processEvents(
           api.log_message(
             log_file,
             `Unable to resolve attachment ${attachmentId}\n` +
-              JSON.stringify(snapshot),
+              JSON.stringify(snapshot)
           );
         }
         console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
-      },
+      }
     );
 
     if (existingIndex) {
@@ -324,7 +325,7 @@ function processEvents(
 
 const findMaxId = (
   items: EventData[] | AttachmentData[],
-  currentMax: number,
+  currentMax: number
 ) => {
   if (items.length > 0) {
     const newMax = Math.max(...items.map((i) => i.id), currentMax);

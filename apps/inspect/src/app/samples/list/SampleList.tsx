@@ -16,10 +16,9 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { MessageBand } from "../../../components/MessageBand";
-import { formatNoDecimal } from "../../../utils/format";
-import { SampleListItem } from "../../log-view/tabs/types";
+
 import { EarlyStoppingSummary } from "../../../@types/log";
+import { MessageBand } from "../../../components/MessageBand";
 import {
   useDocumentTitle,
   useSampleDescriptor,
@@ -27,9 +26,14 @@ import {
   useSelectedScores,
 } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+import { formatNoDecimal } from "../../../utils/format";
+import { SampleListItem } from "../../log-view/tabs/types";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
+
 import "../../shared/agGrid";
+
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
+
 import { buildColumnDefs } from "./columns";
 import { SampleFooter } from "./SampleFooter";
 import styles from "./SampleList.module.css";
@@ -65,7 +69,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const sampleNavigation = useSampleNavigation();
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
 
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
@@ -137,7 +141,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         if (openInNewWindow) {
           const url = sampleNavigation.getSampleUrl(
             e.data.data.id,
-            e.data.data.epoch,
+            e.data.data.epoch
           );
           if (url) window.open(url, "_blank");
         } else {
@@ -145,7 +149,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         }
       }
     },
-    [sampleNavigation, listHandle],
+    [sampleNavigation, listHandle]
   );
 
   const handleOpenRow = useCallback(
@@ -153,11 +157,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
       if (rowNode.data) {
         sampleNavigation.showSample(
           rowNode.data.data.id,
-          rowNode.data.data.epoch,
+          rowNode.data.data.epoch
         );
       }
     },
-    [sampleNavigation],
+    [sampleNavigation]
   );
 
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -168,7 +172,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         gridRef: listHandle,
         onOpenRow: handleOpenRow,
       }),
-    [listHandle, handleOpenRow],
+    [listHandle, handleOpenRow]
   );
 
   useEffect(() => {
@@ -189,12 +193,12 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         mouseEvent.preventDefault();
         const url = sampleNavigation.getSampleUrl(
           e.data.data.id,
-          e.data.data.epoch,
+          e.data.data.epoch
         );
         if (url) window.open(url, "_blank");
       }
     },
-    [sampleNavigation],
+    [sampleNavigation]
   );
 
   const selectCurrentSample = useCallback(() => {
@@ -203,7 +207,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     }
     const rowId = makeSampleRowId(
       selectedSampleHandle.id,
-      selectedSampleHandle.epoch,
+      selectedSampleHandle.epoch
     );
     const node = listHandle.current.api.getRowNode(rowId);
     if (node) {
@@ -222,7 +226,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   const samplesDescriptor = useSampleDescriptor();
   const columnDefs = useMemo(
     () => buildColumnDefs(samplesDescriptor, selectedScores, scores, epochs),
-    [samplesDescriptor, selectedScores, scores, epochs],
+    [samplesDescriptor, selectedScores, scores, epochs]
   );
 
   const getRowId = useCallback((params: { data: SampleListItem }) => {
@@ -241,7 +245,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         manuallyResized.current.add(event.column.getColId());
         const state = columnDefs
           .filter(
-            (c) => c.colId && c.flex && !manuallyResized.current.has(c.colId),
+            (c) => c.colId && c.flex && !manuallyResized.current.has(c.colId)
           )
           .map((c) => ({ colId: c.colId!, flex: c.flex }));
         if (state.length > 0) {
@@ -249,7 +253,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         }
       }
     },
-    [listHandle, columnDefs],
+    [listHandle, columnDefs]
   );
 
   const sampleCount = items.length;
@@ -257,11 +261,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   const warnings = useMemo(() => {
     const errorCount = items.reduce(
       (prev, item) => (item.data.error ? prev + 1 : prev),
-      0,
+      0
     );
     const limitCount = items.reduce(
       (prev, item) => (item.data.limit ? prev + 1 : prev),
-      0,
+      0
     );
     const percentError = sampleCount > 0 ? (errorCount / sampleCount) * 100 : 0;
     const percentLimit = sampleCount > 0 ? (limitCount / sampleCount) * 100 : 0;
@@ -335,7 +339,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
             if (running && followOutputRef.current) {
               listHandle.current?.api?.ensureIndexVisible(
                 items.length - 1,
-                "bottom",
+                "bottom"
               );
             }
             selectCurrentSample();

@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
 import { ModelUsage1 } from "../../@types/log";
+
 import { ModelUsagePanel } from "./ModelUsagePanel";
 import styles from "./TokenTable.module.css";
 
@@ -17,7 +19,7 @@ export const TokenTable: FC<TokenTableProps> = ({ className, children }) => {
         "table-sm",
         "text-size-smaller",
         styles.table,
-        className,
+        className
       )}
     >
       {children}
@@ -37,7 +39,7 @@ export const TokenHeader = () => {
             styles.tableTokens,
             "text-size-small",
             "text-style-label",
-            "text-style-secondary",
+            "text-style-secondary"
           )}
           align="center"
         >
@@ -50,7 +52,7 @@ export const TokenHeader = () => {
             styles.tableH,
             "text-sixe-small",
             "text-style-label",
-            "text-style-secondary",
+            "text-style-secondary"
           )}
         >
           Model
@@ -60,7 +62,7 @@ export const TokenHeader = () => {
             styles.tableH,
             "text-sixe-small",
             "text-style-label",
-            "text-style-secondary",
+            "text-style-secondary"
           )}
         >
           Usage

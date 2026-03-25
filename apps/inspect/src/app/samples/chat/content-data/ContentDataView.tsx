@@ -1,12 +1,13 @@
-import { FC, ReactNode } from "react";
-import { WebSearch } from "./WebSearch";
-
 import clsx from "clsx";
+import { FC, ReactNode } from "react";
+
 import { ContentData } from "../../../../@types/log";
 import { RecordTree } from "../../../content/RecordTree";
-import styles from "./ContentDataView.module.css";
-import { WebSearchContentData, WebSearchResults } from "./WebSearchResults";
+
 import { CompactionData, kCompactionMetadata } from "./CompactionData";
+import styles from "./ContentDataView.module.css";
+import { WebSearch } from "./WebSearch";
+import { WebSearchContentData, WebSearchResults } from "./WebSearchResults";
 
 export interface ContentDataProps {
   id: string;
@@ -23,7 +24,7 @@ export const ContentDataView: FC<ContentDataProps> = ({ id, contentData }) => {
   const renderableData = contentData.data as RenderableData;
 
   const renderer = contentDataRenderers.find((r) =>
-    r.canRender(renderableData),
+    r.canRender(renderableData)
   );
 
   if (!renderer) {
@@ -100,7 +101,7 @@ const serverToolRenderer: ContentDataRenderer = {
           className={clsx(
             "text-style-label",
             "text-style-secondary",
-            "text-size-smaller",
+            "text-size-smaller"
           )}
         >
           Server Tool

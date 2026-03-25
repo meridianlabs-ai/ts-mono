@@ -1,13 +1,3 @@
-import { TabPanel, TabSet } from "../../components/TabSet";
-
-import { escapeSelector } from "../../utils/html";
-import { isVscode } from "../../utils/vscode";
-
-import { ANSIDisplay } from "../../components/AnsiDisplay";
-import { ToolButton } from "../../components/ToolButton";
-import { ToolDropdownButton } from "../../components/ToolDropdownButton";
-import { ApplicationIcons } from "../appearance/icons";
-
 import clsx from "clsx";
 import {
   FC,
@@ -21,12 +11,17 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import { EvalSample, EvalSpec, Events } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
+import { ANSIDisplay } from "../../components/AnsiDisplay";
 import { Card, CardBody, CardHeader } from "../../components/Card";
 import { JSONPanel } from "../../components/JsonPanel";
 import { NoContentsPanel } from "../../components/NoContentsPanel";
+import { TabPanel, TabSet } from "../../components/TabSet";
+import { ToolButton } from "../../components/ToolButton";
+import { ToolDropdownButton } from "../../components/ToolDropdownButton";
 import {
   kSampleErrorTabId,
   kSampleJsonTabId,
@@ -42,12 +37,17 @@ import {
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { formatDateTime, formatTime } from "../../utils/format";
+import { escapeSelector } from "../../utils/html";
 import { estimateSize } from "../../utils/json";
+import { isVscode } from "../../utils/vscode";
+import { ApplicationIcons } from "../appearance/icons";
 import { RecordTree } from "../content/RecordTree";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import { useLogOrSampleRouteParams, useSampleUrlBuilder } from "../routing/url";
 import { messagesToStr } from "../shared/messages";
 import { ModelTokenTable } from "../usage/ModelTokenTable";
+import { printHeadingHtml, printHtml } from "../utils/print";
+
 import { ChatViewVirtualList } from "./chat/ChatViewVirtualList";
 import { messagesFromEvents } from "./chat/messages";
 import styles from "./SampleDisplay.module.css";
@@ -56,7 +56,6 @@ import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
-import { printHeadingHtml, printHtml } from "../utils/print";
 
 interface SampleDisplayProps {
   id: string;
@@ -181,13 +180,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       urlSampleId,
       urlEpoch,
       navigate,
-    ],
+    ]
   );
 
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
     scrollRef,
-    sample,
+    sample
   );
 
   const tabsetId = `task-sample-details-tab-${id}`;
@@ -195,7 +194,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const isShowing = useStore((state) => state.app.dialogs.transcriptFilter);
   const setShowing = useStore(
-    (state) => state.appActions.setShowingTranscriptFilterDialog,
+    (state) => state.appActions.setShowingTranscriptFilterDialog
   );
 
   const displayMode = useStore((state) => state.app.displayMode);
@@ -218,7 +217,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const collapsedMode = useStore((state) => state.sample.collapsedMode);
   const setCollapsedMode = useStore(
-    (state) => state.sampleActions.setCollapsedMode,
+    (state) => state.sampleActions.setCollapsedMode
   );
 
   const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
@@ -263,7 +262,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           }
         },
       }}
-    />,
+    />
   );
 
   if (downloadFiles && sample && api?.download_file) {
@@ -277,17 +276,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           "Sample JSON": () => {
             api.download_file(
               `${sampleId}.json`,
-              JSON.stringify(sample, null, 2),
+              JSON.stringify(sample, null, 2)
             );
           },
           Transcript: () => {
             api.download_file(
               `${sampleId}-transcript.txt`,
-              messagesToStr(sample.messages ?? []),
+              messagesToStr(sample.messages ?? [])
             );
           },
         }}
-      />,
+      />
     );
   }
 
@@ -307,7 +306,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon={ApplicationIcons.filter}
         onClick={toggleFilter}
         ref={filterRef}
-      />,
+      />
     );
 
     tools.push(
@@ -320,7 +319,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             : ApplicationIcons.collapse.all
         }
         onClick={toggleCollapsedMode}
-      />,
+      />
     );
   }
 
@@ -332,7 +331,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       onClick={toggleDisplayMode}
       ref={optionsRef}
       latched={displayMode === "raw"}
-    />,
+    />
   );
 
   if (!isVscode()) {
@@ -342,7 +341,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label="Print"
         icon={ApplicationIcons.copy}
         onClick={handlePrintClick}
-      />,
+      />
     );
   }
 
@@ -375,7 +374,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             className={clsx(
               "sample-tab",
               styles.transcriptContainer,
-              styles.overflowVisible,
+              styles.overflowVisible
             )}
             title="Transcript"
             onSelected={onSelectedTab}
@@ -409,7 +408,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               "sample-tab",
               styles.fullWidth,
               styles.chat,
-              styles.overflowVisible,
+              styles.overflowVisible
             )}
             title="Messages"
             onSelected={onSelectedTab}
@@ -533,7 +532,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 const metadataViewsForSample = (
   id: string,
   scrollRef: RefObject<HTMLDivElement | null>,
-  sample?: EvalSample,
+  sample?: EvalSample
 ) => {
   if (!sample) {
     return [];
@@ -556,7 +555,7 @@ const metadataViewsForSample = (
     }
     if (sample.invalidation.timestamp) {
       invalidationRecord["Timestamp"] = formatTimestamp(
-        sample.invalidation.timestamp,
+        sample.invalidation.timestamp
       );
     }
     if (sample.invalidation.reason) {
@@ -580,7 +579,7 @@ const metadataViewsForSample = (
             scrollRef={scrollRef}
           />
         </CardBody>
-      </Card>,
+      </Card>
     );
   }
 
@@ -594,7 +593,7 @@ const metadataViewsForSample = (
             className={clsx(styles.noTop)}
           />
         </CardBody>
-      </Card>,
+      </Card>
     );
   }
 
@@ -618,7 +617,7 @@ const metadataViewsForSample = (
             scrollRef={scrollRef}
           />
         </CardBody>
-      </Card>,
+      </Card>
     );
   }
 
@@ -634,7 +633,7 @@ const metadataViewsForSample = (
             scrollRef={scrollRef}
           />
         </CardBody>
-      </Card>,
+      </Card>
     );
   }
 
@@ -651,7 +650,7 @@ const metadataViewsForSample = (
             processStore={true}
           />
         </CardBody>
-      </Card>,
+      </Card>
     );
   }
 
@@ -660,7 +659,7 @@ const metadataViewsForSample = (
 const printSample = (id: string, targetId: string, evalSpec?: EvalSpec) => {
   // The active tab
   const targetTabEl = document.querySelector(
-    `#${escapeSelector(targetId)} .sample-tab.tab-pane.show.active`,
+    `#${escapeSelector(targetId)} .sample-tab.tab-pane.show.active`
   );
   if (targetTabEl) {
     // The target element
@@ -704,7 +703,7 @@ const printSample = (id: string, targetId: string, evalSpec?: EvalSpec) => {
       `;
       printHtml(
         [headingHtml, headingEl?.outerHTML, targetEl.innerHTML].join("\n"),
-        css,
+        css
       );
     }
   }
@@ -712,7 +711,7 @@ const printSample = (id: string, targetId: string, evalSpec?: EvalSpec) => {
 
 const isRunning = (
   sampleSummary?: SampleSummary,
-  runningSampleData?: Events,
+  runningSampleData?: Events
 ): boolean => {
   if (sampleSummary && sampleSummary.completed === false) {
     // An explicitly incomplete sample summary

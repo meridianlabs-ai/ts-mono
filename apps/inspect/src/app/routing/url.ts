@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
+
 import {
   kSampleMessagesTabId,
   kSampleTabIds,
@@ -14,7 +15,7 @@ import { directoryRelativeUrl, encodePathParts } from "../../utils/uri";
  * Safely handles already decoded strings.
  */
 export const decodeUrlParam = (
-  param: string | undefined,
+  param: string | undefined
 ): string | undefined => {
   if (!param) return param;
   try {
@@ -105,7 +106,7 @@ export const useLogRouteParams = () => {
 
     // Check for sample UUID route pattern
     const sampleUuidMatch = splatPath.match(
-      /^(.+?)\/samples\/sample_uuid\/([^/]+)(?:\/(.+?))?\/?\s*$/,
+      /^(.+?)\/samples\/sample_uuid\/([^/]+)(?:\/(.+?))?\/?\s*$/
     );
     if (sampleUuidMatch) {
       const [, logPath, sampleUuid, sampleTabId] = sampleUuidMatch;
@@ -122,7 +123,7 @@ export const useLogRouteParams = () => {
     // Check for full sample route pattern in splat path (when route params aren't populated)
     // Pattern: logPath/samples/sample/sampleId/epoch/sampleTabId (with optional trailing slash)
     const fullSampleUrlMatch = splatPath.match(
-      /^(.+?)\/samples\/sample\/([^/]+)(?:\/([^/]+)(?:\/(.+?))?)?\/?\s*$/,
+      /^(.+?)\/samples\/sample\/([^/]+)(?:\/([^/]+)(?:\/(.+?))?)?\/?\s*$/
     );
     if (fullSampleUrlMatch) {
       const [, logPath, sampleId, epoch, sampleTabId] = fullSampleUrlMatch;
@@ -139,7 +140,7 @@ export const useLogRouteParams = () => {
     // (this is the single sample case, where is there is now sampleid/epoch, just sampletabid)
     // Pattern: /logs/*/samples/sampleId/epoch or /logs/*/samples/sampleId or /logs/*/samples/sampleTabId
     const sampleUrlMatch = splatPath.match(
-      /^(.+?)\/samples(?:\/([^/]+)(?:\/([^/]+))?)?$/,
+      /^(.+?)\/samples(?:\/([^/]+)(?:\/([^/]+))?)?$/
     );
     if (sampleUrlMatch) {
       const [, logPath, firstSegment, secondSegment] = sampleUrlMatch;
@@ -263,7 +264,7 @@ export const useSamplesRouteParams = () => {
     const splatPath = samplesMatch ? samplesMatch[1] : "";
 
     const sampleMatch = splatPath.match(
-      /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/,
+      /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
     );
 
     if (sampleMatch) {
@@ -293,7 +294,7 @@ export const kSamplesRouteUrlPattern = "/samples";
 export const baseUrl = (
   logPath: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number,
+  sampleEpoch?: string | number
 ) => {
   if (sampleId !== undefined && sampleEpoch !== undefined) {
     return logSamplesUrl(logPath, sampleId, sampleEpoch);
@@ -306,7 +307,7 @@ export type SampleUrlBuilder = (
   logPath: string,
   sampleId?: string | number,
   sampleEpoch?: string | number,
-  sampleTabId?: string,
+  sampleTabId?: string
 ) => string;
 
 export const useSampleUrlBuilder = () => {
@@ -315,7 +316,7 @@ export const useSampleUrlBuilder = () => {
     logPath: string,
     sampleId?: string | number,
     sampleEpoch?: string | number,
-    sampleTabId?: string,
+    sampleTabId?: string
   ) => {
     if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
       return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
@@ -329,7 +330,7 @@ export const logSamplesUrl = (
   logPath: string,
   sampleId?: string | number,
   sampleEpoch?: string | number,
-  sampleTabId?: string,
+  sampleTabId?: string
 ) => {
   // Ensure logPath is decoded before encoding for URL construction
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
@@ -339,11 +340,11 @@ export const logSamplesUrl = (
     // This must be done before encodePathParts since it splits on /
     const encodedSampleId = encodeURIComponent(String(sampleId));
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`,
+      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`
     );
   } else {
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`,
+      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`
     );
   }
 };
@@ -352,14 +353,14 @@ export const samplesSampleUrl = (
   logPath: string,
   sampleId: string | number,
   epoch: string | number,
-  sampleTabId?: string,
+  sampleTabId?: string
 ) => {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
   // Encode sampleId to handle slashes and special characters
   // This must be done before encodePathParts since it splits on /
   const encodedSampleId = encodeURIComponent(String(sampleId));
   return encodePathParts(
-    `/samples/${decodedLogPath}/sample/${encodedSampleId}/${epoch}/${sampleTabId || ""}`,
+    `/samples/${decodedLogPath}/sample/${encodedSampleId}/${epoch}/${sampleTabId || ""}`
   );
 };
 
@@ -368,13 +369,13 @@ export const sampleEventUrl = (
   eventId: string,
   logPath: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number,
+  sampleEpoch?: string | number
 ) => {
   const baseUrl = builder(
     logPath,
     sampleId,
     sampleEpoch,
-    kSampleTranscriptTabId,
+    kSampleTranscriptTabId
   );
   return `${baseUrl}?event=${eventId}`;
 };
@@ -382,7 +383,7 @@ export const sampleEventUrl = (
 export const useSampleMessageUrl = (
   messageId: string | null,
   sampleId?: string | number,
-  sampleEpoch?: string | number,
+  sampleEpoch?: string | number
 ) => {
   const {
     logPath: urlLogPath,
@@ -406,7 +407,7 @@ export const useSampleMessageUrl = (
           messageId,
           targetLogPath,
           sampleId || urlSampleId,
-          sampleEpoch || urlEpoch,
+          sampleEpoch || urlEpoch
         )
       : undefined;
   }, [
@@ -424,7 +425,7 @@ export const useSampleMessageUrl = (
 export const useSampleEventUrl = (
   eventId: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number,
+  sampleEpoch?: string | number
 ) => {
   const {
     logPath: urlLogPath,
@@ -448,7 +449,7 @@ export const useSampleEventUrl = (
           eventId,
           targetLogPath,
           sampleId || urlSampleId,
-          sampleEpoch || urlEpoch,
+          sampleEpoch || urlEpoch
         )
       : undefined;
   }, [
@@ -468,7 +469,7 @@ export const sampleMessageUrl = (
   messageId: string,
   logPath: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number,
+  sampleEpoch?: string | number
 ) => {
   const baseUrl = builder(logPath, sampleId, sampleEpoch, kSampleMessagesTabId);
   return `${baseUrl}?message=${messageId}`;

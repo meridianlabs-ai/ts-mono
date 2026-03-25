@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+
 import { useSamplesRouteParams } from "../app/routing/url";
+
 import { useLogs } from "./hooks";
 import { useStore } from "./store";
 
@@ -17,7 +19,7 @@ export const useLoadLog = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
   const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile,
+    (state) => state.logsActions.setSelectedLogFile
   );
 
   useEffect(() => {

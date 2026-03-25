@@ -1,10 +1,12 @@
 import { ColDef } from "ag-grid-community";
 import { clsx } from "clsx";
 import { FC, useMemo } from "react";
+
 import { PopOver } from "../../components/PopOver";
 import { ApplicationIcons } from "../appearance/icons";
-import styles from "./ColumnSelectorPopover.module.css";
 import { getFieldKey } from "../shared/gridUtils";
+
+import styles from "./ColumnSelectorPopover.module.css";
 
 interface ColumnSelectorPopoverProps<T> {
   showing: boolean;
@@ -28,9 +30,9 @@ export const ColumnSelectorPopover = <T,>({
     () =>
       columns.reduce<Record<string, boolean>>(
         (acc, col) => ({ ...acc, [getFieldKey(col)]: !col.hide }),
-        {},
+        {}
       ),
-    [columns],
+    [columns]
   );
 
   const handleToggle = (field: string) => {
@@ -52,7 +54,7 @@ export const ColumnSelectorPopover = <T,>({
     onVisibilityChange({
       ...currentVisibility,
       ...Object.fromEntries(
-        columnGroups.base.map((col) => [getFieldKey(col), true]),
+        columnGroups.base.map((col) => [getFieldKey(col), true])
       ),
     });
   };
@@ -60,7 +62,7 @@ export const ColumnSelectorPopover = <T,>({
     onVisibilityChange({
       ...currentVisibility,
       ...Object.fromEntries(
-        columnGroups.base.map((col) => [getFieldKey(col), false]),
+        columnGroups.base.map((col) => [getFieldKey(col), false])
       ),
     });
   };
@@ -68,7 +70,7 @@ export const ColumnSelectorPopover = <T,>({
     onVisibilityChange({
       ...currentVisibility,
       ...Object.fromEntries(
-        columnGroups.scores.map((col) => [getFieldKey(col), true]),
+        columnGroups.scores.map((col) => [getFieldKey(col), true])
       ),
     });
   };
@@ -76,7 +78,7 @@ export const ColumnSelectorPopover = <T,>({
     onVisibilityChange({
       ...currentVisibility,
       ...Object.fromEntries(
-        columnGroups.scores.map((col) => [getFieldKey(col), false]),
+        columnGroups.scores.map((col) => [getFieldKey(col), false])
       ),
     });
   };

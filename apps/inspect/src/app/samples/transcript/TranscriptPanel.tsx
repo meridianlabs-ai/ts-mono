@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
+
 import { Events } from "../../../@types/log";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { StickyScroll } from "../../../components/StickyScroll";
@@ -8,9 +9,17 @@ import { useCollapsedState } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import { useLogRouteParams } from "../../routing/url";
+
 import { TranscriptOutline } from "./outline/TranscriptOutline";
+import {
+  makeTurns,
+  noScorerChildren,
+  removeNodeVisitor,
+  removeStepSpanNameVisitor,
+} from "./outline/tree-visitors";
 import styles from "./TranscriptPanel.module.css";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
+import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree as flattenTree } from "./transform/flatten";
 import { useEventNodes } from "./transform/hooks";
 import { hasSpans } from "./transform/utils";
@@ -18,13 +27,6 @@ import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
-import {
-  makeTurns,
-  noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
-} from "./outline/tree-visitors";
-import { kSandboxSignalName } from "./transform/fixups";
 
 interface TranscriptPanelProps {
   id: string;
@@ -52,7 +54,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // Sort out any types that are filtered out
   const filteredEventTypes = useStore(
-    (state) => state.sample.eventFilter.filteredTypes,
+    (state) => state.sample.eventFilter.filteredTypes
   );
 
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
@@ -70,13 +72,13 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Convert to nodes
   const { eventNodes, defaultCollapsedIds } = useEventNodes(
     filteredEvents,
-    running === true,
+    running === true
   );
 
   // The list of events that have been collapsed
   const collapsedEvents = useStore((state) => state.sample.collapsedEvents);
   const setCollapsedEvents = useStore(
-    (state) => state.sampleActions.setCollapsedEvents,
+    (state) => state.sampleActions.setCollapsedEvents
   );
 
   const flattenedNodes = useMemo(() => {
@@ -85,7 +87,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       eventNodes,
       (collapsedEvents
         ? collapsedEvents[kTranscriptCollapseScope]
-        : undefined) || defaultCollapsedIds,
+        : undefined) || defaultCollapsedIds
     );
   }, [eventNodes, collapsedEvents, defaultCollapsedIds]);
 
@@ -112,7 +114,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
         // Remove child events for scorers
         noScorerChildren(),
-      ],
+      ]
     );
   }, [eventNodes, collapsedEvents, defaultCollapsedIds]);
 
@@ -126,7 +128,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     const turnNodes = turns.filter(
       (n) =>
         n.event.event === "span_begin" &&
-        (n.event as { type?: string }).type === "turn",
+        (n.event as { type?: string }).type === "turn"
     );
     const totalTurns = turnNodes.length;
 
@@ -207,7 +209,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const { logPath } = useLogRouteParams();
   const [collapsed, setCollapsed] = useCollapsedState(
     `transcript-panel-${logPath || "na"}`,
-    false,
+    false
   );
 
   const listHandle = useRef<VirtuosoHandle | null>(null);
@@ -263,7 +265,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       <div
         className={clsx(
           styles.container,
-          collapsed ? styles.collapsed : undefined,
+          collapsed ? styles.collapsed : undefined
         )}
       >
         <StickyScroll

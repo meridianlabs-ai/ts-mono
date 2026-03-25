@@ -1,9 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { useFilteredSamples } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl } from "../../utils/uri";
 import { sampleIdsEqual } from "../shared/sample";
+
 import {
   logSamplesUrl,
   logsUrl,
@@ -31,7 +33,7 @@ export const useLogNavigation = () => {
         navigate(url);
       }
     },
-    [loadedLog, routeLogPath, logDir, navigate],
+    [loadedLog, routeLogPath, logDir, navigate]
   );
 
   return {
@@ -65,7 +67,7 @@ export const useSampleUrl = () => {
     (
       sampleId: string | number,
       epoch: number,
-      specificSampleTabId?: string,
+      specificSampleTabId?: string
     ) => {
       const resolvedPath = resolveLogPath();
       if (resolvedPath) {
@@ -74,13 +76,13 @@ export const useSampleUrl = () => {
           resolvedPath,
           sampleId,
           epoch,
-          currentSampleTabId,
+          currentSampleTabId
         );
         return url;
       }
       return undefined;
     },
-    [resolveLogPath, sampleTabId],
+    [resolveLogPath, sampleTabId]
   );
   return getSampleUrl;
 };
@@ -120,7 +122,7 @@ export const useSampleNavigation = () => {
 
   // Sample hooks
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
 
   const selectedSampleIndex = useMemo(() => {
@@ -152,7 +154,7 @@ export const useSampleNavigation = () => {
         navigate(url);
       }
     },
-    [resolveLogPath, selectSample, navigate, sampleTabId],
+    [resolveLogPath, selectSample, navigate, sampleTabId]
   );
 
   const navigateSampleIndex = useCallback(
@@ -166,7 +168,7 @@ export const useSampleNavigation = () => {
         }
       }
     },
-    [sampleSummaries, selectSample, logPath, selectedLogFile],
+    [sampleSummaries, selectSample, logPath, selectedLogFile]
   );
 
   // Navigate to the next sample
@@ -195,7 +197,7 @@ export const useSampleNavigation = () => {
     (
       sampleId: string | number,
       epoch: number,
-      specificSampleTabId?: string,
+      specificSampleTabId?: string
     ) => {
       const resolvedPath = resolveLogPath();
       if (resolvedPath) {
@@ -204,13 +206,13 @@ export const useSampleNavigation = () => {
           resolvedPath,
           sampleId,
           epoch,
-          currentSampleTabId,
+          currentSampleTabId
         );
         return `#${url}`;
       }
       return undefined;
     },
-    [resolveLogPath, sampleTabId],
+    [resolveLogPath, sampleTabId]
   );
 
   // Navigate back from sample detail view
@@ -258,7 +260,7 @@ export const useSamplesGridNavigation = () => {
       logFile: string,
       sampleId: string | number,
       epoch: number,
-      openInNewWindow = false,
+      openInNewWindow = false
     ) => {
       // Convert absolute logFile path to relative path
       const relativePath = directoryRelativeUrl(logFile, logDirectory);
@@ -271,7 +273,7 @@ export const useSamplesGridNavigation = () => {
         navigate(url);
       }
     },
-    [navigate, logDirectory],
+    [navigate, logDirectory]
   );
 
   return {
@@ -296,7 +298,7 @@ export const useLogSampleNavigation = () => {
 
   // Get the currently selected sample
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
 
   // Action to update selected sample in store
@@ -331,7 +333,7 @@ export const useLogSampleNavigation = () => {
         logPath,
         prevSample.id,
         prevSample.epoch,
-        sampleTabId,
+        sampleTabId
       );
       navigate(url);
     }
@@ -356,7 +358,7 @@ export const useLogSampleNavigation = () => {
         logPath,
         nextSample.id,
         nextSample.epoch,
-        sampleTabId,
+        sampleTabId
       );
       navigate(url);
     }

@@ -1,6 +1,8 @@
 // @ts-check
 
 import clsx from "clsx";
+import { FC, useEffect, useMemo } from "react";
+
 import {
   Changes,
   JsonChange,
@@ -8,18 +10,17 @@ import {
   StateEvent,
   StoreEvent,
 } from "../../../../@types/log";
+import { useStore } from "../../../../state/store";
 import { formatDateTime } from "../../../../utils/format";
 import { EventPanel } from "../event/EventPanel";
+import { formatTitle } from "../event/utils";
+import { EventNode, kTranscriptCollapseScope } from "../types";
+
 import { StateDiffView } from "./StateDiffView";
 import {
   RenderableChangeTypes,
   StoreSpecificRenderableTypes,
 } from "./StateEventRenderers";
-
-import { FC, useEffect, useMemo } from "react";
-import { useStore } from "../../../../state/store";
-import { formatTitle } from "../event/utils";
-import { EventNode, kTranscriptCollapseScope } from "../types";
 import styles from "./StateEventView.module.css";
 
 interface StateEventViewProps {
@@ -48,7 +49,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
     } catch (e) {
       console.error(
         "Unable to synthesize comparable object to display state diffs.",
-        e,
+        e
       );
       return [{}, {}];
     }
@@ -102,7 +103,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
 const generatePreview = (
   changes: JsonChange[],
   resolvedState: Record<string, unknown>,
-  isStore: boolean,
+  isStore: boolean
 ) => {
   const results = [];
   for (const changeType of [
@@ -284,7 +285,7 @@ const synthesizeComparable = (changes: Changes) => {
 function setPath(
   target: Record<string, unknown>,
   path: string,
-  value: unknown,
+  value: unknown
 ): void {
   const keys = parsePath(path);
   let current: Record<string, unknown> = target;
@@ -316,7 +317,7 @@ function initializeArrays(target: Record<string, unknown>, path: string): void {
     if (isArrayIndex(nextKey)) {
       current[key] = initializeArray(
         current[key] as string[] | undefined,
-        nextKey,
+        nextKey
       );
     } else {
       current[key] = initializeObject(current[key] as object | undefined);
@@ -351,7 +352,7 @@ function isArrayIndex(key: string): boolean {
  */
 function initializeArray(
   current: Array<string> | undefined,
-  nextKey: string,
+  nextKey: string
 ): Array<string> {
   if (!Array.isArray(current)) {
     current = [];

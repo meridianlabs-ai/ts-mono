@@ -1,10 +1,12 @@
 import { compileExpression } from "filtrex";
+
 import { Scores1 } from "../../../@types/log";
 import { FilterError, ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
 import { kScoreTypeBoolean } from "../../../constants";
 import { inputString } from "../../../utils/format";
 import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
+
 import { kSampleMetadataPrefix } from "./sample-filter/language";
 
 export interface SampleFilterItem {
@@ -68,7 +70,7 @@ const filterExpressionConstants: Record<string, unknown> = {
  */
 const scoreVariables = (
   evalDescriptor: EvalDescriptor,
-  sampleScores: Scores1,
+  sampleScores: Scores1
 ): Record<string, unknown> => {
   const bannedShortNames = bannedShortScoreNames(evalDescriptor.scores);
   const variables: Record<string, unknown> = {};
@@ -76,11 +78,11 @@ const scoreVariables = (
   const addScore = (
     variableName: string,
     scoreLabel: ScoreLabel,
-    value: unknown,
+    value: unknown
   ): void => {
     const coercedValue = coerceValue(
       value,
-      evalDescriptor.scoreDescriptor(scoreLabel),
+      evalDescriptor.scoreDescriptor(scoreLabel)
     );
     if (isFilteringSupportedForValue(coercedValue)) {
       variables[variableName] = coercedValue;
@@ -131,7 +133,7 @@ const sampleVariables = (sample: SampleSummary): Record<string, unknown> => {
  * directly by name when it is unique.
  */
 export const sampleFilterItems = (
-  evalDescriptor: EvalDescriptor,
+  evalDescriptor: EvalDescriptor
 ): SampleFilterItem[] => {
   const items: SampleFilterItem[] = [];
   const bannedShortNames = bannedShortScoreNames(evalDescriptor.scores);
@@ -141,7 +143,7 @@ export const sampleFilterItems = (
   const addScore = (
     scoreLabel: ScoreLabel,
     shortName?: string,
-    qualifiedName?: string,
+    qualifiedName?: string
   ) => {
     const canonicalName = shortName || qualifiedName;
     if (!canonicalName) {
@@ -206,12 +208,12 @@ export const sampleFilterItems = (
 export const filterExpression = (
   evalDescriptor: EvalDescriptor,
   sample: SampleSummary,
-  filterValue: string,
+  filterValue: string
 ) => {
   try {
     const inputContains = (regex: string): boolean => {
       return inputString(sample.input).some((msg) =>
-        msg.match(new RegExp(regex, "i")),
+        msg.match(new RegExp(regex, "i"))
       );
     };
     const targetContains = (regex: string): boolean => {
@@ -261,7 +263,7 @@ export const filterExpression = (
       throw result;
     } else {
       throw new TypeError(
-        `Filter expression returned a non-boolean value: ${result}`,
+        `Filter expression returned a non-boolean value: ${result}`
       );
     }
   } catch (error) {
@@ -321,7 +323,7 @@ export const filterExpression = (
 export const filterSamples = (
   evalDescriptor: EvalDescriptor,
   samples: SampleSummary[],
-  filterValue: string,
+  filterValue: string
 ): {
   result: SampleSummary[];
   error: FilterError | undefined;
@@ -334,7 +336,7 @@ export const filterSamples = (
       const { matches, error: sampleError } = filterExpression(
         evalDescriptor,
         sample,
-        filterValue,
+        filterValue
       );
       error ||= sampleError;
       if (sampleError) {

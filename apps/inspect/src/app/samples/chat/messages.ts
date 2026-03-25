@@ -106,7 +106,7 @@ export const iconForMsg = (
     | ChatMessageAssistant
     | ChatMessageSystem
     | ChatMessageUser
-    | ChatMessageTool,
+    | ChatMessageTool
 ) => {
   if (msg.role === "user") {
     return ApplicationIcons.role.user;
@@ -134,7 +134,7 @@ const normalizeContent = (
     | ContentReasoning
     | ContentData
     | ContentToolUse
-    | string,
+    | string
 ):
   | ContentText
   | ContentImage

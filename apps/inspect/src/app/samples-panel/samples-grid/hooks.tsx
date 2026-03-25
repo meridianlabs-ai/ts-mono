@@ -5,14 +5,16 @@ import {
   ValueGetterParams,
 } from "ag-grid-community";
 import { useEffect, useMemo } from "react";
+
 import { LogDetails } from "../../../client/api/types";
 import { useStore } from "../../../state/store";
+import { formatDateTime } from "../../../utils/format";
 import { filename } from "../../../utils/path";
+import styles from "../../shared/gridCells.module.css";
 import { comparators } from "../../shared/gridComparators";
 import { getFieldKey } from "../../shared/gridUtils";
-import styles from "../../shared/gridCells.module.css";
+
 import { SampleRow } from "./types";
-import { formatDateTime } from "../../../utils/format";
 
 export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
   const optionalColumnsHaveAnyData: Record<string, boolean> = useMemo(() => {
@@ -30,10 +32,10 @@ export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
     return { error, limit, retries };
   }, [logDetails]);
   const columnVisibility = useStore(
-    (state) => state.logs.samplesListState.columnVisibility,
+    (state) => state.logs.samplesListState.columnVisibility
   );
   const setColumnVisibility = useStore(
-    (state) => state.logsActions.setSamplesColumnVisibility,
+    (state) => state.logsActions.setSamplesColumnVisibility
   );
 
   // Detect all unique score names across all samples
@@ -213,7 +215,7 @@ export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
             return String(valA || "").localeCompare(String(valB || ""));
           },
         };
-      },
+      }
     );
 
     // Add optional columns (all for selector, hide unselected in grid)

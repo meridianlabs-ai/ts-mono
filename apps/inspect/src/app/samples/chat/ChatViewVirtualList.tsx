@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import {
   FC,
   memo,
@@ -8,20 +9,18 @@ import {
   useMemo,
   useRef,
 } from "react";
+import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
+
 import { Messages } from "../../../@types/log";
+import { LiveVirtualList } from "../../../components/LiveVirtualList";
+import { useStore } from "../../../state/store";
 
 import { ChatMessageRow } from "./ChatMessageRow";
-import { ResolvedMessage, resolveMessages } from "./messages";
-
-import clsx from "clsx";
-import { LiveVirtualList } from "../../../components/LiveVirtualList";
-import { ChatViewToolCallStyle } from "./types";
-
-import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
-import { useStore } from "../../../state/store";
 import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
+import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
+import { ChatViewToolCallStyle } from "./types";
 
 interface ChatViewVirtualListProps {
   id: string;
@@ -139,7 +138,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         />
       );
     }
-  },
+  }
 );
 
 /**
@@ -207,7 +206,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
           indented,
           toolCallStyle,
           allowLinking,
-        ],
+        ]
       );
 
       const Item = ({
@@ -244,5 +243,5 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
           itemSearchText={messageSearchText}
         />
       );
-    },
+    }
   );

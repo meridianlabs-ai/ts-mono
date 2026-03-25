@@ -1,8 +1,10 @@
 import { StateSnapshot } from "react-virtuoso";
+
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
 import { kLogViewSamplesTabId, kSampleTranscriptTabId } from "../constants";
 import { clearDocumentSelection } from "../utils/browser";
+
 import { StoreState } from "./store";
 
 export interface AppSlice {
@@ -22,7 +24,7 @@ export interface AppSlice {
     setInitialState: (
       log: string,
       sample_id?: string,
-      sample_epoch?: string,
+      sample_epoch?: string
     ) => void;
     clearInitialState: () => void;
 
@@ -39,7 +41,7 @@ export interface AppSlice {
     getVisibleRange: (name: string) => { startIndex: number; endIndex: number };
     setVisibleRange: (
       name: string,
-      value: { startIndex: number; endIndex: number },
+      value: { startIndex: number; endIndex: number }
     ) => void;
     clearVisibleRange: (name: string) => void;
 
@@ -91,12 +93,12 @@ const initialState: AppState = {
 export const createAppSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: any
 ): [AppSlice, () => void] => {
   const getBoolRecord = (
     record: Record<string, boolean>,
     name: string,
-    defaultValue?: boolean,
+    defaultValue?: boolean
   ) => {
     if (Object.keys(record).includes(name)) {
       return record[name];
@@ -116,7 +118,7 @@ export const createAppSlice = (
         set((state) => {
           state.app.status.loading = Math.max(
             state.app.status.loading + (loading ? 1 : -1),
-            0,
+            0
           );
           state.app.status.error = error;
         }),
@@ -169,7 +171,7 @@ export const createAppSlice = (
       setInitialState: (
         log: string,
         sample_id?: string,
-        sample_epoch?: string,
+        sample_epoch?: string
       ) => {
         set((state) => {
           state.app.initialState = {
@@ -240,7 +242,7 @@ export const createAppSlice = (
       },
       setVisibleRange: (
         name: string,
-        value: { startIndex: number; endIndex: number },
+        value: { startIndex: number; endIndex: number }
       ) => {
         set((state) => {
           state.app.visibleRanges[name] = value;
@@ -284,7 +286,7 @@ export const createAppSlice = (
       getPropertyValue: <T>(
         bagName: string,
         key: string,
-        defaultValue?: T,
+        defaultValue?: T
       ): T => {
         const state = get();
         const bag = state.app.propertyBags[bagName] || {};
@@ -341,7 +343,7 @@ export const createAppSlice = (
 
 export const initializeAppSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  capabilities: Capabilities,
+  capabilities: Capabilities
 ) => {
   set((state) => {
     state.capabilities = capabilities;

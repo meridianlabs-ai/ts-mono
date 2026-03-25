@@ -1,15 +1,16 @@
 // @ts-check
+import clsx from "clsx";
+import { FC } from "react";
+
 import { Messages, SampleInitEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
 import { toArray } from "../../../utils/type";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ChatView } from "../chat/ChatView";
+
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
-
-import clsx from "clsx";
-import { FC } from "react";
 import { eventTitle, formatTitle } from "./event/utils";
 import styles from "./SampleInitEventView.module.css";
 import { EventNode } from "./types";
@@ -41,7 +42,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
             </pre>
           );
         })}
-      </EventSection>,
+      </EventSection>
     );
   }
 
@@ -51,7 +52,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
         <pre className={styles.code}>
           <code className="sourceCode">{event.sample.setup}</code>
         </pre>
-      </EventSection>,
+      </EventSection>
     );
   }
 

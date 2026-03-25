@@ -9,7 +9,7 @@ function getVersionInfo() {
     // Use git describe without --dirty since the build output itself creates dirty state
     const gitDescribe = execSync(
       "git describe --tags --long --match '[0-9]*.[0-9]*.[0-9]*'",
-      { encoding: "utf-8" },
+      { encoding: "utf-8" }
     ).trim();
 
     // Extract short commit hash (first 8 chars of the hash part)

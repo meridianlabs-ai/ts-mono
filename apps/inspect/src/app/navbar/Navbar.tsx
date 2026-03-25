@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
+
 import { useStore } from "../../state/store";
 import { basename, dirname, ensureTrailingSlash } from "../../utils/path";
 import { prettyDirUri } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
+
 import styles from "./Navbar.module.css";
 import { useBreadcrumbTruncation } from "./useBreadcrumbTruncation";
 
@@ -29,8 +31,8 @@ export const Navbar: FC<NavbarProps> = ({
       ? basename(
           window.location.pathname.substring(
             0,
-            window.location.pathname.lastIndexOf("/"),
-          ),
+            window.location.pathname.lastIndexOf("/")
+          )
         )
       : logDir || "";
   const baseLogDir = dirname(displayDir);
@@ -39,7 +41,7 @@ export const Navbar: FC<NavbarProps> = ({
 
   const backUrl = fnNavigationUrl(
     ensureTrailingSlash(dirname(currentPath || "")),
-    logDir,
+    logDir
   );
 
   const segments = useMemo(() => {
@@ -64,7 +66,7 @@ export const Navbar: FC<NavbarProps> = ({
 
   const { visibleSegments, showEllipsis } = useBreadcrumbTruncation(
     segments,
-    pathContainerRef,
+    pathContainerRef
   );
 
   return (
@@ -73,7 +75,7 @@ export const Navbar: FC<NavbarProps> = ({
         "text-size-smaller",
         "header-nav",
         styles.header,
-        bordered === false ? null : styles.bordered,
+        bordered === false ? null : styles.bordered
       )}
       aria-label="breadcrumb"
       data-unsearchable={true}
@@ -110,7 +112,7 @@ export const Navbar: FC<NavbarProps> = ({
                         className={clsx(
                           styles.pathLink,
                           "breadcrumb-item",
-                          isLast ? "active" : undefined,
+                          isLast ? "active" : undefined
                         )}
                       >
                         {segment.url && !isLast ? (

@@ -7,7 +7,7 @@ export function printCircularReferences(obj: Record<string, unknown>): void {
       // Check if we've seen this object before
       if (seenObjects.has(value as object)) {
         console.log(
-          `Circular reference detected at path: ${seenObjects.get(value as object)}`,
+          `Circular reference detected at path: ${seenObjects.get(value as object)}`
         );
         return;
       }
@@ -30,7 +30,7 @@ export function printCircularReferences(obj: Record<string, unknown>): void {
 export function findDifferences(
   obj1: unknown,
   obj2: unknown,
-  path = "",
+  path = ""
 ): string[] {
   // Helper to build a readable path string
   const makePath = (parent: string, key: string | number, isIndex = false) =>
@@ -68,14 +68,14 @@ export function findDifferences(
     const diff: string[] = [];
     const maxLen = Math.max(
       (obj1 as unknown[]).length,
-      (obj2 as unknown[]).length,
+      (obj2 as unknown[]).length
     );
 
     if ((obj1 as unknown[]).length !== (obj2 as unknown[]).length) {
       diff.push(
         `${path || "<root>"}: array length ${
           (obj1 as unknown[]).length
-        } vs ${(obj2 as unknown[]).length}`,
+        } vs ${(obj2 as unknown[]).length}`
       );
     }
 
@@ -84,8 +84,8 @@ export function findDifferences(
         ...findDifferences(
           (obj1 as unknown[])[i],
           (obj2 as unknown[])[i],
-          makePath(path, i, true),
-        ),
+          makePath(path, i, true)
+        )
       );
     }
     return diff;
@@ -113,8 +113,8 @@ export function findDifferences(
         ...findDifferences(
           (obj1 as Record<string, unknown>)[key],
           (obj2 as Record<string, unknown>)[key],
-          newPath,
-        ),
+          newPath
+        )
       );
     }
   }

@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { JSX } from "react";
+
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeObject } from "../../../../constants";
 import { formatPrettyDecimal } from "../../../../utils/format";
 import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor } from "../types";
+
 import styles from "./ObjectScoreDescriptor.module.css";
 
 export const objectScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
@@ -39,7 +41,7 @@ export const objectScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
       keys.forEach((key) => {
         if (typeof score !== "object" || Array.isArray(score)) {
           throw new Error(
-            "Unexpected use of object score descriptor for non-score object",
+            "Unexpected use of object score descriptor for non-score object"
           );
         }
         const value = score[key];
@@ -48,7 +50,7 @@ export const objectScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
             ? formatPrettyDecimal(
                 typeof value === "number"
                   ? value
-                  : parseFloat(value === true ? "1" : value),
+                  : parseFloat(value === true ? "1" : value)
               )
             : String(value);
 
@@ -58,7 +60,7 @@ export const objectScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
             <div className={clsx(styles.value, "text-size-base")}>
               {formattedValue}
             </div>
-          </>,
+          </>
         );
       });
 

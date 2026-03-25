@@ -1,4 +1,5 @@
 import { FC } from "react";
+
 import {
   ChatMessageAssistant,
   ChatMessageSystem,
@@ -7,6 +8,7 @@ import {
 } from "../../../@types/log";
 import { NavPills } from "../../../components/NavPills.tsx";
 import { Buckets, ContentRenderer } from "../../content/types.ts";
+
 import { ChatView } from "./ChatView";
 
 /**

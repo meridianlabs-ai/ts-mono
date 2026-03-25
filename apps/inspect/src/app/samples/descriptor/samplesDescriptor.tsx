@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
+
 import { Value2 } from "../../../@types/log";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { errorType } from "../error/error";
 import { arrayToString, inputString } from "../../../utils/format";
+import { errorType } from "../error/error";
+
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";
 import {
   EvalDescriptor,
@@ -18,13 +20,13 @@ export interface SamplesDescriptor {
   messageShape: MessageShape;
   selectedScore: (sample: BasicSampleData) => SelectedScore | undefined;
   selectedScorerDescriptor: (
-    sample: BasicSampleData,
+    sample: BasicSampleData
   ) => ScorerDescriptor | undefined;
 }
 
 export const createEvalDescriptor = (
   scores: ScoreLabel[],
-  samples?: SampleSummary[],
+  samples?: SampleSummary[]
 ): EvalDescriptor | undefined => {
   if (!samples) {
     return undefined;
@@ -32,7 +34,7 @@ export const createEvalDescriptor = (
 
   const scoreValue = (
     sample: BasicSampleData,
-    scoreLabel?: ScoreLabel,
+    scoreLabel?: ScoreLabel
   ): Value2 | undefined => {
     // no scores, no value
     if (
@@ -64,7 +66,7 @@ export const createEvalDescriptor = (
 
   const scoreAnswer = (
     sample: BasicSampleData,
-    scorer: ScoreLabel,
+    scorer: ScoreLabel
   ): string | undefined => {
     if (sample && sample.scores) {
       const sampleScore = sample.scores[scorer.scorer];
@@ -78,7 +80,7 @@ export const createEvalDescriptor = (
 
   const scoreExplanation = (
     sample: BasicSampleData,
-    scorer: string,
+    scorer: string
   ): string | undefined => {
     if (sample && sample.scores) {
       const sampleScore = sample.scores[scorer];
@@ -92,7 +94,7 @@ export const createEvalDescriptor = (
   // Retrieve the metadata for a sample
   const scoreMetadata = (
     sample: BasicSampleData,
-    scorer: string,
+    scorer: string
   ): Record<string, unknown> | undefined => {
     if (sample && sample.scores) {
       const sampleScore = sample.scores[scorer];
@@ -124,7 +126,7 @@ export const createEvalDescriptor = (
               return (
                 Object.keys(sample.scores).includes(scoreLabel.scorer) &&
                 Object.keys(sample.scores[scoreLabel.scorer].value).includes(
-                  scoreLabel.name,
+                  scoreLabel.name
                 )
               );
             } else {
@@ -139,7 +141,7 @@ export const createEvalDescriptor = (
           })
           .filter((value) => {
             return value !== undefined;
-          }),
+          })
       ),
     ];
     const uniqScoreTypes = [
@@ -148,7 +150,7 @@ export const createEvalDescriptor = (
 
     const scoreDescriptor = getScoreDescriptorForValues(
       uniqScoreValues,
-      uniqScoreTypes,
+      uniqScoreTypes
     );
     if (scoreDescriptor) {
       scoreDescriptorMap[scoreLabelKey(scoreLabel)] = scoreDescriptor;
@@ -161,7 +163,7 @@ export const createEvalDescriptor = (
 
   const scoreRendered = (
     sample: BasicSampleData,
-    scoreLabel: ScoreLabel,
+    scoreLabel: ScoreLabel
   ): ReactNode => {
     const descriptor = scoreDescriptor(scoreLabel);
     const score = scoreValue(sample, scoreLabel);
@@ -178,7 +180,7 @@ export const createEvalDescriptor = (
 
   const scorerDescriptor = (
     sample: BasicSampleData,
-    scoreLabel: ScoreLabel,
+    scoreLabel: ScoreLabel
   ): ScorerDescriptor => {
     return {
       metadata: () => {
@@ -259,7 +261,7 @@ export const createEvalDescriptor = (
 
   const score = (
     sample: BasicSampleData,
-    scoreLabel?: ScoreLabel,
+    scoreLabel?: ScoreLabel
   ): SelectedScore | undefined => {
     if (!scoreLabel) {
       return undefined;
@@ -284,48 +286,48 @@ export const createEvalDescriptor = (
 export const createSamplesDescriptor = (
   samples: SampleSummary[],
   evalDescriptor: EvalDescriptor,
-  selectedScores: ScoreLabel[],
+  selectedScores: ScoreLabel[]
 ): SamplesDescriptor | undefined => {
   const messageShape = samples.reduce(
     (shape: MessageShape, sample) => {
       shape.inputSize = Math.min(
         Math.max(shape.inputSize, inputString(sample.input).join(" ").length),
-        300,
+        300
       );
       shape.targetSize = Math.min(
         Math.max(shape.targetSize, arrayToString(sample.target).length),
-        300,
+        300
       );
       if (selectedScores.length > 0) {
         shape.answerSize = Math.min(
           Math.max(
             shape.answerSize,
-            evalDescriptor.scoreAnswer(sample, selectedScores[0])?.length ?? 0,
+            evalDescriptor.scoreAnswer(sample, selectedScores[0])?.length ?? 0
           ),
-          300,
+          300
         );
       }
       shape.idSize = Math.min(
         10,
-        Math.max(shape.idSize, String(sample.id).length),
+        Math.max(shape.idSize, String(sample.id).length)
       );
       shape.limitSize = Math.min(
         10,
-        Math.max(shape.limitSize, sample.limit ? sample.limit.length : 0),
+        Math.max(shape.limitSize, sample.limit ? sample.limit.length : 0)
       );
       shape.retriesSize = Math.min(
         10,
         Math.max(
           shape.retriesSize,
-          sample.retries ? String(sample.retries).length : 0,
-        ),
+          sample.retries ? String(sample.retries).length : 0
+        )
       );
       shape.errorSize = Math.min(
         10,
         Math.max(
           shape.errorSize,
-          sample.error ? errorType(sample.error).length : 0,
-        ),
+          sample.error ? errorType(sample.error).length : 0
+        )
       );
       return shape;
     },
@@ -337,7 +339,7 @@ export const createSamplesDescriptor = (
       limitSize: 0,
       retriesSize: 0,
       errorSize: 0,
-    },
+    }
   );
 
   const firstSelectedScore = selectedScores?.[0];

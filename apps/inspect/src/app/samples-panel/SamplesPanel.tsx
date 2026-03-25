@@ -1,7 +1,7 @@
-import clsx from "clsx";
-
 import { AgGridReact } from "ag-grid-react";
+import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { ProgressBar } from "../../components/ProgressBar";
 import {
@@ -10,6 +10,7 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import { inputString } from "../../utils/format";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
@@ -20,11 +21,11 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
+
 import { useSampleColumns } from "./samples-grid/hooks";
 import { SamplesGrid } from "./samples-grid/SamplesGrid";
-import styles from "./SamplesPanel.module.css";
 import { SampleRow } from "./samples-grid/types";
-import { inputString } from "../../utils/format";
+import styles from "./SamplesPanel.module.css";
 
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
@@ -35,14 +36,14 @@ export const SamplesPanel: FC = () => {
   const syncing = useStore((state) => state.app.status.syncing);
   const showRetriedLogs = useStore((state) => state.logs.showRetriedLogs);
   const setShowRetriedLogs = useStore(
-    (state) => state.logsActions.setShowRetriedLogs,
+    (state) => state.logsActions.setShowRetriedLogs
   );
 
   const filteredSamplesCount = useStore(
-    (state) => state.log.filteredSampleCount,
+    (state) => state.log.filteredSampleCount
   );
   const setFilteredSampleCount = useStore(
-    (state) => state.logActions.setFilteredSampleCount,
+    (state) => state.logActions.setFilteredSampleCount
   );
 
   const gridRef = useRef<AgGridReact>(null);
@@ -78,7 +79,7 @@ export const SamplesPanel: FC = () => {
       // Update column visibility
       setColumnVisibility(newVisibility);
     },
-    [setColumnVisibility],
+    [setColumnVisibility]
   );
 
   const handleResetFilters = () => {
@@ -150,7 +151,7 @@ export const SamplesPanel: FC = () => {
         }
         return acc;
       },
-      {} as typeof logDetails,
+      {} as typeof logDetails
     );
   }, [logDetails, logDir, samplesPath]);
 
@@ -168,7 +169,7 @@ export const SamplesPanel: FC = () => {
         acc[log.name] = log;
         return acc;
       },
-      {},
+      {}
     );
 
     Object.entries(logDetailsInPath).forEach(([logFile, logDetail]) => {
@@ -204,7 +205,7 @@ export const SamplesPanel: FC = () => {
     });
 
     const _sampleRows = allRows.filter(
-      (row) => row.logFile in logInCurrentDirByName,
+      (row) => row.logFile in logInCurrentDirByName
     );
     const _hasRetriedLogs =
       _sampleRows.length < allRows.length || anyLogInCurrentDirCouldBeSkipped;
@@ -244,7 +245,7 @@ export const SamplesPanel: FC = () => {
               setTimeout(() => {
                 if (gridRef.current) {
                   setFilteredSampleCount(
-                    gridRef.current.api.getDisplayedRowCount(),
+                    gridRef.current.api.getDisplayedRowCount()
                   );
                 }
               }, 10);

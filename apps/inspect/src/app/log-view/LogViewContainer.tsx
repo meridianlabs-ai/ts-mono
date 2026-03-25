@@ -1,5 +1,6 @@
 import { FC, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { kLogViewSamplesTabId } from "../../constants";
 import {
   useEvalSpec,
@@ -9,6 +10,7 @@ import {
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
 import { baseUrl, logSamplesUrl, useLogRouteParams } from "../routing/url";
+
 import { LogViewLayout } from "./LogViewLayout";
 
 /**
@@ -20,21 +22,21 @@ export const LogViewContainer: FC = () => {
 
   const initialState = useStore((state) => state.app.initialState);
   const clearInitialState = useStore(
-    (state) => state.appActions.clearInitialState,
+    (state) => state.appActions.clearInitialState
   );
   const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
   const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile,
+    (state) => state.logsActions.setSelectedLogFile
   );
 
   const clearSelectedLogSummary = useStore(
-    (state) => state.logActions.clearSelectedLogDetails,
+    (state) => state.logActions.clearSelectedLogDetails
   );
 
   const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample,
+    (state) => state.sampleActions.clearSelectedSample
   );
 
   const navigate = useNavigate();
@@ -61,7 +63,7 @@ export const LogViewContainer: FC = () => {
           logPath,
           sample.id,
           sample.epoch,
-          sampleTabId,
+          sampleTabId
         );
         const finalUrl = searchParams.toString()
           ? `${url}?${searchParams.toString()}`
@@ -84,7 +86,7 @@ export const LogViewContainer: FC = () => {
       const url = baseUrl(
         initialState.log,
         initialState.sample_id,
-        initialState.sample_epoch,
+        initialState.sample_epoch
       );
       clearInitialState();
       navigate(url);

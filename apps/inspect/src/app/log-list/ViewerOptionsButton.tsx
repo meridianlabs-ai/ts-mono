@@ -1,7 +1,8 @@
+import clsx from "clsx";
 import { forwardRef, useCallback } from "react";
 
-import clsx from "clsx";
 import { ApplicationIcons } from "../appearance/icons";
+
 import styles from "./ViewerOptionsButton.module.css";
 
 export interface ViewerOptionsButtonProps {

@@ -1,13 +1,14 @@
 import clsx from "clsx";
+import { FC, RefObject } from "react";
+
 import { EvalSample } from "../../../@types/log";
 import { Card, CardBody } from "../../../components/Card";
-import { inputString } from "../../../utils/format";
-
-import { FC, RefObject } from "react";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
+import { inputString } from "../../../utils/format";
 import { RenderedText } from "../../content/RenderedText";
+
 import { SampleScoresGrid } from "./SampleScoresGrid";
 import styles from "./SampleScoresView.module.css";
 
@@ -36,7 +37,7 @@ export const SampleScoresView: FC<SampleScoresViewProps> = ({
     scoreInput.push(
       ...sample.choices.map((choice, index) => {
         return `${String.fromCharCode(65 + index)}) ${choice}`;
-      }),
+      })
     );
   }
 
@@ -46,7 +47,7 @@ export const SampleScoresView: FC<SampleScoresViewProps> = ({
         "container-fluid",
         className,
         "font-size-base",
-        styles.container,
+        styles.container
       )}
     >
       <Card className={clsx(styles.scoreCard)}>
@@ -55,7 +56,7 @@ export const SampleScoresView: FC<SampleScoresViewProps> = ({
             className={clsx(
               "text-size-small",
               "text-style-label",
-              "text-style-secondary",
+              "text-style-secondary"
             )}
           >
             Input

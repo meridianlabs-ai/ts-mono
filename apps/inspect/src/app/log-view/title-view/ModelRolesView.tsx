@@ -1,7 +1,8 @@
+import clsx from "clsx";
 import { FC } from "react";
 
-import clsx from "clsx";
 import { ModelRoles } from "../../../@types/log";
+
 import styles from "./ModelRolesView.module.css";
 
 interface ModelRolesViewProps {
@@ -28,7 +29,7 @@ export const ModelRolesView: FC<ModelRolesViewProps> = ({ roles }) => {
         className={clsx(
           singleLine ? styles.grid : undefined,
           "text-style-secondary",
-          "text-size-smallest",
+          "text-size-smallest"
         )}
         key={key}
       >

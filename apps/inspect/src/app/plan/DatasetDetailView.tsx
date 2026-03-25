@@ -1,8 +1,9 @@
 import clsx from "clsx";
-import { EvalDataset } from "../../@types/log";
-
 import { CSSProperties, FC } from "react";
+
+import { EvalDataset } from "../../@types/log";
 import { MetaDataGrid } from "../content/MetaDataGrid";
+
 import styles from "./DatasetDetailView.module.css";
 
 interface DatasetDetailViewProps {
@@ -16,7 +17,7 @@ export const DatasetDetailView: FC<DatasetDetailViewProps> = ({
 }) => {
   // Filter out sample_ids
   const filtered = Object.fromEntries(
-    Object.entries(dataset).filter(([key]) => key !== "sample_ids"),
+    Object.entries(dataset).filter(([key]) => key !== "sample_ids")
   );
 
   if (!dataset || Object.keys(filtered).length === 0) {

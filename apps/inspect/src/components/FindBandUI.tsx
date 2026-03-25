@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
+
 import { ApplicationIcons } from "../app/appearance/icons";
+
 import "./FindBand.css";
 
 interface FindBandUIProps {
@@ -60,7 +62,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       <span
         className={clsx(
           "findBand-match-count",
-          noResults && matchCount === 0 && "findBand-no-results",
+          noResults && matchCount === 0 && "findBand-no-results"
         )}
         style={{ visibility: showStatus ? "visible" : "hidden" }}
       >

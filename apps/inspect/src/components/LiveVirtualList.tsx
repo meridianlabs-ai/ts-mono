@@ -8,16 +8,17 @@ import {
   useState,
 } from "react";
 import { Components, Virtuoso, VirtuosoHandle } from "react-virtuoso";
+
 import { usePrevious, useProperty } from "../state/hooks";
 import { useRafThrottle, useVirtuosoState } from "../state/scrolling";
+
 import {
-  ExtendedFindFn,
   ExtendedCountFn,
+  ExtendedFindFn,
   useExtendedFind,
 } from "./ExtendedFindContext";
-import { PulsingDots } from "./PulsingDots";
-
 import styles from "./LiveVirtualList.module.css";
+import { PulsingDots } from "./PulsingDots";
 
 interface LiveVirtualListProps<T> {
   id: string;
@@ -85,7 +86,7 @@ export const LiveVirtualList = <T,>({
     "follow",
     {
       defaultValue: null,
-    },
+    }
   );
   const isAutoScrollingRef = useRef(false);
 
@@ -177,7 +178,7 @@ export const LiveVirtualList = <T,>({
         }
       });
     },
-    [followOutput, live, scrollRef, listHandle],
+    [followOutput, live, scrollRef, listHandle]
   );
 
   const forceUpdate = useCallback(() => forceRender({}), []);
@@ -227,7 +228,7 @@ export const LiveVirtualList = <T,>({
 
       return false;
     },
-    [],
+    []
   );
 
   // Search within an item using itemSearchText
@@ -239,7 +240,7 @@ export const LiveVirtualList = <T,>({
 
       return textArray.some((text) => searchInText(text, searchTerm));
     },
-    [itemSearchText, defaultItemSearchText, searchInText],
+    [itemSearchText, defaultItemSearchText, searchInText]
   );
 
   const scrollToMatch = useCallback(
@@ -259,14 +260,14 @@ export const LiveVirtualList = <T,>({
         }
       }, 200);
     },
-    [listHandle],
+    [listHandle]
   );
 
   const searchInData: ExtendedFindFn = useCallback(
     async (
       term: string,
       direction: "forward" | "backward",
-      onContentReady: () => void,
+      onContentReady: () => void
     ) => {
       if (!data.length || !term) return false;
 
@@ -300,7 +301,7 @@ export const LiveVirtualList = <T,>({
       visibleRange.endIndex,
       visibleRange.startIndex,
       scrollToMatch,
-    ],
+    ]
   );
 
   const countMatchesInData: ExtendedCountFn = useCallback(
@@ -324,7 +325,7 @@ export const LiveVirtualList = <T,>({
       }
       return total;
     },
-    [data, itemSearchText, defaultItemSearchText],
+    [data, itemSearchText, defaultItemSearchText]
   );
 
   useEffect(() => {
@@ -400,7 +401,7 @@ export const LiveVirtualList = <T,>({
       // Also call the original isScrolling callback from useVirtuosoState
       isScrolling(scrolling);
     },
-    [isScrolling],
+    [isScrolling]
   );
 
   return (

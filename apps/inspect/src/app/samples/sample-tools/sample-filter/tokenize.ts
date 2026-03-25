@@ -1,5 +1,6 @@
 import { StreamLanguage, StringStream } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
+
 import { KEYWORDS, MATH_FUNCTIONS, SAMPLE_FUNCTIONS } from "./language";
 
 // Types
@@ -29,14 +30,14 @@ const countSpaces = (word: string): number => word.split(" ").length - 1;
 
 // Regular expressions for functions and keywords
 const mathFunctionsRegex = createWordRegex(
-  MATH_FUNCTIONS.map(([label]) => label),
+  MATH_FUNCTIONS.map(([label]) => label)
 );
 const sampleFunctionsRegex = createWordRegex(
-  SAMPLE_FUNCTIONS.map(([label]) => label),
+  SAMPLE_FUNCTIONS.map(([label]) => label)
 );
 const keywordsRegex = createWordRegex(
   // Ensure 'not in' matches first
-  KEYWORDS.sort((a, b) => countSpaces(b) - countSpaces(a)),
+  KEYWORDS.sort((a, b) => countSpaces(b) - countSpaces(a))
 );
 
 // Token recognition

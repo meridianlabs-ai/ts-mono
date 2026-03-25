@@ -1,7 +1,7 @@
 import clsx from "clsx";
-import { ActivityBar } from "./ActivityBar";
-
 import { FC, ReactNode, RefObject, useEffect, useRef } from "react";
+
+import { ActivityBar } from "./ActivityBar";
 import styles from "./LargeModal.module.css";
 import { StickyScrollProvider } from "./StickyScrollContext";
 
@@ -76,7 +76,7 @@ export const LargeModal: FC<LargeModalProps> = ({
       className={clsx(
         "modal",
         styles.modal,
-        !visible ? styles.hidden : undefined,
+        !visible ? styles.hidden : undefined
       )}
       role="dialog"
       onKeyUp={onkeyup}
@@ -87,7 +87,7 @@ export const LargeModal: FC<LargeModalProps> = ({
         className={clsx(
           "modal-dialog",
           "modal-dialog-scrollable",
-          styles.modalBody,
+          styles.modalBody
         )}
         role="document"
       >
@@ -123,7 +123,7 @@ export const LargeModal: FC<LargeModalProps> = ({
                 "btn",
                 "btn-close-large-dialog",
                 "text-size-larger",
-                styles.close,
+                styles.close
               )}
               onClick={onHide}
               aria-label="Close"
@@ -170,7 +170,7 @@ const TitleTool: FC<TitleToolProps> = ({ label, icon, enabled, onClick }) => {
         "btn",
         "btn-outline",
         "text-size-small",
-        styles.titleTool,
+        styles.titleTool
       )}
       aria-label={label}
       onClick={onClick}

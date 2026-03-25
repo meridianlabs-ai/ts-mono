@@ -1,6 +1,7 @@
-import type { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
+import type { AgGridReact } from "ag-grid-react";
 import type { RefObject } from "react";
+
 import { debounce } from "../../utils/sync";
 
 /**
@@ -24,7 +25,7 @@ export const getFieldKey = <T>(col: ColDef<T>): string => {
  */
 export const createGridColumnResizer = <T>(
   gridRef: RefObject<AgGridReact<T> | null>,
-  delayMs: number = 10,
+  delayMs: number = 10
 ) => {
   return debounce(() => {
     gridRef.current?.api?.sizeColumnsToFit();

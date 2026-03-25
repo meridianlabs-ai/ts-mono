@@ -5,11 +5,13 @@ import {
   Outlet,
   useLocation,
 } from "react-router-dom";
+
 import { storeImplementation, useStore } from "../../state/store";
 import { AppErrorBoundary } from "../AppErrorBoundary";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
+
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
 import {
@@ -88,5 +90,5 @@ export const AppRouter = createHashRouter(
       element: <Navigate to="/" replace />,
     },
   ],
-  { basename: "" },
+  { basename: "" }
 );

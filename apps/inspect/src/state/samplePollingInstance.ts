@@ -11,7 +11,7 @@ export function getSamplePolling() {
   if (!instance) {
     if (!storeImplementation) {
       throw new Error(
-        "Store must be initialized before accessing samplePolling",
+        "Store must be initialized before accessing samplePolling"
       );
     }
     instance = createSamplePolling(storeImplementation);

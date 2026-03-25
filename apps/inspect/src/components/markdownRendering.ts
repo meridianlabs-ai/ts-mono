@@ -25,7 +25,7 @@ export const unescapeHtmlForMath = (content: string): string => {
 
 export const getMarkdownInstance = (
   omitMedia?: boolean,
-  omitMath?: boolean,
+  omitMath?: boolean
 ): MarkdownIt => {
   const key = getOptionsKey(omitMedia, omitMath);
 
@@ -169,7 +169,7 @@ export const preRenderText = (txt: string): string => {
   // multiple choice (e.g. a), b), c), d) etc..)
   return txt.replaceAll(
     kLetterListPattern,
-    "<p class='markdown-ordered-list-item'>$1</p>",
+    "<p class='markdown-ordered-list-item'>$1</p>"
   );
 };
 
@@ -178,7 +178,7 @@ export const protectMarkdown = (txt: string): string => {
 
   return txt.replaceAll(
     kCommonmarkReferenceLinkPattern,
-    "(open:767A125E)$1(close:767A125E) $2 ",
+    "(open:767A125E)$1(close:767A125E) $2 "
   );
 };
 
@@ -216,16 +216,16 @@ export function unescapeCodeHtmlEntities(str: string): string {
       _match: string,
       starttag: string,
       content: string,
-      endtag: string,
+      endtag: string
     ): string => {
       return (
         starttag +
         content.replace(
           /&(?:amp|lt|gt|quot|#39|#x2F|#x5C|#96);/g,
-          (entity: string): string => htmlEntities[entity] || entity,
+          (entity: string): string => htmlEntities[entity] || entity
         ) +
         endtag
       );
-    },
+    }
   );
 }

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
+
 import { ANSIDisplay } from "../../components/AnsiDisplay";
 import JSONPanel from "../../components/JsonPanel";
 import { formatNumber } from "../../utils/format";
@@ -12,6 +13,7 @@ import {
   MessageContent,
 } from "../samples/chat/MessageContent";
 import { defaultContext } from "../samples/chat/MessageContents";
+
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
@@ -76,7 +78,7 @@ export const RenderedContent: FC<RenderedContentProps> = ({
  * Each renderer is responsible for rendering a specific type of content.
  */
 const contentRenderers: (
-  renderObject?: (object: any) => ReactNode,
+  renderObject?: (object: any) => ReactNode
 ) => Record<string, ContentRenderer> = (renderObject) => {
   const contentRenderers: Record<string, ContentRenderer> = {
     AnsiString: {
@@ -179,7 +181,7 @@ const contentRenderers: (
               .filter((e: unknown) => e !== null)
               .map((e: unknown) => {
                 return typeof e;
-              }),
+              })
           );
           return types.size === 1;
         } else {
@@ -216,21 +218,21 @@ const contentRenderers: (
         results.push(
           <div className={styles.query}>
             <i className={ApplicationIcons.search}></i> {entry.value.query}
-          </div>,
+          </div>
         );
         entry.value.results.forEach(
           (result: { url: string; summary: string }) => {
             results.push(
               <div>
                 <a href={result.url}>{result.url}</a>
-              </div>,
+              </div>
             );
             results.push(
               <div className={clsx("text-size-smaller", styles.summary)}>
                 {result.summary}
-              </div>,
+              </div>
             );
-          },
+          }
         );
         return {
           rendered: results,

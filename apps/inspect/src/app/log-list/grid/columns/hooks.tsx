@@ -1,20 +1,21 @@
 import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import clsx from "clsx";
 import { useEffect, useMemo } from "react";
+
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatPrettyDecimal } from "../../../../utils/format";
 import { basename } from "../../../../utils/path";
 import { ApplicationIcons } from "../../../appearance/icons";
+import sharedStyles from "../../../shared/gridCells.module.css";
 import {
   comparators,
   createFolderFirstComparator,
 } from "../../../shared/gridComparators";
 import { getFieldKey } from "../../../shared/gridUtils";
-import { LogListRow } from "./types";
 
-import sharedStyles from "../../../shared/gridCells.module.css";
 import localStyles from "./columns.module.css";
+import { LogListRow } from "./types";
 
 const styles = { ...sharedStyles, ...localStyles };
 
@@ -25,10 +26,10 @@ export const useLogListColumns = (): {
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
-    (state) => state.logs.listing.columnVisibility,
+    (state) => state.logs.listing.columnVisibility
   );
   const setColumnVisibility = useStore(
-    (state) => state.logsActions.setLogsColumnVisibility,
+    (state) => state.logsActions.setLogsColumnVisibility
   );
   const logDetails = useStore((state) => state.logs.logDetails);
 
@@ -43,7 +44,7 @@ export const useLogListColumns = (): {
           // Each EvalScore has metrics which is a record of EvalMetric
           if (evalScore.metrics) {
             for (const [metricName, metric] of Object.entries(
-              evalScore.metrics,
+              evalScore.metrics
             )) {
               scoreTypes[metricName] = typeof metric.value;
             }
@@ -61,7 +62,7 @@ export const useLogListColumns = (): {
     if (scorerNames.length === 0) return;
 
     const needsUpdate = scorerNames.some(
-      (name) => !(`score_${name}` in columnVisibility),
+      (name) => !(`score_${name}` in columnVisibility)
     );
 
     if (needsUpdate) {
@@ -324,7 +325,7 @@ export const useLogListColumns = (): {
             return String(valA || "").localeCompare(String(valB || ""));
           }),
         } as ColDef<LogListRow>;
-      },
+      }
     );
 
     return [...baseColumns, ...scorerColumns];

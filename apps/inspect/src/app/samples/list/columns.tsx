@@ -1,18 +1,20 @@
 import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
+import { ScoreLabel } from "../../../app/types";
 import { arrayToString, inputString } from "../../../utils/format";
 import { truncateMarkdown } from "../../../utils/markdown";
-import { SampleListItem } from "../../log-view/tabs/types";
 import { RenderedText } from "../../content/RenderedText";
+import { SampleListItem } from "../../log-view/tabs/types";
 import { SamplesDescriptor } from "../descriptor/samplesDescriptor";
-import { ScoreLabel } from "../../../app/types";
 import {
   kDefaultSampleSortValue,
   sampleStatus,
   SampleStatusIcon,
   sampleStatusSortValue,
 } from "../status/sampleStatus";
+
 import styles from "./SampleList.module.css";
 
 /** Wrapper for the score column cells (used in every branch of the score renderer). */
@@ -36,7 +38,7 @@ const MarkdownCellDiv: FC<{
         "text-size-base",
         "three-line-clamp",
         styles.cell,
-        styles.wrapAnywhere,
+        styles.wrapAnywhere
       )}
     >
       <RenderedText
@@ -57,7 +59,7 @@ export function buildColumnDefs(
   samplesDescriptor: SamplesDescriptor | undefined,
   selectedScores: ScoreLabel[],
   scores: ScoreLabel[],
-  epochs: number,
+  epochs: number
 ): ColDef<SampleListItem>[] {
   const shape = samplesDescriptor?.messageShape;
   const inputFlex = shape?.inputSize || 3;
@@ -109,7 +111,7 @@ export function buildColumnDefs(
               "text-size-base",
               "three-line-clamp",
               styles.cell,
-              styles.wrapAnywhere,
+              styles.wrapAnywhere
             )}
           >
             {params.data.data.id}
@@ -132,7 +134,7 @@ export function buildColumnDefs(
               "sample-epoch",
               "text-size-base",
               styles.cell,
-              styles.centered,
+              styles.centered
             )}
           >
             {params.data.data.epoch}
@@ -215,7 +217,7 @@ export function buildColumnDefs(
               "text-size-small",
               "three-line-clamp",
               styles.cell,
-              styles.wrapAnywhere,
+              styles.wrapAnywhere
             )}
           >
             {params.data.data.limit}
@@ -240,7 +242,7 @@ export function buildColumnDefs(
               "text-size-small",
               "three-line-clamp",
               styles.cell,
-              styles.centered,
+              styles.centered
             )}
           >
             {data.retries && data.retries > 0 ? data.retries : undefined}
@@ -260,7 +262,7 @@ export function buildColumnDefs(
         if (!params.data?.data || !samplesDescriptor) return undefined;
         return samplesDescriptor.evalDescriptor.score(
           params.data.data,
-          selectedScores[i],
+          selectedScores[i]
         )?.value;
       },
       cellRenderer: (params: ICellRendererParams<SampleListItem>) => {

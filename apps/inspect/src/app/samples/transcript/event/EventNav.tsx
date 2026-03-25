@@ -1,6 +1,6 @@
 import clsx from "clsx";
-
 import { FC, useCallback } from "react";
+
 import styles from "./EventNav.module.css";
 
 interface EventNavProps {
@@ -36,7 +36,7 @@ export const EventNav: FC<EventNavProps> = ({
           active ? "active " : "",
           "text-style-label",
           "text-size-small",
-          styles.tab,
+          styles.tab
         )}
         onClick={handleClick}
       >

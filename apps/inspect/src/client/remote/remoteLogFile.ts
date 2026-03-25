@@ -12,6 +12,7 @@ import {
   SampleSummary,
 } from "../api/types";
 import { toLogPreview } from "../utils/type-utils";
+
 import {
   CentralDirectoryEntry,
   FileSizeLimitError,
@@ -44,7 +45,7 @@ export interface RemoteLogFile {
   readSample: (
     sampleId: string,
     epoch: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ) => Promise<EvalSample>;
   readCompleteLog: () => Promise<EvalLog>;
 }
@@ -61,7 +62,7 @@ interface LogStart {
 export const openRemoteLogFile = async (
   api: LogViewAPI,
   url: string,
-  concurrency: number,
+  concurrency: number
 ): Promise<RemoteLogFile> => {
   const queue = new AsyncQueue(concurrency);
 
@@ -70,7 +71,7 @@ export const openRemoteLogFile = async (
   const fetchBytes = async (
     _url: string,
     start: number,
-    end: number,
+    end: number
   ): Promise<Uint8Array> => {
     if (directUrl) {
       try {
@@ -88,7 +89,7 @@ export const openRemoteLogFile = async (
         readFile: (
           file: string,
           maxBytes?: number,
-          onProgress?: ProgressCallback,
+          onProgress?: ProgressCallback
         ) => Promise<Uint8Array>;
       }
     | undefined = undefined;
@@ -100,17 +101,17 @@ export const openRemoteLogFile = async (
     } catch {
       retryCount++;
       console.warn(
-        `Failed to open remote log file at ${url}, retrying (${retryCount}/${OPEN_RETRY_LIMIT})...`,
+        `Failed to open remote log file at ${url}, retrying (${retryCount}/${OPEN_RETRY_LIMIT})...`
       );
       await new Promise((resolve) =>
-        setTimeout(resolve, 100 * (retryCount + retryCount)),
+        setTimeout(resolve, 100 * (retryCount + retryCount))
       );
     }
   }
 
   if (!remoteZipFile) {
     throw new Error(
-      `Failed to open remote log file at ${url} after ${OPEN_RETRY_LIMIT} attempts.`,
+      `Failed to open remote log file at ${url} after ${OPEN_RETRY_LIMIT} attempts.`
     );
   }
 
@@ -126,7 +127,7 @@ export const openRemoteLogFile = async (
     file: string,
     maxBytes?: number,
     preprocessor?: JSONPreprocessor,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<Object> => {
     try {
       let data = await remoteZipFile.readFile(file, maxBytes, onProgress);
@@ -144,11 +145,11 @@ export const openRemoteLogFile = async (
         throw error;
       } else if (error instanceof Error) {
         throw new Error(
-          `Failed to read or parse file ${file}: ${error.message}`,
+          `Failed to read or parse file ${file}: ${error.message}`
         );
       } else {
         throw new Error(
-          `Failed to read or parse file ${file} - an unknown error occurred`,
+          `Failed to read or parse file ${file} - an unknown error occurred`
         );
       }
     }
@@ -161,7 +162,7 @@ export const openRemoteLogFile = async (
     return Array.from(remoteZipFile.centralDirectory.keys())
       .filter(
         (filename) =>
-          filename.startsWith("samples/") && filename.endsWith(".json"),
+          filename.startsWith("samples/") && filename.endsWith(".json")
       )
       .map((filename) => {
         const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
@@ -178,13 +179,13 @@ export const openRemoteLogFile = async (
   const readSample = async (
     sampleId: string,
     epoch: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<EvalSample> => {
     const sampleFile = `samples/${sampleId}_epoch_${epoch}.json`;
 
     if (!remoteZipFile.centralDirectory.has(sampleFile)) {
       throw new SampleNotFoundError(
-        `Unable to read sample file ${sampleFile} - it is not present in the manifest.`,
+        `Unable to read sample file ${sampleFile} - it is not present in the manifest.`
       );
     }
 
@@ -203,7 +204,7 @@ export const openRemoteLogFile = async (
       sampleFile,
       undefined,
       eventsPreprocessor,
-      onProgress,
+      onProgress
     )) as EvalSample;
   };
 
@@ -233,11 +234,10 @@ export const openRemoteLogFile = async (
    */
   const readFallbackSummaries = async (): Promise<SampleSummary[]> => {
     const summaryFiles = Array.from(
-      remoteZipFile.centralDirectory.keys(),
+      remoteZipFile.centralDirectory.keys()
     ).filter(
       (filename) =>
-        filename.startsWith("_journal/summaries/") &&
-        filename.endsWith(".json"),
+        filename.startsWith("_journal/summaries/") && filename.endsWith(".json")
     );
 
     const summaries: SampleSummary[] = [];
@@ -248,20 +248,20 @@ export const openRemoteLogFile = async (
         queue.enqueue(async () => {
           try {
             const partialSummary = (await readJSONFile(
-              filename,
+              filename
             )) as SampleSummary[];
             summaries.push(...partialSummary);
           } catch (error) {
             errors.push(error);
           }
-        }),
-      ),
+        })
+      )
     );
 
     if (errors.length > 0) {
       console.error(
         `Encountered ${errors.length} errors while reading summary files:`,
-        errors,
+        errors
       );
     }
 
@@ -310,11 +310,9 @@ export const openRemoteLogFile = async (
         listSamples().then((sampleIds) =>
           Promise.all(
             sampleIds.map(({ sampleId, epoch }) =>
-              readSample(sampleId, epoch).then(
-                (sample) => sample as EvalSample,
-              ),
-            ),
-          ),
+              readSample(sampleId, epoch).then((sample) => sample as EvalSample)
+            )
+          )
         ),
       ]);
 

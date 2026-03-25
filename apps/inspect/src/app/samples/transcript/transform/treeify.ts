@@ -1,14 +1,15 @@
 import { Events, SpanBeginEvent, SpanEndEvent } from "../../../../@types/log";
 import { EventNode, EventType } from "../types";
+
 import { transformTree } from "./transform";
 import {
   ACTION_BEGIN,
+  hasSpans,
   SPAN_BEGIN,
   SPAN_END,
   STEP,
   TYPE_SCORER,
   TYPE_SCORERS,
-  hasSpans,
 } from "./utils";
 
 export function treeifyEvents(events: Events, depth: number): EventNode[] {
@@ -30,7 +31,7 @@ const treeifyWithSpans = (events: Events, depth: number): EventNode[] => {
 
   const processEvent = (
     event: EventType,
-    parentOverride?: EventNode | null,
+    parentOverride?: EventNode | null
   ) => {
     if (event.event === SPAN_END) {
       return;
@@ -115,7 +116,7 @@ const createNodeFactory = (depth: number): NodeFactory => {
 
   const createNode = (
     event: EventType,
-    parent: EventNode | null,
+    parent: EventNode | null
   ): EventNode => {
     const parentKey = parent ?? null;
     const nextIndex = childCounts.get(parentKey) ?? 0;
@@ -145,7 +146,7 @@ const createNodeFactory = (depth: number): NodeFactory => {
 
 const resolveParentForEvent = (
   event: EventType,
-  spanNodes: Map<string, EventNode>,
+  spanNodes: Map<string, EventNode>
 ): EventNode | null => {
   if (event.event === SPAN_BEGIN) {
     const parentId = event.parent_id;

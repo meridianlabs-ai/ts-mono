@@ -14,7 +14,7 @@ export interface Polling {
 export const createPolling = (
   name: string,
   callback: () => Promise<boolean>,
-  options: PollingOptions,
+  options: PollingOptions
 ): Polling => {
   const log = createLogger(`Polling ${name}`);
 
@@ -73,13 +73,13 @@ export const createPolling = (
       if (retryCount >= maxRetries) {
         stop();
         throw new Error(
-          `Gave up polling ${name} after ${maxRetries} attempts.`,
+          `Gave up polling ${name} after ${maxRetries} attempts.`
         );
       }
 
       const backoffTime = calculateBackoff(retryCount);
       log.debug(
-        `Retry ${retryCount}/${maxRetries}, backoff: ${backoffTime / 1000}s`,
+        `Retry ${retryCount}/${maxRetries}, backoff: ${backoffTime / 1000}s`
       );
       timeoutId = setTimeout(poll, backoffTime);
     }

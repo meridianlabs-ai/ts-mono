@@ -1,7 +1,7 @@
 import clsx from "clsx";
-import { ChatMessage } from "./ChatMessage";
-
 import { FC } from "react";
+
+import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { ResolvedMessage } from "./messages";
 import { ChatViewToolCallStyle } from "./types";
@@ -40,14 +40,14 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             styles.container,
             highlightUserMessage && resolvedMessage.message.role === "user"
               ? styles.user
-              : undefined,
+              : undefined
           )}
         >
           <div
             className={clsx(
               "text-size-smaller",
               "text-style-secondary",
-              styles.number,
+              styles.number
             )}
           >
             {number}
@@ -72,7 +72,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
           styles.simple,
           highlightUserMessage && resolvedMessage.message.role === "user"
             ? styles.user
-            : undefined,
+            : undefined
         )}
       >
         <ChatMessage

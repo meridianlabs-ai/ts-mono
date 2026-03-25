@@ -46,7 +46,7 @@ function unescapeNewlines<T>(obj: T): T {
     Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
       key,
       unescapeNewlines(value),
-    ]),
+    ])
   ) as T;
 }
 
@@ -63,6 +63,6 @@ function sanitizeKeys<T>(obj: T): T {
     Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
       key.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
       sanitizeKeys(value),
-    ]),
+    ])
   ) as T;
 }

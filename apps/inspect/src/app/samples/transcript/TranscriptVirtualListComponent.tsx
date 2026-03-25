@@ -8,14 +8,15 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { RenderedEventNode } from "./TranscriptVirtualList";
-import { EventNode } from "./types";
-
 import { VirtuosoHandle } from "react-virtuoso";
+
 import { LiveVirtualList } from "../../../components/LiveVirtualList";
 import { useStore } from "../../../state/store";
-import styles from "./TranscriptVirtualListComponent.module.css";
+
 import { eventSearchText } from "./eventSearchText";
+import { RenderedEventNode } from "./TranscriptVirtualList";
+import styles from "./TranscriptVirtualListComponent.module.css";
+import { EventNode } from "./types";
 
 interface TranscriptVirtualListComponentProps {
   id: string;
@@ -76,14 +77,14 @@ export const TranscriptVirtualListComponent: FC<
       }
       return false;
     },
-    [eventNodes],
+    [eventNodes]
   );
 
   const nonVirtualGridRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!useVirtualization && initialEventId) {
       const row = nonVirtualGridRef.current?.querySelector(
-        `[id="${initialEventId}"]`,
+        `[id="${initialEventId}"]`
       );
       row?.scrollIntoView({ block: "start" });
     }
@@ -153,7 +154,7 @@ export const TranscriptVirtualListComponent: FC<
         </div>
       );
     },
-    [eventNodes, contextMap],
+    [eventNodes, contextMap]
   );
 
   if (useVirtualization) {

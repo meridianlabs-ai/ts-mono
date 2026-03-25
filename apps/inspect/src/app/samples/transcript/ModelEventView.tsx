@@ -4,23 +4,24 @@ import "prismjs/components/prism-python";
 
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
+
 import { ModelCall, ModelEvent, ToolChoice, Tools1 } from "../../../@types/log";
+import { ANSIDisplay } from "../../../components/AnsiDisplay";
+import { usePrismHighlight } from "../../../components/prism";
+import { PulsingDots } from "../../../components/PulsingDots";
+import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ModelUsagePanel } from "../../usage/ModelUsagePanel";
 import { ChatView } from "../chat/ChatView";
+import { Message } from "../chat/messages";
+
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
-
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
-import { PulsingDots } from "../../../components/PulsingDots";
-import { usePrismHighlight } from "../../../components/prism";
-import { formatDateTime } from "../../../utils/format";
-import { Message } from "../chat/messages";
-import styles from "./ModelEventView.module.css";
-import { EventNodeContext } from "./TranscriptVirtualList";
 import { EventTimingPanel } from "./event/EventTimingPanel";
 import { eventTitle, formatTiming, formatTitle } from "./event/utils";
+import styles from "./ModelEventView.module.css";
+import { EventNodeContext } from "./TranscriptVirtualList";
 import { EventNode } from "./types";
 
 interface ModelEventViewProps {

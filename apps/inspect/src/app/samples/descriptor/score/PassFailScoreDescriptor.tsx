@@ -1,7 +1,9 @@
 import clsx from "clsx";
+
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypePassFail } from "../../../../constants";
 import { ScoreDescriptor, SelectedScore } from "../types";
+
 import styles from "./PassFailScoreDescriptor.module.css";
 
 export const passFailScoreDescriptor = (values: Value2[]): ScoreDescriptor => {

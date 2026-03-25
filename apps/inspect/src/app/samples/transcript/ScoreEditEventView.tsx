@@ -1,17 +1,17 @@
-import { FC, Fragment } from "react";
-import { ScoreEditEvent } from "../../../@types/log";
-import { EventPanel } from "./event/EventPanel";
-
 import clsx from "clsx";
-import { EventNode } from "./types";
+import { FC, Fragment } from "react";
 
+import { ScoreEditEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedText } from "../../content/RenderedText";
+
+import { EventPanel } from "./event/EventPanel";
+import { eventTitle, formatTitle } from "./event/utils";
 import styles from "./ScoreEditEventView.module.css";
 import { renderScore } from "./ScoreEventView";
-import { eventTitle, formatTitle } from "./event/utils";
+import { EventNode } from "./types";
 
 interface ScoreEditEventViewProps {
   eventNode: EventNode<ScoreEditEvent>;
@@ -47,7 +47,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
           className={clsx(
             "text-style-label",
             "text-style-secondary",
-            styles.section,
+            styles.section
           )}
         >
           Updated Values
@@ -86,7 +86,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
               className={clsx(
                 "text-style-label",
                 "text-style-secondary",
-                styles.section,
+                styles.section
               )}
             >
               Provenance

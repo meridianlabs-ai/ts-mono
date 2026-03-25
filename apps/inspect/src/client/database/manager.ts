@@ -1,5 +1,7 @@
 import Dexie from "dexie";
+
 import { createLogger } from "../../utils/logger";
+
 import { AppDatabase } from "./schema";
 
 const log = createLogger("DatabaseManager");
@@ -34,7 +36,7 @@ export class DatabaseManager {
       await AppDatabase.checkVersionMismatch(databaseHandle);
     if (needsRecreation) {
       log.info(
-        `Recreating database due to version mismatch for: ${databaseHandle}`,
+        `Recreating database due to version mismatch for: ${databaseHandle}`
       );
       const sanitizedDir = databaseHandle.replace(/[^a-zA-Z0-9_-]/g, "_");
       const dbName = `InspectAI_${sanitizedDir}`;

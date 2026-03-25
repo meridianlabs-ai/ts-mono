@@ -23,11 +23,14 @@ import { useNavigate } from "react-router-dom";
 import { FindBandUI } from "../../../components/FindBandUI";
 import { useLogs, useLogsListing } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+
 import "../../shared/agGrid";
+
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
+
 import { useLogListColumns } from "./columns/hooks";
 import { LogListRow } from "./columns/types";
 
@@ -142,7 +145,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         for (const evalScore of details.results.scores) {
           if (evalScore.metrics) {
             for (const [metricName, metric] of Object.entries(
-              evalScore.metrics,
+              evalScore.metrics
             )) {
               row[`score_${metricName}`] = metric.value;
             }
@@ -185,7 +188,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
     },
-    [navigate, gridRef],
+    [navigate, gridRef]
   );
 
   const handleOpenRow = useCallback(
@@ -200,7 +203,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         navigate(rowNode.data.url);
       }
     },
-    [navigate],
+    [navigate]
   );
 
   const handleKeyDown = useMemo(
@@ -209,7 +212,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         gridRef,
         onOpenRow: handleOpenRow,
       }),
-    [gridRef, handleOpenRow],
+    [gridRef, handleOpenRow]
   );
 
   useEffect(() => {
@@ -231,7 +234,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         window.open(`#${e.data.url}`, "_blank");
       }
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -303,7 +306,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
     },
-    [gridRef],
+    [gridRef]
   );
 
   const goToMatch = useCallback(
@@ -321,7 +324,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         node.setSelected(true, true);
       }
     },
-    [matchIds, gridRef],
+    [matchIds, gridRef]
   );
 
   const handleInputKeyDown = useCallback(
@@ -333,7 +336,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         goToMatch(currentMatchIndex + (e.shiftKey ? -1 : 1));
       }
     },
-    [goToMatch, currentMatchIndex, closeFind],
+    [goToMatch, currentMatchIndex, closeFind]
   );
 
   useEffect(() => {

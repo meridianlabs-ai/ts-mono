@@ -1,6 +1,8 @@
 import JSON5 from "json5";
+
 import { dirname } from "../../utils/path";
 import { getVscodeApi } from "../../utils/vscode";
+
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";
 import { ClientAPI } from "./types";
@@ -45,7 +47,7 @@ const resolveApi = (): ClientAPI => {
       return clientApi(
         viewServerApi({ logDir: resolved_log_dir }),
         resolved_log_file,
-        debug,
+        debug
       );
     }
 
@@ -53,7 +55,7 @@ const resolveApi = (): ClientAPI => {
       return clientApi(
         staticHttpApi(resolved_log_dir, resolved_log_file),
         resolved_log_file,
-        debug,
+        debug
       );
     }
 

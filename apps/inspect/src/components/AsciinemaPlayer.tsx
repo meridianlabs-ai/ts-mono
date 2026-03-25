@@ -1,5 +1,7 @@
 import * as AsciicinemaPlayerJS from "asciinema-player";
+
 import "asciinema-player/dist/bundle/asciinema-player.css";
+
 import { CSSProperties, FC, useEffect, useRef } from "react";
 
 interface AsciinemaPlayerProps {
@@ -54,7 +56,7 @@ export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = ({
         speed,
         idleTimeLimit,
         fit,
-      },
+      }
     );
 
     player.play();

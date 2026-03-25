@@ -23,7 +23,7 @@ export const LabeledValue: FC<LabeledValueProps> = ({
       className={clsx(
         "labeled-value",
         layout === "column" ? "column" : "row",
-        className,
+        className
       )}
       style={{
         ...style,

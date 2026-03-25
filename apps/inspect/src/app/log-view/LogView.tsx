@@ -7,12 +7,13 @@ import {
   useCallback,
   useRef,
 } from "react";
+
 import { EmptyPanel } from "../../components/EmptyPanel";
 import { TabPanel, TabSet } from "../../components/TabSet";
-
 import { useEvalSpec, useRefreshLog } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLogNavigation } from "../routing/logNavigation";
+
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
 import { useInfoTabConfig } from "./tabs/InfoTab";
@@ -32,13 +33,13 @@ export const LogView: FC = () => {
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const evalSpec = useEvalSpec();
   const runningMetrics = useStore(
-    (state) => state.log.pendingSampleSummaries?.metrics,
+    (state) => state.log.pendingSampleSummaries?.metrics
   );
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(
     selectedLogDetails?.status,
-    refreshLog,
+    refreshLog
   );
 
   const intoTabConfig = useInfoTabConfig(
@@ -47,7 +48,7 @@ export const LogView: FC = () => {
     selectedLogDetails?.error,
     selectedLogDetails?.results,
     selectedLogDetails?.status,
-    selectedLogDetails?.metadata,
+    selectedLogDetails?.metadata
   );
 
   const errorTabConfig = useErrorTabConfig(selectedLogDetails?.error);
@@ -56,13 +57,13 @@ export const LogView: FC = () => {
     evalSpec,
     selectedLogDetails?.stats,
     selectedLogDetails?.results?.early_stopping,
-    selectedLogDetails?.tags,
+    selectedLogDetails?.tags
   );
 
   const modelsTabConfig = useModelsTab(
     evalSpec,
     selectedLogDetails?.stats,
-    selectedLogDetails?.status,
+    selectedLogDetails?.status
   );
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
@@ -87,7 +88,7 @@ export const LogView: FC = () => {
         navigation.selectTab(id);
       }
     },
-    [setSelectedTab, navigation],
+    [setSelectedTab, navigation]
   );
 
   if (evalSpec === undefined) {

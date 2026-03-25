@@ -9,16 +9,17 @@ import {
   useRef,
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
-import { RenderedContent } from "./RenderedContent";
 
 import ExpandablePanel from "../../components/ExpandablePanel";
 import { useCollapsibleIds } from "../../state/hooks";
 import { useVirtuosoState } from "../../state/scrolling";
 import { useStore } from "../../state/store";
 import { ApplicationIcons } from "../appearance/icons";
-import styles from "./RecordTree.module.css";
+
 import { resolveStoreKeys } from "./record_processors/store";
 import { RecordProcessor } from "./record_processors/types";
+import styles from "./RecordTree.module.css";
+import { RenderedContent } from "./RenderedContent";
 
 const kRecordTreeKey = "record-tree-key";
 
@@ -48,13 +49,13 @@ export const RecordTree: FC<RecordTreeProps> = ({
   const listHandle = useRef<VirtuosoHandle | null>(null);
   const { getRestoreState } = useVirtuosoState(
     listHandle,
-    `metadata-grid-${id}`,
+    `metadata-grid-${id}`
   );
 
   // Collapse state
   const [collapsedIds, setCollapsed, clearIds] = useCollapsibleIds(id);
   const setCollapsedIds = useStore(
-    (state) => state.sampleActions.setCollapsedIds,
+    (state) => state.sampleActions.setCollapsedIds
   );
 
   // Clear the collapsed ids when the component unmounts
@@ -69,7 +70,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
     const items = toTreeItems(
       record,
       collapsedIds || {},
-      processStore ? [resolveStoreKeys] : [],
+      processStore ? [resolveStoreKeys] : []
     );
     return items;
   }, [record, collapsedIds, processStore]);
@@ -87,7 +88,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
         }
         return prev;
       },
-      {} as Record<string, true>,
+      {} as Record<string, true>
     );
     setCollapsedIds(id, defaultCollapsedIds);
   }, [collapsedIds, defaultExpandLevel, id, items, setCollapsedIds]);
@@ -111,7 +112,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
             }
             const treeRoot = document.getElementById(id);
             const nextEl = treeRoot?.querySelector(
-              `.${kRecordTreeKey}[data-index="${index + 1}"]`,
+              `.${kRecordTreeKey}[data-index="${index + 1}"]`
             );
             if (nextEl) {
               (nextEl as HTMLElement).focus();
@@ -127,7 +128,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
             }
             const treeRoot = document.getElementById(id);
             const prevEl = treeRoot?.querySelector(
-              `.${kRecordTreeKey}[data-index="${index - 1}"]`,
+              `.${kRecordTreeKey}[data-index="${index - 1}"]`
             );
             if (prevEl) {
               (prevEl as HTMLElement).focus();
@@ -147,7 +148,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
         }
       };
     },
-    [collapsedIds, id, items.length, setCollapsed],
+    [collapsedIds, id, items.length, setCollapsed]
   );
 
   const renderRow = (index: number) => {
@@ -161,7 +162,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           index < items.length - 1 && useBorders
             ? styles.keyPairBordered
             : undefined,
-          "text-size-small",
+          "text-size-small"
         )}
         style={{
           paddingLeft: `${item.depth * 20}px`,
@@ -173,7 +174,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
             kRecordTreeKey,
             styles.key,
             "font-monospace",
-            "text-style-secondary",
+            "text-style-secondary"
           )}
           onKeyUp={keyUpHandler(item.id, index)}
           tabIndex={0}
@@ -189,7 +190,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
                     collapsedIds && collapsedIds[item.id]
                       ? ApplicationIcons.tree.closed
                       : ApplicationIcons.tree.open,
-                    styles.treeIcon,
+                    styles.treeIcon
                   )}
                 />
               </pre>
@@ -275,7 +276,7 @@ export const toTreeItems = (
   collapsedIds: Record<string, boolean>,
   recordProcessors: RecordProcessor[] = [],
   currentDepth = 0,
-  currentPath: string[] = [],
+  currentPath: string[] = []
 ): MetadataItem[] => {
   if (!record) {
     return [];
@@ -299,8 +300,8 @@ export const toTreeItems = (
         currentDepth,
         currentPath,
         itemSegment,
-        collapsedIds,
-      ),
+        collapsedIds
+      )
     );
   });
 
@@ -313,7 +314,7 @@ const processNodeRecursive = (
   depth: number,
   parentPath: string[],
   thisPath: string,
-  collapsedIds: Record<string, boolean>,
+  collapsedIds: Record<string, boolean>
 ): MetadataItem[] => {
   const items: MetadataItem[] = [];
   const currentItemPath = [...parentPath, thisPath];
@@ -364,8 +365,8 @@ const processNodeRecursive = (
               childDepth,
               currentItemPath,
               elementIdentifier,
-              collapsedIds,
-            ),
+              collapsedIds
+            )
           );
         });
       }
@@ -381,10 +382,10 @@ const processNodeRecursive = (
               childDepth,
               currentItemPath,
               childIdentifier,
-              collapsedIds,
-            ),
+              collapsedIds
+            )
           );
-        },
+        }
       );
     }
   }
@@ -393,7 +394,7 @@ const processNodeRecursive = (
 };
 
 const isPrimitiveOrNull = (
-  value: unknown,
+  value: unknown
 ): value is string | number | boolean | null | undefined => {
   return (
     value === null ||

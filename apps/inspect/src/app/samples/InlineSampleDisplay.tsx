@@ -1,13 +1,14 @@
-import { FC, useRef } from "react";
-import { ErrorPanel } from "../../components/ErrorPanel";
-import { SampleDisplay } from "./SampleDisplay";
-
 import clsx from "clsx";
+import { FC, useRef } from "react";
+
+import { ErrorPanel } from "../../components/ErrorPanel";
 import { StickyScrollProvider } from "../../components/StickyScrollContext";
 import { useSampleData } from "../../state/hooks";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
+
 import styles from "./InlineSampleDisplay.module.css";
+import { SampleDisplay } from "./SampleDisplay";
 
 interface InlineSampleDisplayProps {
   showActivity?: boolean;

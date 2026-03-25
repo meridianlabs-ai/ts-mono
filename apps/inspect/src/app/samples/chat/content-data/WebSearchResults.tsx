@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import styles from "./WebSearchResults.module.css";
 
 export interface WebSearchContentData {
@@ -18,7 +19,7 @@ export const WebSearchResults: FC<{ results: WebSearchContentData[] }> = ({
           styles.label,
           "text-style-label",
           "text-style-secondary",
-          "text-size-smaller",
+          "text-size-smaller"
         )}
       >
         Results

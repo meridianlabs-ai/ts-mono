@@ -19,7 +19,7 @@ export interface ToolCallResult {
  */
 export const resolveToolInput = (
   fn: string,
-  toolArgs: Arguments1,
+  toolArgs: Arguments1
 ): ToolCallResult => {
   const toolName = fn;
 
@@ -27,7 +27,7 @@ export const resolveToolInput = (
 
   const { input, description, args } = extractInput(
     toolArgs as Record<string, unknown>,
-    inputDescriptor,
+    inputDescriptor
   );
 
   const functionCall =
@@ -48,7 +48,7 @@ interface ToolInputDescriptor {
 }
 
 const extractInputMetadata = (
-  toolName: string,
+  toolName: string
 ): ToolInputDescriptor | undefined => {
   if (toolName === "bash") {
     // The inspect bash tool uses 'cmd', but there
@@ -108,7 +108,7 @@ const extractInputMetadata = (
 
 const extractInput = (
   args: Record<string, unknown>,
-  inputDescriptor?: ToolInputDescriptor,
+  inputDescriptor?: ToolInputDescriptor
 ): { input?: unknown; description?: string; args: string[] } => {
   const formatArg = (key: string, value: unknown) => {
     const quotedValue =

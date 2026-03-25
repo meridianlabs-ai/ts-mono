@@ -1,5 +1,6 @@
 import { FC, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { kLogViewSamplesTabId } from "../../constants";
 import { useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -45,7 +46,7 @@ export const LogSampleDetailView: FC = () => {
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const sampleSummaries = useSampleSummaries();
   const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile,
+    (state) => state.logsActions.setSelectedLogFile
   );
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const selectSample = useStore((state) => state.logActions.selectSample);
@@ -53,7 +54,7 @@ export const LogSampleDetailView: FC = () => {
   // Fall back to state for VSCode restored state scenario
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
   const singleFileMode = useStore((state) => state.app.singleFileMode);
 
@@ -112,7 +113,7 @@ export const LogSampleDetailView: FC = () => {
           logPath,
           sample.id,
           sample.epoch,
-          sampleTabId,
+          sampleTabId
         );
         navigate(url, { replace: true });
       }
@@ -150,7 +151,7 @@ export const LogSampleDetailView: FC = () => {
       // Otherwise, use the default logsUrl behavior (for parent folders)
       return logsUrl(file, log_dir);
     },
-    [logPath],
+    [logPath]
   );
 
   return (

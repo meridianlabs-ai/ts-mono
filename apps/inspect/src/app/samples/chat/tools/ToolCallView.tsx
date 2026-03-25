@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
+
 import {
   ContentAudio,
   ContentData,
@@ -14,6 +15,7 @@ import { ContentTool } from "../../../../app/types";
 import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { MessageContent } from "../MessageContent";
 import { defaultContext } from "../MessageContents";
+
 import styles from "./ToolCallView.module.css";
 import { ToolInput } from "./ToolInput";
 import { ToolTitle } from "./ToolTitle";
@@ -78,7 +80,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       | ContentDocument
       | ContentTool
       | ContentReasoning
-      | ContentData,
+      | ContentData
   ) {
     if (value && typeof value === "object") {
       if (value.type === "image") {
@@ -178,7 +180,7 @@ const normalizeContent = (
         | ContentTool
         | ContentReasoning
         | ContentData
-      )[],
+      )[]
 ): (
   | ContentText
   | ContentImage

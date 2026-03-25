@@ -128,7 +128,7 @@ export class WorkQueue<TInput, TOutput> {
         // Delay between batches
         if (this.itemsById.size > 0 && this.options.processingDelay > 0) {
           await new Promise((resolve) =>
-            setTimeout(resolve, this.options.processingDelay),
+            setTimeout(resolve, this.options.processingDelay)
           );
         }
       }

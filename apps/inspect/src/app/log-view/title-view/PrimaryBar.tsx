@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import { EvalResults, EvalSpec, Status } from "../../../@types/log";
 import { RunningMetric } from "../../../client/api/types";
 import { CopyButton } from "../../../components/CopyButton";
@@ -8,6 +9,7 @@ import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useStore } from "../../../state/store";
 import { filename } from "../../../utils/path";
+
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
 import { displayScorersFromRunningMetrics, ResultsPanel } from "./ResultsPanel";
@@ -55,7 +57,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
           "navbar-brand",
           "navbar-text",
           "mb-0",
-          styles.container,
+          styles.container
         )}
       >
         <div className={styles.body}>
@@ -74,7 +76,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
                   "task-model",
                   "text-truncate",
                   styles.taskModel,
-                  "text-size-base",
+                  "text-size-base"
                 )}
                 title={evalSpec?.model}
               >

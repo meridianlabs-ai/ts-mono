@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
+
 import { ModelUsage1 } from "../../@types/log";
 import { formatNumber } from "../../utils/format";
+
 import styles from "./ModelUsagePanel.module.css";
 
 interface ModelUsageProps {
@@ -93,7 +95,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({ usage, className }) => {
               key={`$usage-sep-${idx}`}
               className={clsx(
                 styles.separator,
-                row.padded ? styles.padded : undefined,
+                row.padded ? styles.padded : undefined
               )}
             ></div>
           );
@@ -104,7 +106,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({ usage, className }) => {
                 className={clsx(
                   "text-style-label",
                   "text-style-secondary",
-                  row.secondary ? styles.col2 : styles.col1_3,
+                  row.secondary ? styles.col2 : styles.col1_3
                 )}
               >
                 {row.label}

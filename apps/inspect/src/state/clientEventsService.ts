@@ -81,7 +81,7 @@ class ClientEventsService {
       {
         maxRetries: kRetries,
         interval: kPollingInterval,
-      },
+      }
     );
 
     this.currentPolling.start();

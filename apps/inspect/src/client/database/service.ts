@@ -1,5 +1,6 @@
 import { createLogger } from "../../utils/logger";
 import { LogDetails, LogHandle, LogPreview, SampleSummary } from "../api/types";
+
 import { DatabaseManager } from "./manager";
 import { AppDatabase } from "./schema";
 
@@ -54,7 +55,7 @@ export class DatabaseService {
   }
 
   async countRows(
-    entity: "logs" | "logPreviews" | "logDetails",
+    entity: "logs" | "logPreviews" | "logDetails"
   ): Promise<number> {
     const db = this.getDb();
     switch (entity) {
@@ -75,7 +76,7 @@ export class DatabaseService {
     // Get existing records to preserve their IDs
     const existingRecords = await db.logs.toArray();
     const existingByPath = new Map(
-      existingRecords.map((r) => [r.file_path, r.id]),
+      existingRecords.map((r) => [r.file_path, r.id])
     );
 
     const records = logs.map((file) => ({
@@ -136,7 +137,7 @@ export class DatabaseService {
   // === LOG PREVIEWS ===
   async writeLogPreviews(
     previews: LogPreview[],
-    filePaths: string[],
+    filePaths: string[]
   ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
@@ -152,7 +153,7 @@ export class DatabaseService {
   }
 
   async readLogPreviews(
-    logs: LogHandle[],
+    logs: LogHandle[]
   ): Promise<Record<string, LogPreview>> {
     try {
       const filePaths = logs.map((log) => log.name);
@@ -163,7 +164,7 @@ export class DatabaseService {
         .toArray();
 
       log.debug(
-        `Retrieved ${records.length} cached log previews out of ${filePaths.length} requested`,
+        `Retrieved ${records.length} cached log previews out of ${filePaths.length} requested`
       );
 
       const result: Record<string, LogPreview> = {};
@@ -191,7 +192,7 @@ export class DatabaseService {
       const missing = logs.filter((log) => !cachedPaths.has(log.name));
 
       log.debug(
-        `Found ${missing.length} missing previews out of ${logs.length} requested`,
+        `Found ${missing.length} missing previews out of ${logs.length} requested`
       );
       return missing;
     } catch (error) {
@@ -257,7 +258,7 @@ export class DatabaseService {
         .toArray();
 
       log.debug(
-        `Retrieved ${records.length} cached log details out of ${filePaths.length} requested`,
+        `Retrieved ${records.length} cached log details out of ${filePaths.length} requested`
       );
 
       const result: Record<string, LogDetails> = {};
@@ -285,7 +286,7 @@ export class DatabaseService {
       const missing = logs.filter((log) => !cachedPaths.has(log.name));
 
       log.debug(
-        `Found ${missing.length} missing details out of ${logs.length} requested`,
+        `Found ${missing.length} missing details out of ${logs.length} requested`
       );
       return missing;
     } catch (error) {
@@ -307,7 +308,7 @@ export class DatabaseService {
     }
 
     log.debug(
-      `Retrieved ${allSummaries.length} sample summaries across all files`,
+      `Retrieved ${allSummaries.length} sample summaries across all files`
     );
     return allSummaries;
   }
@@ -332,7 +333,7 @@ export class DatabaseService {
     // Apply filters
     if (filter?.completed !== undefined) {
       filtered = filtered.filter(
-        (summary) => summary.completed === filter.completed,
+        (summary) => summary.completed === filter.completed
       );
     }
 
@@ -365,14 +366,14 @@ export class DatabaseService {
               score &&
               typeof score.value === "number" &&
               score.value >= min &&
-              score.value <= max,
+              score.value <= max
           );
         }
       });
     }
 
     log.debug(
-      `Query returned ${filtered.length} sample summaries (filtered from ${allSummaries.length})`,
+      `Query returned ${filtered.length} sample summaries (filtered from ${allSummaries.length})`
     );
     return filtered;
   }

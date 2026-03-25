@@ -1,9 +1,9 @@
 import {
   escapeHtmlCharacters,
+  getMarkdownInstance,
   protectBackslashesInLatex,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
-  getMarkdownInstance,
 } from "../../components/markdownRendering";
 
 /**

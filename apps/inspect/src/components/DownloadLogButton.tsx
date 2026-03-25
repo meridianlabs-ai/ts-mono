@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
+
 import { ApplicationIcons } from "../app/appearance/icons";
 import { useStore } from "../state/store";
+
 import styles from "./DownloadLogButton.module.css";
 
 type DownloadState = "idle" | "downloading" | "success" | "error";
@@ -68,7 +70,7 @@ export const DownloadLogButton = ({
       className={clsx(
         "download-log-button",
         styles.downloadLogButton,
-        className,
+        className
       )}
       onClick={handleClick}
       aria-label={ariaLabel}

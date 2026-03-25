@@ -1,7 +1,7 @@
 export const resolveAttachments = <T>(
   value: T,
   attachments: Record<string, string>,
-  onFailedResolve?: (attachmentId: string) => void,
+  onFailedResolve?: (attachmentId: string) => void
 ): T => {
   const CONTENT_PROTOCOL = "tc://";
   const ATTACHMENT_PROTOCOL = "attachment://";

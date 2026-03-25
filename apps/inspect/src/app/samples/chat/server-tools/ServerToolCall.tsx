@@ -1,12 +1,13 @@
-import { FC, ReactNode } from "react";
-import { ContentToolUse } from "../../../../@types/log";
-
 import clsx from "clsx";
+import { FC, ReactNode } from "react";
+
+import { ContentToolUse } from "../../../../@types/log";
 import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { asJsonObjArray, isJson } from "../../../../utils/json";
 import { ApplicationIcons } from "../../../appearance/icons";
 import { RecordTree } from "../../../content/RecordTree";
 import { RenderedContent } from "../../../content/RenderedContent";
+
 import styles from "./ServerToolCall.module.css";
 
 interface ServerToolCallProps {
@@ -43,7 +44,7 @@ const McpToolUse: FC<ServerToolCallProps> = ({ id, content, className }) => {
         className={clsx(
           styles.title,
           "text-size-small",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
       >
         <i className={ApplicationIcons.role.tool} />
@@ -162,7 +163,7 @@ const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
 };
 
 const maybeWebSearchResult = (
-  content: ContentToolUse,
+  content: ContentToolUse
 ): { result: WebResult[] } | undefined => {
   if (content.name !== "web_search") {
     return undefined;
@@ -174,7 +175,7 @@ const maybeWebSearchResult = (
 };
 
 const maybeListTools = (
-  content: ContentToolUse,
+  content: ContentToolUse
 ): { result: ToolInfo[] } | undefined => {
   if (content.name !== "mcp_list_tools") {
     return undefined;
@@ -191,7 +192,7 @@ const LabelDiv: FC<{ label: string }> = ({ label }) => {
       className={clsx(
         styles.argLabel,
         "text-style-secondary",
-        "text-size-smaller",
+        "text-size-smaller"
       )}
     >
       <pre>{label}</pre>

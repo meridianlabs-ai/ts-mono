@@ -1,15 +1,17 @@
+import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-import clsx from "clsx";
 import { usePrismHighlight } from "../../components/prism";
 import { useLogs } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { dirname } from "../../utils/path";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
+
 import styles from "./FlowPanel.module.css";
 import { useFlowServerData } from "./hooks";
+
 export const FlowPanel: FC = () => {
   const location = useLocation();
   const isSamplesRoute = location.pathname.startsWith("/samples/");

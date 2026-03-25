@@ -20,5 +20,5 @@ export const Preformatted = forwardRef<HTMLPreElement, PreformattedProps>(
         {text}
       </pre>
     );
-  },
+  }
 );

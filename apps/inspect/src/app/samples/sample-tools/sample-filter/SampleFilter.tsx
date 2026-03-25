@@ -21,6 +21,7 @@ import { useStore } from "../../../../state/store";
 import { debounce } from "../../../../utils/sync";
 import { FilterError } from "../../../types";
 import { sampleFilterItems } from "../filters";
+
 import { getCompletions } from "./completions";
 import styles from "./SampleFilter.module.css";
 import { language } from "./tokenize";
@@ -122,7 +123,7 @@ const ensureOneLine = (tr: Transaction): TransactionSpec => {
 
 const getLints = (
   view: EditorView,
-  filterError?: FilterError,
+  filterError?: FilterError
 ): Diagnostic[] => {
   if (!filterError) return [];
   return [
@@ -130,7 +131,7 @@ const getLints = (
       from: Math.min(filterError.from || 0, view.state.doc.length),
       to: Math.min(
         filterError.to || view.state.doc.length,
-        view.state.doc.length,
+        view.state.doc.length
       ),
       severity: filterError.severity,
       message: filterError.message,
@@ -149,13 +150,13 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
 
   const filterItems = useMemo(
     () => (evalDescriptor ? sampleFilterItems(evalDescriptor) : []),
-    [evalDescriptor],
+    [evalDescriptor]
   );
 
   const filter = useStore((state) => state.log.filter);
   const filterError = useStore((state) => state.log.filterError);
   const samples = useStore(
-    (state) => state.log.selectedLogDetails?.sampleSummaries,
+    (state) => state.log.selectedLogDetails?.sampleSummaries
   );
   const setFilter = useStore((state) => state.logActions.setFilter);
 
@@ -171,12 +172,12 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
         override: [(context) => getCompletions(context, filterItems, samples)],
         activateOnCompletion: (c) => c.label.endsWith(" "),
       }),
-    [filterItems, samples],
+    [filterItems, samples]
   );
 
   const makeLinter = useCallback(
     () => linter((view) => getLints(view, filterError)),
-    [filterError],
+    [filterError]
   );
 
   const debounceSetFilter = useMemo(
@@ -184,7 +185,7 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
       debounce((value: string) => {
         setFilter(value);
       }, 200),
-    [setFilter],
+    [setFilter]
   );
 
   const makeUpdateListener = useCallback(
@@ -195,7 +196,7 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
           debounceSetFilter(newValue);
         }
       }),
-    [debounceSetFilter, evalDescriptor],
+    [debounceSetFilter, evalDescriptor]
   );
 
   // Initialize editor (only once on mount)
@@ -270,7 +271,7 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
           "text-size-smaller",
           "text-style-label",
           "text-style-secondary",
-          styles.label,
+          styles.label
         )}
       >
         Filter:

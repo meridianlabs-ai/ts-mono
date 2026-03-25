@@ -1,4 +1,5 @@
 import { EventNode } from "../types";
+
 import {
   SPAN_BEGIN,
   STATE,
@@ -174,11 +175,11 @@ type TreeNodeTransformer = {
  */
 const elevateChildNode = (
   node: EventNode,
-  childEventType: "tool" | "subtask",
+  childEventType: "tool" | "subtask"
 ): EventNode | null => {
   // Find the specific event child
   const targetIndex = node.children.findIndex(
-    (child) => child.event.event === childEventType,
+    (child) => child.event.event === childEventType
   );
 
   if (targetIndex === -1) {

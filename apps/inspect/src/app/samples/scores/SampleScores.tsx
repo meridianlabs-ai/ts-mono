@@ -1,6 +1,6 @@
 import { FC } from "react";
-import { SampleSummary } from "../../../client/api/types";
 
+import { SampleSummary } from "../../../client/api/types";
 import { getScoreDescriptorForValues } from "../descriptor/score/ScoreDescriptor";
 
 interface SampleScoresProps {
@@ -16,7 +16,7 @@ export const SampleScores: FC<SampleScoresProps> = ({ sample, scorer }) => {
 
   const scorerDescriptor = getScoreDescriptorForValues(
     [scoreData.value],
-    [typeof scoreData.value],
+    [typeof scoreData.value]
   );
   return scorerDescriptor?.render(scoreData.value);
 };

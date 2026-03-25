@@ -1,11 +1,13 @@
 import clsx from "clsx";
 import { FC, Fragment, RefObject } from "react";
+
 import { EvalSample } from "../../../@types/log";
 import { SampleSummary } from "../../../client/api/types";
 import { EmptyPanel } from "../../../components/EmptyPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";
+
 import { SampleScores } from "./SampleScores";
 import styles from "./SampleScoresGrid.module.css";
 
@@ -30,7 +32,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
         className={clsx(
           "text-size-smaller",
           "text-style-label",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
       >
         Scorer
@@ -39,7 +41,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
         className={clsx(
           "text-size-smaller",
           "text-style-label",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
       >
         Answer
@@ -48,7 +50,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
         className={clsx(
           "text-size-smaller",
           "text-style-label",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
       >
         Score
@@ -57,7 +59,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
         className={clsx(
           "text-size-smaller",
           "text-style-label",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
       >
         Explanation
@@ -102,7 +104,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
                     "text-size-smaller",
                     "text-style-label",
                     "text-style-secondary",
-                    styles.fullWidth,
+                    styles.fullWidth
                   )}
                 >
                   Metadata
@@ -119,7 +121,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
                   className={clsx(
                     styles.separator,
                     styles.separatorPadded,
-                    styles.fullWidth,
+                    styles.fullWidth
                   )}
                 ></div>
               </Fragment>

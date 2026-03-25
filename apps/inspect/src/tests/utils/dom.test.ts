@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+
 import { findScrollableParent, scrollRangeToCenter } from "../../utils/dom";
 
 describe("findScrollableParent", () => {
@@ -76,7 +77,7 @@ describe("findScrollableParent", () => {
     container.appendChild(scrollable);
 
     expect(findScrollableParent(child, { minScrollBuffer: 30 })).toBe(
-      scrollable,
+      scrollable
     );
   });
 
@@ -108,7 +109,7 @@ describe("findScrollableParent", () => {
     // Create an SVG element (Element but not HTMLElement)
     const svgElement = document.createElementNS(
       "http://www.w3.org/2000/svg",
-      "svg",
+      "svg"
     );
     scrollable.appendChild(svgElement);
     container.appendChild(scrollable);

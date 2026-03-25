@@ -1,4 +1,5 @@
 import { FC, RefObject, useMemo, useRef } from "react";
+
 import {
   EvalError,
   EvalPlan,
@@ -20,7 +21,7 @@ export const useInfoTabConfig = (
   evalError: EvalError | undefined | null,
   evalResults: EvalResults | undefined | null,
   evalStatus: Status | undefined | null,
-  metadata?: Record<string, unknown>,
+  metadata?: Record<string, unknown>
 ) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const totalSampleCount = useTotalSampleCount();

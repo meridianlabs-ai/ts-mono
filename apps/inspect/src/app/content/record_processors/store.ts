@@ -6,7 +6,7 @@ const kStoreKey = /^(.+)?:([a-zA-Z0-9]{22}):(.+)$/;
 // Expands store keys in the record. When an instance key is found, this will create a new node, and subsequent store
 // keys will be added as children to that node. Since instance keys always appear first, we can do this in a single pass.
 export const resolveStoreKeys: RecordProcessor = (
-  record: Record<string, unknown>,
+  record: Record<string, unknown>
 ): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   const storeInstances: Record<string, Record<string, unknown>> = {};

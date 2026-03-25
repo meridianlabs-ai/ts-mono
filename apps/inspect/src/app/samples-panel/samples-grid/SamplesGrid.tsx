@@ -10,14 +10,18 @@ import type {
 import { themeBalham } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+
 import { useClientEvents } from "../../../state/clientEvents";
 import { useStore } from "../../../state/store";
 import { useSamplesGridNavigation } from "../../routing/sampleNavigation";
 import { DisplayedSample } from "../../types";
+
 import "../../shared/agGrid";
+
+import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
-import styles from "../../shared/gridCells.module.css";
+
 import { SampleRow } from "./types";
 
 // Sample Grid Props
@@ -39,29 +43,29 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
   const setGridState = useStore((state) => state.logsActions.setGridState);
   const { navigateToSampleDetail } = useSamplesGridNavigation();
   const setFilteredSampleCount = useStore(
-    (state) => state.logActions.setFilteredSampleCount,
+    (state) => state.logActions.setFilteredSampleCount
   );
   const setDisplayedSamples = useStore(
-    (state) => state.logsActions.setDisplayedSamples,
+    (state) => state.logsActions.setDisplayedSamples
   );
   const clearDisplayedSamples = useStore(
-    (state) => state.logsActions.clearDisplayedSamples,
+    (state) => state.logsActions.clearDisplayedSamples
   );
   const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample,
+    (state) => state.sampleActions.clearSelectedSample
   );
   const previousSamplesPath = useStore(
-    (state) => state.logs.samplesListState.previousSamplesPath,
+    (state) => state.logs.samplesListState.previousSamplesPath
   );
   const setPreviousSamplesPath = useStore(
-    (state) => state.logsActions.setPreviousSamplesPath,
+    (state) => state.logsActions.setPreviousSamplesPath
   );
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle,
+    (state) => state.log.selectedSampleHandle
   );
 
   const internalGridRef = useRef<AgGridReact<SampleRow>>(null);
@@ -128,7 +132,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
         }, 10);
       }
     },
-    [navigateToSampleDetail, gridRef],
+    [navigateToSampleDetail, gridRef]
   );
 
   const handleOpenRow = useCallback(
@@ -139,11 +143,11 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
           rowNode.data.logFile,
           rowNode.data.sampleId,
           rowNode.data.epoch,
-          openInNewWindow,
+          openInNewWindow
         );
       }
     },
-    [navigateToSampleDetail],
+    [navigateToSampleDetail]
   );
 
   const handleKeyDown = useMemo(
@@ -152,7 +156,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
         gridRef,
         onOpenRow: handleOpenRow,
       }),
-    [gridRef, handleOpenRow],
+    [gridRef, handleOpenRow]
   );
 
   useEffect(() => {
@@ -175,17 +179,17 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
           e.data.logFile,
           e.data.sampleId,
           e.data.epoch,
-          true,
+          true
         );
       }
     },
-    [navigateToSampleDetail],
+    [navigateToSampleDetail]
   );
 
   const sampleRowId = (
     logFile: string,
     sampleId: string | number,
-    epoch: number,
+    epoch: number
   ) => {
     return `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
   };
@@ -199,7 +203,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
     const rowId = sampleRowId(
       selectedLogFile,
       selectedSampleHandle.id,
-      selectedSampleHandle.epoch,
+      selectedSampleHandle.epoch
     );
     const node = gridRef.current.api.getRowNode(rowId);
 
@@ -248,7 +252,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
             sampleRowId(
               params.data.logFile,
               params.data.sampleId,
-              params.data.epoch,
+              params.data.epoch
             )
           }
           onGridColumnsChanged={(e: GridColumnsChangedEvent<SampleRow>) => {
@@ -267,7 +271,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
             setGridState(e.state);
             if (gridRef.current?.api) {
               const gridCurrentSamples = gridDisplayedSamples(
-                gridRef.current.api,
+                gridRef.current.api
               );
               setFilteredSampleCount(gridCurrentSamples.length);
               setDisplayedSamples(gridCurrentSamples);
@@ -278,7 +282,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
           onFilterChanged={() => {
             if (gridRef.current?.api) {
               const newDisplayedSamples = gridDisplayedSamples(
-                gridRef.current.api,
+                gridRef.current.api
               );
               setFilteredSampleCount(newDisplayedSamples.length);
               setDisplayedSamples(newDisplayedSamples);
@@ -297,7 +301,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
 };
 
 const gridDisplayedSamples = (
-  gridApi: GridApi<SampleRow>,
+  gridApi: GridApi<SampleRow>
 ): DisplayedSample[] => {
   const displayedSamples: DisplayedSample[] = [];
   const displayedRowCount = gridApi.getDisplayedRowCount();

@@ -1,9 +1,10 @@
+import clsx from "clsx";
 import { forwardRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import clsx from "clsx";
 import { ApplicationIcons } from "../appearance/icons";
 import { useLogOrSampleRouteParams } from "../routing/url";
+
 import styles from "./FlowButton.module.css";
 
 export interface FlowButtonProps {}
@@ -42,5 +43,5 @@ export const FlowButton = forwardRef<HTMLButtonElement, FlowButtonProps>(
         </button>
       </div>
     );
-  },
+  }
 );

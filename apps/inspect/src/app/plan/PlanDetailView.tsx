@@ -1,11 +1,12 @@
-import { EvalPlan, EvalScore, EvalSpec, Params2 } from "../../@types/log";
-import { DatasetDetailView } from "./DatasetDetailView";
-import { ScorerDetailView } from "./ScorerDetailView";
-import { SolversDetailView } from "./SolverDetailView";
-
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
+import { EvalPlan, EvalScore, EvalSpec, Params2 } from "../../@types/log";
+
+import { DatasetDetailView } from "./DatasetDetailView";
 import styles from "./PlanDetailView.module.css";
+import { ScorerDetailView } from "./ScorerDetailView";
+import { SolversDetailView } from "./SolverDetailView";
 
 interface PlanDetailViewProps {
   evaluation?: EvalSpec;
@@ -56,7 +57,7 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
         }
         return accum;
       },
-      {} as Record<string, { scores: string[]; params: Params2 }>,
+      {} as Record<string, { scores: string[]; params: Params2 }>
     );
 
     if (Object.keys(scorers).length > 0) {
@@ -119,7 +120,7 @@ const PlanColumn: FC<PlanColumnProps> = ({ title, className, children }) => {
           "text-size-small",
           "text-style-label",
           "text-style-secondary",
-          styles.planCol,
+          styles.planCol
         )}
       >
         {title}

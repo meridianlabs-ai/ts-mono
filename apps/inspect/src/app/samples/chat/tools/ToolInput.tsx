@@ -4,9 +4,10 @@ import { FC, Ref, useRef } from "react";
 import { ToolCallContent } from "../../../../@types/log";
 import { usePrismHighlight } from "../../../../components/prism";
 import { RenderedText } from "../../../content/RenderedText";
-import styles from "./ToolInput.module.css";
+
 import { kToolTodoContentType } from "./tool";
 import { TodoWriteInput } from "./tool-input/TodoWriteInput";
+import styles from "./ToolInput.module.css";
 
 interface ToolInputProps {
   contentType?: string;
@@ -80,7 +81,7 @@ const RenderTool: FC<RenderToolProps> = ({
           "tool-output",
           styles.outputPre,
           styles.bottomMargin,
-          className,
+          className
         )}
       >
         <code
@@ -88,7 +89,7 @@ const RenderTool: FC<RenderToolProps> = ({
             "source-code",
             "sourceCode",
             contentType ? `language-${contentType}` : undefined,
-            styles.outputCode,
+            styles.outputCode
           )}
         >
           {formattedContent}

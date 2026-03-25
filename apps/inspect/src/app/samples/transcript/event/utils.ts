@@ -40,7 +40,7 @@ export const eventTitle = (event: EventType): string => {
         title = title.replace(/\{\{(\w+)\}\}/g, (match, key: string) =>
           Object.hasOwn(event.arguments, key)
             ? String(event.arguments[key])
-            : match,
+            : match
         );
       }
       return `Tool: ${title}`;
@@ -105,7 +105,7 @@ export const formatTitle = (
   title: string,
   total_tokens?: number,
   working_start?: number | null,
-  role?: string,
+  role?: string
 ) => {
   const titleWithRole = role ? `${title} – ${role} –` : title;
   const subItems = [];

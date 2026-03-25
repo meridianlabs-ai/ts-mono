@@ -3,7 +3,7 @@ import { kScoreTypeCategorical } from "../../../../constants";
 import { ScoreDescriptor } from "../types";
 
 export const categoricalScoreDescriptor = (
-  values: Value2[],
+  values: Value2[]
 ): ScoreDescriptor => {
   return {
     scoreType: kScoreTypeCategorical,

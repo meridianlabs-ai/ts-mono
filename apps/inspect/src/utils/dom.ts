@@ -11,7 +11,7 @@ import { useEffect, useRef } from "react";
  */
 export function findScrollableParent(
   element: Element | null,
-  options?: { minScrollBuffer?: number },
+  options?: { minScrollBuffer?: number }
 ): HTMLElement | null {
   const minBuffer = options?.minScrollBuffer ?? 100;
   let current =
@@ -43,7 +43,7 @@ export function findScrollableParent(
  */
 export function scrollRangeToCenter(
   range: Range,
-  options?: { behavior?: ScrollBehavior; fallbackToScrollIntoView?: boolean },
+  options?: { behavior?: ScrollBehavior; fallbackToScrollIntoView?: boolean }
 ): void {
   const { behavior = "auto", fallbackToScrollIntoView = true } = options ?? {};
 
@@ -52,7 +52,7 @@ export function scrollRangeToCenter(
 
   const selectionRect = rects[0];
   const scrollableParent = findScrollableParent(
-    range.startContainer.parentElement,
+    range.startContainer.parentElement
   );
 
   if (scrollableParent) {
@@ -76,7 +76,7 @@ export function scrollRangeToCenter(
 
 // Custom hook to observe size changes
 export const useResizeObserver = (
-  callback: (entry: ResizeObserverEntry) => void,
+  callback: (entry: ResizeObserverEntry) => void
 ) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<ResizeObserver | null>(null);

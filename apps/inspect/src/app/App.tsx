@@ -1,5 +1,6 @@
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
+
 import JSON5 from "json5";
 
 import "prismjs";
@@ -15,10 +16,12 @@ import "./App.css";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
+
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { useStore } from "../state/store.ts";
 import { basename, dirname } from "../utils/path.ts";
 import { isUri } from "../utils/uri.ts";
+
 import { AppRouter } from "./routing/AppRouter.tsx";
 
 interface AppProps {
@@ -44,14 +47,14 @@ export const App: FC<AppProps> = ({ api }) => {
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
   const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile,
+    (state) => state.logsActions.setSelectedLogFile
   );
 
   const loadLog = useStore((state) => state.logActions.syncLog);
   const pollLog = useStore((state) => state.logActions.pollLog);
 
   const setSingleFileMode = useStore(
-    (state) => state.appActions.setSingleFileMode,
+    (state) => state.appActions.setSingleFileMode
   );
 
   // Load a specific log
@@ -115,7 +118,7 @@ export const App: FC<AppProps> = ({ api }) => {
               setInitialState(
                 targetFile,
                 e.data.sample_id,
-                e.data.sample_epoch,
+                e.data.sample_epoch
               );
             }
           }
@@ -146,7 +149,7 @@ export const App: FC<AppProps> = ({ api }) => {
       api,
       syncLogs,
       rehydrated,
-    ],
+    ]
   );
 
   // listen for updateState messages from vscode

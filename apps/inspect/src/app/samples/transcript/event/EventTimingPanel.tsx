@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
+
 import { formatDateTime, formatTime } from "../../../../utils/format";
+
 import styles from "./EventTimingPanel.module.css";
 
 interface EventTimingPanelProps {
@@ -89,7 +91,7 @@ export const EventTimingPanel: FC<EventTimingPanelProps> = ({
         label: "End",
         value: formatTime(
           Math.round(working_start * 10) / 10 +
-            Math.round(working_time * 10) / 10,
+            Math.round(working_time * 10) / 10
         ),
       });
     }
@@ -110,7 +112,7 @@ export const EventTimingPanel: FC<EventTimingPanelProps> = ({
                   "text-style-label",
                   "text-style-secondary",
                   row.secondary ? styles.col2 : styles.col1_3,
-                  row.topMargin ? styles.topMargin : undefined,
+                  row.topMargin ? styles.topMargin : undefined
                 )}
               >
                 {row.label}

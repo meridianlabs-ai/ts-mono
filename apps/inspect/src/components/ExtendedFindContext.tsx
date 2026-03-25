@@ -16,7 +16,7 @@ import {
 export type ExtendedFindFn = (
   term: string,
   direction: "forward" | "backward",
-  onContentReady: () => void,
+  onContentReady: () => void
 ) => Promise<boolean>;
 
 // Count total matches across all data items
@@ -27,7 +27,7 @@ export type ExtendedCountFn = (term: string) => number;
 interface ExtendedFindContextType {
   extendedFindTerm: (
     term: string,
-    direction: "forward" | "backward",
+    direction: "forward" | "backward"
   ) => Promise<boolean>;
   registerVirtualList: (id: string, searchFn: ExtendedFindFn) => () => void;
   countAllMatches: (term: string) => number;
@@ -49,7 +49,7 @@ export const ExtendedFindProvider = ({
   const extendedFindTerm = useCallback(
     async (
       term: string,
-      direction: "forward" | "backward",
+      direction: "forward" | "backward"
     ): Promise<boolean> => {
       for (const [, searchFn] of virtualLists.current) {
         const found = await new Promise<boolean>((resolve) => {
@@ -83,7 +83,7 @@ export const ExtendedFindProvider = ({
       }
       return false;
     },
-    [],
+    []
   );
 
   const registerVirtualList = useCallback(
@@ -93,7 +93,7 @@ export const ExtendedFindProvider = ({
         virtualLists.current.delete(id);
       };
     },
-    [],
+    []
   );
 
   const countAllMatches = useCallback((term: string): number => {
@@ -111,7 +111,7 @@ export const ExtendedFindProvider = ({
         matchCounters.current.delete(id);
       };
     },
-    [],
+    []
   );
 
   const contextValue: ExtendedFindContextType = {

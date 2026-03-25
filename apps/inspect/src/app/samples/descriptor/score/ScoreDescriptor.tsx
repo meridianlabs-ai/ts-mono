@@ -1,5 +1,6 @@
 import { Value2 } from "../../../../@types/log";
 import { ScoreDescriptor } from "../types";
+
 import { booleanScoreDescriptor } from "./BooleanScoreDescriptor";
 import { categoricalScoreDescriptor } from "./CategoricalScoreDescriptor";
 import { listScoreDescriptor } from "./ListScoreDescriptor";
@@ -12,18 +13,18 @@ type ScorerTypes = string | number | boolean | object;
 interface ScoreCategorizer {
   describe: (
     values: Value2[],
-    types?: ScorerTypes[],
+    types?: ScorerTypes[]
   ) => ScoreDescriptor | undefined;
 }
 
 export const getScoreDescriptorForValues = (
   uniqScoreValues: Value2[],
-  uniqScoreTypes: ScorerTypes[],
+  uniqScoreTypes: ScorerTypes[]
 ): ScoreDescriptor | undefined => {
   for (const categorizer of scoreCategorizers) {
     const scoreDescriptor = categorizer.describe(
       uniqScoreValues,
-      uniqScoreTypes,
+      uniqScoreTypes
     );
     if (scoreDescriptor) {
       return scoreDescriptor;

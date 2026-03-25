@@ -1,13 +1,13 @@
+import clsx from "clsx";
 import { FC } from "react";
-import { ApplicationIcons } from "../../appearance/icons";
 
 import { EvalError } from "../../../@types/log";
 import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { Card, CardBody, CardHeader } from "../../../components/Card";
-
-import clsx from "clsx";
 import ExpandablePanel from "../../../components/ExpandablePanel";
+import { ApplicationIcons } from "../../appearance/icons";
 import { RenderedContent } from "../../content/RenderedContent";
+
 import styles from "./TaskErrorPanel.module.css";
 
 interface TaskErrorProps {

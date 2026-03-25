@@ -1,10 +1,11 @@
+import clsx from "clsx";
+import { CSSProperties, FC } from "react";
+
 import { ApplicationIcons } from "../../appearance/icons";
 import { ApplicationStyles } from "../../appearance/styles";
 
-import clsx from "clsx";
-import { CSSProperties, FC } from "react";
-import styles from "./SampleErrorView.module.css";
 import { errorType } from "./error";
+import styles from "./SampleErrorView.module.css";
 
 interface SampleErrorViewProps {
   message?: string;
@@ -27,7 +28,7 @@ export const SampleErrorView: FC<SampleErrorViewProps> = ({
     <div
       className={clsx(
         styles.body,
-        isCanceledError(type) ? styles.safe : undefined,
+        isCanceledError(type) ? styles.safe : undefined
       )}
     >
       <i className={clsx(ApplicationIcons.error, styles.iconSmall)} />

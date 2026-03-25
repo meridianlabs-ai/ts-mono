@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import { StepEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
+
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";
 import { EventNode, EventType } from "./types";
@@ -84,7 +86,7 @@ const summarize = (children: EventNode[]) => {
  * Returns a descriptor object containing icon and style based on the event type and name.
  */
 const stepDescriptor = (
-  event: StepEvent,
+  event: StepEvent
 ): { icon?: string; endSpace?: boolean } => {
   const rootStepDescriptor = {
     endSpace: true,

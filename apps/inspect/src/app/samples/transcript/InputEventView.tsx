@@ -1,8 +1,10 @@
 import { FC } from "react";
+
 import { InputEvent } from "../../../@types/log";
 import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
+
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";
 import { EventNode } from "./types";

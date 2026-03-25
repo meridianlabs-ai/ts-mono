@@ -165,6 +165,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.1
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tsmono/prettier-config':
+        specifier: workspace:*
+        version: link:../../tooling/prettier-config
       '@types/bootstrap':
         specifier: ^5.2.10
         version: 5.2.10

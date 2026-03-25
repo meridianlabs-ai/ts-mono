@@ -1,8 +1,10 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
 import { Input2, Input5, Result3, SubtaskEvent } from "../../../@types/log";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
+
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTiming, formatTitle } from "./event/utils";
 import styles from "./SubtaskEventView.module.css";
@@ -31,7 +33,7 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
         <div className={clsx(styles.summaryRendered)}>
           <Rendered values={event.input} />
         </div>
-      </div>,
+      </div>
     );
   } else {
     body.push(
@@ -39,7 +41,7 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
         data-name="Summary"
         input={event.input}
         result={event.result}
-      />,
+      />
     );
   }
 

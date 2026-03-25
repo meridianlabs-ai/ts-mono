@@ -35,7 +35,7 @@ export class ZstdWindowSizeError extends Error {
     super(
       `Zstd window size too large (windowLog=${windowLog}, max=${MAX_WINDOW_LOG}). ` +
         `This file may have been compressed with zstd "ultra" mode (level 20+). ` +
-        `Try recompressing with --long=${MAX_WINDOW_LOG} or a lower compression level.`,
+        `Try recompressing with --long=${MAX_WINDOW_LOG} or a lower compression level.`
     );
     this.name = "ZstdWindowSizeError";
     this.windowLog = windowLog;
@@ -221,7 +221,7 @@ export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
         requestId,
         data,
       },
-      [data.buffer],
+      [data.buffer]
     );
   });
 }

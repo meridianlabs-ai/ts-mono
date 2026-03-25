@@ -13,6 +13,7 @@ import {
   SampleData,
   SampleDataResponse,
 } from "../types";
+
 import { ApiError, HeaderProvider, Request, serverRequestApi } from "./request";
 
 // The time that the view was initially loaded
@@ -29,13 +30,13 @@ export function viewServerApi(
     logDir?: string;
     apiBaseUrl?: string;
     headerProvider?: HeaderProvider;
-  } = {},
+  } = {}
 ): LogViewAPI {
   const { apiBaseUrl, logDir, headerProvider } = options;
 
   const requestApi = serverRequestApi(
     apiBaseUrl || __VIEW_SERVER_API_URL__,
-    headerProvider,
+    headerProvider
   );
 
   const client_events = async () => {
@@ -44,7 +45,7 @@ export function viewServerApi(
     params.append("last_eval_time", String(lastEvalTime.valueOf()));
     const result = await requestApi.fetchString(
       "GET",
-      `/events?${params.toString()}`,
+      `/events?${params.toString()}`
     );
     return result.parsed;
   };
@@ -153,11 +154,11 @@ export function viewServerApi(
   const get_log_contents = async (
     file: string,
     headerOnly?: number,
-    _capabilities?: Capabilities,
+    _capabilities?: Capabilities
   ): Promise<LogContents> => {
     const result = await requestApi.fetchString(
       "GET",
-      `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`,
+      `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`
     );
     return result;
   };
@@ -165,7 +166,7 @@ export function viewServerApi(
   const get_log_info = async (file: string): Promise<LogInfo> => {
     const result = await requestApi.fetchString(
       "GET",
-      `/log-info/${encodeURIComponent(file)}`,
+      `/log-info/${encodeURIComponent(file)}`
     );
     return result.parsed;
   };
@@ -200,11 +201,11 @@ export function viewServerApi(
   const get_log_bytes = async (
     file: string,
     start: number,
-    end: number,
+    end: number
   ): Promise<Uint8Array> =>
     requestApi.fetchBytes(
       "GET",
-      `/log-bytes/${encodeURIComponent(file)}?start=${start}&end=${end}`,
+      `/log-bytes/${encodeURIComponent(file)}?start=${start}&end=${end}`
     );
 
   const get_log_summaries = async (files: string[]) => {
@@ -214,7 +215,7 @@ export function viewServerApi(
     }
     const result = await requestApi.fetchString(
       "GET",
-      `/log-headers?${params.toString()}`,
+      `/log-headers?${params.toString()}`
     );
     const logHeaders: EvalHeader[] = result.parsed;
     return logHeaders.map(toLogPreview);
@@ -222,7 +223,7 @@ export function viewServerApi(
 
   const log_message = async (
     log_file: string,
-    message: string,
+    message: string
   ): Promise<void> => {
     const params = new URLSearchParams();
     params.append("log_file", log_file);
@@ -242,13 +243,13 @@ export function viewServerApi(
     await requestApi.fetchType<void>(
       "GET",
       `/log-message?${params.toString()}`,
-      request,
+      request
     );
   };
 
   const eval_pending_samples = async (
     log_file: string,
-    etag?: string,
+    etag?: string
   ): Promise<PendingSampleResponse> => {
     const params = new URLSearchParams();
     params.append("log", log_file);
@@ -262,7 +263,7 @@ export function viewServerApi(
       headers,
       parse: async (text: string) => {
         const pendingSamples = await asyncJsonParse<PendingSamples | undefined>(
-          text,
+          text
         );
         return {
           status: "OK",
@@ -285,7 +286,7 @@ export function viewServerApi(
     const result = await requestApi.fetchType<PendingSampleResponse>(
       "GET",
       `/pending-samples?${params.toString()}`,
-      request,
+      request
     );
 
     return result.parsed;
@@ -296,7 +297,7 @@ export function viewServerApi(
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number,
+    last_attachment?: number
   ): Promise<SampleDataResponse | undefined> => {
     const params = new URLSearchParams();
     params.append("log", log_file);
@@ -335,7 +336,7 @@ export function viewServerApi(
     const result = await requestApi.fetchType<SampleDataResponse>(
       "GET",
       `/pending-sample-data?${params.toString()}`,
-      request,
+      request
     );
 
     return result.parsed;

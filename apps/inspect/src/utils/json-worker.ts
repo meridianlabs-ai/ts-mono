@@ -78,7 +78,7 @@ class JsonWorkerPool {
           requestId,
           encodedText,
         },
-        [encodedText.buffer],
+        [encodedText.buffer]
       );
     });
   }
@@ -104,7 +104,7 @@ class JsonWorkerPool {
           requestId,
           encodedText: ownedData,
         },
-        [ownedData.buffer],
+        [ownedData.buffer]
       );
     });
   }

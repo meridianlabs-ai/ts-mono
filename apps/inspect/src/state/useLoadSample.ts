@@ -1,5 +1,7 @@
 import { useCallback, useEffect } from "react";
+
 import { createLogger } from "../utils/logger";
+
 import { useLogSelection, usePrevious, useSampleData } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
 import { resolveSample } from "./sampleUtils";
@@ -25,10 +27,10 @@ export function useLoadSample() {
   const api = useStore((state) => state.api);
   const sampleActions = useStore((state) => state.sampleActions);
   const clearListPosition = useStore(
-    (state) => state.appActions.clearListPosition,
+    (state) => state.appActions.clearListPosition
   );
   const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample,
+    (state) => state.sampleActions.getSelectedSample
   );
 
   // Extract sample properties to avoid object reference issues
@@ -43,7 +45,7 @@ export function useLoadSample() {
   const prevLogFile = usePrevious<string | undefined>(logSelection.logFile);
   const prevSampleId = usePrevious(sampleId);
   const prevSampleNeedsReload = usePrevious<number>(
-    sampleData.sampleNeedsReload,
+    sampleData.sampleNeedsReload
   );
 
   const loadSample = useCallback(
@@ -51,7 +53,7 @@ export function useLoadSample() {
       logFile: string,
       id: number | string,
       epoch: number,
-      completed?: boolean,
+      completed?: boolean
     ) => {
       // Skip if already loading this exact sample
       const currentId = sampleData.selectedSampleIdentifier;
@@ -98,7 +100,7 @@ export function useLoadSample() {
             logFile,
             id,
             epoch,
-            onProgress,
+            onProgress
           );
           sampleActions.setDownloadProgress(undefined);
           log.debug(`LOADED COMPLETED SAMPLE: ${id}-${epoch}`);
@@ -123,7 +125,7 @@ export function useLoadSample() {
           } else {
             sampleActions.setSampleStatus("error");
             throw new Error(
-              "Unable to load sample - an unknown error occurred",
+              "Unable to load sample - an unknown error occurred"
             );
           }
         } else {
@@ -145,7 +147,7 @@ export function useLoadSample() {
       sampleActions,
       sampleData.selectedSampleIdentifier,
       sampleData.status,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -198,7 +200,7 @@ export function useLoadSample() {
           logSelection.logFile,
           sampleId,
           sampleEpoch,
-          sampleCompleted,
+          sampleCompleted
         );
       }
     }

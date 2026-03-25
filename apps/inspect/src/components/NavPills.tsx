@@ -1,6 +1,8 @@
 import { clsx } from "clsx";
 import { FC, MouseEvent, ReactElement, ReactNode, useCallback } from "react";
+
 import { useProperty } from "../state/hooks";
+
 import styles from "./NavPills.module.css";
 
 interface NavPillChildProps {
@@ -88,7 +90,7 @@ const NavPill: FC<NavPillProps> = ({
         setActiveItem(target);
       }
     },
-    [setActiveItem],
+    [setActiveItem]
   );
 
   return (
@@ -101,7 +103,7 @@ const NavPill: FC<NavPillProps> = ({
           "nav-link",
           "text-style-label",
           active ? "active " : "",
-          styles.pill,
+          styles.pill
         )}
         data-target={title}
         onClick={handleClick}

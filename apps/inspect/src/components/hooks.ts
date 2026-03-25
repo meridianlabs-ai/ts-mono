@@ -10,7 +10,7 @@ export function useRevokableUrls() {
       urlsRef.current.push(url);
       return url;
     },
-    [],
+    []
   );
 
   useEffect(() => {

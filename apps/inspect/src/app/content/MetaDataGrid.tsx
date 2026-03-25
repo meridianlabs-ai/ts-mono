@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { CSSProperties, FC, Fragment } from "react";
+
 import styles from "./MetadataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
@@ -45,7 +46,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
             styles.cell,
             "text-style-label",
             "text-style-secondary",
-            fontStyle,
+            fontStyle
           )}
         >
           {entry?.name}
@@ -87,7 +88,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
  * Ensure the proper type for entries
  */
 const entryRecords = (
-  entries: { name: string; value: unknown }[] | Record<string, unknown>,
+  entries: { name: string; value: unknown }[] | Record<string, unknown>
 ): { name: string; value: unknown }[] => {
   if (!entries) {
     return [];

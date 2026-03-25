@@ -8,7 +8,7 @@ import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
  */
 export async function fetchTextFile(
   url: string,
-  handleError?: (response: Response) => boolean,
+  handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
   const safe_url = encodePathParts(url);
   const response = await fetch(`${safe_url}`, { method: "GET" });
@@ -33,7 +33,7 @@ export async function fetchTextFile(
 export async function fetchFile<T>(
   url: string,
   parse: (text: string) => Promise<T>,
-  handleError?: (response: Response) => boolean,
+  handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
   const safe_url = encodePathParts(url);
   const response = await fetch(`${safe_url}`, { method: "GET" });
@@ -56,7 +56,7 @@ export async function fetchFile<T>(
  * Fetches a log file and parses its content, updating the log structure if necessary.
  */
 export const fetchLogFile = async (
-  file: string,
+  file: string
 ): Promise<LogContents | undefined> => {
   return fetchFile<LogContents>(file, async (text): Promise<LogContents> => {
     const log = (await asyncJsonParse(text)) as EvalLog;
@@ -90,7 +90,7 @@ export const fetchLogFile = async (
  * Fetches a log file and parses its content, updating the log structure if necessary.
  */
 export const fetchManifest = async (
-  log_dir: string,
+  log_dir: string
 ): Promise<LogFilesFetchResponse | undefined> => {
   const parseListing = async (text: string): Promise<LogFilesFetchResponse> => {
     const parsed = await asyncJsonParse<Record<string, LogPreview>>(text);
@@ -98,7 +98,7 @@ export const fetchManifest = async (
   };
   return await fetchFile<LogFilesFetchResponse>(
     log_dir + "/listing.json",
-    parseListing,
+    parseListing
   );
 };
 
@@ -107,14 +107,14 @@ export const fetchManifest = async (
  */
 export const fetchJsonFile = async <T>(
   file: string,
-  handleError?: (response: Response) => boolean,
+  handleError?: (response: Response) => boolean
 ): Promise<T | undefined> => {
   return fetchFile<T>(
     file,
     async (text) => {
       return (await asyncJsonParse(text)) as T;
     },
-    handleError,
+    handleError
   );
 };
 

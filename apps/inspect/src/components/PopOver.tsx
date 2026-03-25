@@ -49,7 +49,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   const popperRef = useRef<HTMLDivElement | null>(null);
   const arrowRef = useRef<HTMLDivElement | null>(null);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null,
+    null
   );
 
   // For delayed hover functionality

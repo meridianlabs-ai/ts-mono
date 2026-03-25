@@ -37,7 +37,7 @@ export function printTree(nodes: EventNode[], ancestors: boolean[] = []): void {
     const childCount =
       node.children.length > 0 ? ` {${node.children.length}}` : "";
     console.log(
-      `${linePrefix}${connector}${node.event.event}${detail}${childCount} [depth: ${node.depth}] (${shortId})`,
+      `${linePrefix}${connector}${node.event.event}${detail}${childCount} [depth: ${node.depth}] (${shortId})`
     );
 
     if (node.children.length > 0) {

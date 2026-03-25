@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import {
   ContentDocument,
   ContentImage,
@@ -10,6 +11,7 @@ import { isAnsiOutput } from "../../../../utils/ansi";
 import { isJson } from "../../../../utils/json";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
+
 import styles from "./ToolOutput.module.css";
 
 interface ToolOutputProps {
@@ -42,11 +44,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({ output, className }) => {
       } else {
         if (out.image.startsWith("data:")) {
           outputs.push(
-            <img
-              className={clsx(styles.toolImage)}
-              src={out.image}
-              key={key}
-            />,
+            <img className={clsx(styles.toolImage)} src={out.image} key={key} />
           );
         } else {
           outputs.push(<ToolTextOutput text={String(out.image)} key={key} />);
@@ -55,7 +53,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({ output, className }) => {
     });
   } else {
     outputs.push(
-      <ToolTextOutput text={String(output)} key={"tool-output-single"} />,
+      <ToolTextOutput text={String(output)} key={"tool-output-single"} />
     );
   }
   return <div className={clsx(styles.output, className)}>{outputs}</div>;

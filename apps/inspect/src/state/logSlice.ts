@@ -5,6 +5,7 @@ import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
 import { createLogger } from "../utils/logger";
 import { isUri, join } from "../utils/uri";
+
 import { createLogPolling } from "./logPolling";
 import { StoreState } from "./store";
 
@@ -16,7 +17,7 @@ export interface LogSlice {
     selectSample: (
       sampleId: string | number,
       epoch: number,
-      logFile: string,
+      logFile: string
     ) => void;
     clearSelectedSample: () => void;
 
@@ -86,7 +87,7 @@ const initialState = {
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: any
 ): [LogSlice, () => void] => {
   const logPolling = createLogPolling(get, set);
 
@@ -99,7 +100,7 @@ export const createLogSlice = (
       selectSample: (
         sampleId: string | number,
         epoch: number,
-        logFile: string,
+        logFile: string
       ) => {
         // Ignore if already selected
         const currentSample = get().log.selectedSampleHandle;
@@ -320,7 +321,7 @@ export const createLogSlice = (
 
 // Initialize app slice with StoreState
 export const initalializeLogSlice = (
-  set: (fn: (state: StoreState) => void) => void,
+  set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
     if (!state.log) {

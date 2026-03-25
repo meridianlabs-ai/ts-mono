@@ -50,7 +50,7 @@ const getScorersFromSamples = (samples: SampleSummary[]): ScoreLabel[] => {
  */
 export const getAvailableScorers = (
   _log: LogDetails,
-  sampleSummaries: SampleSummary[],
+  sampleSummaries: SampleSummary[]
 ): ScoreLabel[] | undefined => {
   const sampleScorers = getScorersFromSamples(sampleSummaries);
   if (sampleScorers.length > 0) {
@@ -65,7 +65,7 @@ export const getAvailableScorers = (
  */
 export const getDefaultScorer = (
   log: LogDetails,
-  sampleSummaries: SampleSummary[],
+  sampleSummaries: SampleSummary[]
 ): ScoreLabel | undefined => {
   if (sampleSummaries.length === 0) {
     return undefined;

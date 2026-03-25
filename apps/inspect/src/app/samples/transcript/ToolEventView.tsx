@@ -1,20 +1,21 @@
+import clsx from "clsx";
+import { FC, useMemo } from "react";
+
 import { ApprovalEvent, ModelEvent, ToolEvent } from "../../../@types/log";
+import { PulsingDots } from "../../../components/PulsingDots";
 import { ApplicationIcons } from "../../appearance/icons";
+import { ChatView } from "../chat/ChatView";
 import {
   resolveToolInput,
   substituteToolCallContent,
 } from "../chat/tools/tool";
 import { ToolCallView } from "../chat/tools/ToolCallView";
+
 import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
-
-import clsx from "clsx";
-import { FC, useMemo } from "react";
-import { PulsingDots } from "../../../components/PulsingDots";
-import { ChatView } from "../chat/ChatView";
-import { EventNodeContext } from "./TranscriptVirtualList";
 import { eventTitle, formatTiming, formatTitle } from "./event/utils";
 import styles from "./ToolEventView.module.css";
+import { EventNodeContext } from "./TranscriptVirtualList";
 import { EventNode, EventType } from "./types";
 
 interface ToolEventViewProps {
@@ -42,7 +43,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   // Extract tool input
   const { input, description, functionCall, contentType } = useMemo(
     () => resolveToolInput(event.function, event.arguments),
-    [event.function, event.arguments],
+    [event.function, event.arguments]
   );
 
   const { approvalNode, lastModelNode } = useMemo(() => {
@@ -87,7 +88,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
             event.view
               ? substituteToolCallContent(
                   event.view,
-                  event.arguments as Record<string, unknown>,
+                  event.arguments as Record<string, unknown>
                 )
               : undefined
           }

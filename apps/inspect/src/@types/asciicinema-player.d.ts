@@ -21,6 +21,6 @@ declare module "asciinema-player" {
       terminalFontFamily?: string;
       terminalLineHeight?: string;
       logger?: Object;
-    },
+    }
   ) => any;
 }

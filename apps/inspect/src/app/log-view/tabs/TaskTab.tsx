@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
+
 import { EarlyStoppingSummary, EvalSpec, EvalStats } from "../../../@types/log";
 import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { kLogViewTaskTabId } from "../../../constants";
@@ -10,9 +11,9 @@ import {
   toTitleCase,
 } from "../../../utils/format";
 import { ghCommitUrl } from "../../../utils/git";
-
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { RecordTree } from "../../content/RecordTree";
+
 import styles from "./TaskTab.module.css";
 
 // Individual hook for Info tab
@@ -20,7 +21,7 @@ export const useTaskTabConfig = (
   evalSpec: EvalSpec | undefined,
   evalStats?: EvalStats,
   earlyStopping?: EarlyStoppingSummary | null,
-  tags?: string[],
+  tags?: string[]
 ) => {
   return useMemo(() => {
     return {
@@ -106,7 +107,7 @@ export const TaskTab: FC<TaskTabProps> = ({
 
   const totalDuration = formatDuration(
     new Date(evalStats?.started_at || 0),
-    new Date(evalStats?.completed_at || 0),
+    new Date(evalStats?.completed_at || 0)
   );
 
   const task_args = evalSpec?.task_args || {};
@@ -127,10 +128,10 @@ export const TaskTab: FC<TaskTabProps> = ({
               <MetaDataGrid
                 entries={{
                   ["Start"]: formatDateTime(
-                    new Date(evalStats?.started_at || 0),
+                    new Date(evalStats?.started_at || 0)
                   ),
                   ["End"]: formatDateTime(
-                    new Date(evalStats?.completed_at || 0),
+                    new Date(evalStats?.completed_at || 0)
                   ),
                   ["Duration"]: totalDuration,
                 }}

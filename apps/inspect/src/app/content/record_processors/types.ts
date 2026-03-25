@@ -1,3 +1,3 @@
 export type RecordProcessor = (
-  record: Record<string, unknown>,
+  record: Record<string, unknown>
 ) => Record<string, unknown>;

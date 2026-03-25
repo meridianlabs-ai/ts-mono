@@ -14,8 +14,8 @@ import {
   EvalStats,
   InfoEvent,
   Input,
-  LogUpdate,
   LoggerEvent,
+  LogUpdate,
   Model,
   ModelEvent,
   RunId,
@@ -37,9 +37,10 @@ import {
   ToolEvent,
   Version,
 } from "../../@types/log";
+
 export type ProgressCallback = (
   bytesLoaded: number,
-  bytesTotal: number,
+  bytesTotal: number
 ) => void;
 
 export interface LogDetails {
@@ -165,40 +166,40 @@ export interface LogViewAPI {
   get_log_dir_handle?: (log_dir: string | undefined) => string;
   get_logs?: (
     mtime: number,
-    clientFileCount: number,
+    clientFileCount: number
   ) => Promise<LogFilesResponse>;
   get_log_root: () => Promise<LogRoot | undefined>;
   get_log_contents: (
     log_file: string,
     // This is the number of MB of the log to fetch. If the log is larger than this, only the header will be returned. If not provided, it always fetches the entire log. Really only user for old JSON logs.
     headerOnly?: number,
-    capabilities?: Capabilities,
+    capabilities?: Capabilities
   ) => Promise<LogContents>;
   get_log_info: (log_file: string) => Promise<LogInfo>;
   get_log_bytes: (
     log_file: string,
     start: number,
-    end: number,
+    end: number
   ) => Promise<Uint8Array>;
   get_log_summary?: (log_file: string) => Promise<LogPreview>;
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
   log_message: (log_file: string, message: string) => Promise<void>;
   download_file: (
     filename: string,
-    filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>,
+    filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
   open_log_file: (logFile: string, log_dir: string) => Promise<void>;
   eval_pending_samples?: (
     log_file: string,
-    etag?: string,
+    etag?: string
   ) => Promise<PendingSampleResponse>;
   eval_log_sample_data?: (
     log_file: string,
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number,
+    last_attachment?: number
   ) => Promise<SampleDataResponse | undefined>;
 }
 
@@ -211,7 +212,7 @@ export interface ClientAPI {
   // List of files
   get_logs: (
     mtime: number,
-    clientFileCount: number,
+    clientFileCount: number
   ) => Promise<LogFilesResponse>;
 
   // Log files retrieval
@@ -232,18 +233,18 @@ export interface ClientAPI {
     log_file: string,
     id: string | number,
     epoch: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ) => Promise<EvalSample | undefined>;
   get_log_pending_samples?: (
     log_file: string,
-    etag?: string,
+    etag?: string
   ) => Promise<PendingSampleResponse>;
   get_log_sample_data?: (
     log_file: string,
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number,
+    last_attachment?: number
   ) => Promise<SampleDataResponse | undefined>;
 
   // Events
@@ -255,7 +256,7 @@ export interface ClientAPI {
   // File operations (for the client)
   download_file: (
     file_name: string,
-    file_contents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>,
+    file_contents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
   open_log_file: (log_file: string, log_dir: string) => Promise<void>;

@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
+
 import { SpanBeginEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
+
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";
 import { EventNode, EventType } from "./types";
@@ -83,7 +85,7 @@ const summarize = (children: EventNode[]) => {
  * Returns a descriptor object containing icon and style based on the event type and name.
  */
 const spanDescriptor = (
-  event: SpanBeginEvent,
+  event: SpanBeginEvent
 ): { icon?: string; endSpace?: boolean } => {
   const rootStepDescriptor = {
     endSpace: true,

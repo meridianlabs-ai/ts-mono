@@ -1,6 +1,6 @@
 import clsx from "clsx";
-
 import { FC, Fragment, ReactNode } from "react";
+
 import {
   ContentAudio,
   ContentData,
@@ -14,12 +14,12 @@ import {
   Format2,
 } from "../../../@types/log";
 import { ContentTool } from "../../../app/types";
+import { CodePanel } from "../../../components/CodePanel";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { isJson } from "../../../utils/json";
-
-import { CodePanel } from "../../../components/CodePanel";
 import { jsonParse } from "../../../utils/json-worker";
 import { RenderedText } from "../../content/RenderedText";
+
 import { ContentDataView } from "./content-data/ContentDataView";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
 import { JsonMessageContent } from "./JsonMessageContent";
@@ -51,7 +51,7 @@ interface MessageContentProps {
 }
 
 export const isMessageContent = (
-  content: unknown,
+  content: unknown
 ): content is ContentObject => {
   return (
     typeof content === "object" &&
@@ -83,7 +83,7 @@ export const MessageContent: FC<MessageContentProps> = ({
             citations: null,
           },
           index === contents.length - 1,
-          context,
+          context
         );
       } else {
         if (content) {
@@ -93,7 +93,7 @@ export const MessageContent: FC<MessageContentProps> = ({
               `text-${content.type}-${index}`,
               content,
               index === contents.length - 1,
-              context,
+              context
             );
           } else {
             console.error(`Unknown message content type '${content.type}'`);
@@ -114,7 +114,7 @@ export const MessageContent: FC<MessageContentProps> = ({
       "text-message-content",
       contentText,
       true,
-      context,
+      context
     );
   }
 };
@@ -124,7 +124,7 @@ interface MessageRenderer {
     key: string,
     content: ContentType,
     isLast: boolean,
-    context: MessagesContext,
+    context: MessagesContext
   ) => ReactNode;
 }
 
@@ -159,7 +159,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
               markdown={purgeInternalContainers(c.text) || ""}
               className={clsx(
                 isLast ? "no-last-para-padding" : "",
-                styles.breakable,
+                styles.breakable
               )}
             />
             {c.citations ? (
@@ -203,7 +203,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
             className={clsx(
               "text-style-label",
               "text-style-secondary",
-              isLast ? "no-last-para-padding" : "",
+              isLast ? "no-last-para-padding" : ""
             )}
           >
             {title}
@@ -331,7 +331,7 @@ const normalizeContent = (contents: Contents): Contents => {
             .sort((a, b) => b.cited_text[1] - a.cited_text[1]);
 
           const endCites = c.citations?.filter(
-            (citation) => !isCitationWithRange(citation),
+            (citation) => !isCitationWithRange(citation)
           );
 
           // Process cites with positions
@@ -407,7 +407,7 @@ export type DistributiveOmit<TObj, TKey extends PropertyKey> = TObj extends any
 
 /** Type guard that allows narrowing down to Citations whose `cited_text` is a range */
 const isCitationWithRange = (
-  citation: Citation,
+  citation: Citation
 ): citation is DistributiveOmit<Citation, "cited_text"> & {
   cited_text: [number, number];
 } => Array.isArray(citation.cited_text);

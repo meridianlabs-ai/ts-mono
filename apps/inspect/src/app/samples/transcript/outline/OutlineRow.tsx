@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode, useRef } from "react";
 import { Link } from "react-router-dom";
+
 import { PopOver } from "../../../../components/PopOver";
 import { PulsingDots } from "../../../../components/PulsingDots";
 import {
@@ -14,6 +15,7 @@ import { MetaDataGrid } from "../../../content/MetaDataGrid";
 import { useSampleEventUrl } from "../../../routing/url";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";
+
 import styles from "./OutlineRow.module.css";
 
 export interface OutlineRowProps {
@@ -31,7 +33,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useCollapseSampleEvent(
     collapseScope,
-    node.id,
+    node.id
   );
   const icon = iconForNode(node);
   const toggle = toggleIcon(node, collapsed);
@@ -50,7 +52,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         className={clsx(
           styles.eventRow,
           "text-size-smaller",
-          selected ? styles.selected : "",
+          selected ? styles.selected : ""
         )}
         style={{ paddingLeft: `${node.depth * 0.4}em` }}
         data-unsearchable={true}
@@ -101,7 +103,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
 
 const toggleIcon = (
   node: EventNode,
-  collapsed: boolean,
+  collapsed: boolean
 ): string | undefined => {
   if (node.children.length > 0) {
     return collapsed

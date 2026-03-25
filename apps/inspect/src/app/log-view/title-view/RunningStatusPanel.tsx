@@ -1,8 +1,9 @@
 import clsx from "clsx";
+import { FC } from "react";
+
 import { RunningMetric } from "../../../client/api/types";
 import { ApplicationIcons } from "../../appearance/icons";
 
-import { FC } from "react";
 import styles from "./RunningStatusPanel.module.css";
 
 export interface RunningPanelProps {
@@ -20,7 +21,7 @@ export const RunningStatusPanel: FC<RunningPanelProps> = ({ sampleCount }) => {
             className={clsx(
               styles.statusText,
               "text-style-label",
-              "text-size-smaller",
+              "text-size-smaller"
             )}
           >
             Running ({sampleCount} samples)

@@ -15,7 +15,7 @@ export const useWhyDidYouUpdate = (componentName: string, props: any) => {
           }
           return diff;
         },
-        {} as Record<string, unknown>,
+        {} as Record<string, unknown>
       );
 
       if (Object.keys(changedProps).length > 0) {

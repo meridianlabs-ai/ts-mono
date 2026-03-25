@@ -1,5 +1,4 @@
 import "@testing-library/jest-dom";
-
 // Setup fake IndexedDB for database tests
 import "fake-indexeddb/auto";
 

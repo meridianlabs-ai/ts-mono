@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import {
   EvalDataset,
   EvalPlan,
@@ -18,6 +19,7 @@ import {
   formatDateTime,
   formatDuration,
 } from "../../../utils/format";
+
 import styles from "./SecondaryBar.module.css";
 
 interface SecondaryBarProps {
@@ -84,7 +86,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
         className={clsx(
           styles.staticCol,
           hasConfig ? styles.justifyLeft : styles.justifyCenter,
-          "text-size-small",
+          "text-size-small"
         )}
       >
         <ScorerSummary evalDescriptor={evalDescriptor} />
@@ -110,7 +112,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   if (evalStats) {
     const totalDuration = formatDuration(
       new Date(evalStats?.started_at),
-      new Date(evalStats?.completed_at),
+      new Date(evalStats?.completed_at)
     );
     values.push({
       size: "minmax(12%, auto)",

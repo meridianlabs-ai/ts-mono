@@ -1,6 +1,8 @@
 import { useCallback, useEffect } from "react";
+
 import { LogHandle } from "../client/api/types";
 import { createLogger } from "../utils/logger";
+
 import { clientEventsService } from "./clientEventsService";
 import { useLogs } from "./hooks";
 import { useStore } from "./store";
@@ -34,7 +36,7 @@ export function useClientEvents() {
         await loadLogOverviews(toRefresh);
       }
     },
-    [logPreviews, syncLogs, loadLogOverviews],
+    [logPreviews, syncLogs, loadLogOverviews]
   );
 
   // Update the service's refresh callback when dependencies change
@@ -47,7 +49,7 @@ export function useClientEvents() {
     (logs: LogHandle[]) => {
       clientEventsService.startPolling(logs, api);
     },
-    [api],
+    [api]
   );
 
   const stopPolling = useCallback(() => {

@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import { useStore } from "../../state/store";
+
 import { logsUrl, logsUrlRaw } from "./url";
 
 export const useLogNavigation = () => {
@@ -22,7 +24,7 @@ export const useLogNavigation = () => {
         navigate(url);
       }
     },
-    [loadedLog, logPath, logDir, navigate],
+    [loadedLog, logPath, logDir, navigate]
   );
 
   return {

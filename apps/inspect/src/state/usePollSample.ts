@@ -1,6 +1,8 @@
 import { useEffect } from "react";
+
 import { SampleSummary } from "../client/api/types";
 import { createLogger } from "../utils/logger";
+
 import { useLogSelection } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
 import { useStore } from "./store";

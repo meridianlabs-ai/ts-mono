@@ -4,12 +4,12 @@ declare var Prism: {
   highlightElement(
     element: HTMLElement,
     async?: boolean,
-    callback?: (element: HTMLElement) => void,
+    callback?: (element: HTMLElement) => void
   );
 
   highlightAllUnder(
     element: HTMLElement,
     async?: boolean,
-    callback?: (element: HTMLElement) => void,
+    callback?: (element: HTMLElement) => void
   );
 };

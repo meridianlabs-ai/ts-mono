@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, Ref } from "react";
+
 import { ApplicationIcons } from "../../../../appearance/icons";
 
 import styles from "./TodoWriteInput.module.css";
@@ -17,7 +18,7 @@ const toToolTodos = (obj: unknown): ToolTodo[] => {
       (item) =>
         item !== null &&
         ("content" in item || "step" in item) &&
-        "status" in item,
+        "status" in item
     )
   ) {
     return obj.map((o) => {
@@ -46,14 +47,14 @@ export const TodoWriteInput: FC<{
                 todo.status === "completed"
                   ? ApplicationIcons.checkbox.checked
                   : ApplicationIcons.checkbox.unchecked,
-                "text-size-smallest",
+                "text-size-smallest"
               )}
             />
             <span
               className={clsx(
                 styles.todoItem,
                 "text-size-smallest",
-                todo.status === "in_progress" ? styles.inProgress : undefined,
+                todo.status === "in_progress" ? styles.inProgress : undefined
               )}
             >
               {todo.content}

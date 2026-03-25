@@ -7,6 +7,7 @@ import {
   SampleNotFoundError,
 } from "../remote/remoteLogFile";
 import { FileSizeLimitError } from "../remote/remoteZipFile";
+
 import {
   ClientAPI,
   LogContents,
@@ -35,7 +36,7 @@ export class SampleSizeLimitedExceededError extends Error {
 
   constructor(id: string | number, epoch: number, maxBytes: number) {
     super(
-      `Sample ${id} in epoch ${epoch} exceeds the maximum supported size (${maxBytes / 1024 / 1024}MB) and cannot be loaded.`,
+      `Sample ${id} in epoch ${epoch} exceeds the maximum supported size (${maxBytes / 1024 / 1024}MB) and cannot be loaded.`
     );
 
     this.name = "SampleSizeLimitedExceededError";
@@ -62,7 +63,7 @@ interface LoadedLogFile {
 export const clientApi = (
   api: LogViewAPI,
   log_file?: string,
-  debug = false,
+  debug = false
 ): ClientAPI => {
   let current_log: LogContents | undefined = undefined;
   let current_path: string | undefined = undefined;
@@ -80,7 +81,7 @@ export const clientApi = (
     const remoteLog = await openRemoteLogFile(
       api,
       encodePathParts(log_file),
-      5,
+      5
     );
 
     if (cached) {
@@ -96,7 +97,7 @@ export const clientApi = (
    */
   const get_log = async (
     log_file: string,
-    cached = false,
+    cached = false
   ): Promise<LogContents> => {
     // If the requested log is different or no cached log exists, start fetching
     if (!cached || log_file !== current_path || !current_log) {
@@ -179,7 +180,7 @@ export const clientApi = (
     log_file: string,
     id: string | number,
     epoch: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<EvalSample | undefined> => {
     if (isEvalFile(log_file)) {
       async function fetchSample(useCache: boolean) {
@@ -232,7 +233,7 @@ export const clientApi = (
       const remoteLogFile = await openRemoteLogFile(
         api,
         encodePathParts(log_file),
-        5,
+        5
       );
       return remoteLogFile.readEvalBasicInfo();
     }
@@ -242,7 +243,7 @@ export const clientApi = (
    * Gets log headers
    */
   const get_log_summaries = async (
-    log_files: string[],
+    log_files: string[]
   ): Promise<LogPreview[]> => {
     const eval_files: Record<string, number> = {};
     const json_files: Record<string, number> = {};
@@ -263,7 +264,7 @@ export const clientApi = (
       read_eval_file_log_summary(file).then((summary) => ({
         index: eval_files[file], // Store original index
         summary,
-      })),
+      }))
     );
 
     // Get the promise for json log headers
@@ -273,7 +274,7 @@ export const clientApi = (
         summaries.map((summary, i) => ({
           index: json_files[Object.keys(json_files)[i]], // Store original index
           summary,
-        })),
+        }))
       );
 
     // Wait for all promises to resolve
@@ -300,7 +301,7 @@ export const clientApi = (
 
   const get_logs = async (
     mtime: number,
-    clientFileCount: number,
+    clientFileCount: number
   ): Promise<LogFilesResponse> => {
     if (api.get_logs) {
       const result = await api.get_logs(mtime, clientFileCount);
@@ -338,7 +339,7 @@ export const clientApi = (
 
   const get_log_pending_samples = (
     log_file: string,
-    etag?: string,
+    etag?: string
   ): Promise<PendingSampleResponse> => {
     if (!api.eval_pending_samples) {
       throw new Error("API doesn't support streamed samples");
@@ -351,7 +352,7 @@ export const clientApi = (
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number,
+    last_attachment?: number
   ): Promise<SampleDataResponse | undefined> => {
     if (!api.eval_log_sample_data) {
       throw new Error("API doesn't supported streamed sample data");
@@ -361,7 +362,7 @@ export const clientApi = (
       id,
       epoch,
       last_event,
-      last_attachment,
+      last_attachment
     );
   };
 
@@ -380,7 +381,7 @@ export const clientApi = (
         return api.get_log_dir_handle
           ? api.get_log_dir_handle(log_dir)
           : log_dir || "default_log_dir";
-      },
+      }
     ),
     get_logs: middleware("get_log_files", get_logs),
     get_log_root: middleware("get_log_root", get_log_root),
@@ -404,10 +405,10 @@ export const clientApi = (
           | string
           | Blob
           | ArrayBuffer
-          | ArrayBufferView<ArrayBuffer>,
+          | ArrayBufferView<ArrayBuffer>
       ) => {
         return api.download_file(download_file, file_contents);
-      },
+      }
     ),
     download_log: api.download_log
       ? middleware("download_log", (log_file: string) => {
@@ -418,7 +419,7 @@ export const clientApi = (
       "log_message",
       (log_file: string, message: string) => {
         return api.log_message(log_file, message);
-      },
+      }
     ),
     get_log_pending_samples: api.eval_pending_samples
       ? middleware("get_log_pending_samples", get_log_pending_samples)
@@ -433,7 +434,7 @@ type Middleware<T extends (...args: any[]) => any> = (
   name: string,
   fn: T,
   args: Parameters<T>,
-  result: ReturnType<T>,
+  result: ReturnType<T>
 ) => ReturnType<T>;
 
 const debugMiddleware: Middleware<any> = (name, _fn, args, result) => {
@@ -457,7 +458,7 @@ const debugMiddleware: Middleware<any> = (name, _fn, args, result) => {
 const applyMiddleware = <T extends (...args: any[]) => any>(
   name: string,
   fn: T,
-  middlewares: Middleware<T>[],
+  middlewares: Middleware<T>[]
 ): T => {
   if (middlewares.length === 0) return fn;
 

@@ -1,5 +1,6 @@
 import { fetchRange } from "../../utils/http";
 import { ProgressCallback } from "../api/types";
+
 import { decompressData } from "./decompression";
 
 export type { ProgressCallback };
@@ -34,7 +35,7 @@ export class FileSizeLimitError extends Error {
 
   constructor(file: string, maxBytes: number) {
     super(
-      `File "${file}" exceeds the maximum size (${maxBytes} bytes) and cannot be loaded.`,
+      `File "${file}" exceeds the maximum size (${maxBytes} bytes) and cannot be loaded.`
     );
     this.name = "FileSizeLimitError";
     this.file = file;
@@ -53,7 +54,7 @@ const fetchBytesParallel = async (
   url: string,
   start: number,
   end: number,
-  onProgress?: ProgressCallback,
+  onProgress?: ProgressCallback
 ): Promise<Uint8Array> => {
   const totalSize = end - start + 1;
 
@@ -116,14 +117,14 @@ export const openRemoteZipFile = async (
   fetchBytes: (
     url: string,
     start: number,
-    end: number,
-  ) => Promise<Uint8Array> = fetchRange,
+    end: number
+  ) => Promise<Uint8Array> = fetchRange
 ): Promise<{
   centralDirectory: Map<string, CentralDirectoryEntry>;
   readFile: (
     file: string,
     maxBytes?: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ) => Promise<Uint8Array>;
 }> => {
   contentLength = contentLength ?? (await fetchSize(url));
@@ -132,7 +133,7 @@ export const openRemoteZipFile = async (
   const eocdrBuffer = await fetchBytes(
     url,
     contentLength - 22,
-    contentLength - 1,
+    contentLength - 1
   );
   const eocdrView = new DataView(eocdrBuffer.buffer);
 
@@ -142,7 +143,7 @@ export const openRemoteZipFile = async (
       // The range request seems like it was ignored because more bytes than
       // were requested were returned.
       throw new Error(
-        "Unexpected central directory size - does the HTTP server serving this file support HTTP range requests?",
+        "Unexpected central directory size - does the HTTP server serving this file support HTTP range requests?"
       );
     } else {
       throw new Error("End of central directory record not found");
@@ -163,7 +164,7 @@ export const openRemoteZipFile = async (
     const locatorBuffer = await fetchBytes(
       url,
       contentLength - 22 - 20,
-      contentLength - 23,
+      contentLength - 23
     );
     const locatorView = new DataView(locatorBuffer.buffer);
 
@@ -179,7 +180,7 @@ export const openRemoteZipFile = async (
     const zip64EOCDBuffer = await fetchBytes(
       url,
       zip64EOCDOffset,
-      zip64EOCDOffset + 56,
+      zip64EOCDOffset + 56
     );
     const zip64EOCDView = new DataView(zip64EOCDBuffer.buffer);
 
@@ -198,7 +199,7 @@ export const openRemoteZipFile = async (
     fetchBytes,
     url,
     centralDirOffset,
-    centralDirOffset + centralDirSize - 1,
+    centralDirOffset + centralDirSize - 1
   );
   const centralDirectory = parseCentralDirectory(centralDirBuffer);
 
@@ -234,7 +235,7 @@ export const openRemoteZipFile = async (
         url,
         entry.fileOffset,
         entry.fileOffset + estimatedSize - 1,
-        onProgress,
+        onProgress
       );
 
       // Parse actual extraFieldLength from the fetched header
@@ -260,7 +261,7 @@ export const openRemoteZipFile = async (
           fetchBytes,
           url,
           entry.fileOffset,
-          entry.fileOffset + actualTotal - 1,
+          entry.fileOffset + actualTotal - 1
         );
       }
 
@@ -270,7 +271,7 @@ export const openRemoteZipFile = async (
         zipFileEntry.data,
         zipFileEntry.compressionMethod,
         zipFileEntry.uncompressedSize,
-        file,
+        file
       );
     },
   };
@@ -318,7 +319,7 @@ export { fetchRange };
  */
 const parseZipFileEntry = async (
   file: string,
-  rawData: Uint8Array,
+  rawData: Uint8Array
 ): Promise<ZipFileEntry> => {
   // Parse ZIP entry header
   const view = new DataView(rawData.buffer);
@@ -436,8 +437,8 @@ const parseCentralDirectory = (buffer: Uint8Array) => {
     const filename = new TextDecoder().decode(
       buffer.subarray(
         offset + kFileHeaderSize,
-        offset + kFileHeaderSize + filenameLength,
-      ),
+        offset + kFileHeaderSize + filenameLength
+      )
     );
 
     // Check if we need to use ZIP64 extra fields

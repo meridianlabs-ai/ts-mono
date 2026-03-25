@@ -1,9 +1,10 @@
+import clsx from "clsx";
 import { FC, useState } from "react";
+
 import { DB_VERSION } from "../../client/database/schema";
 import { PopOver } from "../../components/PopOver";
 import { useStore } from "../../state/store";
 
-import clsx from "clsx";
 import styles from "./ViewerOptionsPopover.module.css";
 
 // Version info injected at build time
@@ -67,7 +68,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
           className={clsx(
             "text-style-label",
             "text-style-secondary",
-            styles.fullWidth,
+            styles.fullWidth
           )}
         >
           Log Directory
@@ -119,7 +120,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
               "btn",
               "btn-tools",
               "text-size-smallest",
-              styles.clearButton,
+              styles.clearButton
             )}
           >
             {isClearing ? "Clearing..." : "Clear Local Database"}
@@ -133,7 +134,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
               styles.message,
               clearMessage.includes("success")
                 ? styles.messageSuccess
-                : styles.messageError,
+                : styles.messageError
             )}
           >
             {clearMessage}

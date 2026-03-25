@@ -8,8 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { useCollapsedState } from "../state/hooks";
 import { useResizeObserver } from "../utils/dom";
+
 import styles from "./ExpandablePanel.module.css";
 
 interface ExpandablePanelProps {
@@ -52,7 +54,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
 
         setShowToggle(contentHeight > maxCollapsedHeight);
       },
-      [lines],
+      [lines]
     );
     const contentRef = useResizeObserver(checkOverflow);
 
@@ -74,7 +76,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             collapsed ? styles.expandableCollapsed : undefined,
             border ? styles.expandableBordered : undefined,
             showToggle ? styles.padBottom : undefined,
-            className,
+            className
           )}
         >
           {children}
@@ -105,7 +107,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 interface MoreToggleProps {
@@ -133,7 +135,7 @@ const MoreToggle: FC<MoreToggleProps> = ({
       className={clsx(
         styles.moreToggle,
         border ? styles.bordered : undefined,
-        position === "inline-right" ? styles.inlineRight : styles.blockLeft,
+        position === "inline-right" ? styles.inlineRight : styles.blockLeft
       )}
       style={style}
     >

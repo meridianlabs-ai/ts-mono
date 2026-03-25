@@ -1,6 +1,7 @@
 import { EvalSample } from "../@types/log";
-import { Progress, Event, SampleState, SampleStatus } from "../app/types";
+import { Event, Progress, SampleState, SampleStatus } from "../app/types";
 import { kSampleMessagesTabId } from "../constants";
+
 import {
   cleanupSamplePolling,
   getSamplePolling,
@@ -31,7 +32,7 @@ export interface SampleSlice {
     prepareForSampleLoad: (
       logFile: string,
       id: number | string,
-      epoch: number,
+      epoch: number
     ) => void;
 
     setSampleStatus: (status: SampleStatus) => void;
@@ -40,7 +41,7 @@ export interface SampleSlice {
 
     setCollapsedEvents: (
       scope: string,
-      collapsed: Record<string, boolean>,
+      collapsed: Record<string, boolean>
     ) => void;
     collapseEvent: (scope: string, id: string, collapsed: boolean) => void;
     clearCollapsedEvents: () => void;
@@ -62,14 +63,14 @@ export interface SampleSlice {
     clearSampleForPolling: (
       logFile: string,
       id: number | string,
-      epoch: number,
+      epoch: number
     ) => void;
 
     // Used by useSampleLoader to set identifier before loading
     setSampleIdentifier: (
       logFile: string,
       id: number | string,
-      epoch: number,
+      epoch: number
     ) => void;
 
     // Used by samplePolling to update running events
@@ -109,7 +110,7 @@ const initialState: SampleState = {
 export const createSampleSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: any
 ): [SampleSlice, () => void] => {
   const slice = {
     // Actions
@@ -174,7 +175,7 @@ export const createSampleSlice = (
       prepareForSampleLoad: (
         logFile: string,
         id: number | string,
-        epoch: number,
+        epoch: number
       ) => {
         getSamplePolling().stopPolling();
         selectedSampleRef.current = undefined;
@@ -201,7 +202,7 @@ export const createSampleSlice = (
         }),
       setCollapsedEvents: (
         scope: string,
-        collapsed: Record<string, boolean>,
+        collapsed: Record<string, boolean>
       ) => {
         set((state) => {
           if (state.sample.collapsedEvents === null) {
@@ -289,7 +290,7 @@ export const createSampleSlice = (
       clearSampleForPolling: (
         logFile: string,
         id: number | string,
-        epoch: number,
+        epoch: number
       ) => {
         // Clear the previous sample so component uses runningEvents instead
         // of old sample.events
@@ -309,7 +310,7 @@ export const createSampleSlice = (
       setSampleIdentifier: (
         logFile: string,
         id: number | string,
-        epoch: number,
+        epoch: number
       ) => {
         set((state) => {
           state.sample.sample_identifier = { id, epoch, logFile };
@@ -339,7 +340,7 @@ export const handleRehydrate = (state: StoreState) => {
 };
 
 export const initializeSampleSlice = (
-  set: (fn: (state: StoreState) => void) => void,
+  set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
     if (!state.sample) {

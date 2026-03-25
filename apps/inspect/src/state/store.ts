@@ -2,10 +2,12 @@ import { enableMapSet } from "immer";
 import { create, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+
 import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
 import { createDatabaseService, DatabaseService } from "../client/database";
 import { createLogger } from "../utils/logger";
 import { debounce } from "../utils/sync";
+
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
@@ -50,7 +52,7 @@ export type PersistedState = {
 export const useStore = ((selector?: any) => {
   if (!storeImplementation) {
     throw new Error(
-      "Store accessed before initialization. Call initializeStore first.",
+      "Store accessed before initialization. Call initializeStore first."
     );
   }
   return selector ? storeImplementation(selector) : storeImplementation();
@@ -60,7 +62,7 @@ export const useStore = ((selector?: any) => {
 export const initializeStore = (
   api: ClientAPI,
   capabilities: Capabilities,
-  storage?: ClientStorage,
+  storage?: ClientStorage
 ) => {
   enableMapSet();
 
@@ -94,22 +96,22 @@ export const initializeStore = (
           const [appSlice, appCleanup] = createAppSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store,
+            store
           );
           const [logsSlice, logsCleanup] = createLogsSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store,
+            store
           );
           const [logSlice, logCleanup] = createLogSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store,
+            store
           );
           const [sampleSlice, sampleCleanup] = createSampleSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store,
+            store
           );
 
           // Create a shared database service instance
@@ -135,16 +137,16 @@ export const initializeStore = (
               // Initialize application slices
               initializeAppSlice(
                 set as (fn: (state: StoreState) => void) => void,
-                capabilities,
+                capabilities
               );
               initializeLogsSlice(
-                set as (fn: (state: StoreState) => void) => void,
+                set as (fn: (state: StoreState) => void) => void
               );
               initalializeLogSlice(
-                set as (fn: (state: StoreState) => void) => void,
+                set as (fn: (state: StoreState) => void) => void
               );
               initializeSampleSlice(
-                set as (fn: (state: StoreState) => void) => void,
+                set as (fn: (state: StoreState) => void) => void
               );
             },
 
@@ -187,9 +189,9 @@ export const initializeStore = (
               }
             };
           },
-        },
-      ),
-    ),
+        }
+      )
+    )
   );
 
   // Set the implementation and initialize it

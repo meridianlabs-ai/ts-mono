@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
+
 import { ToolButton } from "../../components/ToolButton";
 
 import styles from "./NavbarButton.module.css";
@@ -26,7 +27,7 @@ export const NavbarButton = forwardRef<HTMLButtonElement, NavbarButtonProps>(
         {...rest}
       />
     );
-  },
+  }
 );
 
 NavbarButton.displayName = "NavbarButton";

@@ -1,4 +1,6 @@
 import { FC, memo, RefObject } from "react";
+import { VirtuosoHandle } from "react-virtuoso";
+
 import {
   ApprovalEvent,
   CompactionEvent,
@@ -19,7 +21,9 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "../../../@types/log";
+
 import { ApprovalEventView } from "./ApprovalEventView";
+import { CompactionEventView } from "./CompactionEventView";
 import { ErrorEventView } from "./ErrorEventView";
 import { InfoEventView } from "./InfoEventView";
 import { InputEventView } from "./InputEventView";
@@ -28,18 +32,15 @@ import { ModelEventView } from "./ModelEventView";
 import { SampleInitEventView } from "./SampleInitEventView";
 import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";
+import { ScoreEditEventView } from "./ScoreEditEventView";
 import { ScoreEventView } from "./ScoreEventView";
+import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { StepEventView } from "./StepEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
 import { ToolEventView } from "./ToolEventView";
-import { EventNode } from "./types";
-
-import { VirtuosoHandle } from "react-virtuoso";
-import { ScoreEditEventView } from "./ScoreEditEventView";
-import { SpanEventView } from "./SpanEventView";
 import { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
-import { CompactionEventView } from "./CompactionEventView";
+import { EventNode } from "./types";
 
 interface TranscriptVirtualListProps {
   id: string;
@@ -83,7 +84,7 @@ export const TranscriptVirtualList: FC<TranscriptVirtualListProps> = memo(
         turnMap={turnMap}
       />
     );
-  },
+  }
 );
 
 export interface EventNodeContext {
@@ -257,5 +258,5 @@ export const RenderedEventNode: FC<RenderedEventNodeProps> = memo(
       default:
         return null;
     }
-  },
+  }
 );

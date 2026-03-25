@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
+
 import styles from "./ToolButton.module.css";
 
 interface ToolButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -23,7 +24,7 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(
           styles.toolButton,
           classes,
           className,
-          latched ? styles.latched : undefined,
+          latched ? styles.latched : undefined
         )}
         {...rest}
       >
@@ -31,7 +32,7 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(
         {label}
       </button>
     );
-  },
+  }
 );
 
 // Add display name for debugging purposes

@@ -1,4 +1,4 @@
-import { truncateMarkdown, simpleMarkdownTruncate } from "../../utils/markdown";
+import { simpleMarkdownTruncate, truncateMarkdown } from "../../utils/markdown";
 
 describe("truncateMarkdown", () => {
   describe("basic truncation", () => {

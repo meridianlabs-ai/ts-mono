@@ -23,7 +23,7 @@ export interface MessagesToStrOptions {
 
 export const messagesToStr = (
   messages: Messages,
-  options?: MessagesToStrOptions,
+  options?: MessagesToStrOptions
 ): string => {
   const opts = options || {};
   return messages
@@ -38,7 +38,7 @@ const messageToStr = (
     | ChatMessageUser
     | ChatMessageAssistant
     | ChatMessageTool,
-  options: MessagesToStrOptions,
+  options: MessagesToStrOptions
 ): string | null => {
   // Exclude system messages if requested
   if (options.excludeSystem && message.role === "system") {
@@ -48,7 +48,7 @@ const messageToStr = (
   const content = betterContentText(
     message.content,
     options.excludeToolUsage || false,
-    options.excludeReasoning || false,
+    options.excludeReasoning || false
   );
 
   // Handle assistant messages with tool calls
@@ -107,7 +107,7 @@ const textFromContent = (
     | ContentToolUse
     | ContentDocument,
   excludeToolUsage: boolean,
-  excludeReasoning: boolean,
+  excludeReasoning: boolean
 ): string | null => {
   switch (content.type) {
     case "text":
@@ -152,7 +152,7 @@ const textFromContent = (
 const betterContentText = (
   content: Content,
   excludeToolUsage: boolean,
-  excludeReasoning: boolean,
+  excludeReasoning: boolean
 ): string => {
   if (typeof content === "string") {
     return content;

@@ -1,9 +1,10 @@
+import clsx from "clsx";
 import { FC } from "react";
 
-import clsx from "clsx";
-import { ModelConfig, EvalSpec } from "../../@types/log";
+import { EvalSpec, ModelConfig } from "../../@types/log";
 import { Card, CardBody, CardHeader } from "../../components/Card";
 import { MetaDataGrid } from "../content/MetaDataGrid";
+
 import styles from "./ModelCard.module.css";
 
 interface ModelCardProps {
@@ -46,7 +47,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
                   className={clsx(
                     styles.role,
                     "text-style-label",
-                    "text-style-secondary",
+                    "text-style-secondary"
                   )}
                 >
                   {modelKey}

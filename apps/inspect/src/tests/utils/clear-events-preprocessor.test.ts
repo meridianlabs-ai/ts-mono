@@ -1,4 +1,4 @@
-import { TextEncoder, TextDecoder } from "util";
+import { TextDecoder, TextEncoder } from "util";
 
 import { clearLargeEventsArray } from "../../utils/clear-events-preprocessor";
 

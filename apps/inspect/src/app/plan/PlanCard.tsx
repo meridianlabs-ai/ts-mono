@@ -1,7 +1,9 @@
 import { FC, RefObject } from "react";
+
 import { EvalPlan, EvalScore, EvalSpec } from "../../@types/log";
 import { Card, CardBody, CardHeader } from "../../components/Card";
 import { RecordTree } from "../content/RecordTree";
+
 import { PlanDetailView } from "./PlanDetailView";
 
 interface PlanCardProps {

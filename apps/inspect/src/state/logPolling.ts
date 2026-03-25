@@ -1,5 +1,6 @@
 import { createLogger } from "../utils/logger";
 import { createPolling } from "../utils/polling";
+
 import { StoreState } from "./store";
 
 // The logger
@@ -10,7 +11,7 @@ const kPollingInterval = 2;
 
 export function createLogPolling(
   get: () => StoreState,
-  set: (fn: (state: StoreState) => void) => void,
+  set: (fn: (state: StoreState) => void) => void
 ) {
   // Tracks the currently polling instance
   let currentPolling: ReturnType<typeof createPolling> | null = null;
@@ -42,7 +43,7 @@ export function createLogPolling(
         state.log.selectedLogDetails = logDetails;
         log.debug(
           `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
-          logDetails,
+          logDetails
         );
 
         // Clear pending summaries if requested
@@ -50,7 +51,7 @@ export function createLogPolling(
           const pendingSampleSummaries = state.log.pendingSampleSummaries;
           if ((pendingSampleSummaries?.samples.length || 0) > 0) {
             log.debug(
-              `Clearing pending summaries during refresh for: ${logFileName}`,
+              `Clearing pending summaries during refresh for: ${logFileName}`
             );
             state.log.pendingSampleSummaries = {
               samples: [],
@@ -107,7 +108,7 @@ export function createLogPolling(
         const currentEtag = get().log.pendingSampleSummaries?.etag;
         const pendingSamples = await api.get_log_pending_samples(
           logFileName,
-          currentEtag,
+          currentEtag
         );
         log.debug(`Received pending samples`, pendingSamples);
 
@@ -136,7 +137,7 @@ export function createLogPolling(
           const currentStatus = get().log.selectedLogDetails?.status;
           if (currentStatus === "started") {
             log.debug(
-              `NotFound but eval still running, continuing to poll: ${logFileName}`,
+              `NotFound but eval still running, continuing to poll: ${logFileName}`
             );
             // Refresh log details to pick up any status changes
             await refreshLog(logFileName, false);
@@ -161,7 +162,7 @@ export function createLogPolling(
       {
         maxRetries: kRetries,
         interval: get().log.pendingSampleSummaries?.refresh || kPollingInterval,
-      },
+      }
     );
 
     // Start the polling

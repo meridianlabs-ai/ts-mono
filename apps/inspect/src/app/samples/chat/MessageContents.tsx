@@ -1,17 +1,18 @@
+import clsx from "clsx";
+import { FC, Fragment } from "react";
+
 import {
   ChatMessageAssistant,
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
 } from "../../../@types/log";
+import { ContentTool } from "../../../app/types";
+
 import { MessageContent } from "./MessageContent";
+import styles from "./MessageContents.module.css";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallView } from "./tools/ToolCallView";
-
-import clsx from "clsx";
-import { FC, Fragment } from "react";
-import { ContentTool } from "../../../app/types";
-import styles from "./MessageContents.module.css";
 import { ChatViewToolCallStyle, Citation } from "./types";
 
 interface MessageContentsProps {
@@ -32,7 +33,7 @@ export interface MessagesContext {
 }
 
 export const defaultContext = (
-  role: "system" | "user" | "assistant" | "tool" | "unknown",
+  role: "system" | "user" | "assistant" | "tool" | "unknown"
 ) => {
   return {
     citeOffset: 0,
@@ -95,7 +96,7 @@ export const MessageContents: FC<MessageContentsProps> = ({
               tool_call.view
                 ? substituteToolCallContent(
                     tool_call.view,
-                    tool_call.arguments as Record<string, unknown>,
+                    tool_call.arguments as Record<string, unknown>
                   )
                 : undefined
             }

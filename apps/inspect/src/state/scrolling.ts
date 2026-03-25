@@ -1,7 +1,9 @@
 import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { StateCallback, StateSnapshot, VirtuosoHandle } from "react-virtuoso";
+
 import { createLogger } from "../utils/logger";
 import { debounce } from "../utils/sync";
+
 import { useStore } from "./store";
 
 const log = createLogger("scrolling");
@@ -12,13 +14,13 @@ export function useStatefulScrollPosition<
   elementRef: RefObject<T | null>,
   elementKey: string,
   delay = 1000,
-  scrollable = true,
+  scrollable = true
 ) {
   const getScrollPosition = useStore(
-    (state) => state.appActions.getScrollPosition,
+    (state) => state.appActions.getScrollPosition
   );
   const setScrollPosition = useStore(
-    (state) => state.appActions.setScrollPosition,
+    (state) => state.appActions.setScrollPosition
   );
 
   // Create debounced scroll handler
@@ -30,7 +32,7 @@ export function useStatefulScrollPosition<
         log.debug(`Storing scroll position`, elementKey, position);
         setScrollPosition(elementKey, position);
       }, delay),
-    [elementKey, setScrollPosition, delay],
+    [elementKey, setScrollPosition, delay]
   );
 
   // Function to manually restore scroll position
@@ -88,7 +90,7 @@ export function useStatefulScrollPosition<
             // Either success or max attempts reached
             if (attempts >= maxAttempts) {
               log.debug(
-                `Failed to restore scroll after ${maxAttempts} attempts`,
+                `Failed to restore scroll after ${maxAttempts} attempts`
               );
             }
             return;
@@ -133,19 +135,19 @@ type DebouncedFunction<T extends (...args: any[]) => any> = T & {
 export const useVirtuosoState = (
   virtuosoRef: RefObject<VirtuosoHandle | null>,
   elementKey: string,
-  delay = 1000,
+  delay = 1000
 ) => {
   // Use useCallback to stabilize the selectors
   const restoreState = useStore(
-    useCallback((state) => state.app.listPositions[elementKey], [elementKey]),
+    useCallback((state) => state.app.listPositions[elementKey], [elementKey])
   );
 
   const setListPosition = useStore(
-    useCallback((state) => state.appActions.setListPosition, []),
+    useCallback((state) => state.appActions.setListPosition, [])
   );
 
   const clearListPosition = useStore(
-    useCallback((state) => state.appActions.clearListPosition, []),
+    useCallback((state) => state.appActions.clearListPosition, [])
   );
 
   // Properly type the debounced function ref
@@ -159,7 +161,7 @@ export const useVirtuosoState = (
       log.debug(`Storing list state: [${elementKey}]`, state);
       setListPosition(elementKey, state);
     },
-    [elementKey, setListPosition],
+    [elementKey, setListPosition]
   );
 
   // Setup the debounced function once
@@ -200,14 +202,14 @@ export const useVirtuosoState = (
   const getRestoreState = useCallback(() => stateRef.current, []);
 
   const setVisibleRangeRaw = useStore(
-    (state) => state.appActions.setVisibleRange,
+    (state) => state.appActions.setVisibleRange
   );
 
   const setVisibleRange = useCallback(
     (value: { startIndex: number; endIndex: number }) => {
       setVisibleRangeRaw(elementKey, value);
     },
-    [setVisibleRangeRaw, elementKey],
+    [setVisibleRangeRaw, elementKey]
   );
 
   const visibleRanges = useStore((state) => state.app.visibleRanges);
@@ -225,7 +227,7 @@ export const useVirtuosoState = (
 
 export function useRafThrottle<T extends (...args: any[]) => any>(
   callback: T,
-  dependencies: any[] = [],
+  dependencies: any[] = []
 ): (...args: Parameters<T>) => void {
   const rafRef = useRef<number | null>(null);
   const callbackRef = useRef<T>(callback);
@@ -265,7 +267,7 @@ export function useScrollTrack(
   elementIds: string[],
   onElementVisible: (id: string) => void,
   scrollRef?: RefObject<HTMLElement | null>,
-  options?: { topOffset?: number; checkInterval?: number },
+  options?: { topOffset?: number; checkInterval?: number }
 ) {
   const currentVisibleRef = useRef<string | null>(null);
   const lastCheckRef = useRef<number>(0);

@@ -14,7 +14,7 @@ describe("eventSearchText", () => {
         target: null,
         intermediate: true,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Intermediate Score");
   });
@@ -27,7 +27,7 @@ describe("eventSearchText", () => {
         target: "expected",
         intermediate: false,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Score");
     expect(texts).not.toContain("Intermediate Score");
@@ -39,7 +39,7 @@ describe("eventSearchText", () => {
         event: "score_edit",
         edit: { answer: "new", explanation: "fixed", provenance: null },
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Edit Score");
   });
@@ -61,7 +61,7 @@ describe("eventSearchText", () => {
           type,
           message: "",
           timestamp: "2024-01-01T00:00:00Z",
-        }),
+        })
       );
       expect(texts).toContain(expectedTitle);
     }
@@ -80,7 +80,7 @@ describe("eventSearchText", () => {
           decision,
           explanation: "",
           timestamp: "2024-01-01T00:00:00Z",
-        }),
+        })
       );
       expect(texts).toContain(expected);
     }
@@ -96,7 +96,7 @@ describe("eventSearchText", () => {
         input: null,
         output: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Sandbox: exec");
     expect(texts).toContain("ls -la");
@@ -111,7 +111,7 @@ describe("eventSearchText", () => {
         output: { choices: [] },
         input: [],
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Model Call (assistant): gpt-4");
   });
@@ -125,7 +125,7 @@ describe("eventSearchText", () => {
         output: { choices: [] },
         input: [],
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Model Call: gpt-4");
   });
@@ -137,7 +137,7 @@ describe("eventSearchText", () => {
         name: "generate",
         type: "solver",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("solver: generate");
   });
@@ -149,7 +149,7 @@ describe("eventSearchText", () => {
         name: "my_step",
         type: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Step: my_step");
   });
@@ -163,7 +163,7 @@ describe("eventSearchText", () => {
         input: null,
         result: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(fork).toContain("Fork: parallel");
 
@@ -175,7 +175,7 @@ describe("eventSearchText", () => {
         input: null,
         result: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(sub).toContain("Subtask: check");
   });
@@ -190,7 +190,7 @@ describe("eventSearchText", () => {
         result: null,
         error: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Tool: Web Search");
     expect(texts).toContain("search");
@@ -202,7 +202,7 @@ describe("eventSearchText", () => {
         event: "error",
         error: { message: "something broke", traceback: null },
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Error");
     expect(texts).toContain("something broke");
@@ -218,7 +218,7 @@ describe("eventSearchText", () => {
           filename: "main.py",
         },
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("WARNING");
     expect(texts).toContain("disk space low");
@@ -231,7 +231,7 @@ describe("eventSearchText", () => {
         source: "system",
         data: "startup complete",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Info: system");
     expect(texts).toContain("startup complete");
@@ -244,7 +244,7 @@ describe("eventSearchText", () => {
         source: null,
         data: "startup complete",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Info");
   });
@@ -255,7 +255,7 @@ describe("eventSearchText", () => {
         event: "sample_init",
         sample: { target: "expected answer" },
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Sample");
     expect(texts).toContain("expected answer");
@@ -267,7 +267,7 @@ describe("eventSearchText", () => {
         event: "input",
         input_ansi: "user typed this",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Input");
     expect(texts).toContain("user typed this");
@@ -280,7 +280,7 @@ describe("eventSearchText", () => {
         name: "evaluate",
         type: "solver",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("solver: evaluate");
   });
@@ -292,7 +292,7 @@ describe("eventSearchText", () => {
         name: "init",
         type: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Init");
   });
@@ -304,7 +304,7 @@ describe("eventSearchText", () => {
         name: "my_span",
         type: null,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Step: my_span");
   });
@@ -317,7 +317,7 @@ describe("eventSearchText", () => {
         tokens_before: 1000,
         tokens_after: 500,
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toContain("Compaction");
     expect(texts).toContain("inspect");
@@ -328,7 +328,7 @@ describe("eventSearchText", () => {
       makeNode({
         event: "state",
         timestamp: "2024-01-01T00:00:00Z",
-      }),
+      })
     );
     expect(texts).toEqual([]);
   });

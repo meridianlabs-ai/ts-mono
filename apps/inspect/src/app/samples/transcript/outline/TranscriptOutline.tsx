@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import {
   CSSProperties,
   FC,
@@ -7,16 +8,14 @@ import {
   useMemo,
   useRef,
 } from "react";
-
-import { EventNode, kTranscriptOutlineCollapseScope } from "../types";
-
-import clsx from "clsx";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
+
 import { useScrollTrack, useVirtuosoState } from "../../../../state/scrolling";
 import { useStore } from "../../../../state/store";
-
 import { useSampleDetailNavigation } from "../../../routing/sampleNavigation";
 import { flatTree } from "../transform/flatten";
+import { EventNode, kTranscriptOutlineCollapseScope } from "../types";
+
 import { OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
 import { collapseScoring, collapseTurns, makeTurns } from "./tree-visitors";
@@ -71,12 +70,12 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   // The list of events that have been collapsed
   const collapsedEvents = useStore((state) => state.sample.collapsedEvents);
   const setCollapsedEvents = useStore(
-    (state) => state.sampleActions.setCollapsedEvents,
+    (state) => state.sampleActions.setCollapsedEvents
   );
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
   const setSelectedOutlineId = useStore(
-    (state) => state.sampleActions.setSelectedOutlineId,
+    (state) => state.sampleActions.setSelectedOutlineId
   );
   const sampleDetailNavigation = useSampleDetailNavigation();
 
@@ -139,7 +138,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   const findNearestOutlineAbove = useCallback(
     (targetId: string): EventNode | null => {
       const targetIndex = allNodesList.findIndex(
-        (node) => node.id === targetId,
+        (node) => node.id === targetId
       );
       if (targetIndex === -1) return null;
 
@@ -154,7 +153,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
 
       return null;
     },
-    [allNodesList, outlineNodeList],
+    [allNodesList, outlineNodeList]
   );
 
   useScrollTrack(
@@ -168,7 +167,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         }
       }
     },
-    scrollRef,
+    scrollRef
   );
 
   // Update the collapsed events when the default collapsed IDs change
@@ -204,7 +203,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         );
       }
     },
-    [outlineNodeList, running, selectedOutlineId],
+    [outlineNodeList, running, selectedOutlineId]
   );
 
   return (

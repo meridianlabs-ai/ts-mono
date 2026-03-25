@@ -1,9 +1,11 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
-import styles from "./CompactionData.module.css";
+
 import ExpandablePanel from "../../../../components/ExpandablePanel";
-import { RenderedText } from "../../../content/RenderedText";
 import { MetaDataGrid } from "../../../content/MetaDataGrid";
+import { RenderedText } from "../../../content/RenderedText";
+
+import styles from "./CompactionData.module.css";
 
 export const kCompactionMetadata = "compaction_metadata";
 
@@ -40,7 +42,7 @@ export const CompactionData: FC<{
         className={clsx(
           "text-style-label",
           "text-style-secondary",
-          styles.title,
+          styles.title
         )}
       >
         Compacted Content

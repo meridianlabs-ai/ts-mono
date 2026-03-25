@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
+
 import { ApplicationIcons } from "../app/appearance/icons";
 import { useProperty } from "../state/hooks";
+
 import styles from "./LightboxCarousel.module.css";
 
 interface Slide {
@@ -38,7 +40,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       // Slight delay before setting isOpen so the fade-in starts from opacity: 0
       setTimeout(() => setIsOpen(true), 10);
     },
-    [setCurrentIndex, setIsOpen, setShowOverlay],
+    [setCurrentIndex, setIsOpen, setShowOverlay]
   );
 
   const closeLightbox = useCallback(() => {
@@ -86,7 +88,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       const index = Number((e.currentTarget as HTMLDivElement).dataset.index);
       openLightbox(index);
     },
-    [openLightbox],
+    [openLightbox]
   );
   return (
     <div className={clsx("lightbox-carousel-container")}>
@@ -104,7 +106,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
                 <i
                   className={clsx(
                     ApplicationIcons.play,
-                    styles.carouselPlayIcon,
+                    styles.carouselPlayIcon
                   )}
                 />
               </div>

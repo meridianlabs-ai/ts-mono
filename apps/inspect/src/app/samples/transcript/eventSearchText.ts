@@ -1,5 +1,6 @@
 import { Content } from "../../../@types/log";
 import { substituteToolCallContent } from "../chat/tools/substituteToolCallContent";
+
 import { eventTitle } from "./event/utils";
 import { EventNode } from "./types";
 
@@ -52,7 +53,7 @@ export const eventSearchText = (node: EventNode): string[] => {
       if (event.view?.content) {
         const substituted = substituteToolCallContent(
           event.view,
-          event.arguments as Record<string, unknown>,
+          event.arguments as Record<string, unknown>
         );
         texts.push(substituted.content);
       }
@@ -125,7 +126,7 @@ export const eventSearchText = (node: EventNode): string[] => {
         texts.push(
           typeof event.score.value === "object"
             ? JSON.stringify(event.score.value)
-            : String(event.score.value),
+            : String(event.score.value)
         );
       }
       break;

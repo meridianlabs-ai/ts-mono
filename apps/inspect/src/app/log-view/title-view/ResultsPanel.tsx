@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
 import { Modal } from "../../../components/Modal";
@@ -11,6 +12,7 @@ import { groupScorers } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 import { useProperty } from "../../../state/hooks";
 import { formatPrettyDecimal } from "../../../utils/format";
+
 import styles from "./ResultsPanel.module.css";
 import { ScoreGrid } from "./ScoreGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
@@ -67,7 +69,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
     "modal-showing",
     {
       defaultValue: false,
-    },
+    }
   );
 
   if (!scorers || scorers.length === 0) {
@@ -193,7 +195,7 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
           "vertical-metric-label",
           "text-style-label",
           "text-style-secondary",
-          styles.verticalMetricName,
+          styles.verticalMetricName
         )}
       >
         {metricDisplayName(metric)}
@@ -207,7 +209,7 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
           className={clsx(
             "text-style-label",
             "text-style-secondary",
-            styles.verticalMetricReducer,
+            styles.verticalMetricReducer
           )}
         >
           {reducer || "default"}
@@ -218,7 +220,7 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
         className={clsx(
           "vertical-metric-value",
           "text-size-largest",
-          styles.verticalMetricValue,
+          styles.verticalMetricValue
         )}
       >
         {metric.value !== undefined && metric.value !== null

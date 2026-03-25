@@ -24,7 +24,7 @@ const isModelEvent = (event: Event): event is ModelEvent =>
  */
 export function expandEvents(
   events: Event[],
-  eventsData: EventsData | null,
+  eventsData: EventsData | null
 ): Event[] {
   if (!eventsData) return events;
 
@@ -51,7 +51,7 @@ export function expandEvents(
       const key = call.call_key ?? "messages";
       const expandedMsgs = expandRefs(
         call.call_refs as [number, number][],
-        calls,
+        calls
       );
       call = {
         ...call,

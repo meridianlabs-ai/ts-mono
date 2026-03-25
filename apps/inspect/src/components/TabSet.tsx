@@ -11,7 +11,9 @@ import {
   RefObject,
   useRef,
 } from "react";
+
 import { useStatefulScrollPosition } from "../state/scrolling";
+
 import moduleStyles from "./TabSet.module.css";
 
 interface TabSetProps {
@@ -65,7 +67,7 @@ export const TabSet: FC<TabSetProps> = ({
           `nav-${type}`,
           type === "tabs" ? moduleStyles.tabStyle : undefined,
           className,
-          moduleStyles.tabs,
+          moduleStyles.tabs
         )}
         role="tablist"
         aria-orientation="horizontal"
@@ -107,7 +109,7 @@ const Tab: FC<{
           isActive && "active",
           type === "pills" ? moduleStyles.pill : moduleStyles.tab,
           "text-size-small",
-          "text-style-label",
+          "text-style-label"
         )}
         type="button"
         role="tab"
@@ -163,7 +165,7 @@ export const TabPanel: FC<TabPanelProps> = ({
         selected && "show active",
         className,
         moduleStyles.tabContents,
-        scrollable && moduleStyles.scrollable,
+        scrollable && moduleStyles.scrollable
       )}
       style={style}
     >
@@ -182,7 +184,7 @@ const computeTabId = (id: string, index: number) => `${id}-${index}`;
 const computeTabContentsId = (id: string) => `${id}-contents`;
 
 const flattenChildren = (
-  children: ReactNode,
+  children: ReactNode
 ): ReactElement<TabPanelProps>[] => {
   return Children.toArray(children).flatMap((child) => {
     if (isValidElement(child)) {

@@ -1,4 +1,6 @@
 import clsx from "clsx";
+import { FC, ReactNode } from "react";
+
 import {
   EvalSample,
   ProvenanceData,
@@ -6,6 +8,8 @@ import {
   TotalTime,
   WorkingTime,
 } from "../../@types/log";
+import { SampleSummary } from "../../client/api/types";
+import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import {
   arrayToString,
   formatDateTime,
@@ -13,14 +17,11 @@ import {
   inputString,
 } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
-import { SampleErrorView } from "./error/SampleErrorView";
-
-import { FC, ReactNode } from "react";
-import { SampleSummary } from "../../client/api/types";
-import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { RenderedText } from "../content/RenderedText";
-import styles from "./SampleSummaryView.module.css";
+
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
+import { SampleErrorView } from "./error/SampleErrorView";
+import styles from "./SampleSummaryView.module.css";
 
 const kMaxCellTextLength = 256;
 interface SampleSummaryViewProps {
@@ -50,14 +51,14 @@ interface SampleFields {
 }
 
 function isEvalSample(
-  sample: SampleSummary | EvalSample,
+  sample: SampleSummary | EvalSample
 ): sample is EvalSample {
   return "store" in sample;
 }
 
 const resolveSample = (
   sample: SampleSummary | EvalSample,
-  sampleDescriptor: SamplesDescriptor,
+  sampleDescriptor: SamplesDescriptor
 ): SampleFields => {
   const input = inputString(sample.input);
   if (isEvalSample(sample) && sample.choices && sample.choices.length > 0) {
@@ -65,7 +66,7 @@ const resolveSample = (
     input.push(
       ...sample.choices.map((choice, index) => {
         return `${String.fromCharCode(65 + index)}) ${choice}`;
-      }),
+      })
     );
   }
 
@@ -139,7 +140,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
         <RenderedText
           markdown={truncateMarkdown(
             arrayToString(fields?.target || "none"),
-            kMaxCellTextLength,
+            kMaxCellTextLength
           )}
           className={clsx("no-last-para-padding", styles.target)}
         />
@@ -251,7 +252,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 "text-style-secondary",
                 "text-size-smallest",
                 col.title ? styles.titled : undefined,
-                col.center ? styles.centerLabel : undefined,
+                col.center ? styles.centerLabel : undefined
               )}
               title={col.title}
               data-unsearchable={true}
@@ -268,7 +269,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 styles.value,
                 styles.wrap,
                 col.clamp ? "three-line-clamp" : undefined,
-                col.center ? styles.centerValue : undefined,
+                col.center ? styles.centerValue : undefined
               )}
               data-unsearchable={true}
             >

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+
 import { useStickyScrollContainer } from "../../../components/StickyScrollContext";
 
 // Sticky observer using scroll events
@@ -17,8 +18,8 @@ function updateStickyState(container: Element | null, elements: Set<Element>) {
   const stickyTop =
     parseFloat(
       getComputedStyle(document.body).getPropertyValue(
-        "--inspect-event-panel-sticky-top",
-      ),
+        "--inspect-event-panel-sticky-top"
+      )
     ) || 0;
 
   elements.forEach((el) => {

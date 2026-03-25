@@ -1,10 +1,11 @@
 import clsx from "clsx";
-import { ScoreLabel } from "../../../app/types";
-
 import { FC, useCallback, useMemo, useRef, useState } from "react";
+
+import { ScoreLabel } from "../../../app/types";
 import { PopOver } from "../../../components/PopOver";
 import { ToolButton } from "../../../components/ToolButton";
 import { ApplicationIcons } from "../../appearance/icons";
+
 import styles from "./SelectScorer.module.css";
 
 interface SelectScorerProps {
@@ -43,7 +44,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
           "text-size-smaller",
           "text-style-label",
           "text-style-secondary",
-          styles.label,
+          styles.label
         )}
       >
         Scorers:
@@ -70,7 +71,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
           <a
             className={clsx(
               styles.link,
-              !allScoresSelected ? styles.selected : undefined,
+              !allScoresSelected ? styles.selected : undefined
             )}
             onClick={() => {
               if (scores.length > 0) {
@@ -84,7 +85,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
           <a
             className={clsx(
               styles.link,
-              allScoresSelected ? styles.selected : undefined,
+              allScoresSelected ? styles.selected : undefined
             )}
             onClick={() => {
               setSelectedScores(scores);
@@ -130,7 +131,7 @@ const ScoreCheckboxes: FC<ScoreCheckboxesProps> = ({
       const next = scores.filter((s) => current.has(`${s.scorer}.${s.name}`));
       setSelectedScores(next);
     },
-    [setSelectedScores, scores, selectedKeys],
+    [setSelectedScores, scores, selectedKeys]
   );
 
   return (

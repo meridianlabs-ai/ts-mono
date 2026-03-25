@@ -3,6 +3,7 @@ import { fetchRange } from "../../../utils/http";
 import { fetchSize } from "../../remote/remoteZipFile";
 import { download_file } from "../shared/api-shared";
 import { Capabilities, LogPreview, LogRoot, LogViewAPI } from "../types";
+
 import {
   fetchJsonFile,
   fetchLogFile,
@@ -20,7 +21,7 @@ import {
 export default function staticHttpApi(
   log_dir?: string,
   log_file?: string,
-  abs_log_dir?: string,
+  abs_log_dir?: string
 ): LogViewAPI {
   const resolved_log_dir = log_dir?.replace(" ", "+");
   const resolved_log_path = log_file ? log_file.replace(" ", "+") : undefined;
@@ -111,7 +112,7 @@ function staticHttpApiForLog(logInfo: {
           } else {
             return false;
           }
-        },
+        }
       );
       return result;
     },
@@ -133,7 +134,7 @@ function staticHttpApiForLog(logInfo: {
           } else {
             return false;
           }
-        },
+        }
       );
     },
     log_message: async (log_file: string, message: string) => {
@@ -142,7 +143,7 @@ function staticHttpApiForLog(logInfo: {
     get_log_contents: async (
       log_file: string,
       _headerOnly?: number,
-      _capabilities?: Capabilities,
+      _capabilities?: Capabilities
     ) => {
       const response = await fetchLogFile(log_file);
       if (response) {
@@ -196,7 +197,7 @@ function staticHttpApiForLog(logInfo: {
 
       // No log.json could be found, and there isn't a log file,
       throw new Error(
-        `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`,
+        `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`
       );
     },
     download_file,

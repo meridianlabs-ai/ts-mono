@@ -56,11 +56,11 @@ export class ReplicationService {
     this._throttledUpdateDbStats = throttle(() => this.updateDbStats(), 1000);
     this._throttledFlushPreviewBatch = throttle(
       () => this.flushPreviewBatch(),
-      100,
+      100
     );
     this._throttledFlushDetailBatch = throttle(
       () => this.flushDetailBatch(),
-      100,
+      100
     );
 
     this._previewQueue = new WorkQueue<LogHandle, LogPreview>({
@@ -76,7 +76,7 @@ export class ReplicationService {
         }
 
         const previews = await this._api.get_log_summaries(
-          logHandles.map((log) => log.name),
+          logHandles.map((log) => log.name)
         );
 
         return previews;
@@ -112,7 +112,7 @@ export class ReplicationService {
             } catch {
               return undefined;
             }
-          }),
+          })
         );
 
         const allResults = details.filter((d) => d !== undefined);
@@ -224,7 +224,7 @@ export class ReplicationService {
   public async startReplication(
     database: DatabaseService,
     api: ClientAPI,
-    context: ApplicationContext,
+    context: ApplicationContext
   ) {
     this._database = database;
     this._api = api;
@@ -503,7 +503,7 @@ export class ReplicationService {
 
   queueLogPreviews(
     logs: LogHandle[],
-    priority: WorkPriority = WorkPriority.Medium,
+    priority: WorkPriority = WorkPriority.Medium
   ) {
     // Add to queue
     this._previewQueue.enqueue(logs, priority);
@@ -512,7 +512,7 @@ export class ReplicationService {
   private count = 0;
   queueLogDetails(
     logs: LogHandle[],
-    priority: WorkPriority = WorkPriority.Medium,
+    priority: WorkPriority = WorkPriority.Medium
   ) {
     this.count = this.count + logs.length;
     // Add to queue (deduplicated by name)

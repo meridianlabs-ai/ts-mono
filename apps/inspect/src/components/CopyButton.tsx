@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
+
 import { ApplicationIcons } from "../app/appearance/icons";
+
 import styles from "./CopyButton.module.css";
 
 interface CopyButtonProps {
@@ -34,7 +36,7 @@ export const CopyButton = ({
       }, 1250);
     } catch (error) {
       onCopyError?.(
-        error instanceof Error ? error : new Error("Failed to copy"),
+        error instanceof Error ? error : new Error("Failed to copy")
       );
     }
   };

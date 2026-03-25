@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
+
 import { JsonChange, Messages } from "../../../../@types/log";
 import {
   HumanBaselineView,
@@ -21,7 +22,7 @@ interface ChangeType {
   match?: (changes: JsonChange[]) => boolean;
   render: (
     changes: JsonChange[],
-    state: Record<string, unknown>,
+    state: Record<string, unknown>
   ) => JSX.Element;
 }
 
@@ -173,7 +174,7 @@ const human_baseline_session: ChangeType = {
 
 const renderTools = (
   changes: JsonChange[],
-  resolvedState: Record<string, unknown>,
+  resolvedState: Record<string, unknown>
 ) => {
   // Find which tools were added in this change
   const toolIndexes: string[] = [];
@@ -234,7 +235,7 @@ const renderTools = (
               className={clsx(
                 "text-size-smaller",
                 "text-style-label",
-                "text-style-secondary",
+                "text-style-secondary"
               )}
             >
               {key}

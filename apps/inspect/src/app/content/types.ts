@@ -16,7 +16,7 @@ export interface ContentRenderer {
   render: (
     id: string,
     content: any,
-    options: RenderOptions,
+    options: RenderOptions
   ) => {
     rendered: string | number | bigint | boolean | object | ReactNode | null;
   };

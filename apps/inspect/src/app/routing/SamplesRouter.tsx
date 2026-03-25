@@ -1,7 +1,9 @@
 import { FC } from "react";
+
 import { FlowPanel } from "../flow/FlowPanel";
-import { SamplesPanel } from "../samples-panel/SamplesPanel";
 import { SampleDetailView } from "../samples-panel/SampleDetailView";
+import { SamplesPanel } from "../samples-panel/SamplesPanel";
+
 import { useSamplesRouteParams } from "./url";
 
 /**

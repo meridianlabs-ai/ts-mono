@@ -1,4 +1,5 @@
 import { CSSProperties } from "react";
+
 import { FontSize, TextStyle } from "./fonts";
 
 export const ApplicationStyles = {

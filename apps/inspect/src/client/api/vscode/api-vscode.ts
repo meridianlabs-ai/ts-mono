@@ -1,6 +1,6 @@
 import JSON5 from "json5";
-import { asyncJsonParse } from "../../../utils/json-worker";
 
+import { asyncJsonParse } from "../../../utils/json-worker";
 import { getVscodeApi } from "../../../utils/vscode";
 import {
   Capabilities,
@@ -11,6 +11,7 @@ import {
   SampleData,
   SampleDataResponse,
 } from "../types";
+
 import {
   kJsonRpcMethodNotFound,
   kMethodEvalLog,
@@ -18,8 +19,8 @@ import {
   kMethodEvalLogDir,
   kMethodEvalLogFiles,
   kMethodEvalLogHeaders,
-  kMethodEvalLogs,
   kMethodEvalLogInfo,
+  kMethodEvalLogs,
   kMethodLogMessage,
   kMethodPendingSamples,
   kMethodSampleData,
@@ -86,7 +87,7 @@ async function get_flow(): Promise<undefined> {
 async function get_log_contents(
   log_file: string,
   headerOnly?: number,
-  capabilities?: Capabilities,
+  capabilities?: Capabilities
 ): Promise<LogContents> {
   const response = await vscodeClient(kMethodEvalLog, [log_file, headerOnly]);
   if (response) {
@@ -133,7 +134,7 @@ async function get_log_summaries(files: string[]) {
 
 async function eval_pending_samples(
   log_file: string,
-  etag?: string,
+  etag?: string
 ): Promise<PendingSampleResponse> {
   // TODO: use web worked to parse when possible
   const response = await vscodeClient(kMethodPendingSamples, [log_file, etag]);
@@ -163,7 +164,7 @@ async function eval_log_sample_data(
   id: string | number,
   epoch: number,
   last_event?: number,
-  last_attachment?: number,
+  last_attachment?: number
 ): Promise<SampleDataResponse | undefined> {
   const response = await vscodeClient(kMethodSampleData, [
     log_file,

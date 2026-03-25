@@ -1,6 +1,5 @@
-import { FC, useRef } from "react";
-
 import clsx from "clsx";
+import { FC, useRef } from "react";
 
 import styles from "./CodePanel.module.css";
 import { usePrismHighlight } from "./prism";

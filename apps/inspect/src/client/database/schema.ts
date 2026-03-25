@@ -1,4 +1,5 @@
 import Dexie from "dexie";
+
 import { LogDetails, LogPreview } from "../api/types";
 
 // Logs Table - Basic file listing
@@ -73,7 +74,7 @@ export class AppDatabase extends Dexie {
 
       if (currentVersion !== DB_VERSION) {
         console.log(
-          `Database version mismatch (found v${currentVersion}, expected v${DB_VERSION})`,
+          `Database version mismatch (found v${currentVersion}, expected v${DB_VERSION})`
         );
         return true;
       }

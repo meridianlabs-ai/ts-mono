@@ -2,7 +2,7 @@ import type { SampleHandle } from "../types";
 
 export const sampleIdsEqual = (
   id?: string | number,
-  otherId?: string | number,
+  otherId?: string | number
 ) => {
   // Both undefined
   if (id === undefined && otherId === undefined) {
@@ -20,7 +20,7 @@ export const sampleIdsEqual = (
 
 export const sampleHandlesEqual = (
   sample1?: SampleHandle,
-  sample2?: SampleHandle,
+  sample2?: SampleHandle
 ): boolean => {
   if (!sample1 && !sample2) {
     return true;
@@ -40,7 +40,7 @@ export const sampleHandlesEqual = (
 export const createSampleHandle = (
   id: string | number,
   epoch: number,
-  logFile: string,
+  logFile: string
 ): SampleHandle => {
   return { id, epoch, logFile };
 };

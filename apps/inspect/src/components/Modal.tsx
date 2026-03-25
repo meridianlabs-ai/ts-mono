@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
 import styles from "./Modal.module.css";
 
 interface ModalProps {
@@ -39,7 +40,7 @@ export const Modal: FC<ModalProps> = ({
                 className={clsx(
                   "modal-title",
                   "text-size-base",
-                  styles.modalTitle,
+                  styles.modalTitle
                 )}
               >
                 {title}
@@ -49,7 +50,7 @@ export const Modal: FC<ModalProps> = ({
                 className={clsx(
                   "btn-close",
                   "text-size-smaller",
-                  styles.btnClose,
+                  styles.btnClose
                 )}
                 data-bs-dismiss="modal"
                 aria-label="Close"
@@ -67,7 +68,7 @@ export const Modal: FC<ModalProps> = ({
                     ? styles.overflowHidden
                     : overflow === "scroll"
                       ? styles.overflowScroll
-                      : styles.overflowVisible,
+                      : styles.overflowVisible
               )}
             >
               {children}

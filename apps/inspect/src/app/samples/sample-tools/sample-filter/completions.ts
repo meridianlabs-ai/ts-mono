@@ -6,6 +6,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { EditorView } from "codemirror";
+
 import { SampleSummary } from "../../../../client/api/types";
 import {
   kScoreTypeBoolean,
@@ -15,6 +16,7 @@ import {
   kScoreTypePassFail,
 } from "../../../../constants";
 import { SampleFilterItem } from "../filters";
+
 import {
   KEYWORDS,
   kSampleIdVariable,
@@ -49,7 +51,7 @@ const applyWithCall = (
   view: EditorView,
   completion: Completion,
   from: number,
-  to: number,
+  to: number
 ): void => {
   view.dispatch({
     changes: { from, to, insert: `${completion.label}()` },
@@ -61,7 +63,7 @@ const applyWithDot = (
   view: EditorView,
   completion: Completion,
   from: number,
-  to: number,
+  to: number
 ): void => {
   view.dispatch({
     changes: { from, to, insert: `${completion.label}.` },
@@ -75,7 +77,7 @@ const applyWithSpace = (
   view: EditorView,
   completion: Completion,
   from: number,
-  to: number,
+  to: number
 ): void => {
   view.dispatch({
     changes: { from, to, insert: `${completion.label} ` },
@@ -137,7 +139,7 @@ const makeLiteralCompletion = (k: string): Completion => ({
 
 const makeCanonicalNameCompletion = (
   item: SampleFilterItem,
-  { autoSpaceIf = () => false }: CanonicalNameCompletionProps = {},
+  { autoSpaceIf = () => false }: CanonicalNameCompletionProps = {}
 ): Completion => ({
   label: item.canonicalName + (autoSpaceIf(item) ? " " : ""),
   type: "variable",
@@ -154,7 +156,7 @@ const makeMemberAccessCompletion = (item: SampleFilterItem): Completion => ({
 
 const getMemberScoreItems = (
   filterItems: SampleFilterItem[],
-  scorer: string,
+  scorer: string
 ): SampleFilterItem[] =>
   filterItems.filter((item) => item?.qualifiedName?.startsWith(`${scorer}.`));
 
@@ -168,7 +170,7 @@ const getSampleIds = (samples: SampleSummary[]): Set<string | number> => {
 
 const getMetadataPropertyValues = (
   samples: SampleSummary[],
-  propertyPath: string,
+  propertyPath: string
 ): Set<any> => {
   const values = new Set<any>();
   for (const sample of samples) {
@@ -197,7 +199,7 @@ const getNestedProperty = (obj: any, path: string): any => {
 
 const buildMetadataPath = (
   tokens: Token[],
-  currentTokenIndex: number,
+  currentTokenIndex: number
 ): string | null => {
   // Walk backwards to build the metadata path
   // For "metadata." return ""
@@ -240,7 +242,7 @@ const buildMetadataPath = (
 
 const getMetadataKeysForPath = (
   samples: SampleSummary[],
-  parentPath: string,
+  parentPath: string
 ): Set<string> => {
   const keys = new Set<string>();
   for (const sample of samples) {
@@ -264,7 +266,7 @@ const getMetadataKeysForPath = (
 
 const buildMetadataPropertyPath = (
   tokens: Token[],
-  currentTokenIndex: number,
+  currentTokenIndex: number
 ): string | null => {
   // Walk backwards to build the full metadata property path
   // e.g., for "metadata.difficulty ==" we want to return "difficulty"
@@ -298,7 +300,7 @@ const buildMetadataPropertyPath = (
 
 const isMetadataProperty = (
   tokens: Token[],
-  currentTokenIndex: number,
+  currentTokenIndex: number
 ): boolean => {
   // Check if the current variable is part of a metadata property access
   // e.g., for "metadata.difficulty" return true
@@ -379,14 +381,14 @@ const makeMetadataValueCompletion = (value: any): Completion => {
 export function getCompletions(
   context: CompletionContext,
   filterItems: SampleFilterItem[],
-  samples?: SampleSummary[],
+  samples?: SampleSummary[]
 ): CompletionResult | null {
   const keywordCompletionItems = KEYWORDS.map(makeKeywordCompletion);
   const mathFunctionCompletionItems = MATH_FUNCTIONS.map(
-    makeMathFunctionCompletion,
+    makeMathFunctionCompletion
   );
   const sampleFunctionCompletionItems = SAMPLE_FUNCTIONS.map(
-    makeSampleFunctionCompletion,
+    makeSampleFunctionCompletion
   );
   // Filter sample variables based on available data
   const availableSampleVariables = SAMPLE_VARIABLES.filter(([label]) => {
@@ -395,8 +397,7 @@ export function getCompletions(
       return (
         samples &&
         samples.some(
-          (sample) =>
-            sample.metadata && Object.keys(sample.metadata).length > 0,
+          (sample) => sample.metadata && Object.keys(sample.metadata).length > 0
         )
       );
     }
@@ -404,10 +405,10 @@ export function getCompletions(
   });
 
   const sampleVariableCompletionItems = availableSampleVariables.map(
-    makeSampleVariableCompletion,
+    makeSampleVariableCompletion
   );
   const variableCompletionItems = filterItems.map((item) =>
-    makeCanonicalNameCompletion(item),
+    makeCanonicalNameCompletion(item)
   );
 
   const defaultCompletionItems = [
@@ -460,7 +461,7 @@ export function getCompletions(
       enforceOrder = false,
       autoSpaceAfter = false,
       includeDefault = true,
-    }: CompletionOptions = {},
+    }: CompletionOptions = {}
   ): CompletionResult | null => {
     if (!autocompleteInTheMiddle && !completingAtEnd && !context.explicit) {
       return null;
@@ -474,7 +475,7 @@ export function getCompletions(
       ? priorityCompletionsOrdered.map((c) =>
           !c.apply && !c.label.endsWith(" ")
             ? { ...c, label: `${c.label} ` }
-            : c,
+            : c
         )
       : priorityCompletionsOrdered;
 
@@ -496,7 +497,7 @@ export function getCompletions(
     };
 
     const priorityLabels = new Set(
-      priorityCompletions.map((c) => c.label.trim()),
+      priorityCompletions.map((c) => c.label.trim())
     );
     const defaultCompletionsAdjusted = defaultCompletionItems
       .filter((c) => !priorityLabels.has(c.label.trim()))
@@ -517,7 +518,7 @@ export function getCompletions(
         makeCanonicalNameCompletion(item, {
           autoSpaceIf: (item) =>
             completingAtEnd && item.scoreType !== kScoreTypeBoolean,
-        }),
+        })
       ),
       ...sampleVariableCompletionItems,
       ...sampleFunctionCompletionItems,
@@ -546,13 +547,13 @@ export function getCompletions(
   const continuousRelationCompletions = () =>
     makeCompletions(
       ["<", "<=", ">", ">=", "==", "!="].map(makeKeywordCompletion),
-      { enforceOrder: true, autoSpaceAfter: completingAtEnd },
+      { enforceOrder: true, autoSpaceAfter: completingAtEnd }
     );
 
   const customRelationCompletions = () =>
     makeCompletions(
       ["<", "<=", ">", ">=", "==", "!=", "~="].map(makeKeywordCompletion),
-      { enforceOrder: true, autoSpaceAfter: completingAtEnd },
+      { enforceOrder: true, autoSpaceAfter: completingAtEnd }
     );
 
   const rhsCompletions = (options: string[]) =>
@@ -570,7 +571,7 @@ export function getCompletions(
     if (metadataPath !== null && samples) {
       // Get completions for the current metadata path
       const metadataKeys = Array.from(
-        getMetadataKeysForPath(samples, metadataPath),
+        getMetadataKeysForPath(samples, metadataPath)
       );
       const metadataCompletions = metadataKeys.map(makeMetadataKeyCompletion);
       return makeCompletions(metadataCompletions, {
@@ -645,12 +646,12 @@ export function getCompletions(
     // Check if this is a metadata property comparison (relation after metadata.property or metadata.nested.property)
     const metadataPropertyPath = buildMetadataPropertyPath(
       tokens,
-      currentTokenIndex,
+      currentTokenIndex
     );
     if (metadataPropertyPath !== null && samples) {
       // This is metadata.property == ... - provide value completions for this property
       const metadataValues = Array.from(
-        getMetadataPropertyValues(samples, metadataPropertyPath),
+        getMetadataPropertyValues(samples, metadataPropertyPath)
       );
 
       // Get the current query for prefix filtering
@@ -674,7 +675,7 @@ export function getCompletions(
         : metadataValues;
 
       const metadataValueCompletions = filteredValues.map(
-        makeMetadataValueCompletion,
+        makeMetadataValueCompletion
       );
       return makeCompletions(metadataValueCompletions, {
         includeDefault: false,
@@ -705,10 +706,10 @@ export function getCompletions(
     // Epoch value completions (suggest actual epoch numbers from loaded samples)
     if (varName === "epoch" && samples) {
       const epochValues = Array.from(
-        new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined)),
+        new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined))
       ).sort((a, b) => a - b);
       const epochCompletions = epochValues.map((e) =>
-        makeLiteralCompletion(String(e)),
+        makeLiteralCompletion(String(e))
       );
       return makeCompletions(epochCompletions, {
         includeDefault: epochCompletions.length === 0,

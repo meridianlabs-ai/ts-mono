@@ -1,12 +1,13 @@
 import type { AgGridReact } from "ag-grid-react";
 import { FC, Fragment, useEffect, useMemo, useRef } from "react";
+
 import { Status } from "../../../@types/log";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
+import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
-import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import { NoContentsPanel } from "../../../components/NoContentsPanel.tsx";
 import { ToolButton } from "../../../components/ToolButton.tsx";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
@@ -17,13 +18,14 @@ import {
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
+
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 import { SampleListItem } from "./types.ts";
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
   evalStatus: Status | undefined,
-  refreshLog: () => void,
+  refreshLog: () => void
 ) => {
   const totalSampleCount = useTotalSampleCount();
   const samplesDescriptor = useSampleDescriptor();
@@ -110,7 +112,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({ running }) => {
         answer:
           samplesDescriptor.selectedScorerDescriptor(sample)?.answer() || "",
         completed: sample.completed !== undefined ? sample.completed : true,
-      }),
+      })
     );
   }, [sampleSummaries, samplesDescriptor]);
 

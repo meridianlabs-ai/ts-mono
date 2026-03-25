@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+
 import { App } from "./app/App";
 import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
@@ -24,7 +25,7 @@ let capabilities: Capabilities = {
 if (vscode) {
   // Adjust capabilities
   const extensionVersionEl = document.querySelector(
-    'meta[name="inspect-extension:version"]',
+    'meta[name="inspect-extension:version"]'
   );
   const extensionVersion = extensionVersionEl
     ? extensionVersionEl.getAttribute("content")
@@ -48,7 +49,7 @@ const container = document.getElementById(containerId);
 if (!container) {
   console.error("Root container not found");
   throw new Error(
-    `Expected a container element with Id '${containerId}' but no such container element was present.`,
+    `Expected a container element with Id '${containerId}' but no such container element was present.`
   );
 }
 

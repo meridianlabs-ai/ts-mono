@@ -39,7 +39,7 @@ const decodeUrlParam = (param: string | undefined): string | undefined => {
 function parseLogRouteParams(splatPath: string) {
   // Check for sample UUID route pattern
   const sampleUuidMatch = splatPath.match(
-    /^(.+?)\/samples\/sample_uuid\/([^/]+)(?:\/(.+?))?\/?\s*$/,
+    /^(.+?)\/samples\/sample_uuid\/([^/]+)(?:\/(.+?))?\/?\s*$/
   );
   if (sampleUuidMatch) {
     const [, logPath, sampleUuid, sampleTabId] = sampleUuidMatch;
@@ -56,7 +56,7 @@ function parseLogRouteParams(splatPath: string) {
   // Check for full sample route pattern in splat path
   // Pattern: logPath/samples/sample/sampleId/epoch/sampleTabId
   const fullSampleUrlMatch = splatPath.match(
-    /^(.+?)\/samples\/sample\/([^/]+)(?:\/([^/]+)(?:\/(.+?))?)?\/?\s*$/,
+    /^(.+?)\/samples\/sample\/([^/]+)(?:\/([^/]+)(?:\/(.+?))?)?\/?\s*$/
   );
   if (fullSampleUrlMatch) {
     const [, logPath, sampleId, epoch, sampleTabId] = fullSampleUrlMatch;
@@ -72,7 +72,7 @@ function parseLogRouteParams(splatPath: string) {
   // Check for sample URLs that might not match the formal route pattern
   // Pattern: /logs/*/samples/sampleId/epoch or /logs/*/samples/sampleTabId
   const sampleUrlMatch = splatPath.match(
-    /^(.+?)\/samples(?:\/([^/]+)(?:\/([^/]+))?)?$/,
+    /^(.+?)\/samples(?:\/([^/]+)(?:\/([^/]+))?)?$/
   );
   if (sampleUrlMatch) {
     const [, logPath, firstSegment, secondSegment] = sampleUrlMatch;
@@ -175,7 +175,7 @@ function parseLogRouteParams(splatPath: string) {
  */
 function parseSamplesRouteParams(splatPath: string) {
   const sampleMatch = splatPath.match(
-    /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/,
+    /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
   );
 
   if (sampleMatch) {
@@ -200,7 +200,7 @@ describe("parseLogRouteParams", () => {
   describe("sample UUID routes", () => {
     test("parses /logs/path/to/file.eval/samples/sample_uuid/uuid123", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample_uuid/uuid123",
+        "path/to/file.eval/samples/sample_uuid/uuid123"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -214,7 +214,7 @@ describe("parseLogRouteParams", () => {
 
     test("parses sample UUID with tab ID", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample_uuid/uuid123/transcript",
+        "path/to/file.eval/samples/sample_uuid/uuid123/transcript"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -228,7 +228,7 @@ describe("parseLogRouteParams", () => {
 
     test("handles trailing slash in sample UUID route", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample_uuid/uuid123/",
+        "path/to/file.eval/samples/sample_uuid/uuid123/"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -244,7 +244,7 @@ describe("parseLogRouteParams", () => {
   describe("full sample routes with /samples/sample/ pattern", () => {
     test("parses /logs/path/samples/sample/sampleId/epoch", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample/123/1",
+        "path/to/file.eval/samples/sample/123/1"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -257,7 +257,7 @@ describe("parseLogRouteParams", () => {
 
     test("parses sample route with tab ID", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample/123/1/transcript",
+        "path/to/file.eval/samples/sample/123/1/transcript"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -270,7 +270,7 @@ describe("parseLogRouteParams", () => {
 
     test("handles string sample IDs", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample/my-sample-id/2/messages",
+        "path/to/file.eval/samples/sample/my-sample-id/2/messages"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -283,7 +283,7 @@ describe("parseLogRouteParams", () => {
 
     test("handles trailing slash", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample/123/1/",
+        "path/to/file.eval/samples/sample/123/1/"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -309,7 +309,7 @@ describe("parseLogRouteParams", () => {
 
     test("parses /logs/path/samples/transcript (samples with tab)", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/transcript",
+        "path/to/file.eval/samples/transcript"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -394,7 +394,7 @@ describe("parseLogRouteParams", () => {
   describe("URL encoding handling", () => {
     test("decodes URL-encoded path segments", () => {
       const result = parseLogRouteParams(
-        "path/to/file%20with%20spaces.eval/samples",
+        "path/to/file%20with%20spaces.eval/samples"
       );
       expect(result).toEqual({
         logPath: "path/to/file with spaces.eval",
@@ -407,7 +407,7 @@ describe("parseLogRouteParams", () => {
 
     test("decodes URL-encoded sample IDs", () => {
       const result = parseLogRouteParams(
-        "path/to/file.eval/samples/sample/sample%2Fid/1",
+        "path/to/file.eval/samples/sample/sample%2Fid/1"
       );
       expect(result).toEqual({
         logPath: "path/to/file.eval",
@@ -423,7 +423,7 @@ describe("parseLogRouteParams", () => {
     test("sample_uuid pattern takes precedence over sampleId pattern", () => {
       // This tests that /samples/sample_uuid/X is recognized as UUID, not as sampleId="sample_uuid"
       const result = parseLogRouteParams(
-        "path/file.eval/samples/sample_uuid/abc123",
+        "path/file.eval/samples/sample_uuid/abc123"
       );
       expect(result.sampleUuid).toBe("abc123");
       expect(result.sampleId).toBeUndefined();
@@ -432,7 +432,7 @@ describe("parseLogRouteParams", () => {
     test("/samples/sample/ pattern takes precedence over simple sampleId", () => {
       // /samples/sample/X/Y should be recognized as full sample route
       const result = parseLogRouteParams(
-        "path/file.eval/samples/sample/myid/5",
+        "path/file.eval/samples/sample/myid/5"
       );
       expect(result.sampleId).toBe("myid");
       expect(result.epoch).toBe("5");
@@ -463,7 +463,7 @@ describe("parseLogRouteParams", () => {
   describe("complex file paths", () => {
     test("handles deeply nested paths", () => {
       const result = parseLogRouteParams(
-        "very/deeply/nested/path/to/file.eval/samples",
+        "very/deeply/nested/path/to/file.eval/samples"
       );
       expect(result).toEqual({
         logPath: "very/deeply/nested/path/to/file.eval",
@@ -476,7 +476,7 @@ describe("parseLogRouteParams", () => {
 
     test("handles paths with dots in directory names", () => {
       const result = parseLogRouteParams(
-        "path/with.dots/in.dirs/file.eval/info",
+        "path/with.dots/in.dirs/file.eval/info"
       );
       expect(result).toEqual({
         logPath: "path/with.dots/in.dirs/file.eval",
@@ -490,7 +490,7 @@ describe("parseLogRouteParams", () => {
     test("handles paths with file: prefix in samples route", () => {
       // Note: file: prefix is passed through as-is in /samples pattern
       const result = parseLogRouteParams(
-        "file:/Users/test/path/file.eval/samples",
+        "file:/Users/test/path/file.eval/samples"
       );
       expect(result).toEqual({
         logPath: "file:/Users/test/path/file.eval",
@@ -504,7 +504,7 @@ describe("parseLogRouteParams", () => {
     test("handles paths with file: prefix normalized for workspace tabs", () => {
       // file: prefix gets normalized with /// when reaching workspace tab logic
       const result = parseLogRouteParams(
-        "file:/Users/test/path/file.eval/info",
+        "file:/Users/test/path/file.eval/info"
       );
       expect(result).toEqual({
         logPath: "file:///Users/test/path/file.eval",
@@ -520,7 +520,7 @@ describe("parseLogRouteParams", () => {
 describe("parseSamplesRouteParams", () => {
   test("parses /samples/path/to/file.eval/sample/id/epoch", () => {
     const result = parseSamplesRouteParams(
-      "path/to/file.eval/sample/my-sample/1",
+      "path/to/file.eval/sample/my-sample/1"
     );
     expect(result).toEqual({
       samplesPath: "path/to/file.eval",
@@ -532,7 +532,7 @@ describe("parseSamplesRouteParams", () => {
 
   test("parses sample route with tab ID", () => {
     const result = parseSamplesRouteParams(
-      "path/to/file.eval/sample/123/2/transcript",
+      "path/to/file.eval/sample/123/2/transcript"
     );
     expect(result).toEqual({
       samplesPath: "path/to/file.eval",
@@ -604,7 +604,7 @@ function encodePathParts(url: string): string {
     fullUrl.pathname = fullUrl.pathname
       .split("/")
       .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : "",
+        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
       )
       .join("/");
     return fullUrl.toString();
@@ -612,7 +612,7 @@ function encodePathParts(url: string): string {
     return url
       .split("/")
       .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : "",
+        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
       )
       .join("/");
   }
@@ -626,7 +626,7 @@ function logSamplesUrl(
   logPath: string,
   sampleId?: string | number,
   sampleEpoch?: string | number,
-  sampleTabId?: string,
+  sampleTabId?: string
 ): string {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
 
@@ -635,11 +635,11 @@ function logSamplesUrl(
     // This must be done before encodePathParts since it splits on /
     const encodedSampleId = encodeURIComponent(String(sampleId));
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`,
+      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`
     );
   } else {
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`,
+      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`
     );
   }
 }
@@ -651,14 +651,14 @@ function samplesSampleUrl(
   logPath: string,
   sampleId: string | number,
   epoch: string | number,
-  sampleTabId?: string,
+  sampleTabId?: string
 ): string {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
   // Encode sampleId to handle slashes and special characters
   // This must be done before encodePathParts since it splits on /
   const encodedSampleId = encodeURIComponent(String(sampleId));
   return encodePathParts(
-    `/samples/${decodedLogPath}/sample/${encodedSampleId}/${epoch}/${sampleTabId || ""}`,
+    `/samples/${decodedLogPath}/sample/${encodedSampleId}/${epoch}/${sampleTabId || ""}`
   );
 }
 
@@ -668,7 +668,7 @@ describe("sample IDs with slashes", () => {
       "path/to/file.eval",
       "ascii/car",
       1,
-      "transcript",
+      "transcript"
     );
     // The slash in "ascii/car" should be encoded as %2F
     expect(url).toContain("ascii%2Fcar");
@@ -679,7 +679,7 @@ describe("sample IDs with slashes", () => {
       "path/to/file.eval",
       "ascii/car",
       1,
-      "transcript",
+      "transcript"
     );
     // The slash in "ascii/car" should be encoded as %2F
     expect(url).toContain("ascii%2Fcar");
@@ -688,7 +688,7 @@ describe("sample IDs with slashes", () => {
   test("parseLogRouteParams decodes slashes in sample IDs", () => {
     // When the URL has an encoded slash, parsing should decode it
     const result = parseLogRouteParams(
-      "path/to/file.eval/samples/sample/ascii%2Fcar/1/transcript",
+      "path/to/file.eval/samples/sample/ascii%2Fcar/1/transcript"
     );
     expect(result.sampleId).toBe("ascii/car");
     expect(result.epoch).toBe("1");
@@ -697,7 +697,7 @@ describe("sample IDs with slashes", () => {
 
   test("parseSamplesRouteParams decodes slashes in sample IDs", () => {
     const result = parseSamplesRouteParams(
-      "path/to/file.eval/sample/ascii%2Fcar/1/transcript",
+      "path/to/file.eval/sample/ascii%2Fcar/1/transcript"
     );
     expect(result.sampleId).toBe("ascii/car");
     expect(result.epoch).toBe("1");
@@ -709,7 +709,7 @@ describe("sample IDs with slashes", () => {
       "path/to/file.eval",
       "ascii/car",
       1,
-      "transcript",
+      "transcript"
     );
     // Extract the path portion after /logs/
     const path = url.replace(/^\/logs\//, "");
@@ -724,7 +724,7 @@ describe("sample IDs with slashes", () => {
       "path/to/file.eval",
       "ascii/car",
       1,
-      "transcript",
+      "transcript"
     );
     // Extract the path portion after /samples/
     const path = url.replace(/^\/samples\//, "");
@@ -739,7 +739,7 @@ describe("sample IDs with slashes", () => {
       "path/to/file.eval",
       "category/sub/item",
       1,
-      "transcript",
+      "transcript"
     );
     // All slashes should be encoded
     expect(url).toContain("category%2Fsub%2Fitem");

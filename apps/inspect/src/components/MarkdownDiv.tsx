@@ -7,7 +7,9 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import "./MarkdownDiv.css";
+
 import {
   escapeHtmlCharacters,
   getMarkdownInstance,
@@ -137,7 +139,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         className={clsx(className, "markdown-content")}
       />
     );
-  },
+  }
 );
 
 // Memoize component to prevent re-renders when props haven't changed

@@ -1,5 +1,6 @@
 import { FC } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { ApplicationIcons } from "../appearance/icons";
 import {

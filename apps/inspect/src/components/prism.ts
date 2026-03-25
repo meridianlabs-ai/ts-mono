@@ -21,7 +21,7 @@ const highlightCodeBlocks = (container: HTMLElement) => {
 
 export const usePrismHighlight = (
   containerRef: RefObject<HTMLDivElement | null>,
-  contentLength: number,
+  contentLength: number
 ) => {
   useEffect(() => {
     if (

@@ -1,13 +1,14 @@
+import clsx from "clsx";
 import React, { FC, useCallback, useEffect, useMemo } from "react";
+
 import { ExtendedFindProvider } from "../../components/ExtendedFindContext";
 import { FindBand } from "../../components/FindBand";
 import { useSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { ApplicationIcons } from "../appearance/icons";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
-import { InlineSampleComponent } from "./InlineSampleDisplay";
 
-import clsx from "clsx";
+import { InlineSampleComponent } from "./InlineSampleDisplay";
 import styles from "./SampleDetailComponent.module.css";
 
 /**
@@ -163,7 +164,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
       nativeFind,
       onPrevious,
       onNext,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -183,7 +184,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
         action();
       }
     },
-    [],
+    []
   );
 
   return (

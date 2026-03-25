@@ -1,6 +1,8 @@
 import clsx from "clsx";
+
 import { Value2 } from "../../../../@types/log";
 import { ScoreDescriptor, SelectedScore } from "../types";
+
 import styles from "./BooleanScoreDescriptor.module.css";
 
 export const booleanScoreDescriptor = (): ScoreDescriptor => {
@@ -15,7 +17,7 @@ export const booleanScoreDescriptor = (): ScoreDescriptor => {
           className={clsx(
             styles.circle,
             "text-size-small",
-            score ? styles.green : styles.red,
+            score ? styles.green : styles.red
           )}
         >
           {String(score)}

@@ -7,11 +7,10 @@ import {
   useCallback,
   useState,
 } from "react";
-import { ApplicationIcons } from "../../../appearance/icons";
-import { EventNavs } from "./EventNavs";
 
 import { CopyButton } from "../../../../components/CopyButton";
 import { useCollapseSampleEvent, useProperty } from "../../../../state/hooks";
+import { ApplicationIcons } from "../../../appearance/icons";
 import {
   supportsLinking,
   toFullUrl,
@@ -19,6 +18,8 @@ import {
 } from "../../../routing/url";
 import { kTranscriptCollapseScope } from "../types";
 import { useStickyObserver } from "../useStickyObserver";
+
+import { EventNavs } from "./EventNavs";
 import styles from "./EventPanel.module.css";
 
 interface EventPanelProps {
@@ -59,7 +60,7 @@ export const EventPanel: FC<EventPanelProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useCollapseSampleEvent(
     kTranscriptCollapseScope,
-    eventNodeId,
+    eventNodeId
   );
   const isCollapsible = (childIds || []).length > 0 || collapsibleContent;
   const useBottomDongle = isCollapsible && collapseControl === "bottom";
@@ -86,7 +87,7 @@ export const EventPanel: FC<EventPanelProps> = ({
     "selectedNav",
     {
       defaultValue: defaultPillId,
-    },
+    }
   );
 
   const stickyRef = useStickyObserver<HTMLDivElement>();
@@ -126,7 +127,7 @@ export const EventPanel: FC<EventPanelProps> = ({
         className={clsx(
           "text-size-small",
           mouseOver ? styles.hover : "",
-          turnLabel ? styles.stickyWrapper : "",
+          turnLabel ? styles.stickyWrapper : ""
         )}
         ref={turnLabel ? stickyRef : null}
         style={{
@@ -154,7 +155,7 @@ export const EventPanel: FC<EventPanelProps> = ({
           <i
             className={clsx(
               icon || ApplicationIcons.metadata,
-              "text-style-secondary",
+              "text-style-secondary"
             )}
             onClick={toggleCollapse}
           />
@@ -221,7 +222,7 @@ export const EventPanel: FC<EventPanelProps> = ({
       className={clsx(
         className,
         styles.card,
-        depth === 0 ? styles.root : undefined,
+        depth === 0 ? styles.root : undefined
       )}
     >
       {titleEl}
@@ -231,7 +232,7 @@ export const EventPanel: FC<EventPanelProps> = ({
           styles.cardContent,
           isCollapsible && collapsed && collapsibleContent
             ? styles.hidden
-            : undefined,
+            : undefined
         )}
       >
         {filteredArrChildren?.map((child, index) => {
@@ -263,7 +264,7 @@ export const EventPanel: FC<EventPanelProps> = ({
               collapsed
                 ? ApplicationIcons.chevron.right
                 : ApplicationIcons.chevron.down,
-              styles.dongleIcon,
+              styles.dongleIcon
             )}
           />
           transcript ({childIds?.length}{" "}
@@ -282,7 +283,7 @@ interface DataDefaultProps {
 }
 
 function hasDataDefault(
-  node: ReactNode,
+  node: ReactNode
 ): node is ReactElement<DataDefaultProps> {
   return (
     isValidElement(node) &&

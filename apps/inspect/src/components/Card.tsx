@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
+
 import { ApplicationIcons } from "../app/appearance/icons";
+
 import "./Card.css";
 
 interface CardHeaderProps {
@@ -65,7 +67,7 @@ export const CardBody: FC<CardBodyProps> = ({
       className={clsx(
         "card-body",
         className,
-        !padded ? "card-no-padding" : undefined,
+        !padded ? "card-no-padding" : undefined
       )}
       id={id || ""}
     >
@@ -97,7 +99,7 @@ export const CardCollapsingHeader: FC<CardCollapsingHeaderProps> = ({
         "container-fluid",
         "collapse",
         "show",
-        "do-not-collapse-self",
+        "do-not-collapse-self"
       )}
     >
       <div

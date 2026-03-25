@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
+
 import {
   EvalPlan,
   EvalResults,
@@ -9,6 +10,7 @@ import {
 } from "../../../@types/log";
 import { RunningMetric } from "../../../client/api/types";
 import { useTotalSampleCount } from "../../../state/hooks";
+
 import { PrimaryBar } from "./PrimaryBar";
 import { SecondaryBar } from "./SecondaryBar";
 import styles from "./TitleView.module.css";

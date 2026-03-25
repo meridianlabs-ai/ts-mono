@@ -1,13 +1,14 @@
 import { FC } from "react";
+
 import { CompactionEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { EventPanel } from "./event/EventPanel";
-import { eventTitle, formatTitle } from "./event/utils";
-import { EventNode } from "./types";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 
 import styles from "./CompactionEventView.module.css";
+import { EventPanel } from "./event/EventPanel";
+import { eventTitle, formatTitle } from "./event/utils";
+import { EventNode } from "./types";
 
 interface CompactionEventViewProps {
   eventNode: EventNode<CompactionEvent>;

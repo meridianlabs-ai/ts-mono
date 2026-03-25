@@ -1,5 +1,6 @@
 import { EvalSample } from "../@types/log";
 import { estimateSize } from "../utils/json";
+
 import { PersistedState } from "./store";
 
 export function filterState(state: PersistedState) {
@@ -11,7 +12,7 @@ export function filterState(state: PersistedState) {
   const filters = [filterLargeLogDetails, filtersLogsDetails];
   return filters.reduce(
     (filteredState, filter) => filter(filteredState),
-    state,
+    state
   );
 }
 
@@ -71,7 +72,7 @@ function filterLargeLogDetails(state: PersistedState): PersistedState {
   }
 
   const estimatedSize = estimateSize(
-    state.log.selectedLogDetails.sampleSummaries,
+    state.log.selectedLogDetails.sampleSummaries
   );
   if (estimatedSize > 250000) {
     return {

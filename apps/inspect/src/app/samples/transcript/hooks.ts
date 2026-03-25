@@ -1,13 +1,8 @@
 import { useCallback, useMemo } from "react";
+
 import {
   Event,
   Event1,
-  Event10,
-  Event11,
-  Event12,
-  Event13,
-  Event14,
-  Event18,
   Event2,
   Event3,
   Event4,
@@ -16,6 +11,12 @@ import {
   Event7,
   Event8,
   Event9,
+  Event10,
+  Event11,
+  Event12,
+  Event13,
+  Event14,
+  Event18,
 } from "../../../@types/log";
 import { kDefaultExcludeEvents } from "../../../state/sampleSlice";
 import { useStore } from "../../../state/store";
@@ -60,7 +61,7 @@ const eventTypes: Record<AllEventTypes, string> = {
 export const useTranscriptFilter = () => {
   const filtered = useStore((state) => state.sample.eventFilter.filteredTypes);
   const setFilteredEventTypes = useStore(
-    (state) => state.sampleActions.setFilteredEventTypes,
+    (state) => state.sampleActions.setFilteredEventTypes
   );
 
   const filterEventType = useCallback(
@@ -73,7 +74,7 @@ export const useTranscriptFilter = () => {
       }
       setFilteredEventTypes(Array.from(newFiltered));
     },
-    [filtered, setFilteredEventTypes],
+    [filtered, setFilteredEventTypes]
   );
 
   const setDebugFilter = useCallback(() => {

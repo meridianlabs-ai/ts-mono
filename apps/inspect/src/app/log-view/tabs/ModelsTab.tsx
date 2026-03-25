@@ -1,4 +1,5 @@
 import { FC, useMemo } from "react";
+
 import { EvalSpec, EvalStats, Status } from "../../../@types/log";
 import { kLogViewModelsTabId } from "../../../constants";
 import { ModelCard } from "../../plan/ModelCard";
@@ -8,7 +9,7 @@ import { UsageCard } from "../../usage/UsageCard";
 export const useModelsTab = (
   evalSpec: EvalSpec | undefined,
   evalStats: EvalStats | undefined,
-  evalStatus?: Status,
+  evalStatus?: Status
 ) => {
   return useMemo(() => {
     return {
