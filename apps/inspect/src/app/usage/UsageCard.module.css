@@ -1,0 +1,11 @@
+.cardsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  width: 100%;
+}
+
+.cardsContainer > * {
+  flex: 1 1 300px;
+  min-width: 300px;
+}
