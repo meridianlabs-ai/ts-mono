@@ -31,6 +31,7 @@ import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { messagesToStr } from "../utils/messages";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
+import { ChatPanel } from "./ChatPanel";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./TranscriptBody.module.css";
@@ -286,11 +287,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       onClick={toggleChatSidebar}
       className={styles.tabTool}
       subtle={true}
-      title={
-        chatSidebarCollapsed
-          ? "Show chat"
-          : "Hide chat"
-      }
+      title={chatSidebarCollapsed ? "Show chat" : "Hide chat"}
     />
   );
 
@@ -440,12 +437,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
               minEnd="120px"
             >
               <div slot="start" className={styles.validationSidebar}>
-                <ValidationCaseEditor
-                  transcriptId={transcript.transcript_id}
-                />
+                <ValidationCaseEditor transcriptId={transcript.transcript_id} />
               </div>
               <div slot="end" className={styles.chatSidebar}>
-                Chat
+                <ChatPanel onClose={toggleChatSidebar} />
               </div>
             </VscodeSplitLayout>
           ) : (
@@ -458,11 +453,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
               }
             >
               {!validationSidebarCollapsed ? (
-                <ValidationCaseEditor
-                  transcriptId={transcript.transcript_id}
-                />
+                <ValidationCaseEditor transcriptId={transcript.transcript_id} />
               ) : (
-                "Chat"
+                <ChatPanel onClose={toggleChatSidebar} />
               )}
             </div>
           )}
