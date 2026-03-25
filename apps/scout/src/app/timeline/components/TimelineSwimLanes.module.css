@@ -254,8 +254,8 @@
   justify-content: center;
 }
 
-/* White disc behind icon so transparent cutouts don't bleed bar color */
-.marker::before {
+/* White disc behind branch icon so transparent cutouts don't bleed bar color */
+.markerBranch::before {
   content: "";
   position: absolute;
   width: 6px;
