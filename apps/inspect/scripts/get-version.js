@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync } from "child_process";
 
 /**
  * Get version information from git describe
@@ -9,22 +9,22 @@ function getVersionInfo() {
     // Use git describe without --dirty since the build output itself creates dirty state
     const gitDescribe = execSync(
       "git describe --tags --long --match '[0-9]*.[0-9]*.[0-9]*'",
-      { encoding: 'utf-8' }
+      { encoding: "utf-8" },
     ).trim();
 
     // Extract short commit hash (first 8 chars of the hash part)
     const match = gitDescribe.match(/-g([a-f0-9]+)/);
-    const commitHash = match ? match[1].substring(0, 8) : 'unknown';
+    const commitHash = match ? match[1].substring(0, 8) : "unknown";
 
     return {
       version: gitDescribe,
       commitHash: commitHash,
     };
   } catch (error) {
-    console.warn('Warning: Could not get git version info:', error.message);
+    console.warn("Warning: Could not get git version info:", error.message);
     return {
-      version: 'unknown',
-      commitHash: 'unknown',
+      version: "unknown",
+      commitHash: "unknown",
     };
   }
 }

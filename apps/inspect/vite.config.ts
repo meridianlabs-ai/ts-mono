@@ -20,7 +20,7 @@ function copyToPythonRepo(): Plugin {
       rmSync(target, { recursive: true, force: true });
       cpSync("dist", target, { recursive: true });
       console.log(
-        `${pc.cyan("[vite]")} ${pc.bold("Copied")} dist → ${pc.dim(target)}`
+        `${pc.cyan("[vite]")} ${pc.bold("Copied")} dist → ${pc.dim(target)}`,
       );
     },
   };
@@ -49,10 +49,10 @@ export default defineConfig(({ mode }) => {
     define: {
       __DEV_WATCH__: JSON.stringify(process.env.DEV_LOGGING === "true"),
       __LOGGING_FILTER__: JSON.stringify(
-        process.env.DEV_LOGGING_NAMESPACES || "*"
+        process.env.DEV_LOGGING_NAMESPACES || "*",
       ),
       __VIEW_SERVER_API_URL__: JSON.stringify(
-        process.env.VIEW_SERVER_API_URL || "/api"
+        process.env.VIEW_SERVER_API_URL || "/api",
       ),
       __VIEWER_VERSION__: JSON.stringify(versionInfo.version),
       __VIEWER_COMMIT__: JSON.stringify(versionInfo.commitHash),

@@ -38,7 +38,7 @@ export function requirePythonRepoRoot() {
     throw new Error(
       "Not running as an inspect_ai submodule. " +
         "This script requires the TS monorepo to be mounted at " +
-        "src/inspect_ai/_view/ts-mono/ inside the Python repo."
+        "src/inspect_ai/_view/ts-mono/ inside the Python repo.",
     );
   }
   return root;
