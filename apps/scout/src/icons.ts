@@ -128,6 +128,7 @@ export const ApplicationIcons = {
   refresh: "bi bi-arrow-clockwise",
   refuse: "bi bi-ban",
   retry: "bi bi-arrow-repeat",
+  send: "bi bi-send",
   role: {
     user: "bi bi-person",
     system: "bi bi-cpu",
