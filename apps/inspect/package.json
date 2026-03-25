@@ -31,8 +31,6 @@
     "dev": "vite",
     "dev:lib": "NODE_ENV=development vite build --mode library --watch",
     "prepublishOnly": "npm version from-git --no-git-tag-version --allow-same-version && npm run build:lib",
-    "prettier:check": "prettier --check src",
-    "prettier:write": "prettier --write src",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs --coverage",
@@ -42,7 +40,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check-all": "pnpm tsc && pnpm lint:fix && pnpm prettier:write && pnpm test && pnpm build"
+    "check-all": "pnpm tsc && pnpm lint:fix && pnpm format && pnpm test && pnpm build"
   },
   "exports": {
     ".": {
