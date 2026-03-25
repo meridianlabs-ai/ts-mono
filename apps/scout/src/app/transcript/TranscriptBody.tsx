@@ -29,7 +29,12 @@ import {
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
-import { getValidationParam, updateValidationParam } from "../../router/url";
+import {
+  getChatParam,
+  getValidationParam,
+  updateChatParam,
+  updateValidationParam,
+} from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
@@ -185,18 +190,25 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     [setTranscriptState]
   );
 
-  // Validation sidebar - URL is the source of truth.
-  // When the sidebar is open, the split layout's start pane becomes the actual
+  // Sidebars - URL is the source of truth.
+  // When any sidebar is open, the split layout's start pane becomes the actual
   // scroll container (not the outer transcriptContainer), so we swap the ref.
   const validationSidebarCollapsed = !getValidationParam(searchParams);
-  const activeScrollRef = validationSidebarCollapsed
-    ? scrollRef
-    : splitStartRef;
+  const chatSidebarCollapsed = !getChatParam(searchParams);
+  const anySidebarOpen = !validationSidebarCollapsed || !chatSidebarCollapsed;
+  const activeScrollRef = anySidebarOpen ? splitStartRef : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
       const isCurrentlyOpen = getValidationParam(prevParams);
       return updateValidationParam(prevParams, !isCurrentlyOpen);
+    });
+  }, [setSearchParams]);
+
+  const toggleChatSidebar = useCallback(() => {
+    setSearchParams((prevParams) => {
+      const isCurrentlyOpen = getChatParam(prevParams);
+      return updateChatParam(prevParams, !isCurrentlyOpen);
     });
   }, [setSearchParams]);
 
@@ -287,6 +299,22 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         validationSidebarCollapsed
           ? "Show validation editor"
           : "Hide validation editor"
+      }
+    />
+  );
+
+  tabTools.push(
+    <ToolButton
+      key="chat-sidebar-toggle"
+      label="Chat"
+      icon={ApplicationIcons.messages}
+      onClick={toggleChatSidebar}
+      className={styles.tabTool}
+      subtle={true}
+      title={
+        chatSidebarCollapsed
+          ? "Show chat"
+          : "Hide chat"
       }
     />
   );
@@ -430,9 +458,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   return (
     <DisplayModeContext.Provider value={displayModeContextValue}>
-      {validationSidebarCollapsed ? (
-        tabSetContent
-      ) : (
+      {anySidebarOpen ? (
         <VscodeSplitLayout
           className={styles.splitLayout}
           fixedPane="end"
@@ -443,10 +469,45 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div slot="start" ref={splitStartRef} className={styles.splitStart}>
             {tabSetContent}
           </div>
-          <div slot="end" className={styles.validationSidebar}>
-            <ValidationCaseEditor transcriptId={transcript.transcript_id} />
-          </div>
+          {/* Both sidebars are open */}
+          {!validationSidebarCollapsed && !chatSidebarCollapsed ? (
+            <VscodeSplitLayout
+              slot="end"
+              className={styles.splitLayout}
+              initialHandlePosition="50%"
+              minStart="120px"
+              minEnd="120px"
+            >
+              <div slot="start" className={styles.validationSidebar}>
+                <ValidationCaseEditor
+                  transcriptId={transcript.transcript_id}
+                />
+              </div>
+              <div slot="end" className={styles.chatSidebar}>
+                Chat
+              </div>
+            </VscodeSplitLayout>
+          ) : (
+            <div
+              slot="end"
+              className={
+                !validationSidebarCollapsed
+                  ? styles.validationSidebar
+                  : styles.chatSidebar
+              }
+            >
+              {!validationSidebarCollapsed ? (
+                <ValidationCaseEditor
+                  transcriptId={transcript.transcript_id}
+                />
+              ) : (
+                "Chat"
+              )}
+            </div>
+          )}
         </VscodeSplitLayout>
+      ) : (
+        tabSetContent
       )}
     </DisplayModeContext.Provider>
   );

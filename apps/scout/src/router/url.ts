@@ -20,6 +20,7 @@ export const kScanIdPattern = /scan_id=[a-zA-Z0-9_.-]{22}$/;
 // Query parameter constants
 export const kScannerQueryParam = "scanner";
 export const kValidationQueryParam = "validation";
+export const kChatQueryParam = "chat";
 export const kValidationSetQueryParam = "validationSet";
 export const kDataframeColumnsQueryParam = "cols";
 
@@ -235,6 +236,25 @@ export const updateValidationParam = (
 // Retrieves the validation sidebar parameter from URL search params.
 export const getValidationParam = (searchParams: URLSearchParams): boolean => {
   return searchParams.get(kValidationQueryParam) === "1";
+};
+
+// Updates the chat sidebar parameter in URL search params.
+export const updateChatParam = (
+  searchParams: URLSearchParams,
+  isOpen: boolean
+): URLSearchParams => {
+  const newParams = new URLSearchParams(searchParams);
+  if (isOpen) {
+    newParams.set(kChatQueryParam, "1");
+  } else {
+    newParams.delete(kChatQueryParam);
+  }
+  return newParams;
+};
+
+// Retrieves the chat sidebar parameter from URL search params.
+export const getChatParam = (searchParams: URLSearchParams): boolean => {
+  return searchParams.get(kChatQueryParam) === "1";
 };
 
 // Retrieves the validation set URI from URL search params.
