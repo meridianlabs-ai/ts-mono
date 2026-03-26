@@ -8,6 +8,8 @@ import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  Event,
+  EventsData,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,
@@ -26,7 +28,13 @@ import {
   ValidationCaseRequest,
 } from "../types/api-types";
 
-import { NoPersistence, ScalarValue, ScoutApiV2, TopicVersions } from "./api";
+import {
+  NoPersistence,
+  ScalarValue,
+  ScoutApiV2,
+  ScanResultDetail,
+  TopicVersions,
+} from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
 import { expandInputEvents } from "./expandInputEvents";
 import { serverRequestApi } from "./request";
@@ -261,6 +269,46 @@ export const apiScoutServer = (
           result.input_type,
           result.input_data
         ),
+      };
+    },
+    getScannerDataframeDetail: async (
+      scansDir: string,
+      scanPath: string,
+      scanner: string,
+      uuid: string
+    ): Promise<ScanResultDetail> => {
+      const raw = await asyncJsonParse<{
+        input_type: string;
+        input: unknown;
+        input_data: unknown;
+        scan_events: unknown;
+      }>(
+        (
+          await requestApi.fetchString(
+            "GET",
+            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/fields?fields=input,input_type,input_data,scan_events`
+          )
+        ).raw
+      );
+
+      const [scanEvents] = await Promise.all([
+        asyncJsonParse<Event[]>(
+          typeof raw.scan_events === "string"
+            ? raw.scan_events
+            : JSON.stringify(raw.scan_events ?? [])
+        ),
+      ]);
+
+      return {
+        input: {
+          input_type: raw.input_type as ScannerInputResponse["input_type"],
+          input: expandInputEvents(
+            raw.input as ScannerInputResponse["input"],
+            raw.input_type as ScannerInputResponse["input_type"],
+            raw.input_data as EventsData | null
+          ),
+        },
+        scanEvents: scanEvents ?? [],
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>

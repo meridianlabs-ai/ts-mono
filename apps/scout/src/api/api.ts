@@ -5,6 +5,7 @@ import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  Event,
   InvalidationTopic,
   Pagination,
   ProjectConfig,
@@ -23,6 +24,11 @@ import {
 export type ClientStorage = StateStorage;
 
 export type ScalarValue = string | number | boolean | null;
+
+export interface ScanResultDetail {
+  input: ScannerInput;
+  scanEvents: Event[];
+}
 
 /** Topic versions: maps topic name to timestamp. */
 export type TopicVersions = Record<InvalidationTopic, string>;
@@ -65,6 +71,12 @@ export interface ScoutApiV2 {
     scanner: string,
     uuid: string
   ): Promise<ScannerInput>;
+  getScannerDataframeDetail(
+    scansDir: string,
+    scanPath: string,
+    scanner: string,
+    uuid: string
+  ): Promise<ScanResultDetail>;
   getActiveScans(): Promise<ActiveScansResponse>;
   postCode(condition: Condition): Promise<Record<string, string>>;
   getProjectConfig(): Promise<{ config: ProjectConfig; etag: string }>;
