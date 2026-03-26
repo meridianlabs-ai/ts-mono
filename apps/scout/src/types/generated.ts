@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Send chat messages for a transcript
-         * @description Receive chat messages associated with a transcript.
+         * @description Send chat messages and receive an LLM response about a transcript.
          */
         post: operations["chat_chat_post"];
         delete?: never;
@@ -4648,7 +4648,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ChatMessageAssistant-Output"];
                 };
             };
         };
