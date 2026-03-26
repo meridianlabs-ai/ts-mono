@@ -1,33 +1,52 @@
 import { FC, FormEvent, KeyboardEvent, useCallback, useRef } from "react";
 
 import { ApplicationIcons } from "../../components/icons";
+import { useApi } from "../../state/store";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import styles from "./ChatPanel.module.css";
 
 interface ChatPanelProps {
+  transcriptDir: string;
+  transcriptId: string;
   onClose: () => void;
 }
 
-export const ChatPanel: FC<ChatPanelProps> = ({ onClose }) => {
+export const ChatPanel: FC<ChatPanelProps> = ({
+  transcriptDir,
+  transcriptId,
+  onClose,
+}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const api = useApi();
 
-  const handleSubmit = useCallback((e: FormEvent) => {
-    e.preventDefault();
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const text = textarea.value.trim();
-    if (!text) return;
-    alert(text);
-    textarea.value = "";
-  }, []);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleSubmit = useCallback(
+    (e: FormEvent) => {
       e.preventDefault();
-      textareaRef.current?.form?.requestSubmit();
-    }
-  }, []);
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const text = textarea.value.trim();
+      if (!text) return;
+      textarea.value = "";
+
+      void api.postChat({
+        transcript_dir: transcriptDir,
+        transcript_id: transcriptId,
+        messages: [{ role: "user", content: text }],
+      });
+    },
+    [api, transcriptDir, transcriptId]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        textareaRef.current?.form?.requestSubmit();
+      }
+    },
+    []
+  );
 
   return (
     <div className={styles.container}>
@@ -39,20 +58,20 @@ export const ChatPanel: FC<ChatPanelProps> = ({ onClose }) => {
       <div className={styles.body}>
         <div className={styles.messages} />
         <form className={styles.form} onSubmit={handleSubmit}>
-        <textarea
-          ref={textareaRef}
-          className={styles.textarea}
-          placeholder="Send a message..."
-          rows={1}
-          onKeyDown={handleKeyDown}
-        />
-        <button
-          type="submit"
-          className={styles.sendButton}
-          title="Send message"
-        >
-          <i className={ApplicationIcons.send} />
-        </button>
+          <textarea
+            ref={textareaRef}
+            className={styles.textarea}
+            placeholder="Send a message..."
+            rows={1}
+            onKeyDown={handleKeyDown}
+          />
+          <button
+            type="submit"
+            className={styles.sendButton}
+            title="Send message"
+          >
+            <i className={ApplicationIcons.send} />
+          </button>
         </form>
       </div>
     </div>
