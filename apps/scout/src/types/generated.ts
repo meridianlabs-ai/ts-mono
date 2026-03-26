@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send chat messages for a transcript
+         * @description Receive chat messages associated with a transcript.
+         */
+        post: operations["chat_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/code": {
         parameters: {
             query?: never;
@@ -728,6 +748,58 @@ export interface components {
             tool_calls: components["schemas"]["ToolCall"][] | null;
         };
         /**
+         * ChatMessageAssistant
+         * @description Assistant chat message.
+         */
+        "ChatMessageAssistant-Input": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Input"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Model */
+            model?: string | null;
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role: "assistant";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Calls */
+            tool_calls?: components["schemas"]["ToolCall"][] | null;
+        };
+        /**
+         * ChatMessageAssistant
+         * @description Assistant chat message.
+         */
+        "ChatMessageAssistant-Output": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Output"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Model */
+            model?: string | null;
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role: "assistant";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Calls */
+            tool_calls?: components["schemas"]["ToolCall"][] | null;
+        };
+        /**
          * ChatMessageSystem
          * @description System chat message.
          */
@@ -757,6 +829,50 @@ export interface components {
              * @default null
              */
             source: ("input" | "generate") | null;
+        };
+        /**
+         * ChatMessageSystem
+         * @description System chat message.
+         */
+        "ChatMessageSystem-Input": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Input"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default system
+             * @constant
+             */
+            role: "system";
+            /** Source */
+            source?: ("input" | "generate") | null;
+        };
+        /**
+         * ChatMessageSystem
+         * @description System chat message.
+         */
+        "ChatMessageSystem-Output": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Output"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default system
+             * @constant
+             */
+            role: "system";
+            /** Source */
+            source?: ("input" | "generate") | null;
         };
         /**
          * ChatMessageTool
@@ -802,6 +918,60 @@ export interface components {
             tool_call_id: string | null;
         };
         /**
+         * ChatMessageTool
+         * @description Tool chat message.
+         */
+        "ChatMessageTool-Input": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Input"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            error?: components["schemas"]["ToolCallError"] | null;
+            /** Function */
+            function?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default tool
+             * @constant
+             */
+            role: "tool";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Call Id */
+            tool_call_id?: string | null;
+        };
+        /**
+         * ChatMessageTool
+         * @description Tool chat message.
+         */
+        "ChatMessageTool-Output": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Output"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            error?: components["schemas"]["ToolCallError"] | null;
+            /** Function */
+            function?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default tool
+             * @constant
+             */
+            role: "tool";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Call Id */
+            tool_call_id?: string | null;
+        };
+        /**
          * ChatMessageUser
          * @description User chat message.
          */
@@ -836,6 +1006,63 @@ export interface components {
              * @default null
              */
             tool_call_id: string[] | null;
+        };
+        /**
+         * ChatMessageUser
+         * @description User chat message.
+         */
+        "ChatMessageUser-Input": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Input"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default user
+             * @constant
+             */
+            role: "user";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Call Id */
+            tool_call_id?: string[] | null;
+        };
+        /**
+         * ChatMessageUser
+         * @description User chat message.
+         */
+        "ChatMessageUser-Output": {
+            /** Content */
+            content: string | (components["schemas"]["ContentText-Output"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default user
+             * @constant
+             */
+            role: "user";
+            /** Source */
+            source?: ("input" | "generate") | null;
+            /** Tool Call Id */
+            tool_call_id?: string[] | null;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Messages */
+            messages: (components["schemas"]["ChatMessageSystem-Input"] | components["schemas"]["ChatMessageUser-Input"] | components["schemas"]["ChatMessageAssistant-Input"] | components["schemas"]["ChatMessageTool-Input"])[];
+            /** Transcript Dir */
+            transcript_dir: string;
+            /** Transcript Id */
+            transcript_id: string;
         };
         /**
          * CompactionEvent
@@ -1089,6 +1316,44 @@ export interface components {
             type: "text";
         };
         /**
+         * ContentText
+         * @description Text content.
+         */
+        "ContentText-Input": {
+            /** Citations */
+            citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
+            internal?: components["schemas"]["JsonValue"] | null;
+            /** Refusal */
+            refusal?: boolean | null;
+            /** Text */
+            text: string;
+            /**
+             * Type
+             * @default text
+             * @constant
+             */
+            type: "text";
+        };
+        /**
+         * ContentText
+         * @description Text content.
+         */
+        "ContentText-Output": {
+            /** Citations */
+            citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
+            internal?: components["schemas"]["JsonValue"] | null;
+            /** Refusal */
+            refusal?: boolean | null;
+            /** Text */
+            text: string;
+            /**
+             * Type
+             * @default text
+             * @constant
+             */
+            type: "text";
+        };
+        /**
          * ContentToolUse
          * @description Server side tool use.
          */
@@ -1283,7 +1548,7 @@ export interface components {
             /** Calls */
             calls: components["schemas"]["JsonValue"][];
             /** Messages */
-            messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            messages: (components["schemas"]["ChatMessageSystem-Output"] | components["schemas"]["ChatMessageUser-Output"] | components["schemas"]["ChatMessageAssistant-Output"] | components["schemas"]["ChatMessageTool-Output"])[];
         } & {
             [key: string]: unknown;
         };
@@ -2029,7 +2294,7 @@ export interface components {
             events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Messages */
-            messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            messages: (components["schemas"]["ChatMessageSystem-Output"] | components["schemas"]["ChatMessageUser-Output"] | components["schemas"]["ChatMessageAssistant-Output"] | components["schemas"]["ChatMessageTool-Output"])[];
             /** Timelines */
             timelines: components["schemas"]["Timeline"][];
         } & {
@@ -3060,7 +3325,7 @@ export interface components {
          */
         ScannerInputResponse: {
             /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem-Output"] | components["schemas"]["ChatMessageUser-Output"] | components["schemas"]["ChatMessageAssistant-Output"] | components["schemas"]["ChatMessageTool-Output"] | (components["schemas"]["ChatMessageSystem-Output"] | components["schemas"]["ChatMessageUser-Output"] | components["schemas"]["ChatMessageAssistant-Output"] | components["schemas"]["ChatMessageTool-Output"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
             input_data?: components["schemas"]["EventsData"] | null;
             /**
              * Input Type
@@ -4360,6 +4625,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppConfig"];
+                };
+            };
+        };
+    };
+    chat_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
