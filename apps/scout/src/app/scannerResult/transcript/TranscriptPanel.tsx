@@ -6,14 +6,14 @@ import {
   TranscriptLayout,
 } from "@tsmono/inspect-components/transcript";
 
+import { Event } from "../../../types/api-types";
 import { useStore } from "../../../state/store";
-import { ScanResultData } from "../../types";
 
 import styles from "./TranscriptPanel.module.css";
 
 interface TranscriptPanelProps {
   id: string;
-  resultData?: ScanResultData;
+  events: Event[];
 }
 
 /**
@@ -25,7 +25,7 @@ interface TranscriptPanelProps {
  */
 export const TranscriptPanel: FC<TranscriptPanelProps> = ({
   id,
-  resultData,
+  events: rawEvents,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -33,19 +33,18 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = ({
   // If the first event is span_begin and the last is span_end, they are the
   // scanner's own bookend — remove them so TranscriptLayout sees only inner events.
   const events = useMemo(() => {
-    const raw = resultData?.scanEvents || [];
-    const first = raw[0];
-    const last = raw[raw.length - 1];
+    const first = rawEvents[0];
+    const last = rawEvents[rawEvents.length - 1];
     if (
       first &&
       last &&
       first.event === "span_begin" &&
       last.event === "span_end"
     ) {
-      return raw.slice(1, -1);
+      return rawEvents.slice(1, -1);
     }
-    return raw;
-  }, [resultData?.scanEvents]);
+    return rawEvents;
+  }, [rawEvents]);
 
   const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
   const setTranscriptCollapsedEvent = useStore(
