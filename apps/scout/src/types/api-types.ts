@@ -44,3 +44,5 @@ export type ValidationMetrics = S["ValidationMetrics"];
 export type ValidationResults = S["ValidationResults"];
 
 export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
+
+export type ChatRequest = components["schemas"]["ChatRequest"];
