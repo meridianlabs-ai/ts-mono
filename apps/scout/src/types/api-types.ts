@@ -145,3 +145,5 @@ export interface ToolFunction {
 }
 
 export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
+
+export type ChatRequest = components["schemas"]["ChatRequest"];

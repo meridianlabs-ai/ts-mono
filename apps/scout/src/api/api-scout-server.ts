@@ -7,6 +7,7 @@ import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
   AppConfig,
+  ChatRequest,
   CreateValidationSetRequest,
   MessagesEventsResponse,
   Pagination,
@@ -267,6 +268,14 @@ export const apiScoutServer = (
       asyncJsonParse<ActiveScansResponse>(
         (await requestApi.fetchString("GET", `/scans/active`)).raw
       ),
+    postChat: async (request: ChatRequest): Promise<void> => {
+      await requestApi.fetchString(
+        "POST",
+        `/chat`,
+        {},
+        JSON.stringify(request)
+      );
+    },
     postCode: async (condition: Condition): Promise<Record<string, string>> =>
       asyncJsonParse<Record<string, string>>(
         (

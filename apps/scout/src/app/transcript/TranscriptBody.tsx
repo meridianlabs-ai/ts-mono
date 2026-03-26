@@ -29,6 +29,7 @@ import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { messagesToStr } from "../utils/messages";
+import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
 import { ChatPanel } from "./ChatPanel";
@@ -59,6 +60,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   onHeadroomResetAnchor,
 }) => {
   const navigate = useNavigate();
+  const { resolvedTranscriptsDir } = useTranscriptsDir(true);
   // When the validation sidebar is open, a VscodeSplitLayout wraps the content
   // in a separate scrollable div (splitStart). The virtualizer and other scroll
   // listeners need the *actual* scroll container, not the outer transcriptContainer.
@@ -440,7 +442,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
                 <ValidationCaseEditor transcriptId={transcript.transcript_id} />
               </div>
               <div slot="end" className={styles.chatSidebar}>
-                <ChatPanel onClose={toggleChatSidebar} />
+                <ChatPanel transcriptDir={resolvedTranscriptsDir} transcriptId={transcript.transcript_id} onClose={toggleChatSidebar} />
               </div>
             </VscodeSplitLayout>
           ) : (
@@ -455,7 +457,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
               {!validationSidebarCollapsed ? (
                 <ValidationCaseEditor transcriptId={transcript.transcript_id} />
               ) : (
-                <ChatPanel onClose={toggleChatSidebar} />
+                <ChatPanel transcriptDir={resolvedTranscriptsDir} transcriptId={transcript.transcript_id} onClose={toggleChatSidebar} />
               )}
             </div>
           )}
