@@ -31,8 +31,8 @@ import {
 import {
   NoPersistence,
   ScalarValue,
-  ScoutApiV2,
   ScanResultDetail,
+  ScoutApiV2,
   TopicVersions,
 } from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
