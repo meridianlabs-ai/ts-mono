@@ -6,6 +6,7 @@ import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
   AppConfig,
+  ChatMessageAssistant,
   ChatRequest,
   CreateValidationSetRequest,
   InvalidationTopic,
@@ -101,7 +102,7 @@ export interface ScoutApiV2 {
   deleteValidationSet(uri: string): Promise<void>;
   renameValidationSet(uri: string, newName: string): Promise<string>;
 
-  postChat(request: ChatRequest): Promise<void>;
+  postChat(request: ChatRequest): Promise<ChatMessageAssistant>;
 
   downloadScan?(scansDir: string, scanPath: string): Promise<Blob>;
 
