@@ -1,7 +1,16 @@
-import { FC, FormEvent, KeyboardEvent, useCallback, useRef } from "react";
+import {
+  FC,
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
+import { ChatView } from "../../components/chat/ChatView";
 import { ApplicationIcons } from "../../components/icons";
 import { useApi } from "../../state/store";
+import { ChatMessage, ChatMessageUser } from "../../types/api-types";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import styles from "./ChatPanel.module.css";
@@ -19,6 +28,8 @@ export const ChatPanel: FC<ChatPanelProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = useApi();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -26,27 +37,43 @@ export const ChatPanel: FC<ChatPanelProps> = ({
       const textarea = textareaRef.current;
       if (!textarea) return;
       const text = textarea.value.trim();
-      if (!text) return;
+      if (!text || loading) return;
       textarea.value = "";
 
-      void api.postChat({
-        transcript_dir: transcriptDir,
-        transcript_id: transcriptId,
-        messages: [{ role: "user", content: text }],
-      });
+      const userMessage: ChatMessageUser = {
+        role: "user",
+        content: text,
+        id: null,
+        metadata: null,
+        source: null,
+        tool_call_id: null,
+      };
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      setLoading(true);
+
+      void api
+        .postChat({
+          transcript_dir: transcriptDir,
+          transcript_id: transcriptId,
+          messages: updatedMessages,
+        })
+        .then((assistant) => {
+          setMessages((prev) => [...prev, assistant]);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     },
-    [api, transcriptDir, transcriptId]
+    [api, transcriptDir, transcriptId, messages, loading]
   );
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        textareaRef.current?.form?.requestSubmit();
-      }
-    },
-    []
-  );
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      textareaRef.current?.form?.requestSubmit();
+    }
+  }, []);
 
   return (
     <div className={styles.container}>
@@ -56,7 +83,16 @@ export const ChatPanel: FC<ChatPanelProps> = ({
         onClose={onClose}
       />
       <div className={styles.body}>
-        <div className={styles.messages} />
+        <div className={styles.messages}>
+          <ChatView
+            messages={messages}
+            toolCallStyle="complete"
+            allowLinking={false}
+          />
+          {loading && (
+            <div className={styles.loading}>Thinking...</div>
+          )}
+        </div>
         <form className={styles.form} onSubmit={handleSubmit}>
           <textarea
             ref={textareaRef}
@@ -69,6 +105,7 @@ export const ChatPanel: FC<ChatPanelProps> = ({
             type="submit"
             className={styles.sendButton}
             title="Send message"
+            disabled={loading}
           >
             <i className={ApplicationIcons.send} />
           </button>
