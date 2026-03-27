@@ -66,6 +66,9 @@ importers:
       '@popperjs/core':
         specifier: ^2.11.8
         version: 2.11.8
+      '@tsmono/react':
+        specifier: workspace:*
+        version: link:../../packages/react
       ag-grid-community:
         specifier: ^34.3.1
         version: 34.3.1
@@ -464,9 +467,15 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
+      ansi-output:
+        specifier: ^0.0.9
+        version: 0.0.9
       asciinema-player:
         specifier: ^3.13.5
         version: 3.14.15
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       lodash-es:
         specifier: ^4.17.23
         version: 4.17.23

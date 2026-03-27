@@ -5,8 +5,9 @@ import "prismjs/components/prism-python";
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
 
+import { ANSIDisplay } from "@tsmono/react/components";
+
 import { ModelCall, ModelEvent, ToolChoice, Tools1 } from "../../../@types/log";
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { usePrismHighlight } from "../../../components/prism";
 import { PulsingDots } from "../../../components/PulsingDots";
 import { formatDateTime } from "../../../utils/format";

@@ -1,9 +1,9 @@
 import { FC } from "react";
 
+import { ANSIDisplay } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { ErrorEvent } from "../../types/api-types";
-import { ANSIDisplay } from "../AnsiDisplay";
 import { ApplicationIcons } from "../icons";
 
 import { EventPanel } from "./event/EventPanel";
