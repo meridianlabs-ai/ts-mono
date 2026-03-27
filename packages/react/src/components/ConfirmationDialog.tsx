@@ -1,9 +1,8 @@
 import { VscodeButton } from "@vscode-elements/react-elements";
 import { FC, ReactNode } from "react";
 
-import { Modal } from "@tsmono/react/components";
-
 import styles from "./ConfirmationDialog.module.css";
+import { Modal } from "./Modal";
 
 interface ConfirmationDialogProps {
   show: boolean;
