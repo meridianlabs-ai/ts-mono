@@ -1,7 +1,8 @@
 import { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { SegmentedControl } from "../../components/SegmentedControl";
+import { SegmentedControl } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../appearance/icons";
 import {
   logsUrl,

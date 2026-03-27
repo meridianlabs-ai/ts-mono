@@ -14,6 +14,8 @@ export * from "./PopOver";
 export * from "./Preformatted";
 export * from "./ProgressBar";
 export * from "./PulsingDots";
+export * from "./SegmentedControl";
+export * from "./SourceCodePanel";
 export * from "./StickyScroll";
 export * from "./StickyScrollContext";
 export * from "./ToolButton";
