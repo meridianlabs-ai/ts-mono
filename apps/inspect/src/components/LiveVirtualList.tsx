@@ -12,6 +12,7 @@ import { Components, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import {
   ExtendedCountFn,
   ExtendedFindFn,
+  PulsingDots,
   useExtendedFind,
 } from "@tsmono/react/components";
 
@@ -19,7 +20,6 @@ import { usePrevious, useProperty } from "../state/hooks";
 import { useRafThrottle, useVirtuosoState } from "../state/scrolling";
 
 import styles from "./LiveVirtualList.module.css";
-import { PulsingDots } from "./PulsingDots";
 
 interface LiveVirtualListProps<T> {
   id: string;
