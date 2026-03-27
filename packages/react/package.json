@@ -20,10 +20,10 @@
     "storybook:build": "storybook build"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "@tsmono/util": "workspace:*",
     "ansi-output": "^0.0.9",
     "asciinema-player": "^3.13.5",
-    "@popperjs/core": "^2.11.8",
     "clsx": "^2.1.1",
     "lodash-es": "^4.17.23",
     "markdown-it": "^14.1.1",
@@ -56,9 +56,9 @@
     "@vscode-elements/react-elements": "^2.4.0",
     "eslint": "^9.39.2",
     "jsdom": "^27.3.0",
-    "prismjs": "^1.30.0",
     "json5": "^2.2.3",
     "mathjax-full": "^3.2.2",
+    "prismjs": "^1.30.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
