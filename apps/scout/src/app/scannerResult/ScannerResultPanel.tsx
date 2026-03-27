@@ -4,12 +4,11 @@ import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { ToolButton } from "@tsmono/react/components";
+import { JSONPanel, ToolButton } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ExtendedFindProvider } from "../../components/ExtendedFindProvider";
 import { ApplicationIcons } from "../../components/icons";
-import JSONPanel from "../../components/JsonPanel";
 import { LoadingBar } from "../../components/LoadingBar";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import { EventNode, EventType } from "../../components/transcript/types";

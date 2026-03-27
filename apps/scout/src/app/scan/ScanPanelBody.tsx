@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { JSONPanel } from "@tsmono/react/components";
+
 import { GRID_STATE_NAME } from "../../components/DataframeView";
 import { ApplicationIcons } from "../../components/icons";
-import JSONPanel from "../../components/JsonPanel";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import { useStore } from "../../state/store";
