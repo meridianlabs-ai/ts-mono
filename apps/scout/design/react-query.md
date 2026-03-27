@@ -22,15 +22,15 @@ React Query v5 introduced `queryOptions()` which brands the query key with a `Da
 import { queryOptions } from "@tanstack/react-query";
 
 export const scanDetailOptions = (
-    api: ScanApi,
-    scansDir: string,
-    scanPath: string
+  api: ScanApi,
+  scansDir: string,
+  scanPath: string
 ) =>
-    queryOptions({
-        queryKey: ["scan", scansDir, scanPath] as const,
-        queryFn: (): Promise<Status> => api.getScan(scansDir, scanPath),
-        staleTime: 10000,
-    });
+  queryOptions({
+    queryKey: ["scan", scansDir, scanPath] as const,
+    queryFn: (): Promise<Status> => api.getScan(scansDir, scanPath),
+    staleTime: 10000,
+  });
 ```
 
 The returned `queryKey` is typed as `DataTag<["scan", string, string], Status, Error>`.
@@ -59,23 +59,23 @@ Define query options in a centralized file for reuse:
 import { queryOptions } from "@tanstack/react-query";
 
 export const scansListOptions = (api: ScanApi, scansDir: string) =>
-    queryOptions({
-        queryKey: ["scans", scansDir] as const,
-        queryFn: async (): Promise<ScanRow[]> => {
-            const response = await api.getScans(scansDir);
-            return response.items;
-        },
-        staleTime: 5000,
-        refetchInterval: 5000,
-    });
+  queryOptions({
+    queryKey: ["scans", scansDir] as const,
+    queryFn: async (): Promise<ScanRow[]> => {
+      const response = await api.getScans(scansDir);
+      return response.items;
+    },
+    staleTime: 5000,
+    refetchInterval: 5000,
+  });
 ```
 
 Then use in hooks:
 
 ```typescript
 export const useScans = (scansDir: string): AsyncData<ScanRow[]> => {
-    const api = useApi();
-    return useAsyncDataFromQuery(scansListOptions(api, scansDir));
+  const api = useApi();
+  return useAsyncDataFromQuery(scansListOptions(api, scansDir));
 };
 ```
 
@@ -92,21 +92,21 @@ type ScanParams = { scansDir: string; scanPath: string };
 
 // The hook accepts either valid params or skipToken
 export const useScan = (
-    params: ScanParams | typeof skipToken
+  params: ScanParams | typeof skipToken
 ): AsyncData<Status> => {
-    const api = useApi();
+  const api = useApi();
 
-    return useAsyncDataFromQuery({
-        queryKey:
-            params === skipToken
-                ? [skipToken] // All disabled queries share this key
-                : ["scan", params.scansDir, params.scanPath],
-        queryFn:
-            params === skipToken
-                ? skipToken // Query won't execute
-                : () => api.getScan(params.scansDir, params.scanPath),
-        staleTime: 10000,
-    });
+  return useAsyncDataFromQuery({
+    queryKey:
+      params === skipToken
+        ? [skipToken] // All disabled queries share this key
+        : ["scan", params.scansDir, params.scanPath],
+    queryFn:
+      params === skipToken
+        ? skipToken // Query won't execute
+        : () => api.getScan(params.scansDir, params.scanPath),
+    staleTime: 10000,
+  });
 };
 
 // Usage: query is disabled until scanPath is available
