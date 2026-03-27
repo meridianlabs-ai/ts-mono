@@ -269,26 +269,28 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           collapsed ? styles.collapsed : undefined
         )}
       >
-        <StickyScroll
-          scrollRef={scrollRef}
-          className={styles.treeContainer}
-          offsetTop={topOffset}
-        >
-          <TranscriptOutline
-            className={clsx(styles.outline)}
-            eventNodes={eventNodes}
-            filteredNodes={outlineFilteredNodes}
-            running={running}
-            defaultCollapsedIds={defaultCollapsedIds}
+        <div className={styles.treeContainer}>
+          <StickyScroll
             scrollRef={scrollRef}
-          />
-          <div
-            className={styles.outlineToggle}
-            onClick={() => setCollapsed(!collapsed)}
+            offsetTop={topOffset}
+            className={styles.stickyOutline}
           >
-            <i className={ApplicationIcons.sidebar} />
-          </div>
-        </StickyScroll>
+            <TranscriptOutline
+              className={clsx(styles.outline)}
+              eventNodes={eventNodes}
+              filteredNodes={outlineFilteredNodes}
+              running={running}
+              defaultCollapsedIds={defaultCollapsedIds}
+              scrollRef={scrollRef}
+            />
+            <div
+              className={styles.outlineToggle}
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              <i className={ApplicationIcons.sidebar} />
+            </div>
+          </StickyScroll>
+        </div>
 
         <TranscriptVirtualList
           id={id}
