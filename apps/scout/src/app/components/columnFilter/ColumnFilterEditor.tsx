@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { ChangeEvent, FC, KeyboardEvent, useCallback } from "react";
 
+import { AutocompleteInput } from "@tsmono/react/components";
+
 import { ScalarValue } from "../../../api/api";
-import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import type { OperatorModel } from "../../../query";
 import type { FilterType } from "../../../state/store";
 

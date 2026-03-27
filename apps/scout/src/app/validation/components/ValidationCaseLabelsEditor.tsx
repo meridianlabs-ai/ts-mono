@@ -6,7 +6,8 @@ import {
 import clsx from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
-import { AutocompleteInput } from "../../../components/AutocompleteInput";
+import { AutocompleteInput } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../../../components/icons";
 import { PopOver } from "../../../components/PopOver";
 import { Chip } from "../../components/Chip";
