@@ -1,10 +1,12 @@
+import { describe, expect, it } from "vitest";
+
 import {
   escapeHtmlCharacters,
   getMarkdownInstance,
   protectBackslashesInLatex,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
-} from "../../components/markdownRendering";
+} from "../markdownRendering";
 
 /**
  * Simulate the async rendering pipeline from MarkdownDiv.

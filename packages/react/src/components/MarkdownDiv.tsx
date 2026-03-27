@@ -4,6 +4,7 @@ import {
   forwardRef,
   memo,
   startTransition,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -28,46 +29,59 @@ interface MarkdownDivProps {
   omitMath?: boolean;
   style?: CSSProperties;
   className?: string | string[];
+  postProcess?: (html: string) => string;
+  onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
 }
 
+const sanitizeMarkdown = (md: string): string => {
+  return escapeHtmlCharacters(md).replace(/\n/g, "<br/>");
+};
+
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
-  ({ markdown, omitMedia, omitMath, style, className }, ref) => {
-    // Check cache for rendered content
+  (
+    { markdown, omitMedia, omitMath, style, className, postProcess, onClick },
+    ref
+  ) => {
+    // Check cache for rendered content (before post-processing)
     const optionsKey = `${omitMedia ? "1" : "0"}:${omitMath ? "1" : "0"}`;
     const cacheKey = `${markdown}:${optionsKey}`;
     const cachedHtml = renderCache.get(cacheKey);
 
-    const sanitizeMarkdown = (md: string): string => {
-      // Basic sanitization to prevent script tags and event handlers
-      const escapedBr = md.replace(/\n/g, "<br/>");
-      return escapeHtmlCharacters(escapedBr);
-    };
+    // Apply post-processing to get final HTML
+    const applyPostProcess = useCallback(
+      (html: string): string => {
+        return postProcess ? postProcess(html) : html;
+      },
+      [postProcess]
+    );
 
     // Initialize with content (cached or unrendered markdown)
     const [renderedHtml, setRenderedHtml] = useState<string>(() => {
       if (cachedHtml) {
-        return cachedHtml;
+        return applyPostProcess(cachedHtml);
       }
       return sanitizeMarkdown(markdown);
     });
 
     useEffect(() => {
-      // If already cached, no need to re-render
+      // If already cached, apply post-processing and use cached content
       if (cachedHtml) {
+        const finalHtml = applyPostProcess(cachedHtml);
         // Only update state if it's different (avoid unnecessary re-render)
-        if (renderedHtml !== cachedHtml) {
+        if (renderedHtml !== finalHtml) {
           startTransition(() => {
-            setRenderedHtml(cachedHtml);
+            setRenderedHtml(finalHtml);
           });
         }
         return;
       }
 
-      // Reset to raw markdown text when markdown changes (keep this synchronous for immediate feedback)
+      // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: show sanitized placeholder synchronously before async render
       setRenderedHtml(sanitizeMarkdown(markdown));
 
       // Process markdown asynchronously using the queue
-      const { promise, cancel } = renderQueue.enqueue(async () => {
+      const { promise, cancel } = renderQueue.enqueue(() => {
         // Protect backslashes in LaTeX expressions
         const protectedContent = protectBackslashesInLatex(markdown);
 
@@ -106,7 +120,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       // Update state when rendering completes
       promise
         .then((result) => {
-          // Update cache (with simple size limit)
+          // Update cache with pre-post-processed content (with simple size limit)
           if (renderCache.size >= MAX_CACHE_SIZE) {
             // Remove oldest entry (first key)
             const firstKey = renderCache.keys().next().value;
@@ -116,12 +130,15 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
           }
           renderCache.set(cacheKey, result);
 
+          // Apply post-processing after caching
+          const finalHtml = applyPostProcess(result);
+
           // Use startTransition to mark this as a non-urgent update
           startTransition(() => {
-            setRenderedHtml(result);
+            setRenderedHtml(finalHtml);
           });
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.error("Markdown rendering error:", error);
         });
 
@@ -129,7 +146,15 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         // Cancel rendering if component unmounts
         cancel();
       };
-    }, [markdown, omitMedia, omitMath, cachedHtml, renderedHtml, cacheKey]);
+    }, [
+      markdown,
+      omitMedia,
+      omitMath,
+      cachedHtml,
+      renderedHtml,
+      cacheKey,
+      applyPostProcess,
+    ]);
 
     return (
       <div
@@ -137,10 +162,13 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         dangerouslySetInnerHTML={{ __html: renderedHtml }}
         style={style}
         className={clsx(className, "markdown-content")}
+        onClick={onClick}
       />
     );
   }
 );
+
+MarkdownDivComponent.displayName = "MarkdownDivComponent";
 
 // Memoize component to prevent re-renders when props haven't changed
 export const MarkdownDiv = memo(MarkdownDivComponent);
@@ -164,7 +192,7 @@ class MarkdownRenderQueue {
     this.maxConcurrent = maxConcurrent;
   }
 
-  enqueue<T>(task: () => Promise<T>): {
+  enqueue<T>(task: () => T | Promise<T>): {
     promise: Promise<T>;
     cancel: () => void;
   } {
@@ -184,7 +212,7 @@ class MarkdownRenderQueue {
           }
         } catch (error) {
           if (!cancelled) {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
           }
         }
       };
@@ -195,14 +223,14 @@ class MarkdownRenderQueue {
       };
 
       this.queue.push(queueTask);
-      this.processQueue();
+      void this.processQueue();
     });
 
     const cancel = () => {
       cancelled = true;
       // Mark task as cancelled in queue
       const index = this.queue.findIndex((t) => !t.cancelled);
-      if (index !== -1) {
+      if (index !== -1 && this.queue[index]) {
         this.queue[index].cancelled = true;
       }
     };
@@ -235,7 +263,7 @@ class MarkdownRenderQueue {
       await queueTask.task();
     } finally {
       this.activeCount--;
-      this.processQueue();
+      void this.processQueue();
     }
   }
 }
