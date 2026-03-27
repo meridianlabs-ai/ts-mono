@@ -29,39 +29,49 @@ export const getMarkdownInstance = (
 ): MarkdownIt => {
   const key = getOptionsKey(omitMedia, omitMath);
 
-  if (!mdInstanceCache[key]) {
-    const md = new MarkdownIt({ breaks: true, html: true });
-    if (!omitMath) {
-      md.use(markdownitMathjax3);
-
-      // Wrap math renderers to unescape HTML entities in TeX content
-      // before MathJax processes them. HTML chars in LaTeX blocks are
-      // entity-encoded by the pipeline for XSS safety, but MathJax needs
-      // the raw characters (e.g. < for \lt comparisons). This is safe
-      // because MathJax renders to SVG, not to injectable HTML.
-      const origInline = md.renderer.rules.math_inline;
-      const origBlock = md.renderer.rules.math_block;
-
-      if (origInline) {
-        md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
-          tokens[idx].content = unescapeHtmlForMath(tokens[idx].content);
-          return origInline(tokens, idx, options, env, self);
-        };
-      }
-      if (origBlock) {
-        md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
-          tokens[idx].content = unescapeHtmlForMath(tokens[idx].content);
-          return origBlock(tokens, idx, options, env, self);
-        };
-      }
-    }
-    if (omitMedia) {
-      md.disable(["image"]);
-    }
-    mdInstanceCache[key] = md;
+  const cached = mdInstanceCache[key];
+  if (cached) {
+    return cached;
   }
 
-  return mdInstanceCache[key];
+  const md = new MarkdownIt({ breaks: true, html: true });
+  if (!omitMath) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
+    md.use(markdownitMathjax3);
+
+    // Wrap math renderers to unescape HTML entities in TeX content
+    // before MathJax processes them. HTML chars in LaTeX blocks are
+    // entity-encoded by the pipeline for XSS safety, but MathJax needs
+    // the raw characters (e.g. < for \lt comparisons). This is safe
+    // because MathJax renders to SVG, not to injectable HTML.
+    const origInline = md.renderer.rules.math_inline;
+    const origBlock = md.renderer.rules.math_block;
+
+    if (origInline) {
+      md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
+        const token = tokens[idx];
+        if (token) {
+          token.content = unescapeHtmlForMath(token.content);
+        }
+        return origInline(tokens, idx, options, env, self);
+      };
+    }
+    if (origBlock) {
+      md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
+        const token = tokens[idx];
+        if (token) {
+          token.content = unescapeHtmlForMath(token.content);
+        }
+        return origBlock(tokens, idx, options, env, self);
+      };
+    }
+  }
+  if (omitMedia) {
+    md.disable(["image"]);
+  }
+  mdInstanceCache[key] = md;
+
+  return md;
 };
 
 export const escapeHtmlCharacters = (content: string): string => {
@@ -99,12 +109,15 @@ export const protectBackslashesInLatex = (content: string): string => {
     // from HTML escaping. Only backslashes need protection — other characters
     // (<, >, &, ', ") are left for escapeHtmlCharacters to handle, and then
     // unescaped specifically within MathJax token rendering (see getMarkdownInstance).
-    let result = content.replace(inlineRegex, (_match, latex) => {
-      const protectedTex = latex.replace(/\\/g, "___LATEX_BACKSLASH___");
-      return `$${protectedTex}$`;
-    });
+    let result = content.replace(
+      inlineRegex,
+      (_match: string, latex: string) => {
+        const protectedTex = latex.replace(/\\/g, "___LATEX_BACKSLASH___");
+        return `$${protectedTex}$`;
+      }
+    );
 
-    result = result.replace(blockRegex, (_match, latex) => {
+    result = result.replace(blockRegex, (_match: string, latex: string) => {
       const protectedTex = latex.replace(/\\/g, "___LATEX_BACKSLASH___");
       return `$$${protectedTex}$$`;
     });
