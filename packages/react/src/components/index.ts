@@ -1,3 +1,4 @@
+export * from "./AutocompleteInput";
 export * from "./AnsiDisplay";
 export * from "./AsciinemaPlayer";
 export * from "./ConfirmationDialog";
