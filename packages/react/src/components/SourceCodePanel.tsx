@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useRef } from "react";
 
-import { usePrismHighlight } from "@tsmono/react/hooks";
+import { usePrismHighlight } from "../hooks";
 
 import styles from "./SourceCodePanel.module.css";
 

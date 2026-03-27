@@ -4,10 +4,10 @@ import { FC } from "react";
 import { formatDateTime, prettyDirUri, toRelativePath } from "@tsmono/util";
 
 import { CopyButton } from "../../components/CopyButton";
-import { DownloadScanButton } from "../../components/DownloadScanButton";
 import { ApplicationIcons } from "../../components/icons";
 import { useApi } from "../../state/store";
 import { Status } from "../../types/api-types";
+import { DownloadScanButton } from "../components/DownloadScanButton";
 
 import styles from "./ScanPanelTitle.module.css";
 

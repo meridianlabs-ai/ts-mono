@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
+import { FindBand } from "./app/components/FindBand";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
@@ -17,7 +18,6 @@ import { useAppConfig } from "./app/server/useAppConfig";
 import { TranscriptPanel } from "./app/transcript/TranscriptPanel";
 import { TranscriptsPanel } from "./app/transcripts/TranscriptsPanel";
 import { ValidationPanel } from "./app/validation/ValidationPanel";
-import { FindBand } from "./components/FindBand";
 import {
   LoggingNavigate,
   useLoggingNavigate,

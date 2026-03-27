@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
+import { ApplicationIcons } from "../../components/icons";
+
 import styles from "./DownloadScanButton.module.css";
-import { ApplicationIcons } from "./icons";
 
 type DownloadState = "idle" | "downloading" | "success" | "error";
 

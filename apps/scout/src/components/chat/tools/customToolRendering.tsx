@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import { SourceCodePanel } from "../../SourceCodePanel";
+import { SourceCodePanel } from "@tsmono/react/components";
 
 import { ToolCallViewProps } from "./ToolCallView";
 
