@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
+import { usePrismHighlight } from "@tsmono/react/hooks";
+
 import { ToolCallContent } from "../../../../@types/log";
-import { usePrismHighlight } from "../../../../components/prism";
 import { RenderedText } from "../../../content/RenderedText";
 
 import { kToolTodoContentType } from "./tool";
