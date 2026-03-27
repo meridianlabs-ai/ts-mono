@@ -22,10 +22,9 @@ export const useScanDataframe = (
 ): AsyncData<ColumnTable> => {
   const api = useApi();
 
-  // Only include "scans-inv" when the scan is explicitly active.
-  // When isComplete is undefined (status not yet loaded) or true,
-  // omit it to avoid a double-fetch on initial page load.
-  const invKey = isComplete === false ? "scans-inv" : undefined;
+  // Include "scans-inv" by default so topic changes trigger refetches.
+  // Only drop it once we know the scan is complete (immutable data).
+  const invKey = isComplete === true ? undefined : "scans-inv";
 
   return useAsyncDataFromQuery({
     queryKey:
