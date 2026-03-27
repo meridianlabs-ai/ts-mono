@@ -17,12 +17,35 @@ import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
+import {
+  ComponentIconProvider,
+  ComponentIcons,
+} from "@tsmono/react/components";
+
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { useStore } from "../state/store.ts";
 import { basename, dirname } from "../utils/path.ts";
 import { isUri } from "../utils/uri.ts";
 
+import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
+
+const componentIcons: ComponentIcons = {
+  chevronDown: ApplicationIcons.chevron.down,
+  chevronUp: ApplicationIcons.collapse.up,
+  clearText: ApplicationIcons["clear-text"],
+  close: ApplicationIcons.close,
+  code: ApplicationIcons.code,
+  confirm: ApplicationIcons.confirm,
+  copy: ApplicationIcons.copy,
+  error: ApplicationIcons.error,
+  menu: ApplicationIcons.threeDots,
+  next: ApplicationIcons.next,
+  noSamples: ApplicationIcons.noSamples,
+  play: ApplicationIcons.play,
+  previous: ApplicationIcons.previous,
+  toggleRight: ApplicationIcons["toggle-right"],
+};
 
 interface AppProps {
   api: ClientAPI;
@@ -208,5 +231,9 @@ export const App: FC<AppProps> = ({ api }) => {
     setSingleFileMode,
   ]);
 
-  return <RouterProvider router={AppRouter} />;
+  return (
+    <ComponentIconProvider icons={componentIcons}>
+      <RouterProvider router={AppRouter} />
+    </ComponentIconProvider>
+  );
 };

@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { CSSProperties, FC, useState } from "react";
 
 import styles from "./AnsiDisplay.module.css";
+import { useComponentIcons } from "./ComponentIconContext";
 import { ToolButton } from "./ToolButton";
 
 interface ANSIDisplayProps {
@@ -16,6 +17,7 @@ export const ANSIDisplay: FC<ANSIDisplayProps> = ({
   style,
   className,
 }) => {
+  const icons = useComponentIcons();
   const [showRaw, setShowRaw] = useState(false);
   const ansiOutput = new ANSIOutput();
   ansiOutput.processOutput(output);
@@ -85,7 +87,7 @@ export const ANSIDisplay: FC<ANSIDisplayProps> = ({
     >
       <ToolButton
         className={clsx(styles.ansiDisplayToggle, "text-size-smallest")}
-        icon="bi bi-code-slash"
+        icon={icons.code}
         label=""
         latched={showRaw}
         onClick={() => setShowRaw(!showRaw)}
