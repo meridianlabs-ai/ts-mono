@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import React, { FC, useCallback, useEffect, useMemo } from "react";
 
-import { ExtendedFindProvider } from "../../components/ExtendedFindContext";
+import { ExtendedFindProvider } from "@tsmono/react/components";
+
 import { FindBand } from "../../components/FindBand";
 import { useSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";

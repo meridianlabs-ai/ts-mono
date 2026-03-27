@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { LabeledValue } from "@tsmono/react/components";
+
 import { Card, CardBody } from "../../../components/Card";
 import { RecordTree } from "../../../components/content/RecordTree";
-import { LabeledValue } from "../../../components/LabeledValue";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { ScanResultData } from "../../types";
 
