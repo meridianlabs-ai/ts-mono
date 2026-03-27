@@ -9,12 +9,12 @@ import {
 } from "react";
 import { Components, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
+import { ExtendedFindFn, useExtendedFind } from "@tsmono/react/components";
 import { usePreviousValue } from "@tsmono/react/hooks";
 
 import { useProperty } from "../state/hooks/useProperty";
 import { useRafThrottle, useVirtuosoState } from "../state/scrolling";
 
-import { ExtendedFindFn, useExtendedFind } from "./ExtendedFindContext";
 import styles from "./LiveVirtualList.module.css";
 import { PulsingDots } from "./PulsingDots";
 

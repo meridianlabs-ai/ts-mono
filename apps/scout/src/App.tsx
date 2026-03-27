@@ -10,11 +10,12 @@ import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
 import "./app/App.css";
 
+import { ExtendedFindProvider } from "@tsmono/react/components";
+
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
-import { ExtendedFindProvider } from "./components/ExtendedFindProvider";
 
 export const AppModeContext = createContext<AppProps["mode"]>("scans");
 

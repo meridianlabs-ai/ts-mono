@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, KeyboardEvent, useCallback, useEffect, useRef } from "react";
 
-import { useExtendedFind } from "./ExtendedFindContext";
+import { useExtendedFind } from "@tsmono/react/components";
 
 import "./FindBand.css";
 

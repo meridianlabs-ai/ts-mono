@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC, Fragment, RefObject } from "react";
 
+import { EmptyPanel } from "@tsmono/react/components";
+
 import { EvalSample } from "../../../@types/log";
 import { SampleSummary } from "../../../client/api/types";
-import { EmptyPanel } from "../../../components/EmptyPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";

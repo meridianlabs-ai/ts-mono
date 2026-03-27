@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 
+import { ExtendedFindProvider } from "@tsmono/react/components";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { ErrorPanel } from "../../components/ErrorPanel";
-import { ExtendedFindProvider } from "../../components/ExtendedFindContext";
 import { FindBand } from "../../components/FindBand";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";

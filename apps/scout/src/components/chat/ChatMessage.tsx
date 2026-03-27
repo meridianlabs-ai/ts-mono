@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
+import { LabeledValue } from "@tsmono/react/components";
+
 import { useTranscriptNavigation } from "../../app/transcript/hooks/useTranscriptNavigation";
 import { isHostedEnvironment } from "../../router/url";
 import {
@@ -15,7 +17,6 @@ import { RecordTree } from "../content/RecordTree";
 import { CopyButton } from "../CopyButton";
 import ExpandablePanel from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
-import { LabeledValue } from "../LabeledValue";
 
 import styles from "./ChatMessage.module.css";
 import { MessageContents } from "./MessageContents";
