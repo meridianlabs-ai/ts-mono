@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "check": "turbo run check",
+    "check": "manypkg check && turbo run check",
     "manypkg:check": "manypkg check",
     "manypkg:fix": "manypkg fix",
     "test": "turbo run test",
