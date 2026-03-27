@@ -8,3 +8,4 @@ export * from "./useRequiredParams";
 export * from "./useResizeObserver";
 export * from "./useDropdownPosition";
 export * from "./usePreviousValue";
+export * from "./usePrismHighlight";

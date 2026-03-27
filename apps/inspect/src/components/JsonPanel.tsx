@@ -3,7 +3,7 @@ import { CSSProperties, FC, useMemo, useRef } from "react";
 
 import "./JsonPanel.css";
 
-import { usePrismHighlight } from "./prism";
+import { usePrismHighlight } from "@tsmono/react/hooks";
 
 interface JSONPanelProps {
   id?: string;

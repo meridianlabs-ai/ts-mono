@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
+import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
-import { usePrismHighlight } from "../../components/prism";
 import { useLogs } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
