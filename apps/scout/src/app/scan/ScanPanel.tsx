@@ -30,8 +30,11 @@ export const ScanPanel: React.FC = () => {
     setScansDir,
   } = useScansDir(true);
   // Load server data
-  const { loading: scansLoading } = useScans(resolvedScansDir);
   const { loading: scanLoading, data: selectedScan, error } = useSelectedScan();
+  const isComplete = selectedScan?.complete === true;
+  const { loading: scansLoading } = useScans(resolvedScansDir, {
+    refetchInterval: isComplete ? false : 5000,
+  });
 
   const loading = scansLoading || scanLoading;
 
