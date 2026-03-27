@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, useState } from "react";
 
+import { PopOver } from "@tsmono/react/components";
+
 import { DB_VERSION } from "../../client/database/schema";
-import { PopOver } from "../../components/PopOver";
 import { useStore } from "../../state/store";
 
 import styles from "./ViewerOptionsPopover.module.css";

@@ -1,7 +1,8 @@
 import { FC, useCallback, useRef } from "react";
 
+import { PopOver } from "@tsmono/react/components";
+
 import { ScalarValue } from "../../../api/api";
-import { PopOver } from "../../../components/PopOver";
 import type { SimpleCondition } from "../../../query/types";
 import type { FilterType } from "../../../state/store";
 

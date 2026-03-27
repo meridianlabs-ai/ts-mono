@@ -1,9 +1,10 @@
 import { clsx } from "clsx";
 import { FC, useRef } from "react";
 
+import { PopOver } from "@tsmono/react/components";
+
 import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../components/icons";
-import { PopOver } from "../../components/PopOver";
 import type { OperatorModel } from "../../query";
 
 import { Chip } from "./Chip";

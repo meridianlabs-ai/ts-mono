@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { PopOver } from "../../components/PopOver";
+import { PopOver } from "@tsmono/react/components";
 
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import styles from "./TranscriptFilterPopover.module.css";
