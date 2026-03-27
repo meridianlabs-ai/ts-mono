@@ -16,8 +16,8 @@ For example, the `PUT` to `/project/config` requires an `If-Match` header for op
 
 ```typescript
 http.put("/api/v2/project/config", async ({ request }) => {
-    capturedHeaders = new Headers(request.headers);
-    return HttpResponse.json(updatedConfig);
+  capturedHeaders = new Headers(request.headers);
+  return HttpResponse.json(updatedConfig);
 });
 
 // Fails if the API layer drops the header
@@ -41,9 +41,9 @@ Always pass the response type to `HttpResponse.json<T>()`. Without it, mock data
 
 ```typescript
 http.get("/api/v2/scans/active", () =>
-    HttpResponse.json<ActiveScansResponse>({
-        items: { "scan-123": scanInfo },
-    })
+  HttpResponse.json<ActiveScansResponse>({
+    items: { "scan-123": scanInfo },
+  })
 );
 ```
 
