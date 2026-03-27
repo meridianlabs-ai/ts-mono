@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC, ReactNode, useRef } from "react";
 import { Link } from "react-router-dom";
 
+import { PopOver } from "@tsmono/react/components";
 import { parsePackageName } from "@tsmono/util";
 
-import { PopOver } from "../../../../components/PopOver";
 import { PulsingDots } from "../../../../components/PulsingDots";
 import {
   useCollapseSampleEvent,

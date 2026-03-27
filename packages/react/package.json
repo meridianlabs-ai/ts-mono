@@ -23,8 +23,10 @@
     "@tsmono/util": "workspace:*",
     "ansi-output": "^0.0.9",
     "asciinema-player": "^3.13.5",
+    "@popperjs/core": "^2.11.8",
     "clsx": "^2.1.1",
-    "lodash-es": "^4.17.23"
+    "lodash-es": "^4.17.23",
+    "react-popper": "^2.3.0"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",

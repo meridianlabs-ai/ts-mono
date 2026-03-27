@@ -20,6 +20,7 @@ interface PopOverProps {
   offset?: [number, number];
   usePortal?: boolean;
   hoverDelay?: number;
+  closeOnMouseLeave?: boolean;
 
   className?: string | string[];
   arrowClassName?: string | string[];
@@ -44,6 +45,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   arrowClassName = "",
   usePortal = true,
   hoverDelay = 250,
+  closeOnMouseLeave = true,
   styles = {},
 }) => {
   const popperRef = useRef<HTMLDivElement | null>(null);
@@ -56,6 +58,12 @@ export const PopOver: React.FC<PopOverProps> = ({
   const [shouldShowPopover, setShouldShowPopover] = useState(false);
   const hoverTimerRef = useRef<number | null>(null);
   const isMouseMovingRef = useRef(false);
+  const isOverPopoverRef = useRef(false);
+  const dismissalTimerRef = useRef<number | null>(null);
+
+  // Stable ref for setIsOpen to avoid re-running effects when the callback identity changes
+  const setIsOpenRef = useRef(setIsOpen);
+  setIsOpenRef.current = setIsOpen;
 
   // Setup hover timer and mouse movement detection
   useEffect(() => {
@@ -81,7 +89,17 @@ export const PopOver: React.FC<PopOverProps> = ({
         window.clearTimeout(hoverTimerRef.current);
       }
       isMouseMovingRef.current = false;
-      setShouldShowPopover(false);
+
+      // Add a delay before dismissing to allow user to move mouse to popover
+      if (dismissalTimerRef.current !== null) {
+        window.clearTimeout(dismissalTimerRef.current);
+      }
+      dismissalTimerRef.current = window.setTimeout(() => {
+        if (!isOverPopoverRef.current) {
+          setShouldShowPopover(false);
+          setIsOpenRef.current(false);
+        }
+      }, 300);
     };
 
     const handleMouseDown = (event: MouseEvent) => {
@@ -94,28 +112,37 @@ export const PopOver: React.FC<PopOverProps> = ({
           window.clearTimeout(hoverTimerRef.current);
         }
         setShouldShowPopover(false);
-        setIsOpen(false);
+        setIsOpenRef.current(false);
       }
     };
 
     if (!isOpen || hoverDelay <= 0) {
       setShouldShowPopover(isOpen);
-      const listener = (event: MouseEvent) => {
-        // Only close if clicking outside the popover content,
-        // prevent default actions "in the background" when using click to close the popover
-        if (
-          popperRef.current &&
-          !popperRef.current.contains(event.target as Node)
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-          setIsOpen(false);
+
+      // Track whether mousedown originated inside popover content.
+      // We use capture phase to detect this BEFORE the event bubbles to portaled children.
+      let mouseDownInsidePopover = false;
+
+      const captureListener = (event: MouseEvent) => {
+        mouseDownInsidePopover =
+          popperRef.current?.contains(event.target as Node) ?? false;
+      };
+
+      const bubbleListener = () => {
+        // Only close if mousedown didn't start inside the popover
+        if (popperRef.current && !mouseDownInsidePopover) {
+          setIsOpenRef.current(false);
         }
       };
-      document.addEventListener("click", listener, true);
+
+      // Capture phase fires first, before any children (including portaled ones)
+      document.addEventListener("mousedown", captureListener, true);
+      // Bubble phase fires after - by then we know if it started inside
+      document.addEventListener("mousedown", bubbleListener);
 
       return () => {
-        document.removeEventListener("click", listener, true);
+        document.removeEventListener("mousedown", captureListener, true);
+        document.removeEventListener("mousedown", bubbleListener);
       };
     }
 
@@ -142,11 +169,17 @@ export const PopOver: React.FC<PopOverProps> = ({
       // Clean up the document mousedown listener
       document.removeEventListener("mousedown", handleMouseDown);
 
+      // Clean up all timers to prevent leaks
       if (hoverTimerRef.current !== null) {
         window.clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
+      if (dismissalTimerRef.current !== null) {
+        window.clearTimeout(dismissalTimerRef.current);
+        dismissalTimerRef.current = null;
       }
     };
-  }, [isOpen, positionEl, hoverDelay, setIsOpen]);
+  }, [isOpen, positionEl, hoverDelay]);
 
   // Effect to create portal container when needed
   useEffect(() => {
@@ -227,11 +260,67 @@ export const PopOver: React.FC<PopOverProps> = ({
     if (update && isOpen && shouldShowPopover) {
       // Need to delay the update slightly to ensure refs are properly set
       const timer = setTimeout(() => {
-        update();
+        void update();
       }, 10);
       return () => clearTimeout(timer);
     }
-  }, [update, isOpen, shouldShowPopover, showArrow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- arrowRef.current is a mutable ref read
+  }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
+
+  // When the popover is shown and positioned, track mouse enter/leave on the popover itself
+  // and use that to block dismissal while hovering over the popover
+  useEffect(() => {
+    // Wait for both the popover to be visible AND Popper to have calculated positioning
+    if (
+      !popperRef.current ||
+      !isOpen ||
+      !shouldShowPopover ||
+      !state?.placement
+    ) {
+      return;
+    }
+
+    const popperEl = popperRef.current;
+
+    const handlePopoverMouseEnter = () => {
+      isOverPopoverRef.current = true;
+      // Cancel any pending dismissal when mouse enters popover
+      if (dismissalTimerRef.current !== null) {
+        window.clearTimeout(dismissalTimerRef.current);
+        dismissalTimerRef.current = null;
+      }
+      // Also cancel the hover delay timer
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current);
+      }
+      // Ensure popover stays visible
+      setShouldShowPopover(true);
+    };
+
+    const handlePopoverMouseLeave = (e: MouseEvent) => {
+      // Only dismiss if we're actually leaving the popover container
+      // Check if the related target is still within the popover
+      if (e.relatedTarget && popperEl.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      if (!closeOnMouseLeave) {
+        return;
+      }
+      isOverPopoverRef.current = false;
+      // Dismiss when leaving the popover
+      setShouldShowPopover(false);
+      setIsOpenRef.current(false);
+    };
+
+    // Use capture phase to ensure we catch events before children
+    popperEl.addEventListener("mouseenter", handlePopoverMouseEnter, true);
+    popperEl.addEventListener("mouseleave", handlePopoverMouseLeave, true);
+
+    return () => {
+      popperEl.removeEventListener("mouseenter", handlePopoverMouseEnter, true);
+      popperEl.removeEventListener("mouseleave", handlePopoverMouseLeave, true);
+    };
+  }, [isOpen, shouldShowPopover, state?.placement, closeOnMouseLeave]);
 
   // Define arrow data-* attribute based on placement
   const getArrowDataPlacement = () => {
@@ -249,7 +338,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   const defaultPopperStyles: CSSProperties = {
     backgroundColor: "var(--bs-body-bg)",
     padding: "12px",
-    borderRadius: "4px",
+    borderRadius: "var(--bs-border-radius)",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
     border: "solid 1px var(--bs-border-color)",
     zIndex: 1200,
@@ -257,6 +346,9 @@ export const PopOver: React.FC<PopOverProps> = ({
     // Apply opacity transition to smooth the appearance
     opacity: state?.placement ? 1 : 0,
     transition: "opacity 0.1s",
+    maxWidth: "80%",
+    maxHeight: "80%",
+    overflowY: "hidden",
   };
 
   // Early return if not open or should not show due to hover delay

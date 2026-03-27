@@ -498,6 +498,9 @@ importers:
 
   packages/react:
     dependencies:
+      '@popperjs/core':
+        specifier: ^2.11.8
+        version: 2.11.8
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
@@ -513,6 +516,9 @@ importers:
       lodash-es:
         specifier: ^4.17.23
         version: 4.17.23
+      react-popper:
+        specifier: ^2.3.0
+        version: 2.3.0(@popperjs/core@2.11.8)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     devDependencies:
       '@storybook/react':
         specifier: ^10.2.9
