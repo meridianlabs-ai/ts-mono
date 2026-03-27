@@ -5,3 +5,4 @@ export * from "./JsonPanel";
 export * from "./Modal";
 export * from "./StickyScroll";
 export * from "./ToolButton";
+export * from "./ToolDropdownButton";

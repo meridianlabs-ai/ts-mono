@@ -1,10 +1,11 @@
 import { clsx } from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
+import { ToolDropdownButton } from "@tsmono/react/components";
+
 import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../components/icons";
 import { PopOver } from "../../components/PopOver";
-import { ToolDropdownButton } from "../../components/ToolDropdownButton";
 import type { SimpleCondition } from "../../query/types";
 import type { ColumnFilter } from "../../state/store";
 
