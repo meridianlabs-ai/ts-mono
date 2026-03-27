@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import JSON5 from "json5";
 import { FC, Fragment, ReactNode } from "react";
 
 import { formatPrettyDecimal, printArray, printObject } from "@tsmono/util";
@@ -31,7 +32,6 @@ interface ValueProps {
   };
 }
 
-// TODO: Implement popover viewer for object and list values
 export const Value: FC<ValueProps> = ({
   summary: result,
   references,
@@ -65,25 +65,29 @@ export const Value: FC<ValueProps> = ({
     return <code>null</code>;
   } else if (isArrayValue(result)) {
     return (
-      <ValueList
-        value={result.value}
-        summary={result}
-        references={references}
-        style={style}
-        maxListSize={maxTableSize}
-        interactive={interactive}
-      />
+      <div title={JSON5.stringify(result.value, null, 2)}>
+        <ValueList
+          value={result.value}
+          summary={result}
+          references={references}
+          style={style}
+          maxListSize={maxTableSize}
+          interactive={interactive}
+        />
+      </div>
     );
   } else if (isObjectValue(result)) {
     return (
-      <ValueTable
-        value={result.value}
-        summary={result}
-        references={references}
-        style={style}
-        maxTableSize={maxTableSize}
-        interactive={interactive}
-      />
+      <div title={JSON5.stringify(result.value, null, 2)}>
+        <ValueTable
+          value={result.value}
+          summary={result}
+          references={references}
+          style={style}
+          maxTableSize={maxTableSize}
+          interactive={interactive}
+        />
+      </div>
     );
   } else {
     return "Unknown value type";
@@ -249,7 +253,7 @@ const renderValue = (
   } else if (val === null) {
     return <pre className={clsx(styles.value)}>null</pre>;
   } else if (Array.isArray(val)) {
-    return printArray(val, 25);
+    return printArray(val, 35);
   } else if (typeof val === "object") {
     return !interactive ? (
       printObject(val, 35)
