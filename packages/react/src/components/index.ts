@@ -9,6 +9,7 @@ export * from "./LabeledValue";
 export * from "./LoadingBar";
 export * from "./MenuActionButton";
 export * from "./Modal";
+export * from "./NonIdealState";
 export * from "./StickyScroll";
 export * from "./StickyScrollContext";
 export * from "./ToolButton";
