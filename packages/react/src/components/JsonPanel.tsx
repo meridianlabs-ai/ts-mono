@@ -3,7 +3,9 @@ import { CSSProperties, FC, useMemo, useRef } from "react";
 
 import "./JsonPanel.css";
 
-import { usePrismHighlight } from "@tsmono/react/hooks";
+import { maybeBase64 } from "@tsmono/util";
+
+import { usePrismHighlight } from "../hooks/usePrismHighlight";
 
 interface JSONPanelProps {
   id?: string;
@@ -14,6 +16,8 @@ interface JSONPanelProps {
   className?: string | string[];
 }
 
+const kMaxStringValueDisplay = 1048576;
+
 export const JSONPanel: FC<JSONPanelProps> = ({
   id,
   json,
@@ -23,7 +27,9 @@ export const JSONPanel: FC<JSONPanelProps> = ({
   className,
 }) => {
   const sourceCode = useMemo(() => {
-    return json || JSON.stringify(resolveBase64(data), undefined, 2);
+    if (json) return json;
+    if (data) return JSON.stringify(resolveBase64(data), undefined, 2);
+    return "";
   }, [json, data]);
 
   const sourceCodeRef = useRef<HTMLDivElement | null>(null);
@@ -43,9 +49,7 @@ export const JSONPanel: FC<JSONPanelProps> = ({
   );
 };
 
-export default JSONPanel;
-
-export const resolveBase64 = (value: any): any => {
+const resolveBase64 = (value: unknown): unknown => {
   const prefix = "data:image";
 
   // Handle arrays recursively
@@ -57,7 +61,8 @@ export const resolveBase64 = (value: any): any => {
   if (value && typeof value === "object") {
     const resolvedObject: Record<string, unknown> = {};
     for (const key of Object.keys(value)) {
-      resolvedObject[key] = resolveBase64(value[key]);
+      const record = value as Record<string, unknown>;
+      resolvedObject[key] = resolveBase64(record[key]);
     }
     return resolvedObject;
   }
@@ -67,6 +72,10 @@ export const resolveBase64 = (value: any): any => {
     let resolvedValue = value;
     if (resolvedValue.startsWith(prefix)) {
       resolvedValue = "[base64 image]";
+    } else if (resolvedValue.length > kMaxStringValueDisplay) {
+      resolvedValue = "[long data]";
+    } else if (maybeBase64(resolvedValue)) {
+      resolvedValue = "[base64 data]";
     }
     return resolvedValue;
   }
@@ -74,3 +83,5 @@ export const resolveBase64 = (value: any): any => {
   // Return unchanged for other types
   return value;
 };
+
+export default JSONPanel;

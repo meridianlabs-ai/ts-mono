@@ -2,9 +2,8 @@ import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
-import { ANSIDisplay } from "@tsmono/react/components";
+import { ANSIDisplay, JSONPanel } from "@tsmono/react/components";
 
-import JSONPanel from "../../components/JsonPanel";
 import { formatNumber } from "../../utils/format";
 import { isJson } from "../../utils/json";
 import { ApplicationIcons } from "../appearance/icons";
