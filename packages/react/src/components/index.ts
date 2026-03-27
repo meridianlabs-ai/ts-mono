@@ -1,5 +1,6 @@
 export * from "./AutocompleteInput";
 export * from "./AnsiDisplay";
+export * from "./ComponentIconContext";
 export * from "./AsciinemaPlayer";
 export * from "./ConfirmationDialog";
 export * from "./EmptyPanel";

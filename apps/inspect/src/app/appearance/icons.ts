@@ -53,6 +53,7 @@ export const ApplicationIcons = {
   },
   "clear-text": "bi bi-x-circle-fill",
   close: "bi bi-x",
+  code: "bi bi-code-slash",
   collapse: {
     all: "bi bi-arrows-collapse",
     up: "bi bi-chevron-up",
@@ -150,6 +151,7 @@ export const ApplicationIcons = {
     on: "bi bi-toggle-on",
     off: "bi bi-toggle2-off",
   },
+  threeDots: "bi bi-three-dots",
   transcript: "bi bi-list-columns-reverse",
   tree: {
     open: "bi bi-caret-down-fill",

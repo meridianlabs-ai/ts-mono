@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { ButtonHTMLAttributes, forwardRef, ReactNode, useState } from "react";
 
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./ToolDropdownButton.module.css";
 
 interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -29,6 +30,7 @@ export const ToolDropdownButton = forwardRef<
     },
     ref
   ) => {
+    const icons = useComponentIcons();
     const [isOpen, setIsOpen] = useState(false);
 
     const handleItemClick = (fn: () => void) => {
@@ -53,7 +55,7 @@ export const ToolDropdownButton = forwardRef<
         >
           {icon && <i className={`${icon}`} />}
           {label}
-          <i className={clsx("bi-chevron-down", styles.chevron)} />
+          <i className={clsx(icons.chevronDown, styles.chevron)} />
         </button>
         {isOpen && (
           <>

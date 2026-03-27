@@ -1,5 +1,6 @@
 import { FC, useState } from "react";
 
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./MenuActionButton.module.css";
 
 export interface MenuActionItem {
@@ -22,6 +23,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   disabled,
   title,
 }) => {
+  const icons = useComponentIcons();
   const [showMenu, setShowMenu] = useState(false);
 
   const handleSelect = (value: string) => {
@@ -37,7 +39,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
         title={title}
         disabled={disabled}
       >
-        <i className="bi-three-dots" />
+        <i className={icons.menu} />
       </button>
       {showMenu && (
         <>
