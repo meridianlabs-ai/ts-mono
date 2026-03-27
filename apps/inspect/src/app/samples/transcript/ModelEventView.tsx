@@ -10,9 +10,9 @@ import {
   ModelEvent,
   ToolChoice,
 } from "@tsmono/inspect-common/types";
+import { ANSIDisplay } from "@tsmono/react/components";
 
 import { ToolInfos } from "../../../@types/extraInspect";
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { usePrismHighlight } from "../../../components/prism";
 import { PulsingDots } from "../../../components/PulsingDots";
 import { formatDateTime } from "../../../utils/format";

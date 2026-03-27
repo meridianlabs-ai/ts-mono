@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { ToolButton } from "@tsmono/react/components";
+
 import { ScoreLabel } from "../../../app/types";
 import { PopOver } from "../../../components/PopOver";
-import { ToolButton } from "../../../components/ToolButton";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./SelectScorer.module.css";

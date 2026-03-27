@@ -1,8 +1,8 @@
 import { FC } from "react";
 
 import { InputEvent } from "@tsmono/inspect-common/types";
+import { ANSIDisplay } from "@tsmono/react/components";
 
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 

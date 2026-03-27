@@ -69,6 +69,9 @@ importers:
       '@tsmono/inspect-common':
         specifier: workspace:*
         version: link:../../packages/inspect-common
+      '@tsmono/react':
+        specifier: workspace:*
+        version: link:../../packages/react
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -498,9 +501,15 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
+      ansi-output:
+        specifier: ^0.0.9
+        version: 0.0.9
       asciinema-player:
         specifier: ^3.13.5
         version: 3.14.15
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       lodash-es:
         specifier: ^4.17.23
         version: 4.17.23

@@ -13,16 +13,15 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { ANSIDisplay, ToolButton } from "@tsmono/react/components";
 import { isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
-import { ANSIDisplay } from "../../components/AnsiDisplay";
 import { Card, CardBody, CardHeader } from "../../components/Card";
 import { NoContentsPanel } from "../../components/NoContentsPanel";
 import { TabPanel, TabSet } from "../../components/TabSet";
-import { ToolButton } from "../../components/ToolButton";
 import { ToolDropdownButton } from "../../components/ToolDropdownButton";
 import {
   kSampleErrorTabId,

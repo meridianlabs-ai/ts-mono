@@ -1,6 +1,8 @@
 import type { AgGridReact } from "ag-grid-react";
 import { FC, Fragment, useEffect, useMemo, useRef } from "react";
 
+import { ToolButton } from "@tsmono/react/components";
+
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
@@ -9,7 +11,6 @@ import {
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
 import { NoContentsPanel } from "../../../components/NoContentsPanel.tsx";
-import { ToolButton } from "../../../components/ToolButton.tsx";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
 import {
   useFilteredSamples,
