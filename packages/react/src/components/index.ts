@@ -6,6 +6,8 @@ export * from "./EmptyPanel";
 export * from "./ExtendedFindContext";
 export * from "./JsonPanel";
 export * from "./LabeledValue";
+export * from "./LoadingBar";
+export * from "./MenuActionButton";
 export * from "./Modal";
 export * from "./StickyScroll";
 export * from "./StickyScrollContext";

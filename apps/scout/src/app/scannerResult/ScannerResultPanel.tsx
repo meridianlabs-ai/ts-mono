@@ -7,12 +7,12 @@ import { useSearchParams } from "react-router-dom";
 import {
   ExtendedFindProvider,
   JSONPanel,
+  LoadingBar,
   ToolButton,
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../components/icons";
-import { LoadingBar } from "../../components/LoadingBar";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import { EventNode, EventType } from "../../components/transcript/types";
 import {

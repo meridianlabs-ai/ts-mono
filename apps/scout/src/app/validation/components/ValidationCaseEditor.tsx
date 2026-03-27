@@ -8,12 +8,14 @@ import clsx from "clsx";
 import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { ConfirmationDialog } from "@tsmono/react/components";
+import {
+  ConfirmationDialog,
+  LoadingBar,
+  MenuActionButton,
+} from "@tsmono/react/components";
 
 import { ErrorPanel } from "../../../components/ErrorPanel";
 import { ApplicationIcons } from "../../../components/icons";
-import { LoadingBar } from "../../../components/LoadingBar";
-import { MenuActionButton } from "../../../components/MenuActionButton";
 import {
   getValidationParam,
   getValidationSetParam,
