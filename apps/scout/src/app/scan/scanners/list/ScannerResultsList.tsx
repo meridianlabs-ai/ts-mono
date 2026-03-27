@@ -4,10 +4,10 @@ import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import { LoadingBar } from "@tsmono/react/components";
 import { basename } from "@tsmono/util";
 
 import { LiveVirtualList } from "../../../../components/LiveVirtualList";
-import { LoadingBar } from "../../../../components/LoadingBar";
 import { NoContentsPanel } from "../../../../components/NoContentsPanel";
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
