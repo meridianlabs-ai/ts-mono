@@ -10,10 +10,9 @@ import {
   useState,
 } from "react";
 
-import { StickyScroll } from "@tsmono/react/components";
+import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../components/icons";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
 import { TranscriptOutline } from "../../../components/transcript/outline/TranscriptOutline";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";

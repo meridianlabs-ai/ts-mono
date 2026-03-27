@@ -1,10 +1,10 @@
 import clsx from "clsx";
 import { FC, RefObject } from "react";
 
+import { Card, CardBody, NoContentsPanel } from "@tsmono/react/components";
+
 import { EvalSample } from "../../../@types/log";
-import { Card, CardBody } from "../../../components/Card";
 import ExpandablePanel from "../../../components/ExpandablePanel";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
 import { inputString } from "../../../utils/format";
 import { RenderedText } from "../../content/RenderedText";

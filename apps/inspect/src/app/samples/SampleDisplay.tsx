@@ -14,6 +14,10 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import {
   ANSIDisplay,
+  Card,
+  CardBody,
+  CardHeader,
+  NoContentsPanel,
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
@@ -21,8 +25,6 @@ import {
 import { EvalSample, Events } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
-import { Card, CardBody, CardHeader } from "../../components/Card";
-import { NoContentsPanel } from "../../components/NoContentsPanel";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import {
   kSampleErrorTabId,

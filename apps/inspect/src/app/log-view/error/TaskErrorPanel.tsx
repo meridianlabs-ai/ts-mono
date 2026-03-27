@@ -1,10 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ANSIDisplay } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  Card,
+  CardBody,
+  CardHeader,
+} from "@tsmono/react/components";
 
 import { EvalError } from "../../../@types/log";
-import { Card, CardBody, CardHeader } from "../../../components/Card";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { ApplicationIcons } from "../../appearance/icons";
 import { RenderedContent } from "../../content/RenderedContent";

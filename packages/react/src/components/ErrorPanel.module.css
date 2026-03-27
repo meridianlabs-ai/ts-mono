@@ -1,15 +1,16 @@
-.error-panel {
+.errorPanel {
   flex-direction: column;
   min-height: 10rem;
   margin-top: 4rem;
   margin-bottom: 4em;
-  width: 100vw;
+  width: 100%;
 }
-.error-panel-heading {
+
+.heading {
   font-size: var(--inspect-font-size-larger);
 }
 
-.error-panel-body {
+.body {
   display: inline-block;
   font-size: var(--inspect-font-size-smaller);
   margin-top: 1rem;
@@ -19,19 +20,19 @@
   max-width: 80%;
 }
 
-.error-panel-stack {
+.stack {
   font-size: var(--inspect-font-size-smaller);
   white-space: prewrap;
 }
 
-.centered-flex {
+.centeredFlex {
   display: flex;
   flex: 0 0 content;
   align-items: center;
-  justify-content: center;
+  justify-content: start;
 }
 
-.error-icon {
+.errorIcon {
   margin-right: 0.5rem;
   color: var(--bs-red);
 }

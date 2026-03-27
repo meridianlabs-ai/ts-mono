@@ -8,10 +8,11 @@ import {
   useState,
 } from "react";
 
+import { CopyButton } from "@tsmono/react/components";
+
 import { useTranscriptNavigation } from "../../../app/transcript/hooks/useTranscriptNavigation";
 import { isHostedEnvironment } from "../../../router/url";
 import { useProperty } from "../../../state/hooks/useProperty";
-import { CopyButton } from "../../CopyButton";
 import { ApplicationIcons } from "../../icons";
 import { useCollapseTranscriptEvent } from "../hooks/useCollapseTranscriptEvent";
 import { kTranscriptCollapseScope } from "../types";

@@ -1,9 +1,8 @@
 import { FC } from "react";
 
-import { JSONPanel } from "@tsmono/react/components";
+import { JSONPanel, NoContentsPanel } from "@tsmono/react/components";
 
 import { EvalSample } from "../../@types/log";
-import { NoContentsPanel } from "../../components/NoContentsPanel";
 import { estimateSize } from "../../utils/json";
 
 const MAX_JSON_DISPLAY_SIZE = 25 * 1024 * 1024;

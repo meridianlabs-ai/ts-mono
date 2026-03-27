@@ -2,10 +2,9 @@ import clsx from "clsx";
 import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
-import { StickyScroll } from "@tsmono/react/components";
+import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 
 import { Events } from "../../../@types/log";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useCollapsedState } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";

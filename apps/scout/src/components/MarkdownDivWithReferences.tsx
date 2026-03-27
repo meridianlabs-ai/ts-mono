@@ -10,13 +10,16 @@ import {
   useState,
 } from "react";
 
-import { MarkdownDiv, PopOver } from "@tsmono/react/components";
+import {
+  MarkdownDiv,
+  NoContentsPanel,
+  PopOver,
+} from "@tsmono/react/components";
 
 import { useLoggingNavigate } from "../debugging/navigationDebugging";
 import { useStore } from "../state/store";
 
 import styles from "./MarkdownDivWithReferences.module.css";
-import { NoContentsPanel } from "./NoContentsPanel";
 
 export interface MarkdownReference {
   id: string;

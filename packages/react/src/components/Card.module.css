@@ -1,0 +1,34 @@
+.headerContainer {
+  display: grid;
+  grid-template-columns: max-content auto;
+  column-gap: 0rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+  font-size: var(--inspect-font-size-small);
+  font-weight: 600;
+  border-bottom: solid 1px var(--bs-light-border-subtle);
+}
+
+.headerContainer.headerModern {
+  color: var(--bs-secondary);
+  padding: 0.5rem 0.5rem 0rem 0.5rem;
+}
+
+.headerIcon:not(.headerIconEmpty) {
+  padding-right: 0.2rem;
+}
+
+.body {
+  background-color: var(--bs-body-bg);
+  padding: 0.5rem !important;
+}
+
+.card {
+  background-color: var(--bs-light-bg-subtle);
+  border: solid 1px var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+
+.body.noPadding {
+  padding: 0;
+}

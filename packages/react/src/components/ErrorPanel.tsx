@@ -1,8 +1,8 @@
+import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../app/appearance/icons";
-
-import "./ErrorPanel.css";
+import { useComponentIcons } from "./ComponentIconContext";
+import styles from "./ErrorPanel.module.css";
 
 export interface DisplayError {
   message: string;
@@ -16,22 +16,23 @@ interface ErrorPanelProps {
 }
 
 export const ErrorPanel: FC<ErrorPanelProps> = ({ title, error }) => {
+  const icons = useComponentIcons();
   const message = error.message;
   const stack = error.stack;
 
   return (
-    <div className={"error-panel centered-flex"}>
-      <div className={"error-panel-heading centered-flex"}>
+    <div className={clsx(styles.errorPanel, styles.centeredFlex)}>
+      <div className={clsx(styles.heading, styles.centeredFlex)}>
         <div>
-          <i className={`${ApplicationIcons.error} error-icon`}></i>
+          <i className={clsx(icons.error, styles.errorIcon)}></i>
         </div>
         <div>{title || ""}</div>
       </div>
-      <div className={"error-panel-body"}>
+      <div className={styles.body}>
         <div>
-          Error: {message || ""}
+          {message || ""}
           {stack && error.displayStack !== false && (
-            <pre className={"error-panel-stack"}>
+            <pre className={styles.stack}>
               <code>at {stack}</code>
             </pre>
           )}
