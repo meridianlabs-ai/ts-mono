@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { CopyButton } from "@tsmono/react/components";
 import { formatDateTime, prettyDirUri, toRelativePath } from "@tsmono/util";
 
-import { CopyButton } from "../../components/CopyButton";
 import { ApplicationIcons } from "../../components/icons";
 import { useApi } from "../../state/store";
 import { Status } from "../../types/api-types";

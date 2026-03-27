@@ -6,9 +6,9 @@ import {
   EvalSpec,
   EvalStats,
 } from "@tsmono/inspect-common/types";
+import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
-import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { kLogViewTaskTabId } from "../../../constants";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 import { MetaDataGrid } from "../../content/MetaDataGrid";

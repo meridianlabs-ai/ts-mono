@@ -15,6 +15,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
+  Card,
+  CardBody,
+  CardHeader,
+  NoContentsPanel,
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
@@ -23,8 +27,6 @@ import { isVscode } from "@tsmono/util";
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
-import { Card, CardBody, CardHeader } from "../../components/Card";
-import { NoContentsPanel } from "../../components/NoContentsPanel";
 import { TabPanel, TabSet } from "../../components/TabSet";
 import {
   kSampleErrorTabId,

@@ -1,8 +1,8 @@
 import clsx from "clsx";
-import { JSX, useState } from "react";
+import { FC, useState } from "react";
 
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./CopyButton.module.css";
-import { ApplicationIcons } from "./icons";
 
 interface CopyButtonProps {
   icon?: string;
@@ -14,15 +14,16 @@ interface CopyButtonProps {
   ariaLabel?: string;
 }
 
-export const CopyButton = ({
-  icon = ApplicationIcons.copy,
+export const CopyButton: FC<CopyButtonProps> = ({
+  icon,
   title,
   value,
   onCopySuccess,
   onCopyError,
   className = "",
   ariaLabel = "Copy to clipboard",
-}: CopyButtonProps): JSX.Element => {
+}) => {
+  const icons = useComponentIcons();
   const [isCopied, setIsCopied] = useState(false);
 
   const handleClick = async (): Promise<void> => {
@@ -54,7 +55,7 @@ export const CopyButton = ({
       title={title}
     >
       <i
-        className={isCopied ? `${ApplicationIcons.confirm} primary` : icon}
+        className={isCopied ? `${icons.confirm} primary` : (icon ?? icons.copy)}
         aria-hidden="true"
       />
     </button>

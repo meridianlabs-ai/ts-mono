@@ -1,8 +1,7 @@
 import clsx from "clsx";
 import { ChangeEvent, FocusEvent, forwardRef } from "react";
 
-import { ApplicationIcons } from "../app/appearance/icons";
-
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./TextInput.module.css";
 
 export interface TextInputProps {
@@ -16,6 +15,8 @@ export interface TextInputProps {
 
 export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
   ({ value, onChange, onFocus, icon, placeholder, className }, ref) => {
+    const icons = useComponentIcons();
+
     return (
       <div
         className={clsx(
@@ -38,7 +39,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           className={clsx(
             styles.clearText,
             value === "" ? styles.hidden : "",
-            ApplicationIcons["clear-text"]
+            icons.clearText
           )}
           onClick={() => {
             if (onChange && value !== "") {
@@ -53,3 +54,5 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
     );
   }
 );
+
+TextInput.displayName = "TextInput";

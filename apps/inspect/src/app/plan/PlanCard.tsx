@@ -1,8 +1,8 @@
 import { FC, RefObject } from "react";
 
 import { EvalPlan, EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
+import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { Card, CardBody, CardHeader } from "../../components/Card";
 import { RecordTree } from "../content/RecordTree";
 
 import { PlanDetailView } from "./PlanDetailView";

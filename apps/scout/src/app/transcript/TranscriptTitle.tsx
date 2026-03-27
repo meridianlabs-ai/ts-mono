@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { CopyButton } from "@tsmono/react/components";
 import {
   formatDateTime,
   formatNumber,
@@ -8,7 +9,6 @@ import {
   isRecord,
 } from "@tsmono/util";
 
-import { CopyButton } from "../../components/CopyButton";
 import { Transcript } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
 import { ScoreValue } from "../components/ScoreValue";

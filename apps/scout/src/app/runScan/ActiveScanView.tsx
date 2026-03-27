@@ -1,10 +1,12 @@
 import { FC, useEffect, useState } from "react";
 
-import { LoadingBar } from "@tsmono/react/components";
+import {
+  ErrorPanel,
+  LoadingBar,
+  NoContentsPanel,
+} from "@tsmono/react/components";
 
-import { ErrorPanel } from "../../components/ErrorPanel";
 import { ApplicationIcons } from "../../components/icons";
-import { NoContentsPanel } from "../../components/NoContentsPanel";
 import {
   ActiveScanInfo,
   ScannerSummary,

@@ -2,7 +2,7 @@ import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
 import { FC, useRef } from "react";
 
-import { LoadingBar } from "@tsmono/react/components";
+import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import {
   useDocumentTitle,
   useRequiredParams,
@@ -10,7 +10,6 @@ import {
 } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
-import { ErrorPanel } from "../../components/ErrorPanel";
 import { useStore } from "../../state/store";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useFilterConditions } from "../hooks/useFilterConditions";

@@ -10,11 +10,11 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   ConfirmationDialog,
+  ErrorPanel,
   LoadingBar,
   MenuActionButton,
 } from "@tsmono/react/components";
 
-import { ErrorPanel } from "../../../components/ErrorPanel";
 import { ApplicationIcons } from "../../../components/icons";
 import {
   getValidationParam,

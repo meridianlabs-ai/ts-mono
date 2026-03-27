@@ -3,9 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  NoContentsPanel,
+} from "@tsmono/react/components";
 
-import { Card, CardBody, CardHeader } from "../../../components/Card";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import {
   kSampleJsonTabId,
   kSampleMessagesTabId,
