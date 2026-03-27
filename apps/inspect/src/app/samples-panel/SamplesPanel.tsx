@@ -3,9 +3,9 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
+import { ProgressBar } from "@tsmono/react/components";
 
 import { ActivityBar } from "../../components/ActivityBar";
-import { ProgressBar } from "../../components/ProgressBar";
 import {
   LogHandleWithretried,
   useLogs,

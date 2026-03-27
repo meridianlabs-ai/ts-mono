@@ -1,10 +1,11 @@
 import { CSSProperties, ForwardedRef, forwardRef } from "react";
 
+import { Preformatted } from "@tsmono/react/components";
+
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "../../components/MarkdownDivWithReferences";
-import { Preformatted } from "../../components/Preformatted";
 
 import { useDisplayMode } from "./DisplayModeContext";
 

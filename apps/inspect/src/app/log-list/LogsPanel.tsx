@@ -4,9 +4,9 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
+import { ProgressBar } from "@tsmono/react/components";
 import { dirname, isInDirectory } from "@tsmono/util";
 
-import { ProgressBar } from "../../components/ProgressBar";
 import { useClientEvents } from "../../state/clientEvents";
 import {
   useDocumentTitle,
