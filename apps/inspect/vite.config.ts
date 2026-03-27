@@ -104,7 +104,6 @@ export default defineConfig(({ mode }) => {
     return {
       ...baseConfig,
       plugins: [...baseConfig.plugins, copyToPythonRepo()],
-      mode: "development",
       base: "",
       server: {
         proxy: {
@@ -117,12 +116,12 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: "dist",
         emptyOutDir: true,
-        minify: false,
+        minify: mode !== "development",
         rollupOptions: {
           output: {
-            entryFileNames: `assets/index.js`,
-            chunkFileNames: `assets/[name].js`,
-            assetFileNames: `assets/[name].[ext]`,
+            entryFileNames: `assets/[name]-[hash].js`,
+            chunkFileNames: `assets/[name]-[hash].js`,
+            assetFileNames: `assets/[name]-[hash].[ext]`,
           },
         },
         sourcemap: true,
