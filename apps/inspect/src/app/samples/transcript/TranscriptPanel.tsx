@@ -3,14 +3,9 @@ import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import { useCollapsedState } from "@tsmono/react/hooks";
 
-<<<<<<< HEAD
 import { Events } from "../../../@types/extraInspect";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
-=======
-import { Events } from "../../../@types/log";
->>>>>>> 8194538 (Migrate elements requiring icons but not state)
-import { useCollapsedState } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import { useLogRouteParams } from "../../routing/url";

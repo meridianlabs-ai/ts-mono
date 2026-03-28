@@ -7,7 +7,8 @@
 
 import { useCallback, useMemo } from "react";
 
-import { useProperty } from "../../../state/hooks/useProperty";
+import { useProperty } from "@tsmono/react/hooks";
+
 import type { MarkerConfig, MarkerDepth, MarkerKind } from "../utils/markers";
 import { defaultMarkerConfig } from "../utils/markers";
 

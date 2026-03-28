@@ -12,7 +12,7 @@ import {
   useRef,
 } from "react";
 
-import { useStatefulScrollPosition } from "../state/scrolling";
+import { useStatefulScrollPosition } from "@tsmono/react/hooks";
 
 import moduleStyles from "./TabSet.module.css";
 

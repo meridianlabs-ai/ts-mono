@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { useProperty } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { useProperty } from "../../../state/hooks/useProperty";
 import { useStore } from "../../../state/store";
 import { type TimelineState } from "../hooks/useTimeline";
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";

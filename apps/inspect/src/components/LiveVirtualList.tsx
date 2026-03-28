@@ -15,9 +15,13 @@ import {
   PulsingDots,
   useExtendedFind,
 } from "@tsmono/react/components";
+import {
+  useProperty,
+  useRafThrottle,
+  useVirtuosoState,
+} from "@tsmono/react/hooks";
 
-import { usePrevious, useProperty } from "../state/hooks";
-import { useRafThrottle, useVirtuosoState } from "../state/scrolling";
+import { usePrevious } from "../state/hooks";
 
 import styles from "./LiveVirtualList.module.css";
 
@@ -139,7 +143,7 @@ export const LiveVirtualList = <T,>({
         setFollowOutput(false);
       }
     }
-  }, [setFollowOutput, followOutput, live]);
+  });
 
   // Synchronous scroll listener to track near-bottom state without
   // RAF throttling, so the ref is always up-to-date when Virtuoso
