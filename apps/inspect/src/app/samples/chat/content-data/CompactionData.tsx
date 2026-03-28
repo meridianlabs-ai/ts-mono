@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import ExpandablePanel from "../../../../components/ExpandablePanel";
+import { ExpandablePanel } from "@tsmono/react/components";
+
 import { MetaDataGrid } from "../../../content/MetaDataGrid";
 import { RenderedText } from "../../../content/RenderedText";
 

@@ -8,12 +8,13 @@ import {
   ExtendedFindProvider,
   JSONPanel,
   LoadingBar,
+  TabPanel,
+  TabSet,
   ToolButton,
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../components/icons";
-import { TabPanel, TabSet } from "../../components/TabSet";
 import { EventNode, EventType } from "../../components/transcript/types";
 import {
   getScannerParam,

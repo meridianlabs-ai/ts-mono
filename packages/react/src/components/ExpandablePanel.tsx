@@ -9,9 +9,7 @@ import {
   useState,
 } from "react";
 
-import { useCollapsedState } from "@tsmono/react/hooks";
-
-import { useResizeObserver } from "../utils/dom";
+import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
 
@@ -81,7 +79,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
           )}
         >
           {children}
-          {showToggle && layout == "inline-right" && (
+          {showToggle && layout === "inline-right" && (
             <>
               <MoreToggle
                 collapsed={collapsed}
@@ -103,7 +101,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
           </>
         )}
 
-        {showToggle && layout == "inline-right" && (
+        {showToggle && layout === "inline-right" && (
           <div className={clsx(styles.separator)}></div>
         )}
       </div>
@@ -149,5 +147,7 @@ const MoreToggle: FC<MoreToggleProps> = ({
     </div>
   );
 };
+
+ExpandablePanel.displayName = "ExpandablePanel";
 
 export default ExpandablePanel;

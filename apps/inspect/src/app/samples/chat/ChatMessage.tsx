@@ -1,10 +1,13 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
-import { CopyButton, LabeledValue } from "@tsmono/react/components";
+import {
+  CopyButton,
+  ExpandablePanel,
+  LabeledValue,
+} from "@tsmono/react/components";
 
 import { ChatMessageTool } from "../../../@types/log";
-import ExpandablePanel from "../../../components/ExpandablePanel";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { RecordTree } from "../../content/RecordTree";

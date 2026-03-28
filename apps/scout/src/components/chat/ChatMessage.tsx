@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
-import { CopyButton, LabeledValue } from "@tsmono/react/components";
+import {
+  CopyButton,
+  ExpandablePanel,
+  LabeledValue,
+} from "@tsmono/react/components";
 
 import { useTranscriptNavigation } from "../../app/transcript/hooks/useTranscriptNavigation";
 import { isHostedEnvironment } from "../../router/url";
@@ -14,7 +18,6 @@ import {
   ContentText,
 } from "../../types/api-types";
 import { RecordTree } from "../content/RecordTree";
-import ExpandablePanel from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
 
 import styles from "./ChatMessage.module.css";

@@ -1,11 +1,10 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback, useMemo } from "react";
 
-import { MarkdownDiv } from "@tsmono/react/components";
+import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { formatDurationShort } from "@tsmono/util";
 
 import { formatTokenCount } from "../../app/timeline/utils/swimlaneLayout";
-import { ExpandablePanel } from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
 
 import styles from "./AgentCardView.module.css";

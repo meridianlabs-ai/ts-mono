@@ -27,3 +27,8 @@ export * from "./StickyScrollContext";
 export * from "./TextInput";
 export * from "./ToolButton";
 export * from "./ToolDropdownButton";
+export * from "./NavPills";
+export * from "./TabSet";
+export * from "./ExpandablePanel";
+export * from "./LightboxCarousel";
+export * from "./HumanBaselineView";

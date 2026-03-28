@@ -12,9 +12,9 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
+import { ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds, useVirtuosoState } from "@tsmono/react/hooks";
 
-import ExpandablePanel from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
 
 import { resolveStoreKeys } from "./record_processors/store";
