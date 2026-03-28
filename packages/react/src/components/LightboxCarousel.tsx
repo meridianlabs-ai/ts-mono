@@ -1,11 +1,9 @@
-// TODO: lint react-hooks/exhaustive-deps Fix this
-/* eslint-disable react-hooks/exhaustive-deps */
 import clsx from "clsx";
 import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
 
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty } from "../hooks";
 
-import { ApplicationIcons } from "./icons";
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
 
 interface Slide {
@@ -22,6 +20,8 @@ interface LightboxCarouselProps {
  * LightboxCarousel component provides a carousel with lightbox functionality.
  */
 export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
+  const icons = useComponentIcons();
+
   const [isOpen, setIsOpen] = useProperty(id, "isOpen", {
     defaultValue: false,
   });
@@ -42,7 +42,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       // Slight delay before setting isOpen so the fade-in starts from opacity: 0
       setTimeout(() => setIsOpen(true), 10);
     },
-    [setIsOpen]
+    [setCurrentIndex, setIsOpen, setShowOverlay]
   );
 
   const closeLightbox = useCallback(() => {
@@ -60,12 +60,12 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [isOpen, showOverlay, setShowOverlay]);
 
   const showNext = useCallback(() => {
-    setCurrentIndex((currentIndex || 0) + 1);
-  }, [slides, setCurrentIndex]);
+    setCurrentIndex(currentIndex + 1);
+  }, [setCurrentIndex, currentIndex]);
 
   const showPrev = useCallback(() => {
-    setCurrentIndex(((currentIndex || 0) - 1 + slides.length) % slides.length);
-  }, [slides, setCurrentIndex]);
+    setCurrentIndex((currentIndex - 1 + slides.length) % slides.length);
+  }, [setCurrentIndex, currentIndex, slides.length]);
 
   // Keyboard Navigation
   useEffect(() => {
@@ -83,7 +83,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
     };
     window.addEventListener("keyup", handleKeyUp, true);
     return () => window.removeEventListener("keyup", handleKeyUp);
-  }, [isOpen, showNext, showPrev]);
+  }, [closeLightbox, isOpen, showNext, showPrev]);
 
   const handleThumbClick = useCallback(
     (e: MouseEvent<HTMLDivElement>) => {
@@ -105,12 +105,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
             >
               <div>{slide.label}</div>
               <div>
-                <i
-                  className={clsx(
-                    ApplicationIcons.play,
-                    styles.carouselPlayIcon
-                  )}
-                />
+                <i className={clsx(icons.play, styles.carouselPlayIcon)} />
               </div>
             </div>
           );
@@ -125,7 +120,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={styles.lightboxButtonClose}
               onClick={closeLightbox}
             >
-              <i className={ApplicationIcons.close}></i>
+              <i className={icons.close}></i>
             </button>
           </div>
           {slides.length > 1 ? (
@@ -133,7 +128,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={clsx(styles.lightboxPreviewButton, "prev")}
               onClick={showPrev}
             >
-              <i className={ApplicationIcons.previous}></i>
+              <i className={icons.previous}></i>
             </button>
           ) : (
             ""
@@ -143,7 +138,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={clsx(styles.lightboxPreviewButton, "next")}
               onClick={showNext}
             >
-              <i className={ApplicationIcons.next} />
+              <i className={icons.next} />
             </button>
           ) : (
             ""
@@ -152,7 +147,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
             key={`carousel-slide-${currentIndex}`}
             className={clsx(styles.lightboxContent, isOpen ? "open" : "closed")}
           >
-            {slides[currentIndex || 0]?.render()}
+            {slides[currentIndex]?.render()}
           </div>
         </div>
       )}

@@ -2,12 +2,9 @@ import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
 
 import { JsonChange } from "@tsmono/inspect-common/types";
+import { HumanBaselineView, SessionLog } from "@tsmono/react/components";
 
 import { ChatMessages } from "../../../../@types/extraInspect";
-import {
-  HumanBaselineView,
-  SessionLog,
-} from "../../../../components/HumanBaselineView";
 import { ChatView } from "../../chat/ChatView";
 
 import styles from "./StateEventRenders.module.css";

@@ -19,6 +19,8 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
+  TabPanel,
+  TabSet,
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
@@ -27,7 +29,6 @@ import { isVscode } from "@tsmono/util";
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
-import { TabPanel, TabSet } from "../../components/TabSet";
 import {
   kSampleErrorTabId,
   kSampleJsonTabId,

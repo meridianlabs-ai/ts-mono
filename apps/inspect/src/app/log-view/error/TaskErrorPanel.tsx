@@ -7,9 +7,9 @@ import {
   Card,
   CardBody,
   CardHeader,
+  ExpandablePanel,
 } from "@tsmono/react/components";
 
-import ExpandablePanel from "../../../components/ExpandablePanel";
 import { ApplicationIcons } from "../../appearance/icons";
 import { RenderedContent } from "../../content/RenderedContent";
 

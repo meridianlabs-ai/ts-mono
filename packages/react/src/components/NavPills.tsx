@@ -1,13 +1,13 @@
 import { clsx } from "clsx";
 import { FC, MouseEvent, ReactElement, ReactNode, useCallback } from "react";
 
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty } from "../hooks";
 
 import styles from "./NavPills.module.css";
 
 interface NavPillChildProps {
   title: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface NavPillsProps {
@@ -16,7 +16,7 @@ interface NavPillsProps {
 }
 
 export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
-  const defaultNav = children ? children[0].props["title"] : "";
+  const defaultNav = children ? children?.[0]?.props["title"] : "";
   const [activeItem, setActiveItem] = useProperty(id, "active", {
     defaultValue: defaultNav,
   });

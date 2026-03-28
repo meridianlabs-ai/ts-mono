@@ -1,17 +1,18 @@
-import { FC } from "react";
+import { FC, ReactNode } from "react";
 
-import { formatDateTime, formatTime } from "../utils/format";
+import { formatDateTime, formatTime } from "@tsmono/util";
+
+import { useRevokableUrls } from "../hooks";
 
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
-import { useRevokableUrls } from "./hooks";
 
 import "./HumanBaselineView.css";
 
 import { LightboxCarousel } from "./LightboxCarousel";
 
 export interface SessionLog {
-  name: string;
-  user: string;
+  name?: string;
+  user?: string;
   input: string;
   output: string;
   timing: string;
@@ -38,7 +39,7 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
   sessionLogs,
 }) => {
   const createRevokableUrl = useRevokableUrls();
-  const player_fns = [];
+  const player_fns: Array<{ label: string; render: () => ReactNode }> = [];
 
   // Make a player for each session log
   let count = 1;
@@ -77,37 +78,6 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
     count += 1;
   }
 
-  interface StatusMessageProps {
-    completed?: boolean;
-    running?: boolean;
-    answer?: string;
-  }
-
-  const StatusMessage: FC<StatusMessageProps> = ({
-    completed,
-    running,
-    answer,
-  }) => {
-    if (running) {
-      return <span className={"text-style-label"}>Running</span>;
-    } else if (completed) {
-      return (
-        <div>
-          <span
-            className={
-              "text-style-label text-style-secondary asciinema-player-status"
-            }
-          >
-            Answer
-          </span>
-          <span>{answer}</span>
-        </div>
-      );
-    } else {
-      return "Unknown status";
-    }
-  };
-
   return (
     <div className={"asciinema-wrapper"}>
       <div className={"asciinema-container"}>
@@ -129,6 +99,37 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
       </div>
     </div>
   );
+};
+
+interface StatusMessageProps {
+  completed?: boolean;
+  running?: boolean;
+  answer?: string;
+}
+
+const StatusMessage: FC<StatusMessageProps> = ({
+  completed,
+  running,
+  answer,
+}) => {
+  if (running) {
+    return <span className={"text-style-label"}>Running</span>;
+  } else if (completed) {
+    return (
+      <div>
+        <span
+          className={
+            "text-style-label text-style-secondary asciinema-player-status"
+          }
+        >
+          Answer
+        </span>
+        <span>{answer}</span>
+      </div>
+    );
+  } else {
+    return "Unknown status";
+  }
 };
 
 /**

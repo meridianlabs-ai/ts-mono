@@ -11,9 +11,9 @@ import {
   ContentVideo,
   ToolCallContent,
 } from "@tsmono/inspect-common/types";
+import { ExpandablePanel } from "@tsmono/react/components";
 
 import { ContentTool } from "../../../../app/types";
-import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { MessageContent } from "../MessageContent";
 import { defaultContext } from "../MessageContents";
 

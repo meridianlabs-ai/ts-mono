@@ -16,3 +16,4 @@ export * from "./useStatefulScrollPosition";
 export * from "./useVirtuosoState";
 export * from "./useRafThrottle";
 export * from "./useScrollTrack";
+export * from "./useRevokableUrls";

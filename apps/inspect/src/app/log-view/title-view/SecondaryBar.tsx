@@ -1,8 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { LabeledValue } from "@tsmono/react/components";
-
 import {
   EvalDataset,
   EvalPlan,
@@ -11,11 +9,11 @@ import {
   EvalStats,
   ProvenanceData,
 } from "@tsmono/inspect-common/types";
+import { ExpandablePanel, LabeledValue } from "@tsmono/react/components";
 import { formatDataset } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
-import { ExpandablePanel } from "../../../components/ExpandablePanel";
 import { useEvalDescriptor, useSampleInvalidation } from "../../../state/hooks";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 

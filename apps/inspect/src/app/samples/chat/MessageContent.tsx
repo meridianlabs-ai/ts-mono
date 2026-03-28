@@ -12,6 +12,7 @@ import {
   ContentToolUse,
   ContentVideo,
 } from "@tsmono/inspect-common/types";
+import { ExpandablePanel } from "@tsmono/react/components";
 import { isJson } from "@tsmono/util";
 
 import {
@@ -20,7 +21,6 @@ import {
 } from "../../../@types/extraInspect";
 import { ContentTool } from "../../../app/types";
 import { CodePanel } from "../../../components/CodePanel";
-import ExpandablePanel from "../../../components/ExpandablePanel";
 import { jsonParse } from "../../../utils/json-worker";
 import { RenderedText } from "../../content/RenderedText";
 

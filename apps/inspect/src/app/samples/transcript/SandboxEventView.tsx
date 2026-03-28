@@ -2,8 +2,8 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { SandboxEvent } from "@tsmono/inspect-common/types";
+import { ExpandablePanel } from "@tsmono/react/components";
 
-import ExpandablePanel from "../../../components/ExpandablePanel";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { RenderedContent } from "../../content/RenderedContent";
