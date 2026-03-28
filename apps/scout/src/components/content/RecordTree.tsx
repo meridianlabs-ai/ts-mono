@@ -12,8 +12,8 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { useCollapsibleIds } from "../../state/hooks/useCollapsibleIds";
-import { useVirtuosoState } from "../../state/scrolling";
+import { useCollapsibleIds, useVirtuosoState } from "@tsmono/react/hooks";
+
 import ExpandablePanel from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
 

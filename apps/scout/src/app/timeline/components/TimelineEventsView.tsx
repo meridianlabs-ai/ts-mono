@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
@@ -26,7 +27,6 @@ import {
   kCollapsibleEventTypes,
   kTranscriptCollapseScope,
 } from "../../../components/transcript/types";
-import { useProperty } from "../../../state/hooks/useProperty";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import { useScrubberProgress } from "../hooks/useScrubberPercent";

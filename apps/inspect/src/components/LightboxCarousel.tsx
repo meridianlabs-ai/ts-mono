@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
 
+import { useProperty } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../app/appearance/icons";
-import { useProperty } from "../state/hooks";
 
 import styles from "./LightboxCarousel.module.css";
 

@@ -15,12 +15,14 @@ import {
   ComponentIcons,
   ExtendedFindProvider,
 } from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
 
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
 import { ApplicationIcons } from "./components/icons";
+import { scoutStateHooks } from "./state/componentStateAdapter";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -57,11 +59,13 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
   return router ? (
     <AppErrorBoundary>
       <ComponentIconProvider icons={componentIcons}>
-        <AppModeContext.Provider value={mode}>
-          <ExtendedFindProvider>
-            <RouterProvider router={router} />
-          </ExtendedFindProvider>
-        </AppModeContext.Provider>
+        <ComponentStateProvider hooks={scoutStateHooks}>
+          <AppModeContext.Provider value={mode}>
+            <ExtendedFindProvider>
+              <RouterProvider router={router} />
+            </ExtendedFindProvider>
+          </AppModeContext.Provider>
+        </ComponentStateProvider>
       </ComponentIconProvider>
     </AppErrorBoundary>
   ) : null;

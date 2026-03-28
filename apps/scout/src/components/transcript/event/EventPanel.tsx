@@ -9,10 +9,10 @@ import {
 } from "react";
 
 import { CopyButton } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
 
 import { useTranscriptNavigation } from "../../../app/transcript/hooks/useTranscriptNavigation";
 import { isHostedEnvironment } from "../../../router/url";
-import { useProperty } from "../../../state/hooks/useProperty";
 import { ApplicationIcons } from "../../icons";
 import { useCollapseTranscriptEvent } from "../hooks/useCollapseTranscriptEvent";
 import { kTranscriptCollapseScope } from "../types";

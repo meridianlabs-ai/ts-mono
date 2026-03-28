@@ -3,9 +3,9 @@ import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import { useCollapsedState } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/log";
-import { useCollapsedState } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import { useLogRouteParams } from "../../routing/url";

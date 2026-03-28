@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { useProperty } from "@tsmono/react/hooks";
+
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
 import { Modal } from "../../../components/Modal";
@@ -10,7 +12,6 @@ import {
 } from "../../../scoring/metrics";
 import { groupScorers } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
-import { useProperty } from "../../../state/hooks";
 import { formatPrettyDecimal } from "../../../utils/format";
 
 import styles from "./ResultsPanel.module.css";

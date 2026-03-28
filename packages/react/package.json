@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
-    "./components": "./src/components/index.ts"
+    "./components": "./src/components/index.ts",
+    "./state": "./src/state/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
@@ -37,7 +38,8 @@
     "mathjax-full": "^3.2.2",
     "prismjs": "^1.30.0",
     "react": "^19.0.0",
-    "react-router-dom": "^7.0.0"
+    "react-router-dom": "^7.0.0",
+    "react-virtuoso": "^4.0.0"
   },
   "devDependencies": {
     "@storybook/react": "^10.2.9",
@@ -62,6 +64,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
+    "react-virtuoso": "^4.18.0",
     "storybook": "^10.2.9",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.0",

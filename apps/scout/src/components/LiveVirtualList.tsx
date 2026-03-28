@@ -14,10 +14,12 @@ import {
   PulsingDots,
   useExtendedFind,
 } from "@tsmono/react/components";
-import { usePreviousValue } from "@tsmono/react/hooks";
-
-import { useProperty } from "../state/hooks/useProperty";
-import { useRafThrottle, useVirtuosoState } from "../state/scrolling";
+import {
+  usePreviousValue,
+  useProperty,
+  useRafThrottle,
+  useVirtuosoState,
+} from "@tsmono/react/hooks";
 
 import styles from "./LiveVirtualList.module.css";
 
@@ -361,7 +363,7 @@ export const LiveVirtualList = <T,>({
       className={clsx("transcript", className)}
       isScrolling={handleScrollingChange}
       rangeChanged={(range) => {
-        setVisibleRange({ ...range, totalCount: data.length });
+        setVisibleRange(range);
       }}
       restoreStateFrom={getRestoreState()}
       totalListHeightChanged={heightChanged}
