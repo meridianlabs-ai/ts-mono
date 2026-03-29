@@ -1,5 +1,3 @@
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
 import clsx from "clsx";
 import {
   forwardRef,
@@ -10,16 +8,13 @@ import {
   useState,
 } from "react";
 
-import {
-  MarkdownDiv,
-  NoContentsPanel,
-  PopOver,
-} from "@tsmono/react/components";
+import { useComponentStateHooks } from "../state/ComponentStateContext";
 
-import { useLoggingNavigate } from "../debugging/navigationDebugging";
-import { useStore } from "../state/store";
-
+import { useComponentNavigation } from "./ComponentNavigationContext";
+import { MarkdownDiv } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
+import { NoContentsPanel } from "./NoContentsPanel";
+import { PopOver } from "./PopOver";
 
 export interface MarkdownReference {
   id: string;
@@ -47,26 +42,33 @@ export const MarkdownDivWithReferences = forwardRef<
   const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
   const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
 
-  const showingRefPopover = useStore((state) => state.showingRefPopover);
-  const setShowingRefPopover = useStore((state) => state.setShowingRefPopover);
-  const clearShowingRefPopover = useStore(
-    (state) => state.clearShowingRefPopover
-  );
+  const { usePopoverValue, useSetPopover, useClearPopover } =
+    useComponentStateHooks();
+  const showingRefPopover = usePopoverValue();
+  const setShowingRefPopover = useSetPopover();
+  const clearShowingRefPopover = useClearPopover();
+
+  // Refs for popover callbacks so the event-handler effect doesn't
+  // need to re-attach listeners when the callbacks change.
+  const setShowingRefPopoverRef = useRef(setShowingRefPopover);
+  setShowingRefPopoverRef.current = setShowingRefPopover;
+  const clearShowingRefPopoverRef = useRef(clearShowingRefPopover);
+  clearShowingRefPopoverRef.current = clearShowingRefPopover;
 
   // Create a map for quick lookup of references by ID
   const refMap = useMemo(
-    () => new Map(references?.map((ref) => [ref.id, ref])),
+    () => new Map(references?.map((r) => [r.id, r])),
     [references]
   );
 
-  const navigate = useLoggingNavigate("MarkdownDivWithReferences");
+  const { navigate } = useComponentNavigation();
 
   const handleLinkClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const anchor = (e.target as HTMLElement).closest("a");
       if (anchor) {
         const href = anchor.getAttribute("href");
-        // If this is a has, forward on to react-router
+        // If this is a hash link, forward on to react-router
         // so it can see this navigate
         if (href?.startsWith("#/")) {
           e.preventDefault();
@@ -84,21 +86,21 @@ export const MarkdownDivWithReferences = forwardRef<
       let processedHtml = html;
 
       // Replace each reference cite with a link
-      references?.forEach((ref) => {
+      references?.forEach((r) => {
         // Escape special regex characters in the cite text
-        const escapedCite = ref.cite.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escapedCite = r.cite.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const regex = new RegExp(`${escapedCite}(?![a-zA-Z0-9])`, "g");
 
-        const href = ref.citeUrl || "javascript:void(0)";
+        const href = r.citeUrl || "javascript:void(0)";
 
-        const replacement = `<a href="${href}" class="${styles.cite}" data-ref-id="${ref.id}">${ref.cite}</a>`;
+        const replacement = `<a href="${href}" class="${styles.cite}" data-ref-id="${r.id}">${r.cite}</a>`;
 
         processedHtml = processedHtml.replace(regex, replacement);
       });
 
       return processedHtml;
     },
-    [references, styles.cite]
+    [references]
   );
 
   // Memoize the MarkdownDiv to prevent re-renders when popover state changes
@@ -114,7 +116,7 @@ export const MarkdownDivWithReferences = forwardRef<
         onClick={handleLinkClick}
       />
     ),
-    [markdown, postProcess]
+    [ref, markdown, postProcess, style, omitMedia, handleLinkClick]
   );
 
   // Attach event handlers to reference links after render
@@ -141,25 +143,25 @@ export const MarkdownDivWithReferences = forwardRef<
       if (!id) {
         return;
       }
-      const ref = refMap.get(id);
-      if (!ref) {
+      const r = refMap.get(id);
+      if (!r) {
         return;
       }
 
-      if (!ref.citePreview) {
+      if (!r.citePreview) {
         return;
       }
 
       // Just set which cite we're tracking
       // PopOver will handle all show/hide logic including hover delays
       setPositionEl(el);
-      setCurrentRef(ref);
-      setShowingRefPopover(popoverKey(ref));
+      setCurrentRef(r);
+      setShowingRefPopoverRef.current(popoverKey(r));
     };
 
     const handleClick = (e: MouseEvent): void => {
       // Cancel the popover if one is pending or showing
-      clearShowingRefPopover();
+      clearShowingRefPopoverRef.current();
       setCurrentRef(null);
       setPositionEl(null);
 
@@ -183,15 +185,7 @@ export const MarkdownDivWithReferences = forwardRef<
     return () => {
       cleanup.forEach((fn) => fn());
     };
-  }, [
-    markdown,
-    refMap,
-    styles.cite,
-    setPositionEl,
-    setCurrentRef,
-    setShowingRefPopover,
-    clearShowingRefPopover,
-  ]);
+  }, [markdown, refMap, options?.previewRefsOnHover]);
 
   const key = currentRef
     ? popoverKey(currentRef)
@@ -227,4 +221,4 @@ export const MarkdownDivWithReferences = forwardRef<
 
 MarkdownDivWithReferences.displayName = "MarkdownDivWithReferences";
 
-const popoverKey = (ref: MarkdownReference) => `markdown-ref-popover-${ref.id}`;
+const popoverKey = (r: MarkdownReference) => `markdown-ref-popover-${r.id}`;

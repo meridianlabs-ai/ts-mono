@@ -69,4 +69,11 @@ export const inspectStateHooks: ComponentStateHooks = {
   useVisibleRanges: () => useStore((state) => state.app.visibleRanges),
   useSetVisibleRange: () =>
     useStore((state) => state.appActions.setVisibleRange),
+
+  // Popover visibility
+  usePopoverValue: () => useStore((state) => state.sample.visiblePopover),
+  useSetPopover: () =>
+    useStore((state) => state.sampleActions.setVisiblePopover),
+  useClearPopover: () =>
+    useStore((state) => state.sampleActions.clearVisiblePopover),
 };

@@ -2,10 +2,13 @@ import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
-import { ANSIDisplay, JSONPanel } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  JSONPanel,
+  MarkdownReference,
+} from "@tsmono/react/components";
 import { formatNumber, isJson } from "@tsmono/util";
 
-import { MarkdownReference } from "../../components/MarkdownDivWithReferences";
 import { ChatMessageRenderer } from "../chat/ChatMessageRenderer";
 import { isMessageContent, MessageContent } from "../chat/MessageContent";
 import { defaultContext } from "../chat/MessageContents";

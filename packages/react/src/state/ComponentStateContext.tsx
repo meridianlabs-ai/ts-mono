@@ -49,6 +49,11 @@ export interface ComponentStateHooks {
     key: string,
     value: { startIndex: number; endIndex: number }
   ) => void;
+
+  // Popover visibility (single active popover identified by key)
+  usePopoverValue: () => string | undefined;
+  useSetPopover: () => (key: string) => void;
+  useClearPopover: () => () => void;
 }
 
 const ComponentStateContext = createContext<ComponentStateHooks | null>(null);

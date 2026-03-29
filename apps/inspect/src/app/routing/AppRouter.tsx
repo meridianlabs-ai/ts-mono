@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Navigate,
   Outlet,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 
 import { storeImplementation, useStore } from "../../state/store";
 import { AppErrorBoundary } from "../AppErrorBoundary";
@@ -23,6 +26,11 @@ import {
 // Create a layout component that includes the RouteTracker
 const AppLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const componentNavigation = useMemo(
+    () => ({ navigate: (path: string) => navigate(path) }),
+    [navigate]
+  );
 
   // Track changes to routes
   useEffect(() => {
@@ -45,16 +53,20 @@ const AppLayout = () => {
     const isSampleDetail = (sampleId && epoch) || sampleUuid;
 
     return (
-      <AppErrorBoundary>
-        {isSampleDetail ? <LogSampleDetailView /> : <LogViewContainer />}
-      </AppErrorBoundary>
+      <ComponentNavigationProvider navigation={componentNavigation}>
+        <AppErrorBoundary>
+          {isSampleDetail ? <LogSampleDetailView /> : <LogViewContainer />}
+        </AppErrorBoundary>
+      </ComponentNavigationProvider>
     );
   }
 
   return (
-    <AppErrorBoundary>
-      <Outlet />
-    </AppErrorBoundary>
+    <ComponentNavigationProvider navigation={componentNavigation}>
+      <AppErrorBoundary>
+        <Outlet />
+      </AppErrorBoundary>
+    </ComponentNavigationProvider>
   );
 };
 

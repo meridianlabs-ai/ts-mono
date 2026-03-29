@@ -1,10 +1,12 @@
-import { FC, useEffect } from "react";
+import { FC, useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Outlet,
   useLocation,
   useParams,
 } from "react-router-dom";
+
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
 import { FindBand } from "./app/components/FindBand";
@@ -53,13 +55,16 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     const singleFileMode = useStore((state) => state.singleFileMode);
     const config = useAppConfig();
 
+    const navigate = useLoggingNavigate("AppLayout");
+    const componentNavigation = useMemo(() => ({ navigate }), [navigate]);
+
     useFindBandShortcut();
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 
     const content = <Outlet />;
     return (
-      <>
+      <ComponentNavigationProvider navigation={componentNavigation}>
         {showFind && (
           <FindBand
             onClose={() => {
@@ -73,7 +78,7 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
         ) : (
           content
         )}
-      </>
+      </ComponentNavigationProvider>
     );
   };
 

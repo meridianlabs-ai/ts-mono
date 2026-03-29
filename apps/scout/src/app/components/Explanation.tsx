@@ -3,7 +3,8 @@ import { FC, ReactNode } from "react";
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
-} from "../../components/MarkdownDivWithReferences";
+} from "@tsmono/react/components";
+
 import { ScanResultSummary } from "../types";
 
 interface ExplanationProps {
