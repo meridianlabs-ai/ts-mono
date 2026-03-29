@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 import { useComponentStateHooks } from "../state/ComponentStateContext";
 
@@ -6,14 +6,14 @@ import { useComponentStateHooks } from "../state/ComponentStateContext";
 export function useProperty<T>(
   id: string,
   propertyName: string,
-  options: { defaultValue: T; cleanup?: boolean }
+  options: { defaultValue: T }
 ): [T, (value: T) => void, () => void];
 
 // Without a defaultValue the returned value may be undefined.
 export function useProperty<T>(
   id: string,
   propertyName: string,
-  options?: { defaultValue?: T; cleanup?: boolean }
+  options?: { defaultValue?: T }
 ): [T | undefined, (value: T) => void, () => void];
 
 export function useProperty<T>(
@@ -21,14 +21,12 @@ export function useProperty<T>(
   propertyName: string,
   options?: {
     defaultValue?: T;
-    cleanup?: boolean;
   }
 ): [T | undefined, (value: T) => void, () => void] {
   const { usePropertyValue, useSetPropertyValue, useRemovePropertyValue } =
     useComponentStateHooks();
 
   const defaultValue = options?.defaultValue;
-  const cleanup = options?.cleanup ?? true;
 
   const propertyValue = usePropertyValue(id, propertyName, defaultValue) as
     | T
@@ -47,14 +45,6 @@ export function useProperty<T>(
   const removeValue = useCallback(() => {
     removePropertyValueFn(id, propertyName);
   }, [id, propertyName, removePropertyValueFn]);
-
-  useEffect(() => {
-    return () => {
-      if (cleanup) {
-        removePropertyValueFn(id, propertyName);
-      }
-    };
-  }, [id, propertyName, removePropertyValueFn, cleanup]);
 
   return [propertyValue, setValue, removeValue];
 }
