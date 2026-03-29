@@ -5,7 +5,8 @@ import { StateSnapshot } from "react-virtuoso";
  * Primitive state hooks that each host app must implement.
  *
  * Shared hooks in `@tsmono/react` compose these primitives to build
- * higher-level hooks like `useProperty` and `useCollapsedState`.
+ * higher-level hooks like `useProperty`, `useCollapsedState`, and
+ * `useCollapsibleIds`.
  * Each method here is a React hook — it internally subscribes to the
  * app's store and returns reactive values.
  *
@@ -22,14 +23,11 @@ export interface ComponentStateHooks {
   useSetPropertyValue: () => (id: string, prop: string, value: unknown) => void;
   useRemovePropertyValue: () => (id: string, prop: string) => void;
 
-  // Collapsed state (simple boolean by scope+id)
-  useCollapsedValue: (id: string, scope?: string) => boolean | undefined;
-  useSetCollapsed: () => (scope: string, id: string, value: boolean) => void;
-
-  // Collapsed ID buckets (Record<string, boolean> by bucket key)
-  useCollapsedIds: (key: string) => Record<string, boolean> | undefined;
-  useCollapseId: () => (key: string, id: string, value: boolean) => void;
-  useClearCollapsedIds: () => (key: string) => void;
+  // Bucketed booleans (unified collapsed state + collapsed ID buckets)
+  useBucketValue: (bucket: string, id: string) => boolean | undefined;
+  useSetBucketValue: () => (bucket: string, id: string, value: boolean) => void;
+  useBucketEntries: (bucket: string) => Record<string, boolean> | undefined;
+  useClearBucket: () => (bucket: string) => void;
 
   // Scroll positions (imperative — used in effects, not render)
   useGetScrollPosition: () => (key: string) => number | undefined;
@@ -49,11 +47,6 @@ export interface ComponentStateHooks {
     key: string,
     value: { startIndex: number; endIndex: number }
   ) => void;
-
-  // Popover visibility (single active popover identified by key)
-  usePopoverValue: () => string | undefined;
-  useSetPopover: () => (key: string) => void;
-  useClearPopover: () => () => void;
 }
 
 const ComponentStateContext = createContext<ComponentStateHooks | null>(null);

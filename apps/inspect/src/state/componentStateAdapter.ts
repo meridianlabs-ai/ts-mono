@@ -18,9 +18,9 @@ export const inspectStateHooks: ComponentStateHooks = {
   useRemovePropertyValue: () =>
     useStore((state) => state.appActions.removePropertyValue),
 
-  // Collapsed state — inspect uses flat composite keys
-  useCollapsedValue: (id: string, scope?: string) => {
-    const stateId = scope ? `${scope}-${id}` : id;
+  // Bucketed booleans — inspect uses flat composite keys for collapsed state
+  useBucketValue: (bucket: string, id: string) => {
+    const stateId = bucket ? `${bucket}-${id}` : id;
     return useStore(
       useCallback(
         (state) => {
@@ -31,24 +31,26 @@ export const inspectStateHooks: ComponentStateHooks = {
       )
     );
   },
-  useSetCollapsed: () => {
-    const fn = useStore((state) => state.appActions.setCollapsed);
+  useSetBucketValue: () => {
+    const setCollapsed = useStore((state) => state.appActions.setCollapsed);
+    const collapseId = useStore((state) => state.sampleActions.collapseId);
     return useCallback(
-      (scope: string, id: string, value: boolean) => {
-        const stateId = scope ? `${scope}-${id}` : id;
-        fn(stateId, value);
+      (bucket: string, id: string, value: boolean) => {
+        // Write to both stores — useCollapsedState reads from app.collapsed
+        // (flat composite keys) while useCollapsibleIds reads from
+        // sample.collapsedIdBuckets (nested buckets).
+        const stateId = bucket ? `${bucket}-${id}` : id;
+        setCollapsed(stateId, value);
+        collapseId(bucket, id, value);
       },
-      [fn]
+      [setCollapsed, collapseId]
     );
   },
-
-  // Collapsed ID buckets — inspect uses sample.collapsedIdBuckets
-  useCollapsedIds: (key: string) =>
+  useBucketEntries: (key: string) =>
     useStore(
       useCallback((state) => state.sample.collapsedIdBuckets[key], [key])
     ),
-  useCollapseId: () => useStore((state) => state.sampleActions.collapseId),
-  useClearCollapsedIds: () =>
+  useClearBucket: () =>
     useStore((state) => state.sampleActions.clearCollapsedIds),
 
   // Scroll positions
@@ -69,11 +71,4 @@ export const inspectStateHooks: ComponentStateHooks = {
   useVisibleRanges: () => useStore((state) => state.app.visibleRanges),
   useSetVisibleRange: () =>
     useStore((state) => state.appActions.setVisibleRange),
-
-  // Popover visibility
-  usePopoverValue: () => useStore((state) => state.sample.visiblePopover),
-  useSetPopover: () =>
-    useStore((state) => state.sampleActions.setVisiblePopover),
-  useClearPopover: () =>
-    useStore((state) => state.sampleActions.clearVisiblePopover),
 };

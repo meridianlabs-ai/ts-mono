@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { useComponentStateHooks } from "../state/ComponentStateContext";
+import { useProperty } from "../hooks/useProperty";
 
 import { useComponentNavigation } from "./ComponentNavigationContext";
 import { MarkdownDiv } from "./MarkdownDiv";
@@ -42,18 +42,11 @@ export const MarkdownDivWithReferences = forwardRef<
   const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
   const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
 
-  const { usePopoverValue, useSetPopover, useClearPopover } =
-    useComponentStateHooks();
-  const showingRefPopover = usePopoverValue();
-  const setShowingRefPopover = useSetPopover();
-  const clearShowingRefPopover = useClearPopover();
-
-  // Refs for popover callbacks so the event-handler effect doesn't
-  // need to re-attach listeners when the callbacks change.
-  const setShowingRefPopoverRef = useRef(setShowingRefPopover);
-  setShowingRefPopoverRef.current = setShowingRefPopover;
-  const clearShowingRefPopoverRef = useRef(clearShowingRefPopover);
-  clearShowingRefPopoverRef.current = clearShowingRefPopover;
+  const [visibleKey, setVisibleKey, clearVisibleKey] = useProperty<string>(
+    "popover",
+    "visibleKey",
+    { cleanup: false }
+  );
 
   // Create a map for quick lookup of references by ID
   const refMap = useMemo(
@@ -156,12 +149,12 @@ export const MarkdownDivWithReferences = forwardRef<
       // PopOver will handle all show/hide logic including hover delays
       setPositionEl(el);
       setCurrentRef(r);
-      setShowingRefPopoverRef.current(popoverKey(r));
+      setVisibleKey(popoverKey(r));
     };
 
     const handleClick = (e: MouseEvent): void => {
       // Cancel the popover if one is pending or showing
-      clearShowingRefPopoverRef.current();
+      clearVisibleKey();
       setCurrentRef(null);
       setPositionEl(null);
 
@@ -185,7 +178,13 @@ export const MarkdownDivWithReferences = forwardRef<
     return () => {
       cleanup.forEach((fn) => fn());
     };
-  }, [markdown, refMap, options?.previewRefsOnHover]);
+  }, [
+    markdown,
+    refMap,
+    options?.previewRefsOnHover,
+    setVisibleKey,
+    clearVisibleKey,
+  ]);
 
   const key = currentRef
     ? popoverKey(currentRef)
@@ -198,10 +197,10 @@ export const MarkdownDivWithReferences = forwardRef<
         <PopOver
           id={key}
           positionEl={positionEl}
-          isOpen={showingRefPopover === key}
+          isOpen={visibleKey === key}
           setIsOpen={(isOpen) => {
             if (!isOpen) {
-              clearShowingRefPopover();
+              clearVisibleKey();
               setCurrentRef(null);
               setPositionEl(null);
             }

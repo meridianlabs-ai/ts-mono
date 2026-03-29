@@ -9,28 +9,25 @@ export const useCollapsibleIds = (
   (id: string, value: boolean) => void,
   () => void,
 ] => {
-  const {
-    useCollapsedIds: useCollapsedIdsPrimitive,
-    useCollapseId,
-    useClearCollapsedIds,
-  } = useComponentStateHooks();
+  const { useBucketEntries, useSetBucketValue, useClearBucket } =
+    useComponentStateHooks();
 
-  const collapsedIds = useCollapsedIdsPrimitive(key);
+  const bucketEntries = useBucketEntries(key);
 
-  const collapseIdFn = useCollapseId();
+  const setBucketValueFn = useSetBucketValue();
   const collapseId = useCallback(
     (id: string, value: boolean) => {
-      collapseIdFn(key, id, value);
+      setBucketValueFn(key, id, value);
     },
-    [key, collapseIdFn]
+    [key, setBucketValueFn]
   );
 
-  const clearCollapsedIdsFn = useClearCollapsedIds();
+  const clearBucketFn = useClearBucket();
   const clearIds = useCallback(() => {
-    clearCollapsedIdsFn(key);
-  }, [clearCollapsedIdsFn, key]);
+    clearBucketFn(key);
+  }, [clearBucketFn, key]);
 
   return useMemo(() => {
-    return [collapsedIds || {}, collapseId, clearIds];
-  }, [collapsedIds, collapseId, clearIds]);
+    return [bucketEntries || {}, collapseId, clearIds];
+  }, [bucketEntries, collapseId, clearIds]);
 };
