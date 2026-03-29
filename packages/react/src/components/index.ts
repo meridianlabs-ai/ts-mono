@@ -33,3 +33,5 @@ export * from "./ExpandablePanel";
 export * from "./LightboxCarousel";
 export * from "./HumanBaselineView";
 export * from "./LiveVirtualList";
+export * from "./ComponentNavigationContext";
+export * from "./MarkdownDivWithReferences";

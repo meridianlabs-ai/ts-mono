@@ -50,4 +50,9 @@ export const scoutStateHooks: ComponentStateHooks = {
       [setVisibleRange]
     );
   },
+
+  // Popover visibility
+  usePopoverValue: () => useStore((state) => state.showingRefPopover),
+  useSetPopover: () => useStore((state) => state.setShowingRefPopover),
+  useClearPopover: () => useStore((state) => state.clearShowingRefPopover),
 };

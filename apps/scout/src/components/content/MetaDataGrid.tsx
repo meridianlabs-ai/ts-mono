@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties, FC, Fragment, useState } from "react";
 
-import { MarkdownReference } from "../MarkdownDivWithReferences";
+import { MarkdownReference } from "@tsmono/react/components";
 
 import styles from "./MetadataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";

@@ -1,9 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { NoContentsPanel } from "@tsmono/react/components";
+import { MarkdownReference, NoContentsPanel } from "@tsmono/react/components";
 
-import { MarkdownReference } from "../../../components/MarkdownDivWithReferences";
 import { ScannerInput } from "../../../types/api-types";
 import { Explanation } from "../../components/Explanation";
 import { Metadata } from "../../components/Metadata";
