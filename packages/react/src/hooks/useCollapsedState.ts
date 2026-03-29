@@ -7,16 +7,16 @@ export const useCollapsedState = (
   defaultValue?: boolean,
   scope?: string
 ): [boolean, (value: boolean) => void] => {
-  const { useCollapsedValue, useSetCollapsed } = useComponentStateHooks();
+  const { useBucketValue, useSetBucketValue } = useComponentStateHooks();
 
   const resolvedScope = scope || "collapse-state-scope";
-  const collapsed = useCollapsedValue(id, resolvedScope);
-  const setCollapsedFn = useSetCollapsed();
+  const collapsed = useBucketValue(resolvedScope, id);
+  const setBucketValueFn = useSetBucketValue();
 
   return useMemo(() => {
     const set = (value: boolean) => {
-      setCollapsedFn(resolvedScope, id, value);
+      setBucketValueFn(resolvedScope, id, value);
     };
     return [collapsed ?? defaultValue ?? false, set];
-  }, [collapsed, resolvedScope, defaultValue, setCollapsedFn, id]);
+  }, [collapsed, resolvedScope, defaultValue, setBucketValueFn, id]);
 };

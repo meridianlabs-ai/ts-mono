@@ -16,18 +16,13 @@ export const scoutStateHooks: ComponentStateHooks = {
   useSetPropertyValue: () => useStore((state) => state.setPropertyValue),
   useRemovePropertyValue: () => useStore((state) => state.removePropertyValue),
 
-  // Collapsed state
-  useCollapsedValue: (id: string, scope?: string) => {
-    const resolvedScope = scope ?? "collapse-state-scope";
-    return useStore((state) => state.collapsedBuckets[resolvedScope]?.[id]);
-  },
-  useSetCollapsed: () => useStore((state) => state.setCollapsed),
-
-  // Collapsed ID buckets
-  useCollapsedIds: (key: string) =>
-    useStore((state) => state.collapsedBuckets[key]),
-  useCollapseId: () => useStore((state) => state.setCollapsed),
-  useClearCollapsedIds: () => useStore((state) => state.clearCollapsed),
+  // Bucketed booleans
+  useBucketValue: (bucket: string, id: string) =>
+    useStore((state) => state.collapsedBuckets[bucket]?.[id]),
+  useSetBucketValue: () => useStore((state) => state.setCollapsed),
+  useBucketEntries: (bucket: string) =>
+    useStore((state) => state.collapsedBuckets[bucket]),
+  useClearBucket: () => useStore((state) => state.clearCollapsed),
 
   // Scroll positions
   useGetScrollPosition: () => useStore((state) => state.getScrollPosition),
@@ -50,9 +45,4 @@ export const scoutStateHooks: ComponentStateHooks = {
       [setVisibleRange]
     );
   },
-
-  // Popover visibility
-  usePopoverValue: () => useStore((state) => state.showingRefPopover),
-  useSetPopover: () => useStore((state) => state.setShowingRefPopover),
-  useClearPopover: () => useStore((state) => state.clearShowingRefPopover),
 };
