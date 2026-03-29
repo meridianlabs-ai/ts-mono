@@ -159,8 +159,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   // an explicit user choice.
   const [collapsed, setCollapsed] = useProperty<boolean>(
     "timeline",
-    "swimlanesCollapsed",
-    { cleanup: false }
+    "swimlanesCollapsed"
   );
   const isFlat = layouts.length <= 1;
 

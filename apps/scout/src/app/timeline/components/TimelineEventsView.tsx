@@ -417,7 +417,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const [outlineCollapsed, setOutlineCollapsed] = useProperty<boolean>(
     "timelineEvents",
     "outlineCollapsed",
-    { defaultValue: !defaultOutlineExpanded, cleanup: false }
+    { defaultValue: !defaultOutlineExpanded }
   );
   const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 

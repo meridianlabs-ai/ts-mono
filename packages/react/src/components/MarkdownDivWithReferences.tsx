@@ -44,8 +44,7 @@ export const MarkdownDivWithReferences = forwardRef<
 
   const [visibleKey, setVisibleKey, clearVisibleKey] = useProperty<string>(
     "popover",
-    "visibleKey",
-    { cleanup: false }
+    "visibleKey"
   );
 
   // Create a map for quick lookup of references by ID

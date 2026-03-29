@@ -121,7 +121,7 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
   const [showTokens, setShowTokens] = useProperty<boolean>(
     "timeline",
     "minimapShowTokens",
-    { defaultValue: false, cleanup: false }
+    { defaultValue: false }
   );
   const isTokenMode = !!showTokens;
   const toggle = useCallback(
