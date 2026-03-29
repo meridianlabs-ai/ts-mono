@@ -11,8 +11,9 @@ import {
 } from "react";
 import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
 
+import { LiveVirtualList } from "@tsmono/react/components";
+
 import { ChatMessages } from "../../../@types/extraInspect";
-import { LiveVirtualList } from "../../../components/LiveVirtualList";
 import { useStore } from "../../../state/store";
 
 import { ChatMessageRow } from "./ChatMessageRow";

@@ -32,3 +32,4 @@ export * from "./TabSet";
 export * from "./ExpandablePanel";
 export * from "./LightboxCarousel";
 export * from "./HumanBaselineView";
+export * from "./LiveVirtualList";
