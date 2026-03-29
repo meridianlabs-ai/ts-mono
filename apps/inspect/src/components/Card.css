@@ -60,3 +60,9 @@
 .card-body.card-no-padding {
   padding: 0;
 }
+
+@media print {
+  .card {
+    break-inside: avoid;
+  }
+}
