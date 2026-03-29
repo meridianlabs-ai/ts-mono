@@ -10,18 +10,19 @@ import {
 import { Components, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
 import {
-  ExtendedFindFn,
-  PulsingDots,
-  useExtendedFind,
-} from "@tsmono/react/components";
-import {
   usePreviousValue,
   useProperty,
   useRafThrottle,
   useVirtuosoState,
-} from "@tsmono/react/hooks";
+} from "../hooks";
 
+import {
+  ExtendedCountFn,
+  ExtendedFindFn,
+  useExtendedFind,
+} from "./ExtendedFindContext";
 import styles from "./LiveVirtualList.module.css";
+import { PulsingDots } from "./PulsingDots";
 
 interface LiveVirtualListProps<T> {
   id: string;
@@ -52,6 +53,7 @@ interface LiveVirtualListProps<T> {
 
   components?: Components<T>;
 
+  // Whether to use smooth scroll animation when navigating
   animation?: boolean;
 
   // Optional function to extract searchable text from data items
@@ -82,8 +84,7 @@ export const LiveVirtualList = <T,>({
   const { getRestoreState, isScrolling, visibleRange, setVisibleRange } =
     useVirtuosoState(listHandle, `live-virtual-list-${id}`);
 
-  // Search functionality
-  const { registerVirtualList } = useExtendedFind();
+  const { registerVirtualList, registerMatchCounter } = useExtendedFind();
   const pendingSearchCallback = useRef<(() => void) | null>(null);
   const [isCurrentlyScrolling, setIsCurrentlyScrolling] = useState(false);
 
@@ -121,6 +122,11 @@ export const LiveVirtualList = <T,>({
     }
   }, [live, followOutput, prevLive, scrollRef, setFollowOutput]);
 
+  // Track whether the user is at/near the bottom of the scroll container.
+  // Updated synchronously on every scroll event (not throttled) so the
+  // value is always current when totalListHeightChanged fires.
+  const isNearBottomRef = useRef(false);
+
   const handleScroll = useRafThrottle(() => {
     // Skip processing if auto-scrolling is in progress
     if (isAutoScrollingRef.current) return;
@@ -142,10 +148,36 @@ export const LiveVirtualList = <T,>({
     }
   });
 
+  // Synchronous scroll listener to track near-bottom state without
+  // RAF throttling, so the ref is always up-to-date when Virtuoso
+  // fires totalListHeightChanged.
+  const handleScrollSync = useCallback(() => {
+    if (isAutoScrollingRef.current) return;
+    if (!scrollRef?.current) return;
+    const parent = scrollRef.current;
+    isNearBottomRef.current =
+      parent.scrollHeight - parent.scrollTop <= parent.clientHeight + 50;
+  }, [scrollRef]);
+
   const heightChanged = useCallback(
     (height: number) => {
       requestAnimationFrame(() => {
-        if (followOutput && live && scrollRef?.current) {
+        if (!scrollRef?.current) return;
+
+        if (followOutput && live) {
+          isAutoScrollingRef.current = true;
+          listHandle.current?.scrollTo({ top: height });
+          requestAnimationFrame(() => {
+            isAutoScrollingRef.current = false;
+          });
+          return;
+        }
+
+        // For non-live mode: if the user was near the bottom before the
+        // height change, keep them at the bottom. This prevents the
+        // "can't scroll to bottom" issue caused by Virtuoso re-measuring
+        // item heights and growing the total scroll height.
+        if (isNearBottomRef.current) {
           isAutoScrollingRef.current = true;
           listHandle.current?.scrollTo({ top: height });
           requestAnimationFrame(() => {
@@ -156,6 +188,21 @@ export const LiveVirtualList = <T,>({
     },
     [followOutput, live, scrollRef, listHandle]
   );
+
+  const [, forceRender] = useState({});
+  const forceUpdate = useCallback(() => forceRender({}), []);
+
+  useEffect(() => {
+    // Force a re-render after initial mount
+    // This is here only because in VScode, for some reason,
+    // when this transcript is restored, the height isn't computed
+    // properly on the first render. This basically gives it a second
+    // chance to compute the height and lay itself out.
+    const timer = setTimeout(() => {
+      forceUpdate();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [forceUpdate]);
 
   // Resolve the scrollRef into state so Virtuoso's customScrollParent can
   // be set without reading a ref during render. The ref target may be
@@ -221,47 +268,53 @@ export const LiveVirtualList = <T,>({
     [itemSearchText, defaultItemSearchText, searchInText]
   );
 
-  // Search in data function
+  const scrollToMatch = useCallback(
+    (index: number, onContentReady: () => void) => {
+      pendingSearchCallback.current = onContentReady;
+
+      listHandle.current?.scrollToIndex({
+        index,
+        behavior: "auto",
+        align: "center",
+      });
+
+      setTimeout(() => {
+        if (pendingSearchCallback.current === onContentReady) {
+          pendingSearchCallback.current = null;
+          onContentReady();
+        }
+      }, 200);
+    },
+    [listHandle]
+  );
+
   const searchInData: ExtendedFindFn = useCallback(
     (
       term: string,
       direction: "forward" | "backward",
       onContentReady: () => void
     ) => {
-      if (!data.length || !term) {
-        return Promise.resolve(false);
-      }
+      if (!data.length || !term) return Promise.resolve(false);
 
-      const currentIndex =
-        direction === "forward"
-          ? visibleRange.endIndex
-          : visibleRange.startIndex;
-      const searchStart =
-        direction === "forward"
-          ? Math.max(0, currentIndex + 1)
-          : Math.min(data.length - 1, currentIndex - 1);
-      const step = direction === "forward" ? 1 : -1;
+      const isForward = direction === "forward";
+      const currentIndex = isForward
+        ? visibleRange.endIndex
+        : visibleRange.startIndex;
 
-      for (let i = searchStart; i >= 0 && i < data.length; i += step) {
+      // Search from current position to end, then wrap from beginning to current position
+      const len = data.length;
+      for (let offset = 1; offset < len; offset++) {
+        const i = isForward
+          ? (currentIndex + offset) % len
+          : (currentIndex - offset + len) % len;
+
+        // Skip items already in the visible range (window.find already checked them)
+        if (i >= visibleRange.startIndex && i <= visibleRange.endIndex)
+          continue;
+
         const item = data[i];
         if (item !== undefined && searchInItem(item, term)) {
-          // Found a match! Set up callback and scroll to it
-          pendingSearchCallback.current = onContentReady;
-
-          listHandle.current?.scrollToIndex({
-            index: i,
-            behavior: "auto",
-            align: "center",
-          });
-
-          // Fallback timeout if Virtuoso doesn't trigger scroll callbacks
-          setTimeout(() => {
-            if (pendingSearchCallback.current === onContentReady) {
-              pendingSearchCallback.current = null;
-              onContentReady();
-            }
-          }, 200);
-
+          scrollToMatch(i, onContentReady);
           return Promise.resolve(true);
         }
       }
@@ -273,15 +326,48 @@ export const LiveVirtualList = <T,>({
       searchInItem,
       visibleRange.endIndex,
       visibleRange.startIndex,
-      listHandle,
+      scrollToMatch,
     ]
   );
 
-  // Register with search context
+  const countMatchesInData: ExtendedCountFn = useCallback(
+    (term: string): number => {
+      if (!term || !data.length) return 0;
+      const lower = term.toLowerCase();
+      let total = 0;
+      const getSearchText = itemSearchText ?? defaultItemSearchText;
+
+      for (const item of data) {
+        const texts = getSearchText(item);
+        const textArray = Array.isArray(texts) ? texts : [texts];
+        for (const text of textArray) {
+          const lowerText = text.toLowerCase();
+          let pos = 0;
+          while ((pos = lowerText.indexOf(lower, pos)) !== -1) {
+            total++;
+            pos += lower.length;
+          }
+        }
+      }
+      return total;
+    },
+    [data, itemSearchText, defaultItemSearchText]
+  );
+
   useEffect(() => {
-    const unregister = registerVirtualList(id, searchInData);
-    return unregister;
-  }, [id, registerVirtualList, searchInData]);
+    const unregisterSearch = registerVirtualList(id, searchInData);
+    const unregisterCount = registerMatchCounter(id, countMatchesInData);
+    return () => {
+      unregisterSearch();
+      unregisterCount();
+    };
+  }, [
+    id,
+    registerVirtualList,
+    registerMatchCounter,
+    searchInData,
+    countMatchesInData,
+  ]);
 
   const Footer = () => {
     return showProgress ? (
@@ -296,9 +382,13 @@ export const LiveVirtualList = <T,>({
     const parent = scrollRef?.current;
     if (parent) {
       parent.addEventListener("scroll", handleScroll);
-      return () => parent.removeEventListener("scroll", handleScroll);
+      parent.addEventListener("scroll", handleScrollSync);
+      return () => {
+        parent.removeEventListener("scroll", handleScroll);
+        parent.removeEventListener("scroll", handleScrollSync);
+      };
     }
-  }, [scrollRef, handleScroll]);
+  }, [scrollRef, handleScroll, handleScrollSync]);
 
   // Scroll to index when component mounts or targetIndex changes.
   // offsetTop is read via ref so that changes to it (e.g. swimlane height
@@ -365,6 +455,7 @@ export const LiveVirtualList = <T,>({
       rangeChanged={(range) => {
         setVisibleRange(range);
       }}
+      skipAnimationFrameInResizeObserver={true}
       restoreStateFrom={getRestoreState()}
       totalListHeightChanged={heightChanged}
       components={{

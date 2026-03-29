@@ -9,7 +9,7 @@ import {
 } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
-import { LiveVirtualList } from "../LiveVirtualList";
+import { LiveVirtualList } from "@tsmono/react/components";
 
 import { eventSearchText } from "./eventSearchText";
 import { RenderedEventNode } from "./TranscriptVirtualList";
