@@ -1064,6 +1064,13 @@ export interface components {
             /** Transcript Id */
             transcript_id: string;
         };
+        /** ChatResponse */
+        ChatResponse: {
+            /** Message */
+            message: components["schemas"]["ChatMessageSystem-Output"] | components["schemas"]["ChatMessageUser-Output"] | components["schemas"]["ChatMessageAssistant-Output"] | components["schemas"]["ChatMessageTool-Output"];
+            /** References */
+            references: components["schemas"]["Reference"][];
+        };
         /**
          * CompactionEvent
          * @description Compaction of conversation history.
@@ -2737,6 +2744,21 @@ export interface components {
         };
         /** @enum {string} */
         RawEncoding: "zstd";
+        /**
+         * Reference
+         * @description Reference to scanned content.
+         */
+        Reference: {
+            /** Cite */
+            cite?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "message" | "event";
+        };
         /** RenameValidationSetRequest */
         RenameValidationSetRequest: {
             /** Name */
@@ -4648,7 +4670,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatMessageAssistant-Output"];
+                    "application/json": components["schemas"]["ChatResponse"];
                 };
             };
         };

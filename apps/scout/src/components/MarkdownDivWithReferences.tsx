@@ -36,6 +36,7 @@ interface MarkdownDivWithReferencesProps {
   omitMedia?: boolean;
 }
 
+// This thing actually renders [M1] type message links
 export const MarkdownDivWithReferences = forwardRef<
   HTMLDivElement,
   MarkdownDivWithReferencesProps

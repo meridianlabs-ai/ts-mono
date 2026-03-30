@@ -17,6 +17,7 @@ import {
 } from "../../types/api-types";
 import { RenderedText } from "../content/RenderedText";
 import ExpandablePanel from "../ExpandablePanel";
+import { MarkdownReference } from "../MarkdownDivWithReferences";
 
 import { ContentDataView } from "./content-data/ContentDataView";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
@@ -46,6 +47,7 @@ type Contents = string | string[] | ContentObject[];
 interface MessageContentProps {
   contents: Contents;
   context: MessagesContext;
+  references?: MarkdownReference[];
 }
 
 export const isMessageContent = (
@@ -66,6 +68,7 @@ export const isMessageContent = (
 export const MessageContent: FC<MessageContentProps> = ({
   contents,
   context,
+  references,
 }) => {
   const normalized = normalizeContent(contents);
   if (Array.isArray(normalized)) {
@@ -81,7 +84,8 @@ export const MessageContent: FC<MessageContentProps> = ({
             citations: null,
           },
           index === contents.length - 1,
-          context
+          context,
+          references
         );
       } else {
         if (content) {
@@ -91,7 +95,8 @@ export const MessageContent: FC<MessageContentProps> = ({
               `text-${content.type}-${index}`,
               content,
               index === contents.length - 1,
-              context
+              context,
+              references
             );
           } else {
             console.error(`Unknown message content type '${content.type}'`);
@@ -112,7 +117,8 @@ export const MessageContent: FC<MessageContentProps> = ({
       "text-message-content",
       contentText,
       true,
-      context
+      context,
+      references
     );
   }
 };
@@ -122,13 +128,14 @@ interface MessageRenderer {
     key: string,
     content: ContentType,
     isLast: boolean,
-    context: MessagesContext
+    context: MessagesContext,
+    references?: MarkdownReference[]
   ) => ReactNode;
 }
 
 const messageRenderers: Record<string, MessageRenderer> = {
   text: {
-    render: (key, content, isLast, _context) => {
+    render: (key, content, isLast, _context, references) => {
       // The context provides a way to share context between different
       // rendering. In this case, we'll use it to keep track of citations
       const c = content as ContentText;
@@ -158,6 +165,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
             <RenderedText
               markdown={purgeInternalContainers(c.text) || ""}
               className={isLast ? "no-last-para-padding" : ""}
+              references={references}
             />
             {c.citations && c.citations.length > 0 ? (
               <MessageCitations citations={c.citations} />

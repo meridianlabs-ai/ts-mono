@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
 import { ChatMessageTool } from "../../types/api-types";
+import { MarkdownReference } from "../MarkdownDivWithReferences";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
@@ -22,6 +23,7 @@ interface ChatMessageRowProps {
   padded?: boolean;
   highlightUserMessage?: boolean;
   allowLinking?: boolean;
+  references?: MarkdownReference[];
   className?: string | string[];
 }
 
@@ -39,6 +41,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   indented,
   highlightUserMessage,
   allowLinking = true,
+  references,
   className,
 }) => {
   const views: ReactNode[] = [];
@@ -70,6 +73,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       indented={indented}
       toolCallStyle={toolCallStyle}
       allowLinking={allowLinking}
+      references={references}
     />
   );
 
@@ -89,9 +93,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 
       let toolMessage: ChatMessageTool | undefined;
       if (tool_call.id) {
-        toolMessage = toolMessages.find((msg) => {
-          return msg.tool_call_id === tool_call.id;
-        });
+        toolMessage = toolMessages.find(
+          (msg) => msg.tool_call_id === tool_call.id
+        );
       } else {
         toolMessage = toolMessages[idx];
       }
@@ -137,43 +141,41 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 
   if (useLabels) {
     return (
-      <>
-        <div className={clsx(styles.grid, className)}>
-          {views.map((view, idx) => {
-            const label = viewLabels[idx];
-            return (
-              <Fragment key={`chat-message-row-${index}-part-${idx}`}>
-                <div
-                  className={clsx(
-                    "text-size-smaller",
-                    "text-style-secondary",
-                    styles.number,
-                    styles.label
-                  )}
-                >
-                  {label}
-                </div>
-                <div
-                  className={clsx(
-                    styles.container,
-                    highlightUserMessage &&
-                      resolvedMessage.message.role === "user"
-                      ? styles.user
-                      : undefined,
-                    idx === 0 ? styles.first : undefined,
-                    idx === views.length - 1 ? styles.last : undefined,
-                    highlightLabeled && label?.trim()
-                      ? styles.highlight
-                      : undefined
-                  )}
-                >
-                  {view}
-                </div>
-              </Fragment>
-            );
-          })}
-        </div>
-      </>
+      <div className={clsx(styles.grid, className)}>
+        {views.map((view, idx) => {
+          const label = viewLabels[idx];
+          return (
+            <Fragment key={`chat-message-row-${index}-part-${idx}`}>
+              <div
+                className={clsx(
+                  "text-size-smaller",
+                  "text-style-secondary",
+                  styles.number,
+                  styles.label
+                )}
+              >
+                {label}
+              </div>
+              <div
+                className={clsx(
+                  styles.container,
+                  highlightUserMessage &&
+                    resolvedMessage.message.role === "user"
+                    ? styles.user
+                    : undefined,
+                  idx === 0 ? styles.first : undefined,
+                  idx === views.length - 1 ? styles.last : undefined,
+                  highlightLabeled && label?.trim()
+                    ? styles.highlight
+                    : undefined
+                )}
+              >
+                {view}
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
     );
   } else {
     return views.map((view, idx) => {
@@ -225,7 +227,7 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
     ];
   } else {
     const result = content
-      .map((con) => {
+      .map((con): ContentTool | undefined => {
         if (typeof con === "string") {
           return {
             type: "tool",
@@ -238,17 +240,17 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
                 citations: null,
               },
             ],
-          } as ContentTool;
+          };
         } else if (con.type === "text") {
           return {
             content: [con],
             type: "tool",
-          } as ContentTool;
+          };
         } else if (con.type === "image") {
           return {
             content: [con],
             type: "tool",
-          } as ContentTool;
+          };
         }
       })
       .filter((con) => con !== undefined);

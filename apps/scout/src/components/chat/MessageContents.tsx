@@ -6,6 +6,7 @@ import {
   ChatMessageTool,
   ChatMessageUser,
 } from "../../types/api-types";
+import { MarkdownReference } from "../MarkdownDivWithReferences";
 
 import { MessageContent } from "./MessageContent";
 import { Citation } from "./types";
@@ -16,6 +17,7 @@ interface MessageContentsProps {
     | ChatMessageSystem
     | ChatMessageUser
     | ChatMessageTool;
+  references?: MarkdownReference[];
 }
 
 export interface MessagesContext {
@@ -29,12 +31,12 @@ export const defaultContext = () => {
   };
 };
 
-export const MessageContents: FC<MessageContentsProps> = ({ message }) => {
+export const MessageContents: FC<MessageContentsProps> = ({ message, references }) => {
   const context: MessagesContext = defaultContext();
   return (
     <>
       {message.content && (
-        <MessageContent contents={message.content} context={context} />
+        <MessageContent contents={message.content} context={context} references={references} />
       )}
     </>
   );

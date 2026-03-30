@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { ChatMessage } from "../../types/api-types";
+import { MarkdownReference } from "../MarkdownDivWithReferences";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { resolveMessages } from "./messages";
@@ -16,6 +17,7 @@ interface ChatViewProps {
   indented?: boolean;
   className?: string | string[];
   allowLinking?: boolean;
+  references?: MarkdownReference[];
   labels?: Record<string, string>;
   showLabels?: boolean;
   highlightLabeled?: boolean;
@@ -35,6 +37,7 @@ export const ChatView: FC<ChatViewProps> = ({
   highlightLabeled = false,
   className,
   allowLinking = true,
+  references,
 }) => {
   const collapsedMessages = resolveToolCallsIntoPreviousMessage
     ? resolveMessages(messages)
@@ -59,6 +62,7 @@ export const ChatView: FC<ChatViewProps> = ({
             indented={indented}
             toolCallStyle={toolCallStyle}
             allowLinking={allowLinking}
+            references={references}
           />
         );
       })}

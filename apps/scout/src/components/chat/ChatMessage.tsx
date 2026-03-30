@@ -13,6 +13,7 @@ import {
 } from "../../types/api-types";
 import { RecordTree } from "../content/RecordTree";
 import { CopyButton } from "../CopyButton";
+import { MarkdownReference } from "../MarkdownDivWithReferences";
 import ExpandablePanel from "../ExpandablePanel";
 import { ApplicationIcons } from "../icons";
 import { LabeledValue } from "../LabeledValue";
@@ -33,10 +34,11 @@ interface ChatMessageProps {
   indented?: boolean;
   toolCallStyle: ChatViewToolCallStyle;
   allowLinking?: boolean;
+  references?: MarkdownReference[];
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(
-  ({ id, message, indented, allowLinking = true }) => {
+  ({ id, message, indented, allowLinking = true, references }) => {
     // Generate full URL for deep linking to this message
     const { getFullMessageUrl } = useTranscriptNavigation();
     const messageUrl = isHostedEnvironment()
@@ -107,7 +109,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
                 }
               />
             ) : (
-              <MessageContents key={`${id}-contents`} message={message} />
+              <MessageContents key={`${id}-contents`} message={message} references={references} />
             )}
           </ExpandablePanel>
 
