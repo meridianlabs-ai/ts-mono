@@ -46,3 +46,12 @@ export type ValidationResults = S["ValidationResults"];
 export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
 
 export type ChatRequest = components["schemas"]["ChatRequest"];
+export type Reference = components["schemas"]["Reference"];
+
+// Hand-maintained: the generated ChatResponse uses Pydantic's -Output variants
+// for message content, where fields like `citations` are optional instead of
+// required-as-null. We use the base ChatMessage union for compatibility.
+export interface ChatResponse {
+  message: ChatMessage;
+  references: Reference[];
+}
