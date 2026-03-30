@@ -14,15 +14,11 @@ import { createContext, FC, ReactNode, useContext } from "react";
  */
 export interface ComponentStateHooks {
   // Property bag (persistent key-value UI state)
-  usePropertyValue: (
-    id: string,
-    prop: string,
-    defaultValue?: unknown
-  ) => unknown;
-  useSetPropertyValue: () => (id: string, prop: string, value: unknown) => void;
-  useRemovePropertyValue: () => (id: string, prop: string) => void;
-  usePropertyEntries: (id: string) => Record<string, unknown> | undefined;
-  useRemoveAllProperties: () => (id: string) => void;
+  useValue: (id: string, prop: string, defaultValue?: unknown) => unknown;
+  useSetValue: () => (id: string, prop: string, value: unknown) => void;
+  useRemoveValue: () => (id: string, prop: string) => void;
+  useEntries: (id: string) => Record<string, unknown> | undefined;
+  useRemoveAll: () => (id: string) => void;
 }
 
 const ComponentStateContext = createContext<ComponentStateHooks | null>(null);

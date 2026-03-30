@@ -9,12 +9,11 @@ export const useCollapsibleIds = (
   (id: string, value: boolean) => void,
   () => void,
 ] => {
-  const { usePropertyEntries, useSetPropertyValue, useRemoveAllProperties } =
-    useComponentStateHooks();
+  const { useEntries, useSetValue, useRemoveAll } = useComponentStateHooks();
 
-  const entries = usePropertyEntries(key);
+  const entries = useEntries(key);
 
-  const setPropertyValueFn = useSetPropertyValue();
+  const setPropertyValueFn = useSetValue();
   const collapseId = useCallback(
     (id: string, value: boolean) => {
       setPropertyValueFn(key, id, value);
@@ -22,7 +21,7 @@ export const useCollapsibleIds = (
     [key, setPropertyValueFn]
   );
 
-  const removeAllFn = useRemoveAllProperties();
+  const removeAllFn = useRemoveAll();
   const clearIds = useCallback(() => {
     removeAllFn(key);
   }, [removeAllFn, key]);
