@@ -1,11 +1,11 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { MetaDataGrid } from "../../../components/content/MetaDataGrid";
 import { MarkdownReference } from "../../../components/MarkdownDivWithReferences";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { ScannerInput } from "../../../types/api-types";
 import { Explanation } from "../../components/Explanation";
+import { Metadata } from "../../components/Metadata";
 import { ValidationResult } from "../../components/ValidationResult";
 import { Value } from "../../components/Value";
 import { ScanResultData } from "../../types";
@@ -88,18 +88,16 @@ export const ResultSidebar: FC<ResultSidebarProps> = ({
           />
         </div>
         {resultData.metadata && Object.keys(resultData.metadata).length > 0 && (
-          <>
-            <div className={clsx("text-style-label", "text-style-secondary")}>
-              Metadata
-            </div>
-            <div>
-              <MetaDataGrid
-                entries={resultData.metadata}
-                references={refs}
-                options={{ previewRefsOnHover: false }}
-              />
-            </div>
-          </>
+          <div className={clsx(styles.colspan)}>
+            <div
+              className={clsx("text-style-label", "text-style-secondary")}
+            ></div>
+            <Metadata
+              metadata={resultData.metadata}
+              references={refs}
+              options={{ previewRefsOnHover: false }}
+            />
+          </div>
         )}
       </div>
     </div>
