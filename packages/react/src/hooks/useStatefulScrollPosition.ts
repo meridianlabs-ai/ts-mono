@@ -1,8 +1,8 @@
-import { RefObject, useCallback, useEffect, useMemo } from "react";
+import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { createLogger, debounce } from "@tsmono/util";
 
-import { useComponentStateHooks } from "../state/ComponentStateContext";
+import { useProperty } from "./useProperty";
 
 const log = createLogger("scrolling");
 
@@ -14,11 +14,17 @@ export function useStatefulScrollPosition<
   delay = 1000,
   scrollable = true
 ) {
-  const { useGetScrollPosition, useSetScrollPosition } =
-    useComponentStateHooks();
+  const [scrollPosition, setScrollPosition] = useProperty<number>(
+    "scrollPosition",
+    elementKey
+  );
 
-  const getScrollPosition = useGetScrollPosition();
-  const setScrollPosition = useSetScrollPosition();
+  // Stash reactive value in a ref so callbacks can read it without
+  // triggering re-renders in the consumer component.
+  const scrollPositionRef = useRef(scrollPosition);
+  useEffect(() => {
+    scrollPositionRef.current = scrollPosition;
+  }, [scrollPosition]);
 
   // Create debounced scroll handler
   const handleScrollInner = useCallback(
@@ -26,7 +32,7 @@ export function useStatefulScrollPosition<
       const target = e.target as HTMLElement;
       const position = target.scrollTop;
       log.debug(`Storing scroll position`, elementKey, position);
-      setScrollPosition(elementKey, position);
+      setScrollPosition(position);
     },
     [elementKey, setScrollPosition]
   );
@@ -39,7 +45,7 @@ export function useStatefulScrollPosition<
   // Function to manually restore scroll position
   const restoreScrollPosition = useCallback(() => {
     const element = elementRef.current;
-    const savedPosition = getScrollPosition(elementKey);
+    const savedPosition = scrollPositionRef.current;
 
     if (element && savedPosition !== undefined) {
       requestAnimationFrame(() => {
@@ -52,7 +58,7 @@ export function useStatefulScrollPosition<
         });
       });
     }
-  }, [elementKey, getScrollPosition, elementRef]);
+  }, [elementRef]);
 
   // Set up scroll listener and restore position on mount
   useEffect(() => {
@@ -63,7 +69,7 @@ export function useStatefulScrollPosition<
     log.debug(`Restore Scroll Hook`, elementKey);
 
     // Restore scroll position on mount
-    const savedPosition = getScrollPosition(elementKey);
+    const savedPosition = scrollPositionRef.current;
     if (savedPosition !== undefined) {
       log.debug(`Restoring scroll position`, savedPosition);
 
@@ -113,7 +119,7 @@ export function useStatefulScrollPosition<
         log.warn("Element has no way to remove event listener", element);
       }
     };
-  }, [elementKey, elementRef, getScrollPosition, handleScroll, scrollable]);
+  }, [elementKey, elementRef, handleScroll, scrollable]);
 
   return { restoreScrollPosition };
 }

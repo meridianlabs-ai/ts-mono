@@ -1,9 +1,9 @@
-import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef } from "react";
 import { StateCallback, StateSnapshot, VirtuosoHandle } from "react-virtuoso";
 
 import { createLogger, debounce } from "@tsmono/util";
 
-import { useComponentStateHooks } from "../state/ComponentStateContext";
+import { useProperty } from "./useProperty";
 
 const log = createLogger("scrolling");
 
@@ -17,18 +17,14 @@ export const useVirtuosoState = (
   elementKey: string,
   delay = 1000
 ) => {
-  const {
-    useListPosition,
-    useSetListPosition,
-    useClearListPosition,
-    useVisibleRanges,
-    useSetVisibleRange,
-  } = useComponentStateHooks();
+  const [restoreState, setListPosition, clearListPosition] =
+    useProperty<StateSnapshot>("listPosition", elementKey);
 
-  const restoreState = useListPosition(elementKey);
-
-  const setListPosition = useSetListPosition();
-  const clearListPosition = useClearListPosition();
+  const [visibleRange = { startIndex: 0, endIndex: 0 }, setVisibleRange] =
+    useProperty<{ startIndex: number; endIndex: number }>(
+      "visibleRange",
+      elementKey
+    );
 
   const debouncedFnRef = useRef<DebouncedFunction<
     (isScrolling: boolean) => void
@@ -37,7 +33,7 @@ export const useVirtuosoState = (
   const handleStateChange: StateCallback = useCallback(
     (state: StateSnapshot) => {
       log.debug(`Storing list state: [${elementKey}]`, state);
-      setListPosition(elementKey, state);
+      setListPosition(state);
     },
     [elementKey, setListPosition]
   );
@@ -53,7 +49,7 @@ export const useVirtuosoState = (
     }, delay) as DebouncedFunction<(isScrolling: boolean) => void>;
 
     return () => {
-      clearListPosition(elementKey);
+      clearListPosition();
     };
   }, [delay, elementKey, handleStateChange, clearListPosition, virtuosoRef]);
 
@@ -74,25 +70,6 @@ export const useVirtuosoState = (
   }, [restoreState]);
 
   const getRestoreState = useCallback(() => stateRef.current, []);
-
-  const setVisibleRangeRaw = useSetVisibleRange();
-
-  const setVisibleRange = useCallback(
-    (value: { startIndex: number; endIndex: number }) => {
-      setVisibleRangeRaw(elementKey, value);
-    },
-    [setVisibleRangeRaw, elementKey]
-  );
-
-  const visibleRanges = useVisibleRanges();
-  const visibleRange = useMemo(() => {
-    return (
-      visibleRanges[elementKey] || {
-        startIndex: 0,
-        endIndex: 0,
-      }
-    );
-  }, [visibleRanges, elementKey]);
 
   return { getRestoreState, isScrolling, visibleRange, setVisibleRange };
 };

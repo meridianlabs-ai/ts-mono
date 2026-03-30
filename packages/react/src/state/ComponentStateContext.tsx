@@ -1,5 +1,4 @@
 import { createContext, FC, ReactNode, useContext } from "react";
-import { StateSnapshot } from "react-virtuoso";
 
 /**
  * Primitive state hooks that each host app must implement.
@@ -22,31 +21,8 @@ export interface ComponentStateHooks {
   ) => unknown;
   useSetPropertyValue: () => (id: string, prop: string, value: unknown) => void;
   useRemovePropertyValue: () => (id: string, prop: string) => void;
-
-  // Bucketed booleans (unified collapsed state + collapsed ID buckets)
-  useBucketValue: (bucket: string, id: string) => boolean | undefined;
-  useSetBucketValue: () => (bucket: string, id: string, value: boolean) => void;
-  useBucketEntries: (bucket: string) => Record<string, boolean> | undefined;
-  useClearBucket: () => (bucket: string) => void;
-
-  // Scroll positions (imperative — used in effects, not render)
-  useGetScrollPosition: () => (key: string) => number | undefined;
-  useSetScrollPosition: () => (key: string, position: number) => void;
-
-  // Virtuoso list state
-  useListPosition: (key: string) => StateSnapshot | undefined;
-  useSetListPosition: () => (key: string, state: StateSnapshot) => void;
-  useClearListPosition: () => (key: string) => void;
-
-  // Visible ranges
-  useVisibleRanges: () => Record<
-    string,
-    { startIndex: number; endIndex: number }
-  >;
-  useSetVisibleRange: () => (
-    key: string,
-    value: { startIndex: number; endIndex: number }
-  ) => void;
+  usePropertyEntries: (id: string) => Record<string, unknown> | undefined;
+  useRemoveAllProperties: () => (id: string) => void;
 }
 
 const ComponentStateContext = createContext<ComponentStateHooks | null>(null);
