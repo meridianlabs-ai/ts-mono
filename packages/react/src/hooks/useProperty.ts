@@ -23,17 +23,16 @@ export function useProperty<T>(
     defaultValue?: T;
   }
 ): [T | undefined, (value: T) => void, () => void] {
-  const { usePropertyValue, useSetPropertyValue, useRemovePropertyValue } =
-    useComponentStateHooks();
+  const { useValue, useSetValue, useRemoveValue } = useComponentStateHooks();
 
   const defaultValue = options?.defaultValue;
 
-  const propertyValue = usePropertyValue(id, propertyName, defaultValue) as
+  const propertyValue = useValue(id, propertyName, defaultValue) as
     | T
     | undefined;
 
-  const setPropertyValueFn = useSetPropertyValue();
-  const removePropertyValueFn = useRemovePropertyValue();
+  const setPropertyValueFn = useSetValue();
+  const removePropertyValueFn = useRemoveValue();
 
   const setValue = useCallback(
     (value: T) => {
