@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, useMemo } from "react";
 
 import type { ChatMessage as ChatMessageType } from "@tsmono/inspect-common/types";
+import type { MarkdownReference } from "@tsmono/react/components";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { computeMaxLabelLength } from "./labelLength";
@@ -21,6 +22,7 @@ export interface ChatViewProps {
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  references?: MarkdownReference[];
 }
 
 /**
@@ -34,6 +36,7 @@ export const ChatView: FC<ChatViewProps> = ({
   labels,
   linking,
   tools,
+  references,
 }) => {
   const resolveInto = tools?.collapseToolMessages ?? true;
   const collapsedMessages = resolveInto
@@ -62,6 +65,7 @@ export const ChatView: FC<ChatViewProps> = ({
             linking={linking}
             tools={tools}
             maxLabelLength={maxLabelLength}
+            references={references}
           />
         );
       })}

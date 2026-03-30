@@ -3,17 +3,23 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
 import { ChatView } from "../../components/chat/ChatView";
 import { ApplicationIcons } from "../../components/icons";
+import { MarkdownReference } from "../../components/MarkdownDivWithReferences";
 import { useApi } from "../../state/store";
-import { ChatMessage, ChatMessageUser } from "../../types/api-types";
+import { ChatMessage, ChatMessageUser, Reference } from "../../types/api-types";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
+import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./ChatPanel.module.css";
+
+const hashUrl = (route: string | undefined): string | undefined =>
+  route ? `#${route}` : undefined;
 
 interface ChatPanelProps {
   transcriptDir: string;
@@ -30,6 +36,24 @@ export const ChatPanel: FC<ChatPanelProps> = ({
   const api = useApi();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [references, setReferences] = useState<Reference[]>([]);
+  const { getMessageUrl } = useTranscriptNavigation();
+
+  const markdownRefs = useMemo((): MarkdownReference[] => {
+    const seen = new Set<string>();
+    const refs: MarkdownReference[] = [];
+    for (const ref of references) {
+      if (ref.cite && !seen.has(ref.cite)) {
+        seen.add(ref.cite);
+        refs.push({
+          id: ref.id,
+          cite: ref.cite,
+          citeUrl: ref.type === "message" ? hashUrl(getMessageUrl(ref.id)) : undefined,
+        });
+      }
+    }
+    return refs;
+  }, [references, getMessageUrl]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -58,8 +82,9 @@ export const ChatPanel: FC<ChatPanelProps> = ({
           transcript_id: transcriptId,
           messages: updatedMessages,
         })
-        .then((assistant) => {
-          setMessages((prev) => [...prev, assistant]);
+        .then((response) => {
+          setMessages((prev) => [...prev, response.message]);
+          setReferences((prev) => [...prev, ...response.references]);
         })
         .finally(() => {
           setLoading(false);
@@ -87,7 +112,7 @@ export const ChatPanel: FC<ChatPanelProps> = ({
           <ChatView
             messages={messages}
             toolCallStyle="complete"
-            allowLinking={false}
+            references={markdownRefs}
           />
           {loading && (
             <div className={styles.loading}>Thinking...</div>

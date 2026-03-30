@@ -17,6 +17,8 @@ import { ExpandablePanel } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isJson } from "@tsmono/util";
 
+import type { MarkdownReference } from "@tsmono/react/components";
+
 import { RenderedText } from "../content/RenderedText";
 
 import { ContentDataView } from "./content-data/ContentDataView";
@@ -47,6 +49,7 @@ type Contents = string | string[] | ContentObject[];
 interface MessageContentProps {
   contents: Contents;
   context: MessagesContext;
+  references?: MarkdownReference[];
 }
 
 export const isMessageContent = (
@@ -67,6 +70,7 @@ export const isMessageContent = (
 export const MessageContent: FC<MessageContentProps> = ({
   contents,
   context,
+  references,
 }) => {
   const normalized = normalizeContent(contents);
   if (Array.isArray(normalized)) {
@@ -82,7 +86,8 @@ export const MessageContent: FC<MessageContentProps> = ({
             citations: null,
           },
           index === contents.length - 1,
-          context
+          context,
+          references
         );
       } else {
         if (content) {
@@ -92,7 +97,8 @@ export const MessageContent: FC<MessageContentProps> = ({
               `text-${content.type}-${index}`,
               content,
               index === contents.length - 1,
-              context
+              context,
+              references
             );
           } else {
             console.error(`Unknown message content type '${content.type}'`);
@@ -113,7 +119,8 @@ export const MessageContent: FC<MessageContentProps> = ({
       "text-message-content",
       contentText,
       true,
-      context
+      context,
+      references
     );
   }
 };
@@ -123,13 +130,14 @@ interface MessageRenderer {
     key: string,
     content: ContentType,
     isLast: boolean,
-    context: MessagesContext
+    context: MessagesContext,
+    references?: MarkdownReference[]
   ) => ReactNode;
 }
 
 const messageRenderers: Record<string, MessageRenderer> = {
   text: {
-    render: (key, content, isLast) => {
+    render: (key, content, isLast, _context, references) => {
       // The context provides a way to share context between different
       // rendering. In this case, we'll use it to keep track of citations
       const c = content as ContentText;
@@ -162,6 +170,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
                 isLast ? "no-last-para-padding" : "",
                 styles.breakable
               )}
+              references={references}
             />
             {c.citations && c.citations.length > 0 ? (
               <MessageCitations citations={c.citations} />

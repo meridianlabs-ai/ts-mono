@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
+import type { MarkdownReference } from "@tsmono/react/components";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
@@ -21,6 +22,7 @@ interface ChatMessageRowProps {
   index: number;
   parentName: string;
   resolvedMessage: ResolvedMessage;
+  references?: MarkdownReference[];
   className?: string | string[];
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
@@ -36,6 +38,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   index,
   parentName,
   resolvedMessage,
+  references,
   className,
   display,
   labels,
@@ -84,6 +87,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         message={resolvedMessage.message}
         display={display}
         linking={linking}
+        references={references}
       />
     );
   }
@@ -104,9 +108,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 
       let toolMessage: ChatMessageTool | undefined;
       if (tool_call.id) {
-        toolMessage = toolMessages.find((msg) => {
-          return msg.tool_call_id === tool_call.id;
-        });
+        toolMessage = toolMessages.find(
+          (msg) => msg.tool_call_id === tool_call.id
+        );
       } else {
         toolMessage = toolMessages[idx];
       }
@@ -255,7 +259,7 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
     ];
   } else {
     const result = content
-      .map((con) => {
+      .map((con): ContentTool | undefined => {
         if (typeof con === "string") {
           return {
             type: "tool",
