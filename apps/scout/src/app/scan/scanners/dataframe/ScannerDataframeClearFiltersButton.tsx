@@ -2,9 +2,9 @@ import { FC, useCallback } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { GRID_STATE_NAME } from "../../../../components/DataframeView";
 import { ApplicationIcons } from "../../../../components/icons";
 import { useStore } from "../../../../state/store";
+import { GRID_STATE_NAME } from "../../../components/DataframeView";
 
 export const ScannerDataframeClearFiltersButton: FC = () => {
   const setGridState = useStore((state) => state.setGridState);

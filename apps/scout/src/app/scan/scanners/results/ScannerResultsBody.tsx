@@ -6,11 +6,11 @@ import { useSearchParams } from "react-router-dom";
 
 import { ErrorPanel, NoContentsPanel } from "@tsmono/react/components";
 
-import { DataframeView } from "../../../../components/DataframeView";
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
+import { DataframeView } from "../../../components/DataframeView";
 import { useScanRoute } from "../../../hooks/useScanRoute";
 import { kSegmentDataframe, kSegmentList } from "../../ScanPanelBody";
 import { ScannerResultsList } from "../list/ScannerResultsList";
