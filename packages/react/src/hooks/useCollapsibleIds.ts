@@ -9,25 +9,25 @@ export const useCollapsibleIds = (
   (id: string, value: boolean) => void,
   () => void,
 ] => {
-  const { useBucketEntries, useSetBucketValue, useClearBucket } =
+  const { usePropertyEntries, useSetPropertyValue, useRemoveAllProperties } =
     useComponentStateHooks();
 
-  const bucketEntries = useBucketEntries(key);
+  const entries = usePropertyEntries(key);
 
-  const setBucketValueFn = useSetBucketValue();
+  const setPropertyValueFn = useSetPropertyValue();
   const collapseId = useCallback(
     (id: string, value: boolean) => {
-      setBucketValueFn(key, id, value);
+      setPropertyValueFn(key, id, value);
     },
-    [key, setBucketValueFn]
+    [key, setPropertyValueFn]
   );
 
-  const clearBucketFn = useClearBucket();
+  const removeAllFn = useRemoveAllProperties();
   const clearIds = useCallback(() => {
-    clearBucketFn(key);
-  }, [clearBucketFn, key]);
+    removeAllFn(key);
+  }, [removeAllFn, key]);
 
   return useMemo(() => {
-    return [bucketEntries || {}, collapseId, clearIds];
-  }, [bucketEntries, collapseId, clearIds]);
+    return [(entries || {}) as Record<string, boolean>, collapseId, clearIds];
+  }, [entries, collapseId, clearIds]);
 };
