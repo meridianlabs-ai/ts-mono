@@ -15,8 +15,8 @@ import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { centerTruncate } from "@tsmono/util";
 
-import { useSetDataframeGridApi } from "../app/scan/scanners/dataframe/DataframeGridApiContext";
-import { useStore } from "../state/store";
+import { useStore } from "../../state/store";
+import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
 
 import styles from "./DataframeView.module.css";
 

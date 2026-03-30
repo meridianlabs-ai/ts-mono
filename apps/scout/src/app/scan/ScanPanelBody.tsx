@@ -9,10 +9,10 @@ import {
   TabSet,
 } from "@tsmono/react/components";
 
-import { GRID_STATE_NAME } from "../../components/DataframeView";
 import { ApplicationIcons } from "../../components/icons";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
+import { GRID_STATE_NAME } from "../components/DataframeView";
 import { ResultGroup } from "../types";
 import { resultIdentifierStr, resultLog } from "../utils/results";
 
