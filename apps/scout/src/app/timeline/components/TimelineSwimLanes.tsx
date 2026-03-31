@@ -161,7 +161,9 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     "swimlanesCollapsed",
     { cleanup: false }
   );
-  const isFlat = layouts.length <= 1;
+  const isFlat =
+    layouts.length <= 1 &&
+    !layouts.some((l) => l.markers.some((m) => m.kind === "branch"));
 
   // When the user explicitly toggles while headroom is collapsed, suppress
   // the headroom override until the scroll direction changes. Without this,
