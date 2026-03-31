@@ -78,7 +78,6 @@ export function useTranscriptTimeline(
   serverTimelines?: ServerTimeline[]
 ): TranscriptTimelineResult {
   const includeUtility = timelineOptions?.includeUtility ?? false;
-  const showBranches = timelineOptions?.showBranches ?? false;
   const builtTimeline = useMemo(() => buildTimeline(events), [events]);
   const convertedTimelines = useMemo(
     () =>
@@ -134,13 +133,12 @@ export function useTranscriptTimeline(
     const collected = collectRawEvents(spans, {
       includeUtility,
       regionIndex: parsed?.regionIndex ?? null,
-      showBranches,
     });
     return {
       selectedEvents: collected.events,
       sourceSpans: collected.sourceSpans,
     };
-  }, [events, state.rows, state.selected, includeUtility, showBranches]);
+  }, [events, state.rows, state.selected, includeUtility]);
 
   const minimapSelection = useMemo(
     () => computeMinimapSelection(state.rows, state.selected),
