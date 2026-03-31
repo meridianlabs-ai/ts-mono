@@ -793,7 +793,7 @@ export type Event20 =
 export type Content6 = (TimelineEvent | TimelineSpan)[];
 export type Type28 = "branch";
 export type ForkedAt = string;
-export type Content7 = (TimelineEvent | TimelineSpan)[];
+export type FromSpan1 = string;
 export type Branches = TimelineBranch[];
 export type Description4 = string | null;
 export type Utility = boolean;
@@ -2102,7 +2102,8 @@ export interface TimelineEvent {
 export interface TimelineBranch {
   type: Type28;
   forked_at: ForkedAt;
-  content: Content7;
+  from_span: FromSpan1;
+  content: TimelineSpan;
 }
 /**
  * Hierarchical outline of events for an agent.
