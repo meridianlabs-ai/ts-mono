@@ -602,8 +602,8 @@ export type Metadata26 = {
 } | null;
 export type Pending8 = boolean | null;
 export type Event8 = "branch";
-export type FromSpan = string | null;
-export type FromMessage = string | null;
+export type FromSpan = string;
+export type FromMessage = string;
 export type Uuid9 = string | null;
 export type SpanId9 = string | null;
 export type Timestamp10 = string;
