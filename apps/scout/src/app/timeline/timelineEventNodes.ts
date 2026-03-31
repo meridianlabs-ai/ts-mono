@@ -305,13 +305,7 @@ export function collectRawEvents(
     // Multiple spans: wrap each in span_begin/span_end so the event tree
     // groups them, matching the drilled-in container behavior.
     // Region selection does not apply to multi-span views.
-    collectFromContent(
-      spans,
-      events,
-      sourceSpans,
-      undefined,
-      includeUtility
-    );
+    collectFromContent(spans, events, sourceSpans, undefined, includeUtility);
   }
   return { events, sourceSpans };
 }
