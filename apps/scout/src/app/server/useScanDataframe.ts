@@ -13,11 +13,18 @@ type ScanDataframeParams = {
   scanner: string;
 };
 
-// Fetches scanner dataframe from the server by location and scanner
+// Fetches scanner dataframe from the server by location and scanner.
+// When isComplete is true, drops the "scans-inv" topic invalidation key
+// so completed scan data is cached permanently without refetching.
 export const useScanDataframe = (
-  params: ScanDataframeParams | typeof skipToken
+  params: ScanDataframeParams | typeof skipToken,
+  isComplete?: boolean
 ): AsyncData<ColumnTable> => {
   const api = useApi();
+
+  // Include "scans-inv" by default so topic changes trigger refetches.
+  // Only drop it once we know the scan is complete (immutable data).
+  const invKey = isComplete === true ? undefined : "scans-inv";
 
   return useAsyncDataFromQuery({
     queryKey:
@@ -28,7 +35,7 @@ export const useScanDataframe = (
             params.scansDir,
             params.scanPath,
             params.scanner,
-            "scans-inv",
+            ...(invKey ? [invKey] : []),
           ],
     queryFn:
       params === skipToken
