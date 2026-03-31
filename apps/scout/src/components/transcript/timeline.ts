@@ -8,7 +8,6 @@
  */
 
 import type {
-  ChatMessage,
   Event,
   ModelEvent,
   ServerTimeline,
@@ -733,14 +732,14 @@ function isAgentSpan(span: SpanNode): boolean {
  */
 function treeItemToNode(
   item: TreeItem,
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): TimelineEvent | TimelineSpan | null {
   if (isSpanNode(item)) {
     if (item.type === "agent" || item.type === "solver") {
-      return buildSpanFromAgentSpan(item, hasExplicitBranches);
+      return buildSpanFromAgentSpan(item, messageLookup);
     } else {
       // Non-agent span - may be tool span with model events
-      return buildSpanFromGenericSpan(item, hasExplicitBranches);
+      return buildSpanFromGenericSpan(item, messageLookup);
     }
   } else {
     return eventToNode(item);
@@ -752,7 +751,7 @@ function treeItemToNode(
  */
 function buildSpanFromAgentSpan(
   span: SpanNode,
-  hasExplicitBranches: boolean,
+  messageLookup: Map<string, string>,
   extraItems?: TreeItem[]
 ): TimelineSpan | null {
   const content: (TimelineEvent | TimelineSpan)[] = [];
@@ -761,9 +760,9 @@ function buildSpanFromAgentSpan(
   if (extraItems) {
     for (const item of extraItems) {
       if (isSpanNode(item) && !isAgentSpan(item)) {
-        unrollSpan(item, content, hasExplicitBranches);
+        unrollSpan(item, content, messageLookup);
       } else {
-        const node = treeItemToNode(item, hasExplicitBranches);
+        const node = treeItemToNode(item, messageLookup);
         if (node !== null) {
           content.push(node);
         }
@@ -774,7 +773,7 @@ function buildSpanFromAgentSpan(
   // Process span children with branch awareness
   const [childContent, branches] = processChildren(
     span.children,
-    hasExplicitBranches
+    messageLookup
   );
   content.push(...childContent);
 
@@ -806,12 +805,9 @@ function buildSpanFromAgentSpan(
  */
 function buildSpanFromGenericSpan(
   span: SpanNode,
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): TimelineSpan | null {
-  const [content, branches] = processChildren(
-    span.children,
-    hasExplicitBranches
-  );
+  const [content, branches] = processChildren(span.children, messageLookup);
 
   if (content.length === 0) {
     return null;
@@ -861,7 +857,7 @@ function unwrapSolverSpan(span: SpanNode): SpanNode {
  */
 function buildAgentFromSolversSpan(
   solversSpan: SpanNode,
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): TimelineSpan | null {
   if (solversSpan.children.length === 0) {
     return null;
@@ -884,11 +880,7 @@ function buildAgentFromSolversSpan(
     const firstAgentSpan = agentSpans[0];
     if (agentSpans.length === 1 && firstAgentSpan) {
       const target = unwrapSolverSpan(firstAgentSpan);
-      const result = buildSpanFromAgentSpan(
-        target,
-        hasExplicitBranches,
-        otherItems
-      );
+      const result = buildSpanFromAgentSpan(target, messageLookup, otherItems);
       if (result !== null) {
         return result;
       }
@@ -910,7 +902,7 @@ function buildAgentFromSolversSpan(
       // Multiple agent spans - create root containing all
       const children: (TimelineEvent | TimelineSpan)[] = [];
       for (const span of agentSpans) {
-        const node = buildSpanFromAgentSpan(span, hasExplicitBranches);
+        const node = buildSpanFromAgentSpan(span, messageLookup);
         if (node !== null) {
           children.push(node);
         }
@@ -919,12 +911,12 @@ function buildAgentFromSolversSpan(
       for (const item of otherItems) {
         if (isSpanNode(item) && !isAgentSpan(item)) {
           const orphanContent: (TimelineEvent | TimelineSpan)[] = [];
-          unrollSpan(item, orphanContent, hasExplicitBranches);
+          unrollSpan(item, orphanContent, messageLookup);
           for (let i = orphanContent.length - 1; i >= 0; i--) {
             children.unshift(orphanContent[i]!);
           }
         } else {
-          const node = treeItemToNode(item, hasExplicitBranches);
+          const node = treeItemToNode(item, messageLookup);
           if (node !== null) {
             children.unshift(node);
           }
@@ -939,7 +931,7 @@ function buildAgentFromSolversSpan(
     // No explicit agent spans - use solvers span itself as the agent container
     const [content, branches] = processChildren(
       solversSpan.children,
-      hasExplicitBranches
+      messageLookup
     );
     if (content.length === 0) {
       return null;
@@ -962,9 +954,9 @@ function buildAgentFromSolversSpan(
  */
 function buildAgentFromTree(
   tree: TreeItem[],
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): TimelineSpan | null {
-  const [content, branches] = processChildren(tree, hasExplicitBranches);
+  const [content, branches] = processChildren(tree, messageLookup);
 
   if (content.length === 0) {
     return null;
@@ -982,7 +974,7 @@ function buildAgentFromTree(
 function unrollSpan(
   span: SpanNode,
   into: (TimelineEvent | TimelineSpan)[],
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): void {
   // Emit span begin event
   into.push(createTimelineEvent(span.beginEvent));
@@ -991,12 +983,12 @@ function unrollSpan(
   for (const child of span.children) {
     if (isSpanNode(child)) {
       if (isAgentSpan(child)) {
-        const node = treeItemToNode(child, hasExplicitBranches);
+        const node = treeItemToNode(child, messageLookup);
         if (node === null) continue;
         if (node.type === "span" && node.content.length === 0) continue;
         into.push(node);
       } else {
-        unrollSpan(child, into, hasExplicitBranches);
+        unrollSpan(child, into, messageLookup);
       }
     } else {
       into.push(eventToNode(child));
@@ -1016,32 +1008,14 @@ function unrollSpan(
 /**
  * Process a span's children with branch awareness.
  *
- * When explicit branches are active, collects adjacent type="branch" SpanNode
- * runs and builds TimelineBranch objects from them. Otherwise, standard processing.
+ * Collects adjacent type="branch" SpanNode runs and builds TimelineBranch
+ * objects from those that contain a BranchEvent. Branch spans without a
+ * BranchEvent are processed as normal content.
  */
 function processChildren(
   children: TreeItem[],
-  hasExplicitBranches: boolean
+  messageLookup: Map<string, string>
 ): [(TimelineEvent | TimelineSpan)[], TimelineBranch[]] {
-  if (!hasExplicitBranches) {
-    // Standard processing - no branch detection at build time
-    const content: (TimelineEvent | TimelineSpan)[] = [];
-    for (const item of children) {
-      if (isSpanNode(item) && !isAgentSpan(item)) {
-        // Unroll: dissolve non-agent span wrapper into parent,
-        // emitting begin/end as events and preserving nested agents
-        unrollSpan(item, content, hasExplicitBranches);
-      } else {
-        const node = treeItemToNode(item, hasExplicitBranches);
-        if (node === null) continue;
-        if (node.type === "span" && node.content.length === 0) continue;
-        content.push(node);
-      }
-    }
-    return [content, []];
-  }
-
-  // Explicit branch mode: collect branch spans and build TimelineBranch objects
   const content: (TimelineEvent | TimelineSpan)[] = [];
   const branches: TimelineBranch[] = [];
   let branchRun: SpanNode[] = [];
@@ -1052,20 +1026,24 @@ function processChildren(
   ): TimelineBranch[] {
     const result: TimelineBranch[] = [];
     for (const span of run) {
+      const branchEvent = findBranchEvent(span);
+      if (branchEvent === null) {
+        // No BranchEvent — process as normal content
+        processSpanAsContent(span, parentContent, messageLookup);
+        continue;
+      }
       const branchContent: (TimelineEvent | TimelineSpan)[] = [];
       for (const child of span.children) {
         if (isSpanNode(child) && !isAgentSpan(child)) {
-          unrollSpan(child, branchContent, hasExplicitBranches);
+          unrollSpan(child, branchContent, messageLookup);
         } else {
-          const node = treeItemToNode(child, hasExplicitBranches);
+          const node = treeItemToNode(child, messageLookup);
           if (node === null) continue;
           branchContent.push(node);
         }
       }
       if (branchContent.length === 0) continue;
-      const branchInput = getBranchInput(branchContent);
-      const forkedAt =
-        branchInput !== null ? findForkedAt(parentContent, branchInput) : "";
+      const forkedAt = messageLookup.get(branchEvent.from_message) ?? "";
       result.push(createBranch(forkedAt, branchContent));
     }
     return result;
@@ -1082,9 +1060,9 @@ function processChildren(
       if (isSpanNode(item) && !isAgentSpan(item)) {
         // Unroll: dissolve non-agent span wrapper into parent,
         // emitting begin/end as events and preserving nested agents
-        unrollSpan(item, content, hasExplicitBranches);
+        unrollSpan(item, content, messageLookup);
       } else {
-        const node = treeItemToNode(item, hasExplicitBranches);
+        const node = treeItemToNode(item, messageLookup);
         if (node === null) continue;
         content.push(node);
       }
@@ -1099,78 +1077,60 @@ function processChildren(
 }
 
 /**
- * Determine the fork point by matching the last shared input message.
+ * Find a BranchEvent in a span's direct children.
  */
-function findForkedAt(
-  agentContent: (TimelineEvent | TimelineSpan)[],
-  branchInput: ChatMessage[]
-): string {
-  if (branchInput.length === 0) return "";
-
-  const lastMsg = branchInput[branchInput.length - 1];
-  if (!lastMsg) return "";
-
-  if (lastMsg.role === "tool") {
-    // Match tool_call_id to a ToolEvent.id
-    const toolCallId = lastMsg.tool_call_id;
-    if (toolCallId) {
-      for (const item of agentContent) {
-        if (
-          item.type === "event" &&
-          item.event.event === "tool" &&
-          item.event.id === toolCallId
-        ) {
-          return item.event.uuid ?? "";
-        }
-      }
-    }
-    return "";
-  }
-
-  if (lastMsg.role === "assistant") {
-    // Match message id to ModelEvent.output.choices[0].message.id
-    const msgId = lastMsg.id;
-    if (msgId) {
-      for (const item of agentContent) {
-        if (item.type === "event" && item.event.event === "model") {
-          const outMsg = item.event.output?.choices?.[0]?.message;
-          if (outMsg && outMsg.id === msgId) {
-            return item.event.uuid ?? "";
-          }
-        }
-      }
-    }
-    // Fallback: compare content
-    const msgContent = lastMsg.content;
-    if (msgContent) {
-      for (const item of agentContent) {
-        if (item.type === "event" && item.event.event === "model") {
-          const outMsg = item.event.output?.choices?.[0]?.message;
-          if (outMsg && outMsg.content === msgContent) {
-            return item.event.uuid ?? "";
-          }
-        }
-      }
-    }
-    return "";
-  }
-
-  // ChatMessageUser / ChatMessageSystem - fork at beginning
-  return "";
-}
-
-/**
- * Extract the input from the first ModelEvent in branch content.
- */
-function getBranchInput(
-  content: (TimelineEvent | TimelineSpan)[]
-): ChatMessage[] | null {
-  for (const item of content) {
-    if (item.type === "event" && item.event.event === "model") {
-      return item.event.input ?? null;
+function findBranchEvent(
+  span: SpanNode
+): { from_span: string; from_message: string } | null {
+  for (const child of span.children) {
+    if (!isSpanNode(child) && child.event === "branch") {
+      return child as unknown as { from_span: string; from_message: string };
     }
   }
   return null;
+}
+
+/**
+ * Process a branch span as normal content when it has no BranchEvent.
+ */
+function processSpanAsContent(
+  span: SpanNode,
+  into: (TimelineEvent | TimelineSpan)[],
+  messageLookup: Map<string, string>
+): void {
+  for (const child of span.children) {
+    if (isSpanNode(child) && !isAgentSpan(child)) {
+      unrollSpan(child, into, messageLookup);
+    } else {
+      const node = treeItemToNode(child, messageLookup);
+      if (node === null) continue;
+      if (node.type === "span" && node.content.length === 0) continue;
+      into.push(node);
+    }
+  }
+}
+
+/**
+ * Build message_id → event UUID mapping from all events.
+ */
+function buildMessageLookup(events: Event[]): Map<string, string> {
+  const lookup = new Map<string, string>();
+  for (const e of events) {
+    if (e.event === "model") {
+      const modelEvent = e;
+      // Map output assistant message id
+      const outMsg = modelEvent.output?.choices?.[0]?.message;
+      if (outMsg?.id && modelEvent.uuid) {
+        lookup.set(outMsg.id, modelEvent.uuid);
+      }
+    } else if (e.event === "tool") {
+      const toolEvent = e;
+      if ("message_id" in toolEvent && toolEvent.message_id && toolEvent.uuid) {
+        lookup.set(toolEvent.message_id, toolEvent.uuid);
+      }
+    }
+  }
+  return lookup;
 }
 
 /**
@@ -1178,14 +1138,11 @@ function getBranchInput(
  *
  * Recurses into child spans in both content and branches.
  */
-function classifyBranches(
-  span: TimelineSpan,
-  hasExplicitBranches: boolean
-): void {
+function classifyBranches(span: TimelineSpan): void {
   // Recurse into child spans in content
   for (const item of span.content) {
     if (item.type === "span") {
-      classifyBranches(item, hasExplicitBranches);
+      classifyBranches(item);
     }
   }
 
@@ -1193,7 +1150,7 @@ function classifyBranches(
   for (const branch of span.branches) {
     for (const item of branch.content) {
       if (item.type === "span") {
-        classifyBranches(item, hasExplicitBranches);
+        classifyBranches(item);
       }
     }
   }
@@ -1669,10 +1626,8 @@ export function buildTimeline(events: Event[]): Timeline {
     return { name: "Default", description: "", root: emptyRoot };
   }
 
-  // Detect explicit branches globally
-  const hasExplicitBranches = events.some(
-    (e) => e.event === "span_begin" && e.type === "branch"
-  );
+  // Build message_id → event UUID lookup for branch resolution
+  const messageLookup = buildMessageLookup(events);
 
   // Build span tree from events
   const tree = buildSpanTree(events);
@@ -1720,7 +1675,7 @@ export function buildTimeline(events: Event[]): Timeline {
 
     // Build agent node from solvers
     const agentNode = solversSpan
-      ? buildAgentFromSolversSpan(solversSpan, hasExplicitBranches)
+      ? buildAgentFromSolversSpan(solversSpan, messageLookup)
       : null;
 
     // Build scoring span
@@ -1743,7 +1698,7 @@ export function buildTimeline(events: Event[]): Timeline {
       agentNode.name = "main";
       wrapUtilityEvents(agentNode);
       classifyUtilityAgents(agentNode);
-      classifyBranches(agentNode, hasExplicitBranches);
+      classifyBranches(agentNode);
       extractAgentResults(agentNode);
 
       // Prepend init span to agent content
@@ -1817,11 +1772,11 @@ export function buildTimeline(events: Event[]): Timeline {
     }
   } else {
     // No phase spans - treat entire tree as agent
-    const agentRoot = buildAgentFromTree(tree, hasExplicitBranches);
+    const agentRoot = buildAgentFromTree(tree, messageLookup);
     if (agentRoot) {
       wrapUtilityEvents(agentRoot);
       classifyUtilityAgents(agentRoot);
-      classifyBranches(agentRoot, hasExplicitBranches);
+      classifyBranches(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {
