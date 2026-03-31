@@ -52,6 +52,7 @@
     "@tanstack/react-query-devtools": "^5.91.1",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
+    "@tsmono/inspect-common": "workspace:*",
     "@tsmono/prettier-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@types/bootstrap": "^5.2.10",

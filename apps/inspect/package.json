@@ -97,6 +97,7 @@
     "@codemirror/view": "^6.36.5",
     "@lezer/highlight": "^1.2.2",
     "@popperjs/core": "^2.11.8",
+    "@tsmono/inspect-common": "workspace:*",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",
     "ansi-output": "^0.0.9",

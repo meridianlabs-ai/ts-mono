@@ -171,7 +171,7 @@ function makeToolEventNode(
 function makeToolErrorEventNode(
   fn: string,
   errorMsg: string,
-  errorType: ToolEvent["error"] extends { type: infer T } | null ? T : never,
+  errorType: NonNullable<ToolEvent["error"]>["type"],
   startSec: number,
   endSec: number,
   _tokens: number

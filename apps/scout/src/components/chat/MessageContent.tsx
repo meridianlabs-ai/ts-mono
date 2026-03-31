@@ -5,6 +5,7 @@ import { isJson } from "@tsmono/util";
 
 import {
   ContentAudio,
+  ContentAudioFormat,
   ContentData,
   ContentDocument,
   ContentImage,
@@ -12,8 +13,7 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  Format1,
-  Format2,
+  ContentVideoFormat,
 } from "../../types/api-types";
 import { RenderedText } from "../content/RenderedText";
 import ExpandablePanel from "../ExpandablePanel";
@@ -258,7 +258,9 @@ const messageRenderers: Record<string, MessageRenderer> = {
  * Renders message content based on its type.
  * Supports rendering strings, images, and tools using specific renderers.
  */
-const mimeTypeForFormat = (format: Format1 | Format2): string => {
+const mimeTypeForFormat = (
+  format: ContentAudioFormat | ContentVideoFormat
+): string => {
   switch (format) {
     case "mov":
       return "video/quicktime";

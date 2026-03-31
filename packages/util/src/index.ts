@@ -11,6 +11,7 @@ export * from "./date";
 export * from "./format";
 export * from "./html";
 export * from "./json";
+export * from "./json-value";
 export * from "./json-worker";
 export * from "./logger";
 export * from "./mime";

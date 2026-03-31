@@ -132,7 +132,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           )}
 
           <EventSection title="Usage" className={styles.tableSelection}>
-            {event.output.usage !== null ? (
+            {event.output.usage ? (
               <ModelUsagePanel usage={event.output.usage} />
             ) : undefined}
           </EventSection>

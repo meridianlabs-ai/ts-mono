@@ -10,12 +10,12 @@ import { fileURLToPath } from "url";
 
 import { compile } from "json-schema-to-typescript";
 
-import { requirePythonRepoRoot } from "./python-repo.js";
+import { requirePythonRepoRoot } from "../../../tooling/python-repo/index.js";
 
 const __dirname = resolve(fileURLToPath(import.meta.url), "..");
 const appRoot = resolve(__dirname, "..");
 
-const pythonRoot = requirePythonRepoRoot();
+const pythonRoot = requirePythonRepoRoot("inspect_ai");
 const schemaPath = resolve(pythonRoot, "src/inspect_ai/_view/log-schema.json");
 const typesPath = resolve(appRoot, "src/@types/log.d.ts");
 

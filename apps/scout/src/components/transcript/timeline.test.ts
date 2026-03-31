@@ -9,7 +9,7 @@ import { join } from "path";
 
 import { describe, expect, it } from "vitest";
 
-import { findPythonRepoRoot } from "../../../scripts/python-repo.js";
+import { findPythonRepoRoot } from "../../../../../tooling/python-repo/index.js";
 import type { Event } from "../../types/api-types";
 
 import {
@@ -117,7 +117,7 @@ interface FixtureData {
 // Fixture Loading
 // =============================================================================
 
-const PYTHON_ROOT: string | null = findPythonRepoRoot();
+const PYTHON_ROOT: string | null = findPythonRepoRoot("inspect_scout");
 
 const FIXTURES_DIR = PYTHON_ROOT
   ? join(PYTHON_ROOT, "tests/transcript/nodes/fixtures/events")
