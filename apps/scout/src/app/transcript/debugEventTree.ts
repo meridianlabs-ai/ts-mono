@@ -95,6 +95,9 @@ function label(ev: Event): string {
     case "compaction":
       return `compaction${ev.source ? ` source=${ev.source}` : ""}`;
 
+    case "branch":
+      return `branch from_span=${ev.from_span} from_message=${ev.from_message}`;
+
     default: {
       const exhaustive: never = ev;
       return (exhaustive as { event: string }).event;
