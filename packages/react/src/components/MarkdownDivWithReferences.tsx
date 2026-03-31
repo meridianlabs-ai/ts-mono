@@ -74,24 +74,8 @@ export const MarkdownDivWithReferences = forwardRef<
 
   // Post-process the rendered HTML to inject reference links
   const postProcess = useCallback(
-    (html: string): string => {
-      let processedHtml = html;
-
-      // Replace each reference cite with a link
-      references?.forEach((r) => {
-        // Escape special regex characters in the cite text
-        const escapedCite = r.cite.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regex = new RegExp(`${escapedCite}(?![a-zA-Z0-9])`, "g");
-
-        const href = r.citeUrl || "javascript:void(0)";
-
-        const replacement = `<a href="${href}" class="${styles.cite}" data-ref-id="${r.id}">${r.cite}</a>`;
-
-        processedHtml = processedHtml.replace(regex, replacement);
-      });
-
-      return processedHtml;
-    },
+    (html: string): string =>
+      injectReferenceLinks(html, references, styles.cite ?? "cite"),
     [references]
   );
 
@@ -220,3 +204,37 @@ export const MarkdownDivWithReferences = forwardRef<
 MarkdownDivWithReferences.displayName = "MarkdownDivWithReferences";
 
 const popoverKey = (r: MarkdownReference) => `markdown-ref-popover-${r.id}`;
+
+/**
+ * Replace bracketed M/E ordinals in HTML with anchor links for known references.
+ *
+ * Matches bracket expressions like [M1], [M1-M3], [M2, M4] and replaces
+ * each known ordinal inside with an `<a>` link.
+ */
+export function injectReferenceLinks(
+  html: string,
+  references: MarkdownReference[] | undefined,
+  citeClass: string
+): string {
+  // Build a map of known ordinals (e.g. "M6") from references
+  const refByOrdinal = new Map<string, MarkdownReference>();
+  references?.forEach((r) => {
+    const ordinal = r.cite.replace(/^\[|\]$/g, "");
+    refByOrdinal.set(ordinal, r);
+  });
+
+  if (refByOrdinal.size === 0) {
+    return html;
+  }
+
+  // Match bracket expressions containing at least one M/E ordinal,
+  // then replace each known ordinal inside with a link
+  return html.replace(/\[[^\]]*(?:M|E)\d+[^\]]*\]/g, (bracketMatch) => {
+    return bracketMatch.replace(/\b[ME]\d+\b/g, (ordinal) => {
+      const r = refByOrdinal.get(ordinal);
+      if (!r) return ordinal;
+      const href = r.citeUrl || "javascript:void(0)";
+      return `<a href="${href}" class="${citeClass}" data-ref-id="${r.id}">${ordinal}</a>`;
+    });
+  });
+}

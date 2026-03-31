@@ -4,14 +4,19 @@
  * Reads log-schema.json and generates src/@types/log.d.ts using
  * json-schema-to-typescript.
  */
-import { execSync } from "child_process";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
+
+import { compile } from "json-schema-to-typescript";
+
+import { requirePythonRepoRoot } from "./python-repo.js";
 
 const __dirname = resolve(fileURLToPath(import.meta.url), "..");
 const appRoot = resolve(__dirname, "..");
 
-const schemaPath = resolve(appRoot, "log-schema.json");
+const pythonRoot = requirePythonRepoRoot();
+const schemaPath = resolve(pythonRoot, "src/inspect_ai/_view/log-schema.json");
 const typesPath = resolve(appRoot, "src/@types/log.d.ts");
 
 const BANNER = `/*
@@ -20,23 +25,10 @@ const BANNER = `/*
  *  To regenerate, run: python src/inspect_ai/_view/schema.py
  */`;
 
-execSync(
-  [
-    "npx",
-    "json2ts",
-    "--input",
-    schemaPath,
-    "--output",
-    typesPath,
-    "--additionalProperties",
-    "false",
-    "--bannerComment",
-    JSON.stringify(BANNER),
-  ].join(" "),
-  { cwd: appRoot, stdio: "inherit" }
-);
-
-execSync(`npx prettier --write ${typesPath}`, {
-  cwd: appRoot,
-  stdio: "inherit",
+const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
+const output = await compile(schema, "EvalLog", {
+  additionalProperties: false,
+  bannerComment: BANNER,
 });
+
+writeFileSync(typesPath, output);

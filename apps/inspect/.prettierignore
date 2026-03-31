@@ -3,7 +3,7 @@ dist/
 lib/
 
 # Generated
-log-schema.json
+src/@types/log.d.ts
 
 # Ignore all vendored code
 libs/**/*.css

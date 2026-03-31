@@ -30,7 +30,7 @@
     "dev-watch-log": "cross-env DEV_LOGGING=true NODE_ENV=development vite build --mode development --watch",
     "dev": "vite",
     "dev:lib": "NODE_ENV=development vite build --mode library --watch",
-    "prepublishOnly": "npm version from-git --no-git-tag-version --allow-same-version && npm run build:lib",
+    "prepublishOnly": "pnpm run build:lib",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.mjs --coverage",
