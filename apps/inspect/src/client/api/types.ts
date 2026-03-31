@@ -1,5 +1,6 @@
 import {
   ApprovalEvent,
+  BranchEvent,
   CompactionEvent,
   CompletedAt,
   EvalError,
@@ -102,6 +103,7 @@ export interface EventData {
     | SampleLimitEvent
     | SandboxEvent
     | StateEvent
+    | BranchEvent
     | CompactionEvent
     | StoreEvent
     | ModelEvent

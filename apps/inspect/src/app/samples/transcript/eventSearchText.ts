@@ -91,6 +91,16 @@ export const eventSearchText = (node: EventNode): string[] => {
       break;
     }
 
+    case "branch": {
+      if (event.from_span) {
+        texts.push(event.from_span);
+      }
+      if (event.from_message) {
+        texts.push(event.from_message);
+      }
+      break;
+    }
+
     case "compaction": {
       if (event.source) {
         texts.push(event.source);

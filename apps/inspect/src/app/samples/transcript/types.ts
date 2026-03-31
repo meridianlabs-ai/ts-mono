@@ -1,5 +1,6 @@
 import {
   ApprovalEvent,
+  BranchEvent,
   Changes,
   CompactionEvent,
   ErrorEvent,
@@ -47,6 +48,7 @@ export type EventType =
   | StoreEvent
   | ModelEvent
   | LoggerEvent
+  | BranchEvent
   | CompactionEvent
   | InfoEvent
   | StepEvent

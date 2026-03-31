@@ -3,6 +3,7 @@ import { VirtuosoHandle } from "react-virtuoso";
 
 import {
   ApprovalEvent,
+  BranchEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -24,6 +25,7 @@ import {
 
 import { AgentCardView } from "./AgentCardView";
 import { ApprovalEventView } from "./ApprovalEventView";
+import { BranchEventView } from "./BranchEventView";
 import { CompactionEventView } from "./CompactionEventView";
 import { ErrorEventView } from "./ErrorEventView";
 import { InfoEventView } from "./InfoEventView";
@@ -121,6 +123,14 @@ export const RenderedEventNode: FC<RenderedEventNodeProps> = memo(
         return (
           <InfoEventView
             eventNode={node as EventNode<InfoEvent>}
+            className={className}
+          />
+        );
+
+      case "branch":
+        return (
+          <BranchEventView
+            eventNode={node as EventNode<BranchEvent>}
             className={className}
           />
         );

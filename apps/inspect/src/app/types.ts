@@ -3,6 +3,7 @@ import { StateSnapshot } from "react-virtuoso";
 
 import {
   ApprovalEvent,
+  BranchEvent,
   CompactionEvent,
   ContentDocument,
   ContentImage,
@@ -162,6 +163,7 @@ export interface SampleState {
 export type Event =
   | SampleInitEvent
   | SampleLimitEvent
+  | BranchEvent
   | CompactionEvent
   | SandboxEvent
   | StateEvent

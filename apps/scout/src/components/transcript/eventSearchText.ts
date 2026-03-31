@@ -108,6 +108,17 @@ export const eventSearchText = (node: EventNode): string[] => {
       break;
     }
 
+    case "branch": {
+      const branchEvent = event;
+      if (branchEvent.from_span) {
+        texts.push(branchEvent.from_span);
+      }
+      if (branchEvent.from_message) {
+        texts.push(branchEvent.from_message);
+      }
+      break;
+    }
+
     case "compaction": {
       const compactionEvent = event;
       // Source shown in title

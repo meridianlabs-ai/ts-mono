@@ -16,7 +16,8 @@ import {
   Event12,
   Event13,
   Event14,
-  Event18,
+  Event15,
+  Event19,
 } from "../../../@types/log";
 import { kDefaultExcludeEvents } from "../../../state/sampleSlice";
 import { useStore } from "../../../state/store";
@@ -37,7 +38,8 @@ export type AllEventTypes =
   | Event12
   | Event13
   | Event14
-  | Event18;
+  | Event15
+  | Event19;
 
 const eventTypes: Record<AllEventTypes, string> = {
   sample_init: "Sample Init",
@@ -56,6 +58,7 @@ const eventTypes: Record<AllEventTypes, string> = {
   compaction: "Compaction",
   info: "Info",
   subtask: "Subtask",
+  branch: "Branch",
 } as const;
 
 export const useTranscriptFilter = () => {
