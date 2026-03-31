@@ -15,11 +15,8 @@ import { useApi } from "../../state/store";
 import { ChatMessage, ChatMessageUser, Reference } from "../../types/api-types";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
-import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./ChatPanel.module.css";
-
-const hashUrl = (route: string | undefined): string | undefined =>
-  route ? `#${route}` : undefined;
+import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 
 interface ChatPanelProps {
   transcriptDir: string;
@@ -37,7 +34,7 @@ export const ChatPanel: FC<ChatPanelProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [references, setReferences] = useState<Reference[]>([]);
-  const { getMessageUrl } = useTranscriptNavigation();
+  const { getFullMessageUrl } = useTranscriptNavigation();
 
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
@@ -48,12 +45,13 @@ export const ChatPanel: FC<ChatPanelProps> = ({
         refs.push({
           id: ref.id,
           cite: ref.cite,
-          citeUrl: ref.type === "message" ? hashUrl(getMessageUrl(ref.id)) : undefined,
+          citeUrl:
+            ref.type === "message" ? getFullMessageUrl(ref.id) : undefined,
         });
       }
     }
     return refs;
-  }, [references, getMessageUrl]);
+  }, [references, getFullMessageUrl]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -114,9 +112,7 @@ export const ChatPanel: FC<ChatPanelProps> = ({
             toolCallStyle="complete"
             references={markdownRefs}
           />
-          {loading && (
-            <div className={styles.loading}>Thinking...</div>
-          )}
+          {loading && <div className={styles.loading}>Thinking...</div>}
         </div>
         <form className={styles.form} onSubmit={handleSubmit}>
           <textarea
