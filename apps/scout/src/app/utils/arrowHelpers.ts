@@ -47,7 +47,9 @@ export const parseScanResultData = async (
     parseJson(filtered.get("input_ids", 0) as string),
     parseJson(filtered.get("message_references", 0) as string),
     parseJson(filtered.get("metadata", 0) as string),
-    parseJson(filtered.get("scan_events", 0) as string),
+    parseJson(
+      getOptionalColumn<string>(filtered, "scan_events", 0) ?? null
+    ),
     parseJson(filtered.get("scan_metadata", 0) as string),
     parseJson(filtered.get("scan_model_usage", 0) as string),
     parseJson(filtered.get("scan_tags", 0) as string),

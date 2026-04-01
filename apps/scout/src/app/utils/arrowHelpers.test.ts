@@ -179,4 +179,11 @@ describe("parseScanResultData", () => {
       expect(result).toMatchObject(expected);
     }
   );
+
+  it("handles missing scan_events column", async () => {
+    const { scan_events: _, ...withoutScanEvents } = typicalColumnData;
+    const table = from([withoutScanEvents]);
+    const result = await parseScanResultData(table);
+    expect(result.scanEvents).toBeUndefined();
+  });
 });
