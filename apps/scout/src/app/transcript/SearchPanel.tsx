@@ -15,16 +15,16 @@ import { useApi } from "../../state/store";
 import { ChatMessage, ChatMessageUser, Reference } from "../../types/api-types";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
-import styles from "./ChatPanel.module.css";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
+import styles from "./SearchPanel.module.css";
 
-interface ChatPanelProps {
+interface SearchPanelProps {
   transcriptDir: string;
   transcriptId: string;
   onClose: () => void;
 }
 
-export const ChatPanel: FC<ChatPanelProps> = ({
+export const SearchPanel: FC<SearchPanelProps> = ({
   transcriptDir,
   transcriptId,
   onClose,
@@ -101,36 +101,36 @@ export const ChatPanel: FC<ChatPanelProps> = ({
   return (
     <div className={styles.container}>
       <SidebarHeader
-        icon={ApplicationIcons.messages}
-        title="Chat"
+        icon={ApplicationIcons.search}
+        title="Search"
         onClose={onClose}
       />
       <div className={styles.body}>
-        <div className={styles.messages}>
-          <ChatView
-            messages={messages}
-            toolCallStyle="complete"
-            references={markdownRefs}
-          />
-          {loading && <div className={styles.loading}>Thinking...</div>}
-        </div>
         <form className={styles.form} onSubmit={handleSubmit}>
           <textarea
             ref={textareaRef}
             className={styles.textarea}
-            placeholder="Send a message..."
+            placeholder="Search this transcript..."
             rows={1}
             onKeyDown={handleKeyDown}
           />
           <button
             type="submit"
-            className={styles.sendButton}
-            title="Send message"
+            className={styles.searchButton}
+            title="Search"
             disabled={loading}
           >
-            <i className={ApplicationIcons.send} />
+            <i className={ApplicationIcons.search} />
           </button>
         </form>
+        <div className={styles.results}>
+          <ChatView
+            messages={messages}
+            toolCallStyle="complete"
+            references={markdownRefs}
+          />
+          {loading && <div className={styles.loading}>Searching...</div>}
+        </div>
       </div>
     </div>
   );
