@@ -298,14 +298,9 @@ export function collectRawEvents(
       sourceSpans,
       agentSpanId,
       includeUtility,
-      showBranches
+      showBranches,
+      span.branches.length > 0 ? span.branches : undefined
     );
-
-    // Emit branches from the root span (collectFromContent only sees
-    // branches on nested spans it encounters in the content array).
-    if (showBranches) {
-      emitBranchSpans(span, events, sourceSpans);
-    }
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
     // groups them, matching the drilled-in container behavior.
@@ -323,45 +318,45 @@ export function collectRawEvents(
 }
 
 /**
- * Emit each branch on a span as an empty span_begin/span_end pair (like
- * agents). Content is accessed by selecting the branch swimlane row.
+ * Emit a single branch as an empty span_begin/span_end pair (like agents).
+ * Content is accessed by selecting the branch swimlane row.
  */
-function emitBranchSpans(
-  span: TimelineSpan,
+function emitBranchSpan(
+  branch: TimelineSpan,
+  index: number,
   out: Event[],
-  sourceSpans: Map<string, TimelineSpan>
+  sourceSpans: Map<string, TimelineSpan>,
+  parentSpanId?: string | null
 ): void {
-  for (let i = 0; i < span.branches.length; i++) {
-    const branchSpan = createBranchSpan(span.branches[i]!, i + 1);
-    sourceSpans.set(branchSpan.id, branchSpan);
+  const branchSpan = createBranchSpan(branch, index + 1);
+  sourceSpans.set(branchSpan.id, branchSpan);
 
-    const branchBegin: SpanBeginEvent = {
-      event: "span_begin",
-      name: branchSpan.name,
-      id: branchSpan.id,
-      span_id: branchSpan.id,
-      type: branchSpan.spanType,
-      timestamp: branchSpan.startTime().toISOString(),
-      parent_id: null,
-      pending: false,
-      working_start: 0,
-      uuid: branchSpan.id,
-      metadata: null,
-    };
-    out.push(branchBegin);
+  const branchBegin: SpanBeginEvent = {
+    event: "span_begin",
+    name: branchSpan.name,
+    id: branchSpan.id,
+    span_id: branchSpan.id,
+    type: branchSpan.spanType,
+    timestamp: branchSpan.startTime().toISOString(),
+    parent_id: parentSpanId ?? null,
+    pending: false,
+    working_start: 0,
+    uuid: branchSpan.id,
+    metadata: null,
+  };
+  out.push(branchBegin);
 
-    const branchEnd: SpanEndEvent = {
-      event: "span_end",
-      id: `${branchSpan.id}-end`,
-      span_id: branchSpan.id,
-      timestamp: branchSpan.endTime().toISOString(),
-      pending: false,
-      working_start: 0,
-      uuid: null,
-      metadata: null,
-    };
-    out.push(branchEnd);
-  }
+  const branchEnd: SpanEndEvent = {
+    event: "span_end",
+    id: `${branchSpan.id}-end`,
+    span_id: branchSpan.id,
+    timestamp: branchSpan.endTime().toISOString(),
+    pending: false,
+    working_start: 0,
+    uuid: null,
+    metadata: null,
+  };
+  out.push(branchEnd);
 }
 
 function collectFromContent(
@@ -370,11 +365,29 @@ function collectFromContent(
   sourceSpans: Map<string, TimelineSpan>,
   skipAgentSpanId?: string,
   includeUtility: boolean = false,
-  showBranches: boolean = false
+  showBranches: boolean = false,
+  branches?: ReadonlyArray<TimelineSpan>
 ): void {
   // Track agent tool_call_ids whose results are shown on the AgentCard,
   // so we can filter them from the next model event's input.
   const pendingToolCallIds = new Set<string>();
+
+  // Build a lookup from branchedFrom UUID → branches for inline emission.
+  // Branches whose branchedFrom doesn't match any event are emitted at the end.
+  const branchByBranchedFrom = new Map<string, TimelineSpan[]>();
+  if (branches) {
+    for (const branch of branches) {
+      if (branch.branchedFrom) {
+        const existing = branchByBranchedFrom.get(branch.branchedFrom);
+        if (existing) {
+          existing.push(branch);
+        } else {
+          branchByBranchedFrom.set(branch.branchedFrom, [branch]);
+        }
+      }
+    }
+  }
+  const emittedBranchedFroms = new Set<string>();
 
   for (const item of content) {
     if (item.type === "event") {
@@ -414,12 +427,31 @@ function collectFromContent(
             } as unknown as Event;
             out.push(patched);
             pendingToolCallIds.clear();
+            // Emit branches forked at this event after the event itself
+            emitInlineBranches(
+              item,
+              branchByBranchedFrom,
+              branches ?? [],
+              emittedBranchedFroms,
+              out,
+              sourceSpans
+            );
             continue;
           }
         }
       }
 
       out.push(item.event);
+
+      // Emit branches forked at this event immediately after it
+      emitInlineBranches(
+        item,
+        branchByBranchedFrom,
+        branches ?? [],
+        emittedBranchedFroms,
+        out,
+        sourceSpans
+      );
     } else if (!includeUtility && item.utility) {
       // Skip utility spans — internal model calls (e.g. file path extraction)
       // that should not appear in the event tree or outline.
@@ -450,19 +482,17 @@ function collectFromContent(
           pendingToolCallIds.add(item.id.slice(6));
         }
       } else {
-        // Non-agent spans: recurse into child content
+        // Non-agent spans: recurse into child content, passing their
+        // own branches so they emit inline at the correct fork point.
         collectFromContent(
           item.content,
           out,
           sourceSpans,
           undefined,
           includeUtility,
-          showBranches
+          showBranches,
+          item.branches.length > 0 ? item.branches : undefined
         );
-
-        if (showBranches) {
-          emitBranchSpans(item, out, sourceSpans);
-        }
       }
 
       // Emit synthetic span_end
@@ -479,6 +509,49 @@ function collectFromContent(
       out.push(endEvent);
     }
   }
+
+  // Emit any branches whose branchedFrom didn't match any event in this content
+  // (fallback to end, preserving previous behavior for unresolvable forks).
+  if (branches) {
+    for (const branch of branches) {
+      const branchedFrom = branch.branchedFrom ?? "";
+      if (!emittedBranchedFroms.has(branchedFrom)) {
+        emitBranchSpan(branch, branches.indexOf(branch), out, sourceSpans);
+      }
+    }
+  }
+}
+
+/**
+ * Emit branches inline after their fork point event.
+ */
+function emitInlineBranches(
+  item: TimelineEvent,
+  branchByBranchedFrom: ReadonlyMap<string, TimelineSpan[]>,
+  allBranches: ReadonlyArray<TimelineSpan>,
+  emittedBranchedFroms: Set<string>,
+  out: Event[],
+  sourceSpans: Map<string, TimelineSpan>
+): void {
+  const uuid = item.event.uuid;
+  if (!uuid) return;
+  const forkedBranches = branchByBranchedFrom.get(uuid);
+  if (!forkedBranches) return;
+  // Use the fork event's span_id as the branch's parent so treeifyEvents
+  // nests the branch inside the same span as the fork event.
+  const parentSpanId = (item.event as { span_id?: string | null }).span_id;
+  for (const branch of forkedBranches) {
+    // Use the branch's position in the full branches array for the display index
+    const globalIndex = allBranches.indexOf(branch);
+    emitBranchSpan(
+      branch,
+      globalIndex >= 0 ? globalIndex : 0,
+      out,
+      sourceSpans,
+      parentSpanId
+    );
+  }
+  emittedBranchedFroms.add(uuid);
 }
 
 // =============================================================================
