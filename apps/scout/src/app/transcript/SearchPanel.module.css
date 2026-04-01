@@ -11,11 +11,44 @@
   flex-direction: column;
 }
 
+.searchArea {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.typeToggle {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.typeButton,
+.typeButtonActive {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  font-size: var(--inspect-font-size-small);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+  color: var(--bs-body-color);
+}
+
+.typeButtonActive {
+  background-color: var(--bs-primary);
+  color: var(--bs-white);
+  border-color: var(--bs-primary);
+}
+
+.typeButton:hover {
+  background-color: var(--bs-tertiary-bg);
+}
+
 .form {
   display: flex;
   gap: 0.25rem;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--bs-border-color);
   align-items: flex-end;
 }
 
@@ -58,8 +91,26 @@
   padding: 0.5rem;
 }
 
-.loading {
+.loading,
+.noResults {
   color: var(--bs-secondary-color);
   font-size: var(--inspect-font-size-small);
   padding: 0.5rem 0;
+}
+
+.resultCard {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: var(--inspect-font-size-small);
+}
+
+.resultCard:last-child {
+  border-bottom: none;
+}
+
+.matchCount {
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  font-size: var(--inspect-font-size-smallest);
+  margin-bottom: 0.25rem;
 }
