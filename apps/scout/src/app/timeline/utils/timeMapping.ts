@@ -102,29 +102,49 @@ export function createIdentityMapping(
 }
 
 /**
+ * Compute the full view range of a node, including branches recursively.
+ *
+ * The span's own startTime/endTime cover only direct content. Branches
+ * (and their nested branches) may extend beyond that range. The view
+ * range is the recursive union of the span's time range and all branch
+ * time ranges, giving the full time extent needed by the swimlane
+ * visualization.
+ */
+function computeViewRange(node: TimelineSpan): { start: Date; end: Date } {
+  // startTime()/endTime() with default includeBranches=true already covers
+  // branches, so we just use them directly.
+  return { start: node.startTime(), end: node.endTime() };
+}
+
+/**
  * Computes a TimeMapping for a timeline node.
+ *
+ * The mapping covers the full view range (content + branches) so that
+ * branch rows render at correct positions within the swimlane.
  *
  * If the node has no idle time (idleTime === 0), returns an identity mapping
  * with zero overhead. Otherwise, detects gaps between content items and
  * compresses them into small fixed-width regions.
  */
 export function computeTimeMapping(node: TimelineSpan): TimeMapping {
+  const { start: viewStart, end: viewEnd } = computeViewRange(node);
+
   // Fast exit: no idle time means no gaps to compress
   if (node.idleTime() === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
-  const nodeStartMs = node.startTime().getTime();
-  const nodeEndMs = node.endTime().getTime();
+  const nodeStartMs = viewStart.getTime();
+  const nodeEndMs = viewEnd.getTime();
   const nodeRange = nodeEndMs - nodeStartMs;
   if (nodeRange <= 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
   // Extract time intervals from content items
   const intervals = extractIntervals(node.content);
   if (intervals.length === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
   // Merge overlapping intervals into active regions
@@ -133,7 +153,7 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
   // Find compressible gaps between active regions and node boundaries
   const rawGaps = findGaps(nodeStartMs, nodeEndMs, activeRegions);
   if (rawGaps.length === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
   // Allocate percentages: gaps get fixed small widths, active regions share the rest

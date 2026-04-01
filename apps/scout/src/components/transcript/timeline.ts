@@ -423,6 +423,12 @@ function createTimelineSpan(
   description?: string,
   branchedFrom: string | null = null
 ): TimelineSpan {
+  if (content.length === 0) {
+    throw new Error(
+      `createTimelineSpan called with empty content for span "${name}" (id=${id}). ` +
+        "Callers must guard against empty content before calling the factory."
+    );
+  }
   return new TimelineSpan({
     id,
     name: name.toLowerCase(),
