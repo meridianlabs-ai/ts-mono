@@ -19,6 +19,7 @@ import {
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import type { MinimapSelection } from "../components/TimelineMinimap";
 import {
+  collectBranchWithContext,
   collectRawEvents,
   computeMinimapSelection,
   getBranchPrefix,
@@ -70,6 +71,8 @@ interface TranscriptTimelineResult {
   setActiveTimeline: (index: number) => void;
   /** Map from row key → number of compaction regions (only for rows with compactions). */
   regionCounts: ReadonlyMap<string, number>;
+  /** Event ID to scroll to when a branch is selected (the branch separator). Null for non-branch selections. */
+  branchScrollTarget: string | null;
 }
 
 export function useTranscriptTimeline(
@@ -126,12 +129,40 @@ export function useTranscriptTimeline(
     [visibleRows, timeMapping, markerConfig.depth, markerConfig.kinds]
   );
 
-  const { selectedEvents, sourceSpans } = useMemo(() => {
+  const { selectedEvents, sourceSpans, branchScrollTarget } = useMemo(() => {
     const parsed = parseSelection(state.selected);
     const spans = getSelectedSpans(state.rows, state.selected);
     if (spans.length === 0) {
-      return { selectedEvents: events, sourceSpans: emptySourceSpans };
+      return {
+        selectedEvents: events,
+        sourceSpans: emptySourceSpans,
+        branchScrollTarget: null as string | null,
+      };
     }
+
+    // Detect branch row selection — show parent context up to fork point
+    const rowKey = parsed?.rowKey ?? "";
+    const row = state.rows.find((r) => r.key === rowKey);
+    if (row?.branch && spans.length === 1) {
+      const branchSpan = spans[0]!;
+      const collected = collectBranchWithContext(
+        state.rows,
+        rowKey,
+        branchSpan,
+        {
+          includeUtility,
+          showBranches,
+          branchPrefix: getBranchPrefix(state.rows, state.selected),
+        }
+      );
+      return {
+        selectedEvents: collected.events,
+        sourceSpans: collected.sourceSpans,
+        branchScrollTarget: branchSpan.id,
+      };
+    }
+
+    // Non-branch: existing behavior
     const collected = collectRawEvents(spans, {
       includeUtility,
       regionIndex: parsed?.regionIndex ?? null,
@@ -141,6 +172,7 @@ export function useTranscriptTimeline(
     return {
       selectedEvents: collected.events,
       sourceSpans: collected.sourceSpans,
+      branchScrollTarget: null as string | null,
     };
   }, [events, state.rows, state.selected, includeUtility, showBranches]);
 
@@ -190,5 +222,6 @@ export function useTranscriptTimeline(
     activeTimelineIndex,
     setActiveTimeline,
     regionCounts,
+    branchScrollTarget,
   };
 }

@@ -578,6 +578,249 @@ function emitInlineBranches(
 }
 
 // =============================================================================
+// Branch context collection
+// =============================================================================
+
+/**
+ * Derives the parent row key from a branch row key.
+ *
+ * Branch keys follow the pattern `"parentKey/branch-{branchedFrom}-{index}"`.
+ * Returns null if the key doesn't contain a branch segment.
+ */
+export function getParentKeyFromBranch(branchKey: string): string | null {
+  const match = /^(.+)\/branch-[^/]+$/.exec(branchKey);
+  return match ? match[1]! : null;
+}
+
+/** A link in the ancestor chain: a span and the fork UUID where the next level branches. */
+interface AncestorLink {
+  span: TimelineSpan;
+  forkUuid: string;
+}
+
+/**
+ * Builds the ancestor chain from a branch row up to the outermost non-branch row.
+ *
+ * Returns links ordered outermost ancestor → innermost parent, each paired
+ * with the fork UUID where the next level (or the target branch) branches off.
+ */
+function buildAncestorChain(
+  rows: SwimlaneRow[],
+  branchRowKey: string
+): AncestorLink[] {
+  const chain: AncestorLink[] = [];
+  let currentKey = branchRowKey;
+
+  while (true) {
+    const parentKey = getParentKeyFromBranch(currentKey);
+    if (!parentKey) break;
+
+    const parentRow = rows.find((r) => r.key === parentKey);
+    if (!parentRow || parentRow.spans.length === 0) break;
+
+    // Get the parent's TimelineSpan
+    const firstSpan = parentRow.spans[0]!;
+    const parentSpan = isSingleSpan(firstSpan)
+      ? firstSpan.agent
+      : getAgents(firstSpan)[0];
+    if (!parentSpan) break;
+
+    // Get the child branch's forkedAt UUID
+    const childRow = rows.find((r) => r.key === currentKey);
+    if (!childRow || childRow.spans.length === 0) break;
+    const childFirstSpan = childRow.spans[0]!;
+    const childSpan = isSingleSpan(childFirstSpan)
+      ? childFirstSpan.agent
+      : getAgents(childFirstSpan)[0];
+    if (!childSpan?.branchedFrom) break;
+
+    chain.unshift({ span: parentSpan, forkUuid: childSpan.branchedFrom });
+
+    currentKey = parentKey;
+    // Keep walking if the parent is also a branch
+    if (!parentRow.branch) break;
+  }
+
+  return chain;
+}
+
+/**
+ * Collects events from a span's content, stopping after the event whose
+ * UUID matches `forkUuid` (inclusive — the fork event is the last parent
+ * event before the branch point).
+ *
+ * Returns true if the fork event was found, false otherwise.
+ */
+function collectContentUpToFork(
+  content: ReadonlyArray<TimelineEvent | TimelineSpan>,
+  forkUuid: string,
+  out: Event[],
+  sourceSpans: Map<string, TimelineSpan>,
+  includeUtility: boolean
+): boolean {
+  for (const item of content) {
+    if (item.type === "event") {
+      out.push(item.event);
+      if (item.event.uuid === forkUuid) {
+        return true;
+      }
+    } else if (!includeUtility && item.utility) {
+      continue;
+    } else if (item.spanType === "agent") {
+      // Agent spans: emit collapsed begin/end pair
+      const beginEvent: SpanBeginEvent = {
+        event: "span_begin",
+        name: item.name,
+        id: item.id,
+        span_id: item.id,
+        type: item.spanType,
+        timestamp: item.startTime().toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: item.id,
+        metadata: null,
+      };
+      out.push(beginEvent);
+      sourceSpans.set(item.id, item);
+      const endEvent: SpanEndEvent = {
+        event: "span_end",
+        id: `${item.id}-end`,
+        span_id: item.id,
+        timestamp: item.endTime().toISOString(),
+        pending: false,
+        working_start: 0,
+        uuid: null,
+        metadata: null,
+      };
+      out.push(endEvent);
+    } else {
+      // Non-agent span: recurse into content, checking for fork
+      const beginEvent: SpanBeginEvent = {
+        event: "span_begin",
+        name: item.name,
+        id: item.id,
+        span_id: item.id,
+        type: item.spanType,
+        timestamp: item.startTime().toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: item.id,
+        metadata: null,
+      };
+      out.push(beginEvent);
+
+      const found = collectContentUpToFork(
+        item.content,
+        forkUuid,
+        out,
+        sourceSpans,
+        includeUtility
+      );
+
+      const endEvent: SpanEndEvent = {
+        event: "span_end",
+        id: `${item.id}-end`,
+        span_id: item.id,
+        timestamp: item.endTime().toISOString(),
+        pending: false,
+        working_start: 0,
+        uuid: null,
+        metadata: null,
+      };
+      out.push(endEvent);
+
+      if (found) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Collects events for a branch with full ancestor context.
+ *
+ * The resulting event stream contains:
+ * 1. Ancestor events from the root down to each fork point
+ * 2. A branch separator (AgentCardView) at each fork
+ * 3. The branch's own events
+ *
+ * For nested branches (Branch 1.1), the full chain is included:
+ * root events → fork → Branch 1 events → fork → Branch 1.1 events.
+ */
+export function collectBranchWithContext(
+  rows: SwimlaneRow[],
+  branchRowKey: string,
+  branchSpan: TimelineSpan,
+  options: {
+    includeUtility: boolean;
+    showBranches: boolean;
+    branchPrefix: string;
+  }
+): CollectedEvents {
+  const events: Event[] = [];
+  const sourceSpans = new Map<string, TimelineSpan>();
+
+  const ancestorChain = buildAncestorChain(rows, branchRowKey);
+
+  // Emit each ancestor's content up to its fork point
+  for (const ancestor of ancestorChain) {
+    collectContentUpToFork(
+      ancestor.span.content,
+      ancestor.forkUuid,
+      events,
+      sourceSpans,
+      options.includeUtility
+    );
+  }
+
+  // Emit the branch separator (renders as AgentCardView).
+  // branchSpan is already a createBranchSpan result with the correct name,
+  // so emit directly rather than calling emitBranchSpan (which would
+  // double-apply createBranchSpan and produce "Branch Branch 1").
+  sourceSpans.set(branchSpan.id, branchSpan);
+  const branchBegin: SpanBeginEvent = {
+    event: "span_begin",
+    name: branchSpan.name,
+    id: branchSpan.id,
+    span_id: branchSpan.id,
+    type: branchSpan.spanType,
+    timestamp: branchSpan.startTime().toISOString(),
+    parent_id: null,
+    pending: false,
+    working_start: 0,
+    uuid: branchSpan.id,
+    metadata: null,
+  };
+  events.push(branchBegin);
+  const branchEnd: SpanEndEvent = {
+    event: "span_end",
+    id: `${branchSpan.id}-end`,
+    span_id: branchSpan.id,
+    timestamp: branchSpan.endTime().toISOString(),
+    pending: false,
+    working_start: 0,
+    uuid: null,
+    metadata: null,
+  };
+  events.push(branchEnd);
+
+  // Emit the branch's own content
+  collectFromContent(
+    branchSpan.content,
+    events,
+    sourceSpans,
+    undefined,
+    options.includeUtility,
+    options.showBranches,
+    branchSpan.branches.length > 0 ? branchSpan.branches : undefined,
+    options.branchPrefix
+  );
+
+  return { events, sourceSpans };
+}
+
+// =============================================================================
 // Span select key lookup
 // =============================================================================
 

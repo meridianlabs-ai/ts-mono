@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { TimelineEvent } from "../../components/transcript/timeline";
-import type { CompactionEvent, InfoEvent } from "../../types/api-types";
+import type { CompactionEvent, Event, InfoEvent } from "../../types/api-types";
 
-import { ts } from "./testHelpers";
+import { getScenarioRoot, S11A_BRANCHES, ts } from "./testHelpers";
 import {
   buildSelectionKey,
+  collectBranchWithContext,
   computeCompactionRegions,
+  getParentKeyFromBranch,
   parseSelection,
 } from "./timelineEventNodes";
+import { computeFlatSwimlaneRows } from "./utils/swimlaneRows";
 
 // =============================================================================
 // Test helpers
@@ -261,5 +264,170 @@ describe("computeCompactionRegions", () => {
         }
       }
     }
+  });
+});
+
+// =============================================================================
+// getParentKeyFromBranch
+// =============================================================================
+
+describe("getParentKeyFromBranch", () => {
+  it("extracts parent key from a branch key", () => {
+    expect(getParentKeyFromBranch("main/build/branch-uuid-1")).toBe(
+      "main/build"
+    );
+  });
+
+  it("returns null for a non-branch key", () => {
+    expect(getParentKeyFromBranch("main/build")).toBeNull();
+  });
+
+  it("returns null for a bare key", () => {
+    expect(getParentKeyFromBranch("build")).toBeNull();
+  });
+
+  it("handles nested branch keys", () => {
+    expect(getParentKeyFromBranch("root/branch-abc-1/branch-def-2")).toBe(
+      "root/branch-abc-1"
+    );
+  });
+
+  it("handles branch key with complex branchedFrom UUID", () => {
+    expect(
+      getParentKeyFromBranch(
+        "solvers/agent/branch-550e8400-e29b-41d4-a716-446655440000-1"
+      )
+    ).toBe("solvers/agent");
+  });
+});
+
+// =============================================================================
+// collectBranchWithContext
+// =============================================================================
+
+describe("collectBranchWithContext", () => {
+  // Build rows from S11A scenario once — shared across tests.
+  const root = getScenarioRoot(S11A_BRANCHES);
+  const rows = computeFlatSwimlaneRows(root, { showBranches: true });
+
+  // The build row is the parent, branches are its children.
+  // Branch key pattern: "parentKey/branch-{branchedFrom}-{index}"
+  // In S11A, build is at "transcript/build" and branches fork at "model-call-5".
+  const buildRow = rows.find((r) => r.key === "transcript/build");
+  const branch1Key = "transcript/build/branch-model-call-5-1";
+  const branch1Row = rows.find((r) => r.key === branch1Key);
+
+  it("finds the expected build and branch rows", () => {
+    expect(buildRow).toBeDefined();
+    expect(branch1Row).toBeDefined();
+    expect(branch1Row!.branch).toBe(true);
+  });
+
+  it("includes parent events before the branch separator", () => {
+    const branch1Span = branch1Row!.spans[0]!;
+    const span = "agent" in branch1Span ? branch1Span.agent : undefined;
+    expect(span).toBeDefined();
+
+    const result = collectBranchWithContext(rows, branch1Key, span!, {
+      includeUtility: false,
+      showBranches: false,
+      branchPrefix: "",
+    });
+
+    // The parent (build) has a model event with uuid "model-call-5" as first content.
+    // collectContentUpToFork should emit it, then stop.
+    // The first event in the stream should be from the build span's content.
+    const eventTypes = result.events.map((e: Event) => e.event);
+
+    // Should start with parent model event (the fork point)
+    expect(eventTypes[0]).toBe("model");
+    expect((result.events[0] as { uuid: string | null }).uuid).toBe(
+      "model-call-5"
+    );
+  });
+
+  it("includes a branch separator with spanType 'branch'", () => {
+    const branch1Span = branch1Row!.spans[0]!;
+    const span = "agent" in branch1Span ? branch1Span.agent : undefined;
+
+    const result = collectBranchWithContext(rows, branch1Key, span!, {
+      includeUtility: false,
+      showBranches: false,
+      branchPrefix: "",
+    });
+
+    // Find the branch separator — a span_begin with type "branch"
+    const separatorIndex = result.events.findIndex(
+      (e: Event) => e.event === "span_begin" && e.type === "branch"
+    );
+    expect(separatorIndex).toBeGreaterThan(0);
+
+    // The separator should come after parent events and before branch content
+    const separator = result.events[separatorIndex]!;
+    expect(separator.event).toBe("span_begin");
+    if (separator.event === "span_begin") {
+      expect(separator.span_id).toBe(span!.id);
+    }
+  });
+
+  it("includes branch content after the separator", () => {
+    const branch1Span = branch1Row!.spans[0]!;
+    const span = "agent" in branch1Span ? branch1Span.agent : undefined;
+
+    const result = collectBranchWithContext(rows, branch1Key, span!, {
+      includeUtility: false,
+      showBranches: false,
+      branchPrefix: "",
+    });
+
+    // Find the branch separator
+    const separatorIndex = result.events.findIndex(
+      (e: Event) => e.event === "span_begin" && e.type === "branch"
+    );
+
+    // After the separator + its end, we should have branch content.
+    // Branch 1 content includes agent spans (branch1-refactor, branch1-validate).
+    // These are agent spans so they emit as collapsed begin/end pairs.
+    const afterSeparator = result.events.slice(separatorIndex + 1);
+    const spanBegins = afterSeparator.filter(
+      (e: Event) => e.event === "span_begin"
+    );
+    // Should have at least the two agent spans from branch 1
+    expect(spanBegins.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("records source spans for the branch separator", () => {
+    const branch1Span = branch1Row!.spans[0]!;
+    const span = "agent" in branch1Span ? branch1Span.agent : undefined;
+
+    const result = collectBranchWithContext(rows, branch1Key, span!, {
+      includeUtility: false,
+      showBranches: false,
+      branchPrefix: "",
+    });
+
+    // The branch span should be in sourceSpans for rendering as AgentCardView
+    expect(result.sourceSpans.has(span!.id)).toBe(true);
+  });
+
+  it("fork event is the last parent event before separator", () => {
+    const branch1Span = branch1Row!.spans[0]!;
+    const span = "agent" in branch1Span ? branch1Span.agent : undefined;
+
+    const result = collectBranchWithContext(rows, branch1Key, span!, {
+      includeUtility: false,
+      showBranches: false,
+      branchPrefix: "",
+    });
+
+    // Find the branch separator index
+    const separatorIndex = result.events.findIndex(
+      (e: Event) => e.event === "span_begin" && e.type === "branch"
+    );
+
+    // The event just before the separator should be the fork event
+    const forkEvent = result.events[separatorIndex - 1];
+    expect(forkEvent).toBeDefined();
+    expect((forkEvent as { uuid: string | null }).uuid).toBe("model-call-5");
   });
 });
