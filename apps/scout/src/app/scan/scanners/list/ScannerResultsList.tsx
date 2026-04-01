@@ -110,14 +110,19 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     if (scansSearchText && scansSearchText.length > 0) {
       const lowerSearch = scansSearchText.toLowerCase();
       textFiltered = scannerSummaries.filter((s) => {
-        const idStr = resultIdentifierStr(s) || "";
-        const logStr = resultLog(s) || "";
-        const labelStr = s.label || "";
-        return (
-          idStr.toLowerCase().includes(lowerSearch) ||
-          logStr.toLowerCase().includes(lowerSearch) ||
-          labelStr.toLowerCase().includes(lowerSearch)
-        );
+        const searchable = [
+          resultIdentifierStr(s),
+          resultLog(s),
+          s.label,
+          s.explanation,
+          s.transcriptModel,
+          s.scanError,
+          stringifyValue(s),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .toLowerCase();
+        return searchable.includes(lowerSearch);
       });
     }
 
@@ -426,6 +431,23 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       )}
     </div>
   );
+};
+
+/**
+ * Stringify a ScanResultSummary value for text search.
+ * Handles all valueType variants so search covers the displayed result content.
+ */
+const stringifyValue = (s: ScanResultSummary): string => {
+  if (s.value === null || s.value === undefined) return "";
+  if (isStringValue(s)) return s.value;
+  if (isNumberValue(s) || isBooleanValue(s)) return String(s.value);
+  if (isArrayValue(s)) return s.value.map(String).join(" ");
+  if (isObjectValue(s)) {
+    return Object.entries(s.value)
+      .map(([k, v]) => `${k} ${v !== null && v !== undefined ? String(v) : ""}`)
+      .join(" ");
+  }
+  return String(s.value);
 };
 
 // Type-aware comparison for ScanResultSummary values.
