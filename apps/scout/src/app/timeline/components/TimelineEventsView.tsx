@@ -154,6 +154,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     activeTimelineIndex,
     setActiveTimeline,
     regionCounts,
+    branchScrollTarget,
   } = useTranscriptTimeline(
     events,
     resolvedMarkerConfig,
@@ -291,7 +292,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     }
   }, [resolvedRoot, selectBySpanId, clearSelection, timelineState.selected]);
 
-  const effectiveInitialEventId = initialEventId ?? resolved?.eventId ?? null;
+  const effectiveInitialEventId =
+    initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
 
   // ---------------------------------------------------------------------------
   // Sticky swimlane state
