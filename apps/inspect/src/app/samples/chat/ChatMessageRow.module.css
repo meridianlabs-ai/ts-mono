@@ -19,3 +19,9 @@
 .container {
   padding: 0.4em 0.4em 0.4em 0.4em;
 }
+
+@media print {
+  .container {
+    break-inside: avoid;
+  }
+}

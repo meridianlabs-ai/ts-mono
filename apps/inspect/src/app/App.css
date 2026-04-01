@@ -1142,6 +1142,11 @@ pre[class*="language-"] {
     print-color-adjust: exact !important;
   }
 
+  body {
+    orphans: 3;
+    widows: 3;
+  }
+
   #app,
   .app-main-grid {
     height: auto !important;

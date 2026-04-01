@@ -94,3 +94,9 @@
 .dongleIcon {
   padding-right: 0.3em;
 }
+
+@media print {
+  .card {
+    break-inside: avoid;
+  }
+}
