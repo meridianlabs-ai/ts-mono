@@ -14,7 +14,6 @@ import type { Event } from "../../types/api-types";
 
 import {
   buildTimeline,
-  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
   type Timeline,
@@ -338,26 +337,21 @@ function getAllEventUuids(node: TimelineSpan): string[] {
  * Assert that a Branch matches expected values.
  */
 function assertBranchMatches(
-  actual: TimelineBranch,
+  actual: TimelineSpan,
   expected: ExpectedBranch
 ): void {
   expect(actual.forkedAt).toBe(expected.forked_at);
   if (expected.event_uuids !== undefined) {
-    const uuids = actual.content.content
+    const uuids = actual.content
       .filter((c): c is TimelineEvent => c.type === "event")
       .map((c) => c.event.uuid)
       .filter((uuid): uuid is string => uuid !== null);
     expect(uuids).toEqual(expected.event_uuids);
   }
   if (expected.nested_branches !== undefined) {
-    expect(actual.content.branches).toHaveLength(
-      expected.nested_branches.length
-    );
+    expect(actual.branches).toHaveLength(expected.nested_branches.length);
     for (let i = 0; i < expected.nested_branches.length; i++) {
-      assertBranchMatches(
-        actual.content.branches[i]!,
-        expected.nested_branches[i]!
-      );
+      assertBranchMatches(actual.branches[i]!, expected.nested_branches[i]!);
     }
   }
 }

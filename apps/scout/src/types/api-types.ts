@@ -85,8 +85,6 @@ export type ContentVideo = components["schemas"]["ContentVideo"];
 export type ServerTimeline = components["schemas"]["Timeline"];
 export type ServerTimelineSpan = components["schemas"]["TimelineSpan"];
 export type ServerTimelineEvent = components["schemas"]["TimelineEvent"];
-export type ServerTimelineBranch = components["schemas"]["TimelineBranch"];
-
 export type Score = components["schemas"]["Score"];
 
 // Validation types

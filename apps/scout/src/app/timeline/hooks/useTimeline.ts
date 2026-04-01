@@ -12,7 +12,6 @@ import { useSearchParams } from "react-router-dom";
 import {
   createBranchSpan,
   type Timeline,
-  type TimelineBranch,
   type TimelineSpan,
 } from "../../../components/transcript/timeline";
 import {
@@ -54,7 +53,7 @@ export interface BranchLookupResult {
   /** The span that owns the branches. */
   owner: TimelineSpan;
   /** Matching branches with their 1-indexed position. */
-  branches: Array<{ branch: TimelineBranch; index: number }>;
+  branches: Array<{ branch: TimelineSpan; index: number }>;
 }
 
 /**
@@ -66,7 +65,7 @@ export function findBranchesByForkedAt(
   forkedAt: string
 ): BranchLookupResult | null {
   // Check this node's branches
-  const matches: Array<{ branch: TimelineBranch; index: number }> = [];
+  const matches: Array<{ branch: TimelineSpan; index: number }> = [];
   for (let i = 0; i < node.branches.length; i++) {
     const branch = node.branches[i]!;
     if (branch.forkedAt === forkedAt) {

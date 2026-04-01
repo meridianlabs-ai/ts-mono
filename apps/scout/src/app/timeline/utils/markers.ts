@@ -8,7 +8,6 @@
 import { formatDuration } from "@tsmono/util";
 
 import type {
-  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
 } from "../../../components/transcript/timeline";
@@ -204,7 +203,7 @@ function collectBranchMarkers(
     markers.push({
       kind: "branch",
       timestamp: branch.startTime,
-      reference: branch.forkedAt,
+      reference: branch.forkedAt ?? "",
       tooltip: branchTooltip([branch]),
     });
   }
@@ -213,7 +212,7 @@ function collectBranchMarkers(
 /**
  * Builds a tooltip string summarizing branches at a fork point.
  */
-function branchTooltip(branches: TimelineBranch[]): string {
+function branchTooltip(branches: TimelineSpan[]): string {
   const count = branches.length;
   const totalTokens = branches.reduce((sum, b) => sum + b.totalTokens, 0);
   const tokenStr = formatCompactTokens(totalTokens);

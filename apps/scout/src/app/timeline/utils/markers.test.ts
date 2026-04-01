@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
 } from "../../../components/transcript/timeline";
@@ -30,24 +29,16 @@ function makeBranchObj(
   content: TimelineEvent[],
   startSec: number,
   endSec: number
-): TimelineBranch {
+): TimelineSpan {
   return {
-    type: "branch",
+    type: "span",
+    id: `branch-${forkedAt || "empty"}`,
+    name: "branch",
+    spanType: "branch",
     forkedAt,
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: `branch-${forkedAt || "empty"}`,
-      name: "branch",
-      spanType: "branch",
-      content,
-      branches: [],
-      utility: false,
-      startTime: ts(startSec),
-      endTime: ts(endSec),
-      totalTokens: 100,
-      idleTime: 0,
-    },
+    content,
+    branches: [],
+    utility: false,
     startTime: ts(startSec),
     endTime: ts(endSec),
     totalTokens: 100,

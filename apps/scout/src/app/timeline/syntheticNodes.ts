@@ -1,6 +1,5 @@
 import type {
   Timeline,
-  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
@@ -324,7 +323,7 @@ function makeSpan(
   tokens: number,
   content: TimelineSpan["content"] = [],
   options?: {
-    branches?: TimelineBranch[];
+    branches?: TimelineSpan[];
     utility?: boolean;
     description?: string;
   }
@@ -334,6 +333,7 @@ function makeSpan(
     id,
     name,
     spanType,
+    forkedAt: null,
     content,
     branches: options?.branches ?? [],
     description: options?.description,
@@ -1454,23 +1454,15 @@ function branchesSingleFork(): TimelineScenario {
     ]
   );
 
-  const branch1: TimelineBranch = {
-    type: "branch",
+  const branch1: TimelineSpan = {
+    type: "span",
+    id: "branch-1",
+    name: "branch",
+    spanType: "branch",
     forkedAt: "model-call-5",
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: "branch-1",
-      name: "branch",
-      spanType: "branch",
-      content: [branch1Refactor, branch1Validate],
-      branches: [],
-      utility: false,
-      startTime: ts(BASE, 15),
-      endTime: ts(BASE, 28),
-      totalTokens: 8700,
-      idleTime: 0,
-    },
+    content: [branch1Refactor, branch1Validate],
+    branches: [],
+    utility: false,
     startTime: ts(BASE, 15),
     endTime: ts(BASE, 28),
     totalTokens: 8700,
@@ -1503,23 +1495,15 @@ function branchesSingleFork(): TimelineScenario {
     ]
   );
 
-  const branch2: TimelineBranch = {
-    type: "branch",
+  const branch2: TimelineSpan = {
+    type: "span",
+    id: "branch-2",
+    name: "branch",
+    spanType: "branch",
     forkedAt: "model-call-5",
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: "branch-2",
-      name: "branch",
-      spanType: "branch",
-      content: [branch2Rewrite],
-      branches: [],
-      utility: false,
-      startTime: ts(BASE, 15),
-      endTime: ts(BASE, 25),
-      totalTokens: 5100,
-      idleTime: 0,
-    },
+    content: [branch2Rewrite],
+    branches: [],
+    utility: false,
     startTime: ts(BASE, 15),
     endTime: ts(BASE, 25),
     totalTokens: 5100,
@@ -1637,23 +1621,15 @@ function branchesMultipleForks(): TimelineScenario {
     ]
   );
 
-  const earlyBranch: TimelineBranch = {
-    type: "branch",
+  const earlyBranch: TimelineSpan = {
+    type: "span",
+    id: "early-branch",
+    name: "branch",
+    spanType: "branch",
     forkedAt: "model-call-3",
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: "early-branch",
-      name: "branch",
-      spanType: "branch",
-      content: [earlyAttempt],
-      branches: [],
-      utility: false,
-      startTime: ts(BASE, 8),
-      endTime: ts(BASE, 14),
-      totalTokens: 4200,
-      idleTime: 0,
-    },
+    content: [earlyAttempt],
+    branches: [],
+    utility: false,
     startTime: ts(BASE, 8),
     endTime: ts(BASE, 14),
     totalTokens: 4200,
@@ -1673,23 +1649,15 @@ function branchesMultipleForks(): TimelineScenario {
     makeModelEventNode("Retry showed improvement.", 36, 38, 1200),
   ]);
 
-  const lateBranch1: TimelineBranch = {
-    type: "branch",
+  const lateBranch1: TimelineSpan = {
+    type: "span",
+    id: "late-branch-1",
+    name: "branch",
+    spanType: "branch",
     forkedAt: "model-call-10",
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: "late-branch-1",
-      name: "branch",
-      spanType: "branch",
-      content: [lateRetry],
-      branches: [],
-      utility: false,
-      startTime: ts(BASE, 30),
-      endTime: ts(BASE, 38),
-      totalTokens: 3800,
-      idleTime: 0,
-    },
+    content: [lateRetry],
+    branches: [],
+    utility: false,
     startTime: ts(BASE, 30),
     endTime: ts(BASE, 38),
     totalTokens: 3800,
@@ -1722,23 +1690,15 @@ function branchesMultipleForks(): TimelineScenario {
     makeModelEventNode("Alternative approach succeeded.", 40, 42, 1100),
   ]);
 
-  const lateBranch2: TimelineBranch = {
-    type: "branch",
+  const lateBranch2: TimelineSpan = {
+    type: "span",
+    id: "late-branch-2",
+    name: "branch",
+    spanType: "branch",
     forkedAt: "model-call-10",
-    fromSpan: "",
-    content: {
-      type: "span",
-      id: "late-branch-2",
-      name: "branch",
-      spanType: "branch",
-      content: [lateAlt],
-      branches: [],
-      utility: false,
-      startTime: ts(BASE, 30),
-      endTime: ts(BASE, 42),
-      totalTokens: 6100,
-      idleTime: 0,
-    },
+    content: [lateAlt],
+    branches: [],
+    utility: false,
     startTime: ts(BASE, 30),
     endTime: ts(BASE, 42),
     totalTokens: 6100,

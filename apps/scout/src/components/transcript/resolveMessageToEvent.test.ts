@@ -32,6 +32,7 @@ function makeSpan(
     type: "span",
     name: overrides.name ?? overrides.id,
     spanType: overrides.spanType ?? null,
+    forkedAt: null,
     branches: [],
     description: undefined,
     utility: false,

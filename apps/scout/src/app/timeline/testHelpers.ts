@@ -7,7 +7,6 @@
 
 import type {
   Timeline,
-  TimelineBranch,
   TimelineSpan,
 } from "../../components/transcript/timeline";
 
@@ -33,7 +32,7 @@ export function ts(offsetSeconds: number): Date {
 interface MakeSpanOptions {
   utility?: boolean;
   spanType?: string | null;
-  branches?: TimelineBranch[];
+  branches?: TimelineSpan[];
 }
 
 /** Minimal TimelineSpan builder for edge-case tests. */
@@ -50,6 +49,7 @@ export function makeSpan(
     id: name.toLowerCase(),
     name,
     spanType: options?.spanType ?? null,
+    forkedAt: null,
     content,
     branches: options?.branches ?? [],
     utility: options?.utility ?? false,

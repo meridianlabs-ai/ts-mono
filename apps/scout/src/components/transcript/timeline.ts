@@ -11,7 +11,6 @@ import type {
   Event,
   ModelEvent,
   ServerTimeline,
-  ServerTimelineBranch,
   ServerTimelineEvent,
   ServerTimelineSpan,
 } from "../../types/api-types";
@@ -77,8 +76,9 @@ export interface TimelineSpan extends TimelineNode {
   id: string;
   name: string;
   spanType: string | null;
+  forkedAt: string | null;
   content: (TimelineEvent | TimelineSpan)[];
-  branches: TimelineBranch[];
+  branches: TimelineSpan[];
   description?: string;
   utility: boolean;
   agentResult?: string;
@@ -86,21 +86,7 @@ export interface TimelineSpan extends TimelineNode {
 }
 
 /**
- * A discarded alternative path from a branch point.
- */
-export interface TimelineBranch extends TimelineNode {
-  type: "branch";
-  forkedAt: string;
-  fromSpan: string;
-  content: TimelineSpan;
-}
-
-// =============================================================================
-// Branch → Span Conversion
-// =============================================================================
-
-/**
- * Creates a TimelineSpan for a branch's content.
+ * Creates a display-ready TimelineSpan from a branch span.
  *
  * If the branch has exactly one child span, returns that span directly.
  * Otherwise creates a synthetic container. The returned span's name is
@@ -108,19 +94,19 @@ export interface TimelineBranch extends TimelineNode {
  * swimlane row label) should add it themselves.
  */
 export function createBranchSpan(
-  branch: TimelineBranch,
+  branch: TimelineSpan,
   index: number
 ): TimelineSpan {
   const label = deriveBranchLabel(branch, index);
   return {
-    ...branch.content,
+    ...branch,
     name: label,
     spanType: "branch",
   };
 }
 
-function deriveBranchLabel(branch: TimelineBranch, index: number): string {
-  for (const item of branch.content.content) {
+function deriveBranchLabel(branch: TimelineSpan, index: number): string {
+  for (const item of branch.content) {
     if (item.type === "span") return item.name;
   }
   return `Branch ${index}`;
@@ -231,7 +217,7 @@ function convertServerSpan(
   const content = server.content
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = server.branches.map((b) => convertServerBranch(b, lookup));
+  const branches = server.branches.map((b) => convertServerSpan(b, lookup));
   const allNodes = [...content, ...branches];
 
   let startTime: Date;
@@ -255,6 +241,7 @@ function convertServerSpan(
     id: server.id,
     name: server.name,
     spanType: server.span_type ?? null,
+    forkedAt: server.forked_at ?? null,
     content,
     branches,
     description: server.description ?? undefined,
@@ -265,23 +252,6 @@ function convertServerSpan(
     endTime,
     totalTokens: sumTokens(allNodes),
     idleTime: computeIdleTime(allNodes, startTime, endTime),
-  };
-}
-
-function convertServerBranch(
-  server: ServerTimelineBranch,
-  lookup: Map<string, Event>
-): TimelineBranch {
-  const contentSpan = convertServerSpan(server.content, lookup);
-  return {
-    type: "branch",
-    forkedAt: server.forked_at,
-    fromSpan: server.from_span ?? "",
-    content: contentSpan,
-    startTime: contentSpan.startTime,
-    endTime: contentSpan.endTime,
-    totalTokens: contentSpan.totalTokens,
-    idleTime: contentSpan.idleTime,
   };
 }
 
@@ -448,8 +418,9 @@ function createTimelineSpan(
   spanType: string | null,
   content: (TimelineEvent | TimelineSpan)[],
   utility: boolean = false,
-  branches: TimelineBranch[] = [],
-  description?: string
+  branches: TimelineSpan[] = [],
+  description?: string,
+  forkedAt: string | null = null
 ): TimelineSpan {
   if (content.length === 0) {
     throw new Error(
@@ -465,6 +436,7 @@ function createTimelineSpan(
     id,
     name: name.toLowerCase(),
     spanType,
+    forkedAt,
     content,
     branches,
     description,
@@ -473,26 +445,6 @@ function createTimelineSpan(
     endTime,
     totalTokens: sumTokens(allNodes),
     idleTime: computeIdleTime(allNodes, startTime, endTime),
-  };
-}
-
-/**
- * Create a TimelineBranch with computed properties.
- */
-function createBranch(
-  forkedAt: string,
-  fromSpan: string,
-  contentSpan: TimelineSpan
-): TimelineBranch {
-  return {
-    type: "branch",
-    forkedAt,
-    fromSpan,
-    content: contentSpan,
-    startTime: contentSpan.startTime,
-    endTime: contentSpan.endTime,
-    totalTokens: contentSpan.totalTokens,
-    idleTime: contentSpan.idleTime,
   };
 }
 
@@ -849,6 +801,7 @@ function buildAgentFromSolversSpan(
         id: target.id,
         name: target.name.toLowerCase(),
         spanType: "agent",
+        forkedAt: null,
         content: [],
         branches: [],
         utility: false,
@@ -961,29 +914,29 @@ function unrollSpan(
 }
 
 // =============================================================================
-// TimelineBranch Processing
+// Branch Processing
 // =============================================================================
 
 /**
  * Process a span's children with branch awareness.
  *
- * Collects adjacent type="branch" SpanNode runs and builds TimelineBranch
+ * Collects adjacent type="branch" SpanNode runs and builds branch TimelineSpan
  * objects from those that contain a BranchEvent. Branch spans without a
  * BranchEvent are processed as normal content.
  */
 function processChildren(
   children: TreeItem[],
   messageLookup: Map<string, string>
-): [(TimelineEvent | TimelineSpan)[], TimelineBranch[]] {
+): [(TimelineEvent | TimelineSpan)[], TimelineSpan[]] {
   const content: (TimelineEvent | TimelineSpan)[] = [];
-  const branches: TimelineBranch[] = [];
+  const branches: TimelineSpan[] = [];
   let branchRun: SpanNode[] = [];
 
   function flushBranchRun(
     run: SpanNode[],
     parentContent: (TimelineEvent | TimelineSpan)[]
-  ): TimelineBranch[] {
-    const result: TimelineBranch[] = [];
+  ): TimelineSpan[] {
+    const result: TimelineSpan[] = [];
     for (const span of run) {
       const branchEvent = findBranchEvent(span);
       if (branchEvent === null) {
@@ -1003,14 +956,18 @@ function processChildren(
       }
       if (branchContent.length === 0) continue;
       const forkedAt = messageLookup.get(branchEvent.from_message) ?? "";
-      const contentSpan = createTimelineSpan(
+      const branchSpan = createTimelineSpan(
         span.id,
         span.name || "branch",
         "branch",
         branchContent,
-        false
+        false,
+        [],
+        undefined,
+        forkedAt
       );
-      result.push(createBranch(forkedAt, branchEvent.from_span, contentSpan));
+      branchFromSpanMap.set(branchSpan.id, branchEvent.from_span);
+      result.push(branchSpan);
     }
     return result;
   }
@@ -1114,8 +1071,8 @@ function classifyBranches(span: TimelineSpan): void {
 
   // Recurse into branches (and their child spans)
   for (const branch of span.branches) {
-    classifyBranches(branch.content);
-    for (const item of branch.content.content) {
+    classifyBranches(branch);
+    for (const item of branch.content) {
       if (item.type === "span") {
         classifyBranches(item);
       }
@@ -1126,6 +1083,15 @@ function classifyBranches(span: TimelineSpan): void {
 // =============================================================================
 // Branch Relocation
 // =============================================================================
+
+/**
+ * Maps branch span ID → fromSpan (the span ID the branch originated from).
+ *
+ * Populated during `processChildren` and consumed by `relocateBranches`.
+ * This is build-time-only metadata that doesn't belong on the public
+ * `TimelineSpan` type.
+ */
+let branchFromSpanMap = new Map<string, string>();
 
 /**
  * Recursively collect all TimelineSpans into a span_id → span map.
@@ -1141,7 +1107,7 @@ function collectSpans(
     }
   }
   for (const branch of span.branches) {
-    collectSpans(branch.content, spanMap);
+    collectSpans(branch, spanMap);
   }
 }
 
@@ -1172,13 +1138,14 @@ function doRelocate(
     }
   }
   for (const branch of span.branches) {
-    doRelocate(branch.content, spanMap);
+    doRelocate(branch, spanMap);
   }
 
   // Now relocate: check each branch's fromSpan
-  const remaining: TimelineBranch[] = [];
+  const remaining: TimelineSpan[] = [];
   for (const branch of span.branches) {
-    const targetSpan = spanMap.get(branch.fromSpan);
+    const fromSpan = branchFromSpanMap.get(branch.id);
+    const targetSpan = fromSpan ? spanMap.get(fromSpan) : undefined;
     if (targetSpan !== undefined && targetSpan !== span) {
       // Move branch to the target span
       targetSpan.branches.push(branch);
@@ -1295,8 +1262,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
       }
     }
     for (const branch of agent.branches) {
-      wrapUtilityEvents(branch.content);
-      for (const item of branch.content.content) {
+      wrapUtilityEvents(branch);
+      for (const item of branch.content) {
         if (item.type === "span") {
           wrapUtilityEvents(item);
         }
@@ -1354,8 +1321,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     }
   }
   for (const branch of agent.branches) {
-    wrapUtilityEvents(branch.content);
-    for (const item of branch.content.content) {
+    wrapUtilityEvents(branch);
+    for (const item of branch.content) {
       if (item.type === "span") {
         wrapUtilityEvents(item);
       }
@@ -1644,12 +1611,15 @@ export function getUtilityAgentLabel(span: TimelineSpan): string {
 }
 
 export function buildTimeline(events: Event[]): Timeline {
+  branchFromSpanMap = new Map<string, string>();
+
   if (events.length === 0) {
     const emptyRoot: TimelineSpan = {
       type: "span",
       id: "root",
       name: "main",
       spanType: null,
+      forkedAt: null,
       content: [],
       branches: [],
       utility: false,
@@ -1796,6 +1766,7 @@ export function buildTimeline(events: Event[]): Timeline {
           id: "root",
           name: "main",
           spanType: null,
+          forkedAt: null,
           content: [],
           branches: [],
           utility: false,
@@ -1823,6 +1794,7 @@ export function buildTimeline(events: Event[]): Timeline {
         id: "root",
         name: "main",
         spanType: null,
+        forkedAt: null,
         content: [],
         branches: [],
         utility: false,

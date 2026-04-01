@@ -7,7 +7,6 @@
  */
 
 import type {
-  TimelineBranch,
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
@@ -28,7 +27,7 @@ export interface AgentCardItem {
 
 export interface BranchCardItem {
   type: "branch_card";
-  branch: TimelineBranch;
+  branch: TimelineSpan;
 }
 
 export type ContentItem = EventItem | AgentCardItem | BranchCardItem;
@@ -86,22 +85,23 @@ export function buildContentItems(
  */
 function insertBranchCards(
   items: ContentItem[],
-  branches: TimelineBranch[]
+  branches: TimelineSpan[]
 ): ContentItem[] {
   // Group branches by forkedAt
-  const byForkPoint = new Map<string, TimelineBranch[]>();
+  const byForkPoint = new Map<string, TimelineSpan[]>();
   for (const branch of branches) {
-    const existing = byForkPoint.get(branch.forkedAt);
+    const forkKey = branch.forkedAt ?? "";
+    const existing = byForkPoint.get(forkKey);
     if (existing) {
       existing.push(branch);
     } else {
-      byForkPoint.set(branch.forkedAt, [branch]);
+      byForkPoint.set(forkKey, [branch]);
     }
   }
 
   // Find insertion points (index after the matching event)
-  const insertions: { afterIndex: number; branches: TimelineBranch[] }[] = [];
-  const unmatched: TimelineBranch[] = [];
+  const insertions: { afterIndex: number; branches: TimelineSpan[] }[] = [];
+  const unmatched: TimelineSpan[] = [];
 
   for (const [forkedAt, forkBranches] of byForkPoint) {
     const index = findEventByUuid(items, forkedAt);
