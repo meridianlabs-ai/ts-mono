@@ -70,7 +70,7 @@
   overflow-y: auto;
 }
 
-.chatSidebar {
+.searchSidebar {
   display: flex;
   flex-direction: column;
   height: 100%;

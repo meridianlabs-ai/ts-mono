@@ -29,21 +29,16 @@ import {
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
-import {
-  getChatParam,
-  getValidationParam,
-  updateChatParam,
-  updateValidationParam,
-} from "../../router/url";
+import { getSidebarParam, updateSidebarParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
-import { ChatPanel } from "./ChatPanel";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
+import { SearchPanel } from "./SearchPanel";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
 
@@ -193,25 +188,30 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     [setTranscriptState]
   );
 
-  // Sidebars - URL is the source of truth.
-  // When any sidebar is open, the split layout's start pane becomes the actual
+  // Sidebar - URL is the source of truth. Only one sidebar can be open at a time.
+  // When a sidebar is open, the split layout's start pane becomes the actual
   // scroll container (not the outer transcriptContainer), so we swap the ref.
-  const validationSidebarCollapsed = !getValidationParam(searchParams);
-  const chatSidebarCollapsed = !getChatParam(searchParams);
-  const anySidebarOpen = !validationSidebarCollapsed || !chatSidebarCollapsed;
+  const activeSidebar = getSidebarParam(searchParams);
+  const anySidebarOpen = activeSidebar !== undefined;
   const activeScrollRef = anySidebarOpen ? splitStartRef : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
-      const isCurrentlyOpen = getValidationParam(prevParams);
-      return updateValidationParam(prevParams, !isCurrentlyOpen);
+      const current = getSidebarParam(prevParams);
+      return updateSidebarParam(
+        prevParams,
+        current === "validation" ? undefined : "validation"
+      );
     });
   }, [setSearchParams]);
 
-  const toggleChatSidebar = useCallback(() => {
+  const toggleSearchSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
-      const isCurrentlyOpen = getChatParam(prevParams);
-      return updateChatParam(prevParams, !isCurrentlyOpen);
+      const current = getSidebarParam(prevParams);
+      return updateSidebarParam(
+        prevParams,
+        current === "search" ? undefined : "search"
+      );
     });
   }, [setSearchParams]);
 
@@ -299,22 +299,22 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       className={styles.tabTool}
       subtle={true}
       title={
-        validationSidebarCollapsed
-          ? "Show validation editor"
-          : "Hide validation editor"
+        activeSidebar === "validation"
+          ? "Hide validation editor"
+          : "Show validation editor"
       }
     />
   );
 
   tabTools.push(
     <ToolButton
-      key="chat-sidebar-toggle"
-      label="Chat"
-      icon={ApplicationIcons.messages}
-      onClick={toggleChatSidebar}
+      key="search-sidebar-toggle"
+      label="Search"
+      icon={ApplicationIcons.search}
+      onClick={toggleSearchSidebar}
       className={styles.tabTool}
       subtle={true}
-      title={chatSidebarCollapsed ? "Show chat" : "Hide chat"}
+      title={activeSidebar === "search" ? "Hide search" : "Show search"}
     />
   );
 
@@ -468,38 +468,24 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div slot="start" ref={splitStartRef} className={styles.splitStart}>
             {tabSetContent}
           </div>
-          {/* Both sidebars are open */}
-          {!validationSidebarCollapsed && !chatSidebarCollapsed ? (
-            <VscodeSplitLayout
-              slot="end"
-              className={styles.splitLayout}
-              initialHandlePosition="50%"
-              minStart="120px"
-              minEnd="120px"
-            >
-              <div slot="start" className={styles.validationSidebar}>
-                <ValidationCaseEditor transcriptId={transcript.transcript_id} />
-              </div>
-              <div slot="end" className={styles.chatSidebar}>
-                <ChatPanel transcriptDir={resolvedTranscriptsDir} transcriptId={transcript.transcript_id} onClose={toggleChatSidebar} />
-              </div>
-            </VscodeSplitLayout>
-          ) : (
-            <div
-              slot="end"
-              className={
-                !validationSidebarCollapsed
-                  ? styles.validationSidebar
-                  : styles.chatSidebar
-              }
-            >
-              {!validationSidebarCollapsed ? (
-                <ValidationCaseEditor transcriptId={transcript.transcript_id} />
-              ) : (
-                <ChatPanel transcriptDir={resolvedTranscriptsDir} transcriptId={transcript.transcript_id} onClose={toggleChatSidebar} />
-              )}
-            </div>
-          )}
+          <div
+            slot="end"
+            className={
+              activeSidebar === "validation"
+                ? styles.validationSidebar
+                : styles.searchSidebar
+            }
+          >
+            {activeSidebar === "validation" ? (
+              <ValidationCaseEditor transcriptId={transcript.transcript_id} />
+            ) : (
+              <SearchPanel
+                transcriptDir={resolvedTranscriptsDir}
+                transcriptId={transcript.transcript_id}
+                onClose={toggleSearchSidebar}
+              />
+            )}
+          </div>
         </VscodeSplitLayout>
       ) : (
         tabSetContent
