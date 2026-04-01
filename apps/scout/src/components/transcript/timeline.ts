@@ -220,16 +220,18 @@ function convertServerSpan(
   const branches = server.branches.map((b) => convertServerSpan(b, lookup));
   const allNodes = [...content, ...branches];
 
+  // Timing uses only direct content — branches are alternative paths
+  // that should not extend the span's own time range.
   let startTime: Date;
   let endTime: Date;
-  if (allNodes.length > 0) {
-    startTime = allNodes.reduce(
+  if (content.length > 0) {
+    startTime = content.reduce(
       (min, n) => (n.startTime < min ? n.startTime : min),
-      allNodes[0]!.startTime
+      content[0]!.startTime
     );
-    endTime = allNodes.reduce(
+    endTime = content.reduce(
       (max, n) => (n.endTime > max ? n.endTime : max),
-      allNodes[0]!.endTime
+      content[0]!.endTime
     );
   } else {
     startTime = new Date(0);
@@ -251,7 +253,7 @@ function convertServerSpan(
     startTime,
     endTime,
     totalTokens: sumTokens(allNodes),
-    idleTime: computeIdleTime(allNodes, startTime, endTime),
+    idleTime: computeIdleTime(content, startTime, endTime),
   };
 }
 
@@ -428,9 +430,10 @@ function createTimelineSpan(
         "Callers must guard against empty content before calling the factory."
     );
   }
-  const allNodes = [...content, ...branches];
-  const startTime = minStartTime(allNodes);
-  const endTime = maxEndTime(allNodes);
+  // Timing uses only direct content — branches are alternative paths
+  // that should not extend the span's own time range.
+  const startTime = minStartTime(content);
+  const endTime = maxEndTime(content);
   return {
     type: "span",
     id,
@@ -443,8 +446,8 @@ function createTimelineSpan(
     utility,
     startTime,
     endTime,
-    totalTokens: sumTokens(allNodes),
-    idleTime: computeIdleTime(allNodes, startTime, endTime),
+    totalTokens: sumTokens(content),
+    idleTime: computeIdleTime(content, startTime, endTime),
   };
 }
 
