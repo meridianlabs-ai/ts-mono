@@ -1035,24 +1035,49 @@ function processSpanAsContent(
 
 /**
  * Build message_id → event UUID mapping from all events.
+ *
+ * Two-pass lookup with priority ordering:
+ *
+ * Pass 1 (high priority): ModelEvent output message id → event UUID,
+ * ToolEvent message_id → event UUID. These identify the event that
+ * *produced* the message.
+ *
+ * Pass 2 (fallback): ModelEvent input messages. For each input message
+ * with an id not already mapped, map it to that ModelEvent's UUID.
+ * This covers user/system messages that only appear as inputs.
+ *
+ * Output/tool mappings take precedence because they're more precise.
  */
 function buildMessageLookup(events: Event[]): Map<string, string> {
   const lookup = new Map<string, string>();
+
+  // Pass 1: output and tool message IDs (high priority)
   for (const e of events) {
     if (e.event === "model") {
-      const modelEvent = e;
-      // Map output assistant message id
-      const outMsg = modelEvent.output?.choices?.[0]?.message;
-      if (outMsg?.id && modelEvent.uuid) {
-        lookup.set(outMsg.id, modelEvent.uuid);
+      const outMsg = e.output?.choices?.[0]?.message;
+      if (outMsg?.id && e.uuid) {
+        lookup.set(outMsg.id, e.uuid);
       }
     } else if (e.event === "tool") {
-      const toolEvent = e;
-      if ("message_id" in toolEvent && toolEvent.message_id && toolEvent.uuid) {
-        lookup.set(toolEvent.message_id, toolEvent.uuid);
+      if ("message_id" in e && e.message_id && e.uuid) {
+        lookup.set(e.message_id, e.uuid);
       }
     }
   }
+
+  // Pass 2: input message IDs (fallback — never overwrite pass 1)
+  for (const e of events) {
+    if (e.event === "model" && e.input && e.uuid) {
+      const input = e.input as Array<Record<string, unknown>>;
+      for (const msg of input) {
+        const msgId = msg.id;
+        if (typeof msgId === "string" && msgId && !lookup.has(msgId)) {
+          lookup.set(msgId, e.uuid);
+        }
+      }
+    }
+  }
+
   return lookup;
 }
 
