@@ -95,21 +95,21 @@ export interface TimelineSpan extends TimelineNode {
  */
 export function createBranchSpan(
   branch: TimelineSpan,
-  index: number
+  label: string
 ): TimelineSpan {
-  const label = deriveBranchLabel(branch, index);
+  const name = deriveBranchLabel(branch, label);
   return {
     ...branch,
-    name: label,
+    name,
     spanType: "branch",
   };
 }
 
-function deriveBranchLabel(branch: TimelineSpan, index: number): string {
+function deriveBranchLabel(branch: TimelineSpan, label: string): string {
   for (const item of branch.content) {
     if (item.type === "span") return item.name;
   }
-  return `Branch ${index}`;
+  return `Branch ${label}`;
 }
 
 /**
@@ -446,7 +446,7 @@ function createTimelineSpan(
     utility,
     startTime,
     endTime,
-    totalTokens: sumTokens(content),
+    totalTokens: sumTokens([...content, ...branches]),
     idleTime: computeIdleTime(content, startTime, endTime),
   };
 }

@@ -108,6 +108,24 @@ function findRowByKey(
   return rows.find((r) => r.key === key);
 }
 
+/**
+ * Derive the branch prefix for nested branches from a selected row.
+ *
+ * If the row is a branch named "Branch 1", returns "1." so nested branches
+ * become "Branch 1.1", "Branch 1.2", etc. Returns "" for non-branch rows.
+ */
+export function getBranchPrefix(
+  rows: SwimlaneRow[],
+  selected: string | null
+): string {
+  const parsed = parseSelection(selected);
+  if (!parsed) return "";
+  const row = findRowByKey(rows, parsed.rowKey);
+  if (!row?.branch) return "";
+  const match = /^Branch (\S+)$/i.exec(row.name);
+  return match ? `${match[1]}.` : "";
+}
+
 // =============================================================================
 // Selected spans
 // =============================================================================
@@ -269,11 +287,13 @@ export function collectRawEvents(
     includeUtility?: boolean;
     regionIndex?: number | null;
     showBranches?: boolean;
+    branchPrefix?: string;
   }
 ): CollectedEvents {
   const includeUtility = options?.includeUtility ?? false;
   const regionIndex = options?.regionIndex ?? null;
   const showBranches = options?.showBranches ?? false;
+  const branchPrefix = options?.branchPrefix ?? "";
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   if (spans.length === 1) {
@@ -299,7 +319,8 @@ export function collectRawEvents(
       agentSpanId,
       includeUtility,
       showBranches,
-      span.branches.length > 0 ? span.branches : undefined
+      span.branches.length > 0 ? span.branches : undefined,
+      branchPrefix
     );
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
@@ -311,7 +332,9 @@ export function collectRawEvents(
       sourceSpans,
       undefined,
       includeUtility,
-      showBranches
+      showBranches,
+      undefined,
+      branchPrefix
     );
   }
   return { events, sourceSpans };
@@ -323,12 +346,12 @@ export function collectRawEvents(
  */
 function emitBranchSpan(
   branch: TimelineSpan,
-  index: number,
+  label: string,
   out: Event[],
   sourceSpans: Map<string, TimelineSpan>,
   parentSpanId?: string | null
 ): void {
-  const branchSpan = createBranchSpan(branch, index + 1);
+  const branchSpan = createBranchSpan(branch, label);
   sourceSpans.set(branchSpan.id, branchSpan);
 
   const branchBegin: SpanBeginEvent = {
@@ -366,7 +389,8 @@ function collectFromContent(
   skipAgentSpanId?: string,
   includeUtility: boolean = false,
   showBranches: boolean = false,
-  branches?: ReadonlyArray<TimelineSpan>
+  branches?: ReadonlyArray<TimelineSpan>,
+  branchPrefix: string = ""
 ): void {
   // Track agent tool_call_ids whose results are shown on the AgentCard,
   // so we can filter them from the next model event's input.
@@ -434,7 +458,8 @@ function collectFromContent(
               branches ?? [],
               emittedForkedAts,
               out,
-              sourceSpans
+              sourceSpans,
+              branchPrefix
             );
             continue;
           }
@@ -450,7 +475,8 @@ function collectFromContent(
         branches ?? [],
         emittedForkedAts,
         out,
-        sourceSpans
+        sourceSpans,
+        branchPrefix
       );
     } else if (!includeUtility && item.utility) {
       // Skip utility spans — internal model calls (e.g. file path extraction)
@@ -516,7 +542,8 @@ function collectFromContent(
     for (const branch of branches) {
       const forkedAt = branch.forkedAt ?? "";
       if (!emittedForkedAts.has(forkedAt)) {
-        emitBranchSpan(branch, branches.indexOf(branch), out, sourceSpans);
+        const label = `${branchPrefix}${branches.indexOf(branch) + 1}`;
+        emitBranchSpan(branch, label, out, sourceSpans);
       }
     }
   }
@@ -531,7 +558,8 @@ function emitInlineBranches(
   allBranches: ReadonlyArray<TimelineSpan>,
   emittedForkedAts: Set<string>,
   out: Event[],
-  sourceSpans: Map<string, TimelineSpan>
+  sourceSpans: Map<string, TimelineSpan>,
+  branchPrefix: string = ""
 ): void {
   const uuid = item.event.uuid;
   if (!uuid) return;
@@ -541,15 +569,10 @@ function emitInlineBranches(
   // nests the branch inside the same span as the fork event.
   const parentSpanId = (item.event as { span_id?: string | null }).span_id;
   for (const branch of forkedBranches) {
-    // Use the branch's position in the full branches array for the display index
+    // Use the branch's position in the full branches array for the display label
     const globalIndex = allBranches.indexOf(branch);
-    emitBranchSpan(
-      branch,
-      globalIndex >= 0 ? globalIndex : 0,
-      out,
-      sourceSpans,
-      parentSpanId
-    );
+    const label = `${branchPrefix}${(globalIndex >= 0 ? globalIndex : 0) + 1}`;
+    emitBranchSpan(branch, label, out, sourceSpans, parentSpanId);
   }
   emittedForkedAts.add(uuid);
 }
