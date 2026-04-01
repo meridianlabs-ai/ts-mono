@@ -23,6 +23,7 @@ import {
   collectRawEvents,
   computeMinimapSelection,
   getBranchPrefix,
+  getParentKeyFromBranch,
   getSelectedSpans,
   parseSelection,
 } from "../timelineEventNodes";
@@ -43,6 +44,7 @@ import {
 } from "./useTimeline";
 
 const emptySourceSpans: ReadonlyMap<string, TimelineSpan> = new Map();
+const emptyHighlightedKeys: ReadonlyMap<string, number> = new Map();
 
 interface TranscriptTimelineResult {
   /** The built Timeline. Always present (even for root-only timelines). */
@@ -73,6 +75,11 @@ interface TranscriptTimelineResult {
   regionCounts: ReadonlyMap<string, number>;
   /** Event ID to scroll to when a branch is selected (the branch separator). Null for non-branch selections. */
   branchScrollTarget: string | null;
+  /** Row key → highlight clip percentage (0–100) within the bar area.
+   *  The selected branch row clips at 100; ancestor rows clip at the
+   *  fork marker's percentage position so only the pre-fork portion
+   *  of the bar is highlighted. */
+  highlightedKeys: ReadonlyMap<string, number>;
 }
 
 export function useTranscriptTimeline(
@@ -203,6 +210,48 @@ export function useTranscriptTimeline(
     return counts;
   }, [state.rows]);
 
+  // Compute highlighted rows with clip percentages when a branch is selected.
+  // The selected branch clips at 100% (full bar). Each ancestor clips at the
+  // fork marker's percentage so only the pre-fork portion is highlighted.
+  const highlightedKeys = useMemo(() => {
+    const parsed = parseSelection(state.selected);
+    const rowKey = parsed?.rowKey ?? "";
+    const row = state.rows.find((r) => r.key === rowKey);
+    if (!row?.branch) return emptyHighlightedKeys;
+
+    // Build a layout lookup by key for marker position queries.
+    const layoutByKey = new Map<string, RowLayout>();
+    for (const layout of layouts) {
+      layoutByKey.set(layout.key, layout);
+    }
+
+    const keys = new Map<string, number>();
+    // The selected branch itself highlights at 100%.
+    keys.set(rowKey, 100);
+
+    // Walk up ancestors, clipping each at its fork marker position.
+    let childKey = rowKey;
+    while (true) {
+      const parentKey = getParentKeyFromBranch(childKey);
+      if (!parentKey) break;
+
+      // Extract the forkedAt UUID from the child branch key.
+      const branchMatch = /\/branch-([^/]*)-\d+$/.exec(childKey);
+      const forkedAt = branchMatch?.[1] ?? "";
+
+      // Find the fork marker on the parent layout.
+      const parentLayout = layoutByKey.get(parentKey);
+      const forkMarker = parentLayout?.markers.find(
+        (m) => m.kind === "branch" && m.reference === forkedAt
+      );
+
+      // Clip at the fork marker's position, or 100% if not found.
+      keys.set(parentKey, forkMarker?.left ?? 100);
+      childKey = parentKey;
+    }
+    return keys;
+  }, [state.selected, state.rows, layouts]);
+
   const hasTimeline =
     timeline.root.content.length > 0 &&
     (timeline.root.content.some((item) => item.type === "span") ||
@@ -223,5 +272,6 @@ export function useTranscriptTimeline(
     setActiveTimeline,
     regionCounts,
     branchScrollTarget,
+    highlightedKeys,
   };
 }
