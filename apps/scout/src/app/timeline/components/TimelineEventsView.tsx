@@ -155,6 +155,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     setActiveTimeline,
     regionCounts,
     branchScrollTarget,
+    highlightedKeys,
   } = useTranscriptTimeline(
     events,
     resolvedMarkerConfig,
@@ -294,6 +295,15 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
 
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
+
+  // Suppress headroom collapse when a branch click triggers a programmatic
+  // scroll to the branch separator. Without this, the scroll-down is
+  // interpreted as a user gesture and collapses the swimlanes.
+  useEffect(() => {
+    if (branchScrollTarget) {
+      onHeadroomResetAnchor?.(true);
+    }
+  }, [branchScrollTarget, onHeadroomResetAnchor]);
 
   // ---------------------------------------------------------------------------
   // Sticky swimlane state
@@ -526,6 +536,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
                 onLayoutShift={onHeadroomResetAnchor}
                 regionCounts={regionCounts}
                 defaultCollapsed={swimlanesDefaultCollapsed}
+                highlightedKeys={highlightedKeys}
               />
             </div>
           </StickyScroll>

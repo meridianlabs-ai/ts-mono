@@ -120,6 +120,9 @@ interface TimelineSwimLanesProps {
   /** Default collapsed state when user has no stored preference.
    *  Falls back to `isFlat` (layouts.length <= 1) when undefined. */
   defaultCollapsed?: boolean;
+  /** Row key → highlight clip percentage (0–100).
+   *  The selected branch clips at 100; ancestors clip at the fork marker position. */
+  highlightedKeys?: ReadonlyMap<string, number>;
 }
 
 // =============================================================================
@@ -149,6 +152,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   onLayoutShift,
   regionCounts,
   defaultCollapsed: defaultCollapsedProp,
+  highlightedKeys,
 }) => {
   const { selected, select: onSelect, clearSelection } = timeline;
 
@@ -349,6 +353,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         layout={layout}
         displayName={displayName}
         isRowSelected={isRowSelected}
+        highlightClip={highlightedKeys?.get(layout.key)}
         selectedSpanIndex={selectedSpanIndex}
         selectedRegionIndex={selectedRegionIndex}
         regionCount={regionCounts?.get(layout.key)}
@@ -520,6 +525,9 @@ interface SwimlaneRowProps {
   onSelectRegion: (spanIndex: number | undefined, regionIndex: number) => void;
   onBranchToggle: () => void;
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
+  /** Highlight clip percentage (0–100) for partial bar highlighting.
+   *  undefined = no highlight. 100 = full bar. <100 = clip at fork marker. */
+  highlightClip?: number;
   /** Connector line from parent's branch marker to this branch row. */
   connector?: BranchConnector;
 }
@@ -528,6 +536,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   layout,
   displayName,
   isRowSelected,
+  highlightClip,
   selectedSpanIndex,
   selectedRegionIndex,
   regionCount,
@@ -575,7 +584,13 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
     <div className={styles.row} role="row">
       {/* Label cell — depth-based indentation; clicking selects the whole row */}
       <div
-        className={clsx(styles.label, isRowSelected && styles.labelSelected)}
+        className={clsx(
+          styles.label,
+          isRowSelected && styles.labelSelected,
+          highlightClip !== undefined &&
+            !isRowSelected &&
+            styles.labelHighlighted
+        )}
         style={{ paddingLeft: `${0.3 + layout.depth * 0.5}rem` }}
         onClick={onSelectRow}
       >
@@ -671,6 +686,12 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
               />
             );
           })}
+
+          {/* Highlight overlay — rendered as a sibling of .fill so it has
+              independent opacity (not stacked with the fill's own opacity). */}
+          {highlightClip !== undefined && !isRowSelected && (
+            <HighlightOverlay spans={layout.spans} clipRight={highlightClip} />
+          )}
 
           {/* Markers */}
           {layout.markers.map((marker, i) => (
@@ -832,6 +853,47 @@ const BarFill: FC<BarFillProps> = ({
       title={span.description ?? undefined}
       onClick={handleClick}
       onDoubleClick={onDoubleClick ? handleDoubleClick : undefined}
+    />
+  );
+};
+
+// =============================================================================
+// HighlightOverlay (internal) — partial bar highlight for branch context
+// =============================================================================
+
+/**
+ * Renders an overlay on the bar area to indicate which portion of the row's
+ * spans are "active" (shown in the transcript). Positioned as a sibling of
+ * .fill so it has independent opacity instead of stacking with the bar's own.
+ *
+ * - clipRight = 100 → covers the full span range (e.g. the branch row itself).
+ * - clipRight < 100 → covers from the first span's left edge to the clip
+ *   percentage (e.g. a parent bar up to the fork point marker).
+ */
+const HighlightOverlay: FC<{
+  spans: PositionedSpan[];
+  /** Absolute bar-area percentage (0–100) where the highlight stops. */
+  clipRight: number;
+}> = ({ spans, clipRight }) => {
+  const firstSpan = spans[0];
+  if (!firstSpan) return null;
+
+  const barLeft = firstSpan.bar.left;
+  // For clipRight=100, extend to the rightmost span edge.
+  const lastSpan = spans[spans.length - 1] ?? firstSpan;
+  const barRight = lastSpan.bar.left + lastSpan.bar.width;
+  const right = clipRight >= 100 ? barRight : Math.min(clipRight, barRight);
+  const width = Math.max(0, right - barLeft);
+
+  if (width <= 0) return null;
+
+  return (
+    <div
+      className={styles.fillHighlight}
+      style={{
+        left: `${barLeft}%`,
+        width: `${width}%`,
+      }}
     />
   );
 };
