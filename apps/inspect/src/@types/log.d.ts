@@ -791,10 +791,8 @@ export type Event20 =
   | StepEvent
   | SubtaskEvent;
 export type Content6 = (TimelineEvent | TimelineSpan)[];
-export type Type28 = "branch";
-export type ForkedAt = string;
-export type FromSpan1 = string;
-export type Branches = TimelineBranch[];
+export type Branches = TimelineSpan[];
+export type ForkedAt = string | null;
 export type Description4 = string | null;
 export type Utility = boolean;
 export type AgentResult = string | null;
@@ -809,7 +807,7 @@ export type Uuid20 = string | null;
 export type ErrorRetries = EvalError[] | null;
 export type Messages1 = (ChatMessageSystem | ChatMessageUser | ChatMessageAssistant | ChatMessageTool)[];
 export type Calls = JsonValue[];
-export type Type29 = "context" | "time" | "working" | "message" | "token" | "cost" | "operator" | "custom";
+export type Type28 = "context" | "time" | "working" | "message" | "token" | "cost" | "operator" | "custom";
 export type Limit2 = number;
 export type Reductions = EvalSampleReductions[] | null;
 export type Scorer1 = string;
@@ -2084,6 +2082,7 @@ export interface TimelineSpan {
   span_type: SpanType;
   content: Content6;
   branches: Branches;
+  forked_at: ForkedAt;
   description: Description4;
   utility: Utility;
   agent_result: AgentResult;
@@ -2095,15 +2094,6 @@ export interface TimelineSpan {
 export interface TimelineEvent {
   type: Type27;
   event: Event20;
-}
-/**
- * A discarded alternative path from a branch point.
- */
-export interface TimelineBranch {
-  type: Type28;
-  forked_at: ForkedAt;
-  from_span: FromSpan1;
-  content: TimelineSpan;
 }
 /**
  * Hierarchical outline of events for an agent.
@@ -2138,7 +2128,7 @@ export interface EventsData {
  * Limit encountered by sample.
  */
 export interface EvalSampleLimit {
-  type: Type29;
+  type: Type28;
   limit: Limit2;
 }
 /**
