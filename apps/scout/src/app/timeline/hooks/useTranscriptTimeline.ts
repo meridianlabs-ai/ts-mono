@@ -171,7 +171,8 @@ export function useTranscriptTimeline(
 
   const hasTimeline =
     timeline.root.content.length > 0 &&
-    timeline.root.content.some((item) => item.type === "span");
+    (timeline.root.content.some((item) => item.type === "span") ||
+      timeline.root.branches.length > 0);
 
   return {
     timeline,
