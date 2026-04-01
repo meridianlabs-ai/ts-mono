@@ -52,11 +52,14 @@ interface JsonEvent {
       output_tokens?: number;
     };
     choices?: Array<{
-      message: { role: string; content: string };
+      message: { role: string; content: string; id?: string };
       stop_reason?: string;
     }>;
   };
   events?: JsonEvent[];
+  message_id?: string;
+  from_span?: string;
+  from_message?: string;
 }
 
 interface ExpectedAgentSource {
@@ -67,6 +70,7 @@ interface ExpectedAgentSource {
 interface ExpectedBranch {
   forked_at: string;
   event_uuids: string[];
+  nested_branches?: ExpectedBranch[];
 }
 
 interface ExpectedAgent {
@@ -185,6 +189,7 @@ function createEvent(data: JsonEvent): Event | null {
                     message: {
                       role: c.message.role,
                       content: c.message.content,
+                      id: c.message.id ?? null,
                     },
                     stop_reason: c.stop_reason ?? "stop",
                   }))
@@ -218,6 +223,9 @@ function createEvent(data: JsonEvent): Event | null {
       }
       if (data.agent_span_id !== undefined) {
         toolEvent.agent_span_id = data.agent_span_id;
+      }
+      if (data.message_id !== undefined) {
+        toolEvent.message_id = data.message_id;
       }
       return toolEvent as Event;
     }
@@ -262,6 +270,16 @@ function createEvent(data: JsonEvent): Event | null {
         source: null,
         tokens_before: null,
         tokens_after: null,
+      } as Event;
+    }
+
+    case "branch": {
+      return {
+        ...baseFields,
+        event: "branch",
+        from_span: data.from_span ?? "",
+        from_message: data.from_message ?? "",
+        span_id: data.span_id ?? null,
       } as Event;
     }
 
@@ -325,11 +343,22 @@ function assertBranchMatches(
 ): void {
   expect(actual.forkedAt).toBe(expected.forked_at);
   if (expected.event_uuids !== undefined) {
-    const uuids = actual.content
+    const uuids = actual.content.content
       .filter((c): c is TimelineEvent => c.type === "event")
       .map((c) => c.event.uuid)
       .filter((uuid): uuid is string => uuid !== null);
     expect(uuids).toEqual(expected.event_uuids);
+  }
+  if (expected.nested_branches !== undefined) {
+    expect(actual.content.branches).toHaveLength(
+      expected.nested_branches.length
+    );
+    for (let i = 0; i < expected.nested_branches.length; i++) {
+      assertBranchMatches(
+        actual.content.branches[i]!,
+        expected.nested_branches[i]!
+      );
+    }
   }
 }
 

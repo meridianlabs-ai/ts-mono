@@ -25,6 +25,36 @@ import { collectMarkers, isCompactionEvent, isErrorEvent } from "./markers";
 // Test helpers
 // =============================================================================
 
+function makeBranchObj(
+  forkedAt: string,
+  content: TimelineEvent[],
+  startSec: number,
+  endSec: number
+): TimelineBranch {
+  return {
+    type: "branch",
+    forkedAt,
+    fromSpan: "",
+    content: {
+      type: "span",
+      id: `branch-${forkedAt || "empty"}`,
+      name: "branch",
+      spanType: "branch",
+      content,
+      branches: [],
+      utility: false,
+      startTime: ts(startSec),
+      endTime: ts(endSec),
+      totalTokens: 100,
+      idleTime: 0,
+    },
+    startTime: ts(startSec),
+    endTime: ts(endSec),
+    totalTokens: 100,
+    idleTime: 0,
+  };
+}
+
 const NULL_CONFIG = {} as ModelEvent["config"];
 
 function makeModelEventNode(
@@ -350,15 +380,7 @@ describe("collectMarkers", () => {
     it("creates branch markers positioned at branch start time", () => {
       const event1 = makeModelEventNode(0, { uuid: "evt-1" });
       const event2 = makeModelEventNode(5, { uuid: "evt-2" });
-      const branch: TimelineBranch = {
-        type: "branch",
-        forkedAt: "evt-1",
-        content: [makeModelEventNode(2)],
-        startTime: ts(2),
-        endTime: ts(4),
-        totalTokens: 100,
-        idleTime: 0,
-      };
+      const branch = makeBranchObj("evt-1", [makeModelEventNode(2)], 2, 4);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2], {
         branches: [branch],
@@ -373,15 +395,12 @@ describe("collectMarkers", () => {
     });
 
     it("falls back to branch start time when forkedAt UUID is not found", () => {
-      const branch: TimelineBranch = {
-        type: "branch",
-        forkedAt: "nonexistent",
-        content: [makeModelEventNode(2)],
-        startTime: ts(2),
-        endTime: ts(4),
-        totalTokens: 100,
-        idleTime: 0,
-      };
+      const branch = makeBranchObj(
+        "nonexistent",
+        [makeModelEventNode(2)],
+        2,
+        4
+      );
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {
         branches: [branch],
@@ -395,15 +414,7 @@ describe("collectMarkers", () => {
     });
 
     it("falls back to branch start time when forkedAt is empty", () => {
-      const branch: TimelineBranch = {
-        type: "branch",
-        forkedAt: "",
-        content: [makeModelEventNode(2)],
-        startTime: ts(2),
-        endTime: ts(4),
-        totalTokens: 100,
-        idleTime: 0,
-      };
+      const branch = makeBranchObj("", [makeModelEventNode(2)], 2, 4);
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {
         branches: [branch],
@@ -464,15 +475,7 @@ describe("collectMarkers", () => {
       });
       const event3 = makeCompactionEventNode(25);
 
-      const branch: TimelineBranch = {
-        type: "branch",
-        forkedAt: "evt-fork",
-        content: [makeModelEventNode(6)],
-        startTime: ts(6),
-        endTime: ts(8),
-        totalTokens: 100,
-        idleTime: 0,
-      };
+      const branch = makeBranchObj("evt-fork", [makeModelEventNode(6)], 6, 8);
 
       const parent = makeSpan("Root", 0, 30, 1000, [event1, event2, event3], {
         branches: [branch],

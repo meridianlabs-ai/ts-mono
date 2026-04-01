@@ -91,7 +91,8 @@ export interface TimelineSpan extends TimelineNode {
 export interface TimelineBranch extends TimelineNode {
   type: "branch";
   forkedAt: string;
-  content: (TimelineEvent | TimelineSpan)[];
+  fromSpan: string;
+  content: TimelineSpan;
 }
 
 // =============================================================================
@@ -111,31 +112,15 @@ export function createBranchSpan(
   index: number
 ): TimelineSpan {
   const label = deriveBranchLabel(branch, index);
-
-  const childSpans = branch.content.filter(
-    (item): item is TimelineSpan => item.type === "span"
-  );
-  if (childSpans.length === 1) {
-    return { ...childSpans[0]! };
-  }
-
   return {
-    type: "span",
-    id: `branch-${branch.forkedAt}-${index}`,
+    ...branch.content,
     name: label,
     spanType: "branch",
-    content: branch.content,
-    branches: [],
-    utility: false,
-    startTime: branch.startTime,
-    endTime: branch.endTime,
-    totalTokens: branch.totalTokens,
-    idleTime: branch.idleTime,
   };
 }
 
 function deriveBranchLabel(branch: TimelineBranch, index: number): string {
-  for (const item of branch.content) {
+  for (const item of branch.content.content) {
     if (item.type === "span") return item.name;
   }
   return `Branch ${index}`;
@@ -287,36 +272,16 @@ function convertServerBranch(
   server: ServerTimelineBranch,
   lookup: Map<string, Event>
 ): TimelineBranch {
-  const content = server.content
-    .map((item) => convertServerContentItem(item, lookup))
-    .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  if (content.length === 0) {
-    return {
-      type: "branch",
-      forkedAt: server.forked_at,
-      content,
-      startTime: new Date(0),
-      endTime: new Date(0),
-      totalTokens: 0,
-      idleTime: 0,
-    };
-  }
-  const startTime = content.reduce(
-    (min, n) => (n.startTime < min ? n.startTime : min),
-    content[0]!.startTime
-  );
-  const endTime = content.reduce(
-    (max, n) => (n.endTime > max ? n.endTime : max),
-    content[0]!.endTime
-  );
+  const contentSpan = convertServerSpan(server.content, lookup);
   return {
     type: "branch",
     forkedAt: server.forked_at,
-    content,
-    startTime,
-    endTime,
-    totalTokens: sumTokens(content),
-    idleTime: computeIdleTime(content, startTime, endTime),
+    fromSpan: server.from_span ?? "",
+    content: contentSpan,
+    startTime: contentSpan.startTime,
+    endTime: contentSpan.endTime,
+    totalTokens: contentSpan.totalTokens,
+    idleTime: contentSpan.idleTime,
   };
 }
 
@@ -516,24 +481,18 @@ function createTimelineSpan(
  */
 function createBranch(
   forkedAt: string,
-  content: (TimelineEvent | TimelineSpan)[]
+  fromSpan: string,
+  contentSpan: TimelineSpan
 ): TimelineBranch {
-  if (content.length === 0) {
-    throw new Error(
-      "createBranch called with empty content. " +
-        "Callers must guard against empty content before calling the factory."
-    );
-  }
-  const startTime = minStartTime(content);
-  const endTime = maxEndTime(content);
   return {
     type: "branch",
     forkedAt,
-    content,
-    startTime,
-    endTime,
-    totalTokens: sumTokens(content),
-    idleTime: computeIdleTime(content, startTime, endTime),
+    fromSpan,
+    content: contentSpan,
+    startTime: contentSpan.startTime,
+    endTime: contentSpan.endTime,
+    totalTokens: contentSpan.totalTokens,
+    idleTime: contentSpan.idleTime,
   };
 }
 
@@ -1044,7 +1003,14 @@ function processChildren(
       }
       if (branchContent.length === 0) continue;
       const forkedAt = messageLookup.get(branchEvent.from_message) ?? "";
-      result.push(createBranch(forkedAt, branchContent));
+      const contentSpan = createTimelineSpan(
+        span.id,
+        span.name || "branch",
+        "branch",
+        branchContent,
+        false
+      );
+      result.push(createBranch(forkedAt, branchEvent.from_span, contentSpan));
     }
     return result;
   }
@@ -1146,14 +1112,81 @@ function classifyBranches(span: TimelineSpan): void {
     }
   }
 
-  // Recurse into spans within branches
+  // Recurse into branches (and their child spans)
   for (const branch of span.branches) {
-    for (const item of branch.content) {
+    classifyBranches(branch.content);
+    for (const item of branch.content.content) {
       if (item.type === "span") {
         classifyBranches(item);
       }
     }
   }
+}
+
+// =============================================================================
+// Branch Relocation
+// =============================================================================
+
+/**
+ * Recursively collect all TimelineSpans into a span_id → span map.
+ */
+function collectSpans(
+  span: TimelineSpan,
+  spanMap: Map<string, TimelineSpan>
+): void {
+  spanMap.set(span.id, span);
+  for (const item of span.content) {
+    if (item.type === "span") {
+      collectSpans(item, spanMap);
+    }
+  }
+  for (const branch of span.branches) {
+    collectSpans(branch.content, spanMap);
+  }
+}
+
+/**
+ * Relocate branches to the span identified by fromSpan.
+ *
+ * After initial discovery, all branches from the same processChildren
+ * call are flat siblings. If a branch's fromSpan points to a span
+ * inside a sibling branch, move it there.
+ */
+function relocateBranches(root: TimelineSpan): void {
+  const spanMap = new Map<string, TimelineSpan>();
+  collectSpans(root, spanMap);
+  doRelocate(root, spanMap);
+}
+
+/**
+ * Recursively relocate branches in a span and its children.
+ */
+function doRelocate(
+  span: TimelineSpan,
+  spanMap: Map<string, TimelineSpan>
+): void {
+  // Recurse into child spans first (depth-first)
+  for (const item of span.content) {
+    if (item.type === "span") {
+      doRelocate(item, spanMap);
+    }
+  }
+  for (const branch of span.branches) {
+    doRelocate(branch.content, spanMap);
+  }
+
+  // Now relocate: check each branch's fromSpan
+  const remaining: TimelineBranch[] = [];
+  for (const branch of span.branches) {
+    const targetSpan = spanMap.get(branch.fromSpan);
+    if (targetSpan !== undefined && targetSpan !== span) {
+      // Move branch to the target span
+      targetSpan.branches.push(branch);
+    } else {
+      remaining.push(branch);
+    }
+  }
+  span.branches = remaining;
 }
 
 // =============================================================================
@@ -1262,7 +1295,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
       }
     }
     for (const branch of agent.branches) {
-      for (const item of branch.content) {
+      wrapUtilityEvents(branch.content);
+      for (const item of branch.content.content) {
         if (item.type === "span") {
           wrapUtilityEvents(item);
         }
@@ -1320,7 +1354,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     }
   }
   for (const branch of agent.branches) {
-    for (const item of branch.content) {
+    wrapUtilityEvents(branch.content);
+    for (const item of branch.content.content) {
       if (item.type === "span") {
         wrapUtilityEvents(item);
       }
@@ -1699,6 +1734,7 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentNode);
       classifyUtilityAgents(agentNode);
       classifyBranches(agentNode);
+      relocateBranches(agentNode);
       extractAgentResults(agentNode);
 
       // Prepend init span to agent content
@@ -1777,6 +1813,7 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentRoot);
       classifyUtilityAgents(agentRoot);
       classifyBranches(agentRoot);
+      relocateBranches(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {

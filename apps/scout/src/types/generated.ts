@@ -3758,10 +3758,14 @@ export interface components {
          * @description A discarded alternative path from a branch point.
          */
         TimelineBranch: {
-            /** Content */
-            content: (components["schemas"]["TimelineEvent"] | components["schemas"]["TimelineSpan"])[];
+            content: components["schemas"]["TimelineSpan"];
             /** Forked At */
             forked_at: string;
+            /**
+             * From Span
+             * @default
+             */
+            from_span: string;
             /**
              * Type
              * @default branch
