@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { useProperty } from "../../../state/hooks/useProperty";
-import { useStore } from "../../../state/store";
 import { type TimelineState } from "../hooks/useTimeline";
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
 import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
@@ -158,8 +158,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   // an explicit user choice.
   const [collapsed, setCollapsed] = useProperty<boolean>(
     "timeline",
-    "swimlanesCollapsed",
-    { cleanup: false }
+    "swimlanesCollapsed"
   );
   const isFlat = layouts.length <= 1;
 
@@ -189,16 +188,11 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     setCollapsed(!isCollapsed);
   }, [isCollapsed, setCollapsed, onLayoutShift]);
 
-  // Row expand/collapse state — stored in Zustand collapsedBuckets.
-  // Keys that are collapsed have `true` in the bucket; default is expanded.
-  const collapsedBucket = useStore(
-    (state) => state.collapsedBuckets["timeline-swimlane-rows"]
+  // Row expand/collapse state — stored via shared property bag.
+  // Keys that are collapsed have `true`; default is expanded.
+  const [stableCollapsedBucket, setRowCollapsedById] = useCollapsibleIds(
+    "timeline-swimlane-rows"
   );
-  const stableCollapsedBucket = useMemo(
-    () => collapsedBucket ?? {},
-    [collapsedBucket]
-  );
-  const setRowCollapsed = useStore((state) => state.setCollapsed);
 
   // Compute which rows have children (need a chevron dongle)
   const parentKeys = useMemo(() => {
@@ -249,9 +243,9 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   const handleToggleRowCollapse = useCallback(
     (rowKey: string) => {
       const current = isRowCollapsed(rowKey);
-      setRowCollapsed("timeline-swimlane-rows", rowKey, !current);
+      setRowCollapsedById(rowKey, !current);
     },
-    [isRowCollapsed, setRowCollapsed]
+    [isRowCollapsed, setRowCollapsedById]
   );
 
   // Branch marker click → toggle showBranches.

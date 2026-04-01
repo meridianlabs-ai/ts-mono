@@ -2,7 +2,8 @@ import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-import { usePrismHighlight } from "../../components/prism";
+import { usePrismHighlight } from "@tsmono/react/hooks";
+
 import { useLogs } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { dirname } from "../../utils/path";

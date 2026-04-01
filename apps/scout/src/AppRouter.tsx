@@ -1,4 +1,4 @@
-import { FC, useEffect } from "react";
+import { FC, useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Outlet,
@@ -6,7 +6,10 @@ import {
   useParams,
 } from "react-router-dom";
 
+import { ComponentNavigationProvider } from "@tsmono/react/components";
+
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
+import { FindBand } from "./app/components/FindBand";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
@@ -17,7 +20,6 @@ import { useAppConfig } from "./app/server/useAppConfig";
 import { TranscriptPanel } from "./app/transcript/TranscriptPanel";
 import { TranscriptsPanel } from "./app/transcripts/TranscriptsPanel";
 import { ValidationPanel } from "./app/validation/ValidationPanel";
-import { FindBand } from "./components/FindBand";
 import {
   LoggingNavigate,
   useLoggingNavigate,
@@ -53,13 +55,16 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     const singleFileMode = useStore((state) => state.singleFileMode);
     const config = useAppConfig();
 
+    const navigate = useLoggingNavigate("AppLayout");
+    const componentNavigation = useMemo(() => ({ navigate }), [navigate]);
+
     useFindBandShortcut();
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 
     const content = <Outlet />;
     return (
-      <>
+      <ComponentNavigationProvider navigation={componentNavigation}>
         {showFind && (
           <FindBand
             onClose={() => {
@@ -73,7 +78,7 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
         ) : (
           content
         )}
-      </>
+      </ComponentNavigationProvider>
     );
   };
 

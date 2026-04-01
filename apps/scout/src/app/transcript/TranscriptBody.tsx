@@ -12,13 +12,17 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import {
+  TabPanel,
+  TabSet,
+  ToolButton,
+  ToolDropdownButton,
+} from "@tsmono/react/components";
+
 import { ChatViewVirtualList } from "../../components/chat/ChatViewVirtualList";
 import { DisplayModeContext } from "../../components/content/DisplayModeContext";
 import { MetaDataGrid } from "../../components/content/MetaDataGrid";
 import { ApplicationIcons } from "../../components/icons";
-import { TabPanel, TabSet } from "../../components/TabSet";
-import { ToolButton } from "../../components/ToolButton";
-import { ToolDropdownButton } from "../../components/ToolDropdownButton";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";

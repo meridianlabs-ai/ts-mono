@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, useRef } from "react";
 
+import { usePrismHighlight } from "@tsmono/react/hooks";
+
 import styles from "./CodePanel.module.css";
-import { usePrismHighlight } from "./prism";
 
 interface CodePanelProps {
   code: string;

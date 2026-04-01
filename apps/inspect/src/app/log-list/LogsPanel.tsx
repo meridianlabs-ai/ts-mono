@@ -3,8 +3,9 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { ProgressBar } from "@tsmono/react/components";
+
 import { EvalSet } from "../../@types/log";
-import { ProgressBar } from "../../components/ProgressBar";
 import { useClientEvents } from "../../state/clientEvents";
 import {
   useDocumentTitle,

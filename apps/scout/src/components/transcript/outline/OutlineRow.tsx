@@ -2,11 +2,11 @@ import clsx from "clsx";
 import { FC, ReactNode, useRef } from "react";
 import { Link } from "react-router-dom";
 
+import { PulsingDots } from "@tsmono/react/components";
 import { formatDateTime, formatTime, parsePackageName } from "@tsmono/util";
 
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ApplicationIcons } from "../../icons";
-import { PulsingDots } from "../../PulsingDots";
 import { useCollapseTranscriptEvent } from "../hooks/useCollapseTranscriptEvent";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";

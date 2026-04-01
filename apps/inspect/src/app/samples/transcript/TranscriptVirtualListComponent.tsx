@@ -10,7 +10,8 @@ import {
 } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
-import { LiveVirtualList } from "../../../components/LiveVirtualList";
+import { LiveVirtualList } from "@tsmono/react/components";
+
 import { useStore } from "../../../state/store";
 
 import { eventSearchText } from "./eventSearchText";

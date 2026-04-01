@@ -277,57 +277,6 @@ export const useCollapseSampleEvent = (
   }, [collapsed, scope, id, collapseEvent]);
 };
 
-export const useCollapsibleIds = (
-  key: string
-): [
-  Record<string, boolean>,
-  (id: string, value: boolean) => void,
-  () => void,
-] => {
-  const collapsedIds = useStore(
-    (state) => state.sample.collapsedIdBuckets[key]
-  );
-
-  const setCollapsed = useStore((state) => state.sampleActions.collapseId);
-  const collapseId = useCallback(
-    (id: string, value: boolean) => {
-      setCollapsed(key, id, value);
-    },
-    [setCollapsed, key]
-  );
-
-  const clearCollapsedIds = useStore(
-    (state) => state.sampleActions.clearCollapsedIds
-  );
-  const clearIds = useCallback(() => {
-    clearCollapsedIds(key);
-  }, [clearCollapsedIds, key]);
-
-  return useMemo(() => {
-    return [collapsedIds, collapseId, clearIds];
-  }, [collapsedIds, collapseId, clearIds]);
-};
-
-export const useCollapsedState = (
-  id: string,
-  defaultValue?: boolean,
-  scope?: string
-): [boolean, (value: boolean) => void] => {
-  const stateId = scope ? `${scope}-${id}` : id;
-
-  const collapsed = useStore((state) =>
-    state.appActions.getCollapsed(stateId, defaultValue)
-  );
-  const setCollapsed = useStore((state) => state.appActions.setCollapsed);
-  return useMemo(() => {
-    const set = (value: boolean) => {
-      log.debug("Set collapsed", id, scope, value);
-      setCollapsed(stateId, value);
-    };
-    return [collapsed, set];
-  }, [collapsed, id, scope, setCollapsed, stateId]);
-};
-
 export const useMessageVisibility = (
   id: string,
   scope: "sample" | "eval"
@@ -382,56 +331,6 @@ export const useMessageVisibility = (
     return [visible, set];
   }, [visible, setVisible, id]);
 };
-
-export function useProperty<T>(
-  id: string,
-  propertyName: string,
-  options?: {
-    defaultValue?: T;
-    cleanup?: boolean;
-  }
-): [T, (value: T) => void, () => void] {
-  options = options || { cleanup: true };
-  const setPropertyValue = useStore(
-    (state) => state.appActions.setPropertyValue
-  );
-  const removePropertyValue = useStore(
-    (state) => state.appActions.removePropertyValue
-  );
-  const propertyValue = useStore(
-    useCallback(
-      (state) =>
-        state.appActions.getPropertyValue(
-          id,
-          propertyName,
-          options.defaultValue
-        ),
-      [id, propertyName, options.defaultValue]
-    )
-  );
-
-  const setValue = useCallback(
-    (value: T) => {
-      setPropertyValue(id, propertyName, value);
-    },
-    [id, propertyName, setPropertyValue]
-  );
-
-  const removeValue = useCallback(() => {
-    removePropertyValue(id, propertyName);
-  }, [id, propertyName, removePropertyValue]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (options.cleanup) {
-        removePropertyValue(id, propertyName);
-      }
-    };
-  }, [id, options.cleanup, propertyName, removePropertyValue]);
-
-  return [propertyValue, setValue, removeValue];
-}
 
 export const usePrevious = <T>(value: T) => {
   const ref = useRef<T | undefined>(undefined);

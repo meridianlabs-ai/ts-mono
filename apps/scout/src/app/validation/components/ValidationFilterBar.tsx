@@ -4,8 +4,9 @@ import {
 } from "@vscode-elements/react-elements";
 import { ChangeEvent, FC, useMemo } from "react";
 
+import { TextInput } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { TextInput } from "../../../components/TextInput";
 import { ValidationCase } from "../../../types/api-types";
 import { extractUniqueSplits } from "../utils";
 

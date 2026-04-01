@@ -3,8 +3,8 @@ import { CSSProperties, ForwardedRef, forwardRef } from "react";
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
-} from "../../components/MarkdownDivWithReferences";
-import { Preformatted } from "../../components/Preformatted";
+  Preformatted,
+} from "@tsmono/react/components";
 
 import { useDisplayMode } from "./DisplayModeContext";
 

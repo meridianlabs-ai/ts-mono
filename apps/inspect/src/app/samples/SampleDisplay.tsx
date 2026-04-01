@@ -12,15 +12,21 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import {
+  ANSIDisplay,
+  Card,
+  CardBody,
+  CardHeader,
+  NoContentsPanel,
+  TabPanel,
+  TabSet,
+  ToolButton,
+  ToolDropdownButton,
+} from "@tsmono/react/components";
+
 import { EvalSample, Events } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
-import { ANSIDisplay } from "../../components/AnsiDisplay";
-import { Card, CardBody, CardHeader } from "../../components/Card";
-import { NoContentsPanel } from "../../components/NoContentsPanel";
-import { TabPanel, TabSet } from "../../components/TabSet";
-import { ToolButton } from "../../components/ToolButton";
-import { ToolDropdownButton } from "../../components/ToolDropdownButton";
 import {
   kSampleErrorTabId,
   kSampleJsonTabId,

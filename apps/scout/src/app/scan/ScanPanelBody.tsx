@@ -2,13 +2,17 @@ import clsx from "clsx";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { GRID_STATE_NAME } from "../../components/DataframeView";
+import {
+  JSONPanel,
+  SegmentedControl,
+  TabPanel,
+  TabSet,
+} from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../../components/icons";
-import JSONPanel from "../../components/JsonPanel";
-import { SegmentedControl } from "../../components/SegmentedControl";
-import { TabPanel, TabSet } from "../../components/TabSet";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
+import { GRID_STATE_NAME } from "../components/DataframeView";
 import { ResultGroup } from "../types";
 import { resultIdentifierStr, resultLog } from "../utils/results";
 

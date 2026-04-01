@@ -1,12 +1,16 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  LabeledValue,
+} from "@tsmono/react/components";
 import { formatNumber } from "@tsmono/util";
 
-import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { MetaDataGrid } from "../../../components/content/MetaDataGrid";
 import { RecordTree } from "../../../components/content/RecordTree";
-import { LabeledValue } from "../../../components/LabeledValue";
 import { ModelTokenTable } from "../../../components/usage/ModelTokenTable";
 import { ScanResultData } from "../../types";
 

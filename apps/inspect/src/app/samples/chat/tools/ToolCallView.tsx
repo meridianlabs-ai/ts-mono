@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
+import { ExpandablePanel } from "@tsmono/react/components";
+
 import {
   ContentAudio,
   ContentData,
@@ -12,7 +14,6 @@ import {
   ToolCallContent,
 } from "../../../../@types/log";
 import { ContentTool } from "../../../../app/types";
-import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { MessageContent } from "../MessageContent";
 import { defaultContext } from "../MessageContents";
 

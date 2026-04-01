@@ -1,6 +1,7 @@
 import clsx from "clsx";
 
-import { PulsingDots } from "../../../components/PulsingDots";
+import { PulsingDots } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
 

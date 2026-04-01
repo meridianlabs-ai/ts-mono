@@ -5,10 +5,10 @@ import "prismjs/components/prism-python";
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
 
+import { ANSIDisplay, PulsingDots } from "@tsmono/react/components";
+import { usePrismHighlight } from "@tsmono/react/hooks";
+
 import { ModelCall, ModelEvent, ToolChoice, Tools1 } from "../../../@types/log";
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
-import { usePrismHighlight } from "../../../components/prism";
-import { PulsingDots } from "../../../components/PulsingDots";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";

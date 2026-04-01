@@ -2,8 +2,9 @@ import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ProgressBar } from "@tsmono/react/components";
+
 import { ActivityBar } from "../../components/ActivityBar";
-import { ProgressBar } from "../../components/ProgressBar";
 import {
   LogHandleWithretried,
   useLogs,

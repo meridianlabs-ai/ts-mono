@@ -8,8 +8,8 @@ import {
   useRef,
 } from "react";
 
-import { EmptyPanel } from "../../components/EmptyPanel";
-import { TabPanel, TabSet } from "../../components/TabSet";
+import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
+
 import { useEvalSpec, useRefreshLog } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLogNavigation } from "../routing/logNavigation";

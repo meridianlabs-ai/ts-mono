@@ -8,8 +8,10 @@ import {
   useState,
 } from "react";
 
-import { CopyButton } from "../../../../components/CopyButton";
-import { useCollapseSampleEvent, useProperty } from "../../../../state/hooks";
+import { CopyButton } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
+
+import { useCollapseSampleEvent } from "../../../../state/hooks";
 import { ApplicationIcons } from "../../../appearance/icons";
 import {
   supportsLinking,

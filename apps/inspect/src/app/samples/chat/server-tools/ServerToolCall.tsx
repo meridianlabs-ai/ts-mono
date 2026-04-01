@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { ExpandablePanel } from "@tsmono/react/components";
+
 import { ContentToolUse } from "../../../../@types/log";
-import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { asJsonObjArray, isJson } from "../../../../utils/json";
 import { ApplicationIcons } from "../../../appearance/icons";
 import { RecordTree } from "../../../content/RecordTree";

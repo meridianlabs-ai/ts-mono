@@ -1,12 +1,12 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { JSONPanel } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { InfoEvent } from "../../types/api-types";
 import { RenderedText } from "../content/RenderedText";
 import { ApplicationIcons } from "../icons";
-import { JSONPanel } from "../JsonPanel";
 
 import { EventPanel } from "./event/EventPanel";
 import styles from "./InfoEventView.module.css";

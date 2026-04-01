@@ -2,10 +2,10 @@ import clsx from "clsx";
 import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import { useCollapsedState } from "@tsmono/react/hooks";
+
 import { Events } from "../../../@types/log";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
-import { StickyScroll } from "../../../components/StickyScroll";
-import { useCollapsedState } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import { useLogRouteParams } from "../../routing/url";
@@ -268,26 +268,28 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           collapsed ? styles.collapsed : undefined
         )}
       >
-        <StickyScroll
-          scrollRef={scrollRef}
-          className={styles.treeContainer}
-          offsetTop={topOffset}
-        >
-          <TranscriptOutline
-            className={clsx(styles.outline)}
-            eventNodes={eventNodes}
-            filteredNodes={outlineFilteredNodes}
-            running={running}
-            defaultCollapsedIds={defaultCollapsedIds}
+        <div className={styles.treeContainer}>
+          <StickyScroll
             scrollRef={scrollRef}
-          />
-          <div
-            className={styles.outlineToggle}
-            onClick={() => setCollapsed(!collapsed)}
+            offsetTop={topOffset}
+            className={styles.stickyOutline}
           >
-            <i className={ApplicationIcons.sidebar} />
-          </div>
-        </StickyScroll>
+            <TranscriptOutline
+              className={clsx(styles.outline)}
+              eventNodes={eventNodes}
+              filteredNodes={outlineFilteredNodes}
+              running={running}
+              defaultCollapsedIds={defaultCollapsedIds}
+              scrollRef={scrollRef}
+            />
+            <div
+              className={styles.outlineToggle}
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              <i className={ApplicationIcons.sidebar} />
+            </div>
+          </StickyScroll>
+        </div>
 
         <TranscriptVirtualList
           id={id}

@@ -2,9 +2,14 @@ import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  NoContentsPanel,
+} from "@tsmono/react/components";
+
 import { EvalSample } from "../../../@types/log";
-import { Card, CardBody, CardHeader } from "../../../components/Card";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import {
   kSampleJsonTabId,
   kSampleMessagesTabId,

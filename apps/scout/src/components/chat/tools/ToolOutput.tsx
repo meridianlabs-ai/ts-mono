@@ -1,10 +1,10 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { ANSIDisplay } from "@tsmono/react/components";
 import { isAnsiOutput, isJson } from "@tsmono/util";
 
 import { ContentImage, ContentText } from "../../../types/api-types";
-import { ANSIDisplay } from "../../AnsiDisplay";
 import { JsonMessageContent } from "../JsonMessageContent";
 
 import styles from "./ToolOutput.module.css";

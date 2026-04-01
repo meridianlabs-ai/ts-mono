@@ -1,8 +1,12 @@
 import { clsx } from "clsx";
 import { FC } from "react";
 
-import { ANSIDisplay } from "../../../components/AnsiDisplay";
-import { Card, CardBody, CardHeader } from "../../../components/Card";
+import {
+  ANSIDisplay,
+  Card,
+  CardBody,
+  CardHeader,
+} from "@tsmono/react/components";
 
 import styles from "./ErrorPanel.module.css";
 

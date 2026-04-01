@@ -10,9 +10,10 @@ import {
   useState,
 } from "react";
 
+import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
-import { StickyScroll } from "../../../components/StickyScroll";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
 import { TranscriptOutline } from "../../../components/transcript/outline/TranscriptOutline";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
@@ -26,7 +27,6 @@ import {
   kCollapsibleEventTypes,
   kTranscriptCollapseScope,
 } from "../../../components/transcript/types";
-import { useProperty } from "../../../state/hooks/useProperty";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import { useScrubberProgress } from "../hooks/useScrubberPercent";
@@ -417,7 +417,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const [outlineCollapsed, setOutlineCollapsed] = useProperty<boolean>(
     "timelineEvents",
     "outlineCollapsed",
-    { defaultValue: !defaultOutlineExpanded, cleanup: false }
+    { defaultValue: !defaultOutlineExpanded }
   );
   const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
