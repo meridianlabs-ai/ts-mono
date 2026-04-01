@@ -15,19 +15,12 @@ import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
 import { useScanResultSummaries } from "../../../hooks/useScanResultSummaries";
 import { useScanRoute } from "../../../hooks/useScanRoute";
+import { ScanResultSummary } from "../../../types";
 import {
-  isArrayValue,
-  isBooleanValue,
-  isNumberValue,
-  isObjectValue,
-  isStringValue,
-  ScanResultSummary,
-  SortColumn,
-} from "../../../types";
-import {
-  resultIdentifier,
   resultIdentifierStr,
   resultLog,
+  sortByColumns,
+  stringifyValue,
 } from "../../../utils/results";
 import {
   kFilterAllResults,
@@ -110,14 +103,19 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     if (scansSearchText && scansSearchText.length > 0) {
       const lowerSearch = scansSearchText.toLowerCase();
       textFiltered = scannerSummaries.filter((s) => {
-        const idStr = resultIdentifierStr(s) || "";
-        const logStr = resultLog(s) || "";
-        const labelStr = s.label || "";
-        return (
-          idStr.toLowerCase().includes(lowerSearch) ||
-          logStr.toLowerCase().includes(lowerSearch) ||
-          labelStr.toLowerCase().includes(lowerSearch)
-        );
+        const searchable = [
+          resultIdentifierStr(s),
+          resultLog(s),
+          s.label,
+          s.explanation,
+          s.transcriptModel,
+          s.scanError,
+          stringifyValue(s),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .toLowerCase();
+        return searchable.includes(lowerSearch);
       });
     }
 
@@ -426,121 +424,6 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       )}
     </div>
   );
-};
-
-// Type-aware comparison for ScanResultSummary values.
-// Uses valueType to compare numerics, booleans, strings, arrays, and objects correctly.
-// Nulls always sort last.
-const sortValue = (a: ScanResultSummary, b: ScanResultSummary): number => {
-  // Nulls sort last (after all other types)
-  if (a.value === null || a.value === undefined || a.valueType === "null") {
-    if (b.value === null || b.value === undefined || b.valueType === "null") {
-      return 0;
-    }
-    return 1;
-  }
-  if (b.value === null || b.value === undefined || b.valueType === "null") {
-    return -1;
-  }
-
-  // Same type: compare natively
-  if (a.valueType === b.valueType) {
-    if (isNumberValue(a) && isNumberValue(b)) {
-      return a.value - b.value;
-    }
-    if (isBooleanValue(a) && isBooleanValue(b)) {
-      return (a.value ? 1 : 0) - (b.value ? 1 : 0);
-    }
-    if (isStringValue(a) && isStringValue(b)) {
-      return a.value.localeCompare(b.value);
-    }
-    if (isArrayValue(a) && isArrayValue(b)) {
-      return (
-        a.value.length - b.value.length ||
-        String(a.value).localeCompare(String(b.value))
-      );
-    }
-    if (isObjectValue(a) && isObjectValue(b)) {
-      return JSON.stringify(a.value).localeCompare(JSON.stringify(b.value));
-    }
-  }
-
-  // Different types: fall back to string comparison
-  return String(a.value).localeCompare(String(b.value));
-};
-
-// Sorts scan results by multiple columns and directions.
-// Applies sorting rules in order, falling back to the next rule if values are equal.
-const sortByColumns = (
-  a: ScanResultSummary,
-  b: ScanResultSummary,
-  sortColumns: SortColumn[]
-): number => {
-  for (const sortCol of sortColumns) {
-    let comparison = 0;
-
-    switch (sortCol.column.toLowerCase()) {
-      case "id": {
-        const identifierA = resultIdentifier(a);
-        const identifierB = resultIdentifier(b);
-
-        if (
-          typeof identifierA.id === "number" &&
-          typeof identifierB.id === "number"
-        ) {
-          comparison = identifierA.id - identifierB.id;
-        } else {
-          comparison = String(identifierA.id).localeCompare(
-            String(identifierB.id)
-          );
-        }
-
-        if (comparison === 0 && identifierA.epoch && identifierB.epoch) {
-          comparison = identifierA.epoch - identifierB.epoch;
-        }
-        break;
-      }
-      case "explanation": {
-        const explA = a.explanation || "";
-        const explB = b.explanation || "";
-        comparison = explA.localeCompare(explB);
-        break;
-      }
-      case "label": {
-        const labelA = a.label || "";
-        const labelB = b.label || "";
-        comparison = labelA.localeCompare(labelB);
-        break;
-      }
-      case "value": {
-        comparison = sortValue(a, b);
-        break;
-      }
-      case "error": {
-        const errorA = a.scanError || "";
-        const errorB = b.scanError || "";
-        comparison = errorA.localeCompare(errorB);
-        break;
-      }
-      case "validation": {
-        const validationA = a.validationResult ? 1 : 0;
-        const validationB = b.validationResult ? 1 : 0;
-        comparison = validationA - validationB;
-        break;
-      }
-      default:
-        // Unknown column, skip
-        continue;
-    }
-
-    // Apply direction (asc or desc)
-    if (comparison !== 0) {
-      return sortCol.direction === "asc" ? comparison : -comparison;
-    }
-  }
-
-  // All comparisons are equal
-  return 0;
 };
 
 const optimalColumnLayout = (

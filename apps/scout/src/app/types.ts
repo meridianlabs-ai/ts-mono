@@ -159,7 +159,10 @@ export function isArrayValue(
 
 export function isObjectValue(
   result: ScanResultSummary
-): result is ScanResultSummary & { valueType: "object"; value: object } {
+): result is ScanResultSummary & {
+  valueType: "object";
+  value: Record<string, unknown>;
+} {
   return result.valueType === "object";
 }
 
