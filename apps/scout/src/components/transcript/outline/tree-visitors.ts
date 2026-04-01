@@ -101,21 +101,18 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
 
   for (const node of eventNodes) {
     if (node.event.event === "model") {
-      if (modelNode !== null && toolNodes.length === 0) {
-        // back to back model calls are considered a single turn
-        makeTurn(true);
-      } else {
-        makeTurn();
-        modelNode = node;
-      }
+      // Every model event starts a new turn. Flush the pending turn first
+      // (force=true so model-only turns without tools still emit).
+      makeTurn(true);
+      modelNode = node;
     } else if (node.event.event === "tool") {
       toolNodes.push(node);
     } else {
-      makeTurn();
+      makeTurn(true);
       results.push(node);
     }
   }
-  makeTurn();
+  makeTurn(true);
 
   return results;
 };
