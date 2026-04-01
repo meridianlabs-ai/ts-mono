@@ -162,12 +162,12 @@ export class TimelineSpan {
  */
 export function createBranchSpan(
   branch: TimelineSpan,
-  index: number
+  label: string
 ): TimelineSpan {
-  const label = deriveBranchLabel(branch, index);
+  const name = deriveBranchLabel(branch, label);
   return new TimelineSpan({
     id: branch.id,
-    name: label,
+    name,
     spanType: "branch",
     content: branch.content,
     branches: branch.branches,
@@ -179,11 +179,11 @@ export function createBranchSpan(
   });
 }
 
-function deriveBranchLabel(branch: TimelineSpan, index: number): string {
+function deriveBranchLabel(branch: TimelineSpan, label: string): string {
   for (const item of branch.content) {
     if (item.type === "span") return item.name;
   }
-  return `Branch ${index}`;
+  return `Branch ${label}`;
 }
 
 /**

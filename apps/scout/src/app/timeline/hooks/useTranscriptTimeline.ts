@@ -21,6 +21,7 @@ import type { MinimapSelection } from "../components/TimelineMinimap";
 import {
   collectRawEvents,
   computeMinimapSelection,
+  getBranchPrefix,
   getSelectedSpans,
   parseSelection,
 } from "../timelineEventNodes";
@@ -135,6 +136,7 @@ export function useTranscriptTimeline(
       includeUtility,
       regionIndex: parsed?.regionIndex ?? null,
       showBranches,
+      branchPrefix: getBranchPrefix(state.rows, state.selected),
     });
     return {
       selectedEvents: collected.events,

@@ -355,7 +355,8 @@ function flattenChildren(
   parentDepth: number,
   parentKey: string,
   includeUtility: boolean,
-  showBranches: boolean
+  showBranches: boolean,
+  branchPrefix: string = ""
 ): SwimlaneRow[] {
   // Collect child spans, optionally filtering utility agents
   const children: TimelineSpan[] = [];
@@ -495,7 +496,8 @@ function flattenChildren(
     for (const node of nodes) {
       for (let i = 0; i < node.branches.length; i++) {
         const branch = node.branches[i]!;
-        const branchSpan = createBranchSpan(branch, i + 1);
+        const label = `${branchPrefix}${i + 1}`;
+        const branchSpan = createBranchSpan(branch, label);
         const branchKey = `${parentKey}/branch-${branch.branchedFrom}-${i + 1}`;
         result.push({
           key: branchKey,
@@ -507,14 +509,17 @@ function flattenChildren(
           endTime: branchSpan.endTime(),
           branch: true,
         });
-        // Recurse into branch content for nested agents
+        // Recurse into branch content for nested agents.
+        // Pass the current label as prefix so nested branches get
+        // hierarchical names (e.g. "Branch 1.1", "Branch 1.2").
         result.push(
           ...flattenChildren(
             [branchSpan],
             depth,
             branchKey,
             includeUtility,
-            showBranches
+            showBranches,
+            `${label}.`
           )
         );
       }
