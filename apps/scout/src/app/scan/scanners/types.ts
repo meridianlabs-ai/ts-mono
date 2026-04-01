@@ -14,6 +14,5 @@ export const defaultColumns: string[] = [
   "validation_result",
   "scan_total_tokens",
   "scan_model_usage",
-  "scan_events",
   "timestamp",
 ];
