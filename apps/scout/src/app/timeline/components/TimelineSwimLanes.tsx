@@ -254,7 +254,22 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     [isRowCollapsed, setRowCollapsed]
   );
 
-  // Branch marker click → toggle showBranches.
+  // Branch marker click → ensure showBranches is on and expand the row.
+  // This reveals nested branch rows beneath the clicked marker's row.
+  const handleBranchMarkerClick = useCallback(
+    (rowKey: string) => {
+      if (!header?.timelineConfig?.showBranches) {
+        header?.timelineConfig?.setShowBranches(true);
+      }
+      // Expand the row so nested branches become visible
+      if (isRowCollapsed(rowKey)) {
+        setRowCollapsed("timeline-swimlane-rows", rowKey, false);
+      }
+    },
+    [header?.timelineConfig, isRowCollapsed, setRowCollapsed]
+  );
+
+  // Options popover / breadcrumb toggle → toggle showBranches on/off.
   // When turning branches off, clear selection if it points to a branch row
   // so the URL override in useTimeline doesn't force branches back on.
   const handleBranchToggle = useCallback(() => {
@@ -348,7 +363,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onSelectRegion={(spanIndex, regionIndex) =>
           onSelect(buildSelectionKey(layout.key, spanIndex, regionIndex))
         }
-        onBranchToggle={handleBranchToggle}
+        onBranchToggle={() => handleBranchMarkerClick(layout.key)}
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
       />
@@ -383,16 +398,14 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         )}
       >
         <div className={styles.collapsibleInner}>
-          {parentRow &&
-            renderRow(
-              parentRow,
-              parentRow.name === "solvers" ? "main" : undefined
-            )}
-          {childRows.length > 0 && (
-            <div className={styles.scrollSection}>
-              {childRows.map((layout) => renderRow(layout))}
-            </div>
-          )}
+          <div className={styles.scrollSection}>
+            {parentRow &&
+              renderRow(
+                parentRow,
+                parentRow.name === "solvers" ? "main" : undefined
+              )}
+            {childRows.map((layout) => renderRow(layout))}
+          </div>
         </div>
       </div>
 
@@ -1022,12 +1035,9 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
 }) => {
   const { markerLeft, barLeft, rowGap } = connector;
   // y=0 is the top of the current (branch) row's barInner.
-  // The parent row is rowGap rows above, so the vertical line starts at
-  // the center of the parent row and drops to the center of this row.
-  // Start at the top of the parent row so the line visually originates from
-  // behind the branch marker icon. The collapsible section adds padding
-  // between the parent and branch rows that isn't captured by rowGap alone.
-  const topY = -(rowGap * kRowHeight);
+  // The parent row is rowGap rows above. Start the vertical line at the
+  // center of the parent row — the branch marker diamond sits there.
+  const topY = -(rowGap * kRowHeight) + kRowHeight / 2;
   const midY = kRowHeight / 2; // vertical center of this row
 
   // Always draw an L-shape: vertical down then horizontal right with arrow.
