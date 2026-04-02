@@ -510,11 +510,11 @@ function flattenChildren(
       const sorted = node.branches
         .map((branch, origIndex) => ({ branch, origIndex }))
         .sort((a, b) => {
-          const ai = a.branch.forkedAt
-            ? (forkIndex.get(a.branch.forkedAt) ?? -1)
+          const ai = a.branch.branchedFrom
+            ? (forkIndex.get(a.branch.branchedFrom) ?? -1)
             : -1;
-          const bi = b.branch.forkedAt
-            ? (forkIndex.get(b.branch.forkedAt) ?? -1)
+          const bi = b.branch.branchedFrom
+            ? (forkIndex.get(b.branch.branchedFrom) ?? -1)
             : -1;
           return bi - ai;
         });

@@ -1526,7 +1526,7 @@ function branchesSingleFork(): TimelineScenario {
         1,
         2,
         800,
-        undefined,
+        "model-call-5",
         "model-call-5"
       ),
       code,
@@ -1697,7 +1697,7 @@ function branchesMultipleForks(): TimelineScenario {
         1,
         2,
         600,
-        undefined,
+        "model-call-3",
         "model-call-3"
       ),
       code,
@@ -1706,7 +1706,7 @@ function branchesMultipleForks(): TimelineScenario {
         28,
         29,
         400,
-        undefined,
+        "model-call-10",
         "model-call-10"
       ),
       test,

@@ -235,14 +235,14 @@ export function useTranscriptTimeline(
       const parentKey = getParentKeyFromBranch(childKey);
       if (!parentKey) break;
 
-      // Extract the forkedAt UUID from the child branch key.
+      // Extract the branchedFrom identifier from the child branch key.
       const branchMatch = /\/branch-([^/]*)-\d+$/.exec(childKey);
-      const forkedAt = branchMatch?.[1] ?? "";
+      const branchedFrom = branchMatch?.[1] ?? "";
 
       // Find the fork marker on the parent layout.
       const parentLayout = layoutByKey.get(parentKey);
       const forkMarker = parentLayout?.markers.find(
-        (m) => m.kind === "branch" && m.reference === forkedAt
+        (m) => m.kind === "branch" && m.reference === branchedFrom
       );
 
       // Clip at the fork marker's position, or 100% if not found.

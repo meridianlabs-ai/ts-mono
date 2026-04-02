@@ -625,7 +625,7 @@ function buildAncestorChain(
       : getAgents(firstSpan)[0];
     if (!parentSpan) break;
 
-    // Get the child branch's forkedAt UUID
+    // Get the child branch's branchedFrom identifier
     const childRow = rows.find((r) => r.key === currentKey);
     if (!childRow || childRow.spans.length === 0) break;
     const childFirstSpan = childRow.spans[0]!;
