@@ -77,6 +77,28 @@ export class TimelineEvent {
   idleTime(): number {
     return 0;
   }
+
+  /**
+   * Returns true if this event produced or carries the given message ID.
+   *
+   * `branchedFrom` is a message ID (not an event UUID). It may match:
+   * 1. A model event's output message ID (`output.choices[0].message.id`)
+   * 2. A tool event's message ID (`message_id`)
+   *
+   * This is used to locate the fork point for branches.
+   */
+  matchesMessageId(messageId: string): boolean {
+    const e = this.event;
+    if (e.event === "model") {
+      const outMsg = (e as Record<string, unknown>).output as
+        | { choices?: Array<{ message?: { id?: string } }> }
+        | undefined;
+      if (outMsg?.choices?.[0]?.message?.id === messageId) return true;
+    } else if (e.event === "tool") {
+      if ((e as Record<string, unknown>).message_id === messageId) return true;
+    }
+    return false;
+  }
 }
 
 /**

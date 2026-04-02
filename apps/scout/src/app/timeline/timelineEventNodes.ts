@@ -561,20 +561,23 @@ function emitInlineBranches(
   sourceSpans: Map<string, TimelineSpan>,
   branchPrefix: string = ""
 ): void {
-  const uuid = item.event.uuid;
-  if (!uuid) return;
-  const forkedBranches = branchByBranchedFrom.get(uuid);
-  if (!forkedBranches) return;
-  // Use the fork event's span_id as the branch's parent so treeifyEvents
-  // nests the branch inside the same span as the fork event.
-  const parentSpanId = (item.event as { span_id?: string | null }).span_id;
-  for (const branch of forkedBranches) {
-    // Use the branch's position in the full branches array for the display label
-    const globalIndex = allBranches.indexOf(branch);
-    const label = `${branchPrefix}${(globalIndex >= 0 ? globalIndex : 0) + 1}`;
-    emitBranchSpan(branch, label, out, sourceSpans, parentSpanId);
+  // branchByBranchedFrom is keyed by message ID. Find entries where
+  // this event produced or carries the matching message ID.
+  for (const [messageId, forkedBranches] of branchByBranchedFrom) {
+    if (emittedBranchedFroms.has(messageId)) continue;
+    if (!item.matchesMessageId(messageId)) continue;
+
+    // Use the fork event's span_id as the branch's parent so treeifyEvents
+    // nests the branch inside the same span as the fork event.
+    const parentSpanId = (item.event as { span_id?: string | null }).span_id;
+    for (const branch of forkedBranches) {
+      // Use the branch's position in the full branches array for the display label
+      const globalIndex = allBranches.indexOf(branch);
+      const label = `${branchPrefix}${(globalIndex >= 0 ? globalIndex : 0) + 1}`;
+      emitBranchSpan(branch, label, out, sourceSpans, parentSpanId);
+    }
+    emittedBranchedFroms.add(messageId);
   }
-  emittedBranchedFroms.add(uuid);
 }
 
 // =============================================================================
@@ -592,10 +595,10 @@ export function getParentKeyFromBranch(branchKey: string): string | null {
   return match ? match[1]! : null;
 }
 
-/** A link in the ancestor chain: a span and the fork UUID where the next level branches. */
+/** A link in the ancestor chain: a span and the fork message ID where the next level branches. */
 interface AncestorLink {
   span: TimelineSpan;
-  forkUuid: string;
+  forkMessageId: string;
 }
 
 /**
@@ -634,7 +637,7 @@ function buildAncestorChain(
       : getAgents(childFirstSpan)[0];
     if (!childSpan?.branchedFrom) break;
 
-    chain.unshift({ span: parentSpan, forkUuid: childSpan.branchedFrom });
+    chain.unshift({ span: parentSpan, forkMessageId: childSpan.branchedFrom });
 
     currentKey = parentKey;
     // Keep walking if the parent is also a branch
@@ -646,14 +649,14 @@ function buildAncestorChain(
 
 /**
  * Collects events from a span's content, stopping after the event whose
- * UUID matches `forkUuid` (inclusive — the fork event is the last parent
- * event before the branch point).
+ * message ID matches `forkMessageId` (inclusive — the fork event is the
+ * last parent event before the branch point).
  *
  * Returns true if the fork event was found, false otherwise.
  */
 function collectContentUpToFork(
   content: ReadonlyArray<TimelineEvent | TimelineSpan>,
-  forkUuid: string,
+  forkMessageId: string,
   out: Event[],
   sourceSpans: Map<string, TimelineSpan>,
   includeUtility: boolean
@@ -661,7 +664,7 @@ function collectContentUpToFork(
   for (const item of content) {
     if (item.type === "event") {
       out.push(item.event);
-      if (item.event.uuid === forkUuid) {
+      if (item.matchesMessageId(forkMessageId)) {
         return true;
       }
     } else if (!includeUtility && item.utility) {
@@ -713,7 +716,7 @@ function collectContentUpToFork(
 
       const found = collectContentUpToFork(
         item.content,
-        forkUuid,
+        forkMessageId,
         out,
         sourceSpans,
         includeUtility
@@ -767,7 +770,7 @@ export function collectBranchWithContext(
   for (const ancestor of ancestorChain) {
     collectContentUpToFork(
       ancestor.span.content,
-      ancestor.forkUuid,
+      ancestor.forkMessageId,
       events,
       sourceSpans,
       options.includeUtility

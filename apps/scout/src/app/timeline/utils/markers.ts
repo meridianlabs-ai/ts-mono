@@ -212,9 +212,10 @@ function collectBranchMarkers(
 /**
  * Resolves the fork point timestamp from the parent span's content.
  *
- * Searches direct events in the parent for a message ID matching
- * `branch.branchedFrom`. Falls back to `branch.startTime()` when
- * branchedFrom is missing or not found.
+ * `branch.branchedFrom` is a message ID (not an event UUID). Searches
+ * parent events for one that produced or carries this message ID.
+ * Falls back to `branch.startTime()` when branchedFrom is missing or
+ * no matching event is found.
  */
 function resolveForkTimestamp(
   parent: TimelineSpan,
@@ -222,7 +223,7 @@ function resolveForkTimestamp(
 ): Date {
   if (!branch.branchedFrom) return branch.startTime();
   for (const item of parent.content) {
-    if (item.type === "event" && item.event.uuid === branch.branchedFrom) {
+    if (item.type === "event" && item.matchesMessageId(branch.branchedFrom)) {
       return item.startTime();
     }
   }

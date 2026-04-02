@@ -498,11 +498,20 @@ function flattenChildren(
     for (const node of nodes) {
       // Build fork position index from parent content so we can sort
       // branches by where their fork event appears (latest first).
-      const forkIndex = new Map<string, number>();
-      for (let ci = 0; ci < node.content.length; ci++) {
-        const item = node.content[ci]!;
-        if (item.type === "event" && item.event.uuid) {
-          forkIndex.set(item.event.uuid, ci);
+      // branchedFrom is a message ID, so we resolve each branch's
+      // fork point by scanning content events for a message ID match.
+      const forkPositions = new Map<string, number>();
+      for (const branch of node.branches) {
+        if (!branch.branchedFrom) continue;
+        for (let ci = 0; ci < node.content.length; ci++) {
+          const item = node.content[ci]!;
+          if (
+            item.type === "event" &&
+            item.matchesMessageId(branch.branchedFrom)
+          ) {
+            forkPositions.set(branch.branchedFrom, ci);
+            break;
+          }
         }
       }
 
@@ -511,10 +520,10 @@ function flattenChildren(
         .map((branch, origIndex) => ({ branch, origIndex }))
         .sort((a, b) => {
           const ai = a.branch.branchedFrom
-            ? (forkIndex.get(a.branch.branchedFrom) ?? -1)
+            ? (forkPositions.get(a.branch.branchedFrom) ?? -1)
             : -1;
           const bi = b.branch.branchedFrom
-            ? (forkIndex.get(b.branch.branchedFrom) ?? -1)
+            ? (forkPositions.get(b.branch.branchedFrom) ?? -1)
             : -1;
           return bi - ai;
         });
