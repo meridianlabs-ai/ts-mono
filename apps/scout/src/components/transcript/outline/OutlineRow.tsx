@@ -22,10 +22,6 @@ export interface OutlineRowProps {
   onSelect?: (nodeId: string) => void;
   /** Called when a URL isn't available but the user clicks to navigate to an event. */
   onNavigateToEvent?: (eventId: string) => void;
-  /** Depths that have at least one toggle chevron. Controls column reservation per-depth. */
-  depthsWithToggles?: ReadonlySet<number>;
-  /** Depths that have at least one icon. Controls column reservation per-depth. */
-  depthsWithIcons?: ReadonlySet<number>;
 }
 
 export const OutlineRow: FC<OutlineRowProps> = ({
@@ -36,8 +32,6 @@ export const OutlineRow: FC<OutlineRowProps> = ({
   getEventUrl,
   onSelect,
   onNavigateToEvent,
-  depthsWithToggles,
-  depthsWithIcons,
 }) => {
   const [collapsed, setCollapsed] = useCollapseTranscriptEvent(
     collapseScope,
@@ -48,11 +42,10 @@ export const OutlineRow: FC<OutlineRowProps> = ({
 
   const ref = useRef(null);
 
-  const hasToggle = depthsWithToggles?.has(node.depth) ?? false;
-  const hasIcon = depthsWithIcons?.has(node.depth) ?? false;
-
   // Generate URL for deep linking to this event
   const eventUrl = getEventUrl?.(node.id);
+
+  const labelText = parsePackageName(labelForNode(node)).module;
 
   return (
     <>
@@ -60,43 +53,41 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         className={clsx(
           styles.eventRow,
           "text-size-smaller",
-          selected ? styles.selected : "",
-          hasToggle && styles.withToggles,
-          hasIcon && styles.withIcons
+          selected ? styles.selected : ""
         )}
-        style={{ paddingLeft: `${node.depth * 0.4}em` }}
+        style={{ paddingLeft: `${node.depth * 0.75}em` }}
         data-unsearchable={true}
         onClick={() => {
           onSelect?.(node.id);
           onNavigateToEvent?.(node.id);
         }}
       >
-        {hasToggle && (
-          <div
-            className={clsx(styles.toggle)}
-            onClick={() => {
+        <div
+          className={styles.toggle}
+          onClick={() => {
+            if (node.children.length > 0) {
               setCollapsed(!collapsed);
-            }}
-          >
-            {toggle ? <i className={clsx(toggle)} /> : undefined}
-          </div>
-        )}
-        {hasIcon && (
-          <div className={styles.iconSlot}>
-            {icon ? <i className={clsx(icon)} /> : undefined}
-          </div>
-        )}
+            }
+          }}
+        >
+          {toggle ? <i className={clsx(toggle)} /> : undefined}
+        </div>
         <div
           className={clsx(styles.label)}
           data-depth={node.depth}
           title={tooltipForNode(node)}
         >
+          {icon && (
+            <span className={styles.iconSlot}>
+              <i className={clsx(icon)} />
+            </span>
+          )}
           {eventUrl ? (
             <Link to={eventUrl} className={clsx(styles.eventLink)} ref={ref}>
-              {parsePackageName(labelForNode(node)).module}
+              {labelText}
             </Link>
           ) : (
-            <span ref={ref}>{parsePackageName(labelForNode(node)).module}</span>
+            <span ref={ref}>{labelText}</span>
           )}
           {running ? (
             <PulsingDots
