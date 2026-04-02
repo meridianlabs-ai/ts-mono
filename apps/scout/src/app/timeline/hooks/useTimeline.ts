@@ -57,18 +57,18 @@ export interface BranchLookupResult {
 }
 
 /**
- * Finds all branches matching a forkedAt UUID anywhere in the span tree.
+ * Finds all branches matching a branchedFrom UUID anywhere in the span tree.
  * Returns the owning span and matching branches.
  */
-export function findBranchesByForkedAt(
+export function findBranchesByBranchedFrom(
   node: TimelineSpan,
-  forkedAt: string
+  branchedFrom: string
 ): BranchLookupResult | null {
   // Check this node's branches
   const matches: Array<{ branch: TimelineSpan; index: number }> = [];
   for (let i = 0; i < node.branches.length; i++) {
     const branch = node.branches[i]!;
-    if (branch.forkedAt === forkedAt) {
+    if (branch.branchedFrom === branchedFrom) {
       matches.push({ branch, index: i + 1 });
     }
   }
@@ -79,7 +79,7 @@ export function findBranchesByForkedAt(
   // Recurse into child spans
   for (const item of node.content) {
     if (item.type === "span") {
-      const found = findBranchesByForkedAt(item, forkedAt);
+      const found = findBranchesByBranchedFrom(item, branchedFrom);
       if (found) return found;
     }
   }

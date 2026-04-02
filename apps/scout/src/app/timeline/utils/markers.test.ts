@@ -25,16 +25,16 @@ import { collectMarkers, isCompactionEvent, isErrorEvent } from "./markers";
 // =============================================================================
 
 function makeBranchObj(
-  forkedAt: string,
+  branchedFrom: string,
   content: TimelineEvent[],
   _startSec: number,
   _endSec: number
 ): TimelineSpan {
   return new TimelineSpan({
-    id: `branch-${forkedAt || "empty"}`,
+    id: `branch-${branchedFrom || "empty"}`,
     name: "branch",
     spanType: "branch",
-    forkedAt,
+    branchedFrom,
     content,
   });
 }
@@ -357,7 +357,7 @@ describe("collectMarkers", () => {
       expect(markers[0]!.reference).toBe("evt-1");
     });
 
-    it("falls back to branch start time when forkedAt UUID is not found", () => {
+    it("falls back to branch start time when branchedFrom UUID is not found", () => {
       const branch = makeBranchObj(
         "nonexistent",
         [makeModelEventNode(2)],
@@ -376,7 +376,7 @@ describe("collectMarkers", () => {
       expect(markers[0]!.timestamp).toEqual(ts(2));
     });
 
-    it("falls back to branch start time when forkedAt is empty", () => {
+    it("falls back to branch start time when branchedFrom is empty", () => {
       const branch = makeBranchObj("", [makeModelEventNode(2)], 2, 4);
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {

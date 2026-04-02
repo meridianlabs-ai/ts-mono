@@ -51,7 +51,7 @@ export interface PositionedMarker {
   left: number;
   /** The marker kind for rendering the correct glyph. */
   kind: MarkerKind;
-  /** Reference identifier (forkedAt UUID for branches, event UUID for others). */
+  /** Reference identifier (branchedFrom UUID for branches, event UUID for others). */
   reference: string;
   /** Human-readable detail for tooltip display. */
   tooltip: string;

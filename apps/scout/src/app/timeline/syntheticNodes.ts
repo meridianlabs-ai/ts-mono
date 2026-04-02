@@ -72,7 +72,8 @@ function makeModelEventNode(
   startSec: number,
   endSec: number,
   tokens: number,
-  uuid?: string
+  uuid?: string,
+  messageId?: string
 ): TimelineEvent {
   const event: ModelEvent = {
     event: "model",
@@ -88,7 +89,7 @@ function makeModelEventNode(
           message: {
             role: "assistant",
             content,
-            id: null,
+            id: messageId ?? null,
             metadata: null,
             model: null,
             source: null,
@@ -1427,7 +1428,7 @@ function branchesSingleFork(): TimelineScenario {
     id: "branch-1",
     name: "branch",
     spanType: "branch",
-    forkedAt: "model-call-5",
+    branchedFrom: "model-call-5",
     content: [branch1Refactor, branch1Validate],
   });
 
@@ -1461,7 +1462,7 @@ function branchesSingleFork(): TimelineScenario {
     id: "branch-2",
     name: "branch",
     spanType: "branch",
-    forkedAt: "model-call-5",
+    branchedFrom: "model-call-5",
     content: [branch2Rewrite],
   });
 
@@ -1525,6 +1526,7 @@ function branchesSingleFork(): TimelineScenario {
         1,
         2,
         800,
+        undefined,
         "model-call-5"
       ),
       code,
@@ -1580,7 +1582,7 @@ function branchesMultipleForks(): TimelineScenario {
     id: "early-branch",
     name: "branch",
     spanType: "branch",
-    forkedAt: "model-call-3",
+    branchedFrom: "model-call-3",
     content: [earlyAttempt],
   });
 
@@ -1601,7 +1603,7 @@ function branchesMultipleForks(): TimelineScenario {
     id: "late-branch-1",
     name: "branch",
     spanType: "branch",
-    forkedAt: "model-call-10",
+    branchedFrom: "model-call-10",
     content: [lateRetry],
   });
 
@@ -1635,7 +1637,7 @@ function branchesMultipleForks(): TimelineScenario {
     id: "late-branch-2",
     name: "branch",
     spanType: "branch",
-    forkedAt: "model-call-10",
+    branchedFrom: "model-call-10",
     content: [lateAlt],
   });
 
@@ -1695,6 +1697,7 @@ function branchesMultipleForks(): TimelineScenario {
         1,
         2,
         600,
+        undefined,
         "model-call-3"
       ),
       code,
@@ -1703,6 +1706,7 @@ function branchesMultipleForks(): TimelineScenario {
         28,
         29,
         400,
+        undefined,
         "model-call-10"
       ),
       test,

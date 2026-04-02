@@ -67,7 +67,7 @@ interface ExpectedAgentSource {
 }
 
 interface ExpectedBranch {
-  forked_at: string;
+  branched_from: string;
   event_uuids: string[];
   nested_branches?: ExpectedBranch[];
 }
@@ -340,7 +340,7 @@ function assertBranchMatches(
   actual: TimelineSpan,
   expected: ExpectedBranch
 ): void {
-  expect(actual.forkedAt).toBe(expected.forked_at);
+  expect(actual.branchedFrom).toBe(expected.branched_from);
   if (expected.event_uuids !== undefined) {
     const uuids = actual.content
       .filter((c): c is TimelineEvent => c.type === "event")

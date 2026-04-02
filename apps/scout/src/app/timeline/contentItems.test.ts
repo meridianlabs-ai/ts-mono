@@ -36,7 +36,23 @@ function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
     tool_choice: "auto",
     config: {} as ModelEvent["config"],
     output: {
-      choices: [],
+      choices: uuid
+        ? [
+            {
+              message: {
+                role: "assistant" as const,
+                content: "",
+                id: `msg-${uuid}`,
+                source: null,
+                tool_calls: null,
+                metadata: null,
+                model: null,
+              },
+              stop_reason: "stop",
+              logprobs: null,
+            },
+          ]
+        : [],
       completion: "",
       error: null,
       metadata: null,
@@ -72,12 +88,12 @@ function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
 }
 
 /** Minimal branch span builder. */
-function makeBranch(forkedAt: string, startSec: number): TimelineSpan {
+function makeBranch(branchedFrom: string, startSec: number): TimelineSpan {
   return new TimelineSpan({
-    id: `branch-${forkedAt}`,
+    id: `branch-${branchedFrom}`,
     name: "branch",
     spanType: "branch",
-    forkedAt,
+    branchedFrom,
     content: [makeEventNode(null, startSec)],
   });
 }
@@ -272,7 +288,7 @@ describe("buildContentItems", () => {
       const items = buildContentItems(buildSpan!);
       const branchCards = items.filter((i) => i.type === "branch_card");
 
-      // 2 branches, both with forkedAt "model-call-5" matching the first event
+      // 2 branches, both with branchedFrom "model-call-5" matching the first event
       expect(branchCards).toHaveLength(2);
 
       // Branch cards should be after the first event (matched UUID), not at end
@@ -311,7 +327,7 @@ describe("buildContentItems", () => {
       const event1 = makeEventNode("evt-1", 0);
       const event2 = makeEventNode("evt-2", 5);
       const event3 = makeEventNode("evt-3", 10);
-      const branch = makeBranch("evt-2", 5);
+      const branch = makeBranch("msg-evt-2", 5);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2, event3], {
         branches: [branch],
@@ -329,8 +345,8 @@ describe("buildContentItems", () => {
     it("groups multiple branches at the same fork point", () => {
       const event1 = makeEventNode("evt-1", 0);
       const event2 = makeEventNode("evt-2", 5);
-      const branch1 = makeBranch("evt-1", 2);
-      const branch2 = makeBranch("evt-1", 3);
+      const branch1 = makeBranch("msg-evt-1", 2);
+      const branch2 = makeBranch("msg-evt-1", 3);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2], {
         branches: [branch1, branch2],
@@ -349,8 +365,8 @@ describe("buildContentItems", () => {
       const event1 = makeEventNode("evt-1", 0);
       const event2 = makeEventNode("evt-2", 5);
       const event3 = makeEventNode("evt-3", 10);
-      const branchA = makeBranch("evt-1", 2);
-      const branchB = makeBranch("evt-3", 12);
+      const branchA = makeBranch("msg-evt-1", 2);
+      const branchB = makeBranch("msg-evt-3", 12);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2, event3], {
         branches: [branchA, branchB],
@@ -369,7 +385,7 @@ describe("buildContentItems", () => {
     it("handles mix of matched and unmatched branches", () => {
       const event1 = makeEventNode("evt-1", 0);
       const event2 = makeEventNode("evt-2", 5);
-      const matchedBranch = makeBranch("evt-1", 2);
+      const matchedBranch = makeBranch("msg-evt-1", 2);
       const unmatchedBranch = makeBranch("nonexistent", 8);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2], {
@@ -425,7 +441,7 @@ describe("buildContentItems", () => {
       const event1 = makeEventNode("evt-1", 0);
       const childSpan = makeSpan("Child", 5, 10, 1000);
       const event2 = makeEventNode("evt-2", 10);
-      const branch = makeBranch("evt-2", 12);
+      const branch = makeBranch("msg-evt-2", 12);
 
       const parent = makeSpan(
         "Root",

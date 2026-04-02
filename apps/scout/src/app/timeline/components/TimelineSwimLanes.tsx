@@ -449,10 +449,10 @@ function computeBranchConnectors(
     const layout = layouts[i]!;
     if (!layout.branch) continue;
 
-    // Extract forkedAt UUID from the branch key.
+    // Extract branchedFrom UUID from the branch key.
     const match = kBranchKeyPattern.exec(layout.key);
     if (!match) continue;
-    const forkedAt = match[1]!;
+    const branchedFrom = match[1]!;
 
     // Find parent: strip the /branch-... suffix to get the parent key.
     const parentKey = layout.key.replace(kBranchKeyPattern, "");
@@ -462,7 +462,7 @@ function computeBranchConnectors(
 
     // Find the branch marker on the parent with matching reference.
     const marker = parentLayout.markers.find(
-      (m) => m.kind === "branch" && m.reference === forkedAt
+      (m) => m.kind === "branch" && m.reference === branchedFrom
     );
     if (!marker) continue;
 

@@ -3777,6 +3777,11 @@ export interface components {
              * @default null
              */
             agent_result: string | null;
+            /**
+             * Branched From
+             * @default null
+             */
+            branched_from: string | null;
             /** Branches */
             branches: components["schemas"]["TimelineSpan"][];
             /** Content */
@@ -3786,11 +3791,6 @@ export interface components {
              * @default null
              */
             description: string | null;
-            /**
-             * Forked At
-             * @default null
-             */
-            forked_at: string | null;
             /** Id */
             id: string;
             /** Name */

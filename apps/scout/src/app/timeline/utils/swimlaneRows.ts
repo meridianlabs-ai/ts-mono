@@ -496,7 +496,7 @@ function flattenChildren(
       for (let i = 0; i < node.branches.length; i++) {
         const branch = node.branches[i]!;
         const branchSpan = createBranchSpan(branch, i + 1);
-        const branchKey = `${parentKey}/branch-${branch.forkedAt}-${i + 1}`;
+        const branchKey = `${parentKey}/branch-${branch.branchedFrom}-${i + 1}`;
         result.push({
           key: branchKey,
           name: branchSpan.name,

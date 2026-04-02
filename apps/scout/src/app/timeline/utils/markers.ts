@@ -203,7 +203,7 @@ function collectBranchMarkers(
     markers.push({
       kind: "branch",
       timestamp: branch.startTime(),
-      reference: branch.forkedAt ?? "",
+      reference: branch.branchedFrom ?? "",
       tooltip: branchTooltip([branch]),
     });
   }
