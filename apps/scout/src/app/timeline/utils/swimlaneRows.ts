@@ -492,10 +492,35 @@ function flattenChildren(
 
   // Emit branch rows when enabled. Each branch becomes a child row of the
   // node that owns it, with its own bar and optional nested children.
+  // Branches are sorted so that the latest fork point comes first — this
+  // prevents branch connector lines from crossing each other.
   if (showBranches) {
     for (const node of nodes) {
-      for (let i = 0; i < node.branches.length; i++) {
-        const branch = node.branches[i]!;
+      // Build fork position index from parent content so we can sort
+      // branches by where their fork event appears (latest first).
+      const forkIndex = new Map<string, number>();
+      for (let ci = 0; ci < node.content.length; ci++) {
+        const item = node.content[ci]!;
+        if (item.type === "event" && item.event.uuid) {
+          forkIndex.set(item.event.uuid, ci);
+        }
+      }
+
+      // Sort branches: latest fork first (descending by content index).
+      const sorted = node.branches
+        .map((branch, origIndex) => ({ branch, origIndex }))
+        .sort((a, b) => {
+          const ai = a.branch.forkedAt
+            ? (forkIndex.get(a.branch.forkedAt) ?? -1)
+            : -1;
+          const bi = b.branch.forkedAt
+            ? (forkIndex.get(b.branch.forkedAt) ?? -1)
+            : -1;
+          return bi - ai;
+        });
+
+      for (let i = 0; i < sorted.length; i++) {
+        const { branch } = sorted[i]!;
         const label = `${branchPrefix}${i + 1}`;
         const branchSpan = createBranchSpan(branch, label);
         const branchKey = `${parentKey}/branch-${branch.branchedFrom}-${i + 1}`;
