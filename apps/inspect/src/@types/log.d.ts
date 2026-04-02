@@ -792,7 +792,7 @@ export type Event20 =
   | SubtaskEvent;
 export type Content6 = (TimelineEvent | TimelineSpan)[];
 export type Branches = TimelineSpan[];
-export type ForkedAt = string | null;
+export type BranchedFrom = string | null;
 export type Description4 = string | null;
 export type Utility = boolean;
 export type AgentResult = string | null;
@@ -2082,7 +2082,7 @@ export interface TimelineSpan {
   span_type: SpanType;
   content: Content6;
   branches: Branches;
-  forked_at: ForkedAt;
+  branched_from: BranchedFrom;
   description: Description4;
   utility: Utility;
   agent_result: AgentResult;
