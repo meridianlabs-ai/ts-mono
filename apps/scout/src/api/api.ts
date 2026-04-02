@@ -11,12 +11,13 @@ import {
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
+  SavedSearch,
+  SavedSearchListResponse,
   ScanJobConfig,
   ScannerInput,
   ScannersResponse,
   ScansResponse,
   SearchRequest,
-  SearchResponse,
   Status,
   Transcript,
   TranscriptsResponse,
@@ -102,7 +103,15 @@ export interface ScoutApiV2 {
   deleteValidationSet(uri: string): Promise<void>;
   renameValidationSet(uri: string, newName: string): Promise<string>;
 
-  postSearch(request: SearchRequest): Promise<SearchResponse>;
+  postSearch(
+    transcriptDir: string,
+    transcriptId: string,
+    request: SearchRequest
+  ): Promise<SavedSearch>;
+  getSearches(
+    transcriptDir: string,
+    transcriptId: string
+  ): Promise<SavedSearchListResponse>;
 
   downloadScan?(scansDir: string, scanPath: string): Promise<Blob>;
 

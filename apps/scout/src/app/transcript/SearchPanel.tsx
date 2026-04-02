@@ -3,6 +3,7 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,7 +15,7 @@ import {
   MarkdownReference,
 } from "../../components/MarkdownDivWithReferences";
 import { useApi } from "../../state/store";
-import { Result } from "../../types/api-types";
+import { Result, SavedSearch } from "../../types/api-types";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -35,11 +36,18 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = useApi();
-  const [results, setResults] = useState<Result[]>([]);
+  const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
+  const [recentSearches, setRecentSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<SearchType>("grep");
   const [hasSearched, setHasSearched] = useState(false);
   const { getFullMessageUrl } = useTranscriptNavigation();
+
+  useEffect(() => {
+    void api.getSearches(transcriptDir, transcriptId).then((response) => {
+      setRecentSearches(response.items);
+    });
+  }, [api, transcriptDir, transcriptId]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -53,14 +61,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       setHasSearched(true);
 
       void api
-        .postSearch({
-          transcript_dir: transcriptDir,
-          transcript_id: transcriptId,
+        .postSearch(transcriptDir, transcriptId, {
           query: text,
           type: searchType,
         })
-        .then((response) => {
-          setResults(response.results);
+        .then((saved) => {
+          setCurrentSearch(saved);
+          // Update recent searches: replace if same search_id, otherwise prepend
+          setRecentSearches((prev) => {
+            const filtered = prev.filter(
+              (s) => s.search_id !== saved.search_id
+            );
+            return [saved, ...filtered];
+          });
         })
         .finally(() => {
           setLoading(false);
@@ -75,6 +88,18 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       textareaRef.current?.form?.requestSubmit();
     }
   }, []);
+
+  const handleSelectRecent = useCallback((search: SavedSearch) => {
+    setCurrentSearch(search);
+    setHasSearched(true);
+    if (textareaRef.current) {
+      textareaRef.current.value = search.query;
+    }
+    setSearchType(search.type);
+  }, []);
+
+  const showRecentSearches =
+    !hasSearched && !loading && recentSearches.length > 0;
 
   return (
     <div className={styles.container}>
@@ -133,21 +158,53 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         </div>
         <div className={styles.results}>
           {loading && <div className={styles.loading}>Searching...</div>}
-          {!loading && hasSearched && results.length === 0 && (
+          {!loading && hasSearched && currentSearch === null && (
             <div className={styles.noResults}>No results found</div>
           )}
-          {results.map((result, index) => (
+          {!loading &&
+            hasSearched &&
+            currentSearch !== null &&
+            currentSearch.results.length === 0 && (
+              <div className={styles.noResults}>No results found</div>
+            )}
+          {currentSearch?.results.map((result, index) => (
             <SearchResult
               key={result.uuid ?? index}
               result={result}
               getFullMessageUrl={getFullMessageUrl}
             />
           ))}
+          {showRecentSearches && (
+            <RecentSearches
+              searches={recentSearches}
+              onSelect={handleSelectRecent}
+            />
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+const RecentSearches: FC<{
+  searches: SavedSearch[];
+  onSelect: (search: SavedSearch) => void;
+}> = ({ searches, onSelect }) => (
+  <div className={styles.recentSearches}>
+    <div className={styles.recentHeader}>Recent searches</div>
+    {searches.map((search) => (
+      <button
+        key={search.search_id}
+        type="button"
+        className={styles.recentItem}
+        onClick={() => onSelect(search)}
+      >
+        <span className={styles.recentType}>{search.type}</span>
+        <span className={styles.recentQuery}>{search.query}</span>
+      </button>
+    ))}
+  </div>
+);
 
 const SearchResult: FC<{
   result: Result;
