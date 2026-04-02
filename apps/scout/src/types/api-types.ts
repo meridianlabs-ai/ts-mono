@@ -48,4 +48,6 @@ export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
 export type Reference = components["schemas"]["Reference"];
 export type Result = components["schemas"]["Result"];
 export type SearchRequest = components["schemas"]["SearchRequest"];
-export type SearchResponse = components["schemas"]["SearchResponse"];
+export type SavedSearch = components["schemas"]["SavedSearch"];
+export type SavedSearchListResponse =
+  components["schemas"]["SavedSearchListResponse"];

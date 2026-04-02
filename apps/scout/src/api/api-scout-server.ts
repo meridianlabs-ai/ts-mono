@@ -14,12 +14,13 @@ import {
   ProjectConfig,
   ProjectConfigInput,
   RawEncoding,
+  SavedSearch,
+  SavedSearchListResponse,
   ScanJobConfig,
   ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
   SearchRequest,
-  SearchResponse,
   Status,
   Transcript,
   TranscriptInfo,
@@ -284,14 +285,30 @@ export const apiScoutServer = (
       asyncJsonParse<ActiveScansResponse>(
         (await requestApi.fetchString("GET", `/scans/active`)).raw
       ),
-    postSearch: async (request: SearchRequest): Promise<SearchResponse> =>
-      asyncJsonParse<SearchResponse>(
+    postSearch: async (
+      transcriptDir: string,
+      transcriptId: string,
+      request: SearchRequest
+    ): Promise<SavedSearch> =>
+      asyncJsonParse<SavedSearch>(
         (
           await requestApi.fetchString(
             "POST",
-            `/search`,
+            `/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}/search`,
             {},
             JSON.stringify(request)
+          )
+        ).raw
+      ),
+    getSearches: async (
+      transcriptDir: string,
+      transcriptId: string
+    ): Promise<SavedSearchListResponse> =>
+      asyncJsonParse<SavedSearchListResponse>(
+        (
+          await requestApi.fetchString(
+            "GET",
+            `/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}/searches`
           )
         ).raw
       ),
