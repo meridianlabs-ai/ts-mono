@@ -44,8 +44,13 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
 
   return (
     <div
-      className={clsx(styles.card, isUtility && styles.utilityCard, className)}
-      onClick={handleClick}
+      className={clsx(
+        styles.card,
+        isUtility && styles.utilityCard,
+        isBranch && styles.branchCard,
+        className
+      )}
+      onClick={isBranch ? undefined : handleClick}
     >
       <div className={clsx(styles.header, "text-size-small")}>
         <i className={clsx(iconClass, styles.icon, "text-style-secondary")} />
@@ -62,13 +67,15 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
         <div className={clsx(styles.meta, "text-style-secondary")}>
           {tokens} &middot; {duration}
         </div>
-        <i
-          className={clsx(
-            ApplicationIcons.chevron.right,
-            styles.disclosure,
-            "text-style-secondary"
-          )}
-        />
+        {!isBranch && (
+          <i
+            className={clsx(
+              ApplicationIcons.chevron.right,
+              styles.disclosure,
+              "text-style-secondary"
+            )}
+          />
+        )}
       </div>
       {!isUtility && span.description && (
         <div className={clsx(styles.description, "text-size-small")}>
