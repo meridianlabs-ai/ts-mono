@@ -1068,16 +1068,25 @@ function buildMessageLookup(events: Event[]): Map<string, string> {
     }
   }
 
-  // Pass 2: input message IDs (fallback — never overwrite pass 1)
+  // Pass 2: input message IDs (fallback — never overwrite pass 1).
+  // Map to the *preceding* model event in the same span rather than the
+  // consuming model.  With rollback semantics, forkedAt should point to the
+  // last model whose output is shared — that is the model *before* the one
+  // that consumed the user/system message.  Tracking per-span avoids
+  // cross-branch contamination in the flat event list.
+  const prevModelBySpan = new Map<string | null, string>();
   for (const e of events) {
     if (e.event === "model" && e.input && e.uuid) {
+      const spanId = e.span_id ?? null;
+      const target = prevModelBySpan.get(spanId) ?? e.uuid;
       const input = e.input as Array<Record<string, unknown>>;
       for (const msg of input) {
         const msgId = msg.id;
         if (typeof msgId === "string" && msgId && !lookup.has(msgId)) {
-          lookup.set(msgId, e.uuid);
+          lookup.set(msgId, target);
         }
       }
+      prevModelBySpan.set(spanId, e.uuid);
     }
   }
 
