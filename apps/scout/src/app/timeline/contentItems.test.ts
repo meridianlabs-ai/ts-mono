@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
+import {
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
@@ -57,7 +57,7 @@ function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
     working_time: 1,
     cache: null,
     call: null,
-    completed: null,
+    completed: ts(startSec + 1).toISOString(),
     error: null,
     metadata: null,
     pending: null,
@@ -68,32 +68,18 @@ function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
     traceback_ansi: null,
     uuid,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(startSec),
-    endTime: ts(startSec + 1),
-    totalTokens: 100,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 /** Minimal branch span builder. */
 function makeBranch(forkedAt: string, startSec: number): TimelineSpan {
-  return {
-    type: "span",
+  return new TimelineSpan({
     id: `branch-${forkedAt}`,
     name: "branch",
     spanType: "branch",
     forkedAt,
     content: [makeEventNode(null, startSec)],
-    branches: [],
-    utility: false,
-    startTime: ts(startSec),
-    endTime: ts(startSec + 5),
-    totalTokens: 500,
-    idleTime: 0,
-  };
+  });
 }
 
 // =============================================================================
@@ -405,7 +391,14 @@ describe("buildContentItems", () => {
   // ---------------------------------------------------------------------------
   describe("edge cases", () => {
     it("returns empty array for span with no content", () => {
-      const parent = makeSpan("Empty", 0, 10, 1000);
+      const parent = new TimelineSpan({
+        id: "empty",
+        name: "Empty",
+        spanType: null,
+        content: [],
+        branches: [],
+        utility: false,
+      });
       const items = buildContentItems(parent);
 
       expect(items).toHaveLength(0);
@@ -413,8 +406,13 @@ describe("buildContentItems", () => {
 
     it("returns empty array for span with no content but has branches", () => {
       const branch = makeBranch("nonexistent", 5);
-      const parent = makeSpan("Empty", 0, 10, 1000, [], {
+      const parent = new TimelineSpan({
+        id: "empty",
+        name: "Empty",
+        spanType: null,
+        content: [],
         branches: [branch],
+        utility: false,
       });
       const items = buildContentItems(parent);
 

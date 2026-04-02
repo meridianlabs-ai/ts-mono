@@ -36,8 +36,8 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const title = isUtility
     ? getUtilityAgentLabel(span)
     : span.name.toLowerCase();
-  const tokens = formatTokenCount(span.totalTokens);
-  const duration = formatDurationShort(span.startTime, span.endTime);
+  const tokens = formatTokenCount(span.totalTokens());
+  const duration = formatDurationShort(span.startTime(), span.endTime());
 
   const iconClass = isBranch ? ApplicationIcons.fork : ApplicationIcons.agent;
   const label = isBranch ? "branch" : isUtility ? "utility" : "sub-agent";

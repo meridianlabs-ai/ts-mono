@@ -1,5 +1,5 @@
-import type {
-  Timeline,
+import type { Timeline } from "../../components/transcript/timeline";
+import {
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
@@ -118,7 +118,7 @@ function makeModelEventNode(
     working_time: endSec - startSec,
     cache: null,
     call: null,
-    completed: null,
+    completed: ts(BASE, endSec).toISOString(),
     error: null,
     metadata: null,
     pending: null,
@@ -129,14 +129,7 @@ function makeModelEventNode(
     traceback_ansi: null,
     uuid: uuid ?? null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeToolEventNode(
@@ -145,7 +138,7 @@ function makeToolEventNode(
   result: string,
   startSec: number,
   endSec: number,
-  tokens: number
+  _tokens: number
 ): TimelineEvent {
   const event: ToolEvent = {
     event: "tool",
@@ -160,7 +153,7 @@ function makeToolEventNode(
     working_time: endSec - startSec,
     agent: null,
     agent_span_id: null,
-    completed: null,
+    completed: ts(BASE, endSec).toISOString(),
     error: null,
     failed: null,
     message_id: null,
@@ -171,14 +164,7 @@ function makeToolEventNode(
     uuid: null,
     view: null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeToolErrorEventNode(
@@ -187,7 +173,7 @@ function makeToolErrorEventNode(
   errorType: ToolEvent["error"] extends { type: infer T } | null ? T : never,
   startSec: number,
   endSec: number,
-  tokens: number
+  _tokens: number
 ): TimelineEvent {
   const event: ToolEvent = {
     event: "tool",
@@ -204,7 +190,7 @@ function makeToolErrorEventNode(
     failed: true,
     agent: null,
     agent_span_id: null,
-    completed: null,
+    completed: ts(BASE, endSec).toISOString(),
     message_id: null,
     metadata: null,
     pending: null,
@@ -213,14 +199,7 @@ function makeToolErrorEventNode(
     uuid: null,
     view: null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeModelErrorEventNode(
@@ -260,7 +239,7 @@ function makeModelErrorEventNode(
     working_time: endSec - startSec,
     cache: null,
     call: null,
-    completed: null,
+    completed: ts(BASE, endSec).toISOString(),
     error: errorMsg,
     metadata: null,
     pending: null,
@@ -271,21 +250,14 @@ function makeModelErrorEventNode(
     traceback_ansi: null,
     uuid: null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeCompactionEventNode(
   tokensBefore: number,
   tokensAfter: number,
   startSec: number,
-  endSec: number
+  _endSec: number
 ): TimelineEvent {
   const event: CompactionEvent = {
     event: "compaction",
@@ -300,14 +272,7 @@ function makeCompactionEventNode(
     span_id: null,
     uuid: null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: 0,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 // ---------------------------------------------------------------------------
@@ -328,21 +293,22 @@ function makeSpan(
     description?: string;
   }
 ): TimelineSpan {
-  return {
-    type: "span",
+  // When no content provided, create a synthetic event so computed
+  // startTime/endTime/totalTokens match the specified values.
+  const effectiveContent: (TimelineEvent | TimelineSpan)[] =
+    content.length > 0
+      ? content
+      : [makeModelEventNode("", startSec, endSec, tokens)];
+
+  return new TimelineSpan({
     id,
     name,
     spanType,
-    forkedAt: null,
-    content,
+    content: effectiveContent,
     branches: options?.branches ?? [],
     description: options?.description,
     utility: options?.utility ?? false,
-    startTime: ts(BASE, startSec),
-    endTime: ts(BASE, endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  });
 }
 
 function makeTimeline(
@@ -352,21 +318,24 @@ function makeTimeline(
   }
 ): Timeline {
   if (options?.scoring) {
-    // Fold scoring into root content and adjust totals
+    // Fold scoring into root content — the root span's computed
+    // startTime/endTime/totalTokens will naturally adjust.
     const scoring = options.scoring;
     const newContent = [...root.content, scoring];
-    const endTime =
-      scoring.endTime > root.endTime ? scoring.endTime : root.endTime;
     return {
       name: "Default",
       description: "",
-      root: {
-        ...root,
+      root: new TimelineSpan({
+        id: root.id,
+        name: root.name,
+        spanType: root.spanType,
         content: newContent,
-        endTime,
-        totalTokens: root.totalTokens + scoring.totalTokens,
-        idleTime: 0,
-      },
+        branches: root.branches,
+        description: root.description,
+        utility: root.utility,
+        agentResult: root.agentResult,
+        outline: root.outline,
+      }),
     };
   }
   return { name: "Default", description: "", root };
@@ -1454,20 +1423,13 @@ function branchesSingleFork(): TimelineScenario {
     ]
   );
 
-  const branch1: TimelineSpan = {
-    type: "span",
+  const branch1 = new TimelineSpan({
     id: "branch-1",
     name: "branch",
     spanType: "branch",
     forkedAt: "model-call-5",
     content: [branch1Refactor, branch1Validate],
-    branches: [],
-    utility: false,
-    startTime: ts(BASE, 15),
-    endTime: ts(BASE, 28),
-    totalTokens: 8700,
-    idleTime: 0,
-  };
+  });
 
   const branch2Rewrite = makeSpan(
     "branch2-rewrite",
@@ -1495,20 +1457,13 @@ function branchesSingleFork(): TimelineScenario {
     ]
   );
 
-  const branch2: TimelineSpan = {
-    type: "span",
+  const branch2 = new TimelineSpan({
     id: "branch-2",
     name: "branch",
     spanType: "branch",
     forkedAt: "model-call-5",
     content: [branch2Rewrite],
-    branches: [],
-    utility: false,
-    startTime: ts(BASE, 15),
-    endTime: ts(BASE, 25),
-    totalTokens: 5100,
-    idleTime: 0,
-  };
+  });
 
   const code = makeSpan("code", "Code", "agent", 2, 24, 15200, [
     makeModelEventNode("Writing initial implementation.", 2, 6, 4200),
@@ -1621,20 +1576,13 @@ function branchesMultipleForks(): TimelineScenario {
     ]
   );
 
-  const earlyBranch: TimelineSpan = {
-    type: "span",
+  const earlyBranch = new TimelineSpan({
     id: "early-branch",
     name: "branch",
     spanType: "branch",
     forkedAt: "model-call-3",
     content: [earlyAttempt],
-    branches: [],
-    utility: false,
-    startTime: ts(BASE, 8),
-    endTime: ts(BASE, 14),
-    totalTokens: 4200,
-    idleTime: 0,
-  };
+  });
 
   const lateRetry = makeSpan("late-retry", "Retry", "agent", 30, 38, 3800, [
     makeModelEventNode("Retrying with modified parameters.", 30, 33, 1600),
@@ -1649,20 +1597,13 @@ function branchesMultipleForks(): TimelineScenario {
     makeModelEventNode("Retry showed improvement.", 36, 38, 1200),
   ]);
 
-  const lateBranch1: TimelineSpan = {
-    type: "span",
+  const lateBranch1 = new TimelineSpan({
     id: "late-branch-1",
     name: "branch",
     spanType: "branch",
     forkedAt: "model-call-10",
     content: [lateRetry],
-    branches: [],
-    utility: false,
-    startTime: ts(BASE, 30),
-    endTime: ts(BASE, 38),
-    totalTokens: 3800,
-    idleTime: 0,
-  };
+  });
 
   const lateAlt = makeSpan("late-alt", "Alternative", "agent", 30, 42, 6100, [
     makeModelEventNode(
@@ -1690,20 +1631,13 @@ function branchesMultipleForks(): TimelineScenario {
     makeModelEventNode("Alternative approach succeeded.", 40, 42, 1100),
   ]);
 
-  const lateBranch2: TimelineSpan = {
-    type: "span",
+  const lateBranch2 = new TimelineSpan({
     id: "late-branch-2",
     name: "branch",
     spanType: "branch",
     forkedAt: "model-call-10",
     content: [lateAlt],
-    branches: [],
-    utility: false,
-    startTime: ts(BASE, 30),
-    endTime: ts(BASE, 42),
-    totalTokens: 6100,
-    idleTime: 0,
-  };
+  });
 
   const code = makeSpan("code", "Code", "agent", 2, 28, 15200, [
     makeModelEventNode("Beginning code implementation.", 2, 6, 3600),

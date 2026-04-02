@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
+import {
   TimelineEvent,
   TimelineSpan,
 } from "../../../components/transcript/timeline";
@@ -27,23 +27,16 @@ import { collectMarkers, isCompactionEvent, isErrorEvent } from "./markers";
 function makeBranchObj(
   forkedAt: string,
   content: TimelineEvent[],
-  startSec: number,
-  endSec: number
+  _startSec: number,
+  _endSec: number
 ): TimelineSpan {
-  return {
-    type: "span",
+  return new TimelineSpan({
     id: `branch-${forkedAt || "empty"}`,
     name: "branch",
     spanType: "branch",
     forkedAt,
     content,
-    branches: [],
-    utility: false,
-    startTime: ts(startSec),
-    endTime: ts(endSec),
-    totalTokens: 100,
-    idleTime: 0,
-  };
+  });
 }
 
 const NULL_CONFIG = {} as ModelEvent["config"];
@@ -82,7 +75,7 @@ function makeModelEventNode(
     working_time: 1,
     cache: null,
     call: null,
-    completed: null,
+    completed: ts(startSec + 1).toISOString(),
     error: options?.error ?? null,
     metadata: null,
     pending: null,
@@ -93,14 +86,7 @@ function makeModelEventNode(
     traceback_ansi: null,
     uuid: options?.uuid ?? null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(startSec),
-    endTime: ts(startSec + 1),
-    totalTokens: 100,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeToolEventNode(
@@ -134,7 +120,7 @@ function makeToolEventNode(
     failed: options?.error ? true : null,
     agent: null,
     agent_span_id: null,
-    completed: null,
+    completed: ts(startSec + 1).toISOString(),
     message_id: null,
     metadata: null,
     pending: null,
@@ -143,14 +129,7 @@ function makeToolEventNode(
     uuid: options?.uuid ?? null,
     view: null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(startSec),
-    endTime: ts(startSec + 1),
-    totalTokens: 0,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeCompactionEventNode(
@@ -170,14 +149,7 @@ function makeCompactionEventNode(
     span_id: null,
     uuid: options?.uuid ?? null,
   };
-  return {
-    type: "event",
-    event,
-    startTime: ts(startSec),
-    endTime: ts(startSec + 1),
-    totalTokens: 0,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 // =============================================================================
@@ -486,7 +458,14 @@ describe("collectMarkers", () => {
   // ---------------------------------------------------------------------------
   describe("edge cases", () => {
     it("returns empty array for span with no events", () => {
-      const parent = makeSpan("Empty", 0, 10, 1000);
+      const parent = new TimelineSpan({
+        id: "empty",
+        name: "Empty",
+        spanType: null,
+        content: [],
+        branches: [],
+        utility: false,
+      });
       const markers = collectMarkers(parent, "direct");
 
       expect(markers).toHaveLength(0);

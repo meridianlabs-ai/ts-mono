@@ -131,7 +131,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -146,7 +146,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -160,7 +160,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -177,7 +177,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -189,7 +189,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -206,7 +206,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -224,7 +224,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -244,7 +244,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -262,7 +262,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -285,7 +285,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -315,7 +315,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -331,7 +331,7 @@ describe("computeRowLayouts", () => {
       const rows = computeSwimlaneRows(root);
       const layouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 
@@ -350,12 +350,12 @@ describe("computeRowLayouts", () => {
 
       const directLayouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "direct"
       );
       const childrenLayouts = computeRowLayouts(
         rows,
-        createIdentityMapping(root.startTime, root.endTime),
+        createIdentityMapping(root.startTime(), root.endTime()),
         "children"
       );
 

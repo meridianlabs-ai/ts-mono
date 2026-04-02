@@ -121,8 +121,8 @@ export function computeBarPosition(
 // =============================================================================
 
 interface HasTimeRange {
-  startTime: Date;
-  endTime: Date;
+  startTime(): Date;
+  endTime(): Date;
 }
 
 /**
@@ -133,12 +133,12 @@ export function computeTimeEnvelope<T extends HasTimeRange>(
   items: T[]
 ): { startTime: Date; endTime: Date } {
   const first = items[0]!;
-  let startTime = first.startTime;
-  let endTime = first.endTime;
+  let startTime = first.startTime();
+  let endTime = first.endTime();
   for (let i = 1; i < items.length; i++) {
     const item = items[i]!;
-    if (item.startTime < startTime) startTime = item.startTime;
-    if (item.endTime > endTime) endTime = item.endTime;
+    if (item.startTime() < startTime) startTime = item.startTime();
+    if (item.endTime() > endTime) endTime = item.endTime();
   }
   return { startTime, endTime };
 }
@@ -185,8 +185,8 @@ export function computeRowLayouts(
     const spans = row.spans.map((rowSpan): PositionedSpan => {
       if (isSingleSpan(rowSpan)) {
         const bar = computeBarFromMapping(
-          rowSpan.agent.startTime,
-          rowSpan.agent.endTime,
+          rowSpan.agent.startTime(),
+          rowSpan.agent.endTime(),
           mapping
         );
         return {
@@ -359,7 +359,7 @@ function printSpan(span: TimelineSpan, depth: number, lines: string[]): void {
     .map(([t, n]) => (n > 1 ? `${t}×${n}` : t))
     .join(", ");
   lines.push(
-    `${indent}span "${span.name}" [${childEvents.length} events (${eventSummary}), ${childSpans.length} child spans, ${span.totalTokens} tokens]${flagStr}`
+    `${indent}span "${span.name}" [${childEvents.length} events (${eventSummary}), ${childSpans.length} child spans, ${span.totalTokens()} tokens]${flagStr}`
   );
   for (const child of childSpans) {
     printSpan(child, depth + 1, lines);

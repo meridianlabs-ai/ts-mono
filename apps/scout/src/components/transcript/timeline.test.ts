@@ -417,7 +417,7 @@ function assertSpanMatches(
 
   // Check total tokens if specified
   if (expected.total_tokens !== undefined) {
-    expect(actual!.totalTokens).toBe(expected.total_tokens);
+    expect(actual!.totalTokens()).toBe(expected.total_tokens);
   }
 
   // Check utility if specified
@@ -496,7 +496,7 @@ function assertSpanMatches(
           expect(allUuids).toEqual(expectedItem.nested_uuids);
         }
         if (expectedItem.total_tokens !== undefined) {
-          expect(spanItem.totalTokens).toBe(expectedItem.total_tokens);
+          expect(spanItem.totalTokens()).toBe(expectedItem.total_tokens);
         }
       }
     }
@@ -553,7 +553,7 @@ function assertTimelineMatches(
       if (expected.scoring?.total_tokens) {
         expectedTokens += expected.scoring.total_tokens;
       }
-      expect(root.totalTokens).toBe(expectedTokens);
+      expect(root.totalTokens()).toBe(expectedTokens);
     }
 
     // Check utility if specified
@@ -641,7 +641,7 @@ function assertTimelineMatches(
             expect(allUuids).toEqual(expectedItem.nested_uuids);
           }
           if (expectedItem.total_tokens !== undefined) {
-            expect(spanItem.totalTokens).toBe(expectedItem.total_tokens);
+            expect(spanItem.totalTokens()).toBe(expectedItem.total_tokens);
           }
         }
       }
@@ -673,7 +673,7 @@ describe("buildTimeline", () => {
     const result = buildTimeline([]);
     expect(result.root).not.toBeNull();
     expect(result.root.content.length).toBe(0);
-    expect(result.root.totalTokens).toBe(0);
+    expect(result.root.totalTokens()).toBe(0);
   });
 
   it("filters out agent spans whose children are all empty spans", () => {
@@ -852,7 +852,7 @@ describe("buildTimeline", () => {
       (c) => c.type === "event" && c.event.event === "model"
     );
     expect(modelItem).toBeDefined();
-    expect(modelItem!.idleTime).toBe(0);
+    expect(modelItem!.idleTime()).toBe(0);
   });
 
   it("idleTime is 0 for small gap between events (below threshold)", () => {
@@ -903,7 +903,7 @@ describe("buildTimeline", () => {
     ];
     const result = buildTimeline(events);
     // Gap of 4s is below 5-min threshold → idle = 0
-    expect(result.root.idleTime).toBeCloseTo(0.0, 1);
+    expect(result.root.idleTime()).toBeCloseTo(0.0, 1);
   });
 
   it("idleTime detects large gap between events", () => {
@@ -954,7 +954,7 @@ describe("buildTimeline", () => {
     ];
     const result = buildTimeline(events);
     // Gap of 360s (6 min) exceeds 5-min threshold → idle = 360
-    expect(result.root.idleTime).toBeCloseTo(360.0, 1);
+    expect(result.root.idleTime()).toBeCloseTo(360.0, 1);
   });
 
   it("idleTime is 0 when events fully cover span", () => {
@@ -1004,7 +1004,7 @@ describe("buildTimeline", () => {
       })!,
     ];
     const result = buildTimeline(events);
-    expect(result.root.idleTime).toBeCloseTo(0.0, 1);
+    expect(result.root.idleTime()).toBeCloseTo(0.0, 1);
   });
 
   it("idleTime propagates through nested spans with small gaps", () => {
@@ -1073,8 +1073,8 @@ describe("buildTimeline", () => {
       (c) => c.type === "span" && c.name === "child"
     );
     expect(childSpan).toBeDefined();
-    expect(childSpan!.idleTime).toBeCloseTo(0.0, 1);
-    expect(result.root.idleTime).toBeCloseTo(0.0, 1);
+    expect(childSpan!.idleTime()).toBeCloseTo(0.0, 1);
+    expect(result.root.idleTime()).toBeCloseTo(0.0, 1);
   });
 
   it("idleTime propagates through nested spans with large gaps", () => {
@@ -1142,10 +1142,10 @@ describe("buildTimeline", () => {
       (c) => c.type === "span" && c.name === "child"
     );
     expect(childSpan).toBeDefined();
-    expect(childSpan!.idleTime).toBeCloseTo(360.0, 1);
+    expect(childSpan!.idleTime()).toBeCloseTo(360.0, 1);
     // Parent: child idle (360) + gap from child end to parent end (7 min = 420s > threshold)
     // Total parent idle = 360 + 420 = 780
-    expect(result.root.idleTime).toBeGreaterThanOrEqual(360.0);
+    expect(result.root.idleTime()).toBeGreaterThanOrEqual(360.0);
   });
 
   it.skipIf(!PYTHON_ROOT)("computes startTime and endTime correctly", () => {
@@ -1153,10 +1153,10 @@ describe("buildTimeline", () => {
     const events = eventsFromJson(fixture);
     const result = buildTimeline(events);
 
-    expect(result.root.startTime).toBeDefined();
-    expect(result.root.endTime).toBeDefined();
-    expect(result.root.startTime.getTime()).toBeLessThanOrEqual(
-      result.root.endTime.getTime()
+    expect(result.root.startTime()).toBeDefined();
+    expect(result.root.endTime()).toBeDefined();
+    expect(result.root.startTime().getTime()).toBeLessThanOrEqual(
+      result.root.endTime().getTime()
     );
   });
 });

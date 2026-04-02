@@ -51,38 +51,105 @@ function isSpanNode(item: TreeItem): item is SpanNode {
 // =============================================================================
 
 /**
- * Base interface for computed properties on all timeline nodes.
+ * Wraps a single Event with computed timing and token methods.
  */
-interface TimelineNode {
-  startTime: Date;
-  endTime: Date;
-  totalTokens: number;
-  idleTime: number;
-}
+export class TimelineEvent {
+  readonly type = "event" as const;
+  readonly event: Event;
 
-/**
- * Wraps a single Event with computed timing and token properties.
- */
-export interface TimelineEvent extends TimelineNode {
-  type: "event";
-  event: Event;
+  constructor(event: Event) {
+    this.event = event;
+  }
+
+  startTime(): Date {
+    return new Date((this.event as { timestamp?: string }).timestamp ?? 0);
+  }
+
+  endTime(): Date {
+    const completed = (this.event as { completed?: string }).completed;
+    return completed ? new Date(completed) : this.startTime();
+  }
+
+  totalTokens(): number {
+    return getEventTokens(this.event);
+  }
+
+  idleTime(): number {
+    return 0;
+  }
 }
 
 /**
  * A span of execution — agent, scorer, tool, or root.
  */
-export interface TimelineSpan extends TimelineNode {
-  type: "span";
+export class TimelineSpan {
+  readonly type = "span" as const;
   id: string;
   name: string;
   spanType: string | null;
-  forkedAt: string | null;
   content: (TimelineEvent | TimelineSpan)[];
   branches: TimelineSpan[];
+  forkedAt: string | null;
   description?: string;
   utility: boolean;
   agentResult?: string;
   outline?: Outline;
+
+  constructor(props: {
+    id: string;
+    name: string;
+    spanType: string | null;
+    content?: (TimelineEvent | TimelineSpan)[];
+    branches?: TimelineSpan[];
+    forkedAt?: string | null;
+    description?: string;
+    utility?: boolean;
+    agentResult?: string;
+    outline?: Outline;
+  }) {
+    this.id = props.id;
+    this.name = props.name;
+    this.spanType = props.spanType;
+    this.content = props.content ?? [];
+    this.branches = props.branches ?? [];
+    this.forkedAt = props.forkedAt ?? null;
+    this.description = props.description;
+    this.utility = props.utility ?? false;
+    this.agentResult = props.agentResult;
+    this.outline = props.outline;
+  }
+
+  startTime(includeBranches = true): Date {
+    const items: (TimelineEvent | TimelineSpan)[] = includeBranches
+      ? [...this.content, ...this.branches]
+      : this.content;
+    return items.length > 0 ? minStartTime(items) : new Date(0);
+  }
+
+  endTime(includeBranches = true): Date {
+    const items: (TimelineEvent | TimelineSpan)[] = includeBranches
+      ? [...this.content, ...this.branches]
+      : this.content;
+    return items.length > 0 ? maxEndTime(items) : new Date(0);
+  }
+
+  totalTokens(includeBranches = true): number {
+    const items: (TimelineEvent | TimelineSpan)[] = includeBranches
+      ? [...this.content, ...this.branches]
+      : this.content;
+    return sumTokens(items);
+  }
+
+  idleTime(includeBranches = true): number {
+    const items: (TimelineEvent | TimelineSpan)[] = includeBranches
+      ? [...this.content, ...this.branches]
+      : this.content;
+    return computeIdleTime(
+      items,
+      this.startTime(includeBranches),
+      this.endTime(includeBranches)
+    );
+  }
 }
 
 /**
@@ -98,11 +165,18 @@ export function createBranchSpan(
   index: number
 ): TimelineSpan {
   const label = deriveBranchLabel(branch, index);
-  return {
-    ...branch,
+  return new TimelineSpan({
+    id: branch.id,
     name: label,
     spanType: "branch",
-  };
+    content: branch.content,
+    branches: branch.branches,
+    forkedAt: branch.forkedAt,
+    description: branch.description,
+    utility: branch.utility,
+    agentResult: branch.agentResult,
+    outline: branch.outline,
+  });
 }
 
 function deriveBranchLabel(branch: TimelineSpan, index: number): string {
@@ -197,17 +271,7 @@ function convertServerEvent(
   if (!event) {
     return null;
   }
-  const startTime = new Date((event as { timestamp?: string }).timestamp ?? 0);
-  const completed = (event as { completed?: string }).completed;
-  const endTime = completed ? new Date(completed) : startTime;
-  return {
-    type: "event",
-    event,
-    startTime,
-    endTime,
-    totalTokens: getEventTokens(event),
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function convertServerSpan(
@@ -218,26 +282,8 @@ function convertServerSpan(
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
   const branches = server.branches.map((b) => convertServerSpan(b, lookup));
-  const allNodes = [...content, ...branches];
 
-  let startTime: Date;
-  let endTime: Date;
-  if (allNodes.length > 0) {
-    startTime = allNodes.reduce(
-      (min, n) => (n.startTime < min ? n.startTime : min),
-      allNodes[0]!.startTime
-    );
-    endTime = allNodes.reduce(
-      (max, n) => (n.endTime > max ? n.endTime : max),
-      allNodes[0]!.endTime
-    );
-  } else {
-    startTime = new Date(0);
-    endTime = new Date(0);
-  }
-
-  return {
-    type: "span",
+  return new TimelineSpan({
     id: server.id,
     name: server.name,
     spanType: server.span_type ?? null,
@@ -248,50 +294,12 @@ function convertServerSpan(
     utility: server.utility,
     agentResult: server.agent_result ?? undefined,
     outline: server.outline ?? undefined,
-    startTime,
-    endTime,
-    totalTokens: sumTokens(allNodes),
-    idleTime: computeIdleTime(allNodes, startTime, endTime),
-  };
+  });
 }
 
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-/**
- * Parse a timestamp string to Date, handling null/undefined.
- */
-function parseTimestamp(timestamp: string | null | undefined): Date | null {
-  if (!timestamp) return null;
-  const date = new Date(timestamp);
-  return isNaN(date.getTime()) ? null : date;
-}
-
-/**
- * Get the start time for an event.
- * Every event has a required `timestamp` field.
- */
-function getEventStartTime(event: Event): Date {
-  const timestamp = (event as { timestamp?: string }).timestamp;
-  const date = parseTimestamp(timestamp);
-  if (!date) {
-    throw new Error("Event missing required timestamp field");
-  }
-  return date;
-}
-
-/**
- * Get the end time for an event (completed if available, else timestamp).
- */
-function getEventEndTime(event: Event): Date {
-  const completed = (event as { completed?: string }).completed;
-  if (completed) {
-    const date = parseTimestamp(completed);
-    if (date) return date;
-  }
-  return getEventStartTime(event);
-}
 
 /**
  * Get tokens from an event (ModelEvent only).
@@ -314,14 +322,14 @@ function getEventTokens(event: Event): number {
  * Return the earliest start time among nodes.
  * Requires at least one node (all nodes have non-null startTime).
  */
-function minStartTime(nodes: TimelineNode[]): Date {
+function minStartTime(nodes: (TimelineEvent | TimelineSpan)[]): Date {
   const first = nodes[0];
   if (!first) {
     throw new Error("minStartTime requires at least one node");
   }
   return nodes.reduce(
-    (min, n) => (n.startTime < min ? n.startTime : min),
-    first.startTime
+    (min, n) => (n.startTime() < min ? n.startTime() : min),
+    first.startTime()
   );
 }
 
@@ -329,22 +337,22 @@ function minStartTime(nodes: TimelineNode[]): Date {
  * Return the latest end time among nodes.
  * Requires at least one node (all nodes have non-null endTime).
  */
-function maxEndTime(nodes: TimelineNode[]): Date {
+function maxEndTime(nodes: (TimelineEvent | TimelineSpan)[]): Date {
   const first = nodes[0];
   if (!first) {
     throw new Error("maxEndTime requires at least one node");
   }
   return nodes.reduce(
-    (max, n) => (n.endTime > max ? n.endTime : max),
-    first.endTime
+    (max, n) => (n.endTime() > max ? n.endTime() : max),
+    first.endTime()
   );
 }
 
 /**
  * Sum total tokens across all nodes.
  */
-function sumTokens(nodes: TimelineNode[]): number {
-  return nodes.reduce((sum, n) => sum + n.totalTokens, 0);
+function sumTokens(nodes: (TimelineEvent | TimelineSpan)[]): number {
+  return nodes.reduce((sum, n) => sum + n.totalTokens(), 0);
 }
 
 const IDLE_THRESHOLD_MS = 300_000; // 5 minutes
@@ -356,36 +364,36 @@ const IDLE_THRESHOLD_MS = 300_000; // 5 minutes
  * is counted as idle. Children's own idleTime is summed recursively.
  */
 export function computeIdleTime(
-  content: TimelineNode[],
+  content: (TimelineEvent | TimelineSpan)[],
   startTime: Date,
   endTime: Date
 ): number {
   if (content.length === 0) return 0;
 
   const sorted = [...content].sort(
-    (a, b) => a.startTime.getTime() - b.startTime.getTime()
+    (a, b) => a.startTime().getTime() - b.startTime().getTime()
   );
   let idleMs = 0;
 
   // Sum children's own idle time
   for (const child of sorted) {
-    idleMs += child.idleTime * 1000;
+    idleMs += child.idleTime() * 1000;
   }
 
   // Gap: span start → first child
-  const firstGap = sorted[0]!.startTime.getTime() - startTime.getTime();
+  const firstGap = sorted[0]!.startTime().getTime() - startTime.getTime();
   if (firstGap > IDLE_THRESHOLD_MS) idleMs += firstGap;
 
   // Gaps between consecutive children
   for (let i = 1; i < sorted.length; i++) {
     const gap =
-      sorted[i]!.startTime.getTime() - sorted[i - 1]!.endTime.getTime();
+      sorted[i]!.startTime().getTime() - sorted[i - 1]!.endTime().getTime();
     if (gap > IDLE_THRESHOLD_MS) idleMs += gap;
   }
 
   // Gap: last child → span end
   const lastGap =
-    endTime.getTime() - sorted[sorted.length - 1]!.endTime.getTime();
+    endTime.getTime() - sorted[sorted.length - 1]!.endTime().getTime();
   if (lastGap > IDLE_THRESHOLD_MS) idleMs += lastGap;
 
   return Math.max(0, idleMs / 1000);
@@ -399,14 +407,7 @@ export function computeIdleTime(
  * Create a TimelineEvent from an Event.
  */
 function createTimelineEvent(event: Event): TimelineEvent {
-  return {
-    type: "event",
-    event,
-    startTime: getEventStartTime(event),
-    endTime: getEventEndTime(event),
-    totalTokens: getEventTokens(event),
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 /**
@@ -422,30 +423,16 @@ function createTimelineSpan(
   description?: string,
   forkedAt: string | null = null
 ): TimelineSpan {
-  if (content.length === 0) {
-    throw new Error(
-      `createTimelineSpan called with empty content for span "${name}" (id=${id}). ` +
-        "Callers must guard against empty content before calling the factory."
-    );
-  }
-  const allNodes = [...content, ...branches];
-  const startTime = minStartTime(allNodes);
-  const endTime = maxEndTime(allNodes);
-  return {
-    type: "span",
+  return new TimelineSpan({
     id,
     name: name.toLowerCase(),
     spanType,
-    forkedAt,
     content,
+    utility,
     branches,
     description,
-    utility,
-    startTime,
-    endTime,
-    totalTokens: sumTokens(allNodes),
-    idleTime: computeIdleTime(allNodes, startTime, endTime),
-  };
+    forkedAt,
+  });
 }
 
 // =============================================================================
@@ -796,20 +783,11 @@ function buildAgentFromSolversSpan(
         return result;
       }
       // Agent span had no content — return an empty span preserving identity
-      return {
-        type: "span",
+      return new TimelineSpan({
         id: target.id,
         name: target.name.toLowerCase(),
         spanType: "agent",
-        forkedAt: null,
-        content: [],
-        branches: [],
-        utility: false,
-        startTime: new Date(0),
-        endTime: new Date(0),
-        totalTokens: 0,
-        idleTime: 0,
-      };
+      });
     } else {
       // Multiple agent spans - create root containing all
       const children: (TimelineEvent | TimelineSpan)[] = [];
@@ -1639,20 +1617,11 @@ export function buildTimeline(events: Event[]): Timeline {
   branchFromSpanMap = new Map<string, string>();
 
   if (events.length === 0) {
-    const emptyRoot: TimelineSpan = {
-      type: "span",
+    const emptyRoot = new TimelineSpan({
       id: "root",
       name: "main",
       spanType: null,
-      forkedAt: null,
-      content: [],
-      branches: [],
-      utility: false,
-      startTime: new Date(0),
-      endTime: new Date(0),
-      totalTokens: 0,
-      idleTime: 0,
-    };
+    });
     return { name: "Default", description: "", root: emptyRoot };
   }
 
@@ -1735,42 +1704,11 @@ export function buildTimeline(events: Event[]): Timeline {
       // Prepend init span to agent content
       if (initSpanObj) {
         agentNode.content = [initSpanObj, ...agentNode.content];
-        // Recompute timing
-        agentNode.startTime = minStartTime([
-          ...agentNode.content,
-          ...agentNode.branches,
-        ]);
-        agentNode.endTime = maxEndTime([
-          ...agentNode.content,
-          ...agentNode.branches,
-        ]);
-        agentNode.totalTokens = sumTokens([
-          ...agentNode.content,
-          ...agentNode.branches,
-        ]);
-        agentNode.idleTime = computeIdleTime(
-          [...agentNode.content, ...agentNode.branches],
-          agentNode.startTime,
-          agentNode.endTime
-        );
       }
 
       // Append scoring as a child span
       if (scoringSpan) {
         agentNode.content.push(scoringSpan);
-        agentNode.endTime = maxEndTime([
-          ...agentNode.content,
-          ...agentNode.branches,
-        ]);
-        agentNode.totalTokens = sumTokens([
-          ...agentNode.content,
-          ...agentNode.branches,
-        ]);
-        agentNode.idleTime = computeIdleTime(
-          [...agentNode.content, ...agentNode.branches],
-          agentNode.startTime,
-          agentNode.endTime
-        );
       }
 
       root = agentNode;
@@ -1786,20 +1724,11 @@ export function buildTimeline(events: Event[]): Timeline {
       if (rootContent.length > 0) {
         root = createTimelineSpan("root", "main", null, rootContent);
       } else {
-        root = {
-          type: "span",
+        root = new TimelineSpan({
           id: "root",
           name: "main",
           spanType: null,
-          forkedAt: null,
-          content: [],
-          branches: [],
-          utility: false,
-          startTime: new Date(0),
-          endTime: new Date(0),
-          totalTokens: 0,
-          idleTime: 0,
-        };
+        });
       }
     }
   } else {
@@ -1813,21 +1742,12 @@ export function buildTimeline(events: Event[]): Timeline {
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {
-      // All content was empty — construct an empty root inline
-      root = {
-        type: "span",
+      // All content was empty — construct an empty root
+      root = new TimelineSpan({
         id: "root",
         name: "main",
         spanType: null,
-        forkedAt: null,
-        content: [],
-        branches: [],
-        utility: false,
-        startTime: new Date(0),
-        endTime: new Date(0),
-        totalTokens: 0,
-        idleTime: 0,
-      };
+      });
     }
   }
 

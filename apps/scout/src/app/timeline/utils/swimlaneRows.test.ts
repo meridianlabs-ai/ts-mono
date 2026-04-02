@@ -99,8 +99,9 @@ describe("computeSwimlaneRows", () => {
       const rows = computeSwimlaneRows(node);
 
       const exploreRow = rows[1]!;
-      // explore1 (7200) + explore2 (7300) = 14500
-      expect(exploreRow.totalTokens).toBe(14500);
+      // explore1 model tokens (2800 + 2400) + explore2 model tokens (2600 + 3900) = 11700
+      // (tool events don't contribute tokens)
+      expect(exploreRow.totalTokens).toBe(11700);
     });
   });
 
@@ -140,8 +141,9 @@ describe("computeSwimlaneRows", () => {
       const rows = computeSwimlaneRows(node);
 
       const exploreRow = rows[1]!;
-      // 8100 + 9400 + 6800 = 24300
-      expect(exploreRow.totalTokens).toBe(24300);
+      // explore1 model tokens (2800 + 2200) + explore2 (3200 + 2800) + explore3 (2400 + 2200) = 15600
+      // (tool events don't contribute tokens)
+      expect(exploreRow.totalTokens).toBe(15600);
     });
   });
 
@@ -484,8 +486,9 @@ describe("computeFlatSwimlaneRows", () => {
       const rows = computeFlatSwimlaneRows(node);
 
       const exploreRow = rows.find((r) => r.name === "Explore")!;
-      // explore1 = 7200, explore2 = 7300
-      expect(exploreRow.totalTokens).toBe(14500);
+      // explore1 model tokens (2800 + 2400) + explore2 model tokens (2600 + 3900) = 11700
+      // (tool events don't contribute tokens)
+      expect(exploreRow.totalTokens).toBe(11700);
     });
   });
 

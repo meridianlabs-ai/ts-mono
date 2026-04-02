@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeSpan, ts } from "../testHelpers";
+import { makeSpan, makeSyntheticEvent, ts } from "../testHelpers";
 
 import {
   computeActiveTime,
@@ -59,7 +59,7 @@ describe("computeActiveTime", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
+
     const m = computeTimeMapping(root);
 
     // Query only the first active region (0-60s) — no gaps overlap
@@ -71,7 +71,7 @@ describe("computeActiveTime", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
+
     const m = computeTimeMapping(root);
 
     // Full range: 720s wall-clock, 600s gap → 120s active
@@ -83,7 +83,7 @@ describe("computeActiveTime", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
+
     const m = computeTimeMapping(root);
 
     // Range 30-690: wall-clock 660s, gap overlap = min(660,690)-max(60,30) = 600s
@@ -96,7 +96,7 @@ describe("computeActiveTime", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
+
     const m = computeTimeMapping(root);
 
     // Range 100-600 is entirely within the gap (60-660)
@@ -127,10 +127,9 @@ describe("computeTimeMapping — no compression", () => {
     expect(m.toPercent(ts(100))).toBe(100);
   });
 
-  it("returns identity mapping for empty content with idle time", () => {
-    // Edge case: idleTime > 0 but no content (shouldn't happen in practice)
+  it("returns identity mapping for empty content (no idle time possible)", () => {
+    // Empty content means idleTime() returns 0 → identity mapping
     const span = makeSpan("root", 0, 100, 0);
-    span.idleTime = 50;
     const m = computeTimeMapping(span);
 
     expect(m.hasCompression).toBe(false);
@@ -147,7 +146,6 @@ describe("computeTimeMapping — gap detection", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600; // 10 min gap in seconds
 
     const m = computeTimeMapping(root);
 
@@ -162,7 +160,6 @@ describe("computeTimeMapping — gap detection", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 300, 360, 100);
     const root = makeSpan("root", 0, 360, 200, [childA, childB]);
-    root.idleTime = 240; // Set idle time to trigger detection
 
     const m = computeTimeMapping(root);
 
@@ -172,9 +169,10 @@ describe("computeTimeMapping — gap detection", () => {
 
   it("detects leading gap", () => {
     // Gap from root start to first child: 0 → 400s (6.67 min)
+    // Add a zero-duration marker event at t=0 so root.startTime()=0
+    const marker = makeSyntheticEvent(0, 0, 0);
     const child = makeSpan("A", 400, 500, 100);
-    const root = makeSpan("root", 0, 500, 100, [child]);
-    root.idleTime = 400;
+    const root = makeSpan("root", 0, 500, 100, [marker, child]);
 
     const m = computeTimeMapping(root);
 
@@ -186,9 +184,10 @@ describe("computeTimeMapping — gap detection", () => {
 
   it("detects trailing gap", () => {
     // Gap from last child end to root end: 100 → 500s (6.67 min)
+    // Add a zero-duration marker event at t=500 so root.endTime()=500
     const child = makeSpan("A", 0, 100, 100);
-    const root = makeSpan("root", 0, 500, 100, [child]);
-    root.idleTime = 400;
+    const marker = makeSyntheticEvent(500, 500, 0);
+    const root = makeSpan("root", 0, 500, 100, [child, marker]);
 
     const m = computeTimeMapping(root);
 
@@ -204,7 +203,6 @@ describe("computeTimeMapping — gap detection", () => {
     const childB = makeSpan("B", 660, 720, 100); // 10 min gap before
     const childC = makeSpan("C", 1320, 1380, 100); // 10 min gap before
     const root = makeSpan("root", 0, 1380, 300, [childA, childB, childC]);
-    root.idleTime = 1200;
 
     const m = computeTimeMapping(root);
 
@@ -224,9 +222,7 @@ describe("computeTimeMapping — recursive gap detection", () => {
     const leafA = makeSpan("leafA", 0, 60, 50);
     const leafB = makeSpan("leafB", 660, 720, 50);
     const child = makeSpan("child", 0, 720, 100, [leafA, leafB]);
-    child.idleTime = 600;
     const root = makeSpan("root", 0, 720, 100, [child]);
-    root.idleTime = 600;
 
     const m = computeTimeMapping(root);
 
@@ -248,7 +244,6 @@ describe("computeTimeMapping — percent allocation", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
 
     const m = computeTimeMapping(root);
 
@@ -279,7 +274,6 @@ describe("computeTimeMapping — percent allocation", () => {
     });
     const lastEnd = 10 * 400 + 10;
     const root = makeSpan("root", 0, lastEnd, 110, children);
-    root.idleTime = 3900; // Large idle time
 
     const m = computeTimeMapping(root);
 
@@ -303,7 +297,6 @@ describe("computeTimeMapping — monotonicity", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
 
     const m = computeTimeMapping(root);
 
@@ -320,7 +313,6 @@ describe("computeTimeMapping — monotonicity", () => {
     const childA = makeSpan("A", 0, 60, 100);
     const childB = makeSpan("B", 660, 720, 100);
     const root = makeSpan("root", 0, 720, 200, [childA, childB]);
-    root.idleTime = 600;
 
     const m = computeTimeMapping(root);
 
@@ -340,7 +332,6 @@ describe("computeTimeMapping — overlapping children", () => {
     const childB = makeSpan("B", 50, 150, 100);
     const childC = makeSpan("C", 800, 900, 100);
     const root = makeSpan("root", 0, 900, 300, [childA, childB, childC]);
-    root.idleTime = 650;
 
     const m = computeTimeMapping(root);
 

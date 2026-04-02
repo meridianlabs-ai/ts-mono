@@ -171,7 +171,7 @@ function addEventMarker(
   if (isErrorEvent(event)) {
     markers.push({
       kind: "error",
-      timestamp: eventNode.startTime,
+      timestamp: eventNode.startTime(),
       reference: uuid ?? "",
       tooltip: errorTooltip(event),
     });
@@ -181,7 +181,7 @@ function addEventMarker(
     const after = ce.tokens_after?.toLocaleString() ?? "?";
     markers.push({
       kind: "compaction",
-      timestamp: eventNode.startTime,
+      timestamp: eventNode.startTime(),
       reference: uuid ?? "",
       tooltip: `Context compaction: ${before} → ${after} tokens`,
     });
@@ -202,7 +202,7 @@ function collectBranchMarkers(
   for (const branch of node.branches) {
     markers.push({
       kind: "branch",
-      timestamp: branch.startTime,
+      timestamp: branch.startTime(),
       reference: branch.forkedAt ?? "",
       tooltip: branchTooltip([branch]),
     });
@@ -214,7 +214,7 @@ function collectBranchMarkers(
  */
 function branchTooltip(branches: TimelineSpan[]): string {
   const count = branches.length;
-  const totalTokens = branches.reduce((sum, b) => sum + b.totalTokens, 0);
+  const totalTokens = branches.reduce((sum, b) => sum + b.totalTokens(), 0);
   const tokenStr = formatCompactTokens(totalTokens);
 
   // Compute combined duration: earliest start to latest end

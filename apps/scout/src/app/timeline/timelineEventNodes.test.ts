@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TimelineEvent } from "../../components/transcript/timeline";
+import { TimelineEvent } from "../../components/transcript/timeline";
 import type { CompactionEvent, InfoEvent } from "../../types/api-types";
 
 import { ts } from "./testHelpers";
@@ -17,8 +17,8 @@ import {
 function makeTimelineEvent(
   eventType: string,
   startSec: number,
-  endSec: number,
-  tokens = 10
+  _endSec: number,
+  _tokens = 10
 ): TimelineEvent {
   const event =
     eventType === "compaction"
@@ -47,14 +47,7 @@ function makeTimelineEvent(
           data: "",
         } satisfies InfoEvent);
 
-  return {
-    type: "event",
-    event,
-    startTime: ts(startSec),
-    endTime: ts(endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 // =============================================================================

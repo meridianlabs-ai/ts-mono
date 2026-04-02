@@ -15,7 +15,7 @@ import {
 // Sorting
 // =============================================================================
 
-/** Compare spans by start time, with end time as tiebreaker. */
+/** Compare rows/entries by start time, with end time as tiebreaker. */
 export function compareByTime(
   a: { startTime: Date; endTime: Date },
   b: { startTime: Date; endTime: Date }
@@ -23,6 +23,14 @@ export function compareByTime(
   return (
     a.startTime.getTime() - b.startTime.getTime() ||
     a.endTime.getTime() - b.endTime.getTime()
+  );
+}
+
+/** Compare TimelineSpans by start time, with end time as tiebreaker. */
+function compareSpansByTime(a: TimelineSpan, b: TimelineSpan): number {
+  return (
+    a.startTime().getTime() - b.startTime().getTime() ||
+    a.endTime().getTime() - b.endTime().getTime()
   );
 }
 
@@ -142,12 +150,12 @@ export function assignToLanes(sorted: TimelineSpan[]): TimelineSpan[][] {
   const lanes: { spans: TimelineSpan[]; endTime: number }[] = [];
 
   for (const span of sorted) {
-    const spanStart = span.startTime.getTime();
+    const spanStart = span.startTime().getTime();
     let assigned = false;
     for (const lane of lanes) {
       if (lane.endTime + OVERLAP_TOLERANCE_MS <= spanStart) {
         lane.spans.push(span);
-        lane.endTime = span.endTime.getTime();
+        lane.endTime = span.endTime().getTime();
         assigned = true;
         break;
       }
@@ -155,7 +163,7 @@ export function assignToLanes(sorted: TimelineSpan[]): TimelineSpan[][] {
     if (!assigned) {
       lanes.push({
         spans: [span],
-        endTime: span.endTime.getTime(),
+        endTime: span.endTime().getTime(),
       });
     }
   }
@@ -175,19 +183,19 @@ function partitionIntoClusters(sorted: TimelineSpan[]): TimelineSpan[][] {
 
   const clusters: TimelineSpan[][] = [];
   let current: TimelineSpan[] = [sorted[0]!];
-  let clusterEnd = sorted[0]!.endTime.getTime();
+  let clusterEnd = sorted[0]!.endTime().getTime();
 
   for (let i = 1; i < sorted.length; i++) {
     const span = sorted[i]!;
-    if (span.startTime.getTime() < clusterEnd + OVERLAP_TOLERANCE_MS) {
+    if (span.startTime().getTime() < clusterEnd + OVERLAP_TOLERANCE_MS) {
       // Overlaps with current cluster
       current.push(span);
-      clusterEnd = Math.max(clusterEnd, span.endTime.getTime());
+      clusterEnd = Math.max(clusterEnd, span.endTime().getTime());
     } else {
       // Gap found — finalize current cluster and start a new one
       clusters.push(current);
       current = [span];
-      clusterEnd = span.endTime.getTime();
+      clusterEnd = span.endTime().getTime();
     }
   }
   clusters.push(current);
@@ -201,9 +209,9 @@ function buildParentRow(node: TimelineSpan): SwimlaneRow {
     name: node.name,
     depth: 0,
     spans: [{ agent: node }],
-    totalTokens: node.totalTokens,
-    startTime: node.startTime,
-    endTime: node.endTime,
+    totalTokens: node.totalTokens(),
+    startTime: node.startTime(),
+    endTime: node.endTime(),
   };
 }
 
@@ -236,7 +244,7 @@ function buildRowFromGroup(
   parentKey = ""
 ): SwimlaneRow | null {
   // Sort spans by start time, end time as tiebreaker
-  const sorted = [...spans].sort(compareByTime);
+  const sorted = [...spans].sort(compareSpansByTime);
 
   const first = sorted[0];
   if (!first) {
@@ -250,13 +258,13 @@ function buildRowFromGroup(
   );
 
   // Compute aggregated time range and tokens
-  const startTime = first.startTime;
+  const startTime = first.startTime();
   const endTime = sorted.reduce(
     (latest, span) =>
-      span.endTime.getTime() > latest.getTime() ? span.endTime : latest,
-    first.endTime
+      span.endTime().getTime() > latest.getTime() ? span.endTime() : latest,
+    first.endTime()
   );
-  const totalTokens = sorted.reduce((sum, span) => sum + span.totalTokens, 0);
+  const totalTokens = sorted.reduce((sum, span) => sum + span.totalTokens(), 0);
 
   const key = parentKey
     ? `${parentKey}/${displayName.toLowerCase()}`
@@ -367,13 +375,13 @@ function flattenChildren(
   const entries: FlatEntry[] = [];
 
   for (const [displayName, spans] of groups) {
-    const sorted = [...spans].sort(compareByTime);
+    const sorted = [...spans].sort(compareSpansByTime);
     const baseName = displayName.toLowerCase();
     const clusters = partitionIntoClusters(sorted);
     const hasParallel = clusters.some((c) => c.length > 1);
     // Earliest start across the whole name group — used for sorting so
     // that all entries from the same agent name stay together.
-    const groupStartTime = sorted[0]!.startTime;
+    const groupStartTime = sorted[0]!.startTime();
 
     if (!hasParallel) {
       // All non-overlapping (iterative): one row with one bar per cluster
@@ -381,16 +389,16 @@ function flattenChildren(
       const first = sorted[0]!;
       const endTime = sorted.reduce(
         (latest, s) =>
-          s.endTime.getTime() > latest.getTime() ? s.endTime : latest,
-        first.endTime
+          s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
+        first.endTime()
       );
       entries.push({
         displayName,
         key: `${parentKey}/${baseName}`,
         spans: sorted,
         rowSpans,
-        totalTokens: sorted.reduce((sum, s) => sum + s.totalTokens, 0),
-        startTime: first.startTime,
+        totalTokens: sorted.reduce((sum, s) => sum + s.totalTokens(), 0),
+        startTime: first.startTime(),
         endTime,
         groupStartTime,
         laneIndex: -1,
@@ -407,16 +415,16 @@ function flattenChildren(
         const first = laneSpans[0]!;
         const endTime = laneSpans.reduce(
           (latest, s) =>
-            s.endTime.getTime() > latest.getTime() ? s.endTime : latest,
-          first.endTime
+            s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
+          first.endTime()
         );
         entries.push({
           displayName,
           key: `${parentKey}/${baseName}`,
           spans: laneSpans,
           rowSpans,
-          totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens, 0),
-          startTime: first.startTime,
+          totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens(), 0),
+          startTime: first.startTime(),
           endTime,
           groupStartTime,
           laneIndex: -1,
@@ -429,16 +437,16 @@ function flattenChildren(
           const first = laneSpans[0]!;
           const endTime = laneSpans.reduce(
             (latest, s) =>
-              s.endTime.getTime() > latest.getTime() ? s.endTime : latest,
-            first.endTime
+              s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
+            first.endTime()
           );
           entries.push({
             displayName: `${displayName} ${i + 1}`,
             key: `${parentKey}/${baseName}-${i + 1}`,
             spans: laneSpans,
             rowSpans,
-            totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens, 0),
-            startTime: first.startTime,
+            totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens(), 0),
+            startTime: first.startTime(),
             endTime,
             groupStartTime,
             laneIndex: i,
@@ -494,9 +502,9 @@ function flattenChildren(
           name: branchSpan.name,
           depth,
           spans: [{ agent: branchSpan }],
-          totalTokens: branchSpan.totalTokens,
-          startTime: branchSpan.startTime,
-          endTime: branchSpan.endTime,
+          totalTokens: branchSpan.totalTokens(),
+          startTime: branchSpan.startTime(),
+          endTime: branchSpan.endTime(),
           branch: true,
         });
         // Recurse into branch content for nested agents

@@ -110,21 +110,21 @@ export function createIdentityMapping(
  */
 export function computeTimeMapping(node: TimelineSpan): TimeMapping {
   // Fast exit: no idle time means no gaps to compress
-  if (node.idleTime === 0) {
-    return createIdentityMapping(node.startTime, node.endTime);
+  if (node.idleTime() === 0) {
+    return createIdentityMapping(node.startTime(), node.endTime());
   }
 
-  const nodeStartMs = node.startTime.getTime();
-  const nodeEndMs = node.endTime.getTime();
+  const nodeStartMs = node.startTime().getTime();
+  const nodeEndMs = node.endTime().getTime();
   const nodeRange = nodeEndMs - nodeStartMs;
   if (nodeRange <= 0) {
-    return createIdentityMapping(node.startTime, node.endTime);
+    return createIdentityMapping(node.startTime(), node.endTime());
   }
 
   // Extract time intervals from content items
   const intervals = extractIntervals(node.content);
   if (intervals.length === 0) {
-    return createIdentityMapping(node.startTime, node.endTime);
+    return createIdentityMapping(node.startTime(), node.endTime());
   }
 
   // Merge overlapping intervals into active regions
@@ -133,7 +133,7 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
   // Find compressible gaps between active regions and node boundaries
   const rawGaps = findGaps(nodeStartMs, nodeEndMs, activeRegions);
   if (rawGaps.length === 0) {
-    return createIdentityMapping(node.startTime, node.endTime);
+    return createIdentityMapping(node.startTime(), node.endTime());
   }
 
   // Allocate percentages: gaps get fixed small widths, active regions share the rest
@@ -285,8 +285,8 @@ function extractIntervals(
     if (item.type === "event") {
       // Leaf event — use its time range directly
       intervals.push({
-        startMs: item.startTime.getTime(),
-        endMs: item.endTime.getTime(),
+        startMs: item.startTime().getTime(),
+        endMs: item.endTime().getTime(),
       });
     } else {
       // Span — recurse into children to find leaf intervals
@@ -296,8 +296,8 @@ function extractIntervals(
       } else {
         // Span has no leaf content — use the span's own time range
         intervals.push({
-          startMs: item.startTime.getTime(),
-          endMs: item.endTime.getTime(),
+          startMs: item.startTime().getTime(),
+          endMs: item.endTime().getTime(),
         });
       }
     }

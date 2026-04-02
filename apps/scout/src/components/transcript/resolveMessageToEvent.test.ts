@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "../../types/api-types";
 
 import { resolveMessageToEvent } from "./resolveMessageToEvent";
-import type { TimelineEvent, TimelineSpan } from "./timeline";
+import { TimelineEvent, TimelineSpan } from "./timeline";
 
 // =============================================================================
 // Test helpers — minimal factories for TimelineSpan/TimelineEvent
@@ -12,14 +12,7 @@ import type { TimelineEvent, TimelineSpan } from "./timeline";
 const kBaseDate = new Date("2024-01-01T00:00:00Z");
 
 function makeTimelineEvent(event: Event): TimelineEvent {
-  return {
-    type: "event",
-    event,
-    startTime: kBaseDate,
-    endTime: kBaseDate,
-    totalTokens: 0,
-    idleTime: 0,
-  };
+  return new TimelineEvent(event);
 }
 
 function makeSpan(
@@ -28,20 +21,15 @@ function makeSpan(
     content: TimelineSpan["content"];
   }
 ): TimelineSpan {
-  return {
-    type: "span",
+  return new TimelineSpan({
+    id: overrides.id,
     name: overrides.name ?? overrides.id,
     spanType: overrides.spanType ?? null,
-    forkedAt: null,
-    branches: [],
-    description: undefined,
-    utility: false,
-    startTime: kBaseDate,
-    endTime: kBaseDate,
-    totalTokens: 0,
-    idleTime: 0,
-    ...overrides,
-  };
+    content: overrides.content,
+    branches: overrides.branches,
+    description: overrides.description,
+    utility: overrides.utility,
+  });
 }
 
 function makeRoot(content: TimelineSpan["content"]): TimelineSpan {

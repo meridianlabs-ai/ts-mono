@@ -5,10 +5,12 @@
  * markers, and useTimeline test files.
  */
 
-import type {
-  Timeline,
+import type { Timeline } from "../../components/transcript/timeline";
+import {
+  TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
+import type { Event } from "../../types/api-types";
 
 import { timelineScenarios } from "./syntheticNodes";
 
@@ -35,6 +37,36 @@ interface MakeSpanOptions {
   branches?: TimelineSpan[];
 }
 
+/**
+ * Creates a synthetic TimelineEvent at the given time range with specified tokens.
+ * Used internally by makeSpan when no content is provided.
+ */
+export function makeSyntheticEvent(
+  startSec: number,
+  endSec: number,
+  tokens: number
+): TimelineEvent {
+  const event = {
+    event: "model",
+    timestamp: ts(startSec).toISOString(),
+    completed: ts(endSec).toISOString(),
+    working_start: startSec,
+    working_time: endSec - startSec,
+    output: {
+      usage: {
+        input_tokens: Math.floor(tokens * 0.6),
+        output_tokens: tokens - Math.floor(tokens * 0.6),
+        total_tokens: tokens,
+        input_tokens_cache_read: null,
+        input_tokens_cache_write: null,
+        reasoning_tokens: null,
+        total_cost: null,
+      },
+    },
+  } as unknown as Event;
+  return new TimelineEvent(event);
+}
+
 /** Minimal TimelineSpan builder for edge-case tests. */
 export function makeSpan(
   name: string,
@@ -44,20 +76,21 @@ export function makeSpan(
   content: TimelineSpan["content"] = [],
   options?: MakeSpanOptions
 ): TimelineSpan {
-  return {
-    type: "span",
+  // When no content provided, create a synthetic event so computed
+  // startTime/endTime/totalTokens match the specified values.
+  const effectiveContent: (TimelineEvent | TimelineSpan)[] =
+    content.length > 0
+      ? content
+      : [makeSyntheticEvent(startSec, endSec, tokens)];
+
+  return new TimelineSpan({
     id: name.toLowerCase(),
     name,
     spanType: options?.spanType ?? null,
-    forkedAt: null,
-    content,
+    content: effectiveContent,
     branches: options?.branches ?? [],
     utility: options?.utility ?? false,
-    startTime: ts(startSec),
-    endTime: ts(endSec),
-    totalTokens: tokens,
-    idleTime: 0,
-  };
+  });
 }
 
 // =============================================================================

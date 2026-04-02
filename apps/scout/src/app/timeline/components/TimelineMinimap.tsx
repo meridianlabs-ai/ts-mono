@@ -150,8 +150,8 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
       : computeBarPosition(
           selection.startTime,
           selection.endTime,
-          root.startTime,
-          root.endTime
+          root.startTime(),
+          root.endTime()
         )
     : null;
 
@@ -168,12 +168,12 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
       ? formatTime(
           computeActiveTime(
             mapping,
-            root.startTime.getTime(),
-            root.endTime.getTime()
+            root.startTime().getTime(),
+            root.endTime().getTime()
           )
         )
-      : formatDuration(root.startTime, root.endTime);
-  const tokenRightLabel = formatTokenCount(root.totalTokens);
+      : formatDuration(root.startTime(), root.endTime());
+  const tokenRightLabel = formatTokenCount(root.totalTokens());
 
   const computeSectionLabel = (): string => {
     if (!selection) return "";

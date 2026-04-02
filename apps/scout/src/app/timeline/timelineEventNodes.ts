@@ -186,12 +186,12 @@ export function computeMinimapSelection(
     if (region && region.length > 0) {
       const times = region.flatMap((item) =>
         item.type === "event"
-          ? [item.startTime, item.endTime]
-          : [item.startTime, item.endTime]
+          ? [item.startTime(), item.endTime()]
+          : [item.startTime(), item.endTime()]
       );
       const startTime = new Date(Math.min(...times.map((t) => t.getTime())));
       const endTime = new Date(Math.max(...times.map((t) => t.getTime())));
-      const tokens = region.reduce((sum, item) => sum + item.totalTokens, 0);
+      const tokens = region.reduce((sum, item) => sum + item.totalTokens(), 0);
       return { startTime, endTime, totalTokens: tokens };
     }
   }
@@ -199,14 +199,14 @@ export function computeMinimapSelection(
   if (allAgents.length === 1) {
     const agent = allAgents[0]!;
     return {
-      startTime: agent.startTime,
-      endTime: agent.endTime,
-      totalTokens: agent.totalTokens,
+      startTime: agent.startTime(),
+      endTime: agent.endTime(),
+      totalTokens: agent.totalTokens(),
     };
   }
 
   const envelope = computeTimeEnvelope(allAgents);
-  const tokens = allAgents.reduce((sum, a) => sum + a.totalTokens, 0);
+  const tokens = allAgents.reduce((sum, a) => sum + a.totalTokens(), 0);
   return { ...envelope, totalTokens: tokens };
 }
 
@@ -341,7 +341,7 @@ function emitBranchSpans(
       id: branchSpan.id,
       span_id: branchSpan.id,
       type: branchSpan.spanType,
-      timestamp: branchSpan.startTime.toISOString(),
+      timestamp: branchSpan.startTime().toISOString(),
       parent_id: null,
       pending: false,
       working_start: 0,
@@ -354,7 +354,7 @@ function emitBranchSpans(
       event: "span_end",
       id: `${branchSpan.id}-end`,
       span_id: branchSpan.id,
-      timestamp: branchSpan.endTime.toISOString(),
+      timestamp: branchSpan.endTime().toISOString(),
       pending: false,
       working_start: 0,
       uuid: null,
@@ -432,7 +432,7 @@ function collectFromContent(
         id: item.id,
         span_id: item.id,
         type: item.spanType,
-        timestamp: item.startTime.toISOString(),
+        timestamp: item.startTime().toISOString(),
         parent_id: null,
         pending: false,
         working_start: 0,
@@ -470,7 +470,7 @@ function collectFromContent(
         event: "span_end",
         id: `${item.id}-end`,
         span_id: item.id,
-        timestamp: item.endTime.toISOString(),
+        timestamp: item.endTime().toISOString(),
         pending: false,
         working_start: 0,
         uuid: null,
