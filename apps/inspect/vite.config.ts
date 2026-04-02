@@ -116,15 +116,7 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: "dist",
         emptyOutDir: true,
-        minify: mode !== "development",
-        rollupOptions: {
-          output: {
-            entryFileNames: `assets/[name]-[hash].js`,
-            chunkFileNames: `assets/[name]-[hash].js`,
-            assetFileNames: `assets/[name]-[hash].[ext]`,
-          },
-        },
-        sourcemap: true,
+        minify: false,
       },
     };
   }
