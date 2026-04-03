@@ -2,9 +2,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { toArray } from "@tsmono/util";
+
 import { Messages, SampleInitEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
-import { toArray } from "@tsmono/util";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ChatView } from "../chat/ChatView";

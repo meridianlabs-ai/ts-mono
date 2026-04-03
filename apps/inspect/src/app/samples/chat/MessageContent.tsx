@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
+import { isJson } from "@tsmono/util";
+
 import {
   ContentAudio,
   ContentData,
@@ -16,7 +18,6 @@ import {
 import { ContentTool } from "../../../app/types";
 import { CodePanel } from "../../../components/CodePanel";
 import ExpandablePanel from "../../../components/ExpandablePanel";
-import { isJson } from "../../../utils/json";
 import { jsonParse } from "../../../utils/json-worker";
 import { RenderedText } from "../../content/RenderedText";
 

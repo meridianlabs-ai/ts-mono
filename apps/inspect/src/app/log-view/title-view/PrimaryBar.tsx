@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { filename } from "@tsmono/util";
+
 import { EvalResults, EvalSpec, Status } from "../../../@types/log";
 import { RunningMetric } from "../../../client/api/types";
 import { CopyButton } from "../../../components/CopyButton";
@@ -8,7 +10,6 @@ import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useStore } from "../../../state/store";
-import { filename } from "@tsmono/util";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";

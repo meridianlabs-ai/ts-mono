@@ -2,11 +2,10 @@ import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
-import { formatNumber } from "@tsmono/util";
+import { formatNumber, isJson } from "@tsmono/util";
 
 import { ANSIDisplay } from "../../components/AnsiDisplay";
 import JSONPanel from "../../components/JsonPanel";
-import { isJson } from "../../utils/json";
 import { ApplicationIcons } from "../appearance/icons";
 import { ChatMessageRenderer } from "../samples/chat/ChatMessageRenderer";
 import {

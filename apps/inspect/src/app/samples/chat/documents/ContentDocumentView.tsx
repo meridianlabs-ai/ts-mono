@@ -1,10 +1,11 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { isImage } from "@tsmono/util";
+
 import { ContentDocument } from "../../../../@types/log";
 import api from "../../../../client/api";
 import { useStore } from "../../../../state/store";
-import { isImage } from "@tsmono/util";
 import { iconForMimeType } from "../../../appearance/icons";
 
 import styles from "./ContentDocumentView.module.css";

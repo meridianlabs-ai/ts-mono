@@ -1,10 +1,11 @@
 import { compileExpression } from "filtrex";
 
+import { inputString } from "@tsmono/inspect-common/utils";
+
 import { Scores1 } from "../../../@types/log";
 import { FilterError, ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
 import { kScoreTypeBoolean } from "../../../constants";
-import { inputString } from "@tsmono/inspect-common/utils";
 import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
 
 import { kSampleMetadataPrefix } from "./sample-filter/language";

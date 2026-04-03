@@ -1,11 +1,12 @@
 import { createRoot } from "react-dom/client";
 
+import { getVscodeApi } from "@tsmono/util";
+
 import { App } from "./app/App";
 import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
-import { getVscodeApi } from "@tsmono/util";
 
 // Resolve the api
 const applicationApi = api;

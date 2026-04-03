@@ -12,6 +12,8 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { isVscode } from "@tsmono/util";
+
 import { EvalSample, Events } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
@@ -36,7 +38,6 @@ import {
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { formatDateTime, formatTime } from "../../utils/format";
-import { isVscode } from "@tsmono/util";
 import { ApplicationIcons } from "../appearance/icons";
 import { RecordTree } from "../content/RecordTree";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";

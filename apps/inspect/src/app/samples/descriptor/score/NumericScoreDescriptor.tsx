@@ -1,8 +1,7 @@
-import { formatDecimalNoTrailingZeroes } from "@tsmono/util";
+import { compareWithNan, formatDecimalNoTrailingZeroes } from "@tsmono/util";
 
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeNumeric } from "../../../../constants";
-import { compareWithNan } from "../../../../utils/numeric";
 import { ScoreDescriptor } from "../types";
 
 export const numericScoreDescriptor = (values: Value2[]): ScoreDescriptor => {

@@ -1,7 +1,8 @@
 import JSON5 from "json5";
 
-import { PersistedState } from "../../state/store";
 import { getVscodeApi } from "@tsmono/util";
+
+import { PersistedState } from "../../state/store";
 import { ClientStorage } from "../api/types";
 
 const resolveStorage = (): ClientStorage | undefined => {

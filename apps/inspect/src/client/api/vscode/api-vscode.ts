@@ -1,7 +1,8 @@
 import JSON5 from "json5";
 
-import { asyncJsonParse } from "../../../utils/json-worker";
 import { getVscodeApi } from "@tsmono/util";
+
+import { asyncJsonParse } from "../../../utils/json-worker";
 import {
   Capabilities,
   LogContents,
