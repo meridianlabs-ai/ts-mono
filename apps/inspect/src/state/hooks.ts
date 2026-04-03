@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { createLogger } from "@tsmono/util";
+
 import { EvalSample, EvalSpec, Events, Status } from "../@types/log";
 import {
   createEvalDescriptor,
@@ -8,7 +10,6 @@ import {
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHandle, SampleSummary } from "../client/api/types";
-import { createLogger } from "../utils/logger";
 import { prettyDirUri } from "../utils/uri";
 
 import { getAvailableScorers, getDefaultScorer } from "./scoring";

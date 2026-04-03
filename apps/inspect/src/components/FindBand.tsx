@@ -8,9 +8,10 @@ import {
   useState,
 } from "react";
 
+import { debounce } from "@tsmono/util";
+
 import { useStore } from "../state/store";
 import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
-import { debounce } from "../utils/sync";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { FindBandUI } from "./FindBandUI";

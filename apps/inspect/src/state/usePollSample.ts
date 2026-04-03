@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 
+import { createLogger } from "@tsmono/util";
+
 import { SampleSummary } from "../client/api/types";
-import { createLogger } from "../utils/logger";
 
 import { useLogSelection } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";

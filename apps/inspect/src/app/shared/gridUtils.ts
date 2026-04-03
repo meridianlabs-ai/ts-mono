@@ -2,7 +2,7 @@ import type { ColDef } from "ag-grid-community";
 import type { AgGridReact } from "ag-grid-react";
 import type { RefObject } from "react";
 
-import { debounce } from "../../utils/sync";
+import { debounce } from "@tsmono/util";
 
 /**
  * Gets the field key from a column definition.

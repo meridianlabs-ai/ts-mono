@@ -5,6 +5,7 @@ export * from "./arrow";
 export * from "./asyncData";
 export * from "./base64";
 export * from "./base64url";
+export * from "./browser";
 export * from "./brand";
 export * from "./chatMessage";
 export * from "./date";

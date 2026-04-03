@@ -3,10 +3,10 @@ import { create, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import { createLogger, debounce } from "@tsmono/util";
+
 import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
 import { createDatabaseService, DatabaseService } from "../client/database";
-import { createLogger } from "../utils/logger";
-import { debounce } from "../utils/sync";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";

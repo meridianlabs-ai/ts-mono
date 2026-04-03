@@ -1,5 +1,7 @@
 import { StoreApi, UseBoundStore } from "zustand";
 
+import { createLogger } from "@tsmono/util";
+
 import { Event } from "../app/types";
 import {
   AttachmentData,
@@ -9,7 +11,6 @@ import {
   SampleSummary,
 } from "../client/api/types";
 import { resolveAttachments } from "../utils/attachments";
-import { createLogger } from "../utils/logger";
 import { createPolling } from "../utils/polling";
 
 import { resolveSample } from "./sampleUtils";

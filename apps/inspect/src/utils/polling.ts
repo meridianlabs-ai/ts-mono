@@ -1,4 +1,4 @@
-import { createLogger } from "./logger";
+import { createLogger } from "@tsmono/util";
 
 export interface PollingOptions {
   maxRetries: number;

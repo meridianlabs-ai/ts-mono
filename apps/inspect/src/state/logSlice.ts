@@ -1,9 +1,10 @@
+import { createLogger } from "@tsmono/util";
+
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
 import { LogDetails, PendingSamples } from "../client/api/types";
 import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
-import { createLogger } from "../utils/logger";
 import { isUri, join } from "../utils/uri";
 
 import { createLogPolling } from "./logPolling";

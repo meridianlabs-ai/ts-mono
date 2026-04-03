@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from "react";
 
+import { createLogger } from "@tsmono/util";
+
 import { LogHandle } from "../client/api/types";
-import { createLogger } from "../utils/logger";
 
 import { clientEventsService } from "./clientEventsService";
 import { useLogs } from "./hooks";
