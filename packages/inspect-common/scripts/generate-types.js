@@ -1,8 +1,8 @@
 /**
- * Generate TypeScript types from OpenAPI schema with custom transforms.
+ * Generate TypeScript types from the inspect_ai OpenAPI schema.
  *
- * Reads openapi.json from the Python repo (requires submodule mode) and
- * generates TypeScript types using openapi-typescript with postTransform
+ * Reads inspect-openapi.json from the Python repo (requires submodule mode)
+ * and generates TypeScript types using openapi-typescript with postTransform
  * to fix the JsonValue recursive type (avoids TS2502 errors).
  */
 import fs from "fs";
@@ -14,28 +14,19 @@ import ts from "typescript";
 
 import { requirePythonRepoRoot } from "../../../tooling/python-repo/index.js";
 
+import { openapiTSOptions } from "./openapi-ts-options.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-const pythonRoot = requirePythonRepoRoot("inspect_scout");
+const pythonRoot = requirePythonRepoRoot("inspect_ai");
 const SCHEMA_PATH = path.join(
   pythonRoot,
-  "src/inspect_scout/_view/openapi.json"
+  "src/inspect_ai/_view/inspect-openapi.json"
 );
 const OUTPUT_PATH = path.join(ROOT, "src/types/generated.ts");
 
-// Create the JsonValue type reference
-const jsonValueRef = ts.factory.createTypeReferenceNode("JsonValue");
-
-const ast = await openapiTS(new URL(`file://${SCHEMA_PATH}`), {
-  defaultNonNullable: false,
-  postTransform(schemaObject, metadata) {
-    // Replace JsonValue inline definition with reference to our manual type
-    if (metadata.path?.endsWith("/JsonValue")) {
-      return jsonValueRef;
-    }
-  },
-});
+const ast = await openapiTS(new URL(`file://${SCHEMA_PATH}`), openapiTSOptions);
 
 // Prepend import for JsonValue
 const importDecl = ts.factory.createImportDeclaration(
@@ -51,7 +42,7 @@ const importDecl = ts.factory.createImportDeclaration(
       ),
     ])
   ),
-  ts.factory.createStringLiteral("./json-value")
+  ts.factory.createStringLiteral("@tsmono/util")
 );
 
 const HEADER = `/**

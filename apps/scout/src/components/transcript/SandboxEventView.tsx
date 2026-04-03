@@ -73,7 +73,7 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
             {input !== null ? input?.trim() : undefined}
           </pre>
 
-          {options !== null && Object.keys(options).length > 0 ? (
+          {options && Object.keys(options).length > 0 ? (
             <EventSection title={`Options`}>
               <MetaDataGrid
                 entries={options as Record<string, unknown>}
@@ -110,7 +110,7 @@ interface ReadFileViewProps {
 }
 
 const ReadFileView: FC<ReadFileViewProps> = ({ id, event }) => {
-  if (event.file === null) {
+  if (!event.file) {
     return undefined;
   }
   const file = event.file;
@@ -124,7 +124,7 @@ interface WriteFileViewProps {
 }
 
 const WriteFileView: FC<WriteFileViewProps> = ({ id, event }) => {
-  if (event.file === null) {
+  if (!event.file) {
     return undefined;
   }
   const file = event.file;

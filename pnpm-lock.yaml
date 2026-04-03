@@ -66,6 +66,9 @@ importers:
       '@popperjs/core':
         specifier: ^2.11.8
         version: 2.11.8
+      '@tsmono/inspect-common':
+        specifier: workspace:*
+        version: link:../../packages/inspect-common
       ag-grid-community:
         specifier: ^34.3.1
         version: 34.3.1
@@ -371,6 +374,9 @@ importers:
       '@tsmono/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
+      '@tsmono/inspect-common':
+        specifier: workspace:*
+        version: link:../../packages/inspect-common
       '@tsmono/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier-config
@@ -458,6 +464,34 @@ importers:
       zstd-codec:
         specifier: ^0.1.5
         version: 0.1.5
+
+  packages/inspect-common:
+    dependencies:
+      '@tsmono/util':
+        specifier: workspace:*
+        version: link:../util
+    devDependencies:
+      '@tsmono/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint-config
+      '@tsmono/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.2
+      openapi-typescript:
+        specifier: ^7.10.1
+        version: 7.13.0(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.50.0
+        version: 8.56.0(eslint@9.39.2)(typescript@5.9.3)
+      vitest:
+        specifier: ^4.0.16
+        version: 4.0.18(@types/node@24.10.13)(jsdom@27.4.0)(less@4.5.1)(msw@2.12.10(@types/node@24.10.13)(typescript@5.9.3))(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.2)
 
   packages/react:
     dependencies:

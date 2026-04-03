@@ -7,14 +7,15 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
+import { findPythonRepoRoot } from "../../tooling/python-repo/index.js";
+
 import getVersionInfo from "./scripts/get-version.js";
-import { findPythonRepoRoot } from "./scripts/python-repo.js";
 
 function copyToPythonRepo(): Plugin {
   return {
     name: "copy-to-python-repo",
     closeBundle() {
-      const pythonRoot = findPythonRepoRoot();
+      const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
       const target = join(pythonRoot, "src/inspect_ai/_view/dist");
       rmSync(target, { recursive: true, force: true });

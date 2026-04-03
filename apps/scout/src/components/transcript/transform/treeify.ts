@@ -241,7 +241,7 @@ const injectScorersSpan = (events: Event[]): Event[] => {
       event.type === TYPE_SCORER &&
       !hasCollectedScorers
     ) {
-      collecting = event.span_id;
+      collecting = event.span_id ?? null;
     }
 
     // Look for the first scorer event and then begin
