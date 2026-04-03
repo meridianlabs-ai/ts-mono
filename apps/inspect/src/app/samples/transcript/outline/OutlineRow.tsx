@@ -9,7 +9,7 @@ import {
   useSamplePopover,
 } from "../../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import { parsePackageName } from "../../../../utils/python";
+import { parsePackageName } from "@tsmono/util";
 import { ApplicationIcons } from "../../../appearance/icons";
 import { MetaDataGrid } from "../../../content/MetaDataGrid";
 import { useSampleEventUrl } from "../../../routing/url";

@@ -1,8 +1,7 @@
-import { formatPrettyDecimal } from "@tsmono/util";
+import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
 
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeList } from "../../../../constants";
-import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 export const listScoreDescriptor = (_values: Value2[]): ScoreDescriptor => {

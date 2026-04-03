@@ -5,7 +5,7 @@ import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
-import { getVscodeApi } from "./utils/vscode";
+import { getVscodeApi } from "@tsmono/util";
 
 // Resolve the api
 const applicationApi = api;

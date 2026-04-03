@@ -1,11 +1,10 @@
 import clsx from "clsx";
 import { JSX } from "react";
 
-import { formatPrettyDecimal } from "@tsmono/util";
+import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
 
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeObject } from "../../../../constants";
-import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor } from "../types";
 
 import styles from "./ObjectScoreDescriptor.module.css";

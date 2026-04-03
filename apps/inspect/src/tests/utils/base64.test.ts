@@ -1,4 +1,4 @@
-import { isBase64 } from "../../utils/base64";
+import { isBase64 } from "@tsmono/util";
 
 describe("isBase64", () => {
   test("identifies valid base64 strings", () => {

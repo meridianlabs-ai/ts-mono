@@ -3,7 +3,7 @@ import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 
 import { useStore } from "../../state/store";
-import { basename, dirname, ensureTrailingSlash } from "../../utils/path";
+import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";
 import { prettyDirUri } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 

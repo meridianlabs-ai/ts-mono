@@ -13,7 +13,7 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { dirname, isInDirectory } from "../../utils/path";
+import { dirname, isInDirectory } from "@tsmono/util";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";

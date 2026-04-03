@@ -1,7 +1,6 @@
 import JSON5 from "json5";
 
-import { dirname } from "../../utils/path";
-import { getVscodeApi } from "../../utils/vscode";
+import { dirname, getVscodeApi } from "@tsmono/util";
 
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";

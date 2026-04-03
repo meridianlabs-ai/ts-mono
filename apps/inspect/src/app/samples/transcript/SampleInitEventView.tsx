@@ -4,7 +4,7 @@ import { FC } from "react";
 
 import { Messages, SampleInitEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
-import { toArray } from "../../../utils/type";
+import { toArray } from "@tsmono/util";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ChatView } from "../chat/ChatView";

@@ -36,7 +36,7 @@ import {
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { formatDateTime, formatTime } from "../../utils/format";
-import { isVscode } from "../../utils/vscode";
+import { isVscode } from "@tsmono/util";
 import { ApplicationIcons } from "../appearance/icons";
 import { RecordTree } from "../content/RecordTree";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";

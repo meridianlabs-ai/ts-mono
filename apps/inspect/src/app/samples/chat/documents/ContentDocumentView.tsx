@@ -4,7 +4,7 @@ import { FC, ReactNode } from "react";
 import { ContentDocument } from "../../../../@types/log";
 import api from "../../../../client/api";
 import { useStore } from "../../../../state/store";
-import { isImage } from "../../../../utils/mime";
+import { isImage } from "@tsmono/util";
 import { iconForMimeType } from "../../../appearance/icons";
 
 import styles from "./ContentDocumentView.module.css";

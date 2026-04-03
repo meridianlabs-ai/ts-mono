@@ -19,7 +19,7 @@ import { RouterProvider } from "react-router-dom";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { useStore } from "../state/store.ts";
-import { basename, dirname } from "../utils/path.ts";
+import { basename, dirname } from "@tsmono/util";
 import { isUri } from "../utils/uri.ts";
 
 import { AppRouter } from "./routing/AppRouter.tsx";

@@ -7,7 +7,7 @@ import { JSONPanel } from "../../../components/JsonPanel";
 import { ToolButton } from "../../../components/ToolButton";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
-import { filename } from "../../../utils/path";
+import { filename } from "@tsmono/util";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./JsonTab.module.css";

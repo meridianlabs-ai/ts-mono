@@ -5,7 +5,7 @@ import { useLocation } from "react-router-dom";
 import { usePrismHighlight } from "../../components/prism";
 import { useLogs } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { dirname } from "../../utils/path";
+import { dirname } from "@tsmono/util";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 
