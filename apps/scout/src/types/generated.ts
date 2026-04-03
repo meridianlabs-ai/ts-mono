@@ -232,6 +232,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schema/invalidation-topic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invalidation Topic */
+        get: operations["_invalidation_topic_schema_invalidation_topic_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schema/llm-scanner-params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Llm Scanner Params */
+        get: operations["_llm_scanner_params_schema_llm_scanner_params_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schema/raw-encoding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Raw Encoding */
+        get: operations["_raw_encoding_schema_raw_encoding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schema/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transcript */
+        get: operations["_transcript_schema_transcript_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schema/validation-case": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Validation Case */
+        get: operations["_validation_case_schema_validation_case_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/startscan": {
         parameters: {
             query?: never;
@@ -606,10 +691,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -658,10 +740,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -702,7 +781,6 @@ export interface components {
              */
             stop_reason: "stop" | "max_tokens" | "model_length" | "tool_calls" | "content_filter" | "unknown";
         };
-        ChatMessage: components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"];
         /**
          * ChatMessageAssistant
          * @description Assistant chat message.
@@ -823,10 +901,7 @@ export interface components {
             source?: string | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Tokens After */
             tokens_after?: number | null;
@@ -863,7 +938,6 @@ export interface components {
                 string | number | boolean | null
             ] | string | number | boolean | null;
         };
-        Content: components["schemas"]["ContentText"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"];
         /**
          * ContentAudio
          * @description Audio content.
@@ -1144,10 +1218,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -1166,7 +1237,6 @@ export interface components {
             /** Traceback Ansi */
             traceback_ansi: string;
         };
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /**
          * EventsData
          * @description Pooled data extracted by condense_events / condense_sample.
@@ -1178,85 +1248,6 @@ export interface components {
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * GenerateConfig
-         * @description Model generation options.
-         */
-        GenerateConfig: {
-            /** Attempt Timeout */
-            attempt_timeout?: number | null;
-            /** Batch */
-            batch?: boolean | number | components["schemas"]["BatchConfig"] | null;
-            /** Best Of */
-            best_of?: number | null;
-            /** Cache */
-            cache?: boolean | components["schemas"]["CachePolicy"] | null;
-            /** Cache Prompt */
-            cache_prompt?: "auto" | boolean | null;
-            /** Effort */
-            effort?: ("low" | "medium" | "high" | "max") | null;
-            /** Extra Body */
-            extra_body?: {
-                [key: string]: unknown;
-            } | null;
-            /** Extra Headers */
-            extra_headers?: {
-                [key: string]: string;
-            } | null;
-            /** Frequency Penalty */
-            frequency_penalty?: number | null;
-            /** Internal Tools */
-            internal_tools?: boolean | null;
-            /** Logit Bias */
-            logit_bias?: {
-                [key: string]: number;
-            } | null;
-            /** Logprobs */
-            logprobs?: boolean | null;
-            /** Max Connections */
-            max_connections?: number | null;
-            /** Max Retries */
-            max_retries?: number | null;
-            /** Max Tokens */
-            max_tokens?: number | null;
-            /** Max Tool Output */
-            max_tool_output?: number | null;
-            /** Modalities */
-            modalities?: ("image" | components["schemas"]["ImageOutput"])[] | null;
-            /** Num Choices */
-            num_choices?: number | null;
-            /** Parallel Tool Calls */
-            parallel_tool_calls?: boolean | null;
-            /** Presence Penalty */
-            presence_penalty?: number | null;
-            /** Reasoning Effort */
-            reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh") | null;
-            /** Reasoning History */
-            reasoning_history?: ("none" | "all" | "last" | "auto") | null;
-            /** Reasoning Summary */
-            reasoning_summary?: ("none" | "concise" | "detailed" | "auto") | null;
-            /** Reasoning Tokens */
-            reasoning_tokens?: number | null;
-            response_schema?: components["schemas"]["ResponseSchema"] | null;
-            /** Seed */
-            seed?: number | null;
-            /** Stop Seqs */
-            stop_seqs?: string[] | null;
-            /** System Message */
-            system_message?: string | null;
-            /** Temperature */
-            temperature?: number | null;
-            /** Timeout */
-            timeout?: number | null;
-            /** Top K */
-            top_k?: number | null;
-            /** Top Logprobs */
-            top_logprobs?: number | null;
-            /** Top P */
-            top_p?: number | null;
-            /** Verbosity */
-            verbosity?: ("low" | "medium" | "high") | null;
         };
         /**
          * GenerateConfig
@@ -1458,10 +1449,7 @@ export interface components {
             source?: string | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -1491,48 +1479,18 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
             /** Working Start */
             working_start: number;
         };
-        /** @enum {string} */
-        InvalidationTopic: "project-config" | "scans" | "transcripts";
         /**
-         * JSONSchema
-         * @description JSON Schema for type.
+         * InvalidationTopic
+         * @enum {string}
          */
-        JSONSchema: {
-            /** Additionalproperties */
-            additionalProperties?: components["schemas"]["JSONSchema"] | boolean | null;
-            /** Anyof */
-            anyOf?: components["schemas"]["JSONSchema"][] | null;
-            /**
-             * Default
-             * @default null
-             */
-            default: unknown;
-            /** Description */
-            description?: string | null;
-            /** Enum */
-            enum?: unknown[] | null;
-            /** Format */
-            format?: string | null;
-            items?: components["schemas"]["JSONSchema"] | null;
-            /** Properties */
-            properties?: {
-                [key: string]: components["schemas"]["JSONSchema"];
-            } | null;
-            /** Required */
-            required?: string[] | null;
-            /** Type */
-            type?: ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null") | ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null")[] | null;
-        };
+        InvalidationTopic: "project-config" | "scans" | "transcripts";
         /**
          * JSONSchema
          * @description JSON Schema for type.
@@ -1601,9 +1559,7 @@ export interface components {
             op: "remove" | "add" | "replace" | "move" | "test" | "copy";
             /** Path */
             path: string;
-            /** @default null */
             replaced: components["schemas"]["JsonValue"];
-            /** @default null */
             value: components["schemas"]["JsonValue"];
         };
         JsonValue: JsonValue;
@@ -1641,10 +1597,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -1813,7 +1766,7 @@ export interface components {
             call?: components["schemas"]["ModelCall"] | null;
             /** Completed */
             completed?: string | null;
-            config: components["schemas"]["GenerateConfig"];
+            config: components["schemas"]["GenerateConfig-Output"];
             /** Error */
             error?: string | null;
             /**
@@ -1844,10 +1797,7 @@ export interface components {
             role?: string | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Tool Choice */
             tool_choice: ("auto" | "any" | "none") | components["schemas"]["ToolFunction"];
@@ -2103,25 +2053,15 @@ export interface components {
              */
             timestamp: string;
         };
-        /** @enum {string} */
+        /**
+         * RawEncoding
+         * @constant
+         */
         RawEncoding: "zstd";
         /** RenameValidationSetRequest */
         RenameValidationSetRequest: {
             /** Name */
             name: string;
-        };
-        /**
-         * ResponseSchema
-         * @description Schema for model response when using Structured Output.
-         */
-        ResponseSchema: {
-            /** Description */
-            description?: string | null;
-            json_schema: components["schemas"]["JSONSchema"];
-            /** Name */
-            name: string;
-            /** Strict */
-            strict?: boolean | null;
         };
         /**
          * ResponseSchema
@@ -2195,10 +2135,7 @@ export interface components {
             /** Span Id */
             span_id?: string | null;
             state: components["schemas"]["JsonValue"];
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2228,10 +2165,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /**
              * Type
@@ -2248,10 +2182,7 @@ export interface components {
          * @description Specification of a SandboxEnvironment.
          */
         SandboxEnvironmentSpec: {
-            /**
-             * Config
-             * @default null
-             */
+            /** Config */
             config: unknown;
             /** Type */
             type: string;
@@ -2296,10 +2227,7 @@ export interface components {
             result?: number | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2786,10 +2714,7 @@ export interface components {
             score_name: string;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2834,10 +2759,7 @@ export interface components {
             span_id?: string | null;
             /** Target */
             target?: string | string[] | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2869,10 +2791,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Type */
             type?: string | null;
@@ -2902,10 +2821,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2933,10 +2849,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -2980,10 +2893,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Type */
             type?: string | null;
@@ -3013,10 +2923,7 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Uuid */
             uuid?: string | null;
@@ -3050,17 +2957,11 @@ export interface components {
             name: string;
             /** Pending */
             pending?: boolean | null;
-            /**
-             * Result
-             * @default null
-             */
+            /** Result */
             result: unknown;
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Type */
             type?: string | null;
@@ -3107,7 +3008,7 @@ export interface components {
          */
         TimelineEvent: {
             /** Event */
-            event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+            event: string;
             /**
              * Type
              * @default event
@@ -3247,10 +3148,7 @@ export interface components {
             result: string | number | boolean | components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentDocument"] | (components["schemas"]["ContentText"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentDocument"])[];
             /** Span Id */
             span_id?: string | null;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
+            /** Timestamp */
             timestamp: string;
             /** Truncated */
             truncated?: [
@@ -3323,10 +3221,10 @@ export interface components {
              * Additionalproperties
              * @default false
              */
-            additionalProperties?: components["schemas"]["JSONSchema"] | boolean | null;
+            additionalProperties?: components["schemas"]["JSONSchema-Output"] | boolean | null;
             /** Properties */
             properties: {
-                [key: string]: components["schemas"]["JSONSchema"];
+                [key: string]: components["schemas"]["JSONSchema-Output"];
             };
             /** Required */
             required: string[];
@@ -3991,6 +3889,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScannerInputResponse"];
+                };
+            };
+        };
+    };
+    _invalidation_topic_schema_invalidation_topic_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidationTopic"];
+                };
+            };
+        };
+    };
+    _llm_scanner_params_schema_llm_scanner_params_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmScannerParams"];
+                };
+            };
+        };
+    };
+    _raw_encoding_schema_raw_encoding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RawEncoding"];
+                };
+            };
+        };
+    };
+    _transcript_schema_transcript_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
+                };
+            };
+        };
+    };
+    _validation_case_schema_validation_case_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationCase"];
                 };
             };
         };
