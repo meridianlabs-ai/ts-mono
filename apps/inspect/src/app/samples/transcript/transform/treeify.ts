@@ -178,7 +178,7 @@ const injectScorersSpan = (events: Events): Events => {
   const results: Events = [];
   const collectedScorerEvents: Events = [];
   let hasCollectedScorers = false;
-  let collecting: string | null = null;
+  let collecting: string | null | undefined = null;
 
   const flushCollected = (): Events => {
     if (collectedScorerEvents.length > 0) {

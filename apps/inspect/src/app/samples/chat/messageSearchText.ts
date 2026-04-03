@@ -1,5 +1,5 @@
+import { ChatMessageContent } from "../../../@types/bogusTypes";
 import {
-  Content,
   ContentReasoning,
   ContentText,
   ContentToolUse,
@@ -50,7 +50,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
 /**
  * Extracts text strings from message content.
  */
-const extractContentText = (content: Content): string[] => {
+const extractContentText = (content: ChatMessageContent): string[] => {
   if (typeof content === "string") {
     return [content];
   }

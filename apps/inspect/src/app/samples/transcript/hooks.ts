@@ -1,45 +1,12 @@
 import { useCallback, useMemo } from "react";
 
-import {
-  Event,
-  Event1,
-  Event2,
-  Event3,
-  Event4,
-  Event5,
-  Event6,
-  Event7,
-  Event8,
-  Event9,
-  Event10,
-  Event11,
-  Event12,
-  Event13,
-  Event14,
-  Event15,
-  Event19,
-} from "../../../@types/log";
+import { Event } from "@tsmono/inspect-common";
+
 import { kDefaultExcludeEvents } from "../../../state/sampleSlice";
 import { useStore } from "../../../state/store";
 
-export type AllEventTypes =
-  | Event
-  | Event1
-  | Event2
-  | Event3
-  | Event4
-  | Event5
-  | Event6
-  | Event7
-  | Event8
-  | Event9
-  | Event10
-  | Event11
-  | Event12
-  | Event13
-  | Event14
-  | Event15
-  | Event19;
+// TODO: span_begin/end are not in AllEventTypes. Is that on purpose?
+export type AllEventTypes = Exclude<Event["event"], "span_begin" | "span_end">;
 
 const eventTypes: Record<AllEventTypes, string> = {
   sample_init: "Sample Init",
@@ -59,6 +26,7 @@ const eventTypes: Record<AllEventTypes, string> = {
   info: "Info",
   subtask: "Subtask",
   branch: "Branch",
+  step: "Step",
 } as const;
 
 export const useTranscriptFilter = () => {

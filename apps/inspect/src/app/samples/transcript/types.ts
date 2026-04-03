@@ -1,7 +1,7 @@
+import { JsonChanges } from "../../../@types/bogusTypes";
 import {
   ApprovalEvent,
   BranchEvent,
-  Changes,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -28,7 +28,7 @@ export interface StateManager {
   scope: string;
   getState(): object;
   initializeState(state: object): void;
-  applyChanges(changes: Changes): object;
+  applyChanges(changes: JsonChanges): object;
 }
 
 export const kTranscriptCollapseScope = "transcript-collapse";

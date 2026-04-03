@@ -12,7 +12,7 @@ export const arrayToString = (val: string | string[]): string => {
 export const formatDataset = (
   samples: number,
   epochs: number,
-  name: string | null
+  name: string | null | undefined
 ): string => {
   const perEpochSamples = epochs > 0 ? samples / epochs : samples;
   const namePrefix = name ? `${name} — ` : "";

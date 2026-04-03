@@ -4,13 +4,8 @@ import { FC, ReactNode } from "react";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
-import {
-  EvalSample,
-  ProvenanceData,
-  Target,
-  TotalTime,
-  WorkingTime,
-} from "../../@types/log";
+import { Target, TotalTime, WorkingTime } from "../../@types/bogusTypes";
+import { EvalSample, ProvenanceData } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { formatDateTime, formatTime } from "../../utils/format";

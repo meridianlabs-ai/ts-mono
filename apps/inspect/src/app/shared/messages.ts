@@ -1,9 +1,9 @@
+import { ChatMessageContent } from "../../@types/bogusTypes";
 import {
   ChatMessageAssistant,
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
-  Content,
   ContentAudio,
   ContentData,
   ContentDocument,
@@ -150,7 +150,7 @@ const textFromContent = (
 };
 
 const betterContentText = (
-  content: Content,
+  content: ChatMessageContent,
   excludeToolUsage: boolean,
   excludeReasoning: boolean
 ): string => {

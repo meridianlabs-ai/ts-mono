@@ -1,11 +1,11 @@
 import { FC } from "react";
 
-import { ModelUsage, ModelUsage2, ModelUsage3 } from "../../@types/log";
+import { ModelUsageDict } from "../../@types/bogusTypes";
 
 import { TokenHeader, TokenRow, TokenTable } from "./TokenTable";
 
 interface ModelTokenTableProps {
-  model_usage: ModelUsage | ModelUsage2 | ModelUsage3;
+  model_usage: ModelUsageDict;
   className?: string | string[];
 }
 

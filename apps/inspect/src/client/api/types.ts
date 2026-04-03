@@ -1,10 +1,21 @@
 import {
+  CompletedAt,
+  EvalId,
+  Model,
+  RunId,
+  ScoresDict,
+  StartedAt,
+  Target,
+  Task,
+  TaskId,
+  TaskVersion,
+  Version,
+} from "../../@types/bogusTypes";
+import {
   ApprovalEvent,
   BranchEvent,
   CompactionEvent,
-  CompletedAt,
   EvalError,
-  EvalId,
   EvalLog,
   EvalMetric,
   EvalPlan,
@@ -17,26 +28,17 @@ import {
   Input,
   LoggerEvent,
   LogUpdate,
-  Model,
   ModelEvent,
-  RunId,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
   ScoreEvent,
-  Scores1,
-  StartedAt,
   StateEvent,
   Status,
   StepEvent,
   StoreEvent,
   SubtaskEvent,
-  Target,
-  Task,
-  TaskId,
-  TaskVersion,
   ToolEvent,
-  Version,
 } from "../../@types/log";
 
 export type ProgressCallback = (
@@ -132,7 +134,7 @@ export interface SampleSummary {
   epoch: number;
   input: Input;
   target: Target;
-  scores: Scores1;
+  scores: ScoresDict;
   error?: string;
   limit?: string;
   metadata?: Record<string, any>;
@@ -144,7 +146,7 @@ export interface BasicSampleData {
   id: number | string;
   epoch: number;
   target: Target;
-  scores: Scores1;
+  scores?: ScoresDict;
 }
 
 export interface Capabilities {

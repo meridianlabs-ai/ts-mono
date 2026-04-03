@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-import { Value2 } from "../../../../@types/log";
+import { ScoreValueOrUnchanged } from "../../../../@types/bogusTypes";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 import styles from "./BooleanScoreDescriptor.module.css";
@@ -11,7 +11,7 @@ export const booleanScoreDescriptor = (): ScoreDescriptor => {
     compare: (a: SelectedScore, b: SelectedScore) => {
       return Number(a.value) - Number(b.value);
     },
-    render: (score: Value2) => {
+    render: (score: ScoreValueOrUnchanged) => {
       return (
         <span
           className={clsx(

@@ -3,12 +3,12 @@ import { FC, Fragment } from "react";
 
 import { formatNumber } from "@tsmono/util";
 
-import { ModelUsage1 } from "../../@types/log";
+import { ModelUsage } from "../../@types/bogusTypes";
 
 import styles from "./ModelUsagePanel.module.css";
 
 interface ModelUsageProps {
-  usage: ModelUsage1;
+  usage?: ModelUsage;
   className?: string | string[];
 }
 

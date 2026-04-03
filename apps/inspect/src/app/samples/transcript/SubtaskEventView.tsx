@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { Input2, Input5, Result3, SubtaskEvent } from "../../../@types/log";
+import { Input, Input5 } from "../../../@types/bogusTypes";
+import { SubtaskEvent } from "../../../@types/log";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 
@@ -61,14 +62,15 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
 };
 
 interface SubtaskSummaryProps {
-  input: Input2 | Input5;
-  result: Result3;
+  input: Input | Input5;
+  result: unknown;
 }
 /**
  * Renders the StateEventView component.
  */
 const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
-  const output = typeof result === "object" ? result : { result };
+  const output =
+    result !== null && typeof result === "object" ? result : { result };
   return (
     <div className={clsx(styles.subtaskSummary)}>
       <div className={clsx("text-style-label", "text-size-small")}>Input</div>
@@ -86,7 +88,7 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
 };
 
 interface RenderedProps {
-  values: Array<unknown> | Object | string | number;
+  values: Array<unknown> | object | string | number;
 }
 
 /**

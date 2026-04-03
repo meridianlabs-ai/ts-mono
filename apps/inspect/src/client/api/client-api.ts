@@ -218,6 +218,7 @@ export const clientApi = (
       }
     } else {
       const logContents = await get_log(log_file, true);
+      // const samples =
       if (logContents.parsed.samples && logContents.parsed.samples.length > 0) {
         return logContents.parsed.samples.find((sample) => {
           return sampleIdsEqual(sample.id, id) && sample.epoch === epoch;

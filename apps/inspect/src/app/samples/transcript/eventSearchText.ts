@@ -1,4 +1,4 @@
-import { Content } from "../../../@types/log";
+import { ChatMessageContent } from "../../../@types/bogusTypes";
 import { substituteToolCallContent } from "../chat/tools/substituteToolCallContent";
 
 import { eventTitle } from "./event/utils";
@@ -214,7 +214,7 @@ export const eventSearchText = (node: EventNode): string[] => {
 /**
  * Extracts text strings from message content.
  */
-const extractContentText = (content: Content): string[] => {
+const extractContentText = (content: ChatMessageContent): string[] => {
   if (typeof content === "string") {
     return [content];
   }

@@ -2,7 +2,7 @@ import "prismjs/components/prism-bash";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 
-import { Arguments1 } from "../../../../@types/log";
+import { Arguments1 } from "../../../../@types/bogusTypes";
 
 export { substituteToolCallContent } from "./substituteToolCallContent";
 

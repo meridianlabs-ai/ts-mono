@@ -396,7 +396,7 @@ export const sampleEventUrl = (
 };
 
 export const useSampleMessageUrl = (
-  messageId: string | null,
+  messageId: string | null | undefined,
   sampleId?: string | number,
   sampleEpoch?: string | number
 ) => {
