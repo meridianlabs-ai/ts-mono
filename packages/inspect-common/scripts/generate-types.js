@@ -13,6 +13,7 @@ import openapiTS, { astToString } from "openapi-typescript";
 import ts from "typescript";
 
 import { requirePythonRepoRoot } from "../../../tooling/python-repo/index.js";
+
 import { openapiTSOptions } from "./openapi-ts-options.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

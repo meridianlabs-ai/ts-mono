@@ -7,8 +7,9 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
-import getVersionInfo from "./scripts/get-version.js";
 import { findPythonRepoRoot } from "../../tooling/python-repo/index.js";
+
+import getVersionInfo from "./scripts/get-version.js";
 
 function copyToPythonRepo(): Plugin {
   return {
