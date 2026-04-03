@@ -1,6 +1,7 @@
+import { formatDecimalNoTrailingZeroes } from "@tsmono/util";
+
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeNumeric } from "../../../../constants";
-import { formatDecimalNoTrailingZeroes } from "../../../../utils/format";
 import { compareWithNan } from "../../../../utils/numeric";
 import { ScoreDescriptor } from "../types";
 

@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 
+import { arrayToString } from "@tsmono/util";
+
 import { Value2 } from "../../../@types/log";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { arrayToString, inputString } from "../../../utils/format";
+import { inputString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";

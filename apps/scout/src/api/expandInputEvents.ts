@@ -1,4 +1,5 @@
-import { expandEvents } from "../app/utils/expandEvents";
+import { expandEvents } from "@tsmono/inspect-common/utils";
+
 import type {
   Event,
   ScannerInputResponse,

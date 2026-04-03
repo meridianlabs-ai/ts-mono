@@ -1,8 +1,6 @@
-import {
-  formatDateTime,
-  formatNumber,
-  formatTime,
-} from "../../../../utils/format";
+import { formatNumber } from "@tsmono/util";
+
+import { formatDateTime, formatTime } from "../../../../utils/format";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventType } from "../types";
 

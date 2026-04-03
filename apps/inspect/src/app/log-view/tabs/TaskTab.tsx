@@ -1,15 +1,12 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
+import { formatNumber, toTitleCase } from "@tsmono/util";
+
 import { EarlyStoppingSummary, EvalSpec, EvalStats } from "../../../@types/log";
 import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { kLogViewTaskTabId } from "../../../constants";
-import {
-  formatDateTime,
-  formatDuration,
-  formatNumber,
-  toTitleCase,
-} from "../../../utils/format";
+import { formatDateTime, formatDuration } from "../../../utils/format";
 import { ghCommitUrl } from "../../../utils/git";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { RecordTree } from "../../content/RecordTree";

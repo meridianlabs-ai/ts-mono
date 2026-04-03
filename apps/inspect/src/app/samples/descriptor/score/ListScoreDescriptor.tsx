@@ -1,6 +1,7 @@
+import { formatPrettyDecimal } from "@tsmono/util";
+
 import { Value2 } from "../../../../@types/log";
 import { kScoreTypeList } from "../../../../constants";
-import { formatPrettyDecimal } from "../../../../utils/format";
 import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor, SelectedScore } from "../types";
 

@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { arrayToString } from "@tsmono/util";
+
 import {
   EvalSample,
   ProvenanceData,
@@ -10,12 +12,7 @@ import {
 } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
-import {
-  arrayToString,
-  formatDateTime,
-  formatTime,
-  inputString,
-} from "../../utils/format";
+import { formatDateTime, formatTime, inputString } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
 import { RenderedText } from "../content/RenderedText";
 

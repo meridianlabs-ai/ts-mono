@@ -17,6 +17,8 @@ import {
   useRef,
 } from "react";
 
+import { formatNoDecimal } from "@tsmono/util";
+
 import { EarlyStoppingSummary } from "../../../@types/log";
 import { MessageBand } from "../../../components/MessageBand";
 import {
@@ -26,7 +28,6 @@ import {
   useSelectedScores,
 } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { formatNoDecimal } from "../../../utils/format";
 import { SampleListItem } from "../../log-view/tabs/types";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
 

@@ -1,6 +1,7 @@
+import { expandEvents } from "@tsmono/inspect-common/utils";
+
 import { EvalSample } from "../@types/log";
 import { resolveAttachments } from "../utils/attachments";
-import { expandEvents } from "../utils/expandEvents";
 
 /**
  * Migrates and resolves attachments for a sample

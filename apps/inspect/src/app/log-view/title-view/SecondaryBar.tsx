@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { formatDataset } from "@tsmono/util";
+
 import {
   EvalDataset,
   EvalPlan,
@@ -14,11 +16,7 @@ import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
 import { ExpandablePanel } from "../../../components/ExpandablePanel";
 import { LabeledValue } from "../../../components/LabeledValue";
 import { useEvalDescriptor, useSampleInvalidation } from "../../../state/hooks";
-import {
-  formatDataset,
-  formatDateTime,
-  formatDuration,
-} from "../../../utils/format";
+import { formatDateTime, formatDuration } from "../../../utils/format";
 
 import styles from "./SecondaryBar.module.css";
 

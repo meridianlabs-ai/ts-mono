@@ -1,9 +1,4 @@
-import type {
-  ChatMessage,
-  Event,
-  EventsData,
-  ModelEvent,
-} from "../../types/api-types";
+import type { ChatMessage, Event, EventsData, ModelEvent } from "../types";
 
 /**
  * Expand range-encoded refs against a pool.

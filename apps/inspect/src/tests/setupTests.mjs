@@ -1,6 +1,11 @@
+import { TextDecoder, TextEncoder } from "util";
+
 import "@testing-library/jest-dom";
 // Setup fake IndexedDB for database tests
 import "fake-indexeddb/auto";
+
+global.TextDecoder = TextDecoder;
+global.TextEncoder = TextEncoder;
 
 // Mock build-time constants used by logger
 global.__LOGGING_FILTER__ = "";

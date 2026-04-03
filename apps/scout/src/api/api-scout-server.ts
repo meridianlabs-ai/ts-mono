@@ -1,8 +1,8 @@
 import { decompress as decompressZstd } from "fzstd";
 
+import { expandEvents } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
-import { expandEvents } from "../app/utils/expandEvents";
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
