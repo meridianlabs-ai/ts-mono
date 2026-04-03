@@ -1,4 +1,4 @@
-import { ToolCallContent } from "../../../../@types/log";
+import { ToolCallContent } from "@tsmono/inspect-common/types";
 
 /**
  * Substitute `{{param_name}}` placeholders in a ToolCallContent from arguments.

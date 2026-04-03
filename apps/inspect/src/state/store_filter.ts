@@ -1,6 +1,5 @@
+import { EvalSample } from "@tsmono/inspect-common/types";
 import { estimateSize } from "@tsmono/util";
-
-import { EvalSample } from "../@types/log";
 
 import { PersistedState } from "./store";
 

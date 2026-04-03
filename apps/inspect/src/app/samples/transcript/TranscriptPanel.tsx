@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
-import { Events } from "../../../@types/log";
+import { Events } from "../../../@types/bogusTypes";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { StickyScroll } from "../../../components/StickyScroll";
 import { useCollapsedState } from "../../../state/hooks";

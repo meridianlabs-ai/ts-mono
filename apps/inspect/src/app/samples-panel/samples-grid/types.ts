@@ -1,4 +1,4 @@
-import { Status } from "../../../@types/log";
+import { Status } from "../../../@types/bogusTypes";
 
 // Flattened row data for the grid
 export interface SampleRow {

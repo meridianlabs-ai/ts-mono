@@ -1,4 +1,3 @@
-import { ChatMessageContent } from "../../@types/bogusTypes";
 import {
   ChatMessageAssistant,
   ChatMessageSystem,
@@ -12,8 +11,9 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  Messages,
-} from "../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { ChatMessageContent, ChatMessages } from "../../@types/bogusTypes";
 
 export interface MessagesToStrOptions {
   excludeSystem?: boolean;
@@ -22,7 +22,7 @@ export interface MessagesToStrOptions {
 }
 
 export const messagesToStr = (
-  messages: Messages,
+  messages: ChatMessages,
   options?: MessagesToStrOptions
 ): string => {
   const opts = options || {};

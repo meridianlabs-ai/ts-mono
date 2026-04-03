@@ -1,13 +1,13 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { isAnsiOutput, isJson } from "@tsmono/util";
-
 import {
   ContentDocument,
   ContentImage,
   ContentText,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+import { isAnsiOutput, isJson } from "@tsmono/util";
+
 import { ANSIDisplay } from "../../../../components/AnsiDisplay";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";

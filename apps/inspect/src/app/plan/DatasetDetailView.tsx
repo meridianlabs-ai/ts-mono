@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { CSSProperties, FC } from "react";
 
-import { EvalDataset } from "../../@types/log";
+import { EvalDataset } from "@tsmono/inspect-common/types";
+
 import { MetaDataGrid } from "../content/MetaDataGrid";
 
 import styles from "./DatasetDetailView.module.css";

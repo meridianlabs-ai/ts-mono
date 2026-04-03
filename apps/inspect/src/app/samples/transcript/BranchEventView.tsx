@@ -1,6 +1,7 @@
 import { FC } from "react";
 
-import { BranchEvent } from "../../../@types/log";
+import { BranchEvent } from "@tsmono/inspect-common/types";
+
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";

@@ -10,7 +10,8 @@ import {
   ContentText,
   ContentVideo,
   ToolCallContent,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
 import { ContentTool } from "../../../../app/types";
 import ExpandablePanel from "../../../../components/ExpandablePanel";
 import { MessageContent } from "../MessageContent";

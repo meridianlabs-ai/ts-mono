@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { SubtaskEvent } from "@tsmono/inspect-common/types";
+
 import { Input, Input5 } from "../../../@types/bogusTypes";
-import { SubtaskEvent } from "../../../@types/log";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 

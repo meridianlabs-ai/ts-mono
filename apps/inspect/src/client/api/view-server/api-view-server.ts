@@ -1,4 +1,4 @@
-import { Scores } from "../../../@types/log";
+import { EvalScores } from "../../../@types/bogusTypes";
 import { asyncJsonParse } from "../../../utils/json-worker";
 import { download_file } from "../shared/api-shared";
 import {
@@ -172,7 +172,7 @@ export function viewServerApi(
   };
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
-    const scores: Scores = Object.values(header.results?.scores || {});
+    const scores: EvalScores = Object.values(header.results?.scores || {});
     const metric = scores.length > 0 ? scores[0].metrics : undefined;
     const evalMetrics = Object.values(metric || {});
     const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;

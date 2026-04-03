@@ -1,11 +1,11 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { EvalSample, ProvenanceData } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
 import { Target, TotalTime, WorkingTime } from "../../@types/bogusTypes";
-import { EvalSample, ProvenanceData } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { formatDateTime, formatTime } from "../../utils/format";

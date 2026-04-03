@@ -1,4 +1,3 @@
-import { JsonChanges } from "../../../@types/bogusTypes";
 import {
   ApprovalEvent,
   BranchEvent,
@@ -20,7 +19,9 @@ import {
   StoreEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { JsonChanges } from "../../../@types/bogusTypes";
 
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 

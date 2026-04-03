@@ -6,7 +6,8 @@ import {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
 import { ContentTool } from "../../../app/types";
 
 import { MessageContent } from "./MessageContent";

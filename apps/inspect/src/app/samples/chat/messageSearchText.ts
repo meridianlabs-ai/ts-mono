@@ -1,9 +1,10 @@
-import { ChatMessageContent } from "../../../@types/bogusTypes";
 import {
   ContentReasoning,
   ContentText,
   ContentToolUse,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { ChatMessageContent } from "../../../@types/bogusTypes";
 
 import { ResolvedMessage } from "./messages";
 

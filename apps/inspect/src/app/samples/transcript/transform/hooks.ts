@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 
 import {
-  Events,
   SpanBeginEvent,
   StepEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { Events } from "../../../../@types/bogusTypes";
 import { EventNode, EventType, kCollapsibleEventTypes } from "../types";
 
 import { fixupEventStream, kSandboxSignalName } from "./fixups";

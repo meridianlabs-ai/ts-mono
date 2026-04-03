@@ -1,4 +1,5 @@
-import { EvalLog } from "../../../@types/log";
+import { EvalLog } from "@tsmono/inspect-common/types";
+
 import { asyncJsonParse } from "../../../utils/json-worker";
 import { encodePathParts } from "../../../utils/uri";
 import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";

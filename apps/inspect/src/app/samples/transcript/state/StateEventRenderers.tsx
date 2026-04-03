@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
 
-import { JsonChange, Messages } from "../../../../@types/log";
+import { JsonChange } from "@tsmono/inspect-common/types";
+
+import { ChatMessages } from "../../../../@types/bogusTypes";
 import {
   HumanBaselineView,
   SessionLog,
@@ -50,7 +52,7 @@ const system_msg_added_sig: ChangeType = {
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={[message] as Messages}
+        messages={[message] as ChatMessages}
         allowLinking={false}
       />
     );
@@ -101,7 +103,7 @@ const messages: ChangeType = {
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={messages as unknown as Messages}
+        messages={messages as unknown as ChatMessages}
         allowLinking={false}
       />
     );
@@ -267,7 +269,7 @@ const createMessageRenderer = (name: string, role: string): ChangeType => {
         <ChatView
           key="system_msg_event_preview"
           id="system_msg_event_preview"
-          messages={[message] as Messages}
+          messages={[message] as ChatMessages}
           allowLinking={false}
         />
       );

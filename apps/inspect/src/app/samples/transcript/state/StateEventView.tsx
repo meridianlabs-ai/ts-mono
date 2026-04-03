@@ -3,13 +3,14 @@
 import clsx from "clsx";
 import { FC, useEffect, useMemo } from "react";
 
-import { JsonChanges } from "../../../../@types/bogusTypes";
 import {
   JsonChange,
   JsonChangeOp,
   StateEvent,
   StoreEvent,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { JsonChanges } from "../../../../@types/bogusTypes";
 import { useStore } from "../../../../state/store";
 import { formatDateTime } from "../../../../utils/format";
 import { EventPanel } from "../event/EventPanel";

@@ -1,17 +1,4 @@
 import {
-  CompletedAt,
-  EvalId,
-  Model,
-  RunId,
-  ScoresDict,
-  StartedAt,
-  Target,
-  Task,
-  TaskId,
-  TaskVersion,
-  Version,
-} from "../../@types/bogusTypes";
-import {
   ApprovalEvent,
   BranchEvent,
   CompactionEvent,
@@ -25,7 +12,6 @@ import {
   EvalSpec,
   EvalStats,
   InfoEvent,
-  Input,
   LoggerEvent,
   LogUpdate,
   ModelEvent,
@@ -34,12 +20,27 @@ import {
   SandboxEvent,
   ScoreEvent,
   StateEvent,
-  Status,
   StepEvent,
   StoreEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import {
+  CompletedAt,
+  EvalId,
+  Input,
+  Model,
+  RunId,
+  ScoresDict,
+  StartedAt,
+  Status,
+  Target,
+  Task,
+  TaskId,
+  TaskVersion,
+  Version,
+} from "../../@types/bogusTypes";
 
 export type ProgressCallback = (
   bytesLoaded: number,

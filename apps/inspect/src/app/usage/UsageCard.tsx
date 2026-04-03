@@ -1,6 +1,7 @@
 import { FC } from "react";
 
-import { EvalStats } from "../../@types/log";
+import { EvalStats } from "@tsmono/inspect-common/types";
+
 import { Card, CardBody, CardHeader } from "../../components/Card";
 
 import { ModelTokenTable } from "./ModelTokenTable";

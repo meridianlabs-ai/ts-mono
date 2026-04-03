@@ -141,26 +141,3 @@ export type EarlyStop = S["EarlyStop"];
 export type EarlyStoppingSummary = S["EarlyStoppingSummary"];
 export type Outline = S["Outline"];
 export type OutlineNode = S["OutlineNode"];
-
-// Convenience aliases (non-canonical — absent from schema, used by consumers)
-export type Events = Event[];
-export type Messages = ChatMessage[];
-export type Scores = EvalScore[];
-export type Steps = EvalPlanStep[];
-export type Tools = ToolInfo[];
-export type Citations =
-  | (ContentCitation | DocumentCitation | UrlCitation)[]
-  | null;
-export type Input = string | ChatMessage[];
-export type Status = EvalLog["status"];
-export type ModelRoles = { [k: string]: ModelConfig } | null;
-export type ScoresDict = { [k: string]: Score } | null | undefined;
-export type ModelUsageDict = { [k: string]: ModelUsage } | null;
-export type ScoreValue =
-  | string
-  | number
-  | boolean
-  | (string | number | boolean)[]
-  | { [k: string]: string | number | boolean | null };
-/** Score value that may also be the sentinel "UNCHANGED". Structurally identical to ScoreValue (string absorbs the literal), but conveys intent. */
-export type ScoreValueOrUnchanged = ScoreValue;

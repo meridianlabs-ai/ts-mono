@@ -1,4 +1,4 @@
-import { Events } from "../../../../@types/log";
+import { Events } from "../../../../@types/bogusTypes";
 import { EventNode, EventType } from "../types";
 
 export const STEP = "step";

@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
+import { ScoreEvent } from "@tsmono/inspect-common/types";
+
 import { ScoreValue } from "../../../@types/bogusTypes";
-import { ScoreEvent } from "../../../@types/log";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";

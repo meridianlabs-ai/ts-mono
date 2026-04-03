@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { EvalPlan, EvalScore, EvalSpec } from "../../@types/log";
+import { EvalPlan, EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
+
 import { Params2 } from "../../@types/bogusTypes";
 
 import { DatasetDetailView } from "./DatasetDetailView";

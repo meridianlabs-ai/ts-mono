@@ -1,5 +1,4 @@
-import { Events } from "@tsmono/inspect-common/types";
-
+import { Events } from "../../@types/bogusTypes";
 import { EventData, SampleData } from "../../client/api/types";
 import { resolveAttachments } from "../../utils/attachments";
 

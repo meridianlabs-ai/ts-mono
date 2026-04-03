@@ -1,6 +1,6 @@
+import { EvalSample } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
-import { EvalSample } from "../@types/log";
 import { resolveAttachments } from "../utils/attachments";
 
 /**

@@ -17,9 +17,9 @@ import {
   useRef,
 } from "react";
 
+import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
-import { EarlyStoppingSummary } from "../../../@types/log";
 import { MessageBand } from "../../../components/MessageBand";
 import {
   useDocumentTitle,

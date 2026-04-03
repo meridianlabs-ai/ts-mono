@@ -1,8 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { formatDataset } from "@tsmono/util";
-
 import {
   EvalDataset,
   EvalPlan,
@@ -10,7 +8,9 @@ import {
   EvalSpec,
   EvalStats,
   ProvenanceData,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+import { formatDataset } from "@tsmono/util";
+
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
 import { ExpandablePanel } from "../../../components/ExpandablePanel";

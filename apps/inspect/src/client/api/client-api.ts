@@ -1,4 +1,5 @@
-import { EvalSample } from "../../@types/log";
+import { EvalSample } from "@tsmono/inspect-common/types";
+
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
 import {

@@ -1,4 +1,6 @@
-import { Events, SpanBeginEvent, SpanEndEvent } from "../../../../@types/log";
+import { SpanBeginEvent, SpanEndEvent } from "@tsmono/inspect-common/types";
+
+import { Events } from "../../../../@types/bogusTypes";
 import { EventNode, EventType } from "../types";
 
 import { transformTree } from "./transform";

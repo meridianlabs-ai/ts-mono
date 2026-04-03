@@ -2,9 +2,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { SampleInitEvent } from "@tsmono/inspect-common/types";
 import { toArray } from "@tsmono/util";
 
-import { Messages, SampleInitEvent } from "../../../@types/log";
+import { ChatMessages } from "../../../@types/bogusTypes";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
@@ -68,7 +69,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
     >
       <div data-name="Sample" className={styles.sample}>
         <ChatView
-          messages={stateObj["messages"] as Messages}
+          messages={stateObj["messages"] as ChatMessages}
           allowLinking={false}
         />
         <div>

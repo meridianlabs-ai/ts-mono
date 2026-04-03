@@ -22,7 +22,8 @@ import {
   StoreEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../@types/log";
+} from "@tsmono/inspect-common/types";
+
 import {
   AttachmentData,
   EvalHeader,

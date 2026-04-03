@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { SampleLimitEvent } from "../../../@types/log";
+import { SampleLimitEvent } from "@tsmono/inspect-common/types";
+
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 

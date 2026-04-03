@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
 import { filename } from "@tsmono/util";
 
-import { EvalResults, EvalSpec, Status } from "../../../@types/log";
+import { Status } from "../../../@types/bogusTypes";
 import { RunningMetric } from "../../../client/api/types";
 import { CopyButton } from "../../../components/CopyButton";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";

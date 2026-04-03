@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { StepEvent } from "../../../@types/log";
+import { StepEvent } from "@tsmono/inspect-common/types";
+
 import { formatDateTime } from "../../../utils/format";
 
 import { EventPanel } from "./event/EventPanel";

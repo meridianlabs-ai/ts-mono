@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { EvalSample, EvalSpec, Events, Status } from "../@types/log";
+import { Events, Status } from "../@types/bogusTypes";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,

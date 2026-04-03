@@ -6,8 +6,9 @@ import {
   EvalResults,
   EvalSpec,
   EvalStats,
-  Status,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { Status } from "../../../@types/bogusTypes";
 import { RunningMetric } from "../../../client/api/types";
 import { useTotalSampleCount } from "../../../state/hooks";
 

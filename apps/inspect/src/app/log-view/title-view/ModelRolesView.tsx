@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ModelRoles } from "../../../@types/log";
+import { ModelRoles } from "../../../@types/bogusTypes";
 
 import styles from "./ModelRolesView.module.css";
 

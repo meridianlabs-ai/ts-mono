@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment, PropsWithChildren, ReactElement } from "react";
 
-import { UrlCitation as UrlCitationType } from "../../../@types/log";
+import { UrlCitation as UrlCitationType } from "@tsmono/inspect-common/types";
+
 import { decodeHtmlEntities } from "../../../utils/html";
 
 import styles from "./MessageCitations.module.css";

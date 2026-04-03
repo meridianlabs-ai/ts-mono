@@ -1,9 +1,13 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
+import {
+  EarlyStoppingSummary,
+  EvalSpec,
+  EvalStats,
+} from "@tsmono/inspect-common/types";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
-import { EarlyStoppingSummary, EvalSpec, EvalStats } from "../../../@types/log";
 import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { kLogViewTaskTabId } from "../../../constants";
 import { formatDateTime, formatDuration } from "../../../utils/format";

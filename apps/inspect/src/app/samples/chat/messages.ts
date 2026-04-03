@@ -11,9 +11,9 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  Events,
-  Messages,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { ChatMessages, Events } from "../../../@types/bogusTypes";
 import { ApplicationIcons } from "../../appearance/icons";
 
 export type Message = (
@@ -29,7 +29,7 @@ export interface ResolvedMessage {
   toolMessages: ChatMessageTool[];
 }
 
-export const resolveMessages = (messages: Messages) => {
+export const resolveMessages = (messages: ChatMessages) => {
   // Filter tool messages into a sidelist that the chat stream
   // can use to lookup the tool responses
 
@@ -157,7 +157,7 @@ const normalizeContent = (
   }
 };
 
-export const messagesFromEvents = (runningEvents: Events): Messages => {
+export const messagesFromEvents = (runningEvents: Events): ChatMessages => {
   const messages: Map<
     string,
     ChatMessageSystem | ChatMessageUser | ChatMessageAssistant | ChatMessageTool

@@ -1,6 +1,7 @@
 import { FC } from "react";
 
-import { InputEvent } from "../../../@types/log";
+import { InputEvent } from "@tsmono/inspect-common/types";
+
 import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";

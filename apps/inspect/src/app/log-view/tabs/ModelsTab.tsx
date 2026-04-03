@@ -1,6 +1,8 @@
 import { FC, useMemo } from "react";
 
-import { EvalSpec, EvalStats, Status } from "../../../@types/log";
+import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
+
+import { Status } from "../../../@types/bogusTypes";
 import { kLogViewModelsTabId } from "../../../constants";
 import { ModelCard } from "../../plan/ModelCard";
 import { UsageCard } from "../../usage/UsageCard";

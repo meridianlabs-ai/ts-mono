@@ -1,8 +1,8 @@
 import { FC } from "react";
 
+import { EvalSample } from "@tsmono/inspect-common/types";
 import { estimateSize } from "@tsmono/util";
 
-import { EvalSample } from "../../@types/log";
 import { JSONPanel } from "../../components/JsonPanel";
 import { NoContentsPanel } from "../../components/NoContentsPanel";
 

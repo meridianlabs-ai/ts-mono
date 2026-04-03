@@ -1,7 +1,7 @@
 import type { AgGridReact } from "ag-grid-react";
 import { FC, Fragment, useEffect, useMemo, useRef } from "react";
 
-import { Status } from "../../../@types/log";
+import { Status } from "../../../@types/bogusTypes";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import {

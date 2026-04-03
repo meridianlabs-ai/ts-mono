@@ -1,6 +1,7 @@
 import { FC } from "react";
 
-import { ApprovalEvent } from "../../../@types/log";
+import { ApprovalEvent } from "@tsmono/inspect-common/types";
+
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { EventRow } from "./event/EventRow";

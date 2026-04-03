@@ -2,7 +2,8 @@ import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
-import { EvalSample } from "../../../@types/log";
+import { EvalSample } from "@tsmono/inspect-common/types";
+
 import { Card, CardBody, CardHeader } from "../../../components/Card";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import {

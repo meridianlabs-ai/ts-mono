@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC, RefObject } from "react";
 
+import { EvalSample } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 
-import { EvalSample } from "../../../@types/log";
 import { Card, CardBody } from "../../../components/Card";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";

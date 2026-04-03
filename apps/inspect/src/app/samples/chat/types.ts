@@ -1,4 +1,4 @@
-import { Citations } from "../../../@types/log";
+import { Citations } from "../../../@types/bogusTypes";
 
 export type ChatViewToolCallStyle = "compact" | "complete" | "omit";
 
