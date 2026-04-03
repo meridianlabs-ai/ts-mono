@@ -3,6 +3,8 @@
  *  DO NOT MODIFY IT BY HAND.
  *  To regenerate, run: python src/inspect_ai/_view/schema.py
  */
+import { JsonValue } from "@tsmono/util";
+
 
 export type Version = number;
 export type Status = "started" | "success" | "cancelled" | "error";
@@ -187,7 +189,6 @@ export type Reason = string | null;
 export type Metadata2 = {
   [k: string]: JsonValue;
 } | null;
-export type JsonValue = unknown;
 export type EarlyStops = EarlyStop[];
 export type Name6 = string;
 export type Scorer = string;
@@ -1365,7 +1366,7 @@ export interface ChatMessageSystem {
  * Text content.
  */
 export interface ContentText {
-  internal: unknown;
+  internal: JsonValue;
   type: Type5;
   text: Text;
   refusal: Refusal;
@@ -1414,7 +1415,7 @@ export interface UrlCitation {
  * See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
  */
 export interface ContentReasoning {
-  internal: unknown;
+  internal: JsonValue;
   type: Type10;
   reasoning: Reasoning;
   summary: Summary;
@@ -1425,7 +1426,7 @@ export interface ContentReasoning {
  * Image content.
  */
 export interface ContentImage {
-  internal: unknown;
+  internal: JsonValue;
   type: Type11;
   image: Image;
   detail: Detail;
@@ -1434,7 +1435,7 @@ export interface ContentImage {
  * Audio content.
  */
 export interface ContentAudio {
-  internal: unknown;
+  internal: JsonValue;
   type: Type12;
   audio: Audio;
   format: Format1;
@@ -1443,7 +1444,7 @@ export interface ContentAudio {
  * Video content.
  */
 export interface ContentVideo {
-  internal: unknown;
+  internal: JsonValue;
   type: Type13;
   video: Video;
   format: Format2;
@@ -1452,7 +1453,7 @@ export interface ContentVideo {
  * Model internal.
  */
 export interface ContentData {
-  internal: unknown;
+  internal: JsonValue;
   type: Type14;
   data: Data;
 }
@@ -1463,7 +1464,7 @@ export interface Data {
  * Server side tool use.
  */
 export interface ContentToolUse {
-  internal: unknown;
+  internal: JsonValue;
   type: Type15;
   tool_type: ToolType;
   id: Id3;
@@ -1477,7 +1478,7 @@ export interface ContentToolUse {
  * Document content (e.g. a PDF).
  */
 export interface ContentDocument {
-  internal: unknown;
+  internal: JsonValue;
   type: Type16;
   document: Document;
   filename: Filename;

@@ -6,7 +6,7 @@ import { Card, CardBody } from "../../../components/Card";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
-import { inputString } from "../../../utils/format";
+import { inputString } from "@tsmono/inspect-common/utils";
 import { RenderedText } from "../../content/RenderedText";
 
 import { SampleScoresGrid } from "./SampleScoresGrid";

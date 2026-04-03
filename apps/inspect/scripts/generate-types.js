@@ -26,9 +26,16 @@ const BANNER = `/*
  */`;
 
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
-const output = await compile(schema, "EvalLog", {
+let output = await compile(schema, "EvalLog", {
   additionalProperties: false,
   bannerComment: BANNER,
 });
+
+// Replace the generated `JsonValue = unknown` alias with an import of the
+// shared JsonValue type from @tsmono/util, and fix `internal: unknown` fields.
+output = output.replace(/internal: unknown;/g, "internal: JsonValue;");
+output = output.replace(/export type JsonValue = unknown;\n?/, "");
+const JSON_VALUE_IMPORT = 'import { JsonValue } from "@tsmono/util";\n';
+output = BANNER + "\n" + JSON_VALUE_IMPORT + output.replace(BANNER, "");
 
 writeFileSync(typesPath, output);

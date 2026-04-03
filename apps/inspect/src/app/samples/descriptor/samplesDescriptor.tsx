@@ -5,7 +5,7 @@ import { arrayToString } from "@tsmono/util";
 import { Value2 } from "../../../@types/log";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { inputString } from "../../../utils/format";
+import { inputString } from "@tsmono/inspect-common/utils";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";

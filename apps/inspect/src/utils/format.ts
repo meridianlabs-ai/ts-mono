@@ -1,50 +1,5 @@
 import { formatPrettyDecimal } from "@tsmono/util";
 
-import {
-  ChatMessageAssistant,
-  ChatMessageSystem,
-  ChatMessageTool,
-  ChatMessageUser,
-} from "../@types/log";
-
-/**
- * Gets a string for a sample input.
- */
-export const inputString = (
-  input:
-    | string
-    | Array<
-        | ChatMessageUser
-        | ChatMessageSystem
-        | ChatMessageAssistant
-        | ChatMessageTool
-      >
-): string[] => {
-  if (typeof input === "string") {
-    return [input];
-  } else {
-    return input.map((inp) => {
-      if (typeof inp === "string") {
-        return inp;
-      } else {
-        const content = inp.content;
-        if (typeof content === "string") {
-          return content;
-        } else {
-          const result = content.map((con) => {
-            if (con.type === "text") {
-              return con.text;
-            } else {
-              return "";
-            }
-          });
-          return result.join("\n");
-        }
-      }
-    });
-  }
-};
-
 /**
  * Formats a duration given in seconds into a human-readable string.
  */

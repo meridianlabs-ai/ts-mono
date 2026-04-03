@@ -10,7 +10,7 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { inputString } from "../../utils/format";
+import { inputString } from "@tsmono/inspect-common/utils";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";

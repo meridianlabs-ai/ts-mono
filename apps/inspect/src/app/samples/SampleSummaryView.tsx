@@ -12,7 +12,8 @@ import {
 } from "../../@types/log";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
-import { formatDateTime, formatTime, inputString } from "../../utils/format";
+import { inputString } from "@tsmono/inspect-common/utils";
+import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
 import { RenderedText } from "../content/RenderedText";
 

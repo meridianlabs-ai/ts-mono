@@ -5,7 +5,7 @@ import { FC, ReactNode } from "react";
 import { arrayToString } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
-import { inputString } from "../../../utils/format";
+import { inputString } from "@tsmono/inspect-common/utils";
 import { truncateMarkdown } from "../../../utils/markdown";
 import { RenderedText } from "../../content/RenderedText";
 import { SampleListItem } from "../../log-view/tabs/types";
