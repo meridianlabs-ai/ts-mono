@@ -1,12 +1,13 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { EvalSampleLimitType, SampleLimitEvent } from "../../types/api-types";
+import { EvalSampleLimit, SampleLimitEvent } from "../../types/api-types";
 import { ApplicationIcons } from "../icons";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventNode } from "./types";
 
+type EvalSampleLimitType = EvalSampleLimit["type"];
 interface SampleLimitEventViewProps {
   eventNode: EventNode<SampleLimitEvent>;
   className?: string | string[];
