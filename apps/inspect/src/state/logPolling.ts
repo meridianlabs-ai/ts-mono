@@ -1,4 +1,5 @@
-import { createLogger } from "../utils/logger";
+import { createLogger } from "@tsmono/util";
+
 import { createPolling } from "../utils/polling";
 
 import { StoreState } from "./store";

@@ -17,7 +17,9 @@ import {
   useRef,
 } from "react";
 
-import { EarlyStoppingSummary } from "../../../@types/log";
+import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
+import { formatNoDecimal } from "@tsmono/util";
+
 import { MessageBand } from "../../../components/MessageBand";
 import {
   useDocumentTitle,
@@ -26,7 +28,6 @@ import {
   useSelectedScores,
 } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { formatNoDecimal } from "../../../utils/format";
 import { SampleListItem } from "../../log-view/tabs/types";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
 

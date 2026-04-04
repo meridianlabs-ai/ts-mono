@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import { SpanBeginEvent } from "../../../@types/log";
+import { SpanBeginEvent } from "@tsmono/inspect-common/types";
+
 import { formatDateTime } from "../../../utils/format";
 
 import { EventPanel } from "./event/EventPanel";

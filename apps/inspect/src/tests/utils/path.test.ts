@@ -1,4 +1,4 @@
-import { dirname, filename } from "../../utils/path";
+import { dirname, filename } from "@tsmono/util";
 
 describe("filename", () => {
   test("extracts filename without extension from a path", () => {

@@ -1,11 +1,12 @@
 // This is a special name that signals a group of sandbox events.
 
 import {
-  Events,
   SpanBeginEvent,
   SpanEndEvent,
   StepEvent,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { Events } from "../../../../@types/extraInspect";
 
 import { hasSpans } from "./utils";
 

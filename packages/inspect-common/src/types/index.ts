@@ -141,6 +141,3 @@ export type EarlyStop = S["EarlyStop"];
 export type EarlyStoppingSummary = S["EarlyStoppingSummary"];
 export type Outline = S["Outline"];
 export type OutlineNode = S["OutlineNode"];
-
-// Convenience (non-canonical/absent from schema) aliases
-export type Events = Event[];

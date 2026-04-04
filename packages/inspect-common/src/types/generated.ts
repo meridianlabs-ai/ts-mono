@@ -897,10 +897,10 @@ export interface components {
             };
             plan: components["schemas"]["EvalPlan"];
             /** Reductions */
-            reductions?: unknown;
+            reductions?: components["schemas"]["EvalSampleReductions"][] | null;
             results?: components["schemas"]["EvalResults"] | null;
             /** Samples */
-            samples?: unknown;
+            samples?: components["schemas"]["EvalSample"][] | null;
             stats: components["schemas"]["EvalStats"];
             /**
              * Status

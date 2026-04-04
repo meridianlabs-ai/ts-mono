@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { EvalPlan, EvalScore, EvalSpec, Params2 } from "../../@types/log";
+import { EvalPlan, EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
 
 import { DatasetDetailView } from "./DatasetDetailView";
 import styles from "./PlanDetailView.module.css";
@@ -57,7 +57,10 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
         }
         return accum;
       },
-      {} as Record<string, { scores: string[]; params: Params2 }>
+      {} as Record<
+        string,
+        { scores: string[]; params: Record<string, unknown> }
+      >
     );
 
     if (Object.keys(scorers).length > 0) {

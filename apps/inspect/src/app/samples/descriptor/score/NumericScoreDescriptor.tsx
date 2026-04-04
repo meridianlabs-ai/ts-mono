@@ -1,10 +1,12 @@
-import { Value2 } from "../../../../@types/log";
+import { compareWithNan, formatDecimalNoTrailingZeroes } from "@tsmono/util";
+
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeNumeric } from "../../../../constants";
-import { formatDecimalNoTrailingZeroes } from "../../../../utils/format";
-import { compareWithNan } from "../../../../utils/numeric";
 import { ScoreDescriptor } from "../types";
 
-export const numericScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
+export const numericScoreDescriptor = (
+  values: ScoreValue[]
+): ScoreDescriptor => {
   const onlyNumeric = values.filter((val) => {
     return typeof val === "number";
   });

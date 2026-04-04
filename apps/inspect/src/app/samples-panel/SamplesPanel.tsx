@@ -2,6 +2,8 @@ import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { inputString } from "@tsmono/inspect-common/utils";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { ProgressBar } from "../../components/ProgressBar";
 import {
@@ -10,7 +12,6 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { inputString } from "../../utils/format";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";

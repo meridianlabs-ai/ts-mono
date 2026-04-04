@@ -1,4 +1,6 @@
-import { Events, SpanBeginEvent, SpanEndEvent } from "../../../../@types/log";
+import { SpanBeginEvent, SpanEndEvent } from "@tsmono/inspect-common/types";
+
+import { Events } from "../../../../@types/extraInspect";
 import { EventNode, EventType } from "../types";
 
 import { transformTree } from "./transform";
@@ -178,7 +180,7 @@ const injectScorersSpan = (events: Events): Events => {
   const results: Events = [];
   const collectedScorerEvents: Events = [];
   let hasCollectedScorers = false;
-  let collecting: string | null = null;
+  let collecting: string | null | undefined = null;
 
   const flushCollected = (): Events => {
     if (collectedScorerEvents.length > 0) {

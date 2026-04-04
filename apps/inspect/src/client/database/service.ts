@@ -1,4 +1,5 @@
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@tsmono/util";
+
 import { LogDetails, LogHandle, LogPreview, SampleSummary } from "../api/types";
 
 import { DatabaseManager } from "./manager";

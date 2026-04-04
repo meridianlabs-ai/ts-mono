@@ -1,9 +1,10 @@
 import {
-  Content,
   ContentReasoning,
   ContentText,
   ContentToolUse,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { ChatMessageContent } from "../../../@types/extraInspect";
 
 import { ResolvedMessage } from "./messages";
 
@@ -50,7 +51,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
 /**
  * Extracts text strings from message content.
  */
-const extractContentText = (content: Content): string[] => {
+const extractContentText = (content: ChatMessageContent): string[] => {
   if (typeof content === "string") {
     return [content];
   }

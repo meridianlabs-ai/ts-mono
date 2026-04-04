@@ -1,4 +1,4 @@
-import { SampleLimitEvent } from "../../@types/log";
+import type { SampleLimitEvent } from "../types";
 
 /**
  * Formats a limit message

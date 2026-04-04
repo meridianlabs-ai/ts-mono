@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
 
-import { JsonChange, Messages } from "../../../../@types/log";
+import { JsonChange } from "@tsmono/inspect-common/types";
+
+import { ChatMessages } from "../../../../@types/extraInspect";
 import {
   HumanBaselineView,
   SessionLog,
@@ -9,6 +11,13 @@ import {
 import { ChatView } from "../../chat/ChatView";
 
 import styles from "./StateEventRenders.module.css";
+
+const changeRole = (change: JsonChange): string | undefined => {
+  const v = change.value;
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v["role"] as string | undefined)
+    : undefined;
+};
 
 interface Signature {
   remove: string[];
@@ -43,7 +52,7 @@ const system_msg_added_sig: ChangeType = {
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={[message] as Messages}
+        messages={[message] as ChatMessages}
         allowLinking={false}
       />
     );
@@ -78,25 +87,23 @@ const add_tools: ChangeType = {
 
 const messages: ChangeType = {
   type: "messages",
-  match: (changes: JsonChange[]) => {
-    const allMessages = changes.every((change) => {
-      if (change.op === "add" && change.path.match(/\/messages\/\d+/)) {
-        return (
-          typeof change.value["role"] === "string" &&
-          ["user", "assistant", "system", "tool"].includes(change.value["role"])
-        );
-      }
-      return false;
-    });
-    return allMessages;
-  },
+  match: (changes: JsonChange[]) =>
+    changes.every((change) => {
+      if (change.op !== "add" || !change.path.match(/\/messages\/\d+/))
+        return false;
+      const role = changeRole(change);
+      return (
+        role !== undefined &&
+        ["user", "assistant", "system", "tool"].includes(role)
+      );
+    }),
   render: (changes) => {
     const messages = changes.map((c) => c.value);
     return (
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={messages as unknown as Messages}
+        messages={messages as unknown as ChatMessages}
         allowLinking={false}
       />
     );
@@ -251,22 +258,18 @@ const renderTools = (
 const createMessageRenderer = (name: string, role: string): ChangeType => {
   return {
     type: name,
-    match: (changes: JsonChange[]) => {
-      if (changes.length === 1) {
-        const change = changes[0];
-        if (change.op === "add" && change.path.match(/\/messages\/\d+/)) {
-          return change.value["role"] === role;
-        }
-      }
-      return false;
-    },
+    match: (changes: JsonChange[]) =>
+      changes.length === 1 &&
+      changes[0].op === "add" &&
+      !!changes[0].path.match(/\/messages\/\d+/) &&
+      changeRole(changes[0]) === role,
     render: (changes) => {
       const message = changes[0].value as unknown;
       return (
         <ChatView
           key="system_msg_event_preview"
           id="system_msg_event_preview"
-          messages={[message] as Messages}
+          messages={[message] as ChatMessages}
           allowLinking={false}
         />
       );

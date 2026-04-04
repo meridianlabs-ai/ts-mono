@@ -1,8 +1,13 @@
-import { EvalLog, EvalPlan, EvalSample, EvalSpec } from "../../@types/log";
+import {
+  EvalLog,
+  EvalPlan,
+  EvalSample,
+  EvalSpec,
+} from "@tsmono/inspect-common/types";
+import { AsyncQueue, fetchRange } from "@tsmono/util";
+
 import { clearLargeEventsArray } from "../../utils/clear-events-preprocessor";
-import { fetchRange } from "../../utils/http";
 import { asyncJsonParseBytes } from "../../utils/json-worker";
-import { AsyncQueue } from "../../utils/queue";
 import {
   EvalHeader,
   LogDetails,
@@ -305,7 +310,7 @@ export const openRemoteLogFile = async (
      * Reads the complete log file.
      */
     readCompleteLog: async (): Promise<EvalLog> => {
-      const [evalLog, samples] = await Promise.all([
+      const [evalLogHeader, samples] = await Promise.all([
         readHeader(),
         listSamples().then((sampleIds) =>
           Promise.all(
@@ -316,15 +321,18 @@ export const openRemoteLogFile = async (
         ),
       ]);
 
+      // TODO: This needs review. It compiled on main because we lied about things
+      // being present. EvalLogHeader has the types as optional that EvalLog says
+      // are required
       return {
-        status: evalLog.status,
-        eval: evalLog.eval,
-        plan: evalLog.plan,
-        results: evalLog.results,
-        stats: evalLog.stats,
-        error: evalLog.error,
+        status: evalLogHeader.status,
+        eval: evalLogHeader.eval,
+        plan: evalLogHeader.plan,
+        results: evalLogHeader.results,
+        stats: evalLogHeader.stats,
+        error: evalLogHeader.error,
         samples,
-      };
+      } as EvalLog;
     },
   };
 };

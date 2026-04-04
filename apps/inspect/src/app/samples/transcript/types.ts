@@ -1,7 +1,6 @@
 import {
   ApprovalEvent,
   BranchEvent,
-  Changes,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -20,7 +19,9 @@ import {
   StoreEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { JsonChanges } from "../../../@types/extraInspect";
 
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
@@ -28,7 +29,7 @@ export interface StateManager {
   scope: string;
   getState(): object;
   initializeState(state: object): void;
-  applyChanges(changes: Changes): object;
+  applyChanges(changes: JsonChanges): object;
 }
 
 export const kTranscriptCollapseScope = "transcript-collapse";

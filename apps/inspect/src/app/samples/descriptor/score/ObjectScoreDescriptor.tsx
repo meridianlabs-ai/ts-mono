@@ -1,15 +1,17 @@
 import clsx from "clsx";
 import { JSX } from "react";
 
-import { Value2 } from "../../../../@types/log";
+import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
+
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeObject } from "../../../../constants";
-import { formatPrettyDecimal } from "../../../../utils/format";
-import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor } from "../types";
 
 import styles from "./ObjectScoreDescriptor.module.css";
 
-export const objectScoreDescriptor = (values: Value2[]): ScoreDescriptor => {
+export const objectScoreDescriptor = (
+  values: ScoreValue[]
+): ScoreDescriptor => {
   const buckets = values.map((val) => {
     return JSON.stringify(val);
   });

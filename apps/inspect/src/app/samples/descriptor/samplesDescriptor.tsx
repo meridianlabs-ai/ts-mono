@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 
-import { Value2 } from "../../../@types/log";
+import { inputString } from "@tsmono/inspect-common/utils";
+import { arrayToString } from "@tsmono/util";
+
+import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { arrayToString, inputString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";
@@ -35,10 +37,10 @@ export const createEvalDescriptor = (
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): Value2 | undefined => {
+  ): ScoreValue | undefined => {
     // no scores, no value
     if (
-      sample.scores === null ||
+      !sample.scores ||
       Object.keys(sample.scores).length === 0 ||
       !scoreLabel
     ) {
@@ -52,7 +54,7 @@ export const createEvalDescriptor = (
     ) {
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         return (
-          sample.scores[scoreLabel.scorer].value as Record<string, Value2>
+          sample.scores[scoreLabel.scorer].value as Record<string, ScoreValue>
         )[scoreLabel.name];
       } else {
         return sample.scores[scoreLabel.scorer].value;
@@ -209,7 +211,7 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
-        const scoreVal = sampleScorer.value as Value2;
+        const scoreVal = sampleScorer.value as ScoreValue;
 
         if (typeof scoreVal === "object") {
           const names = Object.keys(scoreVal);

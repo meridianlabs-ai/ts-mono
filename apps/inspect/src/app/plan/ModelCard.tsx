@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { EvalSpec, ModelConfig } from "../../@types/log";
+import { EvalSpec, ModelConfig } from "@tsmono/inspect-common/types";
+
 import { Card, CardBody, CardHeader } from "../../components/Card";
 import { MetaDataGrid } from "../content/MetaDataGrid";
 

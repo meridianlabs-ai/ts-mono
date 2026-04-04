@@ -1,11 +1,11 @@
 import { FC } from "react";
 
-import { ModelUsage, ModelUsage2, ModelUsage3 } from "../../@types/log";
+import { EvalStatsModelUsage } from "../../@types/extraInspect";
 
 import { TokenHeader, TokenRow, TokenTable } from "./TokenTable";
 
 interface ModelTokenTableProps {
-  model_usage: ModelUsage | ModelUsage2 | ModelUsage3;
+  model_usage: EvalStatsModelUsage | null;
   className?: string | string[];
 }
 

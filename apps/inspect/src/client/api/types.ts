@@ -2,9 +2,7 @@ import {
   ApprovalEvent,
   BranchEvent,
   CompactionEvent,
-  CompletedAt,
   EvalError,
-  EvalId,
   EvalLog,
   EvalMetric,
   EvalPlan,
@@ -14,30 +12,26 @@ import {
   EvalSpec,
   EvalStats,
   InfoEvent,
-  Input,
   LoggerEvent,
   LogUpdate,
-  Model,
   ModelEvent,
-  RunId,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
   ScoreEvent,
-  Scores1,
-  StartedAt,
   StateEvent,
-  Status,
   StepEvent,
   StoreEvent,
   SubtaskEvent,
-  Target,
-  Task,
-  TaskId,
-  TaskVersion,
   ToolEvent,
-  Version,
-} from "../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import {
+  EvalLogStatus,
+  EvalLogVersion,
+  EvalSampleScore,
+  EvalSampleTarget,
+} from "../../@types/extraInspect";
 
 export type ProgressCallback = (
   bytesLoaded: number,
@@ -45,8 +39,8 @@ export type ProgressCallback = (
 ) => void;
 
 export interface LogDetails {
-  version?: Version;
-  status?: Status;
+  version?: EvalLogVersion;
+  status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -130,9 +124,9 @@ export interface SampleSummary {
   uuid?: string;
   id: number | string;
   epoch: number;
-  input: Input;
-  target: Target;
-  scores: Scores1;
+  input: EvalSample["input"];
+  target: EvalSampleTarget;
+  scores: EvalSampleScore | null | undefined;
   error?: string;
   limit?: string;
   metadata?: Record<string, any>;
@@ -143,8 +137,8 @@ export interface SampleSummary {
 export interface BasicSampleData {
   id: number | string;
   epoch: number;
-  target: Target;
-  scores: Scores1;
+  target: EvalSampleTarget;
+  scores?: EvalSampleScore | null;
 }
 
 export interface Capabilities {
@@ -276,8 +270,8 @@ export interface FetchResponse {
 }
 
 export interface EvalHeader {
-  version?: Version;
-  status?: Status;
+  version?: EvalLogVersion;
+  status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -289,21 +283,21 @@ export interface EvalHeader {
 }
 
 export interface LogPreview {
-  eval_id: EvalId;
-  run_id: RunId;
+  eval_id: EvalSpec["eval_id"];
+  run_id: EvalSpec["run_id"];
 
-  task: Task;
-  task_id: TaskId;
-  task_version: TaskVersion;
+  task: EvalSpec["task"];
+  task_id: EvalSpec["task_id"];
+  task_version: EvalSpec["task_version"];
 
-  version?: Version;
-  status?: Status;
+  version?: EvalLogVersion;
+  status?: EvalLogStatus;
   error?: EvalError | null;
 
-  model: Model;
+  model: EvalSpec["model"];
 
-  started_at?: StartedAt;
-  completed_at?: CompletedAt;
+  started_at?: EvalStats["started_at"];
+  completed_at?: EvalStats["completed_at"];
 
   primary_metric?: EvalMetric;
 }

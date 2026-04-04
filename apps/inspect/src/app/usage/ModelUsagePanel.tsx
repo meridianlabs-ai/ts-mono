@@ -1,13 +1,13 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { ModelUsage1 } from "../../@types/log";
-import { formatNumber } from "../../utils/format";
+import { ModelUsage } from "@tsmono/inspect-common";
+import { formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
 
 interface ModelUsageProps {
-  usage: ModelUsage1;
+  usage?: ModelUsage;
   className?: string | string[];
 }
 

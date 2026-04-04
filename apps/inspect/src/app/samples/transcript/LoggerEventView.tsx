@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { LoggerEvent } from "../../../@types/log";
+import { LoggerEvent } from "@tsmono/inspect-common/types";
+import { parsedJson as maybeParseJson } from "@tsmono/util";
+
 import ExpandablePanel from "../../../components/ExpandablePanel";
-import { parsedJson as maybeParseJson } from "../../../utils/json";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 

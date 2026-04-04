@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment, RefObject } from "react";
 
-import { EvalSample } from "../../../@types/log";
+import { EvalSample } from "@tsmono/inspect-common/types";
+
 import { SampleSummary } from "../../../client/api/types";
 import { EmptyPanel } from "../../../components/EmptyPanel";
 import { useEvalDescriptor } from "../../../state/hooks";

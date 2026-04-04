@@ -21,7 +21,7 @@ export type {
 } from "./client/api/types";
 
 // Log types
-export type { EvalSet } from "./@types/log";
+export type { EvalSet } from "@tsmono/inspect-common/types";
 
 // State Store
 export { initializeStore } from "./state/store";

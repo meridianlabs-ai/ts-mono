@@ -11,7 +11,7 @@ import {
 } from "react";
 import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
 
-import { Messages } from "../../../@types/log";
+import { ChatMessages } from "../../../@types/extraInspect";
 import { LiveVirtualList } from "../../../components/LiveVirtualList";
 import { useStore } from "../../../state/store";
 
@@ -25,7 +25,7 @@ import { ChatViewToolCallStyle } from "./types";
 interface ChatViewVirtualListProps {
   id: string;
   className?: string | string[];
-  messages: Messages;
+  messages: ChatMessages;
   initialMessageId?: string | null;
   topOffset?: number;
   toolCallStyle: ChatViewToolCallStyle;

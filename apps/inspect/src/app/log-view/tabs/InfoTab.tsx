@@ -6,8 +6,9 @@ import {
   EvalResults,
   EvalSpec,
   EvalStats,
-  Status,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { EvalLogStatus } from "../../../@types/extraInspect";
 import { SampleSummary } from "../../../client/api/types";
 import { MessageBand } from "../../../components/MessageBand";
 import { kLogViewInfoTabId } from "../../../constants";
@@ -20,7 +21,7 @@ export const useInfoTabConfig = (
   evalPlan: EvalPlan | undefined,
   evalError: EvalError | undefined | null,
   evalResults: EvalResults | undefined | null,
-  evalStatus: Status | undefined | null,
+  evalStatus: EvalLogStatus | undefined | null,
   metadata?: Record<string, unknown>
 ) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -60,7 +61,7 @@ interface InfoTabProps {
   evalStats?: EvalStats;
   evalResults?: EvalResults;
   samples?: SampleSummary[];
-  evalStatus?: Status;
+  evalStatus?: EvalLogStatus;
   metadata?: Record<string, unknown>;
   sampleCount?: number;
   scrollRef: RefObject<HTMLDivElement | null>;

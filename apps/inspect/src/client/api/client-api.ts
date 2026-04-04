@@ -1,4 +1,5 @@
-import { EvalSample } from "../../@types/log";
+import { EvalSample } from "@tsmono/inspect-common/types";
+
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
 import {
@@ -218,6 +219,7 @@ export const clientApi = (
       }
     } else {
       const logContents = await get_log(log_file, true);
+      // const samples =
       if (logContents.parsed.samples && logContents.parsed.samples.length > 0) {
         return logContents.parsed.samples.find((sample) => {
           return sampleIdsEqual(sample.id, id) && sample.epoch === epoch;

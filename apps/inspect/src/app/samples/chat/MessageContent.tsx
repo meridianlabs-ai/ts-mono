@@ -2,7 +2,9 @@ import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
 import {
+  Citation,
   ContentAudio,
+  ContentAudioFormat,
   ContentData,
   ContentDocument,
   ContentImage,
@@ -10,13 +12,13 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  Format1,
-  Format2,
-} from "../../../@types/log";
+  ContentVideoFormat,
+} from "@tsmono/inspect-common/types";
+import { isJson } from "@tsmono/util";
+
 import { ContentTool } from "../../../app/types";
 import { CodePanel } from "../../../components/CodePanel";
 import ExpandablePanel from "../../../components/ExpandablePanel";
-import { isJson } from "../../../utils/json";
 import { jsonParse } from "../../../utils/json-worker";
 import { RenderedText } from "../../content/RenderedText";
 
@@ -28,7 +30,6 @@ import styles from "./MessageContent.module.css";
 import { MessagesContext } from "./MessageContents";
 import { ServerToolCall } from "./server-tools/ServerToolCall";
 import { ToolOutput } from "./tools/ToolOutput";
-import { Citation } from "./types";
 
 type ContentObject =
   | ContentText
@@ -280,7 +281,9 @@ const messageRenderers: Record<string, MessageRenderer> = {
  * Renders message content based on its type.
  * Supports rendering strings, images, and tools using specific renderers.
  */
-const mimeTypeForFormat = (format: Format1 | Format2): string => {
+const mimeTypeForFormat = (
+  format: ContentVideoFormat | ContentAudioFormat
+): string => {
   switch (format) {
     case "mov":
       return "video/quicktime";

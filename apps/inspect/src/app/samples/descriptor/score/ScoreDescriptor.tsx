@@ -1,4 +1,4 @@
-import { Value2 } from "../../../../@types/log";
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { ScoreDescriptor } from "../types";
 
 import { booleanScoreDescriptor } from "./BooleanScoreDescriptor";
@@ -12,13 +12,13 @@ import { passFailScoreDescriptor } from "./PassFailScoreDescriptor";
 type ScorerTypes = string | number | boolean | object;
 interface ScoreCategorizer {
   describe: (
-    values: Value2[],
+    values: ScoreValue[],
     types?: ScorerTypes[]
   ) => ScoreDescriptor | undefined;
 }
 
 export const getScoreDescriptorForValues = (
-  uniqScoreValues: Value2[],
+  uniqScoreValues: ScoreValue[],
   uniqScoreTypes: ScorerTypes[]
 ): ScoreDescriptor | undefined => {
   for (const categorizer of scoreCategorizers) {
@@ -34,14 +34,14 @@ export const getScoreDescriptorForValues = (
 
 const scoreCategorizers: ScoreCategorizer[] = [
   {
-    describe: (_values: Value2[], types?: ScorerTypes[]) => {
+    describe: (_values: ScoreValue[], types?: ScorerTypes[]) => {
       if (types && types.length === 1 && types[0] === "boolean") {
         return booleanScoreDescriptor();
       }
     },
   },
   {
-    describe: (values: Value2[], _types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[], _types?: ScorerTypes[]) => {
       if (
         values.length === 2 &&
         values.every((val) => {
@@ -53,7 +53,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (values: Value2[], types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (
         types &&
         types[0] === "string" &&
@@ -68,7 +68,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (values: Value2[], types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (
         values.length < 10 &&
         types &&
@@ -80,14 +80,14 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (values: Value2[], types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (types && types.length !== 0 && types[0] === "number") {
         return numericScoreDescriptor(values);
       }
     },
   },
   {
-    describe: (values: Value2[], types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (types && types.length !== 0 && types[0] === "object") {
         if (values.length > 0 && Array.isArray(values[0])) {
           return listScoreDescriptor(values);
@@ -98,7 +98,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (_values: Value2[], _types?: ScorerTypes[]) => {
+    describe: (_values: ScoreValue[], _types?: ScorerTypes[]) => {
       return otherScoreDescriptor();
     },
   },

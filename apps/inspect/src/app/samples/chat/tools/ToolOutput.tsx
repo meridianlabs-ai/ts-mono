@@ -5,10 +5,10 @@ import {
   ContentDocument,
   ContentImage,
   ContentText,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+import { isAnsiOutput, isJson } from "@tsmono/util";
+
 import { ANSIDisplay } from "../../../../components/AnsiDisplay";
-import { isAnsiOutput } from "../../../../utils/ansi";
-import { isJson } from "../../../../utils/json";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 

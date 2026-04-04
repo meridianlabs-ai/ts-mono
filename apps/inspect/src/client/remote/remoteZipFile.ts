@@ -1,4 +1,5 @@
-import { fetchRange } from "../../utils/http";
+import { fetchRange } from "@tsmono/util";
+
 import { ProgressCallback } from "../api/types";
 
 import { decompressData } from "./decompression";

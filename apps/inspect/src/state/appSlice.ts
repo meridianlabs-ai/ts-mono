@@ -1,9 +1,10 @@
 import { StateSnapshot } from "react-virtuoso";
 
+import { clearDocumentSelection } from "@tsmono/util";
+
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
 import { kLogViewSamplesTabId, kSampleTranscriptTabId } from "../constants";
-import { clearDocumentSelection } from "../utils/browser";
 
 import { StoreState } from "./store";
 

@@ -1,6 +1,6 @@
 import Dexie from "dexie";
 
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@tsmono/util";
 
 import { AppDatabase } from "./schema";
 

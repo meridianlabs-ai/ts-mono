@@ -1,14 +1,16 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { EvalResults, EvalSpec, Status } from "../../../@types/log";
+import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
+import { filename } from "@tsmono/util";
+
+import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { CopyButton } from "../../../components/CopyButton";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useStore } from "../../../state/store";
-import { filename } from "../../../utils/path";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
@@ -17,7 +19,7 @@ import { RunningStatusPanel } from "./RunningStatusPanel";
 import { CancelledPanel, ErroredPanel } from "./StatusPanel";
 
 interface PrimaryBarProps {
-  status?: Status;
+  status?: EvalLogStatus;
   evalResults?: EvalResults | null;
   runningMetrics?: RunningMetric[];
   evalSpec?: EvalSpec;

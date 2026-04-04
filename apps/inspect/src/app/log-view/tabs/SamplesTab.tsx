@@ -1,7 +1,7 @@
 import type { AgGridReact } from "ag-grid-react";
 import { FC, Fragment, useEffect, useMemo, useRef } from "react";
 
-import { Status } from "../../../@types/log";
+import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import {
@@ -24,7 +24,7 @@ import { SampleListItem } from "./types.ts";
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
-  evalStatus: Status | undefined,
+  evalStatus: EvalLogStatus | undefined,
   refreshLog: () => void
 ) => {
   const totalSampleCount = useTotalSampleCount();

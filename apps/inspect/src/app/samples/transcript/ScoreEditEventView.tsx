@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { ScoreEditEvent } from "../../../@types/log";
+import { ScoreEditEvent } from "@tsmono/inspect-common/types";
+
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { RecordTree } from "../../content/RecordTree";

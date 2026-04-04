@@ -1,10 +1,10 @@
-import { Value2 } from "../../../../@types/log";
+import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
+
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeList } from "../../../../constants";
-import { formatPrettyDecimal } from "../../../../utils/format";
-import { isNumeric } from "../../../../utils/type";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
-export const listScoreDescriptor = (_values: Value2[]): ScoreDescriptor => {
+export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
   return {
     scoreType: kScoreTypeList,
     filterable: false,

@@ -2,6 +2,8 @@ import clsx from "clsx";
 import { FC, ReactNode, useRef } from "react";
 import { Link } from "react-router-dom";
 
+import { parsePackageName } from "@tsmono/util";
+
 import { PopOver } from "../../../../components/PopOver";
 import { PulsingDots } from "../../../../components/PulsingDots";
 import {
@@ -9,7 +11,6 @@ import {
   useSamplePopover,
 } from "../../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import { parsePackageName } from "../../../../utils/python";
 import { ApplicationIcons } from "../../../appearance/icons";
 import { MetaDataGrid } from "../../../content/MetaDataGrid";
 import { useSampleEventUrl } from "../../../routing/url";

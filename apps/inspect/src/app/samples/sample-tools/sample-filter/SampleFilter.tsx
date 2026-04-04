@@ -16,9 +16,10 @@ import clsx from "clsx";
 import { EditorView, minimalSetup } from "codemirror";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
+import { debounce } from "@tsmono/util";
+
 import { useEvalDescriptor } from "../../../../state/hooks";
 import { useStore } from "../../../../state/store";
-import { debounce } from "../../../../utils/sync";
 import { FilterError } from "../../../types";
 import { sampleFilterItems } from "../filters";
 

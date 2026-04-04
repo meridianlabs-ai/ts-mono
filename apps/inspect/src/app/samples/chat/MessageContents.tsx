@@ -6,14 +6,16 @@ import {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
-} from "../../../@types/log";
+  Citation,
+} from "@tsmono/inspect-common/types";
+
 import { ContentTool } from "../../../app/types";
 
 import { MessageContent } from "./MessageContent";
 import styles from "./MessageContents.module.css";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallView } from "./tools/ToolCallView";
-import { ChatViewToolCallStyle, Citation } from "./types";
+import { ChatViewToolCallStyle } from "./types";
 
 interface MessageContentsProps {
   id: string;

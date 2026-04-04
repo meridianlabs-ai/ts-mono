@@ -1,4 +1,6 @@
-import { EvalResults, Scores } from "../@types/log";
+import { EvalResults } from "@tsmono/inspect-common/types";
+
+import { EvalScores } from "../@types/extraInspect";
 
 import { MetricSummary, ScoreSummary } from "./types";
 
@@ -75,7 +77,7 @@ const metricModifiers: MetricModifier[] = [
   groupMetricModifier,
 ];
 
-export const toDisplayScorers = (scores?: Scores): ScoreSummary[] => {
+export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
   if (!scores) {
     return [];
   }

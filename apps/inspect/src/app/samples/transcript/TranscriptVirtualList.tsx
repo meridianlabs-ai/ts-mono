@@ -21,7 +21,7 @@ import {
   StoreEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
 
 import { ApprovalEventView } from "./ApprovalEventView";
 import { BranchEventView } from "./BranchEventView";

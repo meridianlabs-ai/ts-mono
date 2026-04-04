@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { SandboxEvent } from "../../../@types/log";
+import { SandboxEvent } from "@tsmono/inspect-common/types";
+
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
@@ -56,7 +57,7 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
     return undefined;
   }
   const cmd = event.cmd;
-  const options = event.options;
+  const options = event.options ?? {};
   const input = event.input;
   const result = event.result;
   const output = event.output ? event.output.trim() : undefined;
@@ -132,7 +133,7 @@ const WriteFileView: FC<WriteFileViewProps> = ({ id, event }) => {
 
 interface FileViewProps {
   id: string;
-  file: string;
+  file: string | undefined;
   contents?: string;
 }
 

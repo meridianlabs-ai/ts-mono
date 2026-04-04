@@ -1,4 +1,5 @@
-import { EvalSample } from "../@types/log";
+import { EvalSample } from "@tsmono/inspect-common/types";
+
 import { Event, Progress, SampleState, SampleStatus } from "../app/types";
 import { kSampleMessagesTabId } from "../constants";
 

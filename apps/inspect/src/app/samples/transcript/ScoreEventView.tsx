@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { ScoreEvent, Value1 } from "../../../@types/log";
+import { ScoreEvent } from "@tsmono/inspect-common/types";
+
+import { ScoreValue } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
@@ -83,7 +85,7 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
   );
 };
 
-export const renderScore = (value: Value1) => {
+export const renderScore = (value: ScoreValue) => {
   if (Array.isArray(value)) {
     return value.join(" ");
   } else if (typeof value === "object") {

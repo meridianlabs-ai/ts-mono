@@ -1,3 +1,5 @@
+import { throttle } from "@tsmono/util";
+
 import {
   ClientAPI,
   LogDetails,
@@ -5,7 +7,6 @@ import {
   LogPreview,
 } from "../../client/api/types";
 import { DatabaseService } from "../../client/database";
-import { throttle } from "../../utils/sync";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
 
 export interface ApplicationContext {

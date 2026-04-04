@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample, EvalSpec, Events, Status } from "../@types/log";
+import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import { createLogger } from "@tsmono/util";
+
+import { EvalLogStatus, Events } from "../@types/extraInspect";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,
@@ -8,7 +11,6 @@ import {
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHandle, SampleSummary } from "../client/api/types";
-import { createLogger } from "../utils/logger";
 import { prettyDirUri } from "../utils/uri";
 
 import { getAvailableScorers, getDefaultScorer } from "./scoring";
@@ -640,7 +642,7 @@ export const useDocumentTitle = () => {
   return { setDocumentTitle };
 };
 
-const simplifiedStatusForDeduplication = (status: Status | undefined) =>
+const simplifiedStatusForDeduplication = (status: EvalLogStatus | undefined) =>
   status === "started" || status === "success" ? status : "_other_";
 
 export type LogHandleWithretried = LogHandle & { retried?: boolean };

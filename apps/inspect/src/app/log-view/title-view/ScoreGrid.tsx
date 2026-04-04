@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { formatPrettyDecimal } from "@tsmono/util";
+
 import { ScoreSummary } from "../../../scoring/types";
-import { formatPrettyDecimal } from "../../../utils/format";
 
 import styles from "./ScoreGrid.module.css";
 import { UnscoredSamples } from "./UnscoredSamplesView";

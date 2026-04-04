@@ -1,4 +1,4 @@
-import { EvalSpec } from "../../@types/log";
+import { EvalSpec } from "@tsmono/inspect-common/types";
 
 /**
  * Opens a new window and prints the provided HTML content with optional custom CSS for printing.

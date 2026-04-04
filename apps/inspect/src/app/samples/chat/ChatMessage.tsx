@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
-import { ChatMessageTool } from "../../../@types/log";
+import { ChatMessageTool } from "@tsmono/inspect-common/types";
+
 import { CopyButton } from "../../../components/CopyButton";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { LabeledValue } from "../../../components/LabeledValue";

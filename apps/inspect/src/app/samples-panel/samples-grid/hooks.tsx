@@ -6,10 +6,11 @@ import {
 } from "ag-grid-community";
 import { useEffect, useMemo } from "react";
 
+import { filename } from "@tsmono/util";
+
 import { LogDetails } from "../../../client/api/types";
 import { useStore } from "../../../state/store";
 import { formatDateTime } from "../../../utils/format";
-import { filename } from "../../../utils/path";
 import styles from "../../shared/gridCells.module.css";
 import { comparators } from "../../shared/gridComparators";
 import { getFieldKey } from "../../shared/gridUtils";

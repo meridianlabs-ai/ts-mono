@@ -1,6 +1,8 @@
 import { FC, useMemo } from "react";
 
-import { EvalSpec, EvalStats, Status } from "../../../@types/log";
+import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
+
+import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
 import { ModelCard } from "../../plan/ModelCard";
 import { UsageCard } from "../../usage/UsageCard";
@@ -9,7 +11,7 @@ import { UsageCard } from "../../usage/UsageCard";
 export const useModelsTab = (
   evalSpec: EvalSpec | undefined,
   evalStats: EvalStats | undefined,
-  evalStatus?: Status
+  evalStatus?: EvalLogStatus
 ) => {
   return useMemo(() => {
     return {
@@ -29,7 +31,7 @@ export const useModelsTab = (
 interface ModelTabProps {
   evalSpec?: EvalSpec;
   evalStats?: EvalStats;
-  evalStatus?: Status;
+  evalStatus?: EvalLogStatus;
 }
 
 export const ModelTab: FC<ModelTabProps> = ({

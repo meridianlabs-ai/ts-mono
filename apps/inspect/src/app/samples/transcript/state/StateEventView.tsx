@@ -4,12 +4,13 @@ import clsx from "clsx";
 import { FC, useEffect, useMemo } from "react";
 
 import {
-  Changes,
   JsonChange,
-  Op,
+  JsonChangeOp,
   StateEvent,
   StoreEvent,
-} from "../../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { JsonChanges } from "../../../../@types/extraInspect";
 import { useStore } from "../../../../state/store";
 import { formatDateTime } from "../../../../utils/format";
 import { EventPanel } from "../event/EventPanel";
@@ -184,7 +185,7 @@ const generatePreview = (
  * Renders the value of a change based on its type.
  */
 const summarizeChanges = (changes: JsonChange[]): string => {
-  const changeMap: Record<Op, string[]> = {
+  const changeMap: Record<JsonChangeOp, string[]> = {
     add: [],
     copy: [],
     move: [],
@@ -217,19 +218,19 @@ const summarizeChanges = (changes: JsonChange[]): string => {
 
   const changeList: string[] = [];
   const totalOpCount = Object.keys(changeMap).reduce((prev, current) => {
-    return prev + changeMap[current as Op].length;
+    return prev + changeMap[current as JsonChangeOp].length;
   }, 0);
 
   if (totalOpCount > 2) {
     Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as Op];
+      const opChanges = changeMap[key as JsonChangeOp];
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.length}`);
       }
     });
   } else {
     Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as Op];
+      const opChanges = changeMap[key as JsonChangeOp];
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.join(", ")}`);
       }
@@ -241,7 +242,7 @@ const summarizeChanges = (changes: JsonChange[]): string => {
 /**
  * Renders a view displaying a list of state changes.
  */
-const synthesizeComparable = (changes: Changes) => {
+const synthesizeComparable = (changes: JsonChanges) => {
   const before = {};
   const after = {};
 

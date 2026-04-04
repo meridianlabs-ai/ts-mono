@@ -1,14 +1,14 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { Steps } from "../../@types/log";
+import { EvalPlanSteps } from "../../@types/extraInspect";
 import { ApplicationIcons } from "../appearance/icons";
 
 import { DetailStep } from "./DetailStep";
 import styles from "./SolverDetailView.module.css";
 
 interface SolversDetailViewProps {
-  steps: Steps;
+  steps: EvalPlanSteps;
 }
 
 export const SolversDetailView: FC<SolversDetailViewProps> = ({ steps }) => {

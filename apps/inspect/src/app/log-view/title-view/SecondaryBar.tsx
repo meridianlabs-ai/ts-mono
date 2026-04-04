@@ -8,17 +8,15 @@ import {
   EvalSpec,
   EvalStats,
   ProvenanceData,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+import { formatDataset } from "@tsmono/util";
+
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
 import { ExpandablePanel } from "../../../components/ExpandablePanel";
 import { LabeledValue } from "../../../components/LabeledValue";
 import { useEvalDescriptor, useSampleInvalidation } from "../../../state/hooks";
-import {
-  formatDataset,
-  formatDateTime,
-  formatDuration,
-} from "../../../utils/format";
+import { formatDateTime, formatDuration } from "../../../utils/format";
 
 import styles from "./SecondaryBar.module.css";
 

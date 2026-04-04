@@ -7,7 +7,7 @@ import type {
   Event,
   EventsData,
   ModelEvent,
-} from "../../types/api-types";
+} from "../types";
 
 import { expandEvents } from "./expandEvents";
 

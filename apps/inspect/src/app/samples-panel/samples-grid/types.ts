@@ -1,4 +1,4 @@
-import { Status } from "../../../@types/log";
+import { EvalLogStatus } from "../../../@types/extraInspect";
 
 // Flattened row data for the grid
 export interface SampleRow {
@@ -7,7 +7,7 @@ export interface SampleRow {
   created: string; // representing datetime
   task: string;
   model: string;
-  status?: Status;
+  status?: EvalLogStatus;
   sampleId: string | number;
   epoch: number;
   input: string;

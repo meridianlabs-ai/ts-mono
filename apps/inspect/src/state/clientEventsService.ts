@@ -1,5 +1,6 @@
+import { createLogger } from "@tsmono/util";
+
 import { LogHandle } from "../client/api/types";
-import { createLogger } from "../utils/logger";
 import { createPolling } from "../utils/polling";
 
 const log = createLogger("Client-Events-Service");

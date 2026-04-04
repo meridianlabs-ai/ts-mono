@@ -1,4 +1,5 @@
-import { EvalMetric, EvalResults } from "../../@types/log";
+import { EvalMetric, EvalResults } from "@tsmono/inspect-common/types";
+
 import { EvalHeader, LogDetails, LogPreview } from "../api/types";
 
 export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {

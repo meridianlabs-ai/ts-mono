@@ -2,8 +2,10 @@ import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { inputString } from "@tsmono/inspect-common/utils";
+import { arrayToString } from "@tsmono/util";
+
 import { ScoreLabel } from "../../../app/types";
-import { arrayToString, inputString } from "../../../utils/format";
 import { truncateMarkdown } from "../../../utils/markdown";
 import { RenderedText } from "../../content/RenderedText";
 import { SampleListItem } from "../../log-view/tabs/types";

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-import { Value2 } from "../../../@types/log";
+import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
 
@@ -35,11 +35,11 @@ export interface ScoreDescriptor {
   max?: number;
   filterable?: boolean;
   compare: (a: SelectedScore, b: SelectedScore) => number;
-  render: (score: Value2) => ReactNode;
+  render: (score: ScoreValue) => ReactNode;
 }
 
 export interface SelectedScore {
-  value?: Value2;
+  value?: ScoreValue;
   render: () => ReactNode;
 }
 

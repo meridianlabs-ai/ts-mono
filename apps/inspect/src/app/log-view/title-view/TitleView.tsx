@@ -6,8 +6,9 @@ import {
   EvalResults,
   EvalSpec,
   EvalStats,
-  Status,
-} from "../../../@types/log";
+} from "@tsmono/inspect-common/types";
+
+import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { useTotalSampleCount } from "../../../state/hooks";
 
@@ -21,7 +22,7 @@ interface TitleViewProps {
   runningMetrics?: RunningMetric[];
   evalPlan?: EvalPlan;
   evalStats?: EvalStats;
-  status?: Status;
+  status?: EvalLogStatus;
 }
 
 /**

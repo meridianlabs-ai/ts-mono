@@ -5,7 +5,13 @@ import "prismjs/components/prism-python";
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
 
-import { ModelCall, ModelEvent, ToolChoice, Tools1 } from "../../../@types/log";
+import {
+  ModelCall,
+  ModelEvent,
+  ToolChoice,
+} from "@tsmono/inspect-common/types";
+
+import { ToolInfos } from "../../../@types/extraInspect";
 import { ANSIDisplay } from "../../../components/AnsiDisplay";
 import { usePrismHighlight } from "../../../components/prism";
 import { PulsingDots } from "../../../components/PulsingDots";
@@ -276,7 +282,7 @@ export const APICodeCell: FC<APICodeCellProps> = ({ id, sourceCode }) => {
 };
 
 interface ToolConfigProps {
-  tools: Tools1;
+  tools: ToolInfos;
   toolChoice: ToolChoice;
 }
 
