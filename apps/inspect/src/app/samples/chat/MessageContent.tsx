@@ -4,7 +4,6 @@ import { FC, Fragment, ReactNode } from "react";
 import {
   Citation,
   ContentAudio,
-  ContentAudioFormat,
   ContentData,
   ContentDocument,
   ContentImage,
@@ -12,10 +11,13 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  ContentVideoFormat,
 } from "@tsmono/inspect-common/types";
 import { isJson } from "@tsmono/util";
 
+import {
+  ContentAudioFormat,
+  ContentVideoFormat,
+} from "../../../@types/extraInspect";
 import { ContentTool } from "../../../app/types";
 import { CodePanel } from "../../../components/CodePanel";
 import ExpandablePanel from "../../../components/ExpandablePanel";

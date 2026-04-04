@@ -55,40 +55,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/content-audio-format": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Content Audio Format */
-        get: operations["_content_audio_format_content_audio_format_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/content-video-format": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Content Video Format */
-        get: operations["_content_video_format_content_video_format_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/eval-log": {
         parameters: {
             query?: never;
@@ -98,23 +64,6 @@ export interface paths {
         };
         /** Eval Log */
         get: operations["_eval_log_eval_log_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/eval-sample-limit-type": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Eval Sample Limit Type */
-        get: operations["_eval_sample_limit_type_eval_sample_limit_type_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -149,23 +98,6 @@ export interface paths {
         };
         /** Event */
         get: operations["_event_event_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/json-change-op": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Json Change Op */
-        get: operations["_json_change_op_json_change_op_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -515,11 +447,6 @@ export interface components {
             type: "audio";
         };
         /**
-         * ContentAudioFormat
-         * @enum {string}
-         */
-        ContentAudioFormat: "wav" | "mp3";
-        /**
          * ContentCitation
          * @description A generic content citation.
          */
@@ -690,11 +617,6 @@ export interface components {
             /** Video */
             video: string;
         };
-        /**
-         * ContentVideoFormat
-         * @enum {string}
-         */
-        ContentVideoFormat: "mp4" | "mpeg" | "mov";
         /**
          * DocumentCitation
          * @description A citation that refers to a page range in a document.
@@ -1102,11 +1024,6 @@ export interface components {
              */
             type: "context" | "time" | "working" | "message" | "token" | "cost" | "operator" | "custom";
         };
-        /**
-         * EvalSampleLimitType
-         * @enum {string}
-         */
-        EvalSampleLimitType: "context" | "time" | "working" | "message" | "token" | "cost" | "operator" | "custom";
         /**
          * EvalSampleReductions
          * @description Score reductions.
@@ -1533,11 +1450,6 @@ export interface components {
             replaced: components["schemas"]["JsonValue"];
             value: components["schemas"]["JsonValue"];
         };
-        /**
-         * JsonChangeOp
-         * @enum {string}
-         */
-        JsonChangeOp: "remove" | "add" | "replace" | "move" | "test" | "copy";
         JsonValue: JsonValue;
         /**
          * LogUpdate
@@ -2682,46 +2594,6 @@ export interface operations {
             };
         };
     };
-    _content_audio_format_content_audio_format_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContentAudioFormat"];
-                };
-            };
-        };
-    };
-    _content_video_format_content_video_format_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContentVideoFormat"];
-                };
-            };
-        };
-    };
     _eval_log_eval_log_get: {
         parameters: {
             query?: never;
@@ -2738,26 +2610,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvalLog"];
-                };
-            };
-        };
-    };
-    _eval_sample_limit_type_eval_sample_limit_type_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalSampleLimitType"];
                 };
             };
         };
@@ -2798,26 +2650,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Event"];
-                };
-            };
-        };
-    };
-    _json_change_op_json_change_op_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JsonChangeOp"];
                 };
             };
         };

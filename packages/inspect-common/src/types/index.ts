@@ -30,7 +30,6 @@ export type EvalResults = S["EvalResults"];
 export type EvalRevision = S["EvalRevision"];
 export type EvalSample = S["EvalSample"];
 export type EvalSampleLimit = S["EvalSampleLimit"];
-export type EvalSampleLimitType = S["EvalSampleLimitType"];
 export type EvalSampleReductions = S["EvalSampleReductions"];
 export type EvalSampleScore = S["EvalSampleScore"];
 export type EvalScore = S["EvalScore"];
@@ -73,7 +72,6 @@ export type ChatMessageUser = S["ChatMessageUser"];
 export type Citation = S["Citation"];
 export type Content = S["Content"];
 export type ContentAudio = S["ContentAudio"];
-export type ContentAudioFormat = S["ContentAudioFormat"];
 export type ContentCitation = S["ContentCitation"];
 export type ContentData = S["ContentData"];
 export type ContentDocument = S["ContentDocument"];
@@ -82,7 +80,6 @@ export type ContentReasoning = S["ContentReasoning"];
 export type ContentText = S["ContentText"];
 export type ContentToolUse = S["ContentToolUse"];
 export type ContentVideo = S["ContentVideo"];
-export type ContentVideoFormat = S["ContentVideoFormat"];
 
 // Model types
 export type ModelCall = S["ModelCall"];
@@ -124,7 +121,6 @@ export type ApproverPolicyConfig = S["ApproverPolicyConfig"];
 
 // Other types
 export type JsonChange = S["JsonChange"];
-export type JsonChangeOp = S["JsonChangeOp"];
 export type JsonValue = S["JsonValue"];
 export type LogUpdate = S["LogUpdate"];
 export type LoggingMessage = S["LoggingMessage"];

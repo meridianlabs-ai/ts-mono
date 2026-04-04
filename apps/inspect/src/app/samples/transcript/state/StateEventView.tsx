@@ -5,12 +5,11 @@ import { FC, useEffect, useMemo } from "react";
 
 import {
   JsonChange,
-  JsonChangeOp,
   StateEvent,
   StoreEvent,
 } from "@tsmono/inspect-common/types";
 
-import { JsonChanges } from "../../../../@types/extraInspect";
+import { JsonChangeOp, JsonChanges } from "../../../../@types/extraInspect";
 import { useStore } from "../../../../state/store";
 import { formatDateTime } from "../../../../utils/format";
 import { EventPanel } from "../event/EventPanel";
