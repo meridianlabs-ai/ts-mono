@@ -9,13 +9,13 @@ import {
   Citation,
 } from "@tsmono/inspect-common/types";
 
-import { ChatViewToolCallStyle } from "../../../@types/extraInspect";
 import { ContentTool } from "../../../app/types";
 
 import { MessageContent } from "./MessageContent";
 import styles from "./MessageContents.module.css";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallView } from "./tools/ToolCallView";
+import { ChatViewToolCallStyle } from "./types";
 
 interface MessageContentsProps {
   id: string;

@@ -5,7 +5,10 @@ import { EvalSample, ProvenanceData } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
-import { Target, TotalTime, WorkingTime } from "../../@types/extraInspect";
+import {
+  EvalSampleTarget,
+  EvalSampleWorkingTime,
+} from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { formatDateTime, formatTime } from "../../utils/format";
@@ -34,12 +37,12 @@ interface SummaryColumn {
 interface SampleFields {
   id: string | number;
   input: string[];
-  target: Target;
+  target: EvalSampleTarget;
   answer?: string;
   limit?: string;
   retries?: number;
-  working_time?: WorkingTime;
-  total_time?: TotalTime;
+  working_time?: EvalSampleWorkingTime;
+  total_time?: EvalSample["total_time"];
   error?: string;
 }
 
@@ -159,7 +162,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     });
   }
 
-  const toolTip = (working_time?: WorkingTime) => {
+  const toolTip = (working_time?: EvalSampleWorkingTime) => {
     if (working_time === undefined || working_time === null) {
       return undefined;
     }

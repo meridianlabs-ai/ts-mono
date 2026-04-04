@@ -27,18 +27,10 @@ import {
 } from "@tsmono/inspect-common/types";
 
 import {
-  CompletedAt,
-  EvalId,
   EvalLogStatus,
+  EvalLogVersion,
   EvalSampleScore,
-  Model,
-  RunId,
-  StartedAt,
-  Target,
-  Task,
-  TaskId,
-  TaskVersion,
-  Version,
+  EvalSampleTarget,
 } from "../../@types/extraInspect";
 
 export type ProgressCallback = (
@@ -47,7 +39,7 @@ export type ProgressCallback = (
 ) => void;
 
 export interface LogDetails {
-  version?: Version;
+  version?: EvalLogVersion;
   status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
@@ -133,7 +125,7 @@ export interface SampleSummary {
   id: number | string;
   epoch: number;
   input: EvalSample["input"];
-  target: Target;
+  target: EvalSampleTarget;
   scores: EvalSampleScore | null | undefined;
   error?: string;
   limit?: string;
@@ -145,7 +137,7 @@ export interface SampleSummary {
 export interface BasicSampleData {
   id: number | string;
   epoch: number;
-  target: Target;
+  target: EvalSampleTarget;
   scores?: EvalSampleScore | null;
 }
 
@@ -278,7 +270,7 @@ export interface FetchResponse {
 }
 
 export interface EvalHeader {
-  version?: Version;
+  version?: EvalLogVersion;
   status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
@@ -291,21 +283,21 @@ export interface EvalHeader {
 }
 
 export interface LogPreview {
-  eval_id: EvalId;
-  run_id: RunId;
+  eval_id: EvalSpec["eval_id"];
+  run_id: EvalSpec["run_id"];
 
-  task: Task;
-  task_id: TaskId;
-  task_version: TaskVersion;
+  task: EvalSpec["task"];
+  task_id: EvalSpec["task_id"];
+  task_version: EvalSpec["task_version"];
 
-  version?: Version;
+  version?: EvalLogVersion;
   status?: EvalLogStatus;
   error?: EvalError | null;
 
-  model: Model;
+  model: EvalSpec["model"];
 
-  started_at?: StartedAt;
-  completed_at?: CompletedAt;
+  started_at?: EvalStats["started_at"];
+  completed_at?: EvalStats["completed_at"];
 
   primary_metric?: EvalMetric;
 }
