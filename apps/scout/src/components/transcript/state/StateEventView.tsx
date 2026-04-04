@@ -6,12 +6,7 @@ import { FC, ReactNode, useEffect, useMemo } from "react";
 import { formatDateTime } from "@tsmono/util";
 
 import { useStore } from "../../../state/store";
-import {
-  JsonChange,
-  JsonChangeOp,
-  StateEvent,
-  StoreEvent,
-} from "../../../types/api-types";
+import { JsonChange, StateEvent, StoreEvent } from "../../../types/api-types";
 import { EventPanel } from "../event/EventPanel";
 import { EventNode, kTranscriptCollapseScope } from "../types";
 
@@ -28,6 +23,7 @@ interface StateEventViewProps {
   className?: string | string[];
 }
 
+type JsonChangeOp = JsonChange["op"];
 /**
  * Renders the StateEventView component.
  */
