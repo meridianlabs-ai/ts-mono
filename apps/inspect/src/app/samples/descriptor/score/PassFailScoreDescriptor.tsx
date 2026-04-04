@@ -1,13 +1,13 @@
 import clsx from "clsx";
 
-import { ScoreValueOrUnchanged } from "../../../../@types/bogusTypes";
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypePassFail } from "../../../../constants";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 import styles from "./PassFailScoreDescriptor.module.css";
 
 export const passFailScoreDescriptor = (
-  values: ScoreValueOrUnchanged[]
+  values: ScoreValue[]
 ): ScoreDescriptor => {
   const categories = [];
   if (values.includes("C")) {
@@ -39,7 +39,7 @@ export const passFailScoreDescriptor = (
   return {
     scoreType: kScoreTypePassFail,
     categories,
-    render: (score: ScoreValueOrUnchanged) => {
+    render: (score: ScoreValue) => {
       if (score === "C") {
         return (
           <span

@@ -1,9 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { SubtaskEvent } from "@tsmono/inspect-common/types";
+import { EvalSample, SubtaskEvent } from "@tsmono/inspect-common/types";
 
-import { Input, Input5 } from "../../../@types/bogusTypes";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 
@@ -63,7 +62,7 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
 };
 
 interface SubtaskSummaryProps {
-  input: Input | Input5;
+  input: EvalSample["input"] | Record<string, unknown>;
   result: unknown;
 }
 /**

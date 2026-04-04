@@ -7,7 +7,7 @@ import {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { Events } from "../../../../@types/bogusTypes";
+import { Events } from "../../../../@types/extraInspect";
 import { EventNode, EventType, kCollapsibleEventTypes } from "../types";
 
 import { fixupEventStream, kSandboxSignalName } from "./fixups";

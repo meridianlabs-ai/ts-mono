@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { EvalPlanSteps } from "../../@types/bogusTypes";
+import { EvalPlanSteps } from "../../@types/extraInspect";
 import { ApplicationIcons } from "../appearance/icons";
 
 import { DetailStep } from "./DetailStep";

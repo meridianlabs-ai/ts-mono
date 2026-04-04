@@ -13,7 +13,7 @@ import {
   ContentVideo,
 } from "@tsmono/inspect-common/types";
 
-import { ChatMessages, Events } from "../../../@types/bogusTypes";
+import { ChatMessages, Events } from "../../../@types/extraInspect";
 import { ApplicationIcons } from "../../appearance/icons";
 
 export type Message = (

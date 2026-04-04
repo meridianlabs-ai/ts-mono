@@ -1,4 +1,4 @@
-import { EvalScores } from "../../../@types/bogusTypes";
+import { EvalScores } from "../../../@types/extraInspect";
 import { asyncJsonParse } from "../../../utils/json-worker";
 import { download_file } from "../shared/api-shared";
 import {

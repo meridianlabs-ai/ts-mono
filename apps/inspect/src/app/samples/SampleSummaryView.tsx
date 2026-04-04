@@ -5,7 +5,7 @@ import { EvalSample, ProvenanceData } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
-import { Target, TotalTime, WorkingTime } from "../../@types/bogusTypes";
+import { Target, TotalTime, WorkingTime } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { formatDateTime, formatTime } from "../../utils/format";

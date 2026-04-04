@@ -4,7 +4,7 @@ import {
   ContentToolUse,
 } from "@tsmono/inspect-common/types";
 
-import { ChatMessageContent } from "../../../@types/bogusTypes";
+import { ChatMessageContent } from "../../../@types/extraInspect";
 
 import { ResolvedMessage } from "./messages";
 

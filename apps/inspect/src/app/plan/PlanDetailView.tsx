@@ -3,8 +3,6 @@ import { FC, ReactNode } from "react";
 
 import { EvalPlan, EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
 
-import { Params2 } from "../../@types/bogusTypes";
-
 import { DatasetDetailView } from "./DatasetDetailView";
 import styles from "./PlanDetailView.module.css";
 import { ScorerDetailView } from "./ScorerDetailView";
@@ -59,7 +57,10 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
         }
         return accum;
       },
-      {} as Record<string, { scores: string[]; params: Params2 }>
+      {} as Record<
+        string,
+        { scores: string[]; params: Record<string, unknown> }
+      >
     );
 
     if (Object.keys(scorers).length > 0) {

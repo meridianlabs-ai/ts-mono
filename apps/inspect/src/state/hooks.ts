@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { Events, Status } from "../@types/bogusTypes";
+import { EvalLogStatus, Events } from "../@types/extraInspect";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,
@@ -642,7 +642,7 @@ export const useDocumentTitle = () => {
   return { setDocumentTitle };
 };
 
-const simplifiedStatusForDeduplication = (status: Status | undefined) =>
+const simplifiedStatusForDeduplication = (status: EvalLogStatus | undefined) =>
   status === "started" || status === "success" ? status : "_other_";
 
 export type LogHandleWithretried = LogHandle & { retried?: boolean };

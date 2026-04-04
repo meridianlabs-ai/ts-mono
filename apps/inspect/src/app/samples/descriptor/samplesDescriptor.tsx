@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
-import { ScoreValueOrUnchanged } from "../../../@types/bogusTypes";
+import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
 import { errorType } from "../error/error";
@@ -37,7 +37,7 @@ export const createEvalDescriptor = (
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): ScoreValueOrUnchanged | undefined => {
+  ): ScoreValue | undefined => {
     // no scores, no value
     if (
       !sample.scores ||
@@ -54,10 +54,7 @@ export const createEvalDescriptor = (
     ) {
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         return (
-          sample.scores[scoreLabel.scorer].value as Record<
-            string,
-            ScoreValueOrUnchanged
-          >
+          sample.scores[scoreLabel.scorer].value as Record<string, ScoreValue>
         )[scoreLabel.name];
       } else {
         return sample.scores[scoreLabel.scorer].value;
@@ -214,7 +211,7 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
-        const scoreVal = sampleScorer.value as ScoreValueOrUnchanged;
+        const scoreVal = sampleScorer.value as ScoreValue;
 
         if (typeof scoreVal === "object") {
           const names = Object.keys(scoreVal);

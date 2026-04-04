@@ -2,8 +2,6 @@ import "prismjs/components/prism-bash";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 
-import { Arguments1 } from "../../../../@types/bogusTypes";
-
 export { substituteToolCallContent } from "./substituteToolCallContent";
 
 export const kToolTodoContentType = "agent/todo-list";
@@ -19,7 +17,7 @@ export interface ToolCallResult {
  */
 export const resolveToolInput = (
   fn: string,
-  toolArgs: Arguments1
+  toolArgs: Record<string, unknown>
 ): ToolCallResult => {
   const toolName = fn;
 

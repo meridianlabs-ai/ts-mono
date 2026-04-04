@@ -5,7 +5,7 @@ import { FC } from "react";
 import { SampleInitEvent } from "@tsmono/inspect-common/types";
 import { toArray } from "@tsmono/util";
 
-import { ChatMessages } from "../../../@types/bogusTypes";
+import { ChatMessages } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
 import { MetaDataGrid } from "../../content/MetaDataGrid";

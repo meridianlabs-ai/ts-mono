@@ -1,11 +1,13 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ChatMessages } from "../../../@types/bogusTypes";
+import {
+  ChatMessages,
+  ChatViewToolCallStyle,
+} from "../../../@types/extraInspect";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { resolveMessages } from "./messages";
-import { ChatViewToolCallStyle } from "./types";
 
 interface ChatViewProps {
   id?: string;

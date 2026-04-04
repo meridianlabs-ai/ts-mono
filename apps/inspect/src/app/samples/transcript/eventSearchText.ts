@@ -1,4 +1,4 @@
-import { ChatMessageContent } from "../../../@types/bogusTypes";
+import { ChatMessageContent } from "../../../@types/extraInspect";
 import { substituteToolCallContent } from "../chat/tools/substituteToolCallContent";
 
 import { eventTitle } from "./event/utils";

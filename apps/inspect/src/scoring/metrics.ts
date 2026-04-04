@@ -1,6 +1,6 @@
 import { EvalResults } from "@tsmono/inspect-common/types";
 
-import { EvalScores } from "../@types/bogusTypes";
+import { EvalScores } from "../@types/extraInspect";
 
 import { MetricSummary, ScoreSummary } from "./types";
 

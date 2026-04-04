@@ -3,14 +3,14 @@ import { JSX } from "react";
 
 import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
 
-import { ScoreValueOrUnchanged } from "../../../../@types/bogusTypes";
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeObject } from "../../../../constants";
 import { ScoreDescriptor } from "../types";
 
 import styles from "./ObjectScoreDescriptor.module.css";
 
 export const objectScoreDescriptor = (
-  values: ScoreValueOrUnchanged[]
+  values: ScoreValue[]
 ): ScoreDescriptor => {
   const buckets = values.map((val) => {
     return JSON.stringify(val);

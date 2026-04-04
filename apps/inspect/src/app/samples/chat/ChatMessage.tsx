@@ -3,6 +3,7 @@ import { FC, memo, useState } from "react";
 
 import { ChatMessageTool } from "@tsmono/inspect-common/types";
 
+import { ChatViewToolCallStyle } from "../../../@types/extraInspect";
 import { CopyButton } from "../../../components/CopyButton";
 import ExpandablePanel from "../../../components/ExpandablePanel";
 import { LabeledValue } from "../../../components/LabeledValue";
@@ -18,7 +19,6 @@ import {
 import styles from "./ChatMessage.module.css";
 import { MessageContents } from "./MessageContents";
 import { Message } from "./messages";
-import { ChatViewToolCallStyle } from "./types";
 
 interface ChatMessageProps {
   id: string;

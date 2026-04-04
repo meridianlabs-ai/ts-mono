@@ -3,7 +3,7 @@ import { FC, Fragment, JSX, ReactNode } from "react";
 
 import { JsonChange } from "@tsmono/inspect-common/types";
 
-import { ChatMessages } from "../../../../@types/bogusTypes";
+import { ChatMessages } from "../../../../@types/extraInspect";
 import {
   HumanBaselineView,
   SessionLog,

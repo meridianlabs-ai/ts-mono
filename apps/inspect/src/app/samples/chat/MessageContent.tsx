@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
 import {
+  Citation,
   ContentAudio,
   ContentAudioFormat,
   ContentData,
@@ -29,7 +30,6 @@ import styles from "./MessageContent.module.css";
 import { MessagesContext } from "./MessageContents";
 import { ServerToolCall } from "./server-tools/ServerToolCall";
 import { ToolOutput } from "./tools/ToolOutput";
-import { Citation } from "./types";
 
 type ContentObject =
   | ContentText

@@ -29,18 +29,17 @@ import {
 import {
   CompletedAt,
   EvalId,
-  Input,
+  EvalLogStatus,
+  EvalSampleScore,
   Model,
   RunId,
-  ScoresDict,
   StartedAt,
-  Status,
   Target,
   Task,
   TaskId,
   TaskVersion,
   Version,
-} from "../../@types/bogusTypes";
+} from "../../@types/extraInspect";
 
 export type ProgressCallback = (
   bytesLoaded: number,
@@ -49,7 +48,7 @@ export type ProgressCallback = (
 
 export interface LogDetails {
   version?: Version;
-  status?: Status;
+  status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -133,9 +132,9 @@ export interface SampleSummary {
   uuid?: string;
   id: number | string;
   epoch: number;
-  input: Input;
+  input: EvalSample["input"];
   target: Target;
-  scores: ScoresDict;
+  scores: EvalSampleScore | null | undefined;
   error?: string;
   limit?: string;
   metadata?: Record<string, any>;
@@ -147,7 +146,7 @@ export interface BasicSampleData {
   id: number | string;
   epoch: number;
   target: Target;
-  scores?: ScoresDict;
+  scores?: EvalSampleScore | null;
 }
 
 export interface Capabilities {
@@ -280,7 +279,7 @@ export interface FetchResponse {
 
 export interface EvalHeader {
   version?: Version;
-  status?: Status;
+  status?: EvalLogStatus;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -300,7 +299,7 @@ export interface LogPreview {
   task_version: TaskVersion;
 
   version?: Version;
-  status?: Status;
+  status?: EvalLogStatus;
   error?: EvalError | null;
 
   model: Model;

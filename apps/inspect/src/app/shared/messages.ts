@@ -13,7 +13,7 @@ import {
   ContentVideo,
 } from "@tsmono/inspect-common/types";
 
-import { ChatMessageContent, ChatMessages } from "../../@types/bogusTypes";
+import { ChatMessageContent, ChatMessages } from "../../@types/extraInspect";
 
 export interface MessagesToStrOptions {
   excludeSystem?: boolean;

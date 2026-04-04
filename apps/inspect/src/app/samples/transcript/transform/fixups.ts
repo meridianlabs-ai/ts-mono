@@ -6,7 +6,7 @@ import {
   StepEvent,
 } from "@tsmono/inspect-common/types";
 
-import { Events } from "../../../../@types/bogusTypes";
+import { Events } from "../../../../@types/extraInspect";
 
 import { hasSpans } from "./utils";
 

@@ -2,7 +2,7 @@ import { compileExpression } from "filtrex";
 
 import { inputString } from "@tsmono/inspect-common/utils";
 
-import { ScoresDict } from "../../../@types/bogusTypes";
+import { EvalSampleScore } from "../../../@types/extraInspect";
 import { FilterError, ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
 import { kScoreTypeBoolean } from "../../../constants";
@@ -71,7 +71,7 @@ const filterExpressionConstants: Record<string, unknown> = {
  */
 const scoreVariables = (
   evalDescriptor: EvalDescriptor,
-  sampleScores: ScoresDict
+  sampleScores: EvalSampleScore | null | undefined
 ): Record<string, unknown> => {
   const bannedShortNames = bannedShortScoreNames(evalDescriptor.scores);
   const variables: Record<string, unknown> = {};

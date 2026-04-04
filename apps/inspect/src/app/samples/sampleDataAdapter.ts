@@ -1,4 +1,4 @@
-import { Events } from "../../@types/bogusTypes";
+import { Events } from "../../@types/extraInspect";
 import { EventData, SampleData } from "../../client/api/types";
 import { resolveAttachments } from "../../utils/attachments";
 

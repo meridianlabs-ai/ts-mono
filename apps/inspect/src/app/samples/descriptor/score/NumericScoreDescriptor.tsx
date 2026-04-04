@@ -1,11 +1,11 @@
 import { compareWithNan, formatDecimalNoTrailingZeroes } from "@tsmono/util";
 
-import { ScoreValueOrUnchanged } from "../../../../@types/bogusTypes";
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeNumeric } from "../../../../constants";
 import { ScoreDescriptor } from "../types";
 
 export const numericScoreDescriptor = (
-  values: ScoreValueOrUnchanged[]
+  values: ScoreValue[]
 ): ScoreDescriptor => {
   const onlyNumeric = values.filter((val) => {
     return typeof val === "number";

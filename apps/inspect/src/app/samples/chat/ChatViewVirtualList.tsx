@@ -11,7 +11,10 @@ import {
 } from "react";
 import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
 
-import { ChatMessages } from "../../../@types/bogusTypes";
+import {
+  ChatMessages,
+  ChatViewToolCallStyle,
+} from "../../../@types/extraInspect";
 import { LiveVirtualList } from "../../../components/LiveVirtualList";
 import { useStore } from "../../../state/store";
 
@@ -20,7 +23,6 @@ import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
-import { ChatViewToolCallStyle } from "./types";
 
 interface ChatViewVirtualListProps {
   id: string;

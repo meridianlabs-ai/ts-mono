@@ -21,7 +21,7 @@ import {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { JsonChanges } from "../../../@types/bogusTypes";
+import { JsonChanges } from "../../../@types/extraInspect";
 
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 

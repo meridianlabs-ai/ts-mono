@@ -1,9 +1,9 @@
-import { ScoreValueOrUnchanged } from "../../../../@types/bogusTypes";
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeCategorical } from "../../../../constants";
 import { ScoreDescriptor } from "../types";
 
 export const categoricalScoreDescriptor = (
-  values: ScoreValueOrUnchanged[]
+  values: ScoreValue[]
 ): ScoreDescriptor => {
   return {
     scoreType: kScoreTypeCategorical,

@@ -1,12 +1,12 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ModelRoles } from "../../../@types/bogusTypes";
+import { EvalSpecModelRoles } from "../../../@types/extraInspect";
 
 import styles from "./ModelRolesView.module.css";
 
 interface ModelRolesViewProps {
-  roles: ModelRoles;
+  roles: EvalSpecModelRoles | null;
 }
 
 /**
