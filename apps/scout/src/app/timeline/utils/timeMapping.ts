@@ -301,6 +301,44 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
 }
 
 /**
+ * Creates a shifted time mapping for a branch row in fork-relative mode.
+ *
+ * The branch's wall-clock range [branchStart, branchEnd] is linearly remapped
+ * so that it starts at `forkPercent` in the timeline's percentage space. The
+ * branch's width is proportional to its duration relative to the parent's total
+ * time range, preserving visual duration proportionality.
+ *
+ * @param branchStart  Branch content start time
+ * @param branchEnd    Branch content end time
+ * @param forkPercent  The fork marker's percentage position on the parent row (0-100)
+ * @param parentTotalRangeMs  The parent timeline's total time range in milliseconds
+ */
+export function createShiftedMapping(
+  branchStart: Date,
+  branchEnd: Date,
+  forkPercent: number,
+  parentTotalRangeMs: number
+): TimeMapping {
+  const startMs = branchStart.getTime();
+  const endMs = branchEnd.getTime();
+  const branchDurationMs = endMs - startMs;
+
+  // Scale factor: branch width as a percentage, proportional to parent range
+  const scaleFactor =
+    parentTotalRangeMs > 0 ? (branchDurationMs / parentTotalRangeMs) * 100 : 0;
+
+  return {
+    toPercent(timestamp: Date): number {
+      if (branchDurationMs <= 0) return forkPercent;
+      const t = (timestamp.getTime() - startMs) / branchDurationMs;
+      return Math.max(0, Math.min(100, forkPercent + t * scaleFactor));
+    },
+    hasCompression: false,
+    gaps: [],
+  };
+}
+
+/**
  * Compute active time (seconds) within [startMs, endMs] by subtracting
  * overlapping gap durations from the mapping.
  */

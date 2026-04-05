@@ -31,11 +31,14 @@ export interface UseTimelineConfigResult {
   includeUtility: boolean;
   /** Whether branches are shown as swimlane rows. */
   showBranches: boolean;
+  /** Whether branches are positioned at their fork point. */
+  forkRelative: boolean;
 
   setMarkerKinds: (kinds: MarkerKind[]) => void;
   setMarkerDepth: (depth: MarkerDepth) => void;
   setIncludeUtility: (include: boolean) => void;
   setShowBranches: (show: boolean) => void;
+  setForkRelative: (forkRelative: boolean) => void;
   toggleMarkerKind: (kind: MarkerKind) => void;
   resetToDefaults: () => void;
   /** True when all settings match their defaults. */
@@ -50,6 +53,7 @@ const kDefaultMarkerKinds = defaultMarkerConfig.kinds;
 const kDefaultMarkerDepth = defaultMarkerConfig.depth;
 const kDefaultIncludeUtility = false;
 const kDefaultShowBranches = false;
+const kDefaultForkRelative = false;
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
@@ -83,11 +87,20 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     "showBranches",
     { cleanup: false }
   );
+  const [storedForkRelative, setStoredForkRelative] = useProperty<boolean>(
+    "timeline",
+    "forkRelative",
+    { cleanup: false }
+  );
 
   const markerKinds = storedKinds ?? kDefaultMarkerKinds;
   const markerDepth = storedDepth ?? kDefaultMarkerDepth;
   const includeUtility = storedUtility ?? kDefaultIncludeUtility;
   const showBranches = storedShowBranches ?? kDefaultShowBranches;
+  // Default fork-relative to on when branches are shown and the user hasn't
+  // explicitly toggled it (storedForkRelative is undefined).
+  const forkRelative =
+    storedForkRelative ?? (showBranches || kDefaultForkRelative);
 
   const markerConfig: MarkerConfig = useMemo(
     () => ({ kinds: markerKinds, depth: markerDepth }),
@@ -95,15 +108,16 @@ export function useTimelineConfig(): UseTimelineConfigResult {
   );
 
   const agentConfig: TimelineOptions = useMemo(
-    () => ({ includeUtility, showBranches }),
-    [includeUtility, showBranches]
+    () => ({ includeUtility, showBranches, forkRelative }),
+    [includeUtility, showBranches, forkRelative]
   );
 
   const isDefault =
     arraysEqual(markerKinds, kDefaultMarkerKinds) &&
     markerDepth === kDefaultMarkerDepth &&
     includeUtility === kDefaultIncludeUtility &&
-    showBranches === kDefaultShowBranches;
+    showBranches === kDefaultShowBranches &&
+    forkRelative === kDefaultForkRelative;
 
   const toggleMarkerKind = useCallback(
     (kind: MarkerKind) => {
@@ -121,7 +135,14 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     setStoredDepth(kDefaultMarkerDepth);
     setStoredUtility(kDefaultIncludeUtility);
     setStoredShowBranches(kDefaultShowBranches);
-  }, [setStoredKinds, setStoredDepth, setStoredUtility, setStoredShowBranches]);
+    setStoredForkRelative(kDefaultForkRelative);
+  }, [
+    setStoredKinds,
+    setStoredDepth,
+    setStoredUtility,
+    setStoredShowBranches,
+    setStoredForkRelative,
+  ]);
 
   return {
     markerConfig,
@@ -130,10 +151,12 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     markerDepth,
     includeUtility,
     showBranches,
+    forkRelative,
     setMarkerKinds: setStoredKinds,
     setMarkerDepth: setStoredDepth,
     setIncludeUtility: setStoredUtility,
     setShowBranches: setStoredShowBranches,
+    setForkRelative: setStoredForkRelative,
     toggleMarkerKind,
     resetToDefaults,
     isDefault,

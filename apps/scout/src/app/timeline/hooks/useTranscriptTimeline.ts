@@ -27,14 +27,22 @@ import {
   getSelectedSpans,
   parseSelection,
 } from "../timelineEventNodes";
-import { defaultMarkerConfig, type MarkerConfig } from "../utils/markers";
+import {
+  defaultMarkerConfig,
+  resolveForkTimestamp,
+  type MarkerConfig,
+} from "../utils/markers";
 import {
   computeRowLayouts,
   rowHasEvents,
   type RowLayout,
 } from "../utils/swimlaneLayout";
-import { isSingleSpan } from "../utils/swimlaneRows";
-import { computeTimeMapping, type TimeMapping } from "../utils/timeMapping";
+import { isSingleSpan, type SwimlaneRow } from "../utils/swimlaneRows";
+import {
+  computeTimeMapping,
+  createShiftedMapping,
+  type TimeMapping,
+} from "../utils/timeMapping";
 
 import { useActiveTimeline } from "./useActiveTimeline";
 import {
@@ -90,6 +98,7 @@ export function useTranscriptTimeline(
 ): TranscriptTimelineResult {
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
+  const forkRelative = timelineOptions?.forkRelative ?? false;
   const builtTimeline = useMemo(() => buildTimeline(events), [events]);
   const convertedTimelines = useMemo(
     () =>
@@ -125,15 +134,30 @@ export function useTranscriptTimeline(
     [timeline.root]
   );
 
+  // Compute per-branch shifted time mappings when fork-relative mode is active.
+  // Each branch row gets a mapping where its bar starts at the fork marker's
+  // percentage position, preserving duration proportionality.
+  const branchMappings = useMemo(() => {
+    if (!forkRelative || !showBranches) return undefined;
+    return computeBranchMappings(visibleRows, timeMapping, state.node);
+  }, [forkRelative, showBranches, visibleRows, timeMapping, state.node]);
+
   const layouts = useMemo(
     () =>
       computeRowLayouts(
         visibleRows,
         timeMapping,
         markerConfig.depth,
-        markerConfig.kinds
+        markerConfig.kinds,
+        branchMappings
       ),
-    [visibleRows, timeMapping, markerConfig.depth, markerConfig.kinds]
+    [
+      visibleRows,
+      timeMapping,
+      markerConfig.depth,
+      markerConfig.kinds,
+      branchMappings,
+    ]
   );
 
   const { selectedEvents, sourceSpans, branchScrollTarget } = useMemo(() => {
@@ -274,4 +298,84 @@ export function useTranscriptTimeline(
     branchScrollTarget,
     highlightedKeys,
   };
+}
+
+// =============================================================================
+// Fork-relative branch mapping computation
+// =============================================================================
+
+const kBranchKeyPattern = /\/branch-([^/]*)-(\d+)$/;
+
+/**
+ * Computes shifted time mappings for branch rows so their bars start at
+ * the fork marker's position. Non-branch rows are omitted (they use the
+ * trunk mapping).
+ *
+ * Processes rows in order, so parent branches are computed before nested
+ * branches, allowing nested branches to shift relative to their parent's
+ * shifted mapping.
+ */
+function computeBranchMappings(
+  rows: ReadonlyArray<SwimlaneRow>,
+  trunkMapping: TimeMapping,
+  node: TimelineSpan
+): ReadonlyMap<string, TimeMapping> {
+  const mappings = new Map<string, TimeMapping>();
+
+  // Build a lookup from row key → row for finding parent rows.
+  const rowByKey = new Map<string, SwimlaneRow>();
+  for (const row of rows) {
+    rowByKey.set(row.key, row);
+  }
+
+  // Compute the parent's total time range for proportional width scaling.
+  const nodeStartMs = node.startTime(false).getTime();
+  const nodeEndMs = node.endTime(false).getTime();
+  const parentTotalRangeMs = nodeEndMs - nodeStartMs;
+
+  for (const row of rows) {
+    if (!row.branch || !row.branchedFrom) continue;
+
+    // Find parent row by stripping the /branch-...-N suffix.
+    const parentKey = row.key.replace(kBranchKeyPattern, "");
+    const parentRow = rowByKey.get(parentKey);
+    if (!parentRow) continue;
+
+    // Get the parent span to resolve the fork timestamp.
+    const parentFirstSpan = parentRow.spans[0];
+    const parentSpan =
+      parentRow.spans.length === 1 &&
+      parentFirstSpan &&
+      isSingleSpan(parentFirstSpan)
+        ? parentFirstSpan.agent
+        : null;
+    if (!parentSpan) continue;
+
+    // Get the branch span from this row.
+    const branchFirstSpan = row.spans[0];
+    const branchSpan =
+      row.spans.length === 1 && branchFirstSpan && isSingleSpan(branchFirstSpan)
+        ? branchFirstSpan.agent
+        : null;
+    if (!branchSpan) continue;
+
+    // Resolve the fork timestamp from the parent's content.
+    const forkTimestamp = resolveForkTimestamp(parentSpan, branchSpan);
+
+    // Use the parent's mapping (which may itself be shifted for nested branches).
+    const parentMapping = mappings.get(parentKey) ?? trunkMapping;
+    const forkPercent = parentMapping.toPercent(forkTimestamp);
+
+    mappings.set(
+      row.key,
+      createShiftedMapping(
+        row.startTime,
+        row.endTime,
+        forkPercent,
+        parentTotalRangeMs
+      )
+    );
+  }
+
+  return mappings;
 }

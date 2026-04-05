@@ -60,6 +60,8 @@ export interface SwimlaneRow {
   endTime: Date;
   /** True when this row represents a timeline branch. */
   branch?: boolean;
+  /** For branch rows: the branchedFrom message ID (fork point identifier). */
+  branchedFrom?: string;
 }
 
 // =============================================================================
@@ -559,6 +561,7 @@ function flattenChildren(
           startTime: branchSpan.startTime(false),
           endTime: branchSpan.endTime(false),
           branch: true,
+          branchedFrom: branch.branchedFrom ?? undefined,
         });
         // Recurse into branch content for nested agents.
         // Pass the current label as prefix so nested branches get

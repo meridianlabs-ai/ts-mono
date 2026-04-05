@@ -20,7 +20,6 @@ import type {
 } from "../../types/api-types";
 
 import type { MinimapSelection } from "./components/TimelineMinimap";
-
 import {
   getAgents,
   isSingleSpan,

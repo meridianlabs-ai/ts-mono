@@ -176,10 +176,12 @@ export function computeRowLayouts(
   rows: SwimlaneRow[],
   mapping: TimeMapping,
   markerDepth: MarkerDepth,
-  markerKinds?: MarkerKind[]
+  markerKinds?: MarkerKind[],
+  branchMappings?: ReadonlyMap<string, TimeMapping>
 ): RowLayout[] {
   return rows.map((row) => {
     const isParent = row.depth === 0;
+    const rowMapping = branchMappings?.get(row.key) ?? mapping;
 
     // Position each RowSpan
     const spans = row.spans.map((rowSpan): PositionedSpan => {
@@ -187,7 +189,7 @@ export function computeRowLayouts(
         const bar = computeBarFromMapping(
           rowSpan.agent.startTime(false),
           rowSpan.agent.endTime(false),
-          mapping
+          rowMapping
         );
         return {
           bar,
@@ -208,7 +210,7 @@ export function computeRowLayouts(
         if (a.startTime(false) < envStart) envStart = a.startTime(false);
         if (a.endTime(false) > envEnd) envEnd = a.endTime(false);
       }
-      const bar = computeBarFromMapping(envStart, envEnd, mapping);
+      const bar = computeBarFromMapping(envStart, envEnd, rowMapping);
       return {
         bar,
         drillable: false,
@@ -219,7 +221,7 @@ export function computeRowLayouts(
     });
 
     // Collect markers for this row, optionally filtering by kind
-    const allMarkers = collectRowMarkers(row, markerDepth, mapping);
+    const allMarkers = collectRowMarkers(row, markerDepth, rowMapping);
     const markers = markerKinds
       ? allMarkers.filter((m) => markerKinds.includes(m.kind))
       : allMarkers;

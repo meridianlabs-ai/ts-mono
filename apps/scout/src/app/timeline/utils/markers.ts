@@ -217,7 +217,7 @@ function collectBranchMarkers(
  * Falls back to `branch.startTime()` when branchedFrom is missing or
  * no matching event is found.
  */
-function resolveForkTimestamp(
+export function resolveForkTimestamp(
   parent: TimelineSpan,
   branch: TimelineSpan
 ): Date {
