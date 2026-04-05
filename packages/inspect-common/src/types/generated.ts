@@ -1421,9 +1421,21 @@ export interface components {
             description?: string | null;
             /** Enum */
             enum?: unknown[] | null;
+            /** Examples */
+            examples?: unknown[] | null;
             /** Format */
             format?: string | null;
             items?: components["schemas"]["JSONSchema"] | null;
+            /** Maxlength */
+            maxLength?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minlength */
+            minLength?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Pattern */
+            pattern?: string | null;
             /** Properties */
             properties?: {
                 [key: string]: components["schemas"]["JSONSchema"];
@@ -1431,7 +1443,7 @@ export interface components {
             /** Required */
             required?: string[] | null;
             /** Type */
-            type?: ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null") | ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null")[] | null;
+            type?: ("array" | "boolean" | "integer" | "null" | "number" | "object" | "string") | ("array" | "boolean" | "integer" | "null" | "number" | "object" | "string")[] | null;
         };
         /**
          * JsonChange
