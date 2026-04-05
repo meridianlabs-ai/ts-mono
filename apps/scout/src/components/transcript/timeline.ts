@@ -266,11 +266,8 @@ export function convertServerTimeline(
   events: Event[]
 ): Timeline {
   const lookup = buildEventLookup(events);
-  return {
-    name: server.name,
-    description: server.description,
-    root: convertServerSpan(server.root, lookup),
-  };
+  const root = convertServerSpan(server.root, lookup);
+  return { name: server.name, description: server.description, root };
 }
 
 function convertServerContentItem(
@@ -303,7 +300,9 @@ function convertServerSpan(
   const content = server.content
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = server.branches.map((b) => convertServerSpan(b, lookup));
+  const branches = server.branches
+    .map((b) => convertServerSpan(b, lookup))
+    .filter((b) => b.content.length > 0);
 
   return new TimelineSpan({
     id: server.id,

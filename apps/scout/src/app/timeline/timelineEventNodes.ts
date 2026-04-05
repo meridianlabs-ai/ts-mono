@@ -20,7 +20,7 @@ import type {
 } from "../../types/api-types";
 
 import type { MinimapSelection } from "./components/TimelineMinimap";
-import { computeTimeEnvelope } from "./utils/swimlaneLayout";
+
 import {
   getAgents,
   isSingleSpan,
@@ -217,15 +217,23 @@ export function computeMinimapSelection(
   if (allAgents.length === 1) {
     const agent = allAgents[0]!;
     return {
-      startTime: agent.startTime(),
-      endTime: agent.endTime(),
-      totalTokens: agent.totalTokens(),
+      startTime: agent.startTime(false),
+      endTime: agent.endTime(false),
+      totalTokens: agent.totalTokens(false),
     };
   }
 
-  const envelope = computeTimeEnvelope(allAgents);
-  const tokens = allAgents.reduce((sum, a) => sum + a.totalTokens(), 0);
-  return { ...envelope, totalTokens: tokens };
+  // Compute envelope with includeBranches=false so each agent contributes
+  // only its own time range
+  let envStart = allAgents[0]!.startTime(false);
+  let envEnd = allAgents[0]!.endTime(false);
+  for (let i = 1; i < allAgents.length; i++) {
+    const a = allAgents[i]!;
+    if (a.startTime(false) < envStart) envStart = a.startTime(false);
+    if (a.endTime(false) > envEnd) envEnd = a.endTime(false);
+  }
+  const tokens = allAgents.reduce((sum, a) => sum + a.totalTokens(false), 0);
+  return { startTime: envStart, endTime: envEnd, totalTokens: tokens };
 }
 
 // =============================================================================

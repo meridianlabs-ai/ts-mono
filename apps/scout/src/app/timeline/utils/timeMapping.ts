@@ -111,9 +111,37 @@ export function createIdentityMapping(
  * visualization.
  */
 function computeViewRange(node: TimelineSpan): { start: Date; end: Date } {
-  // startTime()/endTime() with default includeBranches=true already covers
-  // branches, so we just use them directly.
-  return { start: node.startTime(), end: node.endTime() };
+  // The view range must tightly envelope all bar positions. Since bars use
+  // includeBranches=false, we compute the envelope from content-only times
+  // of the node itself plus its branches (which get their own bar rows).
+  // This ensures the timeline fills its full width without empty margins.
+  const items: TimelineSpan[] = [node];
+  collectBranches(node, items);
+  let start = items[0]!.startTime(false);
+  let end = items[0]!.endTime(false);
+  for (let i = 1; i < items.length; i++) {
+    const s = items[i]!;
+    // Skip empty spans whose startTime(false) returns epoch (no content)
+    if (s.content.length === 0) continue;
+    const st = s.startTime(false);
+    const et = s.endTime(false);
+    if (st < start) start = st;
+    if (et > end) end = et;
+  }
+  return { start, end };
+}
+
+/** Recursively collect all branch spans for view range computation. */
+function collectBranches(node: TimelineSpan, out: TimelineSpan[]): void {
+  for (const branch of node.branches) {
+    out.push(branch);
+    collectBranches(branch, out);
+  }
+  for (const item of node.content) {
+    if (item.type === "span") {
+      collectBranches(item, out);
+    }
+  }
 }
 
 /**
@@ -141,8 +169,9 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
     return createIdentityMapping(viewStart, viewEnd);
   }
 
-  // Extract time intervals from content items
-  const intervals = extractIntervals(node.content);
+  // Extract time intervals from content items and branches so that branch
+  // activity is treated as active time (not compressed as a gap).
+  const intervals = extractIntervals([...node.content, ...node.branches]);
   if (intervals.length === 0) {
     return createIdentityMapping(viewStart, viewEnd);
   }

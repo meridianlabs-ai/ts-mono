@@ -172,8 +172,8 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
             root.endTime().getTime()
           )
         )
-      : formatDuration(root.startTime(), root.endTime());
-  const tokenRightLabel = formatTokenCount(root.totalTokens());
+      : formatDuration(root.startTime(false), root.endTime(false));
+  const tokenRightLabel = formatTokenCount(root.totalTokens(false));
 
   const computeSectionLabel = (): string => {
     if (!selection) return "";
