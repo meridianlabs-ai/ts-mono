@@ -683,6 +683,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
                   hasMultipleSpans ? onSelectSpan(spanIndex) : onSelectRow()
                 }
                 onDoubleClick={onToggleExpand}
+                insetPx={connector ? 1.5 : undefined}
               />
             );
           })}
@@ -812,6 +813,8 @@ interface BarFillProps {
   onSelect: () => void;
   /** Toggle expand/collapse on double-click. Only for rows with children. */
   onDoubleClick?: () => void;
+  /** Pixel inset from the left edge (for branch connector visibility). */
+  insetPx?: number;
 }
 
 const BarFill: FC<BarFillProps> = ({
@@ -821,6 +824,7 @@ const BarFill: FC<BarFillProps> = ({
   isDimmed,
   onSelect,
   onDoubleClick,
+  insetPx,
 }) => {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -847,8 +851,12 @@ const BarFill: FC<BarFillProps> = ({
         isDimmed && styles.fillDimmed
       )}
       style={{
-        left: `${span.bar.left}%`,
-        width: `${span.bar.width}%`,
+        left: insetPx
+          ? `calc(${span.bar.left}% + ${insetPx}px)`
+          : `${span.bar.left}%`,
+        width: insetPx
+          ? `calc(${span.bar.width}% - ${insetPx}px)`
+          : `${span.bar.width}%`,
       }}
       title={span.description ?? undefined}
       onClick={handleClick}
