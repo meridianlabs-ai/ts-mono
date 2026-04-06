@@ -596,7 +596,7 @@ test.describe("citations rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Timestamps (inspect-specific: shows timestamps on messages)
+// Inspect-specific features
 // ---------------------------------------------------------------------------
 
 test.describe("inspect-specific features", () => {
@@ -627,6 +627,130 @@ test.describe("inspect-specific features", () => {
     ).toBeVisible();
     await expect(
       messagesArea.getByText("Second assistant reply")
+    ).toBeVisible();
+  });
+
+  test("renders reasoning summary when reasoning is redacted with summary", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      { role: "user", content: "Think carefully", source: "input" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            reasoning: "",
+            signature: "sig123",
+            redacted: true,
+            summary: "The model considered multiple approaches before deciding.",
+          },
+          {
+            type: "text",
+            text: "Here is the final answer.",
+          },
+        ],
+        source: "generate",
+      },
+    ]);
+
+    await expect(page.getByText("Here is the final answer.")).toBeVisible();
+    // When redacted with a summary, title should say "Reasoning (Summary)"
+    await expect(
+      page.getByText("Reasoning (Summary)", { exact: false }).first()
+    ).toBeVisible();
+    // The summary text should be visible
+    await expect(
+      page.getByText("considered multiple approaches", { exact: false }).first()
+    ).toBeVisible();
+  });
+
+  test("renders OpenRouter-style JSON reasoning as formatted code", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      { role: "user", content: "Explain this", source: "input" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            reasoning:
+              "[{'format': 'text', 'text': 'Step 1: analyze the problem'}, {'format': 'text', 'text': 'Step 2: formulate response'}]",
+            signature: null,
+            redacted: false,
+          },
+          {
+            type: "text",
+            text: "The explanation is complete.",
+          },
+        ],
+        source: "generate",
+      },
+    ]);
+
+    await expect(
+      page.getByText("The explanation is complete.")
+    ).toBeVisible();
+    // OpenRouter reasoning should be detected and rendered
+    await expect(
+      page.getByText("Reasoning", { exact: false }).first()
+    ).toBeVisible();
+    // The formatted JSON content should appear somewhere
+    await expect(
+      page.getByText("analyze the problem", { exact: false }).first()
+    ).toBeVisible();
+  });
+
+  test("renders shell_command tool with command argument", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      {
+        role: "user",
+        content: "List the running processes",
+        source: "input",
+      },
+      {
+        role: "assistant",
+        content: "I'll check the running processes.",
+        source: "generate",
+        id: "msg-a1",
+        tool_calls: [
+          {
+            id: "call_sc",
+            type: "function",
+            function: "shell_command",
+            arguments: {
+              command: "ps aux | head -5",
+              description: "List top 5 running processes",
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "call_sc",
+        content: "USER  PID  %CPU  %MEM\nroot  1    0.0   0.1",
+        id: "msg-t-sc",
+      },
+      {
+        role: "assistant",
+        content: "Here are the running processes.",
+        source: "generate",
+      },
+    ]);
+
+    // The shell_command function name should appear
+    await expect(
+      page.getByText("shell_command", { exact: false }).first()
+    ).toBeVisible();
+    // The tool output should render
+    await expect(
+      page.getByText("USER", { exact: false }).first()
     ).toBeVisible();
   });
 });

@@ -1243,6 +1243,75 @@ test.describe("answer tool custom rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task tool (subagent display + markdown output)
+// ---------------------------------------------------------------------------
+
+test.describe("Task tool rendering", () => {
+  test("renders Task tool with subagent type and markdown output", async ({
+    page,
+    network,
+  }) => {
+    await openMessages(
+      page,
+      network,
+      createMessagesEventsResponse({
+        messages: [
+          { role: "user", content: "Research this topic" },
+          {
+            role: "assistant",
+            content: "I'll delegate to a research agent.",
+            id: "msg-a1",
+            tool_calls: [
+              {
+                id: "call_task",
+                type: "function",
+                function: "Task",
+                arguments: {
+                  subagent_type: "researcher",
+                  prompt: "Find information about TypeScript monorepos.",
+                  description: "Research task for monorepo patterns",
+                },
+              },
+            ],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call_task",
+            content:
+              "## Findings\n\nTypeScript monorepos typically use:\n\n- **Turborepo** for task orchestration\n- **pnpm workspaces** for package management",
+            id: "msg-t-task",
+            function: "Task",
+          },
+          { role: "assistant", content: "Research complete.", id: null },
+        ],
+        events: [
+          createModelEvent({
+            uuid: "evt-1",
+            startSec: 0,
+            endSec: 5,
+            tokens: 200,
+            content: "I'll delegate to a research agent.",
+          }),
+        ],
+      })
+    );
+
+    // Task tool should show "Task: researcher" as the title
+    await expect(
+      page.getByText("Task: researcher", { exact: false }).first()
+    ).toBeVisible();
+
+    // Markdown output should be rendered (headings, bold text)
+    await expect(
+      page.getByText("Findings", { exact: false }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText("Turborepo", { exact: false }).first()
+    ).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Compaction data
 // ---------------------------------------------------------------------------
 
