@@ -1443,7 +1443,7 @@ export interface components {
             /** Required */
             required?: string[] | null;
             /** Type */
-            type?: ("array" | "boolean" | "integer" | "null" | "number" | "object" | "string") | ("array" | "boolean" | "integer" | "null" | "number" | "object" | "string")[] | null;
+            type?: ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null") | ("string" | "integer" | "number" | "boolean" | "array" | "object" | "null")[] | null;
         };
         /**
          * JsonChange
