@@ -1,3 +1,5 @@
+// TODO: lint @typescript-eslint/no-redundant-type-constituents
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 

@@ -26,7 +26,16 @@ export const RenderedText = forwardRef<
   RenderedTextProps
 >(
   (
-    { markdown, references, style, className, forceRender, omitMedia, omitMath, options },
+    {
+      markdown,
+      references,
+      style,
+      className,
+      forceRender,
+      omitMedia,
+      omitMath,
+      options,
+    },
     ref
   ) => {
     const displayMode = useDisplayMode();

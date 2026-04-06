@@ -38,170 +38,177 @@ interface MarkdownDivWithReferencesProps {
 export const MarkdownDivWithReferences = forwardRef<
   HTMLDivElement,
   MarkdownDivWithReferencesProps
->(({ markdown, references, options, className, style, omitMedia, omitMath }, ref) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
-  const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
-
-  const [visibleKey, setVisibleKey, clearVisibleKey] = useProperty<string>(
-    "popover",
-    "visibleKey"
-  );
-
-  // Create a map for quick lookup of references by ID
-  const refMap = useMemo(
-    () => new Map(references?.map((r) => [r.id, r])),
-    [references]
-  );
-
-  const { navigate } = useComponentNavigation();
-
-  const handleLinkClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const anchor = (e.target as HTMLElement).closest("a");
-      if (anchor) {
-        const href = anchor.getAttribute("href");
-        // If this is a hash link, forward on to react-router
-        // so it can see this navigate
-        if (href?.startsWith("#/")) {
-          e.preventDefault();
-          // Remove '#' and navigate
-          void navigate(href.slice(1));
-        }
-      }
-    },
-    [navigate]
-  );
-
-  // Post-process the rendered HTML to inject reference links
-  const postProcess = useCallback(
-    (html: string): string =>
-      injectReferenceLinks(html, references, styles.cite ?? "cite"),
-    [references]
-  );
-
-  // Memoize the MarkdownDiv to prevent re-renders when popover state changes
-  // This keeps the DOM stable so event handlers remain attached
-  const memoizedMarkdown = useMemo(
-    () => (
-      <MarkdownDiv
-        ref={ref}
-        markdown={markdown}
-        postProcess={postProcess}
-        style={style}
-        omitMedia={omitMedia}
-        omitMath={omitMath}
-        onClick={handleLinkClick}
-      />
-    ),
-    [ref, markdown, postProcess, style, omitMedia, omitMath, handleLinkClick]
-  );
-
-  // Attach event handlers to reference links after render
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    // Don't enable popover / preview on hover
-    if (options?.previewRefsOnHover === false) {
-      return;
-    }
-
-    // Find all cite links
-    const citeLinks = container.querySelectorAll<HTMLElement>(
-      `.${styles.cite}`
+>(
+  (
+    { markdown, references, options, className, style, omitMedia, omitMath },
+    ref
+  ) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
+    const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(
+      null
     );
 
-    const handleMouseEnter = (e: MouseEvent): void => {
-      // Identify the ref
-      const el = e.currentTarget as HTMLElement;
-      const id = el.getAttribute("data-ref-id");
-      if (!id) {
+    const [visibleKey, setVisibleKey, clearVisibleKey] = useProperty<string>(
+      "popover",
+      "visibleKey"
+    );
+
+    // Create a map for quick lookup of references by ID
+    const refMap = useMemo(
+      () => new Map(references?.map((r) => [r.id, r])),
+      [references]
+    );
+
+    const { navigate } = useComponentNavigation();
+
+    const handleLinkClick = useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        const anchor = (e.target as HTMLElement).closest("a");
+        if (anchor) {
+          const href = anchor.getAttribute("href");
+          // If this is a hash link, forward on to react-router
+          // so it can see this navigate
+          if (href?.startsWith("#/")) {
+            e.preventDefault();
+            // Remove '#' and navigate
+            void navigate(href.slice(1));
+          }
+        }
+      },
+      [navigate]
+    );
+
+    // Post-process the rendered HTML to inject reference links
+    const postProcess = useCallback(
+      (html: string): string =>
+        injectReferenceLinks(html, references, styles.cite ?? "cite"),
+      [references]
+    );
+
+    // Memoize the MarkdownDiv to prevent re-renders when popover state changes
+    // This keeps the DOM stable so event handlers remain attached
+    const memoizedMarkdown = useMemo(
+      () => (
+        <MarkdownDiv
+          ref={ref}
+          markdown={markdown}
+          postProcess={postProcess}
+          style={style}
+          omitMedia={omitMedia}
+          omitMath={omitMath}
+          onClick={handleLinkClick}
+        />
+      ),
+      [ref, markdown, postProcess, style, omitMedia, omitMath, handleLinkClick]
+    );
+
+    // Attach event handlers to reference links after render
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) {
         return;
       }
-      const r = refMap.get(id);
-      if (!r) {
+
+      // Don't enable popover / preview on hover
+      if (options?.previewRefsOnHover === false) {
         return;
       }
 
-      if (!r.citePreview) {
-        return;
-      }
+      // Find all cite links
+      const citeLinks = container.querySelectorAll<HTMLElement>(
+        `.${styles.cite}`
+      );
 
-      // Just set which cite we're tracking
-      // PopOver will handle all show/hide logic including hover delays
-      setPositionEl(el);
-      setCurrentRef(r);
-      setVisibleKey(popoverKey(r));
-    };
+      const handleMouseEnter = (e: MouseEvent): void => {
+        // Identify the ref
+        const el = e.currentTarget as HTMLElement;
+        const id = el.getAttribute("data-ref-id");
+        if (!id) {
+          return;
+        }
+        const r = refMap.get(id);
+        if (!r) {
+          return;
+        }
 
-    const handleClick = (e: MouseEvent): void => {
-      // Cancel the popover if one is pending or showing
-      clearVisibleKey();
-      setCurrentRef(null);
-      setPositionEl(null);
+        if (!r.citePreview) {
+          return;
+        }
 
-      // Stop propagation to prevent parent Link components from handling the click
-      e.stopPropagation();
-    };
+        // Just set which cite we're tracking
+        // PopOver will handle all show/hide logic including hover delays
+        setPositionEl(el);
+        setCurrentRef(r);
+        setVisibleKey(popoverKey(r));
+      };
 
-    // Mouse handling to activate the popover
-    const cleanup: Array<() => void> = [];
-    citeLinks.forEach((link) => {
-      link.addEventListener("mouseenter", handleMouseEnter);
-      link.addEventListener("click", handleClick);
+      const handleClick = (e: MouseEvent): void => {
+        // Cancel the popover if one is pending or showing
+        clearVisibleKey();
+        setCurrentRef(null);
+        setPositionEl(null);
 
-      cleanup.push(() => {
-        link.removeEventListener("mouseenter", handleMouseEnter);
-        link.removeEventListener("click", handleClick);
+        // Stop propagation to prevent parent Link components from handling the click
+        e.stopPropagation();
+      };
+
+      // Mouse handling to activate the popover
+      const cleanup: Array<() => void> = [];
+      citeLinks.forEach((link) => {
+        link.addEventListener("mouseenter", handleMouseEnter);
+        link.addEventListener("click", handleClick);
+
+        cleanup.push(() => {
+          link.removeEventListener("mouseenter", handleMouseEnter);
+          link.removeEventListener("click", handleClick);
+        });
       });
-    });
 
-    // Cleanup all handlers
-    return () => {
-      cleanup.forEach((fn) => fn());
-    };
-  }, [
-    markdown,
-    refMap,
-    options?.previewRefsOnHover,
-    setVisibleKey,
-    clearVisibleKey,
-  ]);
+      // Cleanup all handlers
+      return () => {
+        cleanup.forEach((fn) => fn());
+      };
+    }, [
+      markdown,
+      refMap,
+      options?.previewRefsOnHover,
+      setVisibleKey,
+      clearVisibleKey,
+    ]);
 
-  const key = currentRef
-    ? popoverKey(currentRef)
-    : "unknown-markdown-ref-popover";
+    const key = currentRef
+      ? popoverKey(currentRef)
+      : "unknown-markdown-ref-popover";
 
-  return (
-    <div className={clsx(className)} ref={containerRef}>
-      {memoizedMarkdown}
-      {positionEl && currentRef && (
-        <PopOver
-          id={key}
-          positionEl={positionEl}
-          isOpen={visibleKey === key}
-          setIsOpen={(isOpen) => {
-            if (!isOpen) {
-              clearVisibleKey();
-              setCurrentRef(null);
-              setPositionEl(null);
-            }
-          }}
-          placement="auto"
-          hoverDelay={400}
-          showArrow={true}
-        >
-          {(currentRef.citePreview && currentRef.citePreview()) || (
-            <NoContentsPanel text="No preview available." />
-          )}
-        </PopOver>
-      )}
-    </div>
-  );
-});
+    return (
+      <div className={clsx(className)} ref={containerRef}>
+        {memoizedMarkdown}
+        {positionEl && currentRef && (
+          <PopOver
+            id={key}
+            positionEl={positionEl}
+            isOpen={visibleKey === key}
+            setIsOpen={(isOpen) => {
+              if (!isOpen) {
+                clearVisibleKey();
+                setCurrentRef(null);
+                setPositionEl(null);
+              }
+            }}
+            placement="auto"
+            hoverDelay={400}
+            showArrow={true}
+          >
+            {(currentRef.citePreview && currentRef.citePreview()) || (
+              <NoContentsPanel text="No preview available." />
+            )}
+          </PopOver>
+        )}
+      </div>
+    );
+  }
+);
 
 MarkdownDivWithReferences.displayName = "MarkdownDivWithReferences";
 

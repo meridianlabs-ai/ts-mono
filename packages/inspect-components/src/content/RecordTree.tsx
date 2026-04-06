@@ -1,5 +1,5 @@
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
+// TODO: lint react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string
+/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string */
 import clsx from "clsx";
 import {
   FC,
