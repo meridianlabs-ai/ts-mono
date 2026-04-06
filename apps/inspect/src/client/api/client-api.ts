@@ -1,4 +1,4 @@
-import { EvalSample } from "@tsmono/inspect-common/types";
+import { EvalSample, LogFilesResponse } from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
@@ -13,7 +13,6 @@ import {
   ClientAPI,
   LogContents,
   LogDetails,
-  LogFilesResponse,
   LogPreview,
   LogRoot,
   LogViewAPI,
@@ -314,7 +313,7 @@ export const clientApi = (
     } else {
       const logRoot = await api.get_log_root();
       return {
-        files: logRoot?.logs || [],
+        files: (logRoot?.logs || []).map((log) => ({ ...log, size: 0 })),
         response_type: "full",
       };
     }

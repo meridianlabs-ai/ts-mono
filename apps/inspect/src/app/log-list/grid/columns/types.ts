@@ -1,4 +1,4 @@
-import { LogHandle } from "../../../../client/api/types";
+import { LogHandle } from "@tsmono/inspect-common";
 
 export interface LogListRow {
   id: string;

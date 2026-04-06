@@ -119,6 +119,19 @@ export type JSONSchema = S["JSONSchema"];
 export type ApprovalPolicyConfig = S["ApprovalPolicyConfig"];
 export type ApproverPolicyConfig = S["ApproverPolicyConfig"];
 
+// Server response types
+export type AttachmentData = S["AttachmentData"];
+export type EventData = S["EventData"];
+export type EvalSampleSummary = S["EvalSampleSummary"];
+export type LogDirResponse = S["LogDirResponse"];
+export type LogHandle = S["LogHandle"];
+export type LogFilesResponse = S["LogFilesResponse"];
+export type LogInfo = S["LogInfo"];
+export type LogListingResponse = S["LogListingResponse"];
+export type SampleData = S["SampleData"];
+export type Samples = S["Samples"];
+export type TaskDisplayMetric = S["TaskDisplayMetric"];
+
 // Other types
 export type JsonChange = S["JsonChange"];
 export type JsonValue = S["JsonValue"];

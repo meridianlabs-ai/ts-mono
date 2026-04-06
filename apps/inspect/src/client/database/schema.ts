@@ -8,9 +8,9 @@ export interface LogHandleRecord {
   id?: number;
   file_path: string;
   file_name: string;
-  task?: string;
-  task_id?: string;
-  mtime?: number;
+  task?: string | null;
+  task_id?: string | null;
+  mtime?: number | null;
   cached_at: string;
 }
 

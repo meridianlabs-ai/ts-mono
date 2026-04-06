@@ -1,3 +1,5 @@
+import { LogInfo } from "@tsmono/inspect-common/types";
+
 import { EvalScores } from "../../../@types/extraInspect";
 import { asyncJsonParse } from "../../../utils/json-worker";
 import { download_file } from "../shared/api-shared";
@@ -5,7 +7,6 @@ import {
   Capabilities,
   EvalHeader,
   LogContents,
-  LogInfo,
   LogPreview,
   LogViewAPI,
   PendingSampleResponse,

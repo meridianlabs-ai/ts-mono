@@ -1,11 +1,7 @@
+import { LogHandle } from "@tsmono/inspect-common";
 import { throttle } from "@tsmono/util";
 
-import {
-  ClientAPI,
-  LogDetails,
-  LogHandle,
-  LogPreview,
-} from "../../client/api/types";
+import { ClientAPI, LogDetails, LogPreview } from "../../client/api/types";
 import { DatabaseService } from "../../client/database";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
 

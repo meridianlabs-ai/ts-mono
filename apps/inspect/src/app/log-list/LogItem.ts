@@ -1,4 +1,6 @@
-import { LogHandle, LogPreview } from "../../client/api/types";
+import { LogHandle } from "@tsmono/inspect-common";
+
+import { LogPreview } from "../../client/api/types";
 
 export interface LogItem {
   id: string;

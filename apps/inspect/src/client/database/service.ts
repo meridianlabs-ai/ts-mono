@@ -1,9 +1,10 @@
+import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { LogDetails, LogHandle, LogPreview, SampleSummary } from "../api/types";
+import { LogDetails, LogPreview, SampleSummary } from "../api/types";
 
 import { DatabaseManager } from "./manager";
-import { AppDatabase } from "./schema";
+import { AppDatabase, LogHandleRecord } from "./schema";
 
 const log = createLogger("DatabaseService");
 
@@ -80,7 +81,7 @@ export class DatabaseService {
       existingRecords.map((r) => [r.file_path, r.id])
     );
 
-    const records = logs.map((file) => ({
+    const records = logs.map<LogHandleRecord>((file) => ({
       id: existingByPath.get(file.name),
       file_path: file.name,
       file_name: file.name.split("/").pop() || file.name,
@@ -105,15 +106,11 @@ export class DatabaseService {
       // Sort by mtime if available, otherwise by id (insertion order)
       let files = await db.logs.toArray();
 
-      // Sort by mtime (descending) if present, otherwise maintain insertion order
+      // Sort by mtime (descending) if present, otherwise maintain insertion order.
+      // Note: != null (not !==) catches both null and undefined.
       files.sort((a, b) => {
-        if (a.mtime !== undefined && b.mtime !== undefined) {
-          return b.mtime - a.mtime;
-        }
-        // If mtime is not available, maintain insertion order (ascending by id)
-        if (a.id !== undefined && b.id !== undefined) {
-          return a.id - b.id;
-        }
+        if (a.mtime != null && b.mtime != null) return b.mtime - a.mtime;
+        if (a.id != null && b.id != null) return a.id - b.id;
         return 0;
       });
 

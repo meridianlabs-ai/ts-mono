@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import { EvalSample, EvalSpec, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { EvalLogStatus, Events } from "../@types/extraInspect";
@@ -10,7 +10,7 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
-import { LogHandle, SampleSummary } from "../client/api/types";
+import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
 import { getAvailableScorers, getDefaultScorer } from "./scoring";

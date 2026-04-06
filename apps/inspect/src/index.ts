@@ -12,8 +12,6 @@ export type {
   ClientAPI,
   LogViewAPI,
   LogRoot,
-  LogHandle,
-  LogFilesResponse,
   LogContents,
   LogPreview,
   PendingSampleResponse,
@@ -21,7 +19,11 @@ export type {
 } from "./client/api/types";
 
 // Log types
-export type { EvalSet } from "@tsmono/inspect-common/types";
+export type {
+  EvalSet,
+  LogHandle,
+  LogFilesResponse,
+} from "@tsmono/inspect-common/types";
 
 // State Store
 export { initializeStore } from "./state/store";
