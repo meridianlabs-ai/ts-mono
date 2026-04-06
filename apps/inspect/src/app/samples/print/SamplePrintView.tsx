@@ -171,7 +171,7 @@ export const SamplePrintView: FC = () => {
         <ChatView
           id="print-messages"
           messages={sampleMessages}
-          indented={true}
+          display={{ indented: true }}
         />
       )}
 

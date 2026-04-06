@@ -126,11 +126,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         <ChatView
           id={`${eventNode.id}-model-output`}
           messages={[...userMessages, ...outputMessages]}
-          showLabels={false}
-          toolCallStyle={showToolCalls ? "complete" : "omit"}
-          resolveToolCallsIntoPreviousMessage={context?.hasToolEvents !== false}
-          allowLinking={false}
-          unlabeledRoles={["assistant"]}
+          labels={{ show: false }}
+          tools={{
+            callStyle: showToolCalls ? "complete" : "omit",
+            resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+          }}
+          display={{ unlabeledRoles: ["assistant"] }}
         />
         {event.error ? (
           <div className={styles.error}>
@@ -179,10 +180,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-model-input-full`}
             messages={[...inputMessages, ...outputMessages]}
-            resolveToolCallsIntoPreviousMessage={
-              context?.hasToolEvents !== false
-            }
-            allowLinking={false}
+            tools={{
+              resolveIntoPreviousMessage:
+                context?.hasToolEvents !== false,
+            }}
           />
         </EventSection>
       </div>

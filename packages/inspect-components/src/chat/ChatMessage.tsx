@@ -17,36 +17,26 @@ import styles from "./ChatMessage.module.css";
 import { Message } from "./messages";
 import { MessageContents } from "./MessageContents";
 import { ToolOutput } from "./tools/ToolOutput";
-import { ChatViewToolCallStyle } from "./types";
+import { ChatViewDisplayOptions, ChatViewLinkingOptions } from "./types";
 
 interface ChatMessageProps {
   id: string;
   message: Message;
   toolMessages: ChatMessageTool[];
-  indented?: boolean;
-  toolCallStyle: ChatViewToolCallStyle;
-  allowLinking?: boolean;
-  unlabeledRoles?: string[];
-  getMessageUrl?: (messageId: string) => string | undefined;
-  supportsLinking?: () => boolean;
-  formatDateTime?: (date: Date) => string;
-  linkIcon?: string;
+  display?: ChatViewDisplayOptions;
+  linking?: ChatViewLinkingOptions;
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(
-  ({
-    id,
-    message,
-    indented,
-    allowLinking = true,
-    unlabeledRoles,
-    getMessageUrl,
-    supportsLinking,
-    formatDateTime,
-    linkIcon = "bi bi-link-45deg",
-  }) => {
+  ({ id, message, display, linking }) => {
+    const indented = display?.indented ?? false;
+    const unlabeledRoles = display?.unlabeledRoles;
+    const formatDateTime = display?.formatDateTime;
+    const linkingEnabled = linking?.enabled ?? false;
+    const getMessageUrl = linking?.getUrl;
+    const linkIcon = linking?.icon ?? "bi bi-link-45deg";
+
     const messageUrl = getMessageUrl?.(message.id || "");
-    const canLink = supportsLinking?.() ?? !!messageUrl;
 
     const [mouseOver, setMouseOver] = useState(false);
 
@@ -98,7 +88,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
             <div>
               {message.role}
               {message.role === "tool" ? `: ${message.function}` : ""}
-              {canLink && messageUrl && allowLinking ? (
+              {linkingEnabled && messageUrl ? (
                 <CopyButton
                   icon={linkIcon}
                   value={messageUrl}

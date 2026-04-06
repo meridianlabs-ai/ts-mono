@@ -128,16 +128,12 @@ const InputRenderer: FC<InputRendererProps> = ({
       return (
         <ChatViewVirtualList
           messages={inputData.input.messages || []}
-          allowLinking={false}
           id={"scan-input-virtual-list"}
-          toolCallStyle={"complete"}
-          indented={true}
+          display={{ indented: true }}
           className={className}
           scrollRef={scrollRef}
           initialMessageId={initialMessageId}
-          showLabels={true}
-          highlightLabeled={highlightLabeled}
-          labels={labels}
+          labels={{ highlight: highlightLabeled, values: labels }}
         />
       );
     } else if (inputData.input.events && inputData.input.events.length > 0) {
@@ -158,10 +154,8 @@ const InputRenderer: FC<InputRendererProps> = ({
     return (
       <ChatViewVirtualList
         messages={inputData.input}
-        allowLinking={false}
         id={"scan-input-virtual-list"}
-        toolCallStyle={"complete"}
-        indented={true}
+        display={{ indented: true }}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}
@@ -171,10 +165,8 @@ const InputRenderer: FC<InputRendererProps> = ({
     return (
       <ChatViewVirtualList
         messages={[inputData.input]}
-        allowLinking={false}
         id={"scan-input-virtual-list"}
-        toolCallStyle={"complete"}
-        indented={true}
+        display={{ indented: true }}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}

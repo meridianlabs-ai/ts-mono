@@ -103,8 +103,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-toolcall-chatmessage`}
             messages={lastModelNode.event.output.choices.map((m) => m.message)}
-            toolCallStyle="compact"
-            allowLinking={false}
+            tools={{ callStyle: "compact" }}
           />
         ) : undefined}
 

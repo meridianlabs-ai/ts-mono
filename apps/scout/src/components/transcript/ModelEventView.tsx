@@ -110,10 +110,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         <ChatView
           id={`${eventNode.id}-model-output`}
           messages={[...userMessages, ...(outputMessages || [])]}
-          toolCallStyle={showToolCalls ? "complete" : "omit"}
-          resolveToolCallsIntoPreviousMessage={context?.hasToolEvents !== false}
-          allowLinking={false}
-          showLabels={false}
+          tools={{
+            callStyle: showToolCalls ? "complete" : "omit",
+            resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+          }}
+          labels={{ show: false }}
         />
         {event.pending ? (
           <div className={clsx(styles.progress)}>
@@ -152,10 +153,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-model-input-full`}
             messages={[...event.input, ...(outputMessages || [])]}
-            resolveToolCallsIntoPreviousMessage={
-              context?.hasToolEvents !== false
-            }
-            allowLinking={false}
+            tools={{
+              resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+            }}
           />
         </EventSection>
       </div>

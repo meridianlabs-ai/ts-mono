@@ -288,11 +288,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         id={"transcript-id"}
         messages={transcript.messages || []}
         initialMessageId={messageParam}
-        toolCallStyle={"complete"}
-        indented={false}
         className={styles.chatList}
         scrollRef={activeScrollRef}
-        showLabels={true}
       />
     </TabPanel>
   );

@@ -1,6 +1,10 @@
 // Types
 export type {
   ChatViewToolCallStyle,
+  ChatViewDisplayOptions,
+  ChatViewLabelOptions,
+  ChatViewLinkingOptions,
+  ChatViewToolOptions,
   Citations,
   Citation,
   ContentTool,

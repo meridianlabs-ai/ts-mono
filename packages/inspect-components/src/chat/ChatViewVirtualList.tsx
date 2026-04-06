@@ -19,30 +19,26 @@ import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
-import type { ToolCallViewProps } from "./tools/ToolCallView";
-import { ChatViewToolCallStyle } from "./types";
+import {
+  ChatViewDisplayOptions,
+  ChatViewLabelOptions,
+  ChatViewLinkingOptions,
+  ChatViewToolOptions,
+} from "./types";
 
 export interface ChatViewVirtualListProps {
   id: string;
-  className?: string | string[];
   messages: ChatMessage[];
+  className?: string | string[];
   initialMessageId?: string | null;
   topOffset?: number;
-  toolCallStyle: ChatViewToolCallStyle;
-  indented: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
-  allowLinking?: boolean;
-  labels?: Record<string, string>;
-  showLabels?: boolean;
-  highlightLabeled?: boolean;
-  unlabeledRoles?: string[];
-  getMessageUrl?: (messageId: string) => string | undefined;
-  supportsLinking?: () => boolean;
-  formatDateTime?: (date: Date) => string;
-  linkIcon?: string;
   onNativeFindChanged?: (nativeFind: boolean) => void;
-  getCustomToolView?: (props: ToolCallViewProps) => React.ReactNode | undefined;
+  display?: ChatViewDisplayOptions;
+  labels?: ChatViewLabelOptions;
+  linking?: ChatViewLinkingOptions;
+  tools?: ChatViewToolOptions;
 }
 
 interface ChatViewVirtualListComponentProps extends ChatViewVirtualListProps {
@@ -56,21 +52,13 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     initialMessageId,
     topOffset,
     className,
-    toolCallStyle,
-    indented,
     scrollRef,
     running,
-    allowLinking = true,
-    labels,
-    showLabels = true,
-    highlightLabeled = false,
-    unlabeledRoles,
-    getMessageUrl,
-    supportsLinking,
-    formatDateTime,
-    linkIcon,
     onNativeFindChanged,
-    getCustomToolView,
+    display,
+    labels,
+    linking,
+    tools,
   }) => {
     // Support either virtualized or normal mode rendering based upon message count
     const useVirtuoso = running || messages.length > 200;
@@ -140,19 +128,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         <ChatView
           id={id}
           messages={messages}
-          allowLinking={allowLinking}
-          indented={indented}
-          showLabels={showLabels}
-          labels={labels}
-          highlightLabeled={highlightLabeled}
-          toolCallStyle={toolCallStyle}
           className={className}
-          unlabeledRoles={unlabeledRoles}
-          getMessageUrl={getMessageUrl}
-          supportsLinking={supportsLinking}
-          formatDateTime={formatDateTime}
-          linkIcon={linkIcon}
-          getCustomToolView={getCustomToolView}
+          display={display}
+          labels={labels}
+          linking={linking}
+          tools={tools}
         />
       );
     } else {
@@ -165,19 +145,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
           messages={messages}
           initialMessageId={initialMessageId}
           topOffset={topOffset}
-          toolCallStyle={toolCallStyle}
-          indented={indented}
           running={running}
-          allowLinking={allowLinking}
+          display={display}
           labels={labels}
-          showLabels={showLabels}
-          highlightLabeled={highlightLabeled}
-          unlabeledRoles={unlabeledRoles}
-          getMessageUrl={getMessageUrl}
-          supportsLinking={supportsLinking}
-          formatDateTime={formatDateTime}
-          linkIcon={linkIcon}
-          getCustomToolView={getCustomToolView}
+          linking={linking}
+          tools={tools}
         />
       );
     }
@@ -196,20 +168,12 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
       initialMessageId,
       topOffset,
       className,
-      toolCallStyle,
-      indented,
       scrollRef,
       running,
-      allowLinking = true,
+      display,
       labels,
-      showLabels = true,
-      highlightLabeled,
-      unlabeledRoles,
-      getMessageUrl,
-      supportsLinking,
-      formatDateTime,
-      linkIcon,
-      getCustomToolView,
+      linking,
+      tools,
     }) => {
       const collapsedMessages = useMemo(() => {
         return resolveMessages(messages);
@@ -239,40 +203,17 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
             <ChatMessageRow
               index={index}
               parentName={id || "chat-virtual-list"}
-              showLabels={showLabels}
-              highlightLabeled={highlightLabeled}
-              labels={labels}
               resolvedMessage={item}
-              indented={indented}
-              toolCallStyle={toolCallStyle}
               highlightUserMessage={true}
-              allowLinking={allowLinking}
-              unlabeledRoles={unlabeledRoles}
-              getMessageUrl={getMessageUrl}
-              supportsLinking={supportsLinking}
-              formatDateTime={formatDateTime}
-              linkIcon={linkIcon}
-              getCustomToolView={getCustomToolView}
+              display={display}
+              labels={labels}
+              linking={linking}
+              tools={tools}
             />
           );
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [
-          id,
-          showLabels,
-          labels,
-          indented,
-          toolCallStyle,
-          collapsedMessages,
-          highlightLabeled,
-          allowLinking,
-          unlabeledRoles,
-          getMessageUrl,
-          supportsLinking,
-          formatDateTime,
-          linkIcon,
-          getCustomToolView,
-        ]
+        [id, collapsedMessages, display, labels, linking, tools]
       );
 
       const Item = ({

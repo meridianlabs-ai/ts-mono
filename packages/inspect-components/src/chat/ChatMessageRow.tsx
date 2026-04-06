@@ -7,27 +7,25 @@ import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { ResolvedMessage } from "./messages";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
-import { ToolCallView, ToolCallViewProps } from "./tools/ToolCallView";
-import { ChatViewToolCallStyle, ContentTool } from "./types";
+import { ToolCallView } from "./tools/ToolCallView";
+import {
+  ChatViewDisplayOptions,
+  ChatViewLabelOptions,
+  ChatViewLinkingOptions,
+  ChatViewToolOptions,
+  ContentTool,
+} from "./types";
 
 interface ChatMessageRowProps {
   index: number;
   parentName: string;
-  labels?: Record<string, string>;
-  showLabels?: boolean;
-  highlightLabeled?: boolean;
   resolvedMessage: ResolvedMessage;
-  toolCallStyle: ChatViewToolCallStyle;
-  indented?: boolean;
   highlightUserMessage?: boolean;
-  allowLinking?: boolean;
   className?: string | string[];
-  unlabeledRoles?: string[];
-  getMessageUrl?: (messageId: string) => string | undefined;
-  supportsLinking?: () => boolean;
-  formatDateTime?: (date: Date) => string;
-  linkIcon?: string;
-  getCustomToolView?: (props: ToolCallViewProps) => React.ReactNode | undefined;
+  display?: ChatViewDisplayOptions;
+  labels?: ChatViewLabelOptions;
+  linking?: ChatViewLinkingOptions;
+  tools?: ChatViewToolOptions;
 }
 
 /**
@@ -36,38 +34,36 @@ interface ChatMessageRowProps {
 export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   index,
   parentName,
-  showLabels,
-  labels,
-  highlightLabeled,
   resolvedMessage,
-  toolCallStyle,
-  indented,
   highlightUserMessage,
-  allowLinking = true,
   className,
-  unlabeledRoles,
-  getMessageUrl,
-  supportsLinking,
-  formatDateTime,
-  linkIcon,
-  getCustomToolView,
+  display,
+  labels,
+  linking,
+  tools,
 }) => {
+  const showLabels = labels?.show ?? true;
+  const labelValues = labels?.values;
+  const highlightLabeled = labels?.highlight ?? false;
+  const toolCallStyle = tools?.callStyle ?? "complete";
+  const getCustomToolView = tools?.getCustomView;
+
   const views: ReactNode[] = [];
   const viewLabels: Array<string | undefined> = [];
-  const useLabels = showLabels || Object.keys(labels || {}).length > 0;
+  const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
 
   if (useLabels) {
     // The chat message and label
     const number = index + 1;
     // TODO: don't do this for every row
-    const maxlabelLen = labels
-      ? Object.values(labels).reduce((curr, r) => {
+    const maxlabelLen = labelValues
+      ? Object.values(labelValues).reduce((curr, r) => {
           return Math.max(r.length, curr);
         }, 0)
       : 3;
     const chatMessageLabel =
-      labels && resolvedMessage.message.id
-        ? labels[resolvedMessage.message.id] ||
+      labelValues && resolvedMessage.message.id
+        ? labelValues[resolvedMessage.message.id] ||
           "\u00A0".repeat(maxlabelLen * 2)
         : String(number) || undefined;
     viewLabels.push(chatMessageLabel);
@@ -79,14 +75,8 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       id={`${parentName}-chat-messages`}
       message={resolvedMessage.message}
       toolMessages={resolvedMessage.toolMessages}
-      indented={indented}
-      toolCallStyle={toolCallStyle}
-      allowLinking={allowLinking}
-      unlabeledRoles={unlabeledRoles}
-      getMessageUrl={getMessageUrl}
-      supportsLinking={supportsLinking}
-      formatDateTime={formatDateTime}
-      linkIcon={linkIcon}
+      display={display}
+      linking={linking}
     />
   );
 
@@ -114,7 +104,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       }
 
       // The label (if any)
-      const toolLabel = labels?.[toolMessage?.id || ""] || undefined;
+      const toolLabel = labelValues?.[toolMessage?.id || ""] || undefined;
 
       // Resolve the tool output
       const resolvedToolOutput = resolveToolMessage(toolMessage);

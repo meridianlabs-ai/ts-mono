@@ -43,7 +43,6 @@ const system_msg_added_sig: ChangeType = {
         key="system_msg_event_preview"
         id="system_msg_event_preview"
         messages={[message] as ChatMessage[]}
-        allowLinking={false}
       />
     );
   },
@@ -100,7 +99,6 @@ const messages: ChangeType = {
         key="system_msg_event_preview"
         id="system_msg_event_preview"
         messages={messages as unknown as ChatMessage[]}
-        allowLinking={false}
       />
     );
   },
@@ -275,7 +273,6 @@ const createMessageRenderer = (name: string, role: string): ChangeType => {
           key="system_msg_event_preview"
           id="system_msg_event_preview"
           messages={[message] as ChatMessage[]}
-          allowLinking={false}
         />
       );
     },

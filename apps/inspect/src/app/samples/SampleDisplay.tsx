@@ -477,9 +477,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 messages={sampleMessages}
                 initialMessageId={sampleDetailNavigation.message}
                 topOffset={tabsHeight}
-                indented={true}
+                display={{ indented: true }}
                 scrollRef={scrollRef}
-                toolCallStyle="complete"
+                tools={{ callStyle: "complete" }}
                 running={running}
                 className={styles.fullWidth}
               />

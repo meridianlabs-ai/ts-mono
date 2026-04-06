@@ -70,7 +70,6 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
       <div data-name="Sample" className={styles.sample}>
         <ChatView
           messages={stateObj["messages"] as ChatMessages}
-          allowLinking={false}
         />
         <div>
           {event.sample.choices
