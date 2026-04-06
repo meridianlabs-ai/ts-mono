@@ -3,15 +3,20 @@ import { StateSnapshot } from "react-virtuoso";
 
 import {
   ApprovalEvent,
+  AttachmentData,
   BranchEvent,
   CompactionEvent,
   ContentDocument,
   ContentImage,
   ContentText,
+  ErrorEvent,
   EvalSample,
   EvalSet,
+  EventData,
   InfoEvent,
+  InputEvent,
   LoggerEvent,
+  LogHandle,
   ModelEvent,
   SampleInitEvent,
   SampleLimitEvent,
@@ -25,11 +30,8 @@ import {
 } from "@tsmono/inspect-common/types";
 
 import {
-  AttachmentData,
   EvalHeader,
-  EventData,
   LogDetails,
-  LogHandle,
   LogPreview,
   PendingSamples,
   SampleSummary,

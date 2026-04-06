@@ -1,15 +1,10 @@
 import { GridState } from "ag-grid-community";
 
-import { EvalSet } from "@tsmono/inspect-common/types";
+import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { DisplayedSample, LogsState } from "../app/types";
-import {
-  EvalHeader,
-  LogDetails,
-  LogHandle,
-  LogPreview,
-} from "../client/api/types";
+import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 

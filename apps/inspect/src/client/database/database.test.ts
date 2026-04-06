@@ -8,7 +8,9 @@
  * - log_details: stores complete results from get_log_info() including samples (LogDetails)
  */
 
-import { LogDetails, LogHandle, LogPreview, SampleSummary } from "../api/types";
+import { LogHandle } from "@tsmono/inspect-common";
+
+import { LogDetails, LogPreview, SampleSummary } from "../api/types";
 
 import { createDatabaseService, DatabaseService } from "./service";
 
@@ -121,11 +123,13 @@ describe("Database Service", () => {
       const testLogRoot: LogHandle[] = [
         {
           name: "/test/logs/eval1.json",
+
           task: "test-task-1",
           task_id: "task1",
         },
         {
           name: "/test/logs/eval2.json",
+
           task: "test-task-2",
           task_id: "task2",
         },
@@ -144,13 +148,13 @@ describe("Database Service", () => {
     });
 
     test("should update existing cached log files", async () => {
-      const initialFiles = [
+      const initialFiles: LogHandle[] = [
         { name: "/test/logs/eval1.json", task: "initial-task" },
       ];
       await databaseService.writeLogs(initialFiles);
 
       // Update with new data
-      const updatedFiles = [
+      const updatedFiles: LogHandle[] = [
         { name: "/test/logs/eval1.json", task: "updated-task" },
         { name: "/test/logs/eval2.json", task: "additional-task" },
       ];
@@ -172,7 +176,7 @@ describe("Database Service", () => {
         createTestLogSummary({ eval_id: "eval-1", task: "task-1" }),
         createTestLogSummary({ eval_id: "eval-2", task: "task-2" }),
       ];
-      const logHandles = [
+      const logHandles: LogHandle[] = [
         { name: "/test/logs/eval1.json" },
         { name: "/test/logs/eval2.json" },
       ];
