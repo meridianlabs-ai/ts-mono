@@ -513,6 +513,9 @@ importers:
 
   packages/inspect-components:
     dependencies:
+      '@tsmono/inspect-common':
+        specifier: workspace:*
+        version: link:../inspect-common
       '@tsmono/react':
         specifier: workspace:*
         version: link:../react
