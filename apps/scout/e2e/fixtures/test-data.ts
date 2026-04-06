@@ -265,9 +265,7 @@ export function createTimelineScenario(options?: {
   });
 
   return createMessagesEventsResponse({
-    messages: [
-      { role: "user", content: "Help me refactor this code" },
-    ],
+    messages: [{ role: "user", content: "Help me refactor this code" }],
     events,
     timelines: [createTimeline(rootSpan)],
   });

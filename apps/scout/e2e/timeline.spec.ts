@@ -73,8 +73,12 @@ test("timeline swimlane renders rows from server timeline data", async ({
 
   // Row labels for the child spans should be visible
   // (root "Transcript" is depth 0, children "Explore" and "Build" are depth 1)
-  await expect(swimlane.getByRole("row").filter({ hasText: "Explore" })).toBeVisible();
-  await expect(swimlane.getByRole("row").filter({ hasText: "Build" })).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Build" })
+  ).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
@@ -96,7 +100,9 @@ test("clicking chevron collapses and expands child rows", async ({
   await expect(exploreRow).toBeVisible();
 
   // Click the collapse button on the root row (the "Transcript" row has children)
-  const collapseButton = swimlane.getByRole("button", { name: "Collapse" }).first();
+  const collapseButton = swimlane
+    .getByRole("button", { name: "Collapse" })
+    .first();
   await collapseButton.click();
 
   // Child rows should now be hidden
@@ -117,7 +123,10 @@ test("row with branches shows chevron even before branches are expanded", async 
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(network, createTimelineScenario({ withBranch: true }));
+  setupTranscriptWithTimeline(
+    network,
+    createTimelineScenario({ withBranch: true })
+  );
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
@@ -133,7 +142,10 @@ test("clicking chevron on row with branches enables showBranches and reveals bra
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(network, createTimelineScenario({ withBranch: true }));
+  setupTranscriptWithTimeline(
+    network,
+    createTimelineScenario({ withBranch: true })
+  );
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
@@ -152,14 +164,19 @@ test("clicking branch marker auto-expands parent row", async ({
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(network, createTimelineScenario({ withBranch: true }));
+  setupTranscriptWithTimeline(
+    network,
+    createTimelineScenario({ withBranch: true })
+  );
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
   await expect(swimlane).toBeVisible();
 
   // Click the branch marker (diamond icon)
-  const branchMarker = swimlane.getByRole("button", { name: "Toggle branches" }).first();
+  const branchMarker = swimlane
+    .getByRole("button", { name: "Toggle branches" })
+    .first();
   await branchMarker.click();
 
   // Branch row should be visible immediately (parent auto-expanded)
@@ -168,7 +185,9 @@ test("clicking branch marker auto-expands parent row", async ({
 
   // Build row should show "Collapse" chevron (expanded state)
   const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
-  await expect(buildRow.getByRole("button", { name: "Collapse" })).toBeVisible();
+  await expect(
+    buildRow.getByRole("button", { name: "Collapse" })
+  ).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
