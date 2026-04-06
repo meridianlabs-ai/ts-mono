@@ -1124,7 +1124,7 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={topY}
           x2={`${markerLeft}%`}
           y2={midY + 0.5}
-          stroke="var(--vscode-foreground)"
+          stroke="var(--vscode-descriptionForeground)"
           strokeWidth={1}
         />
         {/* Horizontal segment: from marker position rightward to branch bar */}
@@ -1133,12 +1133,15 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={midY}
           x2={`${endLeft}%`}
           y2={midY}
-          stroke="var(--vscode-foreground)"
+          stroke="var(--vscode-descriptionForeground)"
           strokeWidth={1}
         />
       </svg>
-      {/* Right-pointing arrowhead: CSS border-triangle, 6px tall */}
-      <div className={styles.connectorArrow} style={{ left: `${endLeft}%` }} />
+      {/* Right-pointing arrowhead: positioned at the inset bar edge */}
+      <div
+        className={styles.connectorArrow}
+        style={{ left: `calc(${endLeft}% + 4px)` }}
+      />
     </>
   );
 };

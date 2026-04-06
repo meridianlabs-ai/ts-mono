@@ -348,9 +348,22 @@
   height: 0;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
-  border-left: 4px solid var(--vscode-foreground);
+  border-left: 4px solid var(--vscode-descriptionForeground);
   pointer-events: none;
 }
+
+/* Horizontal line extending back from arrowhead to the SVG horizontal endpoint */
+.connectorArrow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  width: 5px;
+  height: 1px;
+  background: var(--vscode-descriptionForeground);
+  transform: translateY(-50%);
+}
+
 
 /* Branch popover */
 
