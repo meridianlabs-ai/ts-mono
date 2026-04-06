@@ -76,6 +76,12 @@ export const transformTree = (roots: EventNode[]): EventNode[] => {
 const transformers = () => {
   const treeNodeTransformers: TreeNodeTransformer[] = [
     {
+      name: "unwrap_main",
+      matches: (node) =>
+        node.event.event === SPAN_BEGIN && node.event.type === "main",
+      process: unwrapNode,
+    },
+    {
       name: "unwrap_tools",
       matches: (node) =>
         node.event.event === SPAN_BEGIN && node.event.type === TYPE_TOOL,
@@ -192,6 +198,13 @@ const elevateChildNode = (
   // and more importantly we drive children / transcripts using the tree structure itself
   // and notes rather than the event.events itself)
   return targetNode as EventNode;
+};
+
+const unwrapNode = (node: EventNode): EventNode[] => {
+  return node.children.map((child) => {
+    child.depth = node.depth;
+    return child;
+  });
 };
 
 const skipFirstChildNode = (node: EventNode): EventNode => {
