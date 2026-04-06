@@ -102,6 +102,8 @@ export interface TimelineOptions {
   includeUtility?: boolean;
   /** Show branches as swimlane rows. Default: false. */
   showBranches?: boolean;
+  /** Position branches at their fork point instead of wall-clock time. Default: false. */
+  forkRelative?: boolean;
 }
 
 export function useTimeline(

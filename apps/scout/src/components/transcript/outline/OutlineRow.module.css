@@ -1,21 +1,9 @@
 .eventRow {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 0.7em 1fr;
   column-gap: 0.25em;
   cursor: pointer;
   padding-left: 0.7em;
-}
-
-.eventRow.withToggles {
-  grid-template-columns: 0.7em 1fr;
-}
-
-.eventRow.withIcons {
-  grid-template-columns: 1em 1fr;
-}
-
-.eventRow.withToggles.withIcons {
-  grid-template-columns: 0.7em 1em 1fr;
 }
 
 .eventRow.selected {
@@ -45,10 +33,11 @@
 }
 
 .iconSlot {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   opacity: 0.5;
+  margin-right: 0.3em;
 }
 
 .eventRow.selected .iconSlot {

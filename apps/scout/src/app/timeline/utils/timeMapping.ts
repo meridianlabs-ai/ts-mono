@@ -102,29 +102,78 @@ export function createIdentityMapping(
 }
 
 /**
+ * Compute the full view range of a node, including branches recursively.
+ *
+ * The span's own startTime/endTime cover only direct content. Branches
+ * (and their nested branches) may extend beyond that range. The view
+ * range is the recursive union of the span's time range and all branch
+ * time ranges, giving the full time extent needed by the swimlane
+ * visualization.
+ */
+function computeViewRange(node: TimelineSpan): { start: Date; end: Date } {
+  // The view range must tightly envelope all bar positions. Since bars use
+  // includeBranches=false, we compute the envelope from content-only times
+  // of the node itself plus its branches (which get their own bar rows).
+  // This ensures the timeline fills its full width without empty margins.
+  const items: TimelineSpan[] = [node];
+  collectBranches(node, items);
+  let start = items[0]!.startTime(false);
+  let end = items[0]!.endTime(false);
+  for (let i = 1; i < items.length; i++) {
+    const s = items[i]!;
+    // Skip empty spans whose startTime(false) returns epoch (no content)
+    if (s.content.length === 0) continue;
+    const st = s.startTime(false);
+    const et = s.endTime(false);
+    if (st < start) start = st;
+    if (et > end) end = et;
+  }
+  return { start, end };
+}
+
+/** Recursively collect all branch spans for view range computation. */
+function collectBranches(node: TimelineSpan, out: TimelineSpan[]): void {
+  for (const branch of node.branches) {
+    out.push(branch);
+    collectBranches(branch, out);
+  }
+  for (const item of node.content) {
+    if (item.type === "span") {
+      collectBranches(item, out);
+    }
+  }
+}
+
+/**
  * Computes a TimeMapping for a timeline node.
+ *
+ * The mapping covers the full view range (content + branches) so that
+ * branch rows render at correct positions within the swimlane.
  *
  * If the node has no idle time (idleTime === 0), returns an identity mapping
  * with zero overhead. Otherwise, detects gaps between content items and
  * compresses them into small fixed-width regions.
  */
 export function computeTimeMapping(node: TimelineSpan): TimeMapping {
+  const { start: viewStart, end: viewEnd } = computeViewRange(node);
+
   // Fast exit: no idle time means no gaps to compress
   if (node.idleTime() === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
-  const nodeStartMs = node.startTime().getTime();
-  const nodeEndMs = node.endTime().getTime();
+  const nodeStartMs = viewStart.getTime();
+  const nodeEndMs = viewEnd.getTime();
   const nodeRange = nodeEndMs - nodeStartMs;
   if (nodeRange <= 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
-  // Extract time intervals from content items
-  const intervals = extractIntervals(node.content);
+  // Extract time intervals from content items and branches so that branch
+  // activity is treated as active time (not compressed as a gap).
+  const intervals = extractIntervals([...node.content, ...node.branches]);
   if (intervals.length === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
   // Merge overlapping intervals into active regions
@@ -133,7 +182,7 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
   // Find compressible gaps between active regions and node boundaries
   const rawGaps = findGaps(nodeStartMs, nodeEndMs, activeRegions);
   if (rawGaps.length === 0) {
-    return createIdentityMapping(node.startTime(), node.endTime());
+    return createIdentityMapping(viewStart, viewEnd);
   }
 
   // Allocate percentages: gaps get fixed small widths, active regions share the rest
@@ -248,6 +297,44 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
     },
     hasCompression: true,
     gaps: gapRegions,
+  };
+}
+
+/**
+ * Creates a shifted time mapping for a branch row in fork-relative mode.
+ *
+ * The branch's wall-clock range [branchStart, branchEnd] is linearly remapped
+ * so that it starts at `forkPercent` in the timeline's percentage space. The
+ * branch's width is proportional to its duration relative to the parent's total
+ * time range, preserving visual duration proportionality.
+ *
+ * @param branchStart  Branch content start time
+ * @param branchEnd    Branch content end time
+ * @param forkPercent  The fork marker's percentage position on the parent row (0-100)
+ * @param parentTotalRangeMs  The parent timeline's total time range in milliseconds
+ */
+export function createShiftedMapping(
+  branchStart: Date,
+  branchEnd: Date,
+  forkPercent: number,
+  parentTotalRangeMs: number
+): TimeMapping {
+  const startMs = branchStart.getTime();
+  const endMs = branchEnd.getTime();
+  const branchDurationMs = endMs - startMs;
+
+  // Scale factor: branch width as a percentage, proportional to parent range
+  const scaleFactor =
+    parentTotalRangeMs > 0 ? (branchDurationMs / parentTotalRangeMs) * 100 : 0;
+
+  return {
+    toPercent(timestamp: Date): number {
+      if (branchDurationMs <= 0) return forkPercent;
+      const t = (timestamp.getTime() - startMs) / branchDurationMs;
+      return Math.max(0, Math.min(100, forkPercent + t * scaleFactor));
+    },
+    hasCompression: false,
+    gaps: [],
   };
 }
 

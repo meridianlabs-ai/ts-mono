@@ -77,6 +77,28 @@ export class TimelineEvent {
   idleTime(): number {
     return 0;
   }
+
+  /**
+   * Returns true if this event produced or carries the given message ID.
+   *
+   * `branchedFrom` is a message ID (not an event UUID). It may match:
+   * 1. A model event's output message ID (`output.choices[0].message.id`)
+   * 2. A tool event's message ID (`message_id`)
+   *
+   * This is used to locate the fork point for branches.
+   */
+  matchesMessageId(messageId: string): boolean {
+    const e = this.event;
+    if (e.event === "model") {
+      const outMsg = (e as Record<string, unknown>).output as
+        | { choices?: Array<{ message?: { id?: string } }> }
+        | undefined;
+      if (outMsg?.choices?.[0]?.message?.id === messageId) return true;
+    } else if (e.event === "tool") {
+      if ((e as Record<string, unknown>).message_id === messageId) return true;
+    }
+    return false;
+  }
 }
 
 /**
@@ -162,12 +184,12 @@ export class TimelineSpan {
  */
 export function createBranchSpan(
   branch: TimelineSpan,
-  index: number
+  label: string
 ): TimelineSpan {
-  const label = deriveBranchLabel(branch, index);
+  const name = deriveBranchLabel(branch, label);
   return new TimelineSpan({
     id: branch.id,
-    name: label,
+    name,
     spanType: "branch",
     content: branch.content,
     branches: branch.branches,
@@ -179,11 +201,11 @@ export function createBranchSpan(
   });
 }
 
-function deriveBranchLabel(branch: TimelineSpan, index: number): string {
+function deriveBranchLabel(branch: TimelineSpan, label: string): string {
   for (const item of branch.content) {
     if (item.type === "span") return item.name;
   }
-  return `Branch ${index}`;
+  return `Branch ${label}`;
 }
 
 /**
@@ -244,11 +266,8 @@ export function convertServerTimeline(
   events: Event[]
 ): Timeline {
   const lookup = buildEventLookup(events);
-  return {
-    name: server.name,
-    description: server.description,
-    root: convertServerSpan(server.root, lookup),
-  };
+  const root = convertServerSpan(server.root, lookup);
+  return { name: server.name, description: server.description, root };
 }
 
 function convertServerContentItem(
@@ -281,7 +300,9 @@ function convertServerSpan(
   const content = server.content
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = server.branches.map((b) => convertServerSpan(b, lookup));
+  const branches = server.branches
+    .map((b) => convertServerSpan(b, lookup))
+    .filter((b) => b.content.length > 0);
 
   return new TimelineSpan({
     id: server.id,
@@ -423,6 +444,12 @@ function createTimelineSpan(
   description?: string,
   branchedFrom: string | null = null
 ): TimelineSpan {
+  if (content.length === 0) {
+    throw new Error(
+      `createTimelineSpan called with empty content for span "${name}" (id=${id}). ` +
+        "Callers must guard against empty content before calling the factory."
+    );
+  }
   return new TimelineSpan({
     id,
     name: name.toLowerCase(),

@@ -161,7 +161,9 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
       }
     }
   }
-  // Pass 2: input message IDs (fallback)
+  // Pass 2: input message IDs (fallback). If the message ID appears in a
+  // model event's input, the message was produced by an earlier event and
+  // is being replayed here. Return the previous event (the producer).
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (!item || item.type !== "event") continue;
@@ -170,6 +172,10 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
       const input = event.input as Array<Record<string, unknown>>;
       for (const msg of input) {
         if (typeof msg.id === "string" && msg.id === messageId) {
+          // Walk backward to find the previous event item
+          for (let j = i - 1; j >= 0; j--) {
+            if (items[j]?.type === "event") return j;
+          }
           return i;
         }
       }

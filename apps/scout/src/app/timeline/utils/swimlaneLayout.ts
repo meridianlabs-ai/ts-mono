@@ -176,18 +176,20 @@ export function computeRowLayouts(
   rows: SwimlaneRow[],
   mapping: TimeMapping,
   markerDepth: MarkerDepth,
-  markerKinds?: MarkerKind[]
+  markerKinds?: MarkerKind[],
+  branchMappings?: ReadonlyMap<string, TimeMapping>
 ): RowLayout[] {
   return rows.map((row) => {
     const isParent = row.depth === 0;
+    const rowMapping = branchMappings?.get(row.key) ?? mapping;
 
     // Position each RowSpan
     const spans = row.spans.map((rowSpan): PositionedSpan => {
       if (isSingleSpan(rowSpan)) {
         const bar = computeBarFromMapping(
-          rowSpan.agent.startTime(),
-          rowSpan.agent.endTime(),
-          mapping
+          rowSpan.agent.startTime(false),
+          rowSpan.agent.endTime(false),
+          rowMapping
         );
         return {
           bar,
@@ -199,13 +201,16 @@ export function computeRowLayouts(
       }
 
       // ParallelSpan: envelope from earliest start to latest end
+      // Use includeBranches=false so each agent contributes only its own time range
       const agents = rowSpan.agents;
-      const envelope = computeTimeEnvelope(agents);
-      const bar = computeBarFromMapping(
-        envelope.startTime,
-        envelope.endTime,
-        mapping
-      );
+      let envStart = agents[0]!.startTime(false);
+      let envEnd = agents[0]!.endTime(false);
+      for (let i = 1; i < agents.length; i++) {
+        const a = agents[i]!;
+        if (a.startTime(false) < envStart) envStart = a.startTime(false);
+        if (a.endTime(false) > envEnd) envEnd = a.endTime(false);
+      }
+      const bar = computeBarFromMapping(envStart, envEnd, rowMapping);
       return {
         bar,
         drillable: false,
@@ -216,7 +221,7 @@ export function computeRowLayouts(
     });
 
     // Collect markers for this row, optionally filtering by kind
-    const allMarkers = collectRowMarkers(row, markerDepth, mapping);
+    const allMarkers = collectRowMarkers(row, markerDepth, rowMapping);
     const markers = markerKinds
       ? allMarkers.filter((m) => markerKinds.includes(m.kind))
       : allMarkers;
@@ -359,7 +364,7 @@ function printSpan(span: TimelineSpan, depth: number, lines: string[]): void {
     .map(([t, n]) => (n > 1 ? `${t}×${n}` : t))
     .join(", ");
   lines.push(
-    `${indent}span "${span.name}" [${childEvents.length} events (${eventSummary}), ${childSpans.length} child spans, ${span.totalTokens()} tokens]${flagStr}`
+    `${indent}span "${span.name}" [${childEvents.length} events (${eventSummary}), ${childSpans.length} child spans, ${span.totalTokens(false)} tokens]${flagStr}`
   );
   for (const child of childSpans) {
     printSpan(child, depth + 1, lines);

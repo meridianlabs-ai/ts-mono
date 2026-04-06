@@ -95,6 +95,22 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
           />
           Branches
         </div>
+        {config.showBranches && (
+          <div
+            className={styles.row}
+            onClick={() => config.setForkRelative(!config.forkRelative)}
+          >
+            <input
+              type="checkbox"
+              checked={config.forkRelative}
+              onChange={(e) => {
+                e.stopPropagation();
+                config.setForkRelative(!config.forkRelative);
+              }}
+            />
+            Fork-relative branches
+          </div>
+        )}
       </div>
     </PopOver>
   );

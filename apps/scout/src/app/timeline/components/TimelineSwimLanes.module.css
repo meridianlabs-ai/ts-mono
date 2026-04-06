@@ -130,6 +130,12 @@
   color: var(--vscode-textLink-foreground);
 }
 
+/* Ancestor rows of the selected branch — subtler than selected */
+.labelHighlighted {
+  color: var(--vscode-textLink-foreground);
+  opacity: 0.6;
+}
+
 /* Expand/collapse chevron in label */
 
 .chevron {
@@ -192,6 +198,19 @@
 .fillSelected {
   opacity: 0.7;
   box-shadow: inset 0 0 0 1px var(--bs-primary);
+}
+
+/* Partial highlight overlay — sibling of .fill in barInner.
+   Shows the "active" portion of a bar (e.g. parent bar up to fork point
+   when a branch is selected). Independent opacity, not stacked with .fill. */
+.fillHighlight {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 2px;
+  background-color: var(--bs-primary);
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 /* Row is selected but a different span within the row is focused */
@@ -324,13 +343,25 @@
 .connectorArrow {
   position: absolute;
   top: 50%;
-  transform: translate(-1px, -50%);
+  transform: translate(-1px, calc(-50% + 0.5px));
   width: 0;
   height: 0;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
-  border-left: 4px solid var(--vscode-foreground);
+  border-left: 4px solid var(--vscode-descriptionForeground);
   pointer-events: none;
+}
+
+/* Horizontal line extending back from arrowhead to the SVG horizontal endpoint */
+.connectorArrow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  width: 5px;
+  height: 1px;
+  background: var(--vscode-descriptionForeground);
+  transform: translateY(-50%);
 }
 
 /* Branch popover */

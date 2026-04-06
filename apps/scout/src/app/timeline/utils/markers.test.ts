@@ -43,7 +43,12 @@ const NULL_CONFIG = {} as ModelEvent["config"];
 
 function makeModelEventNode(
   startSec: number,
-  options?: { error?: string; outputError?: string; uuid?: string }
+  options?: {
+    error?: string;
+    outputError?: string;
+    uuid?: string;
+    messageId?: string;
+  }
 ): TimelineEvent {
   const event: ModelEvent = {
     event: "model",
@@ -54,7 +59,14 @@ function makeModelEventNode(
     tool_choice: "auto",
     config: NULL_CONFIG,
     output: {
-      choices: [],
+      choices: options?.messageId
+        ? ([
+            {
+              message: { id: options.messageId },
+              stop_reason: "stop",
+            },
+          ] as ModelEvent["output"]["choices"])
+        : [],
       completion: "",
       error: options?.outputError ?? null,
       metadata: null,
@@ -340,10 +352,10 @@ describe("collectMarkers", () => {
   // Branch markers
   // ---------------------------------------------------------------------------
   describe("branch markers", () => {
-    it("creates branch markers positioned at branch start time", () => {
-      const event1 = makeModelEventNode(0, { uuid: "evt-1" });
-      const event2 = makeModelEventNode(5, { uuid: "evt-2" });
-      const branch = makeBranchObj("evt-1", [makeModelEventNode(2)], 2, 4);
+    it("creates branch markers positioned at fork point event time", () => {
+      const event1 = makeModelEventNode(0, { messageId: "msg-1" });
+      const event2 = makeModelEventNode(5, { messageId: "msg-2" });
+      const branch = makeBranchObj("msg-1", [makeModelEventNode(2)], 2, 4);
 
       const parent = makeSpan("Root", 0, 20, 1000, [event1, event2], {
         branches: [branch],
@@ -353,8 +365,8 @@ describe("collectMarkers", () => {
 
       expect(markers).toHaveLength(1);
       expect(markers[0]!.kind).toBe("branch");
-      expect(markers[0]!.timestamp).toEqual(ts(2)); // branch's startTime
-      expect(markers[0]!.reference).toBe("evt-1");
+      expect(markers[0]!.timestamp).toEqual(ts(0)); // fork event's timestamp
+      expect(markers[0]!.reference).toBe("msg-1");
     });
 
     it("falls back to branch start time when branchedFrom UUID is not found", () => {
@@ -400,7 +412,7 @@ describe("collectMarkers", () => {
 
       const markers = collectMarkers(buildSpan!, "direct");
 
-      // Each branch gets its own marker positioned at its startTime
+      // Each branch gets its own marker positioned at the fork point event
       const branchMarkers = markers.filter((m) => m.kind === "branch");
       expect(branchMarkers).toHaveLength(2);
       expect(branchMarkers[0]!.reference).toBe("model-call-5");
@@ -447,7 +459,7 @@ describe("collectMarkers", () => {
       const markers = collectMarkers(parent, "direct");
 
       expect(markers).toHaveLength(3);
-      expect(markers[0]!.kind).toBe("branch"); // ts(6) — branch.startTime
+      expect(markers[0]!.kind).toBe("branch"); // ts(5) — fork event timestamp
       expect(markers[1]!.kind).toBe("error"); // ts(15)
       expect(markers[2]!.kind).toBe("compaction"); // ts(25)
     });

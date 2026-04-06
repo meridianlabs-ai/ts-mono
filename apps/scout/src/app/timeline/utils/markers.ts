@@ -191,9 +191,9 @@ function addEventMarker(
 /**
  * Collects branch markers from a span's branches.
  *
- * Emits one marker per branch, positioned at the branch's start time so that
- * markers align with branch swimlane bars. Clicking a branch marker toggles
- * the showBranches display option.
+ * Emits one marker per branch, positioned at the fork point event in the
+ * parent span (resolved via the branch's `branchedFrom` identifier).
+ * Clicking a branch marker toggles the showBranches display option.
  */
 function collectBranchMarkers(
   node: TimelineSpan,
@@ -202,11 +202,32 @@ function collectBranchMarkers(
   for (const branch of node.branches) {
     markers.push({
       kind: "branch",
-      timestamp: branch.startTime(),
+      timestamp: resolveForkTimestamp(node, branch),
       reference: branch.branchedFrom ?? "",
       tooltip: branchTooltip([branch]),
     });
   }
+}
+
+/**
+ * Resolves the fork point timestamp from the parent span's content.
+ *
+ * `branch.branchedFrom` is a message ID (not an event UUID). Searches
+ * parent events for one that produced or carries this message ID.
+ * Falls back to `branch.startTime()` when branchedFrom is missing or
+ * no matching event is found.
+ */
+export function resolveForkTimestamp(
+  parent: TimelineSpan,
+  branch: TimelineSpan
+): Date {
+  if (!branch.branchedFrom) return branch.startTime();
+  for (const item of parent.content) {
+    if (item.type === "event" && item.matchesMessageId(branch.branchedFrom)) {
+      return item.startTime();
+    }
+  }
+  return branch.startTime();
 }
 
 /**

@@ -120,6 +120,9 @@ interface TimelineSwimLanesProps {
   /** Default collapsed state when user has no stored preference.
    *  Falls back to `isFlat` (layouts.length <= 1) when undefined. */
   defaultCollapsed?: boolean;
+  /** Row key → highlight clip percentage (0–100).
+   *  The selected branch clips at 100; ancestors clip at the fork marker position. */
+  highlightedKeys?: ReadonlyMap<string, number>;
 }
 
 // =============================================================================
@@ -149,6 +152,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   onLayoutShift,
   regionCounts,
   defaultCollapsed: defaultCollapsedProp,
+  highlightedKeys,
 }) => {
   const { selected, select: onSelect, clearSelection } = timeline;
 
@@ -254,7 +258,22 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     [isRowCollapsed, setRowCollapsed]
   );
 
-  // Branch marker click → toggle showBranches.
+  // Branch marker click → ensure showBranches is on and expand the row.
+  // This reveals nested branch rows beneath the clicked marker's row.
+  const handleBranchMarkerClick = useCallback(
+    (rowKey: string) => {
+      if (!header?.timelineConfig?.showBranches) {
+        header?.timelineConfig?.setShowBranches(true);
+      }
+      // Expand the row so nested branches become visible
+      if (isRowCollapsed(rowKey)) {
+        setRowCollapsed("timeline-swimlane-rows", rowKey, false);
+      }
+    },
+    [header?.timelineConfig, isRowCollapsed, setRowCollapsed]
+  );
+
+  // Options popover / breadcrumb toggle → toggle showBranches on/off.
   // When turning branches off, clear selection if it points to a branch row
   // so the URL override in useTimeline doesn't force branches back on.
   const handleBranchToggle = useCallback(() => {
@@ -334,6 +353,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         layout={layout}
         displayName={displayName}
         isRowSelected={isRowSelected}
+        highlightClip={highlightedKeys?.get(layout.key)}
         selectedSpanIndex={selectedSpanIndex}
         selectedRegionIndex={selectedRegionIndex}
         regionCount={regionCounts?.get(layout.key)}
@@ -348,7 +368,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onSelectRegion={(spanIndex, regionIndex) =>
           onSelect(buildSelectionKey(layout.key, spanIndex, regionIndex))
         }
-        onBranchToggle={handleBranchToggle}
+        onBranchToggle={() => handleBranchMarkerClick(layout.key)}
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
       />
@@ -383,16 +403,14 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         )}
       >
         <div className={styles.collapsibleInner}>
-          {parentRow &&
-            renderRow(
-              parentRow,
-              parentRow.name === "solvers" ? "main" : undefined
-            )}
-          {childRows.length > 0 && (
-            <div className={styles.scrollSection}>
-              {childRows.map((layout) => renderRow(layout))}
-            </div>
-          )}
+          <div className={styles.scrollSection}>
+            {parentRow &&
+              renderRow(
+                parentRow,
+                parentRow.name === "solvers" ? "main" : undefined
+              )}
+            {childRows.map((layout) => renderRow(layout))}
+          </div>
         </div>
       </div>
 
@@ -507,6 +525,9 @@ interface SwimlaneRowProps {
   onSelectRegion: (spanIndex: number | undefined, regionIndex: number) => void;
   onBranchToggle: () => void;
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
+  /** Highlight clip percentage (0–100) for partial bar highlighting.
+   *  undefined = no highlight. 100 = full bar. <100 = clip at fork marker. */
+  highlightClip?: number;
   /** Connector line from parent's branch marker to this branch row. */
   connector?: BranchConnector;
 }
@@ -515,6 +536,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   layout,
   displayName,
   isRowSelected,
+  highlightClip,
   selectedSpanIndex,
   selectedRegionIndex,
   regionCount,
@@ -562,7 +584,13 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
     <div className={styles.row} role="row">
       {/* Label cell — depth-based indentation; clicking selects the whole row */}
       <div
-        className={clsx(styles.label, isRowSelected && styles.labelSelected)}
+        className={clsx(
+          styles.label,
+          isRowSelected && styles.labelSelected,
+          highlightClip !== undefined &&
+            !isRowSelected &&
+            styles.labelHighlighted
+        )}
         style={{ paddingLeft: `${0.3 + layout.depth * 0.5}rem` }}
         onClick={onSelectRow}
       >
@@ -655,9 +683,16 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
                   hasMultipleSpans ? onSelectSpan(spanIndex) : onSelectRow()
                 }
                 onDoubleClick={onToggleExpand}
+                insetPx={connector ? 1.5 : undefined}
               />
             );
           })}
+
+          {/* Highlight overlay — rendered as a sibling of .fill so it has
+              independent opacity (not stacked with the fill's own opacity). */}
+          {highlightClip !== undefined && !isRowSelected && (
+            <HighlightOverlay spans={layout.spans} clipRight={highlightClip} />
+          )}
 
           {/* Markers */}
           {layout.markers.map((marker, i) => (
@@ -778,6 +813,8 @@ interface BarFillProps {
   onSelect: () => void;
   /** Toggle expand/collapse on double-click. Only for rows with children. */
   onDoubleClick?: () => void;
+  /** Pixel inset from the left edge (for branch connector visibility). */
+  insetPx?: number;
 }
 
 const BarFill: FC<BarFillProps> = ({
@@ -787,6 +824,7 @@ const BarFill: FC<BarFillProps> = ({
   isDimmed,
   onSelect,
   onDoubleClick,
+  insetPx,
 }) => {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -813,12 +851,57 @@ const BarFill: FC<BarFillProps> = ({
         isDimmed && styles.fillDimmed
       )}
       style={{
-        left: `${span.bar.left}%`,
-        width: `${span.bar.width}%`,
+        left: insetPx
+          ? `calc(${span.bar.left}% + ${insetPx}px)`
+          : `${span.bar.left}%`,
+        width: insetPx
+          ? `calc(${span.bar.width}% - ${insetPx}px)`
+          : `${span.bar.width}%`,
       }}
       title={span.description ?? undefined}
       onClick={handleClick}
       onDoubleClick={onDoubleClick ? handleDoubleClick : undefined}
+    />
+  );
+};
+
+// =============================================================================
+// HighlightOverlay (internal) — partial bar highlight for branch context
+// =============================================================================
+
+/**
+ * Renders an overlay on the bar area to indicate which portion of the row's
+ * spans are "active" (shown in the transcript). Positioned as a sibling of
+ * .fill so it has independent opacity instead of stacking with the bar's own.
+ *
+ * - clipRight = 100 → covers the full span range (e.g. the branch row itself).
+ * - clipRight < 100 → covers from the first span's left edge to the clip
+ *   percentage (e.g. a parent bar up to the fork point marker).
+ */
+const HighlightOverlay: FC<{
+  spans: PositionedSpan[];
+  /** Absolute bar-area percentage (0–100) where the highlight stops. */
+  clipRight: number;
+}> = ({ spans, clipRight }) => {
+  const firstSpan = spans[0];
+  if (!firstSpan) return null;
+
+  const barLeft = firstSpan.bar.left;
+  // For clipRight=100, extend to the rightmost span edge.
+  const lastSpan = spans[spans.length - 1] ?? firstSpan;
+  const barRight = lastSpan.bar.left + lastSpan.bar.width;
+  const right = clipRight >= 100 ? barRight : Math.min(clipRight, barRight);
+  const width = Math.max(0, right - barLeft);
+
+  if (width <= 0) return null;
+
+  return (
+    <div
+      className={styles.fillHighlight}
+      style={{
+        left: `${barLeft}%`,
+        width: `${width}%`,
+      }}
     />
   );
 };
@@ -1022,12 +1105,9 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
 }) => {
   const { markerLeft, barLeft, rowGap } = connector;
   // y=0 is the top of the current (branch) row's barInner.
-  // The parent row is rowGap rows above, so the vertical line starts at
-  // the center of the parent row and drops to the center of this row.
-  // Start at the top of the parent row so the line visually originates from
-  // behind the branch marker icon. The collapsible section adds padding
-  // between the parent and branch rows that isn't captured by rowGap alone.
-  const topY = -(rowGap * kRowHeight);
+  // The parent row is rowGap rows above. Start the vertical line at the
+  // center of the parent row — the branch marker diamond sits there.
+  const topY = -(rowGap * kRowHeight) + kRowHeight / 2;
   const midY = kRowHeight / 2; // vertical center of this row
 
   // Always draw an L-shape: vertical down then horizontal right with arrow.
@@ -1044,7 +1124,7 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={topY}
           x2={`${markerLeft}%`}
           y2={midY + 0.5}
-          stroke="var(--vscode-foreground)"
+          stroke="var(--vscode-descriptionForeground)"
           strokeWidth={1}
         />
         {/* Horizontal segment: from marker position rightward to branch bar */}
@@ -1053,12 +1133,15 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={midY}
           x2={`${endLeft}%`}
           y2={midY}
-          stroke="var(--vscode-foreground)"
+          stroke="var(--vscode-descriptionForeground)"
           strokeWidth={1}
         />
       </svg>
-      {/* Right-pointing arrowhead: CSS border-triangle, 6px tall */}
-      <div className={styles.connectorArrow} style={{ left: `${endLeft}%` }} />
+      {/* Right-pointing arrowhead: positioned at the inset bar edge */}
+      <div
+        className={styles.connectorArrow}
+        style={{ left: `calc(${endLeft}% + 4px)` }}
+      />
     </>
   );
 };

@@ -29,8 +29,8 @@ export function compareByTime(
 /** Compare TimelineSpans by start time, with end time as tiebreaker. */
 function compareSpansByTime(a: TimelineSpan, b: TimelineSpan): number {
   return (
-    a.startTime().getTime() - b.startTime().getTime() ||
-    a.endTime().getTime() - b.endTime().getTime()
+    a.startTime(false).getTime() - b.startTime(false).getTime() ||
+    a.endTime(false).getTime() - b.endTime(false).getTime()
   );
 }
 
@@ -60,6 +60,8 @@ export interface SwimlaneRow {
   endTime: Date;
   /** True when this row represents a timeline branch. */
   branch?: boolean;
+  /** For branch rows: the branchedFrom message ID (fork point identifier). */
+  branchedFrom?: string;
 }
 
 // =============================================================================
@@ -209,9 +211,9 @@ function buildParentRow(node: TimelineSpan): SwimlaneRow {
     name: node.name,
     depth: 0,
     spans: [{ agent: node }],
-    totalTokens: node.totalTokens(),
-    startTime: node.startTime(),
-    endTime: node.endTime(),
+    totalTokens: node.totalTokens(false),
+    startTime: node.startTime(false),
+    endTime: node.endTime(false),
   };
 }
 
@@ -258,13 +260,18 @@ function buildRowFromGroup(
   );
 
   // Compute aggregated time range and tokens
-  const startTime = first.startTime();
+  const startTime = first.startTime(false);
   const endTime = sorted.reduce(
     (latest, span) =>
-      span.endTime().getTime() > latest.getTime() ? span.endTime() : latest,
-    first.endTime()
+      span.endTime(false).getTime() > latest.getTime()
+        ? span.endTime(false)
+        : latest,
+    first.endTime(false)
   );
-  const totalTokens = sorted.reduce((sum, span) => sum + span.totalTokens(), 0);
+  const totalTokens = sorted.reduce(
+    (sum, span) => sum + span.totalTokens(false),
+    0
+  );
 
   const key = parentKey
     ? `${parentKey}/${displayName.toLowerCase()}`
@@ -355,7 +362,8 @@ function flattenChildren(
   parentDepth: number,
   parentKey: string,
   includeUtility: boolean,
-  showBranches: boolean
+  showBranches: boolean,
+  branchPrefix: string = ""
 ): SwimlaneRow[] {
   // Collect child spans, optionally filtering utility agents
   const children: TimelineSpan[] = [];
@@ -381,7 +389,7 @@ function flattenChildren(
     const hasParallel = clusters.some((c) => c.length > 1);
     // Earliest start across the whole name group — used for sorting so
     // that all entries from the same agent name stay together.
-    const groupStartTime = sorted[0]!.startTime();
+    const groupStartTime = sorted[0]!.startTime(false);
 
     if (!hasParallel) {
       // All non-overlapping (iterative): one row with one bar per cluster
@@ -389,16 +397,18 @@ function flattenChildren(
       const first = sorted[0]!;
       const endTime = sorted.reduce(
         (latest, s) =>
-          s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
-        first.endTime()
+          s.endTime(false).getTime() > latest.getTime()
+            ? s.endTime(false)
+            : latest,
+        first.endTime(false)
       );
       entries.push({
         displayName,
         key: `${parentKey}/${baseName}`,
         spans: sorted,
         rowSpans,
-        totalTokens: sorted.reduce((sum, s) => sum + s.totalTokens(), 0),
-        startTime: first.startTime(),
+        totalTokens: sorted.reduce((sum, s) => sum + s.totalTokens(false), 0),
+        startTime: first.startTime(false),
         endTime,
         groupStartTime,
         laneIndex: -1,
@@ -415,16 +425,21 @@ function flattenChildren(
         const first = laneSpans[0]!;
         const endTime = laneSpans.reduce(
           (latest, s) =>
-            s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
-          first.endTime()
+            s.endTime(false).getTime() > latest.getTime()
+              ? s.endTime(false)
+              : latest,
+          first.endTime(false)
         );
         entries.push({
           displayName,
           key: `${parentKey}/${baseName}`,
           spans: laneSpans,
           rowSpans,
-          totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens(), 0),
-          startTime: first.startTime(),
+          totalTokens: laneSpans.reduce(
+            (sum, s) => sum + s.totalTokens(false),
+            0
+          ),
+          startTime: first.startTime(false),
           endTime,
           groupStartTime,
           laneIndex: -1,
@@ -437,16 +452,21 @@ function flattenChildren(
           const first = laneSpans[0]!;
           const endTime = laneSpans.reduce(
             (latest, s) =>
-              s.endTime().getTime() > latest.getTime() ? s.endTime() : latest,
-            first.endTime()
+              s.endTime(false).getTime() > latest.getTime()
+                ? s.endTime(false)
+                : latest,
+            first.endTime(false)
           );
           entries.push({
             displayName: `${displayName} ${i + 1}`,
             key: `${parentKey}/${baseName}-${i + 1}`,
             spans: laneSpans,
             rowSpans,
-            totalTokens: laneSpans.reduce((sum, s) => sum + s.totalTokens(), 0),
-            startTime: first.startTime(),
+            totalTokens: laneSpans.reduce(
+              (sum, s) => sum + s.totalTokens(false),
+              0
+            ),
+            startTime: first.startTime(false),
             endTime,
             groupStartTime,
             laneIndex: i,
@@ -491,30 +511,69 @@ function flattenChildren(
 
   // Emit branch rows when enabled. Each branch becomes a child row of the
   // node that owns it, with its own bar and optional nested children.
+  // Branches are sorted so that the latest fork point comes first — this
+  // prevents branch connector lines from crossing each other.
   if (showBranches) {
     for (const node of nodes) {
-      for (let i = 0; i < node.branches.length; i++) {
-        const branch = node.branches[i]!;
-        const branchSpan = createBranchSpan(branch, i + 1);
+      // Build fork position index from parent content so we can sort
+      // branches by where their fork event appears (latest first).
+      // branchedFrom is a message ID, so we resolve each branch's
+      // fork point by scanning content events for a message ID match.
+      const forkPositions = new Map<string, number>();
+      for (const branch of node.branches) {
+        if (!branch.branchedFrom) continue;
+        for (let ci = 0; ci < node.content.length; ci++) {
+          const item = node.content[ci]!;
+          if (
+            item.type === "event" &&
+            item.matchesMessageId(branch.branchedFrom)
+          ) {
+            forkPositions.set(branch.branchedFrom, ci);
+            break;
+          }
+        }
+      }
+
+      // Sort branches: latest fork first (descending by content index).
+      const sorted = node.branches
+        .map((branch, origIndex) => ({ branch, origIndex }))
+        .sort((a, b) => {
+          const ai = a.branch.branchedFrom
+            ? (forkPositions.get(a.branch.branchedFrom) ?? -1)
+            : -1;
+          const bi = b.branch.branchedFrom
+            ? (forkPositions.get(b.branch.branchedFrom) ?? -1)
+            : -1;
+          return bi - ai;
+        });
+
+      for (let i = 0; i < sorted.length; i++) {
+        const { branch } = sorted[i]!;
+        const label = `${branchPrefix}${i + 1}`;
+        const branchSpan = createBranchSpan(branch, label);
         const branchKey = `${parentKey}/branch-${branch.branchedFrom}-${i + 1}`;
         result.push({
           key: branchKey,
           name: branchSpan.name,
           depth,
           spans: [{ agent: branchSpan }],
-          totalTokens: branchSpan.totalTokens(),
-          startTime: branchSpan.startTime(),
-          endTime: branchSpan.endTime(),
+          totalTokens: branchSpan.totalTokens(false),
+          startTime: branchSpan.startTime(false),
+          endTime: branchSpan.endTime(false),
           branch: true,
+          branchedFrom: branch.branchedFrom ?? undefined,
         });
-        // Recurse into branch content for nested agents
+        // Recurse into branch content for nested agents.
+        // Pass the current label as prefix so nested branches get
+        // hierarchical names (e.g. "Branch 1.1", "Branch 1.2").
         result.push(
           ...flattenChildren(
             [branchSpan],
             depth,
             branchKey,
             includeUtility,
-            showBranches
+            showBranches,
+            `${label}.`
           )
         );
       }
