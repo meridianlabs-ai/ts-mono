@@ -6,7 +6,7 @@ import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { formatDateTime, toArray } from "@tsmono/util";
 
 import { ChatMessage, SampleInitEvent } from "../../types/api-types";
-import { ChatView } from "../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../icons";
 
 import { EventPanel } from "./event/EventPanel";

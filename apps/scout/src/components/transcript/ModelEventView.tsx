@@ -13,7 +13,7 @@ import {
   ToolChoice,
   ToolInfo,
 } from "../../types/api-types";
-import { ChatView } from "../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../icons";
 
 import { EventPanel } from "./event/EventPanel";

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { NoContentsPanel } from "@tsmono/react/components";
 
-import { ChatViewVirtualList } from "../../../components/chat/ChatViewVirtualList";
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../../../components/icons";
 import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";

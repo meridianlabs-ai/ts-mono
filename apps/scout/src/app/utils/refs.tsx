@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { MarkdownReference } from "@tsmono/react/components";
 
-import { ChatView } from "../../components/chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { TranscriptView } from "../../components/transcript/TranscriptView";
 import { scanResultRoute } from "../../router/url";
 import { ScannerInput } from "../../types/api-types";

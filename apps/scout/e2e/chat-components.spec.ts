@@ -453,8 +453,8 @@ test.describe("tool call rendering", () => {
       })
     );
 
-    // JSON output should be rendered — the values should appear
-    await expect(page.getByText("8080").first()).toBeVisible();
+    // JSON output should be rendered as a structured view (RecordTree formats numbers with locale)
+    await expect(page.getByText("8,080").first()).toBeVisible();
     await expect(page.getByText("localhost").first()).toBeVisible();
   });
 

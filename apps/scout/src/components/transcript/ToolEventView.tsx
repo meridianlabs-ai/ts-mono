@@ -4,12 +4,12 @@ import { FC, useMemo } from "react";
 import { PulsingDots } from "@tsmono/react/components";
 
 import { ApprovalEvent, ModelEvent, ToolEvent } from "../../types/api-types";
-import { ChatView } from "../chat/ChatView";
 import {
+  ChatView,
   resolveToolInput,
   substituteToolCallContent,
-} from "../chat/tools/tool";
-import { ToolCallView } from "../chat/tools/ToolCallView";
+  ToolCallView,
+} from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../icons";
 
 import { ApprovalEventView } from "./ApprovalEventView";

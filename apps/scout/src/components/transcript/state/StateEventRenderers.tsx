@@ -5,7 +5,7 @@ import { HumanBaselineView, SessionLog } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
 
 import { ChatMessage, JsonChange } from "../../../types/api-types";
-import { ChatView } from "../../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 
 import styles from "./StateEventRenders.module.css";
 
