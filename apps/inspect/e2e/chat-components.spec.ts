@@ -130,8 +130,6 @@ test.describe("chat message rendering", () => {
       },
     ]);
 
-    // Scope to messages area — input text also appears in sample header
-    const messagesArea = page.locator("[class*='chatGrid'], [class*='chat']").first();
     await expect(page.getByText("First question from user").first()).toBeVisible();
     await expect(
       page.getByText("First response from assistant").first()

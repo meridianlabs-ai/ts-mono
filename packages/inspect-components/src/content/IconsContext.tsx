@@ -11,6 +11,14 @@ export interface ContentIcons {
     open: string;
     closed: string;
   };
+  checkbox: {
+    checked: string;
+    unchecked: string;
+  };
+  role: {
+    tool: string;
+  };
+  iconForMimeType: (mimeType: string) => string;
 }
 
 const defaultIcons: ContentIcons = {
@@ -19,6 +27,18 @@ const defaultIcons: ContentIcons = {
   tree: {
     open: "bi bi-caret-down-fill",
     closed: "bi bi-caret-right-fill",
+  },
+  checkbox: {
+    checked: "bi bi-check-circle",
+    unchecked: "bi bi-circle",
+  },
+  role: {
+    tool: "bi bi-tools",
+  },
+  iconForMimeType: (mimeType: string) => {
+    if (mimeType === "application/pdf") return "bi bi-file-pdf";
+    if (mimeType.startsWith("image/")) return "bi bi-file-image";
+    return "bi bi-file-earmark";
   },
 };
 
