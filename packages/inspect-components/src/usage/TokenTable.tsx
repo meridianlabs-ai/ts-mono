@@ -1,9 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { ModelUsage } from "../../types/api-types";
-
-import { ModelUsagePanel } from "./ModelUsagePanel";
+import { ModelUsageData, ModelUsagePanel } from "./ModelUsagePanel";
 import styles from "./TokenTable.module.css";
 
 interface TokenTableProps {
@@ -74,7 +72,7 @@ export const TokenHeader = () => {
 
 interface TokenRowProps {
   model: string;
-  usage: ModelUsage;
+  usage: ModelUsageData;
 }
 
 export const TokenRow: FC<TokenRowProps> = ({ model, usage }) => {

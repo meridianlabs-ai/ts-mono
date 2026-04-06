@@ -2,11 +2,11 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { LoggerEvent } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { parsedJson as maybeParseJson } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
 
 import { EventRow } from "./event/EventRow";
 import { eventTitle } from "./event/utils";

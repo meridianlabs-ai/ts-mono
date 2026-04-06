@@ -2,11 +2,11 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { InfoEvent } from "@tsmono/inspect-common/types";
+import { RenderedText } from "@tsmono/inspect-components/content";
 import { JSONPanel } from "@tsmono/react/components";
 
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { RenderedText } from "../../content/RenderedText";
 
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";

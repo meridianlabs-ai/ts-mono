@@ -3,6 +3,7 @@ import { FC, RefObject } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
+import { RenderedText } from "@tsmono/inspect-components/content";
 import {
   Card,
   CardBody,
@@ -11,7 +12,6 @@ import {
 } from "@tsmono/react/components";
 
 import { useEvalDescriptor } from "../../../state/hooks";
-import { RenderedText } from "../../content/RenderedText";
 
 import { SampleScoresGrid } from "./SampleScoresGrid";
 import styles from "./SampleScoresView.module.css";

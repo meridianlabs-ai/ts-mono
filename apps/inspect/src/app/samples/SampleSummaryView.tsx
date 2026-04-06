@@ -3,6 +3,7 @@ import { FC, ReactNode } from "react";
 
 import { EvalSample, ProvenanceData } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
+import { RenderedText } from "@tsmono/inspect-components/content";
 import { arrayToString } from "@tsmono/util";
 
 import {
@@ -13,7 +14,6 @@ import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
-import { RenderedText } from "../content/RenderedText";
 
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";

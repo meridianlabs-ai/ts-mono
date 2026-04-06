@@ -1,10 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { MetaDataGrid, RenderedText } from "@tsmono/inspect-components/content";
 import { ExpandablePanel } from "@tsmono/react/components";
-
-import { MetaDataGrid } from "../../content/MetaDataGrid";
-import { RenderedText } from "../../content/RenderedText";
 
 import styles from "./CompactionData.module.css";
 

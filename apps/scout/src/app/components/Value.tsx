@@ -2,13 +2,13 @@ import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, ReactNode } from "react";
 
+import { RecordTree } from "@tsmono/inspect-components/content";
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "@tsmono/react/components";
 import { formatPrettyDecimal, printArray, printObject } from "@tsmono/util";
 
-import { RecordTree } from "../../components/content/RecordTree";
 import {
   isArrayValue,
   isBooleanValue,

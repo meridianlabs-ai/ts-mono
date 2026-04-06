@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode, useRef } from "react";
 import { Link } from "react-router-dom";
 
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { PopOver, PulsingDots } from "@tsmono/react/components";
 import { parsePackageName } from "@tsmono/util";
 
@@ -11,7 +12,6 @@ import {
 } from "../../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
-import { MetaDataGrid } from "../../../content/MetaDataGrid";
 import { useSampleEventUrl } from "../../../routing/url";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";
@@ -220,7 +220,7 @@ export const summarizeNode = (node: EventNode): ReactNode => {
   return (
     <MetaDataGrid
       entries={entries}
-      size="mini"
+      options={{ size: "mini" }}
       className={clsx(styles.popover, "text-size-smallest")}
     />
   );

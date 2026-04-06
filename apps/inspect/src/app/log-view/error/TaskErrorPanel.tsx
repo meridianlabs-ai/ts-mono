@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { EvalError } from "@tsmono/inspect-common/types";
+import { RenderedContent } from "@tsmono/inspect-components/content";
 import {
   ANSIDisplay,
   Card,
@@ -11,7 +12,6 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { RenderedContent } from "../../content/RenderedContent";
 
 import styles from "./TaskErrorPanel.module.css";
 

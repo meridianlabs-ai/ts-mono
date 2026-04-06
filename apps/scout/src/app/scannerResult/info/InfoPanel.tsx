@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
+import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
   Card,
   CardBody,
@@ -9,9 +11,6 @@ import {
 } from "@tsmono/react/components";
 import { formatNumber } from "@tsmono/util";
 
-import { MetaDataGrid } from "../../../components/content/MetaDataGrid";
-import { RecordTree } from "../../../components/content/RecordTree";
-import { ModelTokenTable } from "../../../components/usage/ModelTokenTable";
 import { ScanResultData } from "../../types";
 
 import styles from "./InfoPanel.module.css";
@@ -43,17 +42,7 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
             <Card>
               <CardHeader label="Model Usage" type="modern" />
               <CardBody>
-                {Object.keys(resultData?.scanModelUsage).map((key) => {
-                  if (!resultData?.scanModelUsage[key]) {
-                    return null;
-                  }
-                  return (
-                    <ModelTokenTable
-                      key={key}
-                      model_usage={resultData?.scanModelUsage[key]}
-                    />
-                  );
-                })}
+                <ModelTokenTable model_usage={resultData.scanModelUsage} />
               </CardBody>
             </Card>
           )}

@@ -1,10 +1,10 @@
 import { FC } from "react";
 
 import { BranchEvent } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
 
 import styles from "./BranchEventView.module.css";
 import { EventPanel } from "./event/EventPanel";

@@ -1,19 +1,29 @@
+// TODO: lint @typescript-eslint/no-redundant-type-constituents
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { ModelUsage } from "@tsmono/inspect-common";
 import { formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
 
+export interface ModelUsageData {
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  input_tokens_cache_read?: number | null;
+  input_tokens_cache_write?: number | null;
+}
+
 interface ModelUsageProps {
-  usage?: ModelUsage;
+  usage: ModelUsageData;
   className?: string | string[];
 }
 
 interface ModelUsageRow {
   label: string | "---";
-  value?: number;
+  value?: number | null;
   secondary?: boolean;
   bordered?: boolean;
   padded?: boolean;

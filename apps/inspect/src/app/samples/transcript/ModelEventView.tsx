@@ -10,14 +10,14 @@ import {
   ModelEvent,
   ToolChoice,
 } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
 import { ANSIDisplay, PulsingDots } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { ToolInfos } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
-import { ModelUsagePanel } from "../../usage/ModelUsagePanel";
 import { ChatView } from "../chat/ChatView";
 import { Message } from "../chat/messages";
 
@@ -155,12 +155,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
               title="Configuration"
               className={styles.tableSelection}
             >
-              <MetaDataGrid entries={entries} plain={true} />
+              <MetaDataGrid entries={entries} options={{ plain: true }} />
             </EventSection>
           )}
 
           <EventSection title="Usage" className={styles.tableSelection}>
-            {event.output.usage !== null ? (
+            {event.output.usage != null ? (
               <ModelUsagePanel usage={event.output.usage} />
             ) : undefined}
           </EventSection>

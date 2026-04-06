@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { isRecord } from "@tsmono/util";
 
-import { MetaDataGrid } from "../../components/content/MetaDataGrid";
 import { JsonValue } from "../../types/api-types";
 
 interface ScoreProps {

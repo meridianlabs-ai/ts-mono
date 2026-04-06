@@ -1,3 +1,5 @@
+// TODO: lint @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 import clsx from "clsx";
 import { CSSProperties, FC, Fragment, useState } from "react";
 

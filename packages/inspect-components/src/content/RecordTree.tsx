@@ -1,5 +1,5 @@
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
+// TODO: lint react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string
+/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string */
 import clsx from "clsx";
 import {
   FC,
@@ -15,8 +15,7 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds, useVirtuosoState } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../icons";
-
+import { useContentIcons } from "./IconsContext";
 import { resolveStoreKeys } from "./record_processors/store";
 import { RecordProcessor } from "./record_processors/types";
 import styles from "./RecordTree.module.css";
@@ -46,6 +45,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
   processStore = false,
   useBorders = true,
 }) => {
+  const icons = useContentIcons();
+
   // The virtual list handle and state
   const listHandle = useRef<VirtuosoHandle | null>(null);
   const { getRestoreState } = useVirtuosoState(
@@ -198,8 +199,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
                 <i
                   className={clsx(
                     collapsedIds && collapsedIds[item.id]
-                      ? ApplicationIcons.tree.closed
-                      : ApplicationIcons.tree.open,
+                      ? icons.tree.closed
+                      : icons.tree.open,
                     styles.treeIcon
                   )}
                 />

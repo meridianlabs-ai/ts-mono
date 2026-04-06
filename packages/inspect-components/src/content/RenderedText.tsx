@@ -15,6 +15,7 @@ interface RenderedTextProps {
   className?: string | string[];
   forceRender?: boolean;
   omitMedia?: boolean;
+  omitMath?: boolean;
   options?: {
     previewRefsOnHover?: boolean;
   };
@@ -25,7 +26,16 @@ export const RenderedText = forwardRef<
   RenderedTextProps
 >(
   (
-    { markdown, references, style, className, forceRender, omitMedia, options },
+    {
+      markdown,
+      references,
+      style,
+      className,
+      forceRender,
+      omitMedia,
+      omitMath,
+      options,
+    },
     ref
   ) => {
     const displayMode = useDisplayMode();
@@ -39,6 +49,7 @@ export const RenderedText = forwardRef<
           style={style}
           className={className}
           omitMedia={omitMedia}
+          omitMath={omitMath}
         />
       );
     } else {

@@ -2,8 +2,7 @@ import clsx from "clsx";
 import { CSSProperties, FC } from "react";
 
 import { EvalDataset } from "@tsmono/inspect-common/types";
-
-import { MetaDataGrid } from "../content/MetaDataGrid";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 
 import styles from "./DatasetDetailView.module.css";
 
@@ -34,7 +33,7 @@ export const DatasetDetailView: FC<DatasetDetailViewProps> = ({
       className={clsx("text-size-base", styles.item)}
       entries={filtered}
       style={style}
-      plain={true}
+      options={{ plain: true }}
     />
   );
 };
