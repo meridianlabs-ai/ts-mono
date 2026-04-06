@@ -313,7 +313,7 @@ export const clientApi = (
     } else {
       const logRoot = await api.get_log_root();
       return {
-        files: (logRoot?.logs || []).map((log) => ({ ...log, size: 0 })),
+        files: logRoot?.logs || [],
         response_type: "full",
       };
     }
