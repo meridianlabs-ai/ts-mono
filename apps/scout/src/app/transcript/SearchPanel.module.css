@@ -46,6 +46,23 @@
   background-color: var(--bs-tertiary-bg);
 }
 
+.modelInput {
+  font-family: inherit;
+  font-size: var(--inspect-font-size-small);
+  padding: 0.4rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  background-color: var(--inspect-input-background);
+  color: var(--bs-body-color);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modelInput:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: -1px;
+}
+
 .form {
   display: flex;
   gap: 0.25rem;

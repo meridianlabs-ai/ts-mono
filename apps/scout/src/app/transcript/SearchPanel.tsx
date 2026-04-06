@@ -16,6 +16,7 @@ import {
 } from "../../components/MarkdownDivWithReferences";
 import { useApi } from "../../state/store";
 import { Result, SavedSearch } from "../../types/api-types";
+import { useProjectConfig } from "../server/useProjectConfig";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -36,12 +37,22 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = useApi();
+  const projectConfig = useProjectConfig();
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
   const [recentSearches, setRecentSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<SearchType>("grep");
+  const [model, setModel] = useState<string>("");
+  const [modelInitialized, setModelInitialized] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const { getFullMessageUrl } = useTranscriptNavigation();
+
+  useEffect(() => {
+    if (!modelInitialized && projectConfig.data?.config.model) {
+      setModel(projectConfig.data.config.model);
+      setModelInitialized(true);
+    }
+  }, [modelInitialized, projectConfig.data]);
 
   useEffect(() => {
     void api.getSearches(transcriptDir, transcriptId).then((response) => {
@@ -64,6 +75,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         .postSearch(transcriptDir, transcriptId, {
           query: text,
           type: searchType,
+          model: searchType === "llm" && model ? model : null,
         })
         .then((saved) => {
           setCurrentSearch(saved);
@@ -79,7 +91,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
           setLoading(false);
         });
     },
-    [api, transcriptDir, transcriptId, searchType, loading]
+    [api, transcriptDir, transcriptId, searchType, loading, model]
   );
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -134,6 +146,15 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               LLM
             </button>
           </div>
+          {searchType === "llm" && (
+            <input
+              type="text"
+              className={styles.modelInput}
+              placeholder="Model"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            />
+          )}
           <form className={styles.form} onSubmit={handleSubmit}>
             <textarea
               ref={textareaRef}
