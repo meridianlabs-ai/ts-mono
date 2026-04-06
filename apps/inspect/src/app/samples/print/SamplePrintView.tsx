@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
   Card,
   CardBody,
@@ -22,9 +24,7 @@ import { useStore } from "../../../state/store";
 import { useLoadSample } from "../../../state/useLoadSample";
 import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { useLogRouteParams } from "../../routing/url";
-import { ModelTokenTable } from "../../usage/ModelTokenTable";
 import { printHeadingHtml } from "../../utils/print";
 import { ChatView } from "../chat/ChatView";
 import { SampleJSONView } from "../SampleJSONView";

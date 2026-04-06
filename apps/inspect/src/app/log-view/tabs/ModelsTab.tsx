@@ -1,11 +1,11 @@
 import { FC, useMemo } from "react";
 
 import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
+import { UsageCard } from "@tsmono/inspect-components/usage";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
 import { ModelCard } from "../../plan/ModelCard";
-import { UsageCard } from "../../usage/UsageCard";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -46,7 +46,13 @@ export const ModelTab: FC<ModelTabProps> = ({
         {evalStatus !== "started" &&
           evalStats?.model_usage &&
           Object.keys(evalStats.model_usage).length > 0 && (
-            <UsageCard stats={evalStats} />
+            <>
+              <UsageCard label="Model Usage" usage={evalStats.model_usage} />
+              {evalStats.role_usage &&
+                Object.keys(evalStats.role_usage).length > 0 && (
+                  <UsageCard label="Role Usage" usage={evalStats.role_usage} />
+                )}
+            </>
           )}
       </div>
     </div>

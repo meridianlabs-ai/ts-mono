@@ -2,12 +2,14 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { ContentToolUse } from "@tsmono/inspect-common/types";
+import {
+  RecordTree,
+  RenderedContent,
+} from "@tsmono/inspect-components/content";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../../appearance/icons";
-import { RecordTree } from "../../../content/RecordTree";
-import { RenderedContent } from "../../../content/RenderedContent";
 
 import styles from "./ServerToolCall.module.css";
 

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
+import { RecordTree } from "@tsmono/inspect-components/content";
 import {
   CopyButton,
   ExpandablePanel,
@@ -17,7 +18,6 @@ import {
   ContentImage,
   ContentText,
 } from "../../types/api-types";
-import { RecordTree } from "../content/RecordTree";
 import { ApplicationIcons } from "../icons";
 
 import styles from "./ChatMessage.module.css";

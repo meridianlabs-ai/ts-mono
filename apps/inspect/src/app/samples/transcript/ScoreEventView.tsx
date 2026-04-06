@@ -2,13 +2,15 @@ import clsx from "clsx";
 import { FC, Fragment } from "react";
 
 import { ScoreEvent } from "@tsmono/inspect-common/types";
+import {
+  MetaDataGrid,
+  RecordTree,
+  RenderedText,
+} from "@tsmono/inspect-components/content";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
-import { RecordTree } from "../../content/RecordTree";
-import { RenderedText } from "../../content/RenderedText";
 
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";

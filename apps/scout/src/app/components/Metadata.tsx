@@ -1,12 +1,12 @@
 import { FC } from "react";
 
+import { RecordTree } from "@tsmono/inspect-components/content";
 import {
   LabeledValue,
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "@tsmono/react/components";
 
-import { RecordTree } from "../../components/content/RecordTree";
 import { JsonValue } from "../../types/json-value";
 
 import styles from "./Metadata.module.css";

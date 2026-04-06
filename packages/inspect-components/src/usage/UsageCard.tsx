@@ -2,28 +2,28 @@ import { FC } from "react";
 
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { ModelUsage } from "../../types/api-types";
-
 import { ModelTokenTable } from "./ModelTokenTable";
+import { ModelUsageData } from "./ModelUsagePanel";
 import styles from "./UsageCard.module.css";
 
 const kUsageCardBodyId = "usage-card-body";
 
 interface UsageCardProps {
-  usage?: ModelUsage;
+  usage?: Record<string, ModelUsageData>;
+  label?: string;
 }
 
 /**
- * Renders the UsageCard component.
+ * Renders a usage card displaying model token usage.
  */
-export const UsageCard: FC<UsageCardProps> = ({ usage }) => {
+export const UsageCard: FC<UsageCardProps> = ({ usage, label = "Usage" }) => {
   if (!usage) {
     return null;
   }
 
   return (
     <Card>
-      <CardHeader label="Usage" />
+      <CardHeader label={label} />
       <CardBody id={kUsageCardBodyId}>
         <div className={styles.wrapper}>
           <div className={styles.col2}>

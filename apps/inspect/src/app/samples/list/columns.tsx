@@ -3,11 +3,11 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
+import { RenderedText } from "@tsmono/inspect-components/content";
 import { arrayToString } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { truncateMarkdown } from "../../../utils/markdown";
-import { RenderedText } from "../../content/RenderedText";
 import { SampleListItem } from "../../log-view/tabs/types";
 import { SamplesDescriptor } from "../descriptor/samplesDescriptor";
 import {

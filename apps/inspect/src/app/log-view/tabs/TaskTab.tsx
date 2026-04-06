@@ -6,13 +6,12 @@ import {
   EvalSpec,
   EvalStats,
 } from "@tsmono/inspect-common/types";
+import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
 import { formatDateTime, formatDuration } from "../../../utils/format";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
-import { RecordTree } from "../../content/RecordTree";
 
 import styles from "./TaskTab.module.css";
 

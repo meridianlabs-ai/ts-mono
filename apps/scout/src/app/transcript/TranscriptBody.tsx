@@ -13,6 +13,10 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
+  DisplayModeContext,
+  MetaDataGrid,
+} from "@tsmono/inspect-components/content";
+import {
   TabPanel,
   TabSet,
   ToolButton,
@@ -20,8 +24,6 @@ import {
 } from "@tsmono/react/components";
 
 import { ChatViewVirtualList } from "../../components/chat/ChatViewVirtualList";
-import { DisplayModeContext } from "../../components/content/DisplayModeContext";
-import { MetaDataGrid } from "../../components/content/MetaDataGrid";
 import { ApplicationIcons } from "../../components/icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";

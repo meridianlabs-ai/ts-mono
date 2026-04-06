@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { MetaDataGrid } from "../content/MetaDataGrid";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 
 import styles from "./DetailStep.module.css";
 

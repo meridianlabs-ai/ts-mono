@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { EvalSample, SubtaskEvent } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
 
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTiming, formatTitle } from "./event/utils";

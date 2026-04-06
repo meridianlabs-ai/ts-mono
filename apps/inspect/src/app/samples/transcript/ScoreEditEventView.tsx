@@ -2,11 +2,10 @@ import clsx from "clsx";
 import { FC, Fragment } from "react";
 
 import { ScoreEditEvent } from "@tsmono/inspect-common/types";
+import { RecordTree, RenderedText } from "@tsmono/inspect-components/content";
 
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { RecordTree } from "../../content/RecordTree";
-import { RenderedText } from "../../content/RenderedText";
 
 import { EventPanel } from "./event/EventPanel";
 import { eventTitle, formatTitle } from "./event/utils";

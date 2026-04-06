@@ -32,12 +32,13 @@ interface MarkdownDivWithReferencesProps {
   className?: string | string[];
   style?: React.CSSProperties;
   omitMedia?: boolean;
+  omitMath?: boolean;
 }
 
 export const MarkdownDivWithReferences = forwardRef<
   HTMLDivElement,
   MarkdownDivWithReferencesProps
->(({ markdown, references, options, className, style, omitMedia }, ref) => {
+>(({ markdown, references, options, className, style, omitMedia, omitMath }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
   const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
@@ -89,10 +90,11 @@ export const MarkdownDivWithReferences = forwardRef<
         postProcess={postProcess}
         style={style}
         omitMedia={omitMedia}
+        omitMath={omitMath}
         onClick={handleLinkClick}
       />
     ),
-    [ref, markdown, postProcess, style, omitMedia, handleLinkClick]
+    [ref, markdown, postProcess, style, omitMedia, omitMath, handleLinkClick]
   );
 
   // Attach event handlers to reference links after render

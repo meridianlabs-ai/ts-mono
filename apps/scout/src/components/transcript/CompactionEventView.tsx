@@ -1,9 +1,9 @@
 import { FC } from "react";
 
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { formatDateTime } from "@tsmono/util";
 
 import { CompactionEvent } from "../../types/api-types";
-import { MetaDataGrid } from "../content/MetaDataGrid";
 import { ApplicationIcons } from "../icons";
 
 import styles from "./CompactionEventView.module.css";

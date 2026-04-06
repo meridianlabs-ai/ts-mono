@@ -1,10 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { MetaDataGrid } from "../../../components/content/MetaDataGrid";
-import { RecordTree } from "../../../components/content/RecordTree";
 import { Status } from "../../../types/api-types";
 
 import styles from "./ScanInfo.module.css";

@@ -2,11 +2,13 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { SandboxEvent } from "@tsmono/inspect-common/types";
+import {
+  MetaDataGrid,
+  RenderedContent,
+} from "@tsmono/inspect-components/content";
 import { ExpandablePanel } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
-import { RenderedContent } from "../../content/RenderedContent";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -75,7 +77,7 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
             <EventSection title={`Options`}>
               <MetaDataGrid
                 entries={options as Record<string, unknown>}
-                plain={true}
+                options={{ plain: true }}
               />
             </EventSection>
           ) : undefined}

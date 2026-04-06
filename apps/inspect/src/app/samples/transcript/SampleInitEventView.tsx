@@ -3,12 +3,12 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { SampleInitEvent } from "@tsmono/inspect-common/types";
+import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { toArray } from "@tsmono/util";
 
 import { ChatMessages } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { ChatView } from "../chat/ChatView";
 
 import { EventPanel } from "./event/EventPanel";

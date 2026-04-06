@@ -2,12 +2,14 @@ import clsx from "clsx";
 import { FC, Fragment, RefObject } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import {
+  RecordTree,
+  RenderedContent,
+} from "@tsmono/inspect-components/content";
 import { EmptyPanel } from "@tsmono/react/components";
 
 import { SampleSummary } from "../../../client/api/types";
 import { useEvalDescriptor } from "../../../state/hooks";
-import { RecordTree } from "../../content/RecordTree";
-import { RenderedContent } from "../../content/RenderedContent";
 
 import { SampleScores } from "./SampleScores";
 import styles from "./SampleScoresGrid.module.css";

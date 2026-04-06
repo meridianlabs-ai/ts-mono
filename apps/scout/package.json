@@ -87,6 +87,7 @@
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
+    "@tsmono/inspect-components": "workspace:*",
     "@tsmono/react": "workspace:*",
     "@tsmono/util": "workspace:*",
     "@vscode-elements/react-elements": "^2.4.0",

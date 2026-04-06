@@ -2,17 +2,15 @@ import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
-import { ANSIDisplay, JSONPanel } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  JSONPanel,
+  MarkdownReference,
+} from "@tsmono/react/components";
 import { formatNumber, isJson } from "@tsmono/util";
 
-import { ApplicationIcons } from "../appearance/icons";
-import { ChatMessageRenderer } from "../samples/chat/ChatMessageRenderer";
-import {
-  isMessageContent,
-  MessageContent,
-} from "../samples/chat/MessageContent";
-import { defaultContext } from "../samples/chat/MessageContents";
-
+import { useContentRenderers } from "./ContentRenderersContext";
+import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
@@ -21,6 +19,7 @@ import { Buckets, ContentRenderer, RenderOptions } from "./types";
 interface RenderedContentProps {
   id: string;
   entry: { name: string; value: unknown };
+  references?: MarkdownReference[];
   renderOptions?: RenderOptions;
   renderObject?(entry: any): ReactNode;
 }
@@ -31,27 +30,44 @@ interface RenderedContentProps {
 export const RenderedContent: FC<RenderedContentProps> = ({
   id,
   entry,
+  references,
   renderOptions = { renderString: "markdown" },
   renderObject,
 }): JSX.Element => {
+  const icons = useContentIcons();
+  const externalRenderers = useContentRenderers();
+
   // Explicitly specify return type
   if (entry.value === null) {
-    return <span>[null]</span>;
+    return (
+      <span>
+        <pre>
+          <code>[null]</code>
+        </pre>
+      </span>
+    );
   }
-  const renderers = contentRenderers(renderObject);
+  const renderers = contentRenderers(
+    icons,
+    renderObject,
+    externalRenderers?.renderers
+  );
   const renderer = Object.keys(renderers)
     .map((key) => {
       return renderers[key];
     })
     .sort((a, b) => {
+      if (!a || !b) {
+        return 0;
+      }
       return a.bucket - b.bucket;
     })
     .find((renderer) => {
-      return renderer.canRender(entry);
+      return renderer?.canRender(entry);
     });
 
   if (renderer) {
-    const { rendered } = renderer.render(id, entry, renderOptions);
+    const { rendered } = renderer.render(id, entry, renderOptions, references);
     if (rendered !== undefined && isValidElement(rendered)) {
       return rendered;
     }
@@ -72,13 +88,24 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   return <span>{displayValue}</span>;
 };
 
+interface ContentIconsForRenderers {
+  model: string;
+  search: string;
+}
+
 /**
  * Object containing different content renderers.
  * Each renderer is responsible for rendering a specific type of content.
  */
 const contentRenderers: (
-  renderObject?: (object: any) => ReactNode
-) => Record<string, ContentRenderer> = (renderObject) => {
+  icons: ContentIconsForRenderers,
+  renderObject?: (object: any) => ReactNode,
+  externalRenderers?: Record<string, ContentRenderer>
+) => Record<string, ContentRenderer> = (
+  icons,
+  renderObject,
+  externalRenderers
+) => {
   const contentRenderers: Record<string, ContentRenderer> = {
     AnsiString: {
       bucket: Buckets.first,
@@ -119,7 +146,7 @@ const contentRenderers: (
         return {
           rendered: (
             <Fragment>
-              <i className={ApplicationIcons.model} /> {entry.value._model}
+              <i className={icons.model} /> {entry.value._model}
             </Fragment>
           ),
         };
@@ -132,7 +159,11 @@ const contentRenderers: (
       },
       render: (id, entry, options) => {
         entry.value = entry.value.toString();
-        return contentRenderers.String.render(id, entry, options);
+        return (
+          contentRenderers.String?.render(id, entry, options) || {
+            rendered: <span>{entry.value}</span>,
+          }
+        );
       },
     },
     Number: {
@@ -142,7 +173,11 @@ const contentRenderers: (
       },
       render: (id, entry, options) => {
         entry.value = formatNumber(entry.value);
-        return contentRenderers.String.render(id, entry, options);
+        return (
+          contentRenderers.String?.render(id, entry, options) || {
+            rendered: <span>{entry.value}</span>,
+          }
+        );
       },
     },
     String: {
@@ -150,11 +185,17 @@ const contentRenderers: (
       canRender: (entry) => {
         return typeof entry.value === "string";
       },
-      render: (_id, entry, options) => {
+      render: (_id, entry, options, references) => {
         const rendered = entry.value.trim();
         if (options.renderString === "markdown") {
           return {
-            rendered: <RenderedText markdown={rendered} />,
+            rendered: (
+              <RenderedText
+                markdown={rendered}
+                references={references}
+                options={{ previewRefsOnHover: options.previewRefsOnHover }}
+              />
+            ),
           };
         } else {
           return {
@@ -200,13 +241,14 @@ const contentRenderers: (
             id={id}
             className={"font-size-small"}
             entries={arrayMap}
-            plain={true}
+            options={{ plain: true }}
           />
         );
         return { rendered: arrayRendered };
       },
     },
-    ChatMessage: ChatMessageRenderer,
+    // Merge in any external renderers (e.g. ChatMessage, MessageContent from apps)
+    ...externalRenderers,
     web_search: {
       bucket: Buckets.intermediate,
       canRender: (entry) => {
@@ -216,7 +258,7 @@ const contentRenderers: (
         const results: ReactNode[] = [];
         results.push(
           <div className={styles.query}>
-            <i className={ApplicationIcons.search}></i> {entry.value.query}
+            <i className={icons.search}></i> {entry.value.query}
           </div>
         );
         entry.value.results.forEach(
@@ -263,28 +305,6 @@ const contentRenderers: (
         };
       },
     },
-    MessageContent: {
-      bucket: Buckets.first,
-      canRender: (entry) => {
-        // Check if the value is an array of chat messages
-        return (
-          Array.isArray(entry.value) &&
-          entry.value.every((item: unknown) => {
-            return isMessageContent(item);
-          })
-        );
-      },
-      render: (_id, entry, _options) => {
-        return {
-          rendered: (
-            <MessageContent
-              contents={entry.value}
-              context={defaultContext("unknown")}
-            />
-          ),
-        };
-      },
-    },
     Image: {
       bucket: Buckets.intermediate,
       canRender: (entry) => {
@@ -314,7 +334,7 @@ const contentRenderers: (
                 id={id}
                 className={"font-size-small"}
                 entries={entry.value as Record<string, unknown>}
-                plain={true}
+                options={{ plain: true }}
               />
             ),
           };

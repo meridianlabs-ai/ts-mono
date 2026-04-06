@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
 import { ChatMessageTool } from "@tsmono/inspect-common/types";
+import { RecordTree } from "@tsmono/inspect-components/content";
 import {
   CopyButton,
   ExpandablePanel,
@@ -10,7 +11,6 @@ import {
 
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { RecordTree } from "../../content/RecordTree";
 import {
   supportsLinking,
   toFullUrl,

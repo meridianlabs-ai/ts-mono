@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
+import { RenderedText } from "@tsmono/inspect-components/content";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { isJson } from "@tsmono/util";
 
@@ -14,7 +15,6 @@ import {
   ContentToolUse,
   ContentVideo,
 } from "../../types/api-types";
-import { RenderedText } from "../content/RenderedText";
 
 import { ContentDataView } from "./content-data/ContentDataView";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
