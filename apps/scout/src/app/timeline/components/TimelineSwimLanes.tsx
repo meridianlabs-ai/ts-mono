@@ -261,10 +261,10 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
       }
       // Expand the row so nested branches become visible
       if (isRowCollapsed(rowKey)) {
-        setRowCollapsed("timeline-swimlane-rows", rowKey, false);
+        setRowCollapsedById(rowKey, false);
       }
     },
-    [header?.timelineConfig, isRowCollapsed, setRowCollapsed]
+    [header?.timelineConfig, isRowCollapsed, setRowCollapsedById]
   );
 
   // Options popover / breadcrumb toggle → toggle showBranches on/off.

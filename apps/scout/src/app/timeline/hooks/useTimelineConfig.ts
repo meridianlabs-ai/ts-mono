@@ -86,8 +86,7 @@ export function useTimelineConfig(): UseTimelineConfigResult {
   );
   const [storedForkRelative, setStoredForkRelative] = useProperty<boolean>(
     "timeline",
-    "forkRelative",
-    { cleanup: false }
+    "forkRelative"
   );
 
   const markerKinds = storedKinds ?? kDefaultMarkerKinds;
