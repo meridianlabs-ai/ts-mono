@@ -10,6 +10,7 @@
     "./chat": "./src/chat/index.ts",
     "./chat/tools": "./src/chat/tools/tool.ts",
     "./content": "./src/content/index.ts",
+    "./transcript": "./src/transcript/index.ts",
     "./usage": "./src/usage/index.ts"
   },
   "scripts": {
