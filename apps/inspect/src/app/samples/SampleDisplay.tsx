@@ -58,8 +58,9 @@ import {
 } from "../routing/url";
 import { messagesToStr } from "../shared/messages";
 
-import { ChatViewVirtualList } from "./chat/ChatViewVirtualList";
-import { messagesFromEvents } from "./chat/messages";
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+
+import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleSummaryView } from "./SampleSummaryView";

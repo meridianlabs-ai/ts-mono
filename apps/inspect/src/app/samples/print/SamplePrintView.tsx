@@ -26,7 +26,7 @@ import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { printHeadingHtml } from "../../utils/print";
-import { ChatView } from "../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 import { TranscriptVirtualListComponent } from "../transcript/TranscriptVirtualListComponent";

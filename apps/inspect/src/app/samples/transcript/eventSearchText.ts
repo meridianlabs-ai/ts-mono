@@ -1,5 +1,5 @@
 import { ChatMessageContent } from "../../../@types/extraInspect";
-import { substituteToolCallContent } from "../chat/tools/substituteToolCallContent";
+import { substituteToolCallContent } from "@tsmono/inspect-components/chat";
 
 import { eventTitle } from "./event/utils";
 import { EventNode } from "./types";

@@ -18,8 +18,8 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 import { ToolInfos } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "../chat/ChatView";
-import { Message } from "../chat/messages";
+import { ChatView } from "@tsmono/inspect-components/chat";
+import type { Message } from "@tsmono/inspect-components/chat";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -126,7 +126,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         <ChatView
           id={`${eventNode.id}-model-output`}
           messages={[...userMessages, ...outputMessages]}
-          numbered={false}
+          showLabels={false}
           toolCallStyle={showToolCalls ? "complete" : "omit"}
           resolveToolCallsIntoPreviousMessage={context?.hasToolEvents !== false}
           allowLinking={false}

@@ -9,7 +9,7 @@ import { toArray } from "@tsmono/util";
 import { ChatMessages } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";

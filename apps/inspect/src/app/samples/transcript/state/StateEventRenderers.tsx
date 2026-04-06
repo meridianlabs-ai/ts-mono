@@ -5,7 +5,7 @@ import { JsonChange } from "@tsmono/inspect-common/types";
 import { HumanBaselineView, SessionLog } from "@tsmono/react/components";
 
 import { ChatMessages } from "../../../../@types/extraInspect";
-import { ChatView } from "../../chat/ChatView";
+import { ChatView } from "@tsmono/inspect-components/chat";
 
 import styles from "./StateEventRenders.module.css";
 
