@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../../../components/icons";
-import { useProperty } from "../../../state/hooks/useProperty";
-import { useStore } from "../../../state/store";
 import { type TimelineState } from "../hooks/useTimeline";
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
 import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
@@ -162,8 +162,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   // an explicit user choice.
   const [collapsed, setCollapsed] = useProperty<boolean>(
     "timeline",
-    "swimlanesCollapsed",
-    { cleanup: false }
+    "swimlanesCollapsed"
   );
   const isFlat = layouts.length <= 1;
 
@@ -193,22 +192,17 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     setCollapsed(!isCollapsed);
   }, [isCollapsed, setCollapsed, onLayoutShift]);
 
-  // Row expand/collapse state — stored in Zustand collapsedBuckets.
-  // Keys that are collapsed have `true` in the bucket; default is expanded.
-  const collapsedBucket = useStore(
-    (state) => state.collapsedBuckets["timeline-swimlane-rows"]
+  // Row expand/collapse state — stored via shared property bag.
+  // Keys that are collapsed have `true`; default is expanded.
+  const [stableCollapsedBucket, setRowCollapsedById] = useCollapsibleIds(
+    "timeline-swimlane-rows"
   );
-  const stableCollapsedBucket = useMemo(
-    () => collapsedBucket ?? {},
-    [collapsedBucket]
-  );
-  const setRowCollapsed = useStore((state) => state.setCollapsed);
 
-  // Compute which rows have children (need a chevron dongle)
+  // Rows with visible child rows in the current layout (used for default
+  // collapse logic — depth >= 1 parent rows start collapsed).
   const parentKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const layout of layouts) {
-      // A row is a parent if any other row's key starts with it + "/"
       const prefix = layout.key + "/";
       for (const other of layouts) {
         if (other.key.startsWith(prefix)) {
@@ -220,19 +214,36 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     return keys;
   }, [layouts]);
 
+  // Rows that show a chevron toggle: rows with visible children OR rows
+  // with branch markers (branches may not be visible when showBranches is
+  // off, but the chevron signals they're expandable).
+  const expandableKeys = useMemo(() => {
+    const keys = new Set(parentKeys);
+    for (const layout of layouts) {
+      if (layout.markers.some((m) => m.kind === "branch")) {
+        keys.add(layout.key);
+      }
+    }
+    return keys;
+  }, [layouts, parentKeys]);
+
   // Determine if a row is collapsed. Default: depth >= 1 parent rows start
   // collapsed (only first level shown). Explicit store entries override.
+  // Rows that are expandable only via branch markers (not in parentKeys)
+  // also default to collapsed since their branches aren't visible yet.
   const isRowCollapsed = useCallback(
     (rowKey: string): boolean => {
       const explicit = stableCollapsedBucket[rowKey];
       if (explicit !== undefined) return explicit;
-      // Default: collapse parent rows at depth >= 1
       const layout = layouts.find((l) => l.key === rowKey);
-      return (
-        layout !== undefined && layout.depth >= 1 && parentKeys.has(rowKey)
-      );
+      if (!layout) return false;
+      // Rows with only branch-marker children (not in parentKeys) default
+      // to collapsed — the branches aren't visible until showBranches is on.
+      if (!parentKeys.has(rowKey) && expandableKeys.has(rowKey)) return true;
+      // Regular parent rows at depth >= 1 start collapsed.
+      return layout.depth >= 1 && parentKeys.has(rowKey);
     },
-    [stableCollapsedBucket, layouts, parentKeys]
+    [stableCollapsedBucket, layouts, parentKeys, expandableKeys]
   );
 
   // Filter out rows whose ancestors are collapsed
@@ -253,24 +264,35 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   const handleToggleRowCollapse = useCallback(
     (rowKey: string) => {
       const current = isRowCollapsed(rowKey);
-      setRowCollapsed("timeline-swimlane-rows", rowKey, !current);
+      // When expanding a row with branch markers while showBranches is off,
+      // also enable showBranches so the branch child rows become visible.
+      if (current && !header?.timelineConfig?.showBranches) {
+        const layout = layouts.find((l) => l.key === rowKey);
+        if (layout?.markers.some((m) => m.kind === "branch")) {
+          header?.timelineConfig?.setShowBranches(true);
+        }
+      }
+      setRowCollapsedById(rowKey, !current);
     },
-    [isRowCollapsed, setRowCollapsed]
+    [isRowCollapsed, setRowCollapsedById, header?.timelineConfig, layouts]
   );
 
   // Branch marker click → ensure showBranches is on and expand the row.
   // This reveals nested branch rows beneath the clicked marker's row.
+  //
+  // Always set the row to expanded (not just when currently collapsed):
+  // when showBranches is first enabled, the row doesn't yet have children
+  // in the current render, so isRowCollapsed would return false (no parent
+  // = no default collapse). Writing an explicit `false` to the store ensures
+  // the row stays expanded once the next render adds branch child rows.
   const handleBranchMarkerClick = useCallback(
     (rowKey: string) => {
       if (!header?.timelineConfig?.showBranches) {
         header?.timelineConfig?.setShowBranches(true);
       }
-      // Expand the row so nested branches become visible
-      if (isRowCollapsed(rowKey)) {
-        setRowCollapsed("timeline-swimlane-rows", rowKey, false);
-      }
+      setRowCollapsedById(rowKey, false);
     },
-    [header?.timelineConfig, isRowCollapsed, setRowCollapsed]
+    [header?.timelineConfig, setRowCollapsedById]
   );
 
   // Options popover / breadcrumb toggle → toggle showBranches on/off.
@@ -344,7 +366,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
     const selectedRegionIndex = isRowSelected
       ? (parsedSelection?.regionIndex ?? null)
       : null;
-    const hasChildren = parentKeys.has(layout.key);
+    const hasChildren = expandableKeys.has(layout.key);
     const isRowExpanded = hasChildren ? !isRowCollapsed(layout.key) : undefined;
 
     return (

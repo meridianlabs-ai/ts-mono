@@ -4,13 +4,13 @@ import clsx from "clsx";
 import { FC, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { DataframeView } from "../../../../components/DataframeView";
-import { ErrorPanel } from "../../../../components/ErrorPanel";
-import { NoContentsPanel } from "../../../../components/NoContentsPanel";
+import { ErrorPanel, NoContentsPanel } from "@tsmono/react/components";
+
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
+import { DataframeView } from "../../../components/DataframeView";
 import { useScanRoute } from "../../../hooks/useScanRoute";
 import { kSegmentDataframe, kSegmentList } from "../../ScanPanelBody";
 import { ScannerResultsList } from "../list/ScannerResultsList";

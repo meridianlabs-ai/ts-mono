@@ -3,10 +3,13 @@ import { FC, RefObject } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
+import {
+  Card,
+  CardBody,
+  ExpandablePanel,
+  NoContentsPanel,
+} from "@tsmono/react/components";
 
-import { Card, CardBody } from "../../../components/Card";
-import ExpandablePanel from "../../../components/ExpandablePanel";
-import { NoContentsPanel } from "../../../components/NoContentsPanel";
 import { useEvalDescriptor } from "../../../state/hooks";
 import { RenderedText } from "../../content/RenderedText";
 

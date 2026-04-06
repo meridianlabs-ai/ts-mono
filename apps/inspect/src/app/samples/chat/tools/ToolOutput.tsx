@@ -6,9 +6,9 @@ import {
   ContentImage,
   ContentText,
 } from "@tsmono/inspect-common/types";
+import { ANSIDisplay } from "@tsmono/react/components";
 import { isAnsiOutput, isJson } from "@tsmono/util";
 
-import { ANSIDisplay } from "../../../../components/AnsiDisplay";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 

@@ -1,8 +1,8 @@
 import clsx from "clsx";
 import { FC, useRef } from "react";
 
-import { ErrorPanel } from "../../components/ErrorPanel";
-import { StickyScrollProvider } from "../../components/StickyScrollContext";
+import { ErrorPanel, StickyScrollProvider } from "@tsmono/react/components";
+
 import { useSampleData } from "../../state/hooks";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";

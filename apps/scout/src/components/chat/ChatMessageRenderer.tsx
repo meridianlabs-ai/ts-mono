@@ -1,5 +1,7 @@
 import { FC } from "react";
 
+import { NavPills } from "@tsmono/react/components";
+
 import {
   ChatMessage,
   ChatMessageAssistant,
@@ -8,7 +10,6 @@ import {
   ChatMessageUser,
 } from "../../types/api-types";
 import { Buckets, ContentRenderer } from "../content/types";
-import { NavPills } from "../NavPills";
 
 import { ChatView } from "./ChatView";
 

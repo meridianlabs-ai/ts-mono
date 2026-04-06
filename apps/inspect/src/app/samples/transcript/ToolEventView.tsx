@@ -6,8 +6,8 @@ import {
   ModelEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import { PulsingDots } from "@tsmono/react/components";
 
-import { PulsingDots } from "../../../components/PulsingDots";
 import { ApplicationIcons } from "../../appearance/icons";
 import { ChatView } from "../chat/ChatView";
 import {

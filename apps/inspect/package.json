@@ -96,6 +96,7 @@
     "@lezer/highlight": "^1.2.2",
     "@popperjs/core": "^2.11.8",
     "@tsmono/inspect-common": "workspace:*",
+    "@tsmono/react": "workspace:*",
     "@tsmono/util": "workspace:*",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",

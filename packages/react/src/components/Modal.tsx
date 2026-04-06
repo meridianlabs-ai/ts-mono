@@ -1,6 +1,7 @@
 import { FC, ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./Modal.module.css";
 
 interface ModalProps {
@@ -20,6 +21,7 @@ export const Modal: FC<ModalProps> = ({
   children,
   footer,
 }) => {
+  const icons = useComponentIcons();
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle escape and enter keys
@@ -62,7 +64,7 @@ export const Modal: FC<ModalProps> = ({
         <div className={styles.header}>
           <h3 className={styles.title}>{title}</h3>
           <button className={styles.closeButton} onClick={onHide}>
-            <i className="codicon codicon-close" />
+            <i className={icons.close} />
           </button>
         </div>
         <div className={styles.body}>{children}</div>

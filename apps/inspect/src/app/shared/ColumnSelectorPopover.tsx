@@ -2,7 +2,8 @@ import { ColDef } from "ag-grid-community";
 import { clsx } from "clsx";
 import { FC, useMemo } from "react";
 
-import { PopOver } from "../../components/PopOver";
+import { PopOver } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../appearance/icons";
 import { getFieldKey } from "../shared/gridUtils";
 

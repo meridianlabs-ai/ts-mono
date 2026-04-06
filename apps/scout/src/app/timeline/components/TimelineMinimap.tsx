@@ -1,10 +1,10 @@
 import clsx from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
+import { useProperty } from "@tsmono/react/hooks";
 import { formatDuration, formatDurationShort, formatTime } from "@tsmono/util";
 
 import type { TimelineSpan } from "../../../components/transcript/timeline";
-import { useProperty } from "../../../state/hooks/useProperty";
 import { computeBarPosition, formatTokenCount } from "../utils/swimlaneLayout";
 import { computeActiveTime, type TimeMapping } from "../utils/timeMapping";
 
@@ -121,7 +121,7 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
   const [showTokens, setShowTokens] = useProperty<boolean>(
     "timeline",
     "minimapShowTokens",
-    { defaultValue: false, cleanup: false }
+    { defaultValue: false }
   );
   const isTokenMode = !!showTokens;
   const toggle = useCallback(

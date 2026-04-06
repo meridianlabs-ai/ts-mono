@@ -1,7 +1,10 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
-import type { MarkdownReference } from "./MarkdownDivWithReferences";
-import { injectReferenceLinks } from "./MarkdownDivWithReferences";
+import {
+  injectReferenceLinks,
+  MarkdownReference,
+} from "@tsmono/react/components";
 
 const CITE_CLASS = "cite";
 

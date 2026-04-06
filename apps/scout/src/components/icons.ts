@@ -55,6 +55,7 @@ export const ApplicationIcons = {
   },
   "clear-text": "bi bi-x-circle-fill",
   close: "bi bi-x",
+  code: "bi bi-code-slash",
   collapse: {
     all: "bi bi-arrows-collapse",
     up: "bi bi-chevron-up",

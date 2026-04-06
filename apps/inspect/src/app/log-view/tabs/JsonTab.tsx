@@ -1,12 +1,11 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useMemo } from "react";
 
+import { JSONPanel, ToolButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
 import { LogDetails } from "../../../client/api/types";
 import { DownloadPanel } from "../../../components/DownloadPanel";
-import { JSONPanel } from "../../../components/JsonPanel";
-import { ToolButton } from "../../../components/ToolButton";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";

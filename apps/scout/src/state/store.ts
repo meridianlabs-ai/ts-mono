@@ -108,7 +108,6 @@ interface StoreState {
   // Scan specific properties (clear when switching scans)
   selectedResultsTab?: string;
   selectedResultTab?: string;
-  collapsedBuckets: Record<string, Record<string, boolean>>;
   selectedScanner?: string;
   selectedResultsView?: string;
   selectedFilter?: string;
@@ -186,9 +185,7 @@ interface StoreState {
     defaultValue?: T
   ) => T | undefined;
   removePropertyValue: (id: string, propertyName: string) => void;
-
-  setCollapsed: (bucket: string, key: string, value: boolean) => void;
-  clearCollapsed: (bucket: string) => void;
+  removeAllProperties: (id: string) => void;
 
   getScrollPosition: (path: string) => number | undefined;
   setScrollPosition: (path: string, position: number) => void;
@@ -308,7 +305,6 @@ export const createStore = (api: ScoutApiV2) =>
           gridStates: {},
           loading: 0,
           loadingData: 0,
-          collapsedBuckets: {},
           transcriptCollapsedEvents: {},
           scopedErrors: {} as Record<ErrorScope, string>,
           visibleScannerResults: [],
@@ -402,7 +398,6 @@ export const createStore = (api: ScoutApiV2) =>
           clearScanState: () => {
             set((state) => {
               state.selectedResultsTab = undefined;
-              state.collapsedBuckets = {};
               state.transcriptCollapsedEvents = {};
               state.transcriptOutlineId = undefined;
               state.selectedResultTab = undefined;
@@ -466,16 +461,10 @@ export const createStore = (api: ScoutApiV2) =>
               state.properties[id] = remainingProperties;
             });
           },
-          setCollapsed: (bucket: string, key: string, value: boolean) => {
+          removeAllProperties(id: string) {
             set((state) => {
-              state.collapsedBuckets[bucket] =
-                state.collapsedBuckets[bucket] || {};
-              state.collapsedBuckets[bucket][key] = value;
-            });
-          },
-          clearCollapsed: (bucket: string) => {
-            set((state) => {
-              state.collapsedBuckets[bucket] = {};
+              const { [id]: _, ...remaining } = state.properties;
+              state.properties = remaining;
             });
           },
           getScrollPosition(path) {

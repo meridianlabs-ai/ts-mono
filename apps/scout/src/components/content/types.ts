@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-import { MarkdownReference } from "../../components/MarkdownDivWithReferences";
+import { MarkdownReference } from "@tsmono/react/components";
 
 export const Buckets = {
   first: 0,

@@ -6,8 +6,8 @@ import {
   ChatMessageTool,
   ChatMessageUser,
 } from "@tsmono/inspect-common/types";
+import { NavPills } from "@tsmono/react/components";
 
-import { NavPills } from "../../../components/NavPills.tsx";
 import { Buckets, ContentRenderer } from "../../content/types.ts";
 
 import { ChatView } from "./ChatView";

@@ -1,7 +1,7 @@
 import { CSSProperties, ForwardedRef, forwardRef } from "react";
 
-import { MarkdownDiv } from "../../components/MarkdownDiv";
-import { Preformatted } from "../../components/Preformatted";
+import { MarkdownDiv, Preformatted } from "@tsmono/react/components";
+
 import { useStore } from "../../state/store";
 
 interface RenderedTextProps {

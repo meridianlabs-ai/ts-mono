@@ -1,8 +1,7 @@
 import { FC } from "react";
 
 import { EvalStats } from "@tsmono/inspect-common/types";
-
-import { Card, CardBody, CardHeader } from "../../components/Card";
+import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
 import { ModelTokenTable } from "./ModelTokenTable";
 import styles from "./UsageCard.module.css";

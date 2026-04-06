@@ -2,11 +2,11 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
+import { CopyButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
-import { CopyButton } from "../../../components/CopyButton";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";

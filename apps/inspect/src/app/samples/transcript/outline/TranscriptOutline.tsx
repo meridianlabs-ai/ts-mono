@@ -10,7 +10,8 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { useScrollTrack, useVirtuosoState } from "../../../../state/scrolling";
+import { useScrollTrack, useVirtuosoState } from "@tsmono/react/hooks";
+
 import { useStore } from "../../../../state/store";
 import { useSampleDetailNavigation } from "../../../routing/sampleNavigation";
 import { flatTree } from "../transform/flatten";

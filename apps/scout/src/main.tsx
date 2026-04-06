@@ -6,6 +6,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { defaultRetry } from "@tsmono/react";
+import { ExtendedFindProvider } from "@tsmono/react/components";
 import { getVscodeApi } from "@tsmono/util";
 
 import { ScoutApiV2 } from "./api/api";
@@ -13,7 +14,6 @@ import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";
 import { App } from "./App";
 import { getEmbeddedAppMessage } from "./app/hooks/useWindowMessaging";
-import { ExtendedFindProvider } from "./components/ExtendedFindProvider";
 import { ApiProvider, createStore, StoreProvider } from "./state/store";
 
 declare global {

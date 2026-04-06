@@ -10,11 +10,36 @@ import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
 import "./app/App.css";
 
+import {
+  ComponentIconProvider,
+  ComponentIcons,
+  ExtendedFindProvider,
+} from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
-import { ExtendedFindProvider } from "./components/ExtendedFindProvider";
+import { ApplicationIcons } from "./components/icons";
+import { scoutStateHooks } from "./state/componentStateAdapter";
+
+const componentIcons: ComponentIcons = {
+  chevronDown: ApplicationIcons.chevron.down,
+  chevronUp: ApplicationIcons.collapse.up,
+  clearText: ApplicationIcons["clear-text"],
+  close: ApplicationIcons.close,
+  code: ApplicationIcons.code,
+  confirm: ApplicationIcons.confirm,
+  copy: ApplicationIcons.copy,
+  error: ApplicationIcons.error,
+  menu: ApplicationIcons.threeDots,
+  next: ApplicationIcons.next,
+  noSamples: ApplicationIcons.noSamples,
+  play: ApplicationIcons.play,
+  previous: ApplicationIcons.previous,
+  toggleRight: ApplicationIcons["toggle-right"],
+};
 
 export const AppModeContext = createContext<AppProps["mode"]>("scans");
 
@@ -33,11 +58,15 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
 
   return router ? (
     <AppErrorBoundary>
-      <AppModeContext.Provider value={mode}>
-        <ExtendedFindProvider>
-          <RouterProvider router={router} />
-        </ExtendedFindProvider>
-      </AppModeContext.Provider>
+      <ComponentIconProvider icons={componentIcons}>
+        <ComponentStateProvider hooks={scoutStateHooks}>
+          <AppModeContext.Provider value={mode}>
+            <ExtendedFindProvider>
+              <RouterProvider router={router} />
+            </ExtendedFindProvider>
+          </AppModeContext.Provider>
+        </ComponentStateProvider>
+      </ComponentIconProvider>
     </AppErrorBoundary>
   ) : null;
 };

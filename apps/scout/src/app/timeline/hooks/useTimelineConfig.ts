@@ -2,12 +2,13 @@
  * Persistent configuration for timeline options (markers, agents).
  *
  * Each setting is stored via `useProperty` under the "timeline" id namespace
- * with `cleanup: false` so values survive unmount and persist across sessions.
+ * so values persist in the store across unmounts.
  */
 
 import { useCallback, useMemo } from "react";
 
-import { useProperty } from "../../../state/hooks/useProperty";
+import { useProperty } from "@tsmono/react/hooks";
+
 import type { MarkerConfig, MarkerDepth, MarkerKind } from "../utils/markers";
 import { defaultMarkerConfig } from "../utils/markers";
 
@@ -69,28 +70,23 @@ function arraysEqual<T>(a: T[], b: T[]): boolean {
 export function useTimelineConfig(): UseTimelineConfigResult {
   const [storedKinds, setStoredKinds] = useProperty<MarkerKind[]>(
     "timeline",
-    "markerKinds",
-    { cleanup: false }
+    "markerKinds"
   );
   const [storedDepth, setStoredDepth] = useProperty<MarkerDepth>(
     "timeline",
-    "markerDepth",
-    { cleanup: false }
+    "markerDepth"
   );
   const [storedUtility, setStoredUtility] = useProperty<boolean>(
     "timeline",
-    "includeUtility",
-    { cleanup: false }
+    "includeUtility"
   );
   const [storedShowBranches, setStoredShowBranches] = useProperty<boolean>(
     "timeline",
-    "showBranches",
-    { cleanup: false }
+    "showBranches"
   );
   const [storedForkRelative, setStoredForkRelative] = useProperty<boolean>(
     "timeline",
-    "forkRelative",
-    { cleanup: false }
+    "forkRelative"
   );
 
   const markerKinds = storedKinds ?? kDefaultMarkerKinds;
