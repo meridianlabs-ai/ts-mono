@@ -196,3 +196,54 @@ export const collapseScoring = (eventNodes: EventNode[]): EventNode[] => {
   collect();
   return results;
 };
+
+export type TurnInfo = { turnNumber: number; totalTurns: number };
+
+/**
+ * Computes a map from event node IDs to turn info (turn number and total turns).
+ * Turn numbers come from the outline-filtered nodes (after makeTurns), so numbering
+ * matches the sidebar. Non-turn events inherit the previous turn number.
+ *
+ * @param outlineFilteredNodes - The filtered node list used for the outline sidebar
+ * @param flattenedNodes - The full flattened node list (all visible transcript events)
+ */
+export const computeTurnMap = (
+  outlineFilteredNodes: EventNode[],
+  flattenedNodes: EventNode[]
+): Map<string, TurnInfo> => {
+  const turns = makeTurns(outlineFilteredNodes);
+  const map = new Map<string, TurnInfo>();
+
+  const turnNodes = turns.filter(
+    (n) =>
+      n.event.event === "span_begin" &&
+      (n.event as { type?: string }).type === kTurnType
+  );
+  const totalTurns = turnNodes.length;
+
+  // Map model event IDs to their turn numbers
+  let turnNumber = 0;
+  const modelEventTurnNumbers = new Map<string, number>();
+  for (const node of turnNodes) {
+    turnNumber++;
+    const modelChild = node.children.find((c) => c.event.event === "model");
+    if (modelChild) {
+      modelEventTurnNumbers.set(modelChild.id, turnNumber);
+    }
+  }
+
+  // Iterate through flattened nodes and assign turn numbers.
+  // Non-model events inherit from the most recent model event.
+  let currentTurn = 0;
+  for (const node of flattenedNodes) {
+    const modelTurn = modelEventTurnNumbers.get(node.id);
+    if (modelTurn !== undefined) {
+      currentTurn = modelTurn;
+      map.set(node.id, { turnNumber: currentTurn, totalTurns });
+    } else if (currentTurn > 0) {
+      map.set(node.id, { turnNumber: currentTurn, totalTurns });
+    }
+  }
+
+  return map;
+};

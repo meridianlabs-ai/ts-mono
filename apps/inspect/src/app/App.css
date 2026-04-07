@@ -40,9 +40,6 @@
   --inspect-glass-opacity: 0.3;
 
   --inspect-event-panel-sticky-top: 30px;
-  --inspect-event-panel-sticky-margin: -5px -10px -5px 0;
-  --inspect-event-panel-sticky-stuck-margin-left: -22px;
-  --inspect-event-panel-sticky-stuck-margin-right: -10px;
 }
 
 body:not([class^="vscode-"]) button {
@@ -214,9 +211,6 @@ body[class^="vscode-"] {
   --inspect-glass-color: var(--vscode-editor-foreground);
   --inspect-glass-opacity: 0.15;
   --inspect-event-panel-sticky-top: 25px;
-  --inspect-event-panel-sticky-margin: 0px -10px -5px 0;
-  --inspect-event-panel-sticky-stuck-margin-left: -19px;
-  --inspect-event-panel-sticky-stuck-margin-right: -10px;
 }
 
 html.vscode {

@@ -58,8 +58,10 @@ export { eventSearchText } from "./eventSearchText";
 export {
   collapseScoring,
   collapseTurns,
+  computeTurnMap,
   makeTurns,
   noScorerChildren,
   removeNodeVisitor,
   removeStepSpanNameVisitor,
 } from "./outline/tree-visitors";
+export type { TurnInfo } from "./outline/tree-visitors";

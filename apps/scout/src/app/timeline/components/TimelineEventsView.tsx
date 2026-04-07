@@ -11,10 +11,16 @@ import {
 } from "react";
 
 import {
+  computeTurnMap,
   EventNode,
+  flatTree,
   kCollapsibleEventTypes,
+  kSandboxSignalName,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
+  noScorerChildren,
+  removeNodeVisitor,
+  removeStepSpanNameVisitor,
   TimelineSelectContext,
   TranscriptOutline,
 } from "@tsmono/inspect-components/transcript";
@@ -417,6 +423,47 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     [outlineCollapsedEvents]
   );
 
+  // Compute turn map for sticky turn labels in the transcript.
+  // Uses the same outline-filtered node list as TranscriptOutline so turn
+  // numbers match the sidebar.
+  const outlineFilteredNodes = useMemo(() => {
+    return flatTree(
+      eventNodes,
+      (outlineCollapsedEvents
+        ? (outlineCollapsedEvents[kTranscriptOutlineCollapseScope] as
+            | Record<string, boolean>
+            | undefined)
+        : undefined) || defaultCollapsedIds,
+      [
+        removeNodeVisitor("logger"),
+        removeNodeVisitor("info"),
+        removeNodeVisitor("state"),
+        removeNodeVisitor("store"),
+        removeNodeVisitor("approval"),
+        removeNodeVisitor("input"),
+        removeNodeVisitor("sandbox"),
+        removeStepSpanNameVisitor(kSandboxSignalName),
+        noScorerChildren(),
+      ]
+    );
+  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
+
+  const flattenedNodes = useMemo(() => {
+    return flatTree(
+      eventNodes,
+      (outlineCollapsedEvents
+        ? (outlineCollapsedEvents[kTranscriptCollapseScope] as
+            | Record<string, boolean>
+            | undefined)
+        : undefined) || defaultCollapsedIds
+    );
+  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
+
+  const turnMap = useMemo(
+    () => computeTurnMap(outlineFilteredNodes, flattenedNodes),
+    [outlineFilteredNodes, flattenedNodes]
+  );
+
   // Clean up per-agent state when the transcript panel unmounts
   // (e.g. navigating to a different transcript).
   const clearTranscriptOutlineId = useStore(
@@ -650,6 +697,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               className={styles.eventsList}
               scrollRef={scrollRef}
               renderAgentCard={renderAgentCard}
+              turnMap={turnMap}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />
