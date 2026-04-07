@@ -29,7 +29,7 @@
     "@types/lz4js": "^0.2.2",
     "apache-arrow": "^21.1.0",
     "arquero": "^8.0.3",
-    "eslint": "^9.39.2",
+    "eslint": "^10.2.0",
     "json5": "^2.2.3",
     "lodash-es": "^4.18.1",
     "lz4js": "^0.2.0",

@@ -37,7 +37,7 @@
     "@types/json5": "^2.2.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "eslint": "^9.39.2",
+    "eslint": "^10.2.0",
     "json5": "^2.2.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
