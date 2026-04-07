@@ -1,5 +1,13 @@
 import clsx from "clsx";
-import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
+import {
+  FC,
+  memo,
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import {
@@ -77,6 +85,21 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const collapsedEvents = useStore((state) => state.sample.collapsedEvents);
   const setCollapsedEvents = useStore(
     (state) => state.sampleActions.setCollapsedEvents
+  );
+  const collapseEvent = useStore((state) => state.sampleActions.collapseEvent);
+
+  const onCollapse = useCallback(
+    (nodeId: string, collapsed: boolean) => {
+      collapseEvent(kTranscriptCollapseScope, nodeId, collapsed);
+    },
+    [collapseEvent]
+  );
+
+  const getCollapsed = useCallback(
+    (nodeId: string) => {
+      return collapsedEvents?.[kTranscriptCollapseScope]?.[nodeId] === true;
+    },
+    [collapsedEvents]
   );
 
   const flattenedNodes = useMemo(() => {
@@ -262,6 +285,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           offsetTop={topOffset}
           className={styles.listContainer}
           turnMap={turnMap}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
         />
       </div>
     );

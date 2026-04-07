@@ -65,7 +65,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const splitStartRef = useRef<HTMLDivElement | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl, getFullMessageUrl } = useTranscriptNavigation();
+  const { getEventUrl, getFullEventUrl, getFullMessageUrl } =
+    useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -323,6 +324,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
+        getEventUrl={getFullEventUrl}
+        linkingEnabled={true}
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}

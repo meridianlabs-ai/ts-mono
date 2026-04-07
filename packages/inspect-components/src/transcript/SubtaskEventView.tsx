@@ -7,11 +7,11 @@ import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import styles from "./SubtaskEventView.module.css";
-import { EventNode, EventType } from "./types";
+import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
 const kArrowRightIcon = "bi bi-arrow-right";
 
-interface SubtaskEventViewProps {
+interface SubtaskEventViewProps extends EventPanelCallbacks {
   eventNode: EventNode<SubtaskEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
@@ -21,6 +21,10 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
   eventNode,
   childNodes,
   className,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const event = eventNode.event;
   const body: ReactNode[] = [];
@@ -60,6 +64,10 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
       }
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
+      onCollapse={onCollapse}
+      getCollapsed={getCollapsed}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
     >
       {body}
     </EventPanel>

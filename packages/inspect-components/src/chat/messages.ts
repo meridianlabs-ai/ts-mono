@@ -39,23 +39,23 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
   const resolvedMessages: ResolvedMessage[] = [];
   let index = 0;
   for (const message of messages) {
-    if (message.role === "tool") {
+    // Create a stable id for the item without mutating the original
+    const resolved =
+      message.id === undefined ? { ...message, id: `msg-${index}` } : message;
+
+    if (resolved.role === "tool") {
       // Add this tool message onto the previous message
       if (resolvedMessages.length > 0) {
         const msg = resolvedMessages[resolvedMessages.length - 1];
         if (msg) {
           msg.toolMessages = msg.toolMessages || [];
-          msg.toolMessages.push(message);
+          msg.toolMessages.push(resolved);
         }
       }
     } else {
-      resolvedMessages.push({ message, toolMessages: [] });
+      resolvedMessages.push({ message: resolved, toolMessages: [] });
     }
 
-    // Create a stable id for the item, if it doesn't have one
-    if (message.id === undefined) {
-      message.id = `msg-${index}`;
-    }
     index++;
   }
 

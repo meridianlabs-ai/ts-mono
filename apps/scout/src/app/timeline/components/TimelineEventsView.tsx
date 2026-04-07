@@ -89,6 +89,10 @@ interface TimelineEventsViewProps {
   /** Reset the headroom anchor before a layout shift or programmatic scroll.
    *  Pass `true` to debounce (keeps lock alive while scrolling continues). */
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  /** Callback to generate a full deep-link URL for an event. */
+  getEventUrl?: (eventId: string) => string | undefined;
+  /** Whether deep-link copy buttons are enabled. */
+  linkingEnabled?: boolean;
   className?: string;
 }
 
@@ -134,6 +138,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   timelines: serverTimelines,
   headroomHidden,
   onHeadroomResetAnchor,
+  getEventUrl,
+  linkingEnabled,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -698,6 +704,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               scrollRef={scrollRef}
               renderAgentCard={renderAgentCard}
               turnMap={turnMap}
+              getEventUrl={getEventUrl}
+              linkingEnabled={linkingEnabled}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />

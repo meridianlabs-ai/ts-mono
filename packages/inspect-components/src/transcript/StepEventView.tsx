@@ -6,9 +6,9 @@ import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { kSandboxSignalName } from "./transform/fixups";
-import { EventNode, EventType } from "./types";
+import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
-interface StepEventViewProps {
+interface StepEventViewProps extends EventPanelCallbacks {
   eventNode: EventNode<StepEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
@@ -18,6 +18,10 @@ export const StepEventView: FC<StepEventViewProps> = ({
   eventNode,
   childNodes,
   className,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const event = eventNode.event;
   const descriptor = stepDescriptor(event);
@@ -38,6 +42,10 @@ export const StepEventView: FC<StepEventViewProps> = ({
       }
       icon={descriptor.icon}
       text={text}
+      onCollapse={onCollapse}
+      getCollapsed={getCollapsed}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
     />
   );
 };

@@ -115,6 +115,17 @@ export class EventNode<T extends EventType = EventType> {
   }
 }
 
+/**
+ * Props threaded from app-level stores through the virtual list
+ * to EventPanel for collapse state and deep-link URL generation.
+ */
+export interface EventPanelCallbacks {
+  onCollapse?: (id: string, collapsed: boolean) => void;
+  getCollapsed?: (id: string) => boolean;
+  getEventUrl?: (eventId: string) => string | undefined;
+  linkingEnabled?: boolean;
+}
+
 export interface TranscriptEventState {
   selectedNav?: string;
   collapsed?: boolean;

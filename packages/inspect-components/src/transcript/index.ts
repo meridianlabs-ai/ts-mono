@@ -9,6 +9,7 @@ export {
 export type {
   EventNodeContext,
   EventNodeSpan,
+  EventPanelCallbacks,
   EventType,
   EventTypeValue,
   StateManager,

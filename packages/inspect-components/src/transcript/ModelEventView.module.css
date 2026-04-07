@@ -35,6 +35,17 @@
   margin-left: 0.5em;
 }
 
+.error {
+  color: var(--bs-danger);
+  padding: 0.5em;
+  border: 1px solid var(--bs-danger);
+  border-radius: var(--bs-border-radius);
+  white-space: pre-wrap;
+  font-size: clamp(0.3rem, 1.1vw, 0.8rem);
+  font-family: var(--bs-font-monospace);
+  margin: 0.5em 0;
+}
+
 .toolConfig {
   display: grid;
   grid-template-columns: max-content auto;

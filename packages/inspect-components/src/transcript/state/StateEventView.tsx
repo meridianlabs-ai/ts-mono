@@ -11,7 +11,7 @@ import type {
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "../event/EventPanel";
-import { EventNode } from "../types";
+import { EventNode, EventPanelCallbacks } from "../types";
 
 import { StateDiffView } from "./StateDiffView";
 import {
@@ -20,7 +20,7 @@ import {
 } from "./StateEventRenderers";
 import styles from "./StateEventView.module.css";
 
-interface StateEventViewProps {
+interface StateEventViewProps extends EventPanelCallbacks {
   eventNode: EventNode<StateEvent | StoreEvent>;
   isStore?: boolean;
   className?: string | string[];
@@ -35,6 +35,10 @@ export const StateEventView: FC<StateEventViewProps> = ({
   eventNode,
   className,
   onAutoCollapse,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const event = eventNode.event;
 
@@ -82,6 +86,10 @@ export const StateEventView: FC<StateEventViewProps> = ({
       }
       text={!changePreview ? summary : undefined}
       collapsibleContent={true}
+      onCollapse={onCollapse}
+      getCollapsed={getCollapsed}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
     >
       {changePreview ? (
         <div data-name="Summary" className={clsx(styles.summary)}>

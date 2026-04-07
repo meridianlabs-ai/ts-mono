@@ -19,9 +19,14 @@ import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ToolEventView.module.css";
-import { EventNode, EventNodeContext, EventType } from "./types";
+import {
+  EventNode,
+  EventNodeContext,
+  EventPanelCallbacks,
+  EventType,
+} from "./types";
 
-interface ToolEventViewProps {
+interface ToolEventViewProps extends EventPanelCallbacks {
   eventNode: EventNode<ToolEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
@@ -33,6 +38,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   childNodes,
   className,
   context,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const event = eventNode.event;
 
@@ -90,6 +99,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
       turnLabel={turnLabel}
+      onCollapse={onCollapse}
+      getCollapsed={getCollapsed}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
     >
       <div data-name="Summary" className={styles.summary}>
         <ToolCallView
