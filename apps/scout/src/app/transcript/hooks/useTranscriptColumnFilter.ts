@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from "react";
 
 import {
-  EventTypeValue,
   eventTypeValues,
-} from "../../../components/transcript/types";
+  type EventTypeValue,
+} from "@tsmono/inspect-components/transcript";
+
 import { useStore } from "../../../state/store";
 
 export const kDefaultExcludedEventTypes: EventTypeValue[] = [

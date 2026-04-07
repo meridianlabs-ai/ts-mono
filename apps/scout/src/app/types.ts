@@ -1,4 +1,5 @@
-import { EventType } from "../components/transcript/types";
+import type { EventType } from "@tsmono/inspect-components/transcript";
+
 import {
   ChatMessage,
   ChatMessageAssistant,

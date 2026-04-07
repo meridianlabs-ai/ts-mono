@@ -7,12 +7,13 @@
  * so treeifyEvents can reconstruct the hierarchy.
  */
 
+import { EventNode } from "@tsmono/inspect-components/transcript";
+
 import type {
   TimelineEvent,
   TimelineSpan,
 } from "../../components/transcript/timeline";
 import { createBranchSpan } from "../../components/transcript/timeline";
-import { EventNode } from "../../components/transcript/types";
 import type {
   Event,
   SpanBeginEvent,

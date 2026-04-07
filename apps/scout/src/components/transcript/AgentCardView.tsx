@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback, useMemo } from "react";
 
+import { useTimelineSelect } from "@tsmono/inspect-components/transcript";
 import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { formatDurationShort } from "@tsmono/util";
 
@@ -10,7 +11,6 @@ import { ApplicationIcons } from "../icons";
 import styles from "./AgentCardView.module.css";
 import type { TimelineSpan } from "./timeline";
 import { getSpanToolResult, getUtilityAgentLabel } from "./timeline";
-import { useTimelineSelect } from "./TimelineSelectContext";
 
 interface AgentCardViewProps {
   span: TimelineSpan;

@@ -1,5 +1,14 @@
 import { useMemo } from "react";
 
+import {
+  EventNode,
+  fixupEventStream,
+  kCollapsibleEventTypes,
+  kSandboxSignalName,
+  treeifyEvents,
+} from "@tsmono/inspect-components/transcript";
+import type { EventType } from "@tsmono/inspect-components/transcript";
+
 import { attachSourceSpans } from "../../../app/timeline/timelineEventNodes";
 import type { TimelineSpan } from "../../../components/transcript/timeline";
 import {
@@ -9,9 +18,6 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "../../../types/api-types";
-import { fixupEventStream, kSandboxSignalName } from "../transform/fixups";
-import { treeifyEvents } from "../transform/treeify";
-import { EventNode, EventType, kCollapsibleEventTypes } from "../types";
 
 export const useEventNodes = (
   events: Event[],
