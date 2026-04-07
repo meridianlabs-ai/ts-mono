@@ -55,23 +55,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/eval-log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Eval Log */
-        get: operations["_eval_log_eval_log_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/eval-set": {
         parameters: {
             query?: never;
@@ -80,7 +63,7 @@ export interface paths {
             cookie?: never;
         };
         /** Eval Set */
-        get: operations["_eval_set_eval_set_get"];
+        get: operations["eval_set_eval_set_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -98,6 +81,261 @@ export interface paths {
         };
         /** Event */
         get: operations["_event_event_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Events */
+        get: operations["api_events_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Flow */
+        get: operations["flow_flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-bytes/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Bytes */
+        get: operations["api_log_bytes_log_bytes__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-delete/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Delete */
+        get: operations["api_log_delete_log_delete__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-dir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Dir */
+        get: operations["api_log_dir_log_dir_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-download/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Download */
+        get: operations["api_log_download_log_download__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Files */
+        get: operations["api_log_files_log_files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-headers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Headers */
+        get: operations["api_log_headers_log_headers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-info/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Info */
+        get: operations["api_log_info_log_info__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Message */
+        get: operations["api_log_message_log_message_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/log-size/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log Size */
+        get: operations["api_log_size_log_size__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Logs */
+        get: operations["api_logs_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/logs/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Log */
+        get: operations["api_log_logs__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pending-sample-data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Sample Events */
+        get: operations["api_sample_events_pending_sample_data_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pending-samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Pending Samples */
+        get: operations["api_pending_samples_pending_samples_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -200,6 +438,19 @@ export interface components {
             tools: string | string[];
         } & {
             [key: string]: unknown;
+        };
+        /** AttachmentData */
+        AttachmentData: {
+            /** Content */
+            content: string;
+            /** Epoch */
+            epoch: number;
+            /** Hash */
+            hash: string;
+            /** Id */
+            id: number;
+            /** Sample Id */
+            sample_id: string;
         };
         /**
          * BatchConfig
@@ -1059,6 +1310,61 @@ export interface components {
             };
         };
         /**
+         * EvalSampleSummary
+         * @description Summary information (including scoring) for a sample.
+         */
+        EvalSampleSummary: {
+            /** Choices */
+            choices?: string[] | null;
+            /**
+             * Completed
+             * @default false
+             */
+            completed: boolean;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Epoch */
+            epoch: number;
+            /** Error */
+            error?: string | null;
+            /** Id */
+            id: number | string;
+            /** Input */
+            input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /** Limit */
+            limit?: string | null;
+            /** Message Count */
+            message_count?: number | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Model Usage */
+            model_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Retries */
+            retries?: number | null;
+            /** Role Usage */
+            role_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Scores */
+            scores?: {
+                [key: string]: components["schemas"]["Score"];
+            } | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Target */
+            target: string | string[];
+            /** Total Time */
+            total_time?: number | null;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Time */
+            working_time?: number | null;
+        };
+        /**
          * EvalScore
          * @description Score for evaluation task.
          */
@@ -1243,6 +1549,21 @@ export interface components {
         };
         /** Event */
         Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        /** EventData */
+        EventData: {
+            /** Epoch */
+            epoch: number;
+            /** Event */
+            event: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Event Id */
+            event_id: string;
+            /** Id */
+            id: number;
+            /** Sample Id */
+            sample_id: string;
+        };
         /**
          * EventsData
          * @description Pooled data extracted by condense_events / condense_sample.
@@ -1331,6 +1652,11 @@ export interface components {
             top_p?: number | null;
             /** Verbosity */
             verbosity?: ("low" | "medium" | "high") | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
         };
         /**
          * ImageOutput
@@ -1463,6 +1789,46 @@ export interface components {
             value: components["schemas"]["JsonValue"];
         };
         JsonValue: JsonValue;
+        /** LogDirResponse */
+        LogDirResponse: {
+            /** Log Dir */
+            log_dir: string;
+        };
+        /** LogFilesResponse */
+        LogFilesResponse: {
+            /** Files */
+            files: components["schemas"]["LogHandle"][];
+            /**
+             * Response Type
+             * @enum {string}
+             */
+            response_type: "incremental" | "full";
+        };
+        /** LogHandle */
+        LogHandle: {
+            /** Mtime */
+            mtime?: number | null;
+            /** Name */
+            name: string;
+            /** Task */
+            task?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+        };
+        /** LogInfo */
+        LogInfo: {
+            /** Direct Url */
+            direct_url?: string | null;
+            /** Size */
+            size: number;
+        };
+        /** LogListingResponse */
+        LogListingResponse: {
+            /** Files */
+            files: components["schemas"]["LogHandle"][];
+            /** Log Dir */
+            log_dir: string;
+        };
         /**
          * LogUpdate
          * @description A group of edits that share provenance.
@@ -1799,6 +2165,13 @@ export interface components {
             /** Target */
             target: string | string[];
         };
+        /** SampleData */
+        SampleData: {
+            /** Attachments */
+            attachments: components["schemas"]["AttachmentData"][];
+            /** Events */
+            events: components["schemas"]["EventData"][];
+        };
         /**
          * SampleInitEvent
          * @description Beginning of processing a Sample.
@@ -1861,6 +2234,17 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /** Samples */
+        Samples: {
+            /** Etag */
+            etag: string;
+            /** Metrics */
+            metrics: components["schemas"]["TaskDisplayMetric"][];
+            /** Refresh */
+            refresh: number;
+            /** Samples */
+            samples: components["schemas"]["EvalSampleSummary"][];
         };
         /**
          * SandboxEnvironmentSpec
@@ -2254,6 +2638,21 @@ export interface components {
              */
             type: "tags";
         };
+        /** TaskDisplayMetric */
+        TaskDisplayMetric: {
+            /** Name */
+            name: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+            /** Reducer */
+            reducer?: string | null;
+            /** Scorer */
+            scorer: string;
+            /** Value */
+            value: number | null;
+        };
         /**
          * Timeline
          * @description A named timeline view over a transcript.
@@ -2537,6 +2936,19 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2606,29 +3018,12 @@ export interface operations {
             };
         };
     };
-    _eval_log_eval_log_get: {
+    eval_set_eval_set_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalLog"];
-                };
+            query?: {
+                log_dir?: string;
+                dir?: string;
             };
-        };
-    };
-    _eval_set_eval_set_get: {
-        parameters: {
-            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2641,7 +3036,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EvalSet"];
+                    "application/json": components["schemas"]["EvalSet"] | null;
                 };
             };
         };
@@ -2662,6 +3057,347 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    api_events_events_get: {
+        parameters: {
+            query?: {
+                last_eval_time?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    flow_flow_get: {
+        parameters: {
+            query?: {
+                log_dir?: string;
+                dir?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_bytes_log_bytes__log__get: {
+        parameters: {
+            query: {
+                start: number;
+                end: number;
+            };
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_delete_log_delete__log__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": boolean;
+                };
+            };
+        };
+    };
+    api_log_dir_log_dir_get: {
+        parameters: {
+            query?: {
+                log_dir?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogDirResponse"];
+                };
+            };
+        };
+    };
+    api_log_download_log_download__log__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_files_log_files_get: {
+        parameters: {
+            query?: {
+                log_dir?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFilesResponse"];
+                };
+            };
+        };
+    };
+    api_log_headers_log_headers_get: {
+        parameters: {
+            query?: {
+                file?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalLog"][];
+                };
+            };
+        };
+    };
+    api_log_info_log_info__log__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogInfo"];
+                };
+            };
+        };
+    };
+    api_log_message_log_message_get: {
+        parameters: {
+            query: {
+                log_file: string;
+                message: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_size_log_size__log__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
+                };
+            };
+        };
+    };
+    api_logs_logs_get: {
+        parameters: {
+            query?: {
+                log_dir?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogListingResponse"];
+                };
+            };
+        };
+    };
+    api_log_logs__log__get: {
+        parameters: {
+            query?: {
+                "header-only"?: string | null;
+            };
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalLog"];
+                };
+            };
+        };
+    };
+    api_sample_events_pending_sample_data_get: {
+        parameters: {
+            query: {
+                log: string;
+                id: string;
+                epoch: number;
+                "last-event-id"?: number | null;
+                "after-attachment-id"?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SampleData"];
+                };
+            };
+        };
+    };
+    api_pending_samples_pending_samples_get: {
+        parameters: {
+            query: {
+                log: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Samples"];
                 };
             };
         };

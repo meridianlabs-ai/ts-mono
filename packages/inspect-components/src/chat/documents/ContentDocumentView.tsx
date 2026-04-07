@@ -1,8 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { isImage } from "@tsmono/util";
 import type { ContentDocument } from "@tsmono/inspect-common/types";
+import { isImage } from "@tsmono/util";
 
 import { useContentIcons } from "../../content/IconsContext";
 
@@ -21,10 +21,7 @@ export const ContentDocumentView: FC<ContentDocumentProps> = ({
 }) => {
   if (isImage(document.mime_type || "")) {
     return (
-      <ContentDocumentFrame
-        document={document}
-        onDownloadFile={onDownloadFile}
-      >
+      <ContentDocumentFrame document={document} onDownloadFile={onDownloadFile}>
         <img
           className={clsx(styles.imageDocument)}
           src={document.document}

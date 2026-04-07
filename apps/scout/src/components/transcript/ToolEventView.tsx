@@ -1,15 +1,15 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import { PulsingDots } from "@tsmono/react/components";
-
-import { ApprovalEvent, ModelEvent, ToolEvent } from "../../types/api-types";
 import {
   ChatView,
   resolveToolInput,
   substituteToolCallContent,
   ToolCallView,
 } from "@tsmono/inspect-components/chat";
+import { PulsingDots } from "@tsmono/react/components";
+
+import { ApprovalEvent, ModelEvent, ToolEvent } from "../../types/api-types";
 import { ApplicationIcons } from "../icons";
 
 import { ApprovalEventView } from "./ApprovalEventView";

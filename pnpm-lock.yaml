@@ -378,7 +378,7 @@ importers:
         specifier: ^0.4.5
         version: 0.4.5(msw@2.12.10(@types/node@24.10.13)(typescript@5.9.3))
       '@playwright/test':
-        specifier: ^1.58.1
+        specifier: ^1.58.2
         version: 1.58.2
       '@tanstack/react-query':
         specifier: ^5.90.12
@@ -441,7 +441,7 @@ importers:
         specifier: ^27.3.0
         version: 27.4.0
       msw:
-        specifier: ^2.12.8
+        specifier: ^2.12.10
         version: 2.12.10(@types/node@24.10.13)(typescript@5.9.3)
       openapi-typescript:
         specifier: ^7.10.1

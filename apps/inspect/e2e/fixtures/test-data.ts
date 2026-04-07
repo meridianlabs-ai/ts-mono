@@ -7,15 +7,17 @@ import type {
   ModelOutput,
 } from "@tsmono/inspect-common/types";
 
-import type { LogContents, LogDetails, SampleSummary } from "../../src/client/api/types";
+import type {
+  LogContents,
+  LogDetails,
+  SampleSummary,
+} from "../../src/client/api/types";
 
 // ---------------------------------------------------------------------------
 // EvalSpec factory
 // ---------------------------------------------------------------------------
 
-export function createEvalSpec(
-  overrides?: Partial<EvalSpec>
-): EvalSpec {
+export function createEvalSpec(overrides?: Partial<EvalSpec>): EvalSpec {
   return {
     eval_id: "eval-001",
     run_id: "run-001",
@@ -40,9 +42,7 @@ export function createEvalSpec(
 // EvalStats factory
 // ---------------------------------------------------------------------------
 
-export function createEvalStats(
-  overrides?: Partial<EvalStats>
-): EvalStats {
+export function createEvalStats(overrides?: Partial<EvalStats>): EvalStats {
   return {
     started_at: "2025-01-15T10:00:00Z",
     completed_at: "2025-01-15T10:05:00Z",
@@ -56,9 +56,7 @@ export function createEvalStats(
 // ModelOutput factory
 // ---------------------------------------------------------------------------
 
-export function createModelOutput(
-  content = "Response text"
-): ModelOutput {
+export function createModelOutput(content = "Response text"): ModelOutput {
   return {
     choices: [
       {
@@ -144,9 +142,7 @@ export function createEvalLog(overrides?: {
 // LogContents factory (what get_log_contents returns)
 // ---------------------------------------------------------------------------
 
-export function createLogContents(
-  evalLog: EvalLog
-): LogContents {
+export function createLogContents(evalLog: EvalLog): LogContents {
   const raw = JSON.stringify(evalLog);
   return { raw, parsed: evalLog };
 }
@@ -155,9 +151,7 @@ export function createLogContents(
 // LogDetails factory (what get_log_details returns)
 // ---------------------------------------------------------------------------
 
-export function createLogDetails(
-  evalLog: EvalLog
-): LogDetails {
+export function createLogDetails(evalLog: EvalLog): LogDetails {
   const sampleSummaries: SampleSummary[] = (evalLog.samples ?? []).map(
     (sample) => ({
       id: sample.id,

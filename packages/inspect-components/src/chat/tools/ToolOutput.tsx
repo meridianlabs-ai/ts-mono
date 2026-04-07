@@ -56,11 +56,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
       } else {
         if (out.image.startsWith("data:")) {
           outputs.push(
-            <img
-              className={clsx(styles.toolImage)}
-              src={out.image}
-              key={key}
-            />
+            <img className={clsx(styles.toolImage)} src={out.image} key={key} />
           );
         } else {
           outputs.push(<ToolTextOutput text={String(out.image)} key={key} />);
@@ -101,9 +97,7 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
 
   return (
     <pre className={clsx(styles.textOutput, "tool-output")}>
-      <code className={clsx("sourceCode", styles.textCode)}>
-        {text.trim()}
-      </code>
+      <code className={clsx("sourceCode", styles.textCode)}>{text.trim()}</code>
     </pre>
   );
 };

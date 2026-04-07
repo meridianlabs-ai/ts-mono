@@ -35,9 +35,7 @@ async function openTranscript(
 ) {
   network.use(
     http.post("*/api/v2/transcripts/:dir", () =>
-      HttpResponse.json<TranscriptsResponse>(
-        createTranscriptsResponse([info])
-      )
+      HttpResponse.json<TranscriptsResponse>(createTranscriptsResponse([info]))
     ),
     http.get("*/api/v2/transcripts/:dir/:id/info", () =>
       HttpResponse.json<TranscriptInfo>(info)
@@ -131,9 +129,7 @@ test.describe("chat message rendering", () => {
       })
     );
 
-    await expect(
-      page.getByText("You are a helpful assistant.")
-    ).toBeVisible();
+    await expect(page.getByText("You are a helpful assistant.")).toBeVisible();
   });
 
   test("renders multi-turn conversation in order", async ({
@@ -178,9 +174,7 @@ test.describe("chat message rendering", () => {
     );
 
     await expect(page.getByText("First question from user")).toBeVisible();
-    await expect(
-      page.getByText("First response from assistant")
-    ).toBeVisible();
+    await expect(page.getByText("First response from assistant")).toBeVisible();
     await expect(page.getByText("Second question from user")).toBeVisible();
     await expect(
       page.getByText("Second response from assistant")
@@ -199,7 +193,13 @@ test.describe("chat message rendering", () => {
           {
             role: "user",
             content: [
-              { type: "text", text: "Describe this image:", refusal: null, internal: null, citations: null },
+              {
+                type: "text",
+                text: "Describe this image:",
+                refusal: null,
+                internal: null,
+                citations: null,
+              },
               {
                 type: "image",
                 image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==",
@@ -510,9 +510,7 @@ test.describe("tool call rendering", () => {
     await expect(page.getByText("result = 2 + 2").first()).toBeVisible();
 
     // The tool output should show
-    await expect(
-      page.locator("text=4").first()
-    ).toBeVisible();
+    await expect(page.locator("text=4").first()).toBeVisible();
   });
 });
 
@@ -574,10 +572,7 @@ test.describe("message content types", () => {
     ).toBeVisible();
   });
 
-  test("renders redacted reasoning with summary", async ({
-    page,
-    network,
-  }) => {
+  test("renders redacted reasoning with summary", async ({ page, network }) => {
     await openMessages(
       page,
       network,
@@ -619,14 +614,13 @@ test.describe("message content types", () => {
     await expect(page.getByText("Here is my answer.")).toBeVisible();
     // Redacted reasoning shows encrypted indicator
     await expect(
-      page.getByText("Reasoning encrypted by model provider", { exact: false }).first()
+      page
+        .getByText("Reasoning encrypted by model provider", { exact: false })
+        .first()
     ).toBeVisible();
   });
 
-  test("strips internal tags from text content", async ({
-    page,
-    network,
-  }) => {
+  test("strips internal tags from text content", async ({ page, network }) => {
     await openMessages(
       page,
       network,
@@ -656,9 +650,7 @@ test.describe("message content types", () => {
     await expect(page.getByText("Visible text")).toBeVisible();
     await expect(page.getByText("more visible text")).toBeVisible();
     // Internal content should NOT be visible
-    await expect(
-      page.getByText("hidden internal content")
-    ).not.toBeVisible();
+    await expect(page.getByText("hidden internal content")).not.toBeVisible();
   });
 
   test("renders ANSI codes in tool output", async ({ page, network }) => {
@@ -1096,8 +1088,7 @@ test.describe("web search content", () => {
             startSec: 0,
             endSec: 3,
             tokens: 100,
-            content:
-              "Based on my research, here are the best practices.",
+            content: "Based on my research, here are the best practices.",
           }),
         ],
       })

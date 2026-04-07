@@ -1,7 +1,9 @@
-import {
+import type {
   ApprovalEvent,
+  AttachmentData,
   BranchEvent,
   CompactionEvent,
+  ErrorEvent,
   EvalError,
   EvalLog,
   EvalMetric,
@@ -12,7 +14,11 @@ import {
   EvalSpec,
   EvalStats,
   InfoEvent,
+  InputEvent,
+  LogFilesResponse,
   LoggerEvent,
+  LogHandle,
+  LogInfo,
   LogUpdate,
   ModelEvent,
   SampleInitEvent,
@@ -33,6 +39,12 @@ import {
   EvalSampleTarget,
 } from "../../@types/extraInspect";
 
+// Hand-coded — references the local EventData with typed event union
+export interface SampleData {
+  events: EventData[];
+  attachments: AttachmentData[];
+}
+
 export type ProgressCallback = (
   bytesLoaded: number,
   bytesTotal: number
@@ -52,11 +64,6 @@ export interface LogDetails {
   sampleSummaries: SampleSummary[];
 }
 
-export interface LogFilesResponse {
-  files: LogHandle[];
-  response_type: "incremental" | "full";
-}
-
 export interface PendingSampleResponse {
   pendingSamples?: PendingSamples;
   status: "NotModified" | "NotFound" | "OK";
@@ -67,6 +74,8 @@ export interface SampleDataResponse {
   status: "NotModified" | "NotFound" | "OK";
 }
 
+// Client-side types — looser than generated server types because they're
+// also constructed locally (from URL params, manifests, etc.)
 export interface RunningMetric {
   scorer: string;
   name: string;
@@ -82,11 +91,22 @@ export interface PendingSamples {
   etag?: string;
 }
 
-export interface SampleData {
-  events: EventData[];
-  attachments: AttachmentData[];
+export interface SampleSummary {
+  uuid?: string;
+  id: number | string;
+  epoch: number;
+  input: EvalSample["input"];
+  target: EvalSampleTarget;
+  scores: EvalSampleScore | null | undefined;
+  error?: string;
+  limit?: string;
+  metadata?: Record<string, any>;
+  completed?: boolean;
+  retries?: number;
 }
 
+// Hand-coded — generated EventData.event is JsonValue, losing the
+// discriminated union that the client relies on for type-safe event handling.
 export interface EventData {
   id: number;
   event_id: string;
@@ -112,28 +132,6 @@ export interface EventData {
     | SubtaskEvent;
 }
 
-export interface AttachmentData {
-  id: number;
-  sample_id: string;
-  epoch: number;
-  hash: string;
-  content: string;
-}
-
-export interface SampleSummary {
-  uuid?: string;
-  id: number | string;
-  epoch: number;
-  input: EvalSample["input"];
-  target: EvalSampleTarget;
-  scores: EvalSampleScore | null | undefined;
-  error?: string;
-  limit?: string;
-  metadata?: Record<string, any>;
-  completed?: boolean;
-  retries?: number;
-}
-
 export interface BasicSampleData {
   id: number | string;
   epoch: number;
@@ -147,11 +145,6 @@ export interface Capabilities {
   webWorkers: boolean;
   streamSamples: boolean;
   streamSampleData: boolean;
-}
-
-export interface LogInfo {
-  size: number;
-  direct_url?: string;
 }
 
 export interface LogViewAPI {
@@ -306,13 +299,6 @@ export interface LogRoot {
   logs: LogHandle[];
   log_dir?: string;
   abs_log_dir?: string;
-}
-
-export interface LogHandle {
-  name: string;
-  task?: string;
-  task_id?: string;
-  mtime?: number;
 }
 
 export interface LogContents {

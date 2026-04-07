@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
 
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
 import { PulsingDots } from "@tsmono/react/components";
@@ -13,7 +14,6 @@ import {
   ToolChoice,
   ToolInfo,
 } from "../../types/api-types";
-import { ChatView } from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../icons";
 
 import { EventPanel } from "./event/EventPanel";

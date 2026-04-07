@@ -6,16 +6,17 @@ import type {
   ContentImage,
   ContentText,
 } from "@tsmono/inspect-common/types";
-import { RecordTree } from "../content/RecordTree";
 import {
   CopyButton,
   ExpandablePanel,
   LabeledValue,
 } from "@tsmono/react/components";
 
+import { RecordTree } from "../content/RecordTree";
+
 import styles from "./ChatMessage.module.css";
-import { Message } from "./messages";
 import { MessageContents } from "./MessageContents";
+import { Message } from "./messages";
 import { ToolOutput } from "./tools/ToolOutput";
 import { ChatViewDisplayOptions, ChatViewLinkingOptions } from "./types";
 
@@ -42,8 +43,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(
 
     const isNonTaskTool =
       message.role === "tool" && message.function !== "Task";
-    const collapse =
-      message.role === "system" || message.role === "user";
+    const collapse = message.role === "system" || message.role === "user";
     const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
     // When the role header is hidden, skip rendering if there's no visible

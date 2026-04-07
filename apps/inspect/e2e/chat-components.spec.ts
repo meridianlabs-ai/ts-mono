@@ -81,7 +81,11 @@ async function openSample(
 test.describe("chat message rendering", () => {
   test("renders user and assistant messages", async ({ page, network }) => {
     await openSample(page, network, [
-      { role: "user", content: "What is the capital of France?", source: "input" },
+      {
+        role: "user",
+        content: "What is the capital of France?",
+        source: "input",
+      },
       {
         role: "assistant",
         content: "The capital of France is Paris.",
@@ -101,14 +105,16 @@ test.describe("chat message rendering", () => {
 
   test("renders system message", async ({ page, network }) => {
     await openSample(page, network, [
-      { role: "system", content: "You are a helpful assistant.", source: "input" },
+      {
+        role: "system",
+        content: "You are a helpful assistant.",
+        source: "input",
+      },
       { role: "user", content: "Hello", source: "input" },
       { role: "assistant", content: "Hi there!", source: "generate" },
     ]);
 
-    await expect(
-      page.getByText("You are a helpful assistant.")
-    ).toBeVisible();
+    await expect(page.getByText("You are a helpful assistant.")).toBeVisible();
   });
 
   test("renders multi-turn conversation in order", async ({
@@ -130,11 +136,15 @@ test.describe("chat message rendering", () => {
       },
     ]);
 
-    await expect(page.getByText("First question from user").first()).toBeVisible();
+    await expect(
+      page.getByText("First question from user").first()
+    ).toBeVisible();
     await expect(
       page.getByText("First response from assistant").first()
     ).toBeVisible();
-    await expect(page.getByText("Second question from user").first()).toBeVisible();
+    await expect(
+      page.getByText("Second question from user").first()
+    ).toBeVisible();
     await expect(
       page.getByText("Second response from assistant").first()
     ).toBeVisible();
@@ -202,8 +212,7 @@ test.describe("tool call rendering", () => {
       },
       {
         role: "assistant",
-        content:
-          "The directory contains file1.txt, file2.txt, and README.md.",
+        content: "The directory contains file1.txt, file2.txt, and README.md.",
         source: "generate",
       },
     ]);
@@ -598,10 +607,7 @@ test.describe("citations rendering", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("inspect-specific features", () => {
-  test("renders message numbers in Messages tab", async ({
-    page,
-    network,
-  }) => {
+  test("renders message numbers in Messages tab", async ({ page, network }) => {
     await openSample(page, network, [
       { role: "user", content: "First user message", source: "input" },
       {
@@ -620,9 +626,7 @@ test.describe("inspect-specific features", () => {
     // Inspect uses numbered messages (not labels like scout)
     // Scope to messages area to avoid matching sample header input
     const messagesArea = page.locator("#messages-contents");
-    await expect(
-      messagesArea.getByText("First user message")
-    ).toBeVisible();
+    await expect(messagesArea.getByText("First user message")).toBeVisible();
     await expect(
       messagesArea.getByText("Second assistant reply")
     ).toBeVisible();
@@ -642,7 +646,8 @@ test.describe("inspect-specific features", () => {
             reasoning: "",
             signature: "sig123",
             redacted: true,
-            summary: "The model considered multiple approaches before deciding.",
+            summary:
+              "The model considered multiple approaches before deciding.",
           },
           {
             type: "text",
@@ -689,9 +694,7 @@ test.describe("inspect-specific features", () => {
       },
     ]);
 
-    await expect(
-      page.getByText("The explanation is complete.")
-    ).toBeVisible();
+    await expect(page.getByText("The explanation is complete.")).toBeVisible();
     // OpenRouter reasoning should be detected and rendered
     await expect(
       page.getByText("Reasoning", { exact: false }).first()

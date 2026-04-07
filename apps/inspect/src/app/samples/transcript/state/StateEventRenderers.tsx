@@ -2,10 +2,10 @@ import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
 
 import { JsonChange } from "@tsmono/inspect-common/types";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { HumanBaselineView, SessionLog } from "@tsmono/react/components";
 
 import { ChatMessages } from "../../../../@types/extraInspect";
-import { ChatView } from "@tsmono/inspect-components/chat";
 
 import styles from "./StateEventRenders.module.css";
 
@@ -50,7 +50,6 @@ const system_msg_added_sig: ChangeType = {
         key="system_msg_event_preview"
         id="system_msg_event_preview"
         messages={[message] as ChatMessages}
-
       />
     );
   },
@@ -101,7 +100,6 @@ const messages: ChangeType = {
         key="system_msg_event_preview"
         id="system_msg_event_preview"
         messages={messages as unknown as ChatMessages}
-
       />
     );
   },
@@ -267,7 +265,6 @@ const createMessageRenderer = (name: string, role: string): ChangeType => {
           key="system_msg_event_preview"
           id="system_msg_event_preview"
           messages={[message] as ChatMessages}
-  
         />
       );
     },

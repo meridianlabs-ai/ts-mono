@@ -6,15 +6,15 @@ import {
   ModelEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
-import { PulsingDots } from "@tsmono/react/components";
-
-import { ApplicationIcons } from "../../appearance/icons";
 import {
   ChatView,
   resolveToolInput,
   substituteToolCallContent,
   ToolCallView,
 } from "@tsmono/inspect-components/chat";
+import { PulsingDots } from "@tsmono/react/components";
+
+import { ApplicationIcons } from "../../appearance/icons";
 
 import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";

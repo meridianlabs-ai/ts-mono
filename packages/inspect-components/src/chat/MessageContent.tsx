@@ -1,8 +1,9 @@
 import clsx from "clsx";
-import { FC, Fragment, ReactNode, useRef } from "react";
 import JSON5 from "json5";
+import { FC, Fragment, ReactNode, useRef } from "react";
 
 import type {
+  Citation,
   ContentAudio,
   ContentData,
   ContentDocument,
@@ -11,12 +12,12 @@ import type {
   ContentText,
   ContentToolUse,
   ContentVideo,
-  Citation,
 } from "@tsmono/inspect-common/types";
-import { RenderedText } from "../content/RenderedText";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isJson } from "@tsmono/util";
+
+import { RenderedText } from "../content/RenderedText";
 
 import { ContentDataView } from "./content-data/ContentDataView";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
@@ -402,9 +403,10 @@ const normalizeContent = (contents: Contents): Contents => {
 
 // This is a helper that makes Omit<> work with a union type by distributing
 // the omit over the union members.
-export type DistributiveOmit<TObj, TKey extends PropertyKey> = TObj extends unknown
-  ? Omit<TObj, TKey>
-  : never;
+export type DistributiveOmit<
+  TObj,
+  TKey extends PropertyKey,
+> = TObj extends unknown ? Omit<TObj, TKey> : never;
 
 /** Type guard that allows narrowing down to Citations whose `cited_text` is a range */
 const isCitationWithRange = (

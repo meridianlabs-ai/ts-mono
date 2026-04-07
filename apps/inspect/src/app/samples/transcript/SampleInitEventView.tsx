@@ -3,13 +3,13 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { SampleInitEvent } from "@tsmono/inspect-common/types";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { toArray } from "@tsmono/util";
 
 import { ChatMessages } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "@tsmono/inspect-components/chat";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -68,9 +68,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
       subTitle={formatDateTime(new Date(event.timestamp))}
     >
       <div data-name="Sample" className={styles.sample}>
-        <ChatView
-          messages={stateObj["messages"] as ChatMessages}
-        />
+        <ChatView messages={stateObj["messages"] as ChatMessages} />
         <div>
           {event.sample.choices
             ? event.sample.choices.map((choice, index) => {

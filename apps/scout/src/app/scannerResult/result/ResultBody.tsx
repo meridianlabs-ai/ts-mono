@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
 
-import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { ApplicationIcons } from "../../../components/icons";
 import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";

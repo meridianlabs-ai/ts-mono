@@ -10,6 +10,8 @@ import {
   ModelEvent,
   ToolChoice,
 } from "@tsmono/inspect-common/types";
+import { ChatView } from "@tsmono/inspect-components/chat";
+import type { Message } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
 import { ANSIDisplay, PulsingDots } from "@tsmono/react/components";
@@ -18,8 +20,6 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 import { ToolInfos } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "@tsmono/inspect-components/chat";
-import type { Message } from "@tsmono/inspect-components/chat";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -181,8 +181,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             id={`${eventNode.id}-model-input-full`}
             messages={[...inputMessages, ...outputMessages]}
             tools={{
-              resolveIntoPreviousMessage:
-                context?.hasToolEvents !== false,
+              resolveIntoPreviousMessage: context?.hasToolEvents !== false,
             }}
           />
         </EventSection>

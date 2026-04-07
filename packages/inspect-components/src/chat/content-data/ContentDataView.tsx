@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { RecordTree } from "../../content/RecordTree";
 import type { ContentData } from "@tsmono/inspect-common/types";
+
+import { RecordTree } from "../../content/RecordTree";
 
 import { CompactionData, kCompactionMetadata } from "./CompactionData";
 import styles from "./ContentDataView.module.css";

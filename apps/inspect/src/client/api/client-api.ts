@@ -1,4 +1,4 @@
-import { EvalSample } from "@tsmono/inspect-common/types";
+import { EvalSample, LogFilesResponse } from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
@@ -13,7 +13,6 @@ import {
   ClientAPI,
   LogContents,
   LogDetails,
-  LogFilesResponse,
   LogPreview,
   LogRoot,
   LogViewAPI,
