@@ -104,7 +104,7 @@
     "@tsmono/react": "workspace:*",
     "@tsmono/util": "workspace:*",
     "ag-grid-community": "^34.3.1",
-    "ag-grid-react": "^34.3.1",
+    "ag-grid-react": "^35.2.1",
     "ansi-output": "^0.0.9",
     "asciinema-player": "^3.15.1",
     "bootstrap": "^5.3.8",
