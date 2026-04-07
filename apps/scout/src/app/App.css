@@ -23,6 +23,9 @@
   --inspect-focus-border-gray-color: #808080;
   --inspect-focus-border-gray-shadow: 0 0 0 0.25rem rgba(48, 48, 48, 0.25);
 
+  /* Sticky turn labels: top offset set dynamically per-view via
+     --inspect-event-panel-sticky-top on TranscriptViewNodes wrapper */
+
   /* Inspect Font Sizes */
   --inspect-font-size-title: 1.5rem;
   --inspect-font-size-title-secondary: 1.3rem;

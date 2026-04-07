@@ -1,22 +1,18 @@
 .stickyWrapper {
   position: sticky;
-  top: var(--inspect-event-panel-sticky-top);
-  padding: 5px 10px 5px 0;
-  margin: var(--inspect-event-panel-sticky-margin);
+  top: var(--inspect-event-panel-sticky-top, 0px);
+  /* Full-bleed: cancel the parent card's padding so the sticky bar
+     spans the entire card width, then re-apply padding internally. */
+  margin: -5px -0.625rem -5px -0.625rem;
+  padding: 5px 0.625rem;
   background-color: transparent;
   z-index: 1;
   border-bottom: solid 1px transparent;
-  border-left: solid 1px transparent;
 }
 
 .stickyWrapper:global([data-useStickyObserver-stuck]) {
   background-color: var(--bs-light);
-  padding-left: 10px;
-  margin-left: var(--inspect-event-panel-sticky-stuck-margin-left);
-  margin-right: var(--inspect-event-panel-sticky-stuck-margin-right);
   border-bottom-color: var(--bs-light-border-subtle);
-  border-left-color: var(--bs-light-border-subtle);
-  border-right-color: var(--bs-light-border-subtle);
 }
 
 .label {

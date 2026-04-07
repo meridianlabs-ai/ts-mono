@@ -15,15 +15,16 @@ const scrollListenerMap = new Map<
 function updateStickyState(container: Element | null, elements: Set<Element>) {
   const containerRect = container?.getBoundingClientRect();
   const containerTop = containerRect?.top ?? 0;
-  const stickyTop =
+  // Read the CSS variable from each element (inherits from closest ancestor that
+  // sets it) rather than document.body, so per-view overrides work correctly.
+  const readStickyTop = (el: Element) =>
     parseFloat(
-      getComputedStyle(document.body).getPropertyValue(
-        "--inspect-event-panel-sticky-top"
-      )
+      getComputedStyle(el).getPropertyValue("--inspect-event-panel-sticky-top")
     ) || 0;
 
   elements.forEach((el) => {
     const rect = el.getBoundingClientRect();
+    const stickyTop = readStickyTop(el);
     // Element is stuck when its top is at or near the sticky position relative to container
     // We check if the element's top (relative to container) is at the sticky position
     const relativeTop = rect.top - containerTop;

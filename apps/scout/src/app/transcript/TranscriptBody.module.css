@@ -42,6 +42,9 @@
 
 .eventsTab {
   display: flex;
+  /* Override TabSet's overflow-y: clip so position: sticky works for
+     turn-label headers inside the transcript virtual list. */
+  overflow-y: visible;
 }
 
 .tabTool {
