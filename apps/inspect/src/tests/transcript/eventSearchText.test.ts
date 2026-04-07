@@ -1,7 +1,7 @@
 import {
   EventNode,
   eventSearchText,
-} from "@tsmono/inspect-components/transcript/pure";
+} from "@tsmono/inspect-components/transcript";
 
 const makeNode = (event: Record<string, unknown>): EventNode => {
   return new EventNode("test-id", event as never, 0);

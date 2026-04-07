@@ -18,11 +18,12 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    "types": ["vitest/globals"],
     "declaration": true,
     "declarationMap": true,
     "outDir": "./lib"
   },
   "files": ["src/vite-env.d.ts"],
   "include": ["src", "e2e"],
-  "exclude": ["node_modules", "dist", "lib", "src/tests/setupTests.mjs"]
+  "exclude": ["node_modules", "dist", "lib"]
 }

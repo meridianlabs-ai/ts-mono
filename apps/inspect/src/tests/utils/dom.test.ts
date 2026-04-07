@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { vi } from "vitest";
 
 import { findScrollableParent, scrollRangeToCenter } from "../../utils/dom";
 
@@ -155,7 +155,7 @@ describe("scrollRangeToCenter", () => {
     range.setEnd(content, 0);
 
     // Mock getClientRects to return empty
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([] as unknown as DOMRectList);
 
@@ -169,20 +169,18 @@ describe("scrollRangeToCenter", () => {
 
     // Mock the necessary methods
     const mockRect = { top: 300, left: 0, width: 100, height: 20 };
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([mockRect] as unknown as DOMRectList);
 
-    const scrollToMock = jest.fn();
+    const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = jest
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range);
 
@@ -197,20 +195,18 @@ describe("scrollRangeToCenter", () => {
     range.selectNodeContents(content);
 
     const mockRect = { top: 300, left: 0, width: 100, height: 20 };
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([mockRect] as unknown as DOMRectList);
 
-    const scrollToMock = jest.fn();
+    const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = jest
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range, { behavior: "smooth" });
 
@@ -222,7 +218,7 @@ describe("scrollRangeToCenter", () => {
 
   test("falls back to scrollIntoView when no scrollable parent and fallback enabled", () => {
     // Mock scrollIntoView globally on HTMLElement prototype since jsdom doesn't have it
-    const scrollIntoViewMock = jest.fn();
+    const scrollIntoViewMock = vi.fn();
     HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
 
     // Create element without scrollable parent
@@ -235,7 +231,7 @@ describe("scrollRangeToCenter", () => {
     range.selectNode(textNode);
 
     const mockRect = { top: 500, left: 0, width: 100, height: 20 };
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([mockRect] as unknown as DOMRectList);
 
@@ -257,11 +253,11 @@ describe("scrollRangeToCenter", () => {
     range.selectNodeContents(standaloneDiv);
 
     const mockRect = { top: 500, left: 0, width: 100, height: 20 };
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([mockRect] as unknown as DOMRectList);
 
-    const scrollIntoViewMock = jest.fn();
+    const scrollIntoViewMock = vi.fn();
     standaloneDiv.scrollIntoView = scrollIntoViewMock;
 
     scrollRangeToCenter(range, { fallbackToScrollIntoView: false });
@@ -275,20 +271,18 @@ describe("scrollRangeToCenter", () => {
 
     // Position the selection near the top so calculated scroll would be negative
     const mockRect = { top: 10, left: 0, width: 100, height: 20 };
-    range.getClientRects = jest
+    range.getClientRects = vi
       .fn<() => DOMRectList>()
       .mockReturnValue([mockRect] as unknown as DOMRectList);
 
-    const scrollToMock = jest.fn();
+    const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = jest
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range);
 
