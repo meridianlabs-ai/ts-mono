@@ -39,10 +39,12 @@ export const eventSearchText = (node: EventNode): string[] => {
       if (toolEvent.view?.title) {
         const resolvedTitle = toolEvent.view.title.replace(
           /\{\{(\w+)\}\}/g,
-          (match, key: string) =>
-            Object.hasOwn(toolEvent.arguments, key)
-              ? String(toolEvent.arguments[key])
-              : match,
+          (match, key: string) => {
+            if (!Object.hasOwn(toolEvent.arguments, key)) return match;
+            const val =
+              toolEvent.arguments[key as keyof typeof toolEvent.arguments];
+            return typeof val === "string" ? val : JSON.stringify(val);
+          }
         );
         texts.push(resolvedTitle);
       }

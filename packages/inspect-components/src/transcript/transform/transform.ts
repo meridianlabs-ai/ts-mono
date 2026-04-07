@@ -172,16 +172,16 @@ type TreeNodeTransformer = {
  */
 const elevateChildNode = (
   node: EventNode,
-  childEventType: "tool" | "subtask",
+  childEventType: "tool" | "subtask"
 ): EventNode | null => {
   // Find the specific event child
   const targetIndex = node.children.findIndex(
-    (child) => child.event.event === childEventType,
+    (child) => child.event.event === childEventType
   );
 
   if (targetIndex === -1) {
     console.log(
-      `No ${childEventType} event found in a span, this is very unexpected.`,
+      `No ${childEventType} event found in a span, this is very unexpected.`
     );
     return null;
   }

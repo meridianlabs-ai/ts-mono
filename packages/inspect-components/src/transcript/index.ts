@@ -55,3 +55,24 @@ export {
   removeNodeVisitor,
   removeStepSpanNameVisitor,
 } from "./outline/tree-visitors";
+
+// Event UI components
+export { EventPanel } from "./event/EventPanel";
+export { EventRow } from "./event/EventRow";
+export { EventSection } from "./event/EventSection";
+export { EventNav } from "./event/EventNav";
+export { EventNavs } from "./event/EventNavs";
+export { EventTimingPanel } from "./event/EventTimingPanel";
+export { EventProgressPanel } from "./event/EventProgressPanel";
+
+// State components
+export { StateDiffView } from "./state/StateDiffView";
+export {
+  RenderableChangeTypes,
+  StoreSpecificRenderableTypes,
+  Tool,
+  Tools,
+} from "./state/StateEventRenderers";
+
+// Hooks
+export { useStickyObserver } from "./useStickyObserver";
