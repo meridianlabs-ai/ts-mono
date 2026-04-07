@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
+import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
 import { transcriptRoute } from "../../../router/url";
@@ -42,6 +43,10 @@ export const ResultBody: FC<ResultBodyProps> = ({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Headroom: collapse swimlanes on scroll-down, expand on scroll-up.
+  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
+    useScrollDirection(scrollRef);
+
   // Get message or event ID from query params
   const initialMessageId = searchParams.get("message");
   const initialEventId = searchParams.get("event");
@@ -76,6 +81,8 @@ export const ResultBody: FC<ResultBodyProps> = ({
           initialMessageId={initialMessageId}
           initialEventId={initialEventId}
           highlightLabeled={highlightLabeled}
+          headroomHidden={headroomHidden}
+          onHeadroomResetAnchor={headroomResetAnchor}
         />
       </div>
     </div>
@@ -90,6 +97,8 @@ interface InputRendererProps {
   initialMessageId?: string | null;
   initialEventId?: string | null;
   highlightLabeled?: boolean;
+  headroomHidden?: boolean;
+  onHeadroomResetAnchor?: (debounce?: boolean) => void;
 }
 
 const containerClass = (
@@ -112,6 +121,8 @@ const InputRenderer: FC<InputRendererProps> = ({
   initialMessageId,
   initialEventId,
   highlightLabeled,
+  headroomHidden,
+  onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
     if (inputData.input.messages && inputData.input.messages.length > 0) {
@@ -145,6 +156,8 @@ const InputRenderer: FC<InputRendererProps> = ({
           id="scan-input-events"
           initialEventId={initialEventId}
           initialMessageId={initialMessageId}
+          headroomHidden={headroomHidden}
+          onHeadroomResetAnchor={onHeadroomResetAnchor}
         />
       );
     } else {
@@ -181,6 +194,8 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialEventId={initialEventId}
         initialMessageId={initialMessageId}
         timeline={false}
+        headroomHidden={headroomHidden}
+        onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );
   } else if (isEventInput(inputData)) {
@@ -192,6 +207,8 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialEventId={initialEventId}
         initialMessageId={initialMessageId}
         timeline={false}
+        headroomHidden={headroomHidden}
+        onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );
   } else {
