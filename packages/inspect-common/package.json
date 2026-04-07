@@ -26,7 +26,7 @@
     "@tsmono/tsconfig": "workspace:*",
     "eslint": "^9.39.2",
     "openapi-typescript": "^7.10.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "typescript-eslint": "^8.50.0",
     "vitest": "^4.0.16"
   }
