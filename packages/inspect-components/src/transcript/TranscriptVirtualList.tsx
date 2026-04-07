@@ -247,6 +247,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<ToolEvent>}
           className={className}
           childNodes={node.children}
+          context={context}
         />
       );
 
