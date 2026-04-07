@@ -1,12 +1,11 @@
 # Testing Structure
 
-This directory contains the test files for the application. The test framework is built using Jest and TypeScript.
+This directory contains the test files for the application. The test framework is built using Vitest and TypeScript.
 
 ## Directory Structure
 
 - `tests/`: Root directory for all tests
-    - `__mocks__/`: Mock files for CSS modules and other assets
-    - `setupTests.mjs`: Setup file for Jest tests
+    - `setupTests.ts`: Setup file for Vitest tests
 
 ## Running Tests
 
@@ -14,13 +13,13 @@ To run the tests, use the following commands:
 
 ```bash
 # Run all tests
-yarn test
+pnpm test
 
 # Run tests in watch mode
-yarn test:watch
+pnpm test:watch
 
 # Run tests with coverage report
-yarn test:coverage
+pnpm test:coverage
 ```
 
 ## Test Philosophy
@@ -44,6 +43,5 @@ When adding new tests:
 
 For mocking external services or components:
 
-1. Create mock files in the `__mocks__` directory
-2. Mock only what's necessary for the test
-3. Use Jest's mocking capabilities to replace dependencies
+1. Mock only what's necessary for the test
+2. Use Vitest's mocking capabilities (`vi.fn()`, `vi.mock()`) to replace dependencies

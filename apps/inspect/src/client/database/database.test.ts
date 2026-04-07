@@ -1,6 +1,6 @@
 /**
  * Automated tests for database functionality
- * Uses fake-indexeddb for testing IndexedDB operations in Jest
+ * Uses fake-indexeddb for testing IndexedDB operations in Vitest
  *
  * Schema v3 structure:
  * - logs: stores results from get_log_files() (LogHandles)
