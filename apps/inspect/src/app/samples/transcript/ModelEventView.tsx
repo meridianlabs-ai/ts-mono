@@ -10,6 +10,8 @@ import {
   ModelEvent,
   ToolChoice,
 } from "@tsmono/inspect-common/types";
+import { ChatView } from "@tsmono/inspect-components/chat";
+import type { Message } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
 import { ANSIDisplay, PulsingDots } from "@tsmono/react/components";
@@ -18,8 +20,6 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 import { ToolInfos } from "../../../@types/extraInspect";
 import { formatDateTime } from "../../../utils/format";
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "../chat/ChatView";
-import { Message } from "../chat/messages";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -126,11 +126,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         <ChatView
           id={`${eventNode.id}-model-output`}
           messages={[...userMessages, ...outputMessages]}
-          numbered={false}
-          toolCallStyle={showToolCalls ? "complete" : "omit"}
-          resolveToolCallsIntoPreviousMessage={context?.hasToolEvents !== false}
-          allowLinking={false}
-          unlabeledRoles={["assistant"]}
+          labels={{ show: false }}
+          tools={{
+            callStyle: showToolCalls ? "complete" : "omit",
+            resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+          }}
+          display={{ unlabeledRoles: ["assistant"] }}
         />
         {event.error ? (
           <div className={styles.error}>
@@ -179,10 +180,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-model-input-full`}
             messages={[...inputMessages, ...outputMessages]}
-            resolveToolCallsIntoPreviousMessage={
-              context?.hasToolEvents !== false
-            }
-            allowLinking={false}
+            tools={{
+              resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+            }}
           />
         </EventSection>
       </div>

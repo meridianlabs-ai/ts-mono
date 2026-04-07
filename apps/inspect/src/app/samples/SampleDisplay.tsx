@@ -13,6 +13,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   RecordTree,
@@ -53,13 +54,13 @@ import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
+  sampleMessageUrl,
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../routing/url";
 import { messagesToStr } from "../shared/messages";
 
-import { ChatViewVirtualList } from "./chat/ChatViewVirtualList";
-import { messagesFromEvents } from "./chat/messages";
+import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleSummaryView } from "./SampleSummaryView";
@@ -192,6 +193,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       urlEpoch,
       navigate,
     ]
+  );
+
+  const setNativeFind = useStore((state) => state.appActions.setNativeFind);
+
+  const getMessageUrl = useCallback(
+    (messageId: string) => {
+      return urlLogPath
+        ? sampleMessageUrl(
+            sampleUrlBuilder,
+            messageId,
+            urlLogPath,
+            urlSampleId,
+            urlEpoch
+          )
+        : undefined;
+    },
+    [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
   const sampleMetadatas = metadataViewsForSample(
@@ -476,9 +494,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 messages={sampleMessages}
                 initialMessageId={sampleDetailNavigation.message}
                 topOffset={tabsHeight}
-                indented={true}
+                display={{
+                  indented: true,
+                  unlabeledRoles: ["assistant"],
+                  formatDateTime,
+                }}
+                linking={{
+                  enabled: true,
+                  getUrl: getMessageUrl,
+                }}
+                onNativeFindChanged={setNativeFind}
                 scrollRef={scrollRef}
-                toolCallStyle="complete"
+                tools={{ callStyle: "complete" }}
                 running={running}
                 className={styles.fullWidth}
               />

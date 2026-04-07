@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
@@ -26,7 +27,6 @@ import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { printHeadingHtml } from "../../utils/print";
-import { ChatView } from "../chat/ChatView";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 import { TranscriptVirtualListComponent } from "../transcript/TranscriptVirtualListComponent";
@@ -171,7 +171,11 @@ export const SamplePrintView: FC = () => {
         <ChatView
           id="print-messages"
           messages={sampleMessages}
-          indented={true}
+          display={{
+            indented: true,
+            unlabeledRoles: ["assistant"],
+            formatDateTime,
+          }}
         />
       )}
 

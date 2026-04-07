@@ -21,6 +21,6 @@ export default {
   },
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node", "mjs"],
-  testPathIgnorePatterns: ["/node_modules/"],
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/e2e/"],
   setupFilesAfterEnv: ["<rootDir>/src/tests/setupTests.mjs"],
 };

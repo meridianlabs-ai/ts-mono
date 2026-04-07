@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   MetaDataGrid,
@@ -23,7 +24,6 @@ import {
   ToolDropdownButton,
 } from "@tsmono/react/components";
 
-import { ChatViewVirtualList } from "../../components/chat/ChatViewVirtualList";
 import { ApplicationIcons } from "../../components/icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
@@ -65,7 +65,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const splitStartRef = useRef<HTMLDivElement | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl } = useTranscriptNavigation();
+  const { getEventUrl, getFullMessageUrl } = useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -288,11 +288,12 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         id={"transcript-id"}
         messages={transcript.messages || []}
         initialMessageId={messageParam}
-        toolCallStyle={"complete"}
-        indented={false}
         className={styles.chatList}
         scrollRef={activeScrollRef}
-        showLabels={true}
+        linking={{
+          enabled: true,
+          getUrl: getFullMessageUrl,
+        }}
       />
     </TabPanel>
   );

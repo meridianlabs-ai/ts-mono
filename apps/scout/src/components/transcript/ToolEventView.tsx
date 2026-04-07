@@ -1,15 +1,15 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
+import {
+  ChatView,
+  resolveToolInput,
+  substituteToolCallContent,
+  ToolCallView,
+} from "@tsmono/inspect-components/chat";
 import { PulsingDots } from "@tsmono/react/components";
 
 import { ApprovalEvent, ModelEvent, ToolEvent } from "../../types/api-types";
-import { ChatView } from "../chat/ChatView";
-import {
-  resolveToolInput,
-  substituteToolCallContent,
-} from "../chat/tools/tool";
-import { ToolCallView } from "../chat/tools/ToolCallView";
 import { ApplicationIcons } from "../icons";
 
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -103,8 +103,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-toolcall-chatmessage`}
             messages={lastModelNode.event.output.choices.map((m) => m.message)}
-            toolCallStyle="compact"
-            allowLinking={false}
+            tools={{ callStyle: "compact" }}
           />
         ) : undefined}
 

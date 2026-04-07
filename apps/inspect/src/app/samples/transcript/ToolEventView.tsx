@@ -6,15 +6,15 @@ import {
   ModelEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import {
+  ChatView,
+  resolveToolInput,
+  substituteToolCallContent,
+  ToolCallView,
+} from "@tsmono/inspect-components/chat";
 import { PulsingDots } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { ChatView } from "../chat/ChatView";
-import {
-  resolveToolInput,
-  substituteToolCallContent,
-} from "../chat/tools/tool";
-import { ToolCallView } from "../chat/tools/ToolCallView";
 
 import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
@@ -46,7 +46,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     : undefined;
 
   // Extract tool input
-  const { input, description, functionCall, contentType } = useMemo(
+  const { name, input, description, functionCall, contentType } = useMemo(
     () => resolveToolInput(event.function, event.arguments),
     [event.function, event.arguments]
   );
@@ -83,6 +83,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       <div data-name="Summary" className={styles.summary}>
         <ToolCallView
           id={`${eventNode.id}-tool-call`}
+          tool={name}
           functionCall={functionCall}
           input={input}
           description={description}
@@ -103,9 +104,8 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           <ChatView
             id={`${eventNode.id}-toolcall-chatmessage`}
             messages={lastModelNode.event.output.choices.map((m) => m.message)}
-            numbered={false}
-            toolCallStyle="compact"
-            allowLinking={false}
+            labels={{ show: false }}
+            tools={{ callStyle: "compact" }}
           />
         ) : undefined}
 

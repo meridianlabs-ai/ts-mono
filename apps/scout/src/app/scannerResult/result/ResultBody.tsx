@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
 
-import { ChatViewVirtualList } from "../../../components/chat/ChatViewVirtualList";
 import { ApplicationIcons } from "../../../components/icons";
 import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";
@@ -128,16 +128,12 @@ const InputRenderer: FC<InputRendererProps> = ({
       return (
         <ChatViewVirtualList
           messages={inputData.input.messages || []}
-          allowLinking={false}
           id={"scan-input-virtual-list"}
-          toolCallStyle={"complete"}
-          indented={true}
+          display={{ indented: true }}
           className={className}
           scrollRef={scrollRef}
           initialMessageId={initialMessageId}
-          showLabels={true}
-          highlightLabeled={highlightLabeled}
-          labels={labels}
+          labels={{ highlight: highlightLabeled, values: labels }}
         />
       );
     } else if (inputData.input.events && inputData.input.events.length > 0) {
@@ -158,10 +154,8 @@ const InputRenderer: FC<InputRendererProps> = ({
     return (
       <ChatViewVirtualList
         messages={inputData.input}
-        allowLinking={false}
         id={"scan-input-virtual-list"}
-        toolCallStyle={"complete"}
-        indented={true}
+        display={{ indented: true }}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}
@@ -171,10 +165,8 @@ const InputRenderer: FC<InputRendererProps> = ({
     return (
       <ChatViewVirtualList
         messages={[inputData.input]}
-        allowLinking={false}
         id={"scan-input-virtual-list"}
-        toolCallStyle={"complete"}
-        indented={true}
+        display={{ indented: true }}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}
