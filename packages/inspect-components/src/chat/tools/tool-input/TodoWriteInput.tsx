@@ -10,26 +10,26 @@ interface ToolTodo {
   status: "pending" | "in_progress" | "completed";
 }
 
+interface RawTodo {
+  content?: string;
+  step?: string;
+  status: string;
+}
+
+const isRawTodo = (item: unknown): item is RawTodo =>
+  typeof item === "object" &&
+  item !== null &&
+  ("content" in item || "step" in item) &&
+  "status" in item;
+
 const toToolTodos = (obj: unknown): ToolTodo[] => {
-  if (
-    Array.isArray(obj) &&
-    obj.every((item) => typeof item === "object") &&
-    obj.every(
-      (item) =>
-        item !== null &&
-        ("content" in item || "step" in item) &&
-        "status" in item
-    )
-  ) {
-    return obj.map((o) => {
-      return {
-        content: o.content || o.step || "",
-        status: o.status as "pending" | "in_progress" | "completed",
-      };
-    });
-  } else {
-    return [];
+  if (Array.isArray(obj) && obj.every(isRawTodo)) {
+    return obj.map((o) => ({
+      content: o.content ?? o.step ?? "",
+      status: o.status as "pending" | "in_progress" | "completed",
+    }));
   }
+  return [];
 };
 
 export const TodoWriteInput: FC<{

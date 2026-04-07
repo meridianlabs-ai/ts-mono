@@ -147,7 +147,7 @@ const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
     // See if this looks like a JSON object
     if (isJson(content.arguments)) {
       try {
-        return JSON.parse(content.arguments);
+        return JSON.parse(content.arguments) as Record<string, unknown>;
       } catch (e) {
         console.warn("Failed to parse arguments as JSON", e);
       }

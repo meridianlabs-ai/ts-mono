@@ -1,4 +1,3 @@
-/* eslint-disable */
 import type { Content } from "@tsmono/inspect-common/types";
 
 import type { ResolvedMessage } from "./messages";

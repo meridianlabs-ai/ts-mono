@@ -80,7 +80,7 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   if (isJson(text)) {
-    const obj = JSON.parse(text);
+    const obj = JSON.parse(text) as Record<string, unknown>;
     return <JsonMessageContent id={`1-json`} json={obj} />;
   }
 

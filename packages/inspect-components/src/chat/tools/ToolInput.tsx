@@ -12,7 +12,7 @@ import styles from "./ToolInput.module.css";
 
 interface ToolInputProps {
   contentType?: string;
-  contents?: unknown | object;
+  contents?: unknown;
   toolCallView?: ToolCallContent;
   className?: string | string[];
 }

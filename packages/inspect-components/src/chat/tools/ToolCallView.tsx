@@ -279,7 +279,10 @@ const normalizeContent = (
         content: [
           {
             type: "text",
-            text: String(output),
+            text:
+              typeof output === "object"
+                ? JSON.stringify(output)
+                : String(output),
             refusal: null,
             internal: null,
             citations: null,

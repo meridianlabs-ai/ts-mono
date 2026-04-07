@@ -46,7 +46,7 @@ interface ChatViewVirtualListComponentProps extends ChatViewVirtualListProps {
 }
 
 export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
-  ({
+  function ChatViewVirtualList({
     id,
     messages,
     initialMessageId,
@@ -59,7 +59,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     labels,
     linking,
     tools,
-  }) => {
+  }: ChatViewVirtualListProps) {
     // Support either virtualized or normal mode rendering based upon message count
     const useVirtuoso = running || messages.length > 200;
     const listHandle = useRef<VirtuosoHandle>(null);
@@ -160,96 +160,94 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
  * Renders the ChatViewVirtualList component.
  */
 export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps> =
-  memo(
-    ({
-      id,
-      listHandle,
-      messages,
-      initialMessageId,
-      topOffset,
-      className,
-      scrollRef,
-      running,
-      display,
-      labels,
-      linking,
-      tools,
-    }) => {
-      const collapsedMessages = useMemo(() => {
-        return resolveMessages(messages);
-      }, [messages]);
+  memo(function ChatViewVirtualListComponent({
+    id,
+    listHandle,
+    messages,
+    initialMessageId,
+    topOffset,
+    className,
+    scrollRef,
+    running,
+    display,
+    labels,
+    linking,
+    tools,
+  }: ChatViewVirtualListComponentProps) {
+    const collapsedMessages = useMemo(() => {
+      return resolveMessages(messages);
+    }, [messages]);
 
-      const initialMessageIndex = useMemo(() => {
-        if (initialMessageId === null || initialMessageId === undefined) {
-          return undefined;
+    const initialMessageIndex = useMemo(() => {
+      if (initialMessageId === null || initialMessageId === undefined) {
+        return undefined;
+      }
+
+      const index = collapsedMessages.findIndex((message) => {
+        const messageId = message.message.id === initialMessageId;
+        if (messageId) {
+          return true;
         }
 
-        const index = collapsedMessages.findIndex((message) => {
-          const messageId = message.message.id === initialMessageId;
-          if (messageId) {
-            return true;
-          }
+        if (message.toolMessages.find((tm) => tm.id === initialMessageId)) {
+          return true;
+        }
+      });
+      return index !== -1 ? index : undefined;
+    }, [initialMessageId, collapsedMessages]);
 
-          if (message.toolMessages.find((tm) => tm.id === initialMessageId)) {
-            return true;
-          }
-        });
-        return index !== -1 ? index : undefined;
-      }, [initialMessageId, collapsedMessages]);
-
-      const renderRow = useCallback(
-        (index: number, item: ResolvedMessage): ReactNode => {
-          return (
-            <ChatMessageRow
-              index={index}
-              parentName={id || "chat-virtual-list"}
-              resolvedMessage={item}
-              highlightUserMessage={true}
-              display={display}
-              labels={labels}
-              linking={linking}
-              tools={tools}
-            />
-          );
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [id, collapsedMessages, display, labels, linking, tools]
-      );
-
-      const Item = ({
-        children,
-        ...props
-      }: ItemProps<unknown> & ContextProp<unknown>) => {
+    const renderRow = useCallback(
+      (index: number, item: ResolvedMessage): ReactNode => {
         return (
-          <div
-            className={clsx(styles.item)}
-            data-index={props["data-index"]}
-            data-item-group-index={props["data-item-group-index"]}
-            data-item-index={props["data-item-index"]}
-            data-known-size={props["data-known-size"]}
-            style={props.style}
-          >
-            {children}
-          </div>
+          <ChatMessageRow
+            index={index}
+            parentName={id || "chat-virtual-list"}
+            resolvedMessage={item}
+            highlightUserMessage={true}
+            display={display}
+            labels={labels}
+            linking={linking}
+            tools={tools}
+          />
         );
-      };
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [id, collapsedMessages, display, labels, linking, tools]
+    );
 
+    const Item = ({
+      children,
+      ...props
+    }: ItemProps<unknown> & ContextProp<unknown>) => {
       return (
-        <LiveVirtualList<ResolvedMessage>
-          id="chat-virtual-list"
-          listHandle={listHandle}
-          className={className}
-          scrollRef={scrollRef}
-          data={collapsedMessages}
-          renderRow={renderRow}
-          initialTopMostItemIndex={initialMessageIndex}
-          offsetTop={topOffset}
-          live={running}
-          showProgress={running}
-          components={{ Item }}
-          animation={false}
-          itemSearchText={messageSearchText}
-        />
+        <div
+          className={clsx(styles.item)}
+          data-index={props["data-index"]}
+          data-item-group-index={props["data-item-group-index"]}
+          data-item-index={props["data-item-index"]}
+          data-known-size={props["data-known-size"]}
+          style={props.style}
+        >
+          {children}
+        </div>
       );
-    }
-  );
+    };
+
+    return (
+      <LiveVirtualList<ResolvedMessage>
+        id="chat-virtual-list"
+        listHandle={listHandle}
+        className={className}
+        scrollRef={scrollRef}
+        data={collapsedMessages}
+        renderRow={renderRow}
+        initialTopMostItemIndex={initialMessageIndex}
+        offsetTop={topOffset}
+        live={running}
+        showProgress={running}
+        components={{ Item }}
+        animation={false}
+        itemSearchText={messageSearchText}
+      />
+    );
+  });

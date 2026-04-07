@@ -129,7 +129,7 @@ interface MessageRenderer {
 
 const messageRenderers: Record<string, MessageRenderer> = {
   text: {
-    render: (key, content, isLast, _context) => {
+    render: (key, content, isLast) => {
       // The context provides a way to share context between different
       // rendering. In this case, we'll use it to keep track of citations
       const c = content as ContentText;
@@ -151,7 +151,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
       };
 
       if (isJson(c.text)) {
-        const obj = JSON.parse(c.text);
+        const obj = JSON.parse(c.text) as Record<string, unknown>;
         return <JsonMessageContent id={`${key}-json`} json={obj} />;
       } else {
         return (
@@ -164,7 +164,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
               )}
             />
             {c.citations && c.citations.length > 0 ? (
-              <MessageCitations citations={c.citations as Citation[]} />
+              <MessageCitations citations={c.citations} />
             ) : undefined}
           </Fragment>
         );
@@ -172,7 +172,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
     },
   },
   reasoning: {
-    render: (key, content, isLast, _context) => {
+    render: (key, content, isLast) => {
       const r = content as ContentReasoning;
 
       // Possible titles
@@ -219,7 +219,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
     },
   },
   image: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentImage;
       if (c.image.startsWith("data:")) {
         return <img src={c.image} className={styles.contentImage} key={key} />;
@@ -229,7 +229,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
     },
   },
   audio: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentAudio;
       return (
         <audio controls key={key}>
@@ -239,7 +239,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
     },
   },
   video: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentVideo;
       return (
         <video width="500" height="375" controls key={key}>
@@ -249,27 +249,27 @@ const messageRenderers: Record<string, MessageRenderer> = {
     },
   },
   tool: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentTool;
       return <ToolOutput output={c.content} key={key} />;
     },
   },
   // server-side tool use
   tool_use: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentToolUse;
       // If the tool use has a tool, render it
       return <ServerToolCall id={key} content={c} />;
     },
   },
   data: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentData;
       return <ContentDataView id={key} contentData={c} />;
     },
   },
   document: {
-    render: (key, content, _isLast, _context) => {
+    render: (key, content) => {
       const c = content as ContentDocument;
       return <ContentDocumentView id={key} document={c} />;
     },
@@ -349,7 +349,7 @@ const normalizeContent = (contents: Contents): Contents => {
           citeCount = citeCount + positionalCites.length;
 
           // Process cites without positions (they just attach to the end of the content)
-          const citeText = endCites?.map((_citation) => `${++citeCount}`);
+          const citeText = endCites?.map(() => `${++citeCount}`);
           let inlineCites = "";
           if (citeText && citeText.length > 0) {
             inlineCites = `<sup>${citeText.join(",")}</sup>`;
@@ -419,11 +419,13 @@ const isOpenRouterReasoning = (text: string): boolean => {
   return text.startsWith("[{'format'");
 };
 
-const jsonParse = <T,>(text: string): T => {
+const jsonParse = (text: string): unknown => {
   try {
-    return JSON.parse(text);
+    const result: unknown = JSON.parse(text);
+    return result;
   } catch {
-    return JSON5.parse(text);
+    const result: unknown = JSON5.parse(text);
+    return result;
   }
 };
 
