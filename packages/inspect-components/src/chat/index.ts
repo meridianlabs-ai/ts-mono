@@ -5,8 +5,6 @@ export type {
   ChatViewLabelOptions,
   ChatViewLinkingOptions,
   ChatViewToolOptions,
-  Citations,
-  Citation,
   ContentTool,
 } from "./types";
 

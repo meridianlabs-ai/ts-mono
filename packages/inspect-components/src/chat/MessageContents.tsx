@@ -5,10 +5,10 @@ import type {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
+  Citation,
 } from "@tsmono/inspect-common/types";
 
 import { MessageContent } from "./MessageContent";
-import type { Citation } from "./types";
 
 interface MessageContentsProps {
   message:

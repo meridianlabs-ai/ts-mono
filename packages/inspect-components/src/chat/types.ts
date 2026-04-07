@@ -1,9 +1,4 @@
-import type {
-  Content,
-  ContentCitation,
-  DocumentCitation,
-  UrlCitation,
-} from "@tsmono/inspect-common/types";
+import type { Content } from "@tsmono/inspect-common/types";
 
 export type ChatViewToolCallStyle = "compact" | "complete" | "omit";
 
@@ -44,11 +39,6 @@ export interface ChatViewToolOptions {
     props: import("./tools/ToolCallView").ToolCallViewProps
   ) => React.ReactNode | undefined;
 }
-
-export type Citations = Array<
-  ContentCitation | DocumentCitation | UrlCitation
-> | null;
-export type Citation = NonNullable<Citations>[number];
 
 export interface ContentTool {
   type: "tool";
