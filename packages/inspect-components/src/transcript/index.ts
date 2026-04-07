@@ -8,6 +8,7 @@ export {
 } from "./types";
 export type {
   EventNodeContext,
+  EventNodeSpan,
   EventType,
   EventTypeValue,
   StateManager,
@@ -110,3 +111,18 @@ export { ToolEventView } from "./ToolEventView";
 
 // Score utilities
 export { ScoreValue, renderScore } from "./ScoreValue";
+
+// Core components
+export {
+  TranscriptVirtualList,
+  RenderedEventNode,
+} from "./TranscriptVirtualList";
+export { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
+
+// Outline components
+export { TranscriptOutline } from "./outline/TranscriptOutline";
+export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
+export {
+  useOutlineWidth,
+  labelForOutlineNode,
+} from "./outline/useOutlineWidth";

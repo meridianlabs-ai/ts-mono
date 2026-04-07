@@ -23,13 +23,13 @@ import { EventNode, EventType } from "./types";
 
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
-  children: EventNode<EventType>[];
+  childNodes: EventNode<EventType>[];
   className?: string | string[];
 }
 
 export const ToolEventView: FC<ToolEventViewProps> = ({
   eventNode,
-  children,
+  childNodes,
   className,
 }) => {
   const event = eventNode.event;
@@ -53,11 +53,11 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   );
 
   const { approvalNode, lastModelNode } = useMemo(() => {
-    const approval = children.find((e) => {
+    const approval = childNodes.find((e) => {
       return e.event.event === "approval";
     });
 
-    const lastModel = children.findLast((e) => {
+    const lastModel = childNodes.findLast((e) => {
       return e.event.event === "model";
     });
 
@@ -80,7 +80,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           : undefined
       }
       icon={TranscriptIcons.solvers.use_tools}
-      childIds={children.map((child) => child.id)}
+      childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
     >
       <div data-name="Summary" className={styles.summary}>

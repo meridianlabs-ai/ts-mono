@@ -90,11 +90,23 @@ export const eventTypeValues = [
 // Derive the type from the array (replaces the indexed access approach)
 export type EventTypeValue = (typeof eventTypeValues)[number];
 
+/**
+ * Minimal span info attached to event nodes by timeline processing.
+ * Set by scout's `attachSourceSpans()`; undefined in inspect.
+ */
+export interface EventNodeSpan {
+  spanType: string;
+  name: string;
+  description?: string;
+}
+
 export class EventNode<T extends EventType = EventType> {
   id: string;
   event: T;
   children: EventNode<EventType>[] = [];
   depth: number;
+  /** Timeline span info, attached by app-level processing. */
+  sourceSpan?: EventNodeSpan;
 
   constructor(id: string, event: T, depth: number) {
     this.id = id;

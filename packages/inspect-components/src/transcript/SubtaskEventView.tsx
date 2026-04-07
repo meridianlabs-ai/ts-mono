@@ -13,13 +13,13 @@ const kArrowRightIcon = "bi bi-arrow-right";
 
 interface SubtaskEventViewProps {
   eventNode: EventNode<SubtaskEvent>;
-  children: EventNode<EventType>[];
+  childNodes: EventNode<EventType>[];
   className?: string | string[];
 }
 
 export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
   eventNode,
-  children,
+  childNodes,
   className,
 }) => {
   const event = eventNode.event;
@@ -58,7 +58,7 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
           ? formatTiming(event.timestamp, event.working_start)
           : undefined
       }
-      childIds={children.map((child) => child.id)}
+      childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
     >
       {body}

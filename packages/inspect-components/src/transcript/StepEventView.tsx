@@ -10,13 +10,13 @@ import { EventNode, EventType } from "./types";
 
 interface StepEventViewProps {
   eventNode: EventNode<StepEvent>;
-  children: EventNode<EventType>[];
+  childNodes: EventNode<EventType>[];
   className?: string | string[];
 }
 
 export const StepEventView: FC<StepEventViewProps> = ({
   eventNode,
-  children,
+  childNodes,
   className,
 }) => {
   const event = eventNode.event;
@@ -24,13 +24,13 @@ export const StepEventView: FC<StepEventViewProps> = ({
   const title =
     descriptor.name ||
     `${event.type ? event.type + ": " : "Step: "}${event.name}`;
-  const text = summarize(children);
+  const text = summarize(childNodes);
 
   return (
     <EventPanel
       eventNodeId={eventNode.id}
       muted
-      childIds={children.map((child) => child.id)}
+      childIds={childNodes.map((child) => child.id)}
       className={clsx("transcript-step", className)}
       title={title}
       subTitle={

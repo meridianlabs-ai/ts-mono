@@ -1,0 +1,54 @@
+.eventRow {
+  display: grid;
+  grid-template-columns: 0.7em 1fr;
+  column-gap: 0.25em;
+  cursor: pointer;
+  padding-left: 0.7em;
+}
+
+.eventRow.selected {
+  font-weight: 800;
+}
+
+.eventRow .toggle {
+  font-size: 0.7em;
+  margin-top: 4px;
+}
+
+.eventLink {
+  color: var(--bs-body-color);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.eventLink:hover {
+  text-decoration: underline;
+  color: var(--bs-link-hover-color);
+}
+
+.label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iconSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  margin-right: 0.3em;
+}
+
+.eventRow.selected .iconSlot {
+  opacity: 1;
+}
+
+.progress {
+  margin-left: 0.3em !important;
+}
+
+.popover {
+  min-width: 300px;
+  max-width: 80%;
+}
