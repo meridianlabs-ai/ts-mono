@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { findScrollableParent, scrollRangeToCenter } from "../../utils/dom";
 
@@ -175,14 +175,12 @@ describe("scrollRangeToCenter", () => {
 
     const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range);
 
@@ -203,14 +201,12 @@ describe("scrollRangeToCenter", () => {
 
     const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range, { behavior: "smooth" });
 
@@ -281,14 +277,12 @@ describe("scrollRangeToCenter", () => {
 
     const scrollToMock = vi.fn();
     scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue({
-        top: 0,
-        left: 0,
-        width: 400,
-        height: 200,
-      } as DOMRect);
+    scrollable.getBoundingClientRect = vi.fn<() => DOMRect>().mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 200,
+    } as DOMRect);
 
     scrollRangeToCenter(range);
 
