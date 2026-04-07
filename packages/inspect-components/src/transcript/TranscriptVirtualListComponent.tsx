@@ -17,9 +17,9 @@ import { LiveVirtualList } from "@tsmono/react/components";
 import { eventSearchText } from "./eventSearchText";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
-import { EventNode, EventNodeContext } from "./types";
+import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
-interface TranscriptVirtualListComponentProps {
+interface TranscriptVirtualListComponentProps extends EventPanelCallbacks {
   id: string;
   listHandle: RefObject<VirtuosoHandle | null>;
   eventNodes: EventNode[];
@@ -57,6 +57,10 @@ export const TranscriptVirtualListComponent: FC<
   onNativeFindChanged,
   onAutoCollapse,
   renderAgentCard,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const useVirtualization =
     !disableVirtualization && (running || eventNodes.length > 100);
@@ -182,11 +186,24 @@ export const TranscriptVirtualListComponent: FC<
             context={context}
             onAutoCollapse={onAutoCollapse}
             renderAgentCard={renderAgentCard}
+            onCollapse={onCollapse}
+            getCollapsed={getCollapsed}
+            getEventUrl={getEventUrl}
+            linkingEnabled={linkingEnabled}
           />
         </div>
       );
     },
-    [eventNodes, contextMap, onAutoCollapse, renderAgentCard]
+    [
+      eventNodes,
+      contextMap,
+      onAutoCollapse,
+      renderAgentCard,
+      onCollapse,
+      getCollapsed,
+      getEventUrl,
+      linkingEnabled,
+    ]
   );
 
   if (useVirtualization) {

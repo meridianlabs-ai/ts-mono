@@ -42,9 +42,9 @@ import { StepEventView } from "./StepEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
 import { ToolEventView } from "./ToolEventView";
 import { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
-import { EventNode, EventNodeContext } from "./types";
+import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
-interface TranscriptVirtualListProps {
+interface TranscriptVirtualListProps extends EventPanelCallbacks {
   id: string;
   eventNodes: EventNode[];
   listHandle: RefObject<VirtuosoHandle | null>;
@@ -83,6 +83,10 @@ const TranscriptVirtualListInner: FC<TranscriptVirtualListProps> = (props) => {
       onNativeFindChanged={props.onNativeFindChanged}
       onAutoCollapse={props.onAutoCollapse}
       renderAgentCard={props.renderAgentCard}
+      onCollapse={props.onCollapse}
+      getCollapsed={props.getCollapsed}
+      getEventUrl={props.getEventUrl}
+      linkingEnabled={props.linkingEnabled}
     />
   );
 };
@@ -90,7 +94,7 @@ TranscriptVirtualListInner.displayName = "TranscriptVirtualList";
 
 export const TranscriptVirtualList = memo(TranscriptVirtualListInner);
 
-interface RenderedEventNodeProps {
+interface RenderedEventNodeProps extends EventPanelCallbacks {
   node: EventNode;
   next?: EventNode;
   className?: string | string[];
@@ -112,6 +116,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
   context,
   onAutoCollapse,
   renderAgentCard,
+  onCollapse,
+  getCollapsed,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   switch (node.event.event) {
     case "sample_init":
@@ -169,6 +177,8 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           showToolCalls={next?.event.event !== "tool"}
           className={className}
           context={context}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 
@@ -194,6 +204,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StateEvent>}
           className={className}
           onAutoCollapse={onAutoCollapse}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 
@@ -210,6 +224,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<SpanBeginEvent>}
           childNodes={node.children}
           className={className}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
     }
@@ -220,6 +238,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StepEvent>}
           childNodes={node.children}
           className={className}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 
@@ -229,6 +251,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StoreEvent>}
           className={className}
           onAutoCollapse={onAutoCollapse}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 
@@ -238,6 +264,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<SubtaskEvent>}
           className={className}
           childNodes={node.children}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 
@@ -248,6 +278,10 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           className={className}
           childNodes={node.children}
           context={context}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       );
 

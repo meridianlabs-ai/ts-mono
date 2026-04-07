@@ -27,6 +27,8 @@ interface ModelEventViewProps {
   className?: string | string[];
   showToolCalls: boolean;
   context?: EventNodeContext;
+  getEventUrl?: (eventId: string) => string | undefined;
+  linkingEnabled?: boolean;
 }
 
 export const ModelEventView: FC<ModelEventViewProps> = ({
@@ -34,6 +36,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   showToolCalls,
   className,
   context,
+  getEventUrl,
+  linkingEnabled,
 }) => {
   const event = eventNode.event;
   const totalUsage = event.output.usage?.total_tokens;
@@ -104,6 +108,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       }
       icon={TranscriptIcons.model}
       turnLabel={turnLabel}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
     >
       <div data-name="Summary" className={styles.container}>
         <ChatView
@@ -115,7 +121,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           }}
           labels={{ show: false }}
         />
-        {event.pending ? (
+        {event.error ? (
+          <EventSection title="Error">
+            <div className={styles.error}>{event.error}</div>
+          </EventSection>
+        ) : event.pending ? (
           <div className={clsx(styles.progress)}>
             <PulsingDots subtle={false} size="medium" />
           </div>

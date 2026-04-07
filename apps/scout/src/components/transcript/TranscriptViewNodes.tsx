@@ -46,6 +46,8 @@ interface TranscriptViewNodesProps {
     className?: string | string[]
   ) => ReactNode;
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
+  getEventUrl?: (eventId: string) => string | undefined;
+  linkingEnabled?: boolean;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -70,6 +72,8 @@ export const TranscriptViewNodes = forwardRef<
     className,
     renderAgentCard,
     turnMap,
+    getEventUrl,
+    linkingEnabled,
   },
   ref
 ) {
@@ -77,6 +81,26 @@ export const TranscriptViewNodes = forwardRef<
 
   // The list of events that have been collapsed
   const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
+  const setTranscriptCollapsedEvent = useStore(
+    (state) => state.setTranscriptCollapsedEvent
+  );
+
+  const onCollapse = useCallback(
+    (nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(kTranscriptCollapseScope, nodeId, collapsed);
+    },
+    [setTranscriptCollapsedEvent]
+  );
+
+  const getCollapsed = useCallback(
+    (nodeId: string) => {
+      const scopeEvents = collapsedEvents?.[kTranscriptCollapseScope] as
+        | Record<string, boolean>
+        | undefined;
+      return scopeEvents?.[nodeId] === true;
+    },
+    [collapsedEvents]
+  );
 
   const filteredEventNodes = nodeFilter ? nodeFilter(eventNodes) : eventNodes;
 
@@ -212,6 +236,10 @@ export const TranscriptViewNodes = forwardRef<
           initialEventId={initialEventId}
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
+          onCollapse={onCollapse}
+          getCollapsed={getCollapsed}
+          getEventUrl={getEventUrl}
+          linkingEnabled={linkingEnabled}
         />
       </div>
     </StickyScrollProvider>

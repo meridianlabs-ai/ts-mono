@@ -173,6 +173,130 @@ export const eventSearchText = (node: EventNode): string[] => {
       }
       break;
     }
+
+    case "score": {
+      const scoreEvent = event;
+      if (scoreEvent.score.answer) {
+        texts.push(scoreEvent.score.answer);
+      }
+      if (scoreEvent.score.explanation) {
+        texts.push(scoreEvent.score.explanation);
+      }
+      if (scoreEvent.score.value !== undefined) {
+        const val = scoreEvent.score.value;
+        texts.push(typeof val === "string" ? val : JSON.stringify(val));
+      }
+      if (scoreEvent.target) {
+        if (typeof scoreEvent.target === "string") {
+          texts.push(scoreEvent.target);
+        } else if (Array.isArray(scoreEvent.target)) {
+          texts.push(...scoreEvent.target);
+        }
+      }
+      break;
+    }
+
+    case "score_edit": {
+      const scoreEditEvent = event;
+      if (scoreEditEvent.score_name) {
+        texts.push(scoreEditEvent.score_name);
+      }
+      if (
+        scoreEditEvent.edit.answer &&
+        scoreEditEvent.edit.answer !== "UNCHANGED"
+      ) {
+        texts.push(scoreEditEvent.edit.answer);
+      }
+      if (
+        scoreEditEvent.edit.explanation &&
+        scoreEditEvent.edit.explanation !== "UNCHANGED"
+      ) {
+        texts.push(scoreEditEvent.edit.explanation);
+      }
+      break;
+    }
+
+    case "sample_init": {
+      const sampleInitEvent = event;
+      const sample = sampleInitEvent.sample;
+      if (sample.target) {
+        if (typeof sample.target === "string") {
+          texts.push(sample.target);
+        } else {
+          texts.push(JSON.stringify(sample.target));
+        }
+      }
+      if (sample.metadata && Object.keys(sample.metadata).length > 0) {
+        texts.push(JSON.stringify(sample.metadata));
+      }
+      break;
+    }
+
+    case "sample_limit": {
+      const sampleLimitEvent = event;
+      if (sampleLimitEvent.message) {
+        texts.push(sampleLimitEvent.message);
+      }
+      if (sampleLimitEvent.type) {
+        texts.push(sampleLimitEvent.type);
+      }
+      break;
+    }
+
+    case "input": {
+      const inputEvent = event;
+      if (inputEvent.input) {
+        texts.push(inputEvent.input);
+      }
+      break;
+    }
+
+    case "approval": {
+      const approvalEvent = event;
+      if (approvalEvent.decision) {
+        texts.push(approvalEvent.decision);
+      }
+      if (approvalEvent.explanation) {
+        texts.push(approvalEvent.explanation);
+      }
+      if (approvalEvent.approver) {
+        texts.push(approvalEvent.approver);
+      }
+      break;
+    }
+
+    case "sandbox": {
+      const sandboxEvent = event;
+      if (sandboxEvent.action) {
+        texts.push(sandboxEvent.action);
+      }
+      if (sandboxEvent.cmd) {
+        texts.push(sandboxEvent.cmd);
+      }
+      if (sandboxEvent.output) {
+        texts.push(sandboxEvent.output);
+      }
+      if (sandboxEvent.file) {
+        texts.push(sandboxEvent.file);
+      }
+      break;
+    }
+
+    case "state":
+    case "store": {
+      const stateEvent = event;
+      for (const change of stateEvent.changes) {
+        texts.push(change.path);
+        if (change.value !== undefined) {
+          texts.push(
+            typeof change.value === "string"
+              ? change.value
+              : JSON.stringify(change.value)
+          );
+        }
+      }
+      break;
+    }
   }
 
   return texts;

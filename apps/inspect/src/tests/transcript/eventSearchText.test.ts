@@ -8,28 +8,188 @@ const makeNode = (event: Record<string, unknown>): EventNode => {
 };
 
 describe("eventSearchText", () => {
-  test("score: returns empty for score events (no searchable fields)", () => {
+  test("score: includes answer, explanation, and value", () => {
     const texts = eventSearchText(
       makeNode({
         event: "score",
         score: { answer: "yes", explanation: "partial", value: 0.5 },
-        target: null,
+        target: "correct answer",
         intermediate: true,
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toEqual([]);
+    expect(texts).toContain("yes");
+    expect(texts).toContain("partial");
+    expect(texts).toContain("0.5");
+    expect(texts).toContain("correct answer");
   });
 
-  test("score_edit: returns empty for score_edit events", () => {
+  test("score: includes array target", () => {
     const texts = eventSearchText(
       makeNode({
-        event: "score_edit",
-        edit: { answer: "new", explanation: "fixed", provenance: null },
+        event: "score",
+        score: { answer: null, explanation: null, value: 1 },
+        target: ["a", "b"],
+        intermediate: false,
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toEqual([]);
+    expect(texts).toContain("a");
+    expect(texts).toContain("b");
+  });
+
+  test("score_edit: includes score_name and edit fields", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "score_edit",
+        score_name: "accuracy",
+        edit: {
+          answer: "new answer",
+          explanation: "fixed reasoning",
+          provenance: null,
+        },
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("accuracy");
+    expect(texts).toContain("new answer");
+    expect(texts).toContain("fixed reasoning");
+  });
+
+  test("score_edit: excludes UNCHANGED fields", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "score_edit",
+        score_name: "accuracy",
+        edit: {
+          answer: "UNCHANGED",
+          explanation: "UNCHANGED",
+          provenance: null,
+        },
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("accuracy");
+    expect(texts).not.toContain("UNCHANGED");
+  });
+
+  test("sample_init: includes target and metadata", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sample_init",
+        sample: {
+          target: "expected output",
+          metadata: { category: "math" },
+          input: "question",
+        },
+        state: {},
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("expected output");
+    expect(texts.some((t) => t.includes("math"))).toBe(true);
+  });
+
+  test("sample_limit: includes message and type", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sample_limit",
+        message: "Token limit exceeded",
+        type: "token",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("Token limit exceeded");
+    expect(texts).toContain("token");
+  });
+
+  test("input: includes input text", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "input",
+        input: "user typed this",
+        input_ansi: "user typed this",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("user typed this");
+  });
+
+  test("approval: includes decision, explanation, and approver", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "approval",
+        decision: "approve",
+        explanation: "looks safe",
+        approver: "human-in-loop",
+        message: "Allow file write?",
+        call: {},
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("approve");
+    expect(texts).toContain("looks safe");
+    expect(texts).toContain("human-in-loop");
+  });
+
+  test("sandbox: includes action, cmd, output, and file", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sandbox",
+        action: "exec",
+        cmd: "ls -la",
+        output: "total 42",
+        file: null,
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("exec");
+    expect(texts).toContain("ls -la");
+    expect(texts).toContain("total 42");
+  });
+
+  test("sandbox: includes file for read/write actions", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sandbox",
+        action: "read_file",
+        cmd: null,
+        output: "file contents",
+        file: "/tmp/test.txt",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("read_file");
+    expect(texts).toContain("/tmp/test.txt");
+  });
+
+  test("state: includes change paths and values", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "state",
+        changes: [
+          { op: "replace", path: "/messages/0/content", value: "hello" },
+          { op: "add", path: "/count", value: 42 },
+        ],
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("/messages/0/content");
+    expect(texts).toContain("hello");
+    expect(texts).toContain("/count");
+    expect(texts).toContain("42");
+  });
+
+  test("store: includes change paths and values", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "store",
+        changes: [{ op: "add", path: "/key", value: "val" }],
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("/key");
+    expect(texts).toContain("val");
   });
 
   test("model: includes model name", () => {
@@ -225,7 +385,7 @@ describe("eventSearchText", () => {
   test("unknown event: returns empty array", () => {
     const texts = eventSearchText(
       makeNode({
-        event: "state",
+        event: "span_end",
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
