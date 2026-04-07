@@ -10,13 +10,13 @@ import { EventNode, EventType } from "./types";
 
 interface SpanEventViewProps {
   eventNode: EventNode<SpanBeginEvent>;
-  children: EventNode<EventType>[];
+  childNodes: EventNode<EventType>[];
   className?: string | string[];
 }
 
 export const SpanEventView: FC<SpanEventViewProps> = ({
   eventNode,
-  children,
+  childNodes,
   className,
 }) => {
   const event = eventNode.event;
@@ -25,8 +25,11 @@ export const SpanEventView: FC<SpanEventViewProps> = ({
     descriptor.name ||
     `${event.type ? event.type + ": " : "Step: "}${event.name}`;
 
-  const text = useMemo(() => summarize(children), [children]);
-  const childIds = useMemo(() => children.map((child) => child.id), [children]);
+  const text = useMemo(() => summarize(childNodes), [childNodes]);
+  const childIds = useMemo(
+    () => childNodes.map((child) => child.id),
+    [childNodes]
+  );
 
   return (
     <EventPanel
