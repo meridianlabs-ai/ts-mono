@@ -2,6 +2,18 @@ import clsx from "clsx";
 import { FC, memo, RefObject, useEffect, useMemo, useRef } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import {
+  flatTree as flattenTree,
+  hasSpans,
+  kSandboxSignalName,
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
+  makeTurns,
+  noScorerChildren,
+  removeNodeVisitor,
+  removeStepSpanNameVisitor,
+  TranscriptVirtualList,
+} from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useCollapsedState } from "@tsmono/react/hooks";
 
@@ -11,22 +23,8 @@ import { ApplicationIcons } from "../../appearance/icons";
 import { useLogRouteParams } from "../../routing/url";
 
 import { TranscriptOutline } from "./outline/TranscriptOutline";
-import {
-  makeTurns,
-  noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
-} from "./outline/tree-visitors";
 import styles from "./TranscriptPanel.module.css";
-import { TranscriptVirtualList } from "./TranscriptVirtualList";
-import { kSandboxSignalName } from "./transform/fixups";
-import { flatTree as flattenTree } from "./transform/flatten";
 import { useEventNodes } from "./transform/hooks";
-import { hasSpans } from "./transform/utils";
-import {
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
-} from "./types";
 
 interface TranscriptPanelProps {
   id: string;

@@ -6,12 +6,16 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import {
+  EventNode,
+  fixupEventStream,
+  kCollapsibleEventTypes,
+  kSandboxSignalName,
+  treeifyEvents,
+} from "@tsmono/inspect-components/transcript";
+import type { EventType } from "@tsmono/inspect-components/transcript";
 
 import { Events } from "../../../../@types/extraInspect";
-import { EventNode, EventType, kCollapsibleEventTypes } from "../types";
-
-import { fixupEventStream, kSandboxSignalName } from "./fixups";
-import { treeifyEvents } from "./treeify";
 
 export const useEventNodes = (events: Events, running: boolean) => {
   // Normalize Events in a flattened filtered list
