@@ -1,4 +1,5 @@
 import { TextDecoder, TextEncoder } from "util";
+import { describe, expect, it } from "vitest";
 
 import { clearLargeEventsArray } from "../../utils/clear-events-preprocessor";
 

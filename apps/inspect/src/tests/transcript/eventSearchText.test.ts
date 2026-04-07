@@ -1,3 +1,5 @@
+import { describe, expect, test } from "vitest";
+
 import { eventSearchText } from "../../app/samples/transcript/eventSearchText";
 import { EventNode } from "../../app/samples/transcript/types";
 

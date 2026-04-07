@@ -1,6 +1,6 @@
 import { TextDecoder, TextEncoder } from "util";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 // Setup fake IndexedDB for database tests
 import "fake-indexeddb/auto";
 

@@ -5,6 +5,7 @@
  * from splat paths. The parsing logic is extracted here as pure functions to
  * avoid React Router dependencies in tests.
  */
+import { describe, expect, test } from "vitest";
 
 // Constants copied from src/constants.ts to avoid import chain issues
 const kSampleTabIds = [
