@@ -6,7 +6,6 @@ settings:
 
 overrides:
   yaml: ^2.4.2
-  ajv: ^6.14.0
   react-popper>react: ^19.2.0
   react-popper>react-dom: ^19.1.1
   glob: ^10.5.0
@@ -3138,7 +3137,7 @@ packages:
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
     peerDependencies:
-      ajv: ^6.14.0
+      ajv: ^8.5.0
     peerDependenciesMeta:
       ajv:
         optional: true
@@ -3146,13 +3145,16 @@ packages:
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
     peerDependencies:
-      ajv: ^6.14.0
+      ajv: ^8.0.0
     peerDependenciesMeta:
       ajv:
         optional: true
 
   ajv@6.14.0:
     resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
+
+  ajv@8.18.0:
+    resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
 
   alien-signals@0.4.14:
     resolution: {integrity: sha512-itUAVzhczTmP2U5yX67xVpsbbOiquusbWVyA9N+sy6+r6YVbFkahXvNCeEPWEOMhwDYwbVbGHFkVL03N9I5g+Q==}
@@ -7844,7 +7846,7 @@ snapshots:
   '@microsoft/tsdoc-config@0.18.1':
     dependencies:
       '@microsoft/tsdoc': 0.16.0
-      ajv: 6.14.0
+      ajv: 8.18.0
       jju: 1.4.0
       resolve: 1.22.11
 
@@ -8083,9 +8085,9 @@ snapshots:
 
   '@rushstack/node-core-library@5.20.3(@types/node@22.19.15)':
     dependencies:
-      ajv: 6.14.0
-      ajv-draft-04: 1.0.0(ajv@6.14.0)
-      ajv-formats: 3.0.1(ajv@6.14.0)
+      ajv: 8.18.0
+      ajv-draft-04: 1.0.0(ajv@8.18.0)
+      ajv-formats: 3.0.1(ajv@8.18.0)
       fs-extra: 11.3.3
       import-lazy: 4.0.0
       jju: 1.4.0
@@ -8096,9 +8098,9 @@ snapshots:
 
   '@rushstack/node-core-library@5.20.3(@types/node@24.10.13)':
     dependencies:
-      ajv: 6.14.0
-      ajv-draft-04: 1.0.0(ajv@6.14.0)
-      ajv-formats: 3.0.1(ajv@6.14.0)
+      ajv: 8.18.0
+      ajv-draft-04: 1.0.0(ajv@8.18.0)
+      ajv-formats: 3.0.1(ajv@8.18.0)
       fs-extra: 11.3.3
       import-lazy: 4.0.0
       jju: 1.4.0
@@ -8857,13 +8859,13 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ajv-draft-04@1.0.0(ajv@6.14.0):
+  ajv-draft-04@1.0.0(ajv@8.18.0):
     optionalDependencies:
-      ajv: 6.14.0
+      ajv: 8.18.0
 
-  ajv-formats@3.0.1(ajv@6.14.0):
+  ajv-formats@3.0.1(ajv@8.18.0):
     optionalDependencies:
-      ajv: 6.14.0
+      ajv: 8.18.0
 
   ajv@6.14.0:
     dependencies:
@@ -8871,6 +8873,13 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
+
+  ajv@8.18.0:
+    dependencies:
+      fast-deep-equal: 3.1.3
+      fast-uri: 3.1.0
+      json-schema-traverse: 1.0.0
+      require-from-string: 2.0.2
 
   alien-signals@0.4.14: {}
 
