@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
@@ -108,12 +108,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
-  // Get sample tab from URL if available
-  const { sampleTabId } = useParams<{ sampleTabId?: string }>();
-
-  // Use sampleTabId from URL if available, otherwise use the one from state
-  const effectiveSelectedTab = sampleTabId || selectedTab;
-
   // Navigation hook for URL updates
   const navigate = useNavigate();
 
@@ -159,7 +153,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     logPath: urlLogPath,
     id: urlSampleId,
     epoch: urlEpoch,
+    sampleTabId,
   } = useLogOrSampleRouteParams();
+
+  // Use sampleTabId from parsed route if available, otherwise use the one from state
+  const effectiveSelectedTab = sampleTabId || selectedTab;
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -353,7 +351,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (selectedTab === kSampleTranscriptTabId) {
+  if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
       : isDebugFilter
