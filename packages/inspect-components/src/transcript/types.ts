@@ -109,3 +109,12 @@ export interface TranscriptEventState {
 }
 
 export type TranscriptState = Record<string, TranscriptEventState>;
+
+/**
+ * Context passed to event view components by the virtual list renderer.
+ * Merged from scout (hasToolEvents) and inspect (turnInfo).
+ */
+export interface EventNodeContext {
+  hasToolEvents?: boolean;
+  turnInfo?: { turnNumber: number; totalTurns: number };
+}

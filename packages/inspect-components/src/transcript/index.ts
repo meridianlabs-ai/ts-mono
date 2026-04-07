@@ -7,6 +7,7 @@ export {
   kTranscriptOutlineCollapseScope,
 } from "./types";
 export type {
+  EventNodeContext,
   EventType,
   EventTypeValue,
   StateManager,
@@ -76,3 +77,36 @@ export {
 
 // Hooks
 export { useStickyObserver } from "./useStickyObserver";
+
+// Icons
+export { TranscriptIcons } from "./icons";
+
+// Context
+export {
+  TimelineSelectContext,
+  useTimelineSelect,
+} from "./TimelineSelectContext";
+export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
+
+// Event view components
+export { ApprovalEventView } from "./ApprovalEventView";
+export { BranchEventView } from "./BranchEventView";
+export { CompactionEventView } from "./CompactionEventView";
+export { ErrorEventView } from "./ErrorEventView";
+export { InfoEventView } from "./InfoEventView";
+export { InputEventView } from "./InputEventView";
+export { LoggerEventView } from "./LoggerEventView";
+export { ModelEventView } from "./ModelEventView";
+export { SampleInitEventView } from "./SampleInitEventView";
+export { SampleLimitEventView } from "./SampleLimitEventView";
+export { SandboxEventView } from "./SandboxEventView";
+export { ScoreEditEventView } from "./ScoreEditEventView";
+export { ScoreEventView } from "./ScoreEventView";
+export { SpanEventView } from "./SpanEventView";
+export { StateEventView } from "./state/StateEventView";
+export { StepEventView } from "./StepEventView";
+export { SubtaskEventView } from "./SubtaskEventView";
+export { ToolEventView } from "./ToolEventView";
+
+// Score utilities
+export { ScoreValue, renderScore } from "./ScoreValue";
