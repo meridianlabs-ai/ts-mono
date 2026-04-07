@@ -19,18 +19,20 @@ import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ToolEventView.module.css";
-import { EventNode, EventType } from "./types";
+import { EventNode, EventNodeContext, EventType } from "./types";
 
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
+  context?: EventNodeContext;
 }
 
 export const ToolEventView: FC<ToolEventViewProps> = ({
   eventNode,
   childNodes,
   className,
+  context,
 }) => {
   const event = eventNode.event;
 
@@ -69,6 +71,11 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   }, [event.events]);
 
   const title = `Tool: ${resolvedView?.title || name}`;
+
+  const turnLabel = context?.turnInfo
+    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
+    : undefined;
+
   return (
     <EventPanel
       eventNodeId={eventNode.id}
@@ -82,6 +89,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       icon={TranscriptIcons.solvers.use_tools}
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
+      turnLabel={turnLabel}
     >
       <div data-name="Summary" className={styles.summary}>
         <ToolCallView
