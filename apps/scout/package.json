@@ -46,10 +46,10 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@msw/playwright": "^0.4.5",
-    "@playwright/test": "^1.58.2",
-    "@tanstack/react-query": "^5.90.12",
-    "@tanstack/react-query-devtools": "^5.91.1",
+    "@msw/playwright": "^0.6.7",
+    "@playwright/test": "^1.59.1",
+    "@tanstack/react-query": "^5.96.2",
+    "@tanstack/react-query-devtools": "^5.96.2",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/inspect-common": "workspace:*",
@@ -68,7 +68,7 @@
     "eslint": "^9.39.2",
     "eventsource": "^4.1.0",
     "jsdom": "^27.3.0",
-    "msw": "^2.12.10",
+    "msw": "^2.13.0",
     "openapi-typescript": "^7.10.1",
     "postcss-url": "^10.1.3",
     "prettier": "^3.7.4",
@@ -76,17 +76,17 @@
     "react-dom": "^19.2.3",
     "typed-css-modules": "^0.9.1",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.50.0",
+    "typescript-eslint": "^8.58.0",
     "typescript-plugin-css-modules": "^5.2.0",
     "vite": "^7.3.2",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.16",
+    "vitest": "^4.1.3",
     "zstd-codec": "^0.1.5"
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.12",
+    "@tanstack/react-virtual": "^3.13.23",
     "@tsmono/inspect-components": "workspace:*",
     "@tsmono/react": "workspace:*",
     "@tsmono/util": "workspace:*",
@@ -110,8 +110,8 @@
     "mathjax-full": "^3.2.2",
     "prismjs": "^1.30.0",
     "react-popper": "^2.3.0",
-    "react-router-dom": "^7.11.0",
-    "react-virtuoso": "^4.18.0",
-    "zustand": "^5.0.9"
+    "react-router-dom": "^7.14.0",
+    "react-virtuoso": "^4.18.4",
+    "zustand": "^5.0.12"
   }
 }
