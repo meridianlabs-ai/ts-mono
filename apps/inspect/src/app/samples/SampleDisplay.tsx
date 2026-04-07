@@ -54,6 +54,7 @@ import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
+  sampleMessageUrl,
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../routing/url";
@@ -192,6 +193,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       urlEpoch,
       navigate,
     ]
+  );
+
+  const setNativeFind = useStore((state) => state.appActions.setNativeFind);
+
+  const getMessageUrl = useCallback(
+    (messageId: string) => {
+      return urlLogPath
+        ? sampleMessageUrl(
+            sampleUrlBuilder,
+            messageId,
+            urlLogPath,
+            urlSampleId,
+            urlEpoch
+          )
+        : undefined;
+    },
+    [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
   const sampleMetadatas = metadataViewsForSample(
@@ -476,7 +494,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 messages={sampleMessages}
                 initialMessageId={sampleDetailNavigation.message}
                 topOffset={tabsHeight}
-                display={{ indented: true }}
+                display={{
+                  indented: true,
+                  unlabeledRoles: ["assistant"],
+                  formatDateTime,
+                }}
+                linking={{
+                  enabled: true,
+                  getUrl: getMessageUrl,
+                }}
+                onNativeFindChanged={setNativeFind}
                 scrollRef={scrollRef}
                 tools={{ callStyle: "complete" }}
                 running={running}

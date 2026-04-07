@@ -247,12 +247,7 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
               },
             ],
           } as ContentTool;
-        } else if (con.type === "text") {
-          return {
-            content: [con],
-            type: "tool",
-          } as ContentTool;
-        } else if (con.type === "image") {
+        } else if (con.type !== "tool_use") {
           return {
             content: [con],
             type: "tool",

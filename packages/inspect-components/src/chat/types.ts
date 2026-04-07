@@ -1,7 +1,6 @@
 import type {
+  Content,
   ContentCitation,
-  ContentImage,
-  ContentText,
   DocumentCitation,
   UrlCitation,
 } from "@tsmono/inspect-common/types";
@@ -53,5 +52,5 @@ export type Citation = NonNullable<Citations>[number];
 
 export interface ContentTool {
   type: "tool";
-  content: (ContentImage | ContentText)[];
+  content: Exclude<Content, { type: "tool_use" }>[];
 }

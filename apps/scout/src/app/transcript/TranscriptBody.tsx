@@ -65,7 +65,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const splitStartRef = useRef<HTMLDivElement | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl } = useTranscriptNavigation();
+  const { getEventUrl, getFullMessageUrl } = useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -290,6 +290,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialMessageId={messageParam}
         className={styles.chatList}
         scrollRef={activeScrollRef}
+        linking={{
+          enabled: true,
+          getUrl: getFullMessageUrl,
+        }}
       />
     </TabPanel>
   );

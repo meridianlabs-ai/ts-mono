@@ -171,7 +171,11 @@ export const SamplePrintView: FC = () => {
         <ChatView
           id="print-messages"
           messages={sampleMessages}
-          display={{ indented: true }}
+          display={{
+            indented: true,
+            unlabeledRoles: ["assistant"],
+            formatDateTime,
+          }}
         />
       )}
 
