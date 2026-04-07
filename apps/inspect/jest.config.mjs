@@ -11,6 +11,11 @@ export default {
       "ts-jest",
       {
         useESM: true,
+        tsconfig: {
+          rootDir: ".",
+          moduleResolution: "bundler",
+          ignoreDeprecations: "6.0",
+        },
       },
     ],
   },
