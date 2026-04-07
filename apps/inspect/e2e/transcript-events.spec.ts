@@ -224,8 +224,6 @@ function createSpanEndEvent(
     uuid: overrides?.uuid ?? id,
     id,
     span_id: overrides?.span_id ?? id,
-    name: "turn",
-    type: "turn",
     timestamp: "2025-01-15T10:00:05Z",
     working_start: 5,
     pending: false,

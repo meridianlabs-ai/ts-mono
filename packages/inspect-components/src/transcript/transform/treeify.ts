@@ -36,7 +36,7 @@ const treeifyWithSpans = (events: Event[], depth: number): EventNode[] => {
 
   const processEvent = (
     event: EventType,
-    parentOverride?: EventNode | null,
+    parentOverride?: EventNode | null
   ) => {
     if (event.event === SPAN_END) {
       return;
@@ -121,7 +121,7 @@ const createNodeFactory = (depth: number): NodeFactory => {
 
   const createNode = (
     event: EventType,
-    parent: EventNode | null,
+    parent: EventNode | null
   ): EventNode => {
     const parentKey = parent ?? null;
     const nextIndex = childCounts.get(parentKey) ?? 0;
@@ -151,7 +151,7 @@ const createNodeFactory = (depth: number): NodeFactory => {
 
 const resolveParentForEvent = (
   event: EventType,
-  spanNodes: Map<string, EventNode>,
+  spanNodes: Map<string, EventNode>
 ): EventNode | null => {
   if (event.event === SPAN_BEGIN) {
     const parentId = event.parent_id;
@@ -210,7 +210,7 @@ const injectScorersSpan = (events: Event[]): Event[] => {
                 ? event.parent_id || kScorersSpanId
                 : null,
           };
-        },
+        }
       );
 
       const endSpan: SpanEndEvent = {

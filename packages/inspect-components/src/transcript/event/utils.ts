@@ -34,11 +34,11 @@ export const eventTitle = (event: EventType): string => {
     case "tool": {
       let title = event.view?.title || event.function;
       if (event.view?.title) {
-        title = title.replace(/\{\{(\w+)\}\}/g, (match, key: string) =>
-          Object.hasOwn(event.arguments, key)
-            ? String(event.arguments[key])
-            : match,
-        );
+        title = title.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
+          if (!Object.hasOwn(event.arguments, key)) return match;
+          const val = event.arguments[key as keyof typeof event.arguments];
+          return typeof val === "string" ? val : JSON.stringify(val);
+        });
       }
       return `Tool: ${title}`;
     }
@@ -102,7 +102,7 @@ export const formatTitle = (
   title: string,
   total_tokens?: number,
   working_start?: number | null,
-  role?: string,
+  role?: string
 ) => {
   const titleWithRole = role ? `${title} – ${role} –` : title;
   const subItems: string[] = [];

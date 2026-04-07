@@ -89,7 +89,7 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
           uuid: null,
           metadata: null,
         },
-        modelNode.depth,
+        modelNode.depth
       );
 
       // Add the original model event and tool events as children
@@ -135,7 +135,7 @@ export const collapseTurns = (eventNodes: EventNode[]): EventNode[] => {
           name: `${numberOfTurns} ${numberOfTurns === 1 ? "turn" : "turns"}`,
           type: kTurnsType,
         },
-        firstTurn.depth,
+        firstTurn.depth
       );
       results.push(turnNode);
       collecting.length = 0;
@@ -176,7 +176,7 @@ export const collapseScoring = (eventNodes: EventNode[]): EventNode[] => {
           name: "scoring",
           type: kCollapsedScoring,
         },
-        firstScore.depth,
+        firstScore.depth
       );
       results.push(turnNode);
       collecting.length = 0;
