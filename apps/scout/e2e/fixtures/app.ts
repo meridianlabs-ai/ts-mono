@@ -1,4 +1,4 @@
-import { createNetworkFixture, type NetworkFixture } from "@msw/playwright";
+import { defineNetworkFixture, type NetworkFixture } from "@msw/playwright";
 import { test as base } from "@playwright/test";
 
 import { defaultHandlers } from "./handlers";
@@ -60,9 +60,19 @@ export const test = base.extend<AppFixtures>({
   },
 
   // Wire up MSW handlers via @msw/playwright
-  network: createNetworkFixture({
-    initialHandlers: defaultHandlers,
-  }),
+  network: [
+    async ({ context }, use) => {
+      const network = defineNetworkFixture({
+        context,
+        handlers: defaultHandlers,
+      });
+
+      await network.enable();
+      await use(network);
+      await network.disable();
+    },
+    { auto: true },
+  ],
 
   // Opt-in fixture: destructure in a test to disable React Query retries
   disableRetries: [
