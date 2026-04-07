@@ -38,9 +38,9 @@
     "json5": "^2.2.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-virtuoso": "^4.18.0",
+    "react-virtuoso": "^4.18.4",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0",
-    "vitest": "^4.0.16"
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.3"
   }
 }

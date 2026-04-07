@@ -24,9 +24,9 @@
     "@popperjs/core": "^2.11.8",
     "@tsmono/util": "workspace:*",
     "ansi-output": "^0.0.9",
-    "asciinema-player": "^3.13.5",
+    "asciinema-player": "^3.15.1",
     "clsx": "^2.1.1",
-    "lodash-es": "^4.17.23",
+    "lodash-es": "^4.18.1",
     "markdown-it": "^14.1.1",
     "markdown-it-mathjax3": "^5.2.0",
     "react-popper": "^2.3.0"
@@ -42,9 +42,9 @@
     "react-virtuoso": "^4.0.0"
   },
   "devDependencies": {
-    "@storybook/react": "^10.2.9",
-    "@storybook/react-vite": "^10.2.9",
-    "@tanstack/react-query": "^5.90.12",
+    "@storybook/react": "^10.3.4",
+    "@storybook/react-vite": "^10.3.4",
+    "@tanstack/react-query": "^5.96.2",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
@@ -63,11 +63,11 @@
     "prismjs": "^1.30.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router-dom": "^7.11.0",
-    "react-virtuoso": "^4.18.0",
-    "storybook": "^10.2.9",
+    "react-router-dom": "^7.14.0",
+    "react-virtuoso": "^4.18.4",
+    "storybook": "^10.3.4",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0",
-    "vitest": "^4.0.16"
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.3"
   }
 }

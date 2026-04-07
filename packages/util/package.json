@@ -20,7 +20,7 @@
     "apache-arrow": "^21.1.0",
     "arquero": "^8.0.3",
     "json5": "^2.2.3",
-    "lodash-es": "^4.17.23",
+    "lodash-es": "^4.18.1",
     "lz4js": "^0.2.0"
   },
   "devDependencies": {
@@ -32,10 +32,10 @@
     "arquero": "^8.0.3",
     "eslint": "^9.39.2",
     "json5": "^2.2.3",
-    "lodash-es": "^4.17.23",
+    "lodash-es": "^4.18.1",
     "lz4js": "^0.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0",
-    "vitest": "^4.0.16"
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.3"
   }
 }
