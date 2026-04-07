@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import {
   forwardRef,
+  ReactNode,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -9,12 +10,19 @@ import {
 } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import {
+  flatTree,
+  kTranscriptCollapseScope,
+  TranscriptVirtualList,
+} from "@tsmono/inspect-components/transcript";
+import type {
+  EventNode,
+  EventType,
+} from "@tsmono/inspect-components/transcript";
+
 import { useStore } from "../../state/store";
 
 import styles from "./TranscriptViewNodes.module.css";
-import { TranscriptVirtualList } from "./TranscriptVirtualList";
-import { flatTree } from "./transform/flatten";
-import { EventNode, EventType, kTranscriptCollapseScope } from "./types";
 
 interface TranscriptViewNodesProps {
   id: string;
@@ -25,6 +33,10 @@ interface TranscriptViewNodesProps {
   initialEventId?: string | null;
   offsetTop?: number;
   className?: string | string[];
+  renderAgentCard?: (
+    node: EventNode,
+    className?: string | string[]
+  ) => ReactNode;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -47,6 +59,7 @@ export const TranscriptViewNodes = forwardRef<
     initialEventId,
     offsetTop = 10,
     className,
+    renderAgentCard,
   },
   ref
 ) {
@@ -149,6 +162,7 @@ export const TranscriptViewNodes = forwardRef<
       offsetTop={offsetTop}
       className={clsx(styles.listContainer, className)}
       initialEventId={initialEventId}
+      renderAgentCard={renderAgentCard}
     />
   );
 });

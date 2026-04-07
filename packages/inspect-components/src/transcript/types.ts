@@ -95,7 +95,7 @@ export type EventTypeValue = (typeof eventTypeValues)[number];
  * Set by scout's `attachSourceSpans()`; undefined in inspect.
  */
 export interface EventNodeSpan {
-  spanType: string;
+  spanType: string | null;
   name: string;
   description?: string;
 }

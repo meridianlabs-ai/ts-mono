@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { EventType } from "../../components/transcript/types";
+import type { EventType } from "@tsmono/inspect-components/transcript";
+
 import {
   AppConfig,
   ChatMessage,

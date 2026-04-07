@@ -1,10 +1,14 @@
 import { FC } from "react";
 
+import type {
+  EventNode,
+  EventType,
+} from "@tsmono/inspect-components/transcript";
+
 import { Event } from "../../types/api-types";
 
 import { useEventNodes } from "./hooks/useEventNodes";
 import { TranscriptViewNodes } from "./TranscriptViewNodes";
-import { EventNode, EventType } from "./types";
 
 interface TranscriptViewProps {
   id: string;
