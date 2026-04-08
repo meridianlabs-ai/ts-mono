@@ -2,8 +2,10 @@ import clsx from "clsx";
 import { FC, useRef } from "react";
 
 import { ErrorPanel, StickyScrollProvider } from "@tsmono/react/components";
+import { useStatefulScrollPosition } from "@tsmono/react/hooks";
 
 import { useSampleData } from "../../state/hooks";
+import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
 
@@ -43,8 +45,11 @@ export const InlineSampleComponent: FC<InlineSampleDisplayProps> = ({
       ? sampleData.downloadProgress.complete / sampleData.downloadProgress.total
       : undefined;
 
-  // Scroll ref
+  // Scroll ref — key by active tab so each tab restores independently
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sampleTab = useStore((state) => state.app.tabs.sample);
+  useStatefulScrollPosition(scrollRef, `inline-sample-scroller-${sampleTab}`);
+
   return (
     <div className={clsx(className, styles.container)}>
       <div className={clsx(styles.scroller)} ref={scrollRef}>
