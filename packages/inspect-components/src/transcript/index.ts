@@ -122,6 +122,12 @@ export {
 } from "./TranscriptVirtualList";
 export { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 
+export {
+  TranscriptViewNodes,
+  type TranscriptViewNodesHandle,
+  type TranscriptViewNodesProps,
+} from "./TranscriptViewNodes";
+
 // Outline components
 export { TranscriptOutline } from "./outline/TranscriptOutline";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
