@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
@@ -31,6 +31,7 @@ import {
   TranscriptOutline,
   TranscriptVirtualList,
   useEventNodes,
+  useTimelineConfig,
   useTranscriptTimeline,
   type TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
@@ -38,6 +39,7 @@ import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import {
   useCollapsedState,
   useListKeyboardNavigation,
+  useScrollDirection,
 } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
@@ -100,6 +102,12 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, [events, filteredEventTypes]);
 
   // ---------------------------------------------------------------------------
+  // Timeline config (persistent user preferences for markers, branches, etc.)
+  // ---------------------------------------------------------------------------
+
+  const timelineConfig = useTimelineConfig();
+
+  // ---------------------------------------------------------------------------
   // Timeline pipeline (only active when timelines are provided)
   // ---------------------------------------------------------------------------
 
@@ -143,13 +151,14 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     highlightedKeys,
   } = useTranscriptTimeline(
     filteredEvents,
-    undefined, // markerConfig — use default
-    undefined, // timelineOptions — use default
+    timelineConfig.markerConfig,
+    timelineConfig.agentConfig,
     serverTimelines,
     { timelineProps, activeTimelineProps }
   );
 
-  const showSwimlanes = hasTimeline || regionCounts.size > 0;
+  const showSwimlanes =
+    hasTimeline || regionCounts.size > 0 || builtTimelines.length > 1;
 
   // When timeline is active, use the selected (scoped) events;
   // otherwise fall back to the full filtered set.
@@ -295,6 +304,18 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   });
 
   // ---------------------------------------------------------------------------
+  // Headroom: collapse swimlanes on scroll-down, expand on scroll-up
+  // ---------------------------------------------------------------------------
+
+  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
+    useScrollDirection(scrollRef);
+
+  const onHeadroomResetAnchor = useCallback(
+    (debounce?: boolean) => headroomResetAnchor(debounce),
+    [headroomResetAnchor]
+  );
+
+  // ---------------------------------------------------------------------------
   // Sticky swimlane height tracking
   // ---------------------------------------------------------------------------
 
@@ -412,6 +433,24 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
 
   // ---------------------------------------------------------------------------
+  // Marker navigation (branch markers, error markers, etc.)
+  // ---------------------------------------------------------------------------
+
+  const navigate = useNavigate();
+
+  const onMarkerNavigate = useCallback(
+    (eventId: string, selectedKey?: string) => {
+      const url = getEventUrl(eventId);
+      if (!url) return;
+      if (selectedKey) {
+        setTimelineSelected(selectedKey);
+      }
+      void navigate(url);
+    },
+    [getEventUrl, navigate, setTimelineSelected]
+  );
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -450,6 +489,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                     selection: minimapSelection,
                     mapping: rootTimeMapping,
                   },
+                  timelineConfig,
                   timelineSelector:
                     builtTimelines.length > 1
                       ? {
@@ -459,7 +499,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                         }
                       : undefined,
                 }}
+                onMarkerNavigate={onMarkerNavigate}
                 isSticky={isSwimLaneSticky}
+                headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
+                onLayoutShift={onHeadroomResetAnchor}
+                defaultCollapsed={hasTimeline ? false : undefined}
                 regionCounts={regionCounts}
                 highlightedKeys={highlightedKeys}
               />

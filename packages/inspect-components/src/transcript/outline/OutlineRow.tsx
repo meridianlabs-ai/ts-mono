@@ -85,7 +85,9 @@ export const OutlineRow: FC<OutlineRowProps> = ({
           )}
           {eventUrl ? (
             renderLink ? (
-              renderLink(eventUrl, labelText)
+              <span className={clsx(styles.eventLink)}>
+                {renderLink(eventUrl, labelText)}
+              </span>
             ) : (
               <a href={eventUrl} className={clsx(styles.eventLink)}>
                 {labelText}

@@ -1126,7 +1126,7 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={topY}
           x2={`${markerLeft}%`}
           y2={midY + 0.5}
-          stroke="var(--vscode-descriptionForeground)"
+          stroke="var(--vscode-descriptionForeground, #717171)"
           strokeWidth={1}
         />
         {/* Horizontal segment: from marker position rightward to branch bar */}
@@ -1135,7 +1135,7 @@ const BranchConnectorLine: FC<{ connector: BranchConnector }> = ({
           y1={midY}
           x2={`${endLeft}%`}
           y2={midY}
-          stroke="var(--vscode-descriptionForeground)"
+          stroke="var(--vscode-descriptionForeground, #717171)"
           strokeWidth={1}
         />
       </svg>

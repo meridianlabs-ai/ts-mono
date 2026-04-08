@@ -20,6 +20,7 @@ export const kDefaultExcludeEvents = [
   "sandbox",
   "state",
   "store",
+  "branch",
 ];
 
 export interface SampleSlice {
