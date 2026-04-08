@@ -161,6 +161,10 @@ export interface SampleState {
   eventFilter: EventFilter;
 
   selectedOutlineId?: string;
+
+  // Timeline swimlane state
+  timelineSelected: string | null;
+  activeTimelineIndex: number;
 }
 
 export type Event =

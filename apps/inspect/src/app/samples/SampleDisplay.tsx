@@ -478,6 +478,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 topOffset={tabsHeight}
                 running={running}
                 scrollRef={scrollRef}
+                timelines={sample?.timelines ?? undefined}
               />
             </TabPanel>
             <TabPanel

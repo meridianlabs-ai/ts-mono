@@ -60,6 +60,9 @@ export interface SampleSlice {
     setSelectedOutlineId: (id: string) => void;
     clearSelectedOutlineId: () => void;
 
+    setTimelineSelected: (selected: string | null) => void;
+    setActiveTimelineIndex: (index: number) => void;
+
     // Used by useSampleLoader to clear state for running samples
     clearSampleForPolling: (
       logFile: string,
@@ -106,6 +109,9 @@ const initialState: SampleState = {
 
   collapsedIdBuckets: {},
   selectedOutlineId: undefined,
+
+  timelineSelected: null,
+  activeTimelineIndex: 0,
 };
 
 export const createSampleSlice = (
@@ -170,6 +176,8 @@ export const createSampleSlice = (
           state.sample.runningEvents = [];
           state.sample.sampleStatus = "ok";
           state.sample.downloadProgress = undefined;
+          state.sample.timelineSelected = null;
+          state.sample.activeTimelineIndex = 0;
           state.log.selectedSampleHandle = undefined;
         });
       },
@@ -186,6 +194,8 @@ export const createSampleSlice = (
           state.sample.runningEvents = [];
           state.sample.sampleStatus = "loading";
           state.sample.sampleError = undefined;
+          state.sample.timelineSelected = null;
+          state.sample.activeTimelineIndex = 0;
           state.sample.sample_identifier = { logFile, id, epoch };
         });
       },
@@ -286,6 +296,16 @@ export const createSampleSlice = (
       clearSelectedOutlineId: () => {
         set((state) => {
           state.sample.selectedOutlineId = undefined;
+        });
+      },
+      setTimelineSelected: (selected: string | null) => {
+        set((state) => {
+          state.sample.timelineSelected = selected;
+        });
+      },
+      setActiveTimelineIndex: (index: number) => {
+        set((state) => {
+          state.sample.activeTimelineIndex = index;
         });
       },
       clearSampleForPolling: (
