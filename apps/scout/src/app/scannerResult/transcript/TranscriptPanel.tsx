@@ -4,7 +4,7 @@ import { FC, useRef } from "react";
 import { EventNode } from "@tsmono/inspect-components/transcript";
 import type { EventType } from "@tsmono/inspect-components/transcript";
 
-import { TranscriptView } from "../../../components/transcript/TranscriptView";
+import { TranscriptView } from "../../../components/TranscriptView";
 import { ScanResultData } from "../../types";
 
 import styles from "./TranscriptPanel.module.css";

@@ -1,14 +1,14 @@
-import { FC } from "react";
+import { FC, useCallback } from "react";
 
 import {
+  TranscriptViewNodes,
   useEventNodes,
   type EventNode,
   type EventType,
 } from "@tsmono/inspect-components/transcript";
 
-import { Event } from "../../types/api-types";
-
-import { TranscriptViewNodes } from "./TranscriptViewNodes";
+import { useStore } from "../state/store";
+import { Event } from "../types/api-types";
 
 interface TranscriptViewProps {
   id: string;
@@ -27,10 +27,21 @@ export const TranscriptView: FC<TranscriptViewProps> = ({
   initialEventId,
   className,
 }) => {
-  // The list of events that have been collapsed
   const { eventNodes, defaultCollapsedIds } = useEventNodes(
     events || [],
     false
+  );
+
+  const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
+  const setTranscriptCollapsedEvent = useStore(
+    (state) => state.setTranscriptCollapsedEvent
+  );
+
+  const onCollapse = useCallback(
+    (scope: string, nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(scope, nodeId, collapsed);
+    },
+    [setTranscriptCollapsedEvent]
   );
 
   return (
@@ -42,6 +53,8 @@ export const TranscriptView: FC<TranscriptViewProps> = ({
       scrollRef={scrollRef}
       initialEventId={initialEventId}
       className={className}
+      collapsedEvents={collapsedEvents}
+      onCollapse={onCollapse}
     />
   );
 };

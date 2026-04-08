@@ -28,25 +28,23 @@ import {
   TimelineSelectContext,
   TimelineSwimLanes,
   TranscriptOutline,
+  TranscriptViewNodes,
   useEventNodes,
   type MarkerConfig,
   type TimelineSpan,
+  type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
-import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
-import {
-  TranscriptViewNodes,
-  type TranscriptViewNodesHandle,
-} from "../../../components/transcript/TranscriptViewNodes";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import { useScrubberProgress } from "../hooks/useScrubberPercent";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineConfig } from "../hooks/useTimelineConfig";
 import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
+import { resolveMessageToEvent } from "../resolveMessageToEvent";
 
 import styles from "./TimelineEventsView.module.css";
 
@@ -713,6 +711,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
               onRangeChanged={handleRangeChanged}
+              collapsedEvents={outlineCollapsedEvents}
+              onCollapse={setOutlineCollapsedEvent}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />
