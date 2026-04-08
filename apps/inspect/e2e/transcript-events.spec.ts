@@ -14,8 +14,6 @@ import type {
   ModelEvent,
   ModelOutput,
   ScoreEvent,
-  SpanBeginEvent,
-  SpanEndEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -196,42 +194,6 @@ function createErrorEvent(
   };
 }
 
-function createSpanBeginEvent(
-  overrides?: Partial<SpanBeginEvent> & { uuid?: string; id?: string }
-): SpanBeginEvent {
-  const id = overrides?.id ?? overrides?.uuid ?? "span-begin-1";
-  return {
-    event: "span_begin",
-    uuid: overrides?.uuid ?? id,
-    id,
-    name: overrides?.name ?? "turn",
-    type: (overrides as { type?: string })?.type ?? "turn",
-    timestamp: "2025-01-15T10:00:00Z",
-    working_start: 0,
-    parent_id: null,
-    pending: false,
-    metadata: null,
-    ...overrides,
-  };
-}
-
-function createSpanEndEvent(
-  overrides?: Partial<SpanEndEvent> & { uuid?: string; id?: string }
-): SpanEndEvent {
-  const id = overrides?.id ?? overrides?.uuid ?? "span-end-1";
-  return {
-    event: "span_end",
-    uuid: overrides?.uuid ?? id,
-    id,
-    span_id: overrides?.span_id ?? id,
-    timestamp: "2025-01-15T10:00:05Z",
-    working_start: 5,
-    pending: false,
-    metadata: null,
-    ...overrides,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -357,64 +319,29 @@ test.describe("transcript event rendering", () => {
     ).toBeVisible();
   });
 
-  test("model event with turn label from span structure", async ({
-    page,
-    network,
-  }) => {
-    // Create turn spans wrapping model events — span_begin needs `id` field
-    // and child events need `span_id` matching the parent span's `id`.
+  test("model events show turn labels", async ({ page, network }) => {
     const events: Events = [
-      createSpanBeginEvent({
-        uuid: "span-turn-1",
-        id: "span-turn-1",
-        name: "turn",
-        type: "turn" as string,
-        parent_id: null,
+      createModelEvent({
+        uuid: "model-turn-1",
+        startSec: 0,
+        endSec: 3,
+        content: "First turn response",
       }),
-      {
-        ...createModelEvent({
-          uuid: "model-in-turn-1",
-          startSec: 0,
-          endSec: 3,
-          content: "First turn response",
-        }),
-        span_id: "span-turn-1",
-      },
-      createSpanEndEvent({
-        uuid: "span-turn-1-end",
-        id: "span-turn-1",
-        span_id: "span-turn-1",
-      }),
-      createSpanBeginEvent({
-        uuid: "span-turn-2",
-        id: "span-turn-2",
-        name: "turn",
-        type: "turn" as string,
-        parent_id: null,
-      }),
-      {
-        ...createModelEvent({
-          uuid: "model-in-turn-2",
-          startSec: 3,
-          endSec: 6,
-          content: "Second turn response",
-        }),
-        span_id: "span-turn-2",
-      },
-      createSpanEndEvent({
-        uuid: "span-turn-2-end",
-        id: "span-turn-2",
-        span_id: "span-turn-2",
+      createModelEvent({
+        uuid: "model-turn-2",
+        startSec: 3,
+        endSec: 6,
+        content: "Second turn response",
       }),
     ];
 
-    await openTranscript(page, network, events);
+    await openTranscript(page, network, events, { messages: [] });
 
     // Both model events should render
     await expect(page.getByText("First turn response").first()).toBeVisible();
     await expect(page.getByText("Second turn response").first()).toBeVisible();
 
-    // Turn labels should appear (format: "turn 1/2", "turn 2/2")
+    // Turn labels should appear
     await expect(page.getByText("turn 1/2").first()).toBeVisible();
     await expect(page.getByText("turn 2/2").first()).toBeVisible();
   });
