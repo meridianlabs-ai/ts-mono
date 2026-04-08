@@ -60,6 +60,13 @@ interface LiveVirtualListProps<T> {
   // If not provided, will use JSON.stringify as fallback
   // Return a string or array of strings to search within
   itemSearchText?: (item: T) => string | string[];
+
+  // Called when the visible range changes (includes totalCount from data)
+  onRangeChanged?: (range: {
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }) => void;
 }
 
 /**
@@ -78,6 +85,7 @@ export const LiveVirtualList = <T,>({
   offsetTop,
   components,
   itemSearchText,
+  onRangeChanged,
   animation = true,
 }: LiveVirtualListProps<T>) => {
   // The list handle and list state management
@@ -454,6 +462,10 @@ export const LiveVirtualList = <T,>({
       isScrolling={handleScrollingChange}
       rangeChanged={(range) => {
         setVisibleRange(range);
+        onRangeChanged?.({
+          ...range,
+          totalCount: data.length,
+        });
       }}
       skipAnimationFrameInResizeObserver={true}
       restoreStateFrom={getRestoreState()}

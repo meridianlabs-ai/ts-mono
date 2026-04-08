@@ -13,6 +13,7 @@ import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { LiveVirtualList } from "@tsmono/react/components";
+import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { ChatView } from "./ChatView";
@@ -69,59 +70,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       onNativeFindChanged?.(!useVirtuoso);
     }, [onNativeFindChanged, useVirtuoso]);
 
-    useEffect(() => {
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.metaKey || event.ctrlKey) {
-          if (event.key === "ArrowUp") {
-            if (useVirtuoso) {
-              listHandle.current?.scrollToIndex({
-                index: 0,
-                align: "center",
-              });
-            } else {
-              scrollRef?.current?.scrollTo({ top: 0, behavior: "instant" });
-            }
-            event.preventDefault();
-          } else if (event.key === "ArrowDown") {
-            if (useVirtuoso) {
-              listHandle.current?.scrollToIndex({
-                index: Math.max(messages.length - 5, 0),
-                align: "center",
-              });
-
-              // This is needed to allow measurement to complete before finding
-              // the last item to scroll to it properly. The timing isn't magical sadly
-              // it is just a heuristic.
-              setTimeout(() => {
-                listHandle.current?.scrollToIndex({
-                  index: messages.length - 1,
-                  align: "end",
-                });
-              }, 250);
-            } else {
-              scrollRef?.current?.scrollTo({
-                top: scrollRef.current.scrollHeight,
-                behavior: "instant",
-              });
-            }
-            event.preventDefault();
-          }
-        }
-      };
-
-      const scrollElement = scrollRef?.current;
-      if (scrollElement) {
-        scrollElement.addEventListener("keydown", handleKeyDown);
-        // Make the element focusable so it can receive keyboard events
-        if (!scrollElement.hasAttribute("tabIndex")) {
-          scrollElement.setAttribute("tabIndex", "0");
-        }
-
-        return () => {
-          scrollElement.removeEventListener("keydown", handleKeyDown);
-        };
-      }
-    }, [scrollRef, messages, useVirtuoso]);
+    useListKeyboardNavigation({
+      listHandle,
+      scrollRef,
+      itemCount: messages.length,
+    });
 
     if (!useVirtuoso) {
       return (

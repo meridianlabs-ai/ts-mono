@@ -86,7 +86,7 @@ export function useStatefulScrollPosition<
 
       if (!tryRestoreScroll()) {
         let attempts = 0;
-        const maxAttempts = 5;
+        const maxAttempts = 20;
 
         const pollForRender = () => {
           if (tryRestoreScroll() || attempts >= maxAttempts) {
@@ -99,10 +99,10 @@ export function useStatefulScrollPosition<
           }
 
           attempts++;
-          setTimeout(pollForRender, 1000);
+          setTimeout(pollForRender, 100);
         };
 
-        setTimeout(pollForRender, 1000);
+        setTimeout(pollForRender, 100);
       }
     }
 

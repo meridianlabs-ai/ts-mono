@@ -23,7 +23,10 @@ import {
   TranscriptVirtualList,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
-import { useCollapsedState } from "@tsmono/react/hooks";
+import {
+  useCollapsedState,
+  useListKeyboardNavigation,
+} from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
@@ -198,38 +201,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   const listHandle = useRef<VirtuosoHandle | null>(null);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey) {
-        if (event.key === "ArrowUp") {
-          listHandle.current?.scrollToIndex({ index: 0, align: "center" });
-          event.preventDefault();
-        } else if (event.key === "ArrowDown") {
-          listHandle.current?.scrollToIndex({
-            index: Math.max(flattenedNodes.length - 5, 0),
-            align: "center",
-            behavior: "auto",
-          });
-
-          // This is needed to allow measurement to complete before finding
-          // the last item to scroll to it properly. The timing isn't magical sadly
-          // it is just a heuristic.
-          setTimeout(() => {
-            listHandle.current?.scrollToIndex({
-              index: Math.max(flattenedNodes.length - 1, 0),
-              align: "end",
-              behavior: "auto",
-            });
-          }, 250);
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [flattenedNodes]);
+  useListKeyboardNavigation({
+    listHandle,
+    scrollRef,
+    itemCount: flattenedNodes.length,
+  });
 
   if (sampleStatus === "loading" && flattenedNodes.length === 0) {
     return undefined;

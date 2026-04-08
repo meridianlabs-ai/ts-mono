@@ -384,6 +384,14 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const scrubberProgress = useScrubberProgress(listKey);
 
   const getVisibleRange = useStore((state) => state.getVisibleRange);
+  const storeSetVisibleRange = useStore((state) => state.setVisibleRange);
+
+  const handleRangeChanged = useCallback(
+    (range: { startIndex: number; endIndex: number; totalCount: number }) => {
+      storeSetVisibleRange(listKey, range);
+    },
+    [storeSetVisibleRange, listKey]
+  );
 
   const handleScrub = useCallback(
     (progress: number) => {
@@ -706,6 +714,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               turnMap={turnMap}
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
+              onRangeChanged={handleRangeChanged}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />

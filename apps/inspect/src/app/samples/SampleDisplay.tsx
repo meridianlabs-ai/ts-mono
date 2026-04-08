@@ -30,7 +30,7 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
-import { isVscode } from "@tsmono/util";
+import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
@@ -155,6 +155,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     epoch: urlEpoch,
     sampleTabId,
   } = useLogOrSampleRouteParams();
+
+  // Reset tab to default when this sample view unmounts
+  const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  useEffect(() => {
+    return () => {
+      clearSampleTab();
+    };
+  }, [clearSampleTab]);
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
@@ -498,7 +506,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   formatDateTime,
                 }}
                 linking={{
-                  enabled: true,
+                  enabled: isHostedEnvironment(),
                   getUrl: getMessageUrl,
                 }}
                 onNativeFindChanged={setNativeFind}
@@ -530,7 +538,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               selected={effectiveSelectedTab === kSampleMetdataTabId}
             >
               {sampleMetadatas.length > 0 ? (
-                <div className={clsx(styles.padded, styles.fullWidth)}>
+                <div
+                  className={clsx(
+                    styles.padded,
+                    styles.fullWidth,
+                    styles.metadataPanel
+                  )}
+                >
                   {sampleMetadatas}
                 </div>
               ) : (

@@ -36,6 +36,11 @@ interface TranscriptVirtualListComponentProps extends EventPanelCallbacks {
     node: EventNode,
     className?: string | string[]
   ) => ReactNode;
+  onRangeChanged?: (range: {
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }) => void;
 }
 
 /**
@@ -61,6 +66,7 @@ export const TranscriptVirtualListComponent: FC<
   getCollapsed,
   getEventUrl,
   linkingEnabled,
+  onRangeChanged,
 }) => {
   const useVirtualization =
     !disableVirtualization && (running || eventNodes.length > 100);
@@ -220,6 +226,7 @@ export const TranscriptVirtualListComponent: FC<
         live={running}
         animation={!!running}
         itemSearchText={eventSearchText}
+        onRangeChanged={onRangeChanged}
       />
     );
   } else {

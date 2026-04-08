@@ -23,6 +23,7 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
+import { isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../components/icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
@@ -307,7 +308,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         className={styles.chatList}
         scrollRef={activeScrollRef}
         linking={{
-          enabled: true,
+          enabled: isHostedEnvironment(),
           getUrl: getFullMessageUrl,
         }}
       />
@@ -340,7 +341,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
         getEventUrl={getFullEventUrl}
-        linkingEnabled={true}
+        linkingEnabled={isHostedEnvironment()}
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}

@@ -4,7 +4,6 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -27,6 +26,7 @@ import type {
   EventType,
 } from "@tsmono/inspect-components/transcript";
 import { StickyScrollProvider } from "@tsmono/react/components";
+import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
 import { useStore } from "../../state/store";
 
@@ -48,6 +48,11 @@ interface TranscriptViewNodesProps {
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  onRangeChanged?: (range: {
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }) => void;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -74,6 +79,7 @@ export const TranscriptViewNodes = forwardRef<
     turnMap,
     getEventUrl,
     linkingEnabled,
+    onRangeChanged,
   },
   ref
 ) {
@@ -154,9 +160,13 @@ export const TranscriptViewNodes = forwardRef<
           behavior: "auto",
           offset: offsetTop ? -offsetTop : undefined,
         });
+      } else {
+        // Non-virtual fallback: find the DOM element and scroll it into view
+        const el = scrollRef?.current?.querySelector(`[id="${eventId}"]`);
+        el?.scrollIntoView({ block: "start", behavior: "auto" });
       }
     },
-    [flattenedNodes, offsetTop]
+    [flattenedNodes, offsetTop, scrollRef]
   );
 
   const scrollToIndex = useCallback(
@@ -176,46 +186,11 @@ export const TranscriptViewNodes = forwardRef<
     scrollToIndex,
   ]);
 
-  // Cmd/Ctrl+Arrow keyboard shortcuts to jump to top/bottom of the event list.
-  // Uses a two-stage scroll for ArrowDown: first jump near the end so Virtuoso
-  // measures those items, then scroll to the very last item after a short delay.
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey) {
-        if (event.key === "ArrowUp") {
-          listHandle.current?.scrollToIndex({ index: 0, align: "center" });
-          event.preventDefault();
-        } else if (event.key === "ArrowDown") {
-          listHandle.current?.scrollToIndex({
-            index: Math.max(flattenedNodes.length - 5, 0),
-            align: "center",
-          });
-
-          // Allow Virtuoso to measure the near-bottom items before
-          // scrolling to the true last item.
-          setTimeout(() => {
-            listHandle.current?.scrollToIndex({
-              index: flattenedNodes.length - 1,
-              align: "end",
-            });
-          }, 250);
-          event.preventDefault();
-        }
-      }
-    };
-
-    const scrollElement = scrollRef?.current;
-    if (scrollElement) {
-      scrollElement.addEventListener("keydown", handleKeyDown);
-      if (!scrollElement.hasAttribute("tabIndex")) {
-        scrollElement.setAttribute("tabIndex", "0");
-      }
-
-      return () => {
-        scrollElement.removeEventListener("keydown", handleKeyDown);
-      };
-    }
-  }, [scrollRef, flattenedNodes, listHandle]);
+  useListKeyboardNavigation({
+    listHandle,
+    scrollRef,
+    itemCount: flattenedNodes.length,
+  });
 
   return (
     <StickyScrollProvider value={scrollRef ?? null}>
@@ -240,6 +215,7 @@ export const TranscriptViewNodes = forwardRef<
           getCollapsed={getCollapsed}
           getEventUrl={getEventUrl}
           linkingEnabled={linkingEnabled}
+          onRangeChanged={onRangeChanged}
         />
       </div>
     </StickyScrollProvider>

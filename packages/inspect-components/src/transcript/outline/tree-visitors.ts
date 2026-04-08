@@ -100,6 +100,10 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
     toolNodes.length = 0;
   };
 
+  // Events that can appear between model and tool events without
+  // breaking the turn (e.g. logging, informational events).
+  const kTurnPassthroughEvents = new Set(["logger", "info"]);
+
   for (const node of eventNodes) {
     if (node.event.event === "model") {
       // Every model event starts a new turn. Flush the pending turn first
@@ -107,6 +111,12 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
       makeTurn(true);
       modelNode = node;
     } else if (node.event.event === "tool") {
+      toolNodes.push(node);
+    } else if (
+      modelNode !== null &&
+      kTurnPassthroughEvents.has(node.event.event)
+    ) {
+      // Absorb logger/info events into the current turn
       toolNodes.push(node);
     } else {
       makeTurn(true);

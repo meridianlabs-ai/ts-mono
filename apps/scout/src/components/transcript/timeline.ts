@@ -297,10 +297,10 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
-  const content = server.content
+  const content = (server.content ?? [])
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = server.branches
+  const branches = (server.branches ?? [])
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0);
 
