@@ -112,7 +112,10 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
       modelNode = node;
     } else if (node.event.event === "tool") {
       toolNodes.push(node);
-    } else if (modelNode !== null && kTurnPassthroughEvents.has(node.event.event)) {
+    } else if (
+      modelNode !== null &&
+      kTurnPassthroughEvents.has(node.event.event)
+    ) {
       // Absorb logger/info events into the current turn
       toolNodes.push(node);
     } else {

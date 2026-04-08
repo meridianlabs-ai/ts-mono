@@ -23,10 +23,9 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
-
-import { ApplicationIcons } from "../../components/icons";
 import { isHostedEnvironment } from "@tsmono/util";
 
+import { ApplicationIcons } from "../../components/icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
