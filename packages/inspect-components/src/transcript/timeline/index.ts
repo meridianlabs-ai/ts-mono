@@ -112,3 +112,18 @@ export {
   type UseTimelineProps,
   type UseTranscriptTimelineProps,
 } from "./hooks";
+
+// Components (React UI)
+export {
+  AgentCardView,
+  TimelineIconsContext,
+  TimelineMinimap,
+  TimelineOptionsPopover,
+  TimelineSelector,
+  TimelineSwimLanes,
+  useTimelineIcons,
+  type TimelineIcons,
+  type TimelineMinimapProps,
+  type TimelineSelectorProps,
+  type TimelineSwimLanesProps,
+} from "./components";

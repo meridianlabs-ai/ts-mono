@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import {
+  AgentCardView,
   buildSpanSelectKeys,
   computeTurnMap,
   EventNode,
@@ -25,6 +26,7 @@ import {
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TimelineSelectContext,
+  TimelineSwimLanes,
   TranscriptOutline,
   type MarkerConfig,
   type TimelineSpan,
@@ -33,7 +35,6 @@ import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
-import { AgentCardView } from "../../../components/transcript/AgentCardView";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
 import {
@@ -48,7 +49,6 @@ import { useTimelineConfig } from "../hooks/useTimelineConfig";
 import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
 
 import styles from "./TimelineEventsView.module.css";
-import { TimelineSwimLanes } from "./TimelineSwimLanes";
 
 // =============================================================================
 // Types

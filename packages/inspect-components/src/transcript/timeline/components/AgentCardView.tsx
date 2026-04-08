@@ -1,19 +1,19 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback, useMemo } from "react";
 
-import {
-  formatTokenCount,
-  getSpanToolResult,
-  getUtilityAgentLabel,
-  useTimelineSelect,
-  type TimelineSpan,
-} from "@tsmono/inspect-components/transcript";
 import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { formatDurationShort } from "@tsmono/util";
 
-import { ApplicationIcons } from "../icons";
+import { useTimelineSelect } from "../../TimelineSelectContext";
+import {
+  getSpanToolResult,
+  getUtilityAgentLabel,
+  type TimelineSpan,
+} from "../core";
+import { formatTokenCount } from "../swimlaneLayout";
 
 import styles from "./AgentCardView.module.css";
+import { useTimelineIcons } from "./TimelineIconsContext";
 
 interface AgentCardViewProps {
   span: TimelineSpan;
@@ -21,6 +21,7 @@ interface AgentCardViewProps {
 }
 
 export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
+  const icons = useTimelineIcons();
   const select = useTimelineSelect();
 
   const handleClick = useCallback(() => {
@@ -41,7 +42,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const tokens = formatTokenCount(span.totalTokens());
   const duration = formatDurationShort(span.startTime(), span.endTime());
 
-  const iconClass = isBranch ? ApplicationIcons.fork : ApplicationIcons.agent;
+  const iconClass = isBranch ? icons.fork : icons.agent;
   const label = isBranch ? "branch" : isUtility ? "utility" : "sub-agent";
 
   return (
@@ -72,7 +73,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
         {!isBranch && (
           <i
             className={clsx(
-              ApplicationIcons.chevron.right,
+              icons.chevron.right,
               styles.disclosure,
               "text-style-secondary"
             )}

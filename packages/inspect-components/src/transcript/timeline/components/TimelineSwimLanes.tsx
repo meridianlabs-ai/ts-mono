@@ -1,20 +1,19 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
+
+import { type TimelineState } from "../hooks/useTimeline";
+import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
 import {
-  buildSelectionKey,
   formatTokenCount,
-  parseSelection,
   type PositionedMarker,
   type PositionedSpan,
   type RowLayout,
-} from "@tsmono/inspect-components/transcript";
-import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
+} from "../swimlaneLayout";
+import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
 
-import { ApplicationIcons } from "../../../components/icons";
-import { type TimelineState } from "../hooks/useTimeline";
-import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
-
+import { useTimelineIcons } from "./TimelineIconsContext";
 import { TimelineMinimap, type TimelineMinimapProps } from "./TimelineMinimap";
 import { TimelineOptionsPopover } from "./TimelineOptionsPopover";
 import {
@@ -100,7 +99,7 @@ export interface TimelineHeaderProps {
   onToggleBranches?: () => void;
 }
 
-interface TimelineSwimLanesProps {
+export interface TimelineSwimLanesProps {
   /** Row layouts computed by computeRowLayouts. */
   layouts: RowLayout[];
   /** Timeline navigation state (selection). */
@@ -127,19 +126,6 @@ interface TimelineSwimLanesProps {
 }
 
 // =============================================================================
-// Marker glyphs
-// =============================================================================
-
-const MARKER_ICONS: Record<string, { icon: string; tooltip: string }> = {
-  error: { icon: ApplicationIcons.error, tooltip: "Error event" },
-  compaction: {
-    icon: ApplicationIcons.compaction,
-    tooltip: "Context compaction",
-  },
-  branch: { icon: ApplicationIcons.fork, tooltip: "View branches" },
-};
-
-// =============================================================================
 // TimelineSwimLanes
 // =============================================================================
 
@@ -155,6 +141,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   defaultCollapsed: defaultCollapsedProp,
   highlightedKeys,
 }) => {
+  const icons = useTimelineIcons();
   const { selected, select: onSelect, clearSelection } = timeline;
 
   // Collapse state — persisted across sessions.
@@ -443,13 +430,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onClick={toggleCollapsed}
         title={isCollapsed ? "Expand swimlanes" : "Collapse swimlanes"}
       >
-        <i
-          className={
-            isCollapsed
-              ? ApplicationIcons.expand.down
-              : ApplicationIcons.collapse.up
-          }
-        />
+        <i className={isCollapsed ? icons.expand.down : icons.collapse.up} />
       </button>
     </div>
   );
@@ -572,6 +553,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   onMarkerNavigate,
   connector,
 }) => {
+  const icons = useTimelineIcons();
   const hasMultipleSpans = layout.spans.length > 1;
   const hasChildren = isExpanded !== undefined;
 
@@ -625,11 +607,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
             <i
-              className={
-                isExpanded
-                  ? ApplicationIcons.chevron.down
-                  : ApplicationIcons.chevron.right
-              }
+              className={isExpanded ? icons.chevron.down : icons.chevron.right}
             />
           </span>
         ) : (
@@ -638,7 +616,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
         {displayName ??
           (layout.branch ? (
             <>
-              <i className={ApplicationIcons.solvers.default} /> {layout.name}
+              <i className={icons.solvers.default} /> {layout.name}
             </>
           ) : (
             layout.name
@@ -754,6 +732,7 @@ const HeaderRow: FC<TimelineHeaderProps> = ({
   timelineSelector,
   onToggleBranches,
 }) => {
+  const icons = useTimelineIcons();
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
   const rootDisplay = rootLabel === "solvers" ? "main" : rootLabel;
 
@@ -805,7 +784,7 @@ const HeaderRow: FC<TimelineHeaderProps> = ({
           title="Timeline options"
           aria-label="Timeline options"
         >
-          <i className={ApplicationIcons.threeDots} />
+          <i className={icons.threeDots} />
         </button>
       )}
       {minimap && <TimelineMinimap {...minimap} />}
@@ -1184,7 +1163,13 @@ const MarkerGlyph: FC<MarkerGlyphProps> = ({
   onBranchToggle,
   onMarkerNavigate,
 }) => {
-  const icon = MARKER_ICONS[marker.kind]?.icon ?? "bi bi-question-circle";
+  const icons = useTimelineIcons();
+  const markerIcons: Record<string, string> = {
+    error: icons.error,
+    compaction: icons.compaction,
+    branch: icons.fork,
+  };
+  const icon = markerIcons[marker.kind] ?? "bi bi-question-circle";
   const kindClass =
     marker.kind === "error"
       ? styles.markerError

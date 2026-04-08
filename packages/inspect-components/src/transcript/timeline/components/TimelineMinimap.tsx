@@ -1,23 +1,15 @@
 import clsx from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
-import {
-  computeActiveTime,
-  computeBarPosition,
-  formatTokenCount,
-  type TimelineSpan,
-  type TimeMapping,
-} from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatDuration, formatDurationShort, formatTime } from "@tsmono/util";
 
-import styles from "./TimelineMinimap.module.css";
+import type { TimelineSpan } from "../core";
+import { computeBarPosition, formatTokenCount } from "../swimlaneLayout";
+import type { MinimapSelection } from "../timelineEventNodes";
+import { computeActiveTime, type TimeMapping } from "../timeMapping";
 
-export interface MinimapSelection {
-  startTime: Date;
-  endTime: Date;
-  totalTokens: number;
-}
+import styles from "./TimelineMinimap.module.css";
 
 export interface TimelineMinimapProps {
   /** Root timeline span (always the full timeline). */
