@@ -3,6 +3,7 @@ import {
   CSSProperties,
   FC,
   memo,
+  ReactNode,
   RefObject,
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Link } from "react-router-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
@@ -26,6 +28,7 @@ import {
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TimelineSwimLanes,
+  TranscriptOutline,
   TranscriptVirtualList,
   useEventNodes,
   useTranscriptTimeline,
@@ -40,9 +43,14 @@ import {
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useLogRouteParams } from "../../routing/url";
+import {
+  makeLogsPath,
+  sampleEventUrl,
+  useLogOrSampleRouteParams,
+  useLogRouteParams,
+  useSampleUrlBuilder,
+} from "../../routing/url";
 
-import { TranscriptOutline } from "./outline/TranscriptOutline";
 import styles from "./TranscriptPanel.module.css";
 
 interface TranscriptPanelProps {
@@ -334,6 +342,76 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const effectiveOffsetTop = (topOffset ?? 0) + stickySwimLaneHeight;
 
   // ---------------------------------------------------------------------------
+  // Outline callback props (wiring store to shared TranscriptOutline)
+  // ---------------------------------------------------------------------------
+
+  const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
+  const setSelectedOutlineId = useStore(
+    (state) => state.sampleActions.setSelectedOutlineId
+  );
+
+  const getOutlineCollapsed = useCallback(
+    (scope: string, nodeId: string) =>
+      collapsedEvents?.[scope]?.[nodeId] === true,
+    [collapsedEvents]
+  );
+
+  const onOutlineCollapse = useCallback(
+    (scope: string, nodeId: string, collapsed: boolean) => {
+      collapseEvent(scope, nodeId, collapsed);
+    },
+    [collapseEvent]
+  );
+
+  const getOutlineCollapsedEvents = useCallback(
+    () =>
+      collapsedEvents?.[kTranscriptOutlineCollapseScope] as
+        | Record<string, boolean>
+        | undefined,
+    [collapsedEvents]
+  );
+
+  // Sync initial event ID to outline selection for deep-link navigation
+  useEffect(() => {
+    if (initialEventId) {
+      setSelectedOutlineId(initialEventId);
+    }
+  }, [initialEventId, setSelectedOutlineId]);
+
+  // Deep-link URL builder for outline rows
+  const builder = useSampleUrlBuilder();
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logDir = useStore((state) => state.logs.logDir);
+
+  const getEventUrl = useCallback(
+    (eventId: string) => {
+      let targetLogPath = urlLogPath;
+      if (!targetLogPath && logFile) {
+        targetLogPath = makeLogsPath(logFile, logDir);
+      }
+      if (!targetLogPath) return undefined;
+      return sampleEventUrl(
+        builder,
+        eventId,
+        targetLogPath,
+        urlSampleId,
+        urlEpoch
+      );
+    },
+    [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
+  );
+
+  const renderLink = useCallback(
+    (url: string, children: ReactNode) => <Link to={url}>{children}</Link>,
+    []
+  );
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -410,10 +488,18 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
               <TranscriptOutline
                 className={clsx(styles.outline)}
                 eventNodes={eventNodes}
-                filteredNodes={outlineFilteredNodes}
-                running={running}
                 defaultCollapsedIds={defaultCollapsedIds}
+                running={running}
                 scrollRef={scrollRef}
+                scrollTrackOffset={effectiveOffsetTop}
+                getCollapsed={getOutlineCollapsed}
+                setCollapsed={onOutlineCollapse}
+                getCollapsedEvents={getOutlineCollapsedEvents}
+                setCollapsedEvents={setCollapsedEvents}
+                selectedOutlineId={selectedOutlineId}
+                setSelectedOutlineId={setSelectedOutlineId}
+                getEventUrl={getEventUrl}
+                renderLink={renderLink}
               />
               <div
                 className={styles.outlineToggle}
