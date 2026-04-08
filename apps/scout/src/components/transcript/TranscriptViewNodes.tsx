@@ -4,7 +4,6 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -27,6 +26,7 @@ import type {
   EventType,
 } from "@tsmono/inspect-components/transcript";
 import { StickyScrollProvider } from "@tsmono/react/components";
+import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
 import { useStore } from "../../state/store";
 
@@ -176,46 +176,11 @@ export const TranscriptViewNodes = forwardRef<
     scrollToIndex,
   ]);
 
-  // Cmd/Ctrl+Arrow keyboard shortcuts to jump to top/bottom of the event list.
-  // Uses a two-stage scroll for ArrowDown: first jump near the end so Virtuoso
-  // measures those items, then scroll to the very last item after a short delay.
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey) {
-        if (event.key === "ArrowUp") {
-          listHandle.current?.scrollToIndex({ index: 0, align: "center" });
-          event.preventDefault();
-        } else if (event.key === "ArrowDown") {
-          listHandle.current?.scrollToIndex({
-            index: Math.max(flattenedNodes.length - 5, 0),
-            align: "center",
-          });
-
-          // Allow Virtuoso to measure the near-bottom items before
-          // scrolling to the true last item.
-          setTimeout(() => {
-            listHandle.current?.scrollToIndex({
-              index: flattenedNodes.length - 1,
-              align: "end",
-            });
-          }, 250);
-          event.preventDefault();
-        }
-      }
-    };
-
-    const scrollElement = scrollRef?.current;
-    if (scrollElement) {
-      scrollElement.addEventListener("keydown", handleKeyDown);
-      if (!scrollElement.hasAttribute("tabIndex")) {
-        scrollElement.setAttribute("tabIndex", "0");
-      }
-
-      return () => {
-        scrollElement.removeEventListener("keydown", handleKeyDown);
-      };
-    }
-  }, [scrollRef, flattenedNodes, listHandle]);
+  useListKeyboardNavigation({
+    listHandle,
+    scrollRef,
+    itemCount: flattenedNodes.length,
+  });
 
   return (
     <StickyScrollProvider value={scrollRef ?? null}>
