@@ -94,3 +94,21 @@ export {
   type ParsedSelection,
   type SpanSelectKey,
 } from "./timelineEventNodes";
+
+// Hooks (React-dependent)
+export {
+  findBranchesByBranchedFrom,
+  useActiveTimeline,
+  useTimeline,
+  useTimelineConfig,
+  useTranscriptTimeline,
+  type BranchLookupResult,
+  type TimelineOptions,
+  type TimelineState,
+  type TranscriptTimelineResult,
+  type UseActiveTimelineProps,
+  type UseActiveTimelineResult,
+  type UseTimelineConfigResult,
+  type UseTimelineProps,
+  type UseTranscriptTimelineProps,
+} from "./hooks";
