@@ -14,7 +14,6 @@ import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useAppConfig } from "../server/useAppConfig";
-import { useScans } from "../server/useScans";
 import { getScanDisplayName } from "../utils/scan";
 import { useScansDir } from "../utils/useScansDir";
 
@@ -25,17 +24,10 @@ import { ScanPanelTitle } from "./ScanPanelTitle";
 export const ScanPanel: React.FC = () => {
   const config = useAppConfig();
   const scansDir = config.scans.dir;
-  const {
-    displayScansDir,
-    resolvedScansDir,
-    resolvedScansDirSource,
-    setScansDir,
-  } = useScansDir(true);
+  const { displayScansDir, resolvedScansDirSource, setScansDir } =
+    useScansDir(true);
   // Load server data
-  const { loading: scansLoading } = useScans(resolvedScansDir);
-  const { loading: scanLoading, data: selectedScan, error } = useSelectedScan();
-
-  const loading = scansLoading || scanLoading;
+  const { loading, data: selectedScan, error } = useSelectedScan();
 
   // Set document title with scan location
   useDocumentTitle(getScanDisplayName(selectedScan, scansDir), "Scans");
