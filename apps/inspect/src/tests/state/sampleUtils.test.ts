@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { resolveSample } from "../../state/sampleUtils";
 
 const msg = (id: string, role: string, content: string) => ({

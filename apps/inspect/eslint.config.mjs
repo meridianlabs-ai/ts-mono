@@ -38,13 +38,4 @@ export default [
       "no-unused-vars": "off",
     },
   },
-  // Add Jest globals for test files
-  {
-    files: ["**/*.test.{ts,tsx}"],
-    languageOptions: {
-      globals: {
-        ...globals.jest,
-      },
-    },
-  },
 ];

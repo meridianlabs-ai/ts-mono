@@ -1,12 +1,14 @@
 /**
  * Automated tests for database functionality
- * Uses fake-indexeddb for testing IndexedDB operations in Jest
+ * Uses fake-indexeddb for testing IndexedDB operations in Vitest
  *
  * Schema v3 structure:
  * - logs: stores results from get_log_files() (LogHandles)
  * - log_previews: stores results from get_log_summaries() (LogPreviews)
  * - log_details: stores complete results from get_log_info() including samples (LogDetails)
  */
+
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
 

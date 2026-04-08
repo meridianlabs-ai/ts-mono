@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { simpleMarkdownTruncate, truncateMarkdown } from "../../utils/markdown";
 
 describe("truncateMarkdown", () => {
