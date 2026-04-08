@@ -20,3 +20,4 @@ export {
   type TranscriptTimelineResult,
   type UseTranscriptTimelineProps,
 } from "./useTranscriptTimeline";
+export { useEventNodes } from "./useEventNodes";

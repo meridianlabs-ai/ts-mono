@@ -1,35 +1,63 @@
+/**
+ * Shared hook that builds an EventNode tree from raw events.
+ *
+ * Handles fixup, treeification, empty-span filtering, source-span attachment
+ * (for agent card rendering), and default-collapse computation.
+ */
+
 import { useMemo } from "react";
 
-import {
-  attachSourceSpans,
-  EventNode,
-  fixupEventStream,
-  kCollapsibleEventTypes,
-  kSandboxSignalName,
-  treeifyEvents,
-  type EventType,
-  type TimelineSpan,
-} from "@tsmono/inspect-components/transcript";
-
-import {
+import type {
   Event,
   SpanBeginEvent,
   StepEvent,
   SubtaskEvent,
   ToolEvent,
-} from "../../../types/api-types";
+} from "@tsmono/inspect-common/types";
+
+import { fixupEventStream, kSandboxSignalName } from "../../transform/fixups";
+import { treeifyEvents } from "../../transform/treeify";
+import { EventNode, kCollapsibleEventTypes } from "../../types";
+import type { EventType } from "../../types";
+import type { TimelineSpan } from "../core";
+import { attachSourceSpans } from "../timelineEventNodes";
+
+// =============================================================================
+// Collapse filters
+// =============================================================================
+
+const collapseFilters: Array<
+  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) => boolean
+> = [
+  (event) => event.type === "solver" && event.name === "system_message",
+  (event) => {
+    if (event.event === "step" || event.event === "span_begin") {
+      return (
+        event.name === kSandboxSignalName ||
+        event.name === "init" ||
+        event.name === "sample_init"
+      );
+    }
+    return false;
+  },
+  (event) => event.event === "tool" && !event.agent && !event.failed,
+  (event) => event.event === "subtask",
+];
+
+// =============================================================================
+// Hook
+// =============================================================================
 
 export const useEventNodes = (
   events: Event[],
   running: boolean,
   sourceSpans?: ReadonlyMap<string, TimelineSpan>
 ) => {
-  // Normalize Events in a flattened filtered list
   const { eventTree, defaultCollapsedIds } = useMemo((): {
     eventTree: EventNode[];
     defaultCollapsedIds: Record<string, true>;
   } => {
-    // Apply fixups to the event string
+    // Apply fixups to the event stream
     const resolvedEvents = fixupEventStream(events, !running);
 
     // Build the event tree
@@ -41,7 +69,7 @@ export const useEventNodes = (
       attachSourceSpans(rawEventTree, sourceSpans);
     }
 
-    // Now filter the tree to remove empty spans
+    // Filter the tree to remove empty spans
     const filterEmpty = (
       eventNodes: EventNode<EventType>[]
     ): EventNode<EventType>[] => {
@@ -59,7 +87,7 @@ export const useEventNodes = (
     };
     const eventTree = filterEmpty(rawEventTree);
 
-    // Apply collapse filters to the event tree
+    // Compute default collapsed IDs
     const defaultCollapsedIds: Record<string, true> = {};
     const findCollapsibleEvents = (nodes: EventNode[]) => {
       for (const node of nodes) {
@@ -77,8 +105,6 @@ export const useEventNodes = (
         ) {
           defaultCollapsedIds[node.id] = true;
         }
-
-        // Recursively check children
         findCollapsibleEvents(node.children);
       }
     };
@@ -89,24 +115,3 @@ export const useEventNodes = (
 
   return { eventNodes: eventTree, defaultCollapsedIds };
 };
-
-const collapseFilters: Array<
-  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) => boolean
-> = [
-  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) =>
-    event.type === "solver" && event.name === "system_message",
-  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) => {
-    if (event.event === "step" || event.event === "span_begin") {
-      return (
-        event.name === kSandboxSignalName ||
-        event.name === "init" ||
-        event.name === "sample_init"
-      );
-    }
-    return false;
-  },
-  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) =>
-    event.event === "tool" && !event.agent && !event.failed,
-  (event: StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent) =>
-    event.event === "subtask",
-];

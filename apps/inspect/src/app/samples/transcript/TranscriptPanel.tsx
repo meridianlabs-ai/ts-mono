@@ -21,6 +21,7 @@ import {
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TranscriptVirtualList,
+  useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import {
@@ -35,7 +36,6 @@ import { useLogRouteParams } from "../../routing/url";
 
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import styles from "./TranscriptPanel.module.css";
-import { useEventNodes } from "./transform/hooks";
 
 interface TranscriptPanelProps {
   id: string;

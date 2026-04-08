@@ -28,6 +28,7 @@ import {
   TimelineSelectContext,
   TimelineSwimLanes,
   TranscriptOutline,
+  useEventNodes,
   type MarkerConfig,
   type TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
@@ -35,7 +36,6 @@ import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
-import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
 import {
   TranscriptViewNodes,

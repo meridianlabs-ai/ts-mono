@@ -99,6 +99,7 @@ export {
 export {
   findBranchesByBranchedFrom,
   useActiveTimeline,
+  useEventNodes,
   useTimeline,
   useTimelineConfig,
   useTranscriptTimeline,
