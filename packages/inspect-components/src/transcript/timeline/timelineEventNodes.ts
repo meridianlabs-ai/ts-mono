@@ -7,25 +7,27 @@
  * so treeifyEvents can reconstruct the hierarchy.
  */
 
-import { EventNode } from "@tsmono/inspect-components/transcript";
-
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../components/transcript/timeline";
-import { createBranchSpan } from "../../components/transcript/timeline";
 import type {
   Event,
   SpanBeginEvent,
   SpanEndEvent,
-} from "../../types/api-types";
+} from "@tsmono/inspect-common/types";
 
-import type { MinimapSelection } from "./components/TimelineMinimap";
+import { EventNode } from "../types";
+
 import {
-  getAgents,
-  isSingleSpan,
-  type SwimlaneRow,
-} from "./utils/swimlaneRows";
+  createBranchSpan,
+  type TimelineEvent,
+  type TimelineSpan,
+} from "./core";
+import { getAgents, isSingleSpan, type SwimlaneRow } from "./swimlaneRows";
+
+/** Selection region for the minimap overlay. */
+export interface MinimapSelection {
+  startTime: Date;
+  endTime: Date;
+  totalTokens: number;
+}
 
 // =============================================================================
 // Selection parsing

@@ -6,10 +6,7 @@
  * and parallel (overlapping) span patterns.
  */
 
-import {
-  createBranchSpan,
-  type TimelineSpan,
-} from "../../../components/transcript/timeline";
+import { createBranchSpan, type TimelineSpan } from "./core";
 
 // =============================================================================
 // Sorting

@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../components/transcript/timeline";
-import type { ModelEvent } from "../../types/api-types";
+import type { ModelEvent } from "@tsmono/inspect-common/types";
 
 import { buildContentItems } from "./contentItems";
+import { TimelineEvent, TimelineSpan } from "./core";
 import {
   getScenarioRoot,
   makeSpan,

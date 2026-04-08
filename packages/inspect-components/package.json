@@ -11,6 +11,7 @@
     "./chat/tools": "./src/chat/tools/tool.ts",
     "./content": "./src/content/index.ts",
     "./transcript": "./src/transcript/index.ts",
+    "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",
     "./usage": "./src/usage/index.ts"
   },
   "scripts": {

@@ -5,13 +5,9 @@
  * markers, and useTimeline test files.
  */
 
-import type { Timeline } from "../../components/transcript/timeline";
-import {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../components/transcript/timeline";
-import type { Event } from "../../types/api-types";
+import type { Event } from "@tsmono/inspect-common/types";
 
+import { TimelineEvent, TimelineSpan, type Timeline } from "./core";
 import { timelineScenarios } from "./syntheticNodes";
 
 export { timelineScenarios };

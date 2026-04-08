@@ -1,13 +1,10 @@
-import type { Timeline } from "../../components/transcript/timeline";
-import {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../components/transcript/timeline";
 import type {
   CompactionEvent,
   ModelEvent,
   ToolEvent,
-} from "../../types/api-types";
+} from "@tsmono/inspect-common/types";
+
+import { TimelineEvent, TimelineSpan, type Timeline } from "./core";
 
 export interface TimelineScenario {
   name: string;

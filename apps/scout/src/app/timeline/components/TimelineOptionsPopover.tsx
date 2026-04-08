@@ -1,9 +1,9 @@
 import { FC } from "react";
 
+import type { MarkerKind } from "@tsmono/inspect-components/transcript";
 import { PopOver } from "@tsmono/react/components";
 
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
-import type { MarkerKind } from "../utils/markers";
 
 import styles from "./TimelineOptionsPopover.module.css";
 

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { TimelineSpan } from "../../../components/transcript/timeline";
+import type { TimelineSpan } from "./core";
+import {
+  assignToLanes,
+  computeFlatSwimlaneRows,
+  computeSwimlaneRows,
+  isParallelSpan,
+  isSingleSpan,
+} from "./swimlaneRows";
 import {
   getScenarioRoot,
   makeSpan,
@@ -13,15 +20,7 @@ import {
   S10_UTILITY,
   timelineScenarios,
   ts,
-} from "../testHelpers";
-
-import {
-  assignToLanes,
-  computeFlatSwimlaneRows,
-  computeSwimlaneRows,
-  isParallelSpan,
-  isSingleSpan,
-} from "./swimlaneRows";
+} from "./testHelpers";
 
 // =============================================================================
 // computeSwimlaneRows

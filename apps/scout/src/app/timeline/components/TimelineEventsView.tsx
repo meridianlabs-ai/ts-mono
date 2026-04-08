@@ -11,18 +11,23 @@ import {
 } from "react";
 
 import {
+  buildSpanSelectKeys,
   computeTurnMap,
   EventNode,
   flatTree,
+  getSelectedSpans,
   kCollapsibleEventTypes,
   kSandboxSignalName,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   noScorerChildren,
+  parseSelection,
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TimelineSelectContext,
   TranscriptOutline,
+  type MarkerConfig,
+  type TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
@@ -31,7 +36,6 @@ import { ApplicationIcons } from "../../../components/icons";
 import { AgentCardView } from "../../../components/transcript/AgentCardView";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
-import type { TimelineSpan } from "../../../components/transcript/timeline";
 import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
@@ -42,12 +46,6 @@ import { useScrubberProgress } from "../hooks/useScrubberPercent";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineConfig } from "../hooks/useTimelineConfig";
 import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
-import {
-  buildSpanSelectKeys,
-  getSelectedSpans,
-  parseSelection,
-} from "../timelineEventNodes";
-import type { MarkerConfig } from "../utils/markers";
 
 import styles from "./TimelineEventsView.module.css";
 import { TimelineSwimLanes } from "./TimelineSwimLanes";

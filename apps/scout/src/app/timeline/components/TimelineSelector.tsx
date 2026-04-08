@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useCallback, useState } from "react";
 
-import type { Timeline } from "../../../components/transcript/timeline";
+import type { Timeline } from "@tsmono/inspect-components/transcript";
 
 import styles from "./TimelineSelector.module.css";
 

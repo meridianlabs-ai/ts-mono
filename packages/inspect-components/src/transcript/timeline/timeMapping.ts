@@ -6,10 +6,7 @@
  * horizontal space. Uses the same 5-min threshold as computeIdleTime.
  */
 
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../../components/transcript/timeline";
+import type { TimelineEvent, TimelineSpan } from "./core";
 
 // =============================================================================
 // Types

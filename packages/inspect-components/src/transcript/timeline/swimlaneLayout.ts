@@ -7,11 +7,7 @@
 
 import { formatPrettyDecimal } from "@tsmono/util";
 
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../../components/transcript/timeline";
-
+import type { TimelineEvent, TimelineSpan } from "./core";
 import { collectMarkers, type MarkerDepth, type MarkerKind } from "./markers";
 import {
   getAgents,

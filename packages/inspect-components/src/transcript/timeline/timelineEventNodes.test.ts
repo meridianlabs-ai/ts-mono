@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { TimelineEvent } from "../../components/transcript/timeline";
-import type { CompactionEvent, Event, InfoEvent } from "../../types/api-types";
+import type {
+  CompactionEvent,
+  Event,
+  InfoEvent,
+} from "@tsmono/inspect-common/types";
 
+import { TimelineEvent } from "./core";
+import { computeFlatSwimlaneRows } from "./swimlaneRows";
 import { getScenarioRoot, S11A_BRANCHES, ts } from "./testHelpers";
 import {
   buildSelectionKey,
@@ -11,7 +16,6 @@ import {
   getParentKeyFromBranch,
   parseSelection,
 } from "./timelineEventNodes";
-import { computeFlatSwimlaneRows } from "./utils/swimlaneRows";
 
 // =============================================================================
 // Test helpers

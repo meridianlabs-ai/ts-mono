@@ -10,12 +10,12 @@ import { describe, expect, it } from "vitest";
 
 import type {
   Event,
-  ServerTimeline,
-  ServerTimelineEvent,
-  ServerTimelineSpan,
-} from "../../types/api-types";
+  Timeline as ServerTimeline,
+  TimelineEvent as ServerTimelineEvent,
+  TimelineSpan as ServerTimelineSpan,
+} from "@tsmono/inspect-common/types";
 
-import { convertServerTimeline, TimelineEvent, TimelineSpan } from "./timeline";
+import { convertServerTimeline, TimelineEvent, TimelineSpan } from "./core";
 
 // =============================================================================
 // Helpers

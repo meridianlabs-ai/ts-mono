@@ -6,10 +6,7 @@
  * they forked from (matched by UUID).
  */
 
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../components/transcript/timeline";
+import type { TimelineEvent, TimelineSpan } from "./core";
 
 // =============================================================================
 // Types

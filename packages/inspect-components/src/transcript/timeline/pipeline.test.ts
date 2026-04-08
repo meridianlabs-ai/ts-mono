@@ -9,8 +9,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { TimelineSpan } from "../../components/transcript/timeline";
-
+import type { TimelineSpan } from "./core";
+import { computeRowLayouts, type RowLayout } from "./swimlaneLayout";
+import { computeFlatSwimlaneRows } from "./swimlaneRows";
 import {
   getScenarioRoot,
   S1_SEQUENTIAL,
@@ -19,9 +20,7 @@ import {
   S4_PARALLEL,
   S11A_BRANCHES,
 } from "./testHelpers";
-import { computeRowLayouts, type RowLayout } from "./utils/swimlaneLayout";
-import { computeFlatSwimlaneRows } from "./utils/swimlaneRows";
-import { computeTimeMapping, type TimeMapping } from "./utils/timeMapping";
+import { computeTimeMapping, type TimeMapping } from "./timeMapping";
 
 // =============================================================================
 // Helpers

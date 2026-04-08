@@ -129,3 +129,6 @@ export {
   useOutlineWidth,
   labelForOutlineNode,
 } from "./outline/useOutlineWidth";
+
+// Timeline utilities
+export * from "./timeline";

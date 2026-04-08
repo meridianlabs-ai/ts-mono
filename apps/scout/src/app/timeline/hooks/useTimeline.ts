@@ -10,14 +10,12 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
+  computeFlatSwimlaneRows,
   createBranchSpan,
+  type SwimlaneRow,
   type Timeline,
   type TimelineSpan,
-} from "../../../components/transcript/timeline";
-import {
-  computeFlatSwimlaneRows,
-  type SwimlaneRow,
-} from "../utils/swimlaneRows";
+} from "@tsmono/inspect-components/transcript";
 
 // Re-export so existing consumers don't break.
 export { createBranchSpan };

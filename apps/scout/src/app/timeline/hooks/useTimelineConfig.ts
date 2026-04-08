@@ -7,10 +7,13 @@
 
 import { useCallback, useMemo } from "react";
 
+import {
+  defaultMarkerConfig,
+  type MarkerConfig,
+  type MarkerDepth,
+  type MarkerKind,
+} from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
-
-import type { MarkerConfig, MarkerDepth, MarkerKind } from "../utils/markers";
-import { defaultMarkerConfig } from "../utils/markers";
 
 import type { TimelineOptions } from "./useTimeline";
 

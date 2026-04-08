@@ -9,7 +9,7 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import type { Timeline } from "../../../components/transcript/timeline";
+import type { Timeline } from "@tsmono/inspect-components/transcript";
 
 // =============================================================================
 // Constants

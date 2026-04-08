@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeBarPosition,
+  computeRowLayouts,
+  formatTokenCount,
+  timestampToPercent,
+} from "./swimlaneLayout";
+import { computeSwimlaneRows } from "./swimlaneRows";
+import {
   getScenarioRoot,
   S1_SEQUENTIAL,
   S2_ITERATIVE,
@@ -9,15 +16,7 @@ import {
   S7_FLAT,
   S8_MANY,
   ts,
-} from "../testHelpers";
-
-import {
-  computeBarPosition,
-  computeRowLayouts,
-  formatTokenCount,
-  timestampToPercent,
-} from "./swimlaneLayout";
-import { computeSwimlaneRows } from "./swimlaneRows";
+} from "./testHelpers";
 import { createIdentityMapping } from "./timeMapping";
 
 // =============================================================================

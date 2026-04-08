@@ -5,14 +5,10 @@
  * content at configurable depth levels (direct, children, recursive).
  */
 
+import type { CompactionEvent, Event } from "@tsmono/inspect-common/types";
 import { formatDuration } from "@tsmono/util";
 
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "../../../components/transcript/timeline";
-import type { CompactionEvent, Event } from "../../../types/api-types";
-
+import type { TimelineEvent, TimelineSpan } from "./core";
 import { computeTimeEnvelope, formatTokenCount } from "./swimlaneLayout";
 
 // =============================================================================

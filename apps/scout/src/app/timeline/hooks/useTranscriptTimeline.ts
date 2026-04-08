@@ -12,37 +12,31 @@ import { useMemo } from "react";
 
 import {
   buildTimeline,
-  convertServerTimeline,
-  type Timeline,
-  type TimelineSpan,
-} from "../../../components/transcript/timeline";
-import type { Event, ServerTimeline } from "../../../types/api-types";
-import type { MinimapSelection } from "../components/TimelineMinimap";
-import {
   collectBranchWithContext,
   collectRawEvents,
   computeMinimapSelection,
+  computeRowLayouts,
+  computeTimeMapping,
+  convertServerTimeline,
+  createShiftedMapping,
+  defaultMarkerConfig,
   getBranchPrefix,
   getParentKeyFromBranch,
   getSelectedSpans,
+  isSingleSpan,
   parseSelection,
-} from "../timelineEventNodes";
-import {
-  defaultMarkerConfig,
   resolveForkTimestamp,
-  type MarkerConfig,
-} from "../utils/markers";
-import {
-  computeRowLayouts,
   rowHasEvents,
+  type MarkerConfig,
+  type MinimapSelection,
   type RowLayout,
-} from "../utils/swimlaneLayout";
-import { isSingleSpan, type SwimlaneRow } from "../utils/swimlaneRows";
-import {
-  computeTimeMapping,
-  createShiftedMapping,
+  type SwimlaneRow,
+  type Timeline,
+  type TimelineSpan,
   type TimeMapping,
-} from "../utils/timeMapping";
+} from "@tsmono/inspect-components/transcript";
+
+import type { Event, ServerTimeline } from "../../../types/api-types";
 
 import { useActiveTimeline } from "./useActiveTimeline";
 import {

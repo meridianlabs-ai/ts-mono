@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeSpan, makeSyntheticEvent, ts } from "../testHelpers";
-
+import { makeSpan, makeSyntheticEvent, ts } from "./testHelpers";
 import {
   computeActiveTime,
   computeTimeMapping,
