@@ -7,7 +7,10 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
-import { findPythonRepoRoot } from "../../tooling/python-repo/index.js";
+import {
+  findPythonRepoRoot,
+  warnIfWatchingWithoutSubmodule,
+} from "../../tooling/python-repo/index.js";
 
 function copyToPythonRepo(): Plugin {
   return {
@@ -84,7 +87,11 @@ export default defineConfig(({ mode }) => {
     // App build configuration
     return {
       ...baseConfig,
-      plugins: [...baseConfig.plugins, copyToPythonRepo()],
+      plugins: [
+        ...baseConfig.plugins,
+        warnIfWatchingWithoutSubmodule("inspect_scout"),
+        copyToPythonRepo(),
+      ],
       base: "",
       server: {
         proxy: {
