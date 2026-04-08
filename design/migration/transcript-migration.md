@@ -164,99 +164,163 @@ These files import from `@tsmono/inspect-components/content` and
 
 ## Manual Test Plan
 
-### Content Rendering
+### Scout
 
-- [ ] **RenderedContent with string** -- Verify plain string content renders
-      as formatted text.
-- [ ] **RenderedContent with JSON string** -- Verify a JSON-encoded string
-      is detected and rendered as an interactive RecordTree.
-- [ ] **RenderedContent with ANSI string** -- Verify ANSI escape codes render
-      with correct colors (e.g., tool output with colored text).
-- [ ] **RenderedContent with HTML** -- Verify HTML content renders safely
-      (sanitized).
-- [ ] **RenderedContent with image** -- Verify base64 image content renders
-      as an inline image.
-- [ ] **RenderedContent with array** -- Verify array values render as
-      collapsible lists.
-- [ ] **RenderedContent with object** -- Verify object values render as
-      RecordTree.
+#### Transcript View
 
-### RecordTree
+Open a transcript and walk through the event list, verifying each event type:
 
-- [ ] **Basic tree rendering** -- Load a transcript with metadata and verify
-      the tree expands/collapses correctly.
-- [ ] **Default expand level** -- Verify `defaultExpandLevel={0}` starts
-      fully collapsed; higher values expand deeper.
-- [ ] **Locale-formatted numbers** -- Verify numeric values in trees show
-      locale-formatted display (e.g., "1,234" vs "1234").
-- [ ] **Store key expansion** -- Verify store key patterns
+- [ ] **Model event** -- Verify metadata renders in a 2-column grid, token
+      counts display (input, output, total, reasoning, cache_read,
+      cache_write), and chat messages render below.
+- [ ] **Score event** -- Verify structured scores render as an expandable
+      tree and explanation text renders as markdown.
+- [ ] **Sandbox event** -- Verify environment info renders in a 2-column
+      grid and files/output render as an expandable tree.
+- [ ] **Sample init event** -- Verify sample metadata renders in a 2-column
+      grid and initial messages render as a chat view.
+- [ ] **Subtask event** -- Verify subtask info renders in a 2-column grid.
+- [ ] **Logger event** -- Verify log entries render in a 2-column grid.
+- [ ] **Info event** -- Verify text content renders as markdown.
+- [ ] **Compaction event** -- Verify compaction statistics render in a
+      2-column grid.
+- [ ] **Branch event** -- Verify branch info renders in a 2-column grid.
+
+Verify content rendering within events by finding examples of each type:
+
+- [ ] **Plain string** -- Renders as formatted text.
+- [ ] **JSON string** -- Detected and rendered as an interactive expandable
+      tree.
+- [ ] **ANSI string** -- ANSI escape codes render with correct colors (e.g.,
+      tool output with colored text).
+- [ ] **HTML content** -- Renders safely (sanitized).
+- [ ] **Base64 image** -- Renders as an inline image.
+- [ ] **Array value** -- Renders as a collapsible list.
+- [ ] **Object value** -- Renders as an expandable tree.
+
+Verify tree and grid behaviors:
+
+- [ ] **Tree expand/collapse** -- Click tree nodes to expand and collapse;
+      verify `defaultExpandLevel` starts fully collapsed where expected.
+- [ ] **Locale-formatted numbers** -- Numeric values in trees show
+      locale-formatted display (e.g., "1,234" not "1234").
+- [ ] **Store key expansion** -- Store key patterns
       (`storeName:instanceId:keyName`) expand into structured subtrees.
-- [ ] **Large trees** -- Verify virtualization kicks in for deeply nested or
-      wide trees.
+- [ ] **Large trees** -- Deeply nested or wide trees virtualize correctly.
+- [ ] **Grid with complex values** -- Object/array values in metadata grids
+      render as expandable trees within grid cells.
 
-### MetaDataGrid
+Verify display mode:
 
-- [ ] **Basic grid** -- Verify key-value pairs render in a 2-column grid
-      (e.g., model event metadata).
-- [ ] **Plain mode** -- Verify `options.plain` renders simplified styling.
-- [ ] **Complex values** -- Verify object/array values in the grid render
-      as RecordTree within grid cells.
+- [ ] **Raw mode toggle** -- Click the display mode button and verify text
+      switches between rendered markdown and raw source.
+- [ ] **Raw mode persistence** -- Toggle to raw mode, navigate to a different
+      transcript and back. Verify the mode persists.
+- [ ] **Markdown rendering** -- In rendered mode, verify headers, bold, links,
+      and code blocks render correctly with syntax highlighting.
+- [ ] **Icon rendering** -- Verify Bootstrap Icon classes render correctly
+      (tree open/close arrows, checkboxes, tool icon).
 
-### RenderedText & DisplayMode
+#### Scanner Results
 
-- [ ] **Markdown rendering** -- Verify markdown text (headers, bold, links,
-      code blocks) renders correctly.
-- [ ] **Code blocks** -- Verify fenced code blocks render with syntax
-      highlighting.
-- [ ] **Raw mode toggle (scout)** -- In scout, toggle the display mode button
-      and verify text switches between rendered markdown and raw source.
-- [ ] **Raw mode persistence** -- Toggle to raw mode, navigate away and back.
-      Verify the mode persists (Zustand store).
-- [ ] **Inspect default** -- Verify inspect always shows rendered mode
-      (no toggle button).
+Open a scanner result and verify its panels:
 
-### Usage Components
+- [ ] **Info panel** -- Verify model usage table shows scan model token
+      counts with separate rows per model.
+- [ ] **Result body** -- Verify chat messages render in a virtualized list.
+- [ ] **Metadata panel** -- Verify metadata renders as an expandable tree.
 
-- [ ] **ModelUsagePanel** -- Load a transcript with model usage data. Verify
-      token counts display: input, output, total.
-- [ ] **Reasoning tokens** -- Verify reasoning_tokens row appears when present
-      in the data.
-- [ ] **Cache tokens** -- Verify cache_read_input_tokens and
-      cache_creation_input_tokens rows appear when present.
-- [ ] **ModelTokenTable** -- Verify multi-model usage renders with separate
-      rows per model.
-- [ ] **UsageCard** -- Verify the card wrapper renders with correct title
-      and model token table inside.
+#### Timeline
 
-### Transcript Event Views
+- [ ] **Swimlane rendering** -- Verify timeline swimlanes, minimap, and
+      compaction markers render correctly.
 
-- [ ] **Model event** -- Verify model event shows: MetaDataGrid for metadata,
-      ModelUsagePanel for token usage, ChatView for input/output messages.
-- [ ] **Score event** -- Verify score renders with RecordTree for structured
-      scores and RenderedText for explanation.
-- [ ] **Sandbox event** -- Verify sandbox event shows MetaDataGrid for
-      environment info and RecordTree for files/output.
-- [ ] **Sample init event** -- Verify sample init shows MetaDataGrid for
-      sample metadata and ChatView for initial messages.
-- [ ] **Subtask event** -- Verify subtask renders with MetaDataGrid showing
-      subtask info.
-- [ ] **Logger event** -- Verify logger event shows MetaDataGrid with log
-      entries.
-- [ ] **Info event** -- Verify info event renders RenderedText content.
-- [ ] **Compaction event** -- Verify compaction shows MetaDataGrid with
-      compaction statistics.
-- [ ] **Branch event** -- Verify branch event shows MetaDataGrid with
-      branch info.
+### Inspect
 
-### Context Providers
+#### Sample Transcript
 
-- [ ] **IconsContext defaults** -- Verify Bootstrap Icon classes render
-      correctly (tree open/close arrows, checkboxes, tool icon) without
-      any app-level IconsContext.Provider.
-- [ ] **DisplayModeContext in scout** -- Verify the TranscriptBody wrapper
-      provides DisplayModeContext and child components respond to changes.
-- [ ] **No DisplayModeContext in inspect** -- Verify inspect renders
-      correctly without a DisplayModeContext.Provider (defaults to "rendered").
+Open a sample and walk through the event list, verifying each event type:
+
+- [ ] **Model event** -- Verify metadata renders in a 2-column grid, token
+      counts display (input, output, total, reasoning, cache_read,
+      cache_write), and chat messages render below.
+- [ ] **Score event** -- Verify structured scores render as an expandable
+      tree and explanation text renders as markdown.
+- [ ] **Sandbox event** -- Verify environment info renders in a 2-column
+      grid and files/output render as an expandable tree.
+- [ ] **Sample init event** -- Verify sample metadata renders in a 2-column
+      grid and initial messages render as a chat view.
+- [ ] **Subtask event** -- Verify subtask info renders in a 2-column grid.
+- [ ] **Logger event** -- Verify log entries render in a 2-column grid.
+- [ ] **Info event** -- Verify text content renders as markdown.
+- [ ] **Compaction event** -- Verify compaction statistics render in a
+      2-column grid.
+- [ ] **Branch event** -- Verify branch info renders in a 2-column grid.
+
+Verify content rendering within events by finding examples of each type:
+
+- [ ] **Plain string** -- Renders as formatted text.
+- [ ] **JSON string** -- Detected and rendered as an interactive expandable
+      tree.
+- [ ] **ANSI string** -- ANSI escape codes render with correct colors.
+- [ ] **HTML content** -- Renders safely (sanitized).
+- [ ] **Base64 image** -- Renders as an inline image.
+- [ ] **Array value** -- Renders as a collapsible list.
+- [ ] **Object value** -- Renders as an expandable tree.
+
+Verify tree and grid behaviors:
+
+- [ ] **Tree expand/collapse** -- Click tree nodes to expand and collapse;
+      verify `defaultExpandLevel` starts fully collapsed where expected.
+- [ ] **Locale-formatted numbers** -- Numeric values in trees show
+      locale-formatted display (e.g., "1,234" not "1234").
+- [ ] **Store key expansion** -- Store key patterns
+      (`storeName:instanceId:keyName`) expand into structured subtrees.
+- [ ] **Large trees** -- Deeply nested or wide trees virtualize correctly.
+- [ ] **Grid with complex values** -- Object/array values in metadata grids
+      render as expandable trees within grid cells.
+- [ ] **Grid plain mode** -- Verify simplified grid styling where used.
+
+Verify display mode:
+
+- [ ] **Default rendered mode** -- Verify content always shows in rendered
+      mode (no toggle button visible).
+- [ ] **Markdown rendering** -- Verify headers, bold, links, and code blocks
+      render correctly with syntax highlighting.
+- [ ] **Icon rendering** -- Verify Bootstrap Icon classes render correctly
+      (tree open/close arrows, checkboxes, tool icon).
+
+#### Outline Sidebar
+
+- [ ] **Event hierarchy** -- Verify the outline sidebar renders a collapsible
+      event hierarchy that can be expanded and collapsed.
+- [ ] **Hover popovers** -- Hover over outline rows and verify metadata
+      popover displays a 2-column grid with event details.
+
+#### Scoring Tab
+
+- [ ] **Scores grid** -- Open the scoring tab and verify scorer metadata
+      renders as expandable trees (starting collapsed).
+- [ ] **Scorer explanations** -- Verify scorer explanations render as
+      formatted content.
+
+#### Models Tab
+
+- [ ] **Usage cards** -- Verify model usage and role usage each render in
+      a card with a title and token table inside.
+- [ ] **Multi-model table** -- Verify multi-model usage renders with
+      separate rows per model.
+
+#### Task Tab
+
+- [ ] **Task metadata** -- Verify task info, timing, and early stopping
+      render in 2-column grids.
+
+#### Print View
+
+- [ ] **Print rendering** -- Trigger print and verify all events render
+      non-virtualized with all events expanded.
+- [ ] **Auto-print** -- Verify the print dialog triggers automatically.
 
 ### Cross-App Verification
 
@@ -265,7 +329,7 @@ These files import from `@tsmono/inspect-components/content` and
   - Model events show the same token usage numbers
   - Score events show the same structured scores
   - Sandbox events show the same file/environment data
-  - MetaDataGrid entries match between apps
+  - Metadata grid entries match between apps
 - [ ] **Shared CSS modules** -- Verify CSS module class names don't collide
       between the shared package and app-level styles.
 - [ ] **Import path correctness** -- Verify no remaining imports from deleted
