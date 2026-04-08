@@ -41,7 +41,15 @@ export const ModelTab: FC<ModelTabProps> = ({
 }) => {
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ padding: "0.5em 1em 0 1em", width: "100%" }}>
+      <div
+        style={{
+          padding: "0.5em 1em 0 1em",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+        }}
+      >
         {evalSpec ? <ModelCard evalSpec={evalSpec} /> : undefined}
         {evalStatus !== "started" &&
           evalStats?.model_usage &&

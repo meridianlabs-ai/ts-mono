@@ -538,7 +538,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               selected={effectiveSelectedTab === kSampleMetdataTabId}
             >
               {sampleMetadatas.length > 0 ? (
-                <div className={clsx(styles.padded, styles.fullWidth)}>
+                <div
+                  className={clsx(
+                    styles.padded,
+                    styles.fullWidth,
+                    styles.metadataPanel
+                  )}
+                >
                   {sampleMetadatas}
                 </div>
               ) : (

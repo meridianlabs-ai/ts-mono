@@ -113,7 +113,15 @@ export const TaskTab: FC<TaskTabProps> = ({
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ padding: "0.5em 1em 0 1em", width: "100%" }}>
+      <div
+        style={{
+          padding: "0.5em 1em 0 1em",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+        }}
+      >
         <Card>
           <CardHeader label="Task Info" />
           <CardBody id={"task-card-config"}>
