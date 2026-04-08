@@ -156,6 +156,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleTabId,
   } = useLogOrSampleRouteParams();
 
+  // Reset tab to default when this sample view unmounts
+  const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  useEffect(() => {
+    return () => {
+      clearSampleTab();
+    };
+  }, [clearSampleTab]);
+
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
 
