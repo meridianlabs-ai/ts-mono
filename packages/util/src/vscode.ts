@@ -47,3 +47,15 @@ export const isVscode = () => {
     })
   );
 };
+
+/**
+ * Returns true when the app is running in a hosted (non-local) environment
+ * — i.e. not localhost, not 127.0.0.1, and not inside a VS Code webview.
+ */
+export const isHostedEnvironment = () => {
+  return (
+    location.hostname !== "localhost" &&
+    location.hostname !== "127.0.0.1" &&
+    location.protocol !== "vscode-webview:"
+  );
+};

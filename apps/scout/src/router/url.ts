@@ -288,14 +288,6 @@ export const updateColumnsParam = (
   return newParams;
 };
 
-export const isHostedEnvironment = () => {
-  return (
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1" &&
-    location.protocol !== "vscode-webview:"
-  );
-};
-
 /**
  * Opens a route in a new browser tab.
  * Handles the hash router URL format.

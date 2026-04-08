@@ -30,7 +30,7 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
-import { isVscode } from "@tsmono/util";
+import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
@@ -506,7 +506,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   formatDateTime,
                 }}
                 linking={{
-                  enabled: true,
+                  enabled: isHostedEnvironment(),
                   getUrl: getMessageUrl,
                 }}
                 onNativeFindChanged={setNativeFind}

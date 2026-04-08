@@ -25,6 +25,8 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../components/icons";
+import { isHostedEnvironment } from "@tsmono/util";
+
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
@@ -307,7 +309,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         className={styles.chatList}
         scrollRef={activeScrollRef}
         linking={{
-          enabled: true,
+          enabled: isHostedEnvironment(),
           getUrl: getFullMessageUrl,
         }}
       />
@@ -340,7 +342,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
         getEventUrl={getFullEventUrl}
-        linkingEnabled={true}
+        linkingEnabled={isHostedEnvironment()}
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
