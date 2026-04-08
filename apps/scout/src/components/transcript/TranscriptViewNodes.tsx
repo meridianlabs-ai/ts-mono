@@ -48,6 +48,11 @@ interface TranscriptViewNodesProps {
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  onRangeChanged?: (range: {
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }) => void;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -74,6 +79,7 @@ export const TranscriptViewNodes = forwardRef<
     turnMap,
     getEventUrl,
     linkingEnabled,
+    onRangeChanged,
   },
   ref
 ) {
@@ -209,6 +215,7 @@ export const TranscriptViewNodes = forwardRef<
           getCollapsed={getCollapsed}
           getEventUrl={getEventUrl}
           linkingEnabled={linkingEnabled}
+          onRangeChanged={onRangeChanged}
         />
       </div>
     </StickyScrollProvider>

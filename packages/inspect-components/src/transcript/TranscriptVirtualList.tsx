@@ -62,6 +62,11 @@ interface TranscriptVirtualListProps extends EventPanelCallbacks {
     node: EventNode,
     className?: string | string[]
   ) => ReactNode;
+  onRangeChanged?: (range: {
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }) => void;
 }
 
 /**
@@ -87,6 +92,7 @@ const TranscriptVirtualListInner: FC<TranscriptVirtualListProps> = (props) => {
       getCollapsed={props.getCollapsed}
       getEventUrl={props.getEventUrl}
       linkingEnabled={props.linkingEnabled}
+      onRangeChanged={props.onRangeChanged}
     />
   );
 };
