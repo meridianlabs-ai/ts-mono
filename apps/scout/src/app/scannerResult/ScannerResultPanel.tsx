@@ -4,6 +4,8 @@ import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { EventNode } from "@tsmono/inspect-components/transcript";
+import type { EventType } from "@tsmono/inspect-components/transcript";
 import {
   ExtendedFindProvider,
   JSONPanel,
@@ -15,7 +17,6 @@ import {
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../components/icons";
-import { EventNode, EventType } from "../../components/transcript/types";
 import {
   getScannerParam,
   getValidationParam,

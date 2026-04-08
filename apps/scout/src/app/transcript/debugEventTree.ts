@@ -9,7 +9,8 @@
  *   console.log(eventNodeTree(eventNodes));
  */
 
-import type { EventNode } from "../../components/transcript/types";
+import type { EventNode } from "@tsmono/inspect-components/transcript";
+
 import type { Event } from "../../types/api-types";
 
 function label(ev: Event): string {

@@ -10,23 +10,32 @@ import {
   useState,
 } from "react";
 
+import {
+  computeTurnMap,
+  EventNode,
+  flatTree,
+  kCollapsibleEventTypes,
+  kSandboxSignalName,
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
+  noScorerChildren,
+  removeNodeVisitor,
+  removeStepSpanNameVisitor,
+  TimelineSelectContext,
+  TranscriptOutline,
+} from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
+import { AgentCardView } from "../../../components/transcript/AgentCardView";
 import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
-import { TranscriptOutline } from "../../../components/transcript/outline/TranscriptOutline";
 import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
-import { TimelineSelectContext } from "../../../components/transcript/TimelineSelectContext";
+import type { TimelineSpan } from "../../../components/transcript/timeline";
 import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "../../../components/transcript/TranscriptViewNodes";
-import {
-  EventNode,
-  kCollapsibleEventTypes,
-  kTranscriptCollapseScope,
-} from "../../../components/transcript/types";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import { useScrubberProgress } from "../hooks/useScrubberPercent";
@@ -80,6 +89,10 @@ interface TimelineEventsViewProps {
   /** Reset the headroom anchor before a layout shift or programmatic scroll.
    *  Pass `true` to debounce (keeps lock alive while scrolling continues). */
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  /** Callback to generate a full deep-link URL for an event. */
+  getEventUrl?: (eventId: string) => string | undefined;
+  /** Whether deep-link copy buttons are enabled. */
+  linkingEnabled?: boolean;
   className?: string;
 }
 
@@ -125,6 +138,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   timelines: serverTimelines,
   headroomHidden,
   onHeadroomResetAnchor,
+  getEventUrl,
+  linkingEnabled,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -386,6 +401,75 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     [getVisibleRange, listKey, onHeadroomResetAnchor]
   );
 
+  // Outline callback props — wire store to shared TranscriptOutline component
+  const outlineCollapsedEvents = useStore(
+    (state) => state.transcriptCollapsedEvents
+  );
+  const setOutlineCollapsedEvent = useStore(
+    (state) => state.setTranscriptCollapsedEvent
+  );
+  const setOutlineCollapsedEvents = useStore(
+    (state) => state.setTranscriptCollapsedEvents
+  );
+  const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
+  const setSelectedOutlineId = useStore(
+    (state) => state.setTranscriptOutlineId
+  );
+
+  const getOutlineCollapsed = useCallback(
+    (scope: string, nodeId: string) =>
+      outlineCollapsedEvents[scope]?.[nodeId] === true,
+    [outlineCollapsedEvents]
+  );
+  const getOutlineCollapsedEvents = useCallback(
+    () =>
+      outlineCollapsedEvents[kTranscriptOutlineCollapseScope] as
+        | Record<string, boolean>
+        | undefined,
+    [outlineCollapsedEvents]
+  );
+
+  // Compute turn map for sticky turn labels in the transcript.
+  // Uses the same outline-filtered node list as TranscriptOutline so turn
+  // numbers match the sidebar.
+  const outlineFilteredNodes = useMemo(() => {
+    return flatTree(
+      eventNodes,
+      (outlineCollapsedEvents
+        ? (outlineCollapsedEvents[kTranscriptOutlineCollapseScope] as
+            | Record<string, boolean>
+            | undefined)
+        : undefined) || defaultCollapsedIds,
+      [
+        removeNodeVisitor("logger"),
+        removeNodeVisitor("info"),
+        removeNodeVisitor("state"),
+        removeNodeVisitor("store"),
+        removeNodeVisitor("approval"),
+        removeNodeVisitor("input"),
+        removeNodeVisitor("sandbox"),
+        removeStepSpanNameVisitor(kSandboxSignalName),
+        noScorerChildren(),
+      ]
+    );
+  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
+
+  const flattenedNodes = useMemo(() => {
+    return flatTree(
+      eventNodes,
+      (outlineCollapsedEvents
+        ? (outlineCollapsedEvents[kTranscriptCollapseScope] as
+            | Record<string, boolean>
+            | undefined)
+        : undefined) || defaultCollapsedIds
+    );
+  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
+
+  const turnMap = useMemo(
+    () => computeTurnMap(outlineFilteredNodes, flattenedNodes),
+    [outlineFilteredNodes, flattenedNodes]
+  );
+
   // Clean up per-agent state when the transcript panel unmounts
   // (e.g. navigating to a different transcript).
   const clearTranscriptOutlineId = useStore(
@@ -479,6 +563,15 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     return row?.name ?? timelineData.root.name;
   }, [timelineState.selected, timelineState.rows, timelineData.root.name]);
 
+  const renderAgentCard = useCallback(
+    (node: EventNode, className?: string | string[]) => {
+      const span = node.sourceSpan as TimelineSpan | undefined;
+      if (!span) return null;
+      return <AgentCardView span={span} className={className} />;
+    },
+    []
+  );
+
   const showSwimlanes = timelineProp !== false;
   const swimlanesDefaultCollapsed =
     timelineProp === "auto" && !hasTimeline && regionCounts.size === 0
@@ -570,6 +663,12 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
                 onWidthChange={setOutlineWidth}
                 onNavigateToEvent={handleOutlineNavigate}
                 scrollTrackOffset={offsetTop + stickySwimLaneHeight}
+                getCollapsed={getOutlineCollapsed}
+                setCollapsed={setOutlineCollapsedEvent}
+                getCollapsedEvents={getOutlineCollapsedEvents}
+                setCollapsedEvents={setOutlineCollapsedEvents}
+                selectedOutlineId={selectedOutlineId}
+                setSelectedOutlineId={setSelectedOutlineId}
               />
             )}
             <button
@@ -603,6 +702,10 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               offsetTop={offsetTop + stickySwimLaneHeight}
               className={styles.eventsList}
               scrollRef={scrollRef}
+              renderAgentCard={renderAgentCard}
+              turnMap={turnMap}
+              getEventUrl={getEventUrl}
+              linkingEnabled={linkingEnabled}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />

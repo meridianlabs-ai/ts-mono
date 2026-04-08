@@ -1,8 +1,10 @@
 import clsx from "clsx";
 import { FC, useRef } from "react";
 
+import { EventNode } from "@tsmono/inspect-components/transcript";
+import type { EventType } from "@tsmono/inspect-components/transcript";
+
 import { TranscriptView } from "../../../components/transcript/TranscriptView";
-import { EventNode, EventType } from "../../../components/transcript/types";
 import { ScanResultData } from "../../types";
 
 import styles from "./TranscriptPanel.module.css";

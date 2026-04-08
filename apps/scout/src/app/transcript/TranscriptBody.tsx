@@ -64,8 +64,24 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // listeners need the *actual* scroll container, not the outer transcriptContainer.
   const splitStartRef = useRef<HTMLDivElement | null>(null);
 
+  // Measure tab bar height so downstream sticky offsets align exactly
+  // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
+  const tabsRef = useRef<HTMLUListElement | null>(null);
+  const [tabBarHeight, setTabBarHeight] = useState(40);
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setTabBarHeight(el.getBoundingClientRect().height);
+    });
+    observer.observe(el);
+    setTabBarHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl, getFullMessageUrl } = useTranscriptNavigation();
+  const { getEventUrl, getFullEventUrl, getFullMessageUrl } =
+    useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -313,7 +329,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TimelineEventsView
         events={filteredEvents}
         scrollRef={activeScrollRef}
-        offsetTop={40}
+        offsetTop={tabBarHeight}
         initialEventId={eventParam}
         initialMessageId={messageParam}
         defaultOutlineExpanded={true}
@@ -323,6 +339,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
+        getEventUrl={getFullEventUrl}
+        linkingEnabled={true}
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
@@ -387,6 +405,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <TabSet
       id={"transcript-body"}
       type="pills"
+      tabsRef={tabsRef}
       tabPanelsClassName={clsx(styles.tabSet)}
       tabControlsClassName={clsx(styles.tabControl)}
       className={clsx(styles.tabs)}

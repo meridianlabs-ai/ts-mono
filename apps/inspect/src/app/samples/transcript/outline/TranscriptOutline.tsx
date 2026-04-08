@@ -10,16 +10,21 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
+import {
+  collapseScoring,
+  collapseTurns,
+  flatTree,
+  kTranscriptOutlineCollapseScope,
+  makeTurns,
+} from "@tsmono/inspect-components/transcript";
+import type { EventNode } from "@tsmono/inspect-components/transcript";
 import { useScrollTrack, useVirtuosoState } from "@tsmono/react/hooks";
 
 import { useStore } from "../../../../state/store";
 import { useSampleDetailNavigation } from "../../../routing/sampleNavigation";
-import { flatTree } from "../transform/flatten";
-import { EventNode, kTranscriptOutlineCollapseScope } from "../types";
 
 import { OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
-import { collapseScoring, collapseTurns, makeTurns } from "./tree-visitors";
 
 const kFramesToStabilize = 10;
 

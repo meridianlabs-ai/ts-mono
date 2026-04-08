@@ -14,6 +14,10 @@ export const test = base.extend<AppFixtures>({
       const network = defineNetworkFixture({
         context,
         handlers: defaultHandlers,
+        // The inspect API encodes log filenames in URL paths (e.g.
+        // /api/logs/test-chat.json) which MSW classifies as static
+        // asset requests and skips by default.
+        skipAssetRequests: false,
       });
 
       await network.enable();

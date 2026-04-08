@@ -1,110 +1,200 @@
 import { describe, expect, test } from "vitest";
 
-import { eventSearchText } from "../../app/samples/transcript/eventSearchText";
-import { EventNode } from "../../app/samples/transcript/types";
+import {
+  EventNode,
+  eventSearchText,
+} from "@tsmono/inspect-components/transcript";
 
 const makeNode = (event: Record<string, unknown>): EventNode => {
   return new EventNode("test-id", event as never, 0);
 };
 
 describe("eventSearchText", () => {
-  test("score: includes 'Intermediate Score' for intermediate scores", () => {
+  test("score: includes answer, explanation, and value", () => {
     const texts = eventSearchText(
       makeNode({
         event: "score",
         score: { answer: "yes", explanation: "partial", value: 0.5 },
-        target: null,
+        target: "correct answer",
         intermediate: true,
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Intermediate Score");
+    expect(texts).toContain("yes");
+    expect(texts).toContain("partial");
+    expect(texts).toContain("0.5");
+    expect(texts).toContain("correct answer");
   });
 
-  test("score: includes 'Score' for non-intermediate scores", () => {
+  test("score: includes array target", () => {
     const texts = eventSearchText(
       makeNode({
         event: "score",
-        score: { answer: "yes", explanation: "correct", value: "C" },
-        target: "expected",
+        score: { answer: null, explanation: null, value: 1 },
+        target: ["a", "b"],
         intermediate: false,
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Score");
-    expect(texts).not.toContain("Intermediate Score");
+    expect(texts).toContain("a");
+    expect(texts).toContain("b");
   });
 
-  test("score_edit: includes 'Edit Score' title", () => {
+  test("score_edit: includes score_name and edit fields", () => {
     const texts = eventSearchText(
       makeNode({
         event: "score_edit",
-        edit: { answer: "new", explanation: "fixed", provenance: null },
+        score_name: "accuracy",
+        edit: {
+          answer: "new answer",
+          explanation: "fixed reasoning",
+          provenance: null,
+        },
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Edit Score");
+    expect(texts).toContain("accuracy");
+    expect(texts).toContain("new answer");
+    expect(texts).toContain("fixed reasoning");
   });
 
-  test("sample_limit: maps all limit types to titles", () => {
-    const typeToTitle: Record<string, string> = {
-      custom: "Custom Limit Exceeded",
-      time: "Time Limit Exceeded",
-      message: "Message Limit Exceeded",
-      token: "Token Limit Exceeded",
-      operator: "Operator Canceled",
-      working: "Execution Time Limit Exceeded",
-      cost: "Cost Limit Exceeded",
-    };
-    for (const [type, expectedTitle] of Object.entries(typeToTitle)) {
-      const texts = eventSearchText(
-        makeNode({
-          event: "sample_limit",
-          type,
-          message: "",
-          timestamp: "2024-01-01T00:00:00Z",
-        })
-      );
-      expect(texts).toContain(expectedTitle);
-    }
+  test("score_edit: excludes UNCHANGED fields", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "score_edit",
+        score_name: "accuracy",
+        edit: {
+          answer: "UNCHANGED",
+          explanation: "UNCHANGED",
+          provenance: null,
+        },
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("accuracy");
+    expect(texts).not.toContain("UNCHANGED");
   });
 
-  test("approval: includes decision label", () => {
-    const decisions: Record<string, string> = {
-      approve: "Approved",
-      reject: "Rejected",
-      terminate: "Terminated",
-    };
-    for (const [decision, expected] of Object.entries(decisions)) {
-      const texts = eventSearchText(
-        makeNode({
-          event: "approval",
-          decision,
-          explanation: "",
-          timestamp: "2024-01-01T00:00:00Z",
-        })
-      );
-      expect(texts).toContain(expected);
-    }
+  test("sample_init: includes target and metadata", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sample_init",
+        sample: {
+          target: "expected output",
+          metadata: { category: "math" },
+          input: "question",
+        },
+        state: {},
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("expected output");
+    expect(texts.some((t) => t.includes("math"))).toBe(true);
   });
 
-  test("sandbox: includes action in title", () => {
+  test("sample_limit: includes message and type", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sample_limit",
+        message: "Token limit exceeded",
+        type: "token",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("Token limit exceeded");
+    expect(texts).toContain("token");
+  });
+
+  test("input: includes input text", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "input",
+        input: "user typed this",
+        input_ansi: "user typed this",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("user typed this");
+  });
+
+  test("approval: includes decision, explanation, and approver", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "approval",
+        decision: "approve",
+        explanation: "looks safe",
+        approver: "human-in-loop",
+        message: "Allow file write?",
+        call: {},
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("approve");
+    expect(texts).toContain("looks safe");
+    expect(texts).toContain("human-in-loop");
+  });
+
+  test("sandbox: includes action, cmd, output, and file", () => {
     const texts = eventSearchText(
       makeNode({
         event: "sandbox",
         action: "exec",
         cmd: "ls -la",
+        output: "total 42",
         file: null,
-        input: null,
-        output: null,
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Sandbox: exec");
+    expect(texts).toContain("exec");
     expect(texts).toContain("ls -la");
+    expect(texts).toContain("total 42");
   });
 
-  test("model: includes title with role when present", () => {
+  test("sandbox: includes file for read/write actions", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "sandbox",
+        action: "read_file",
+        cmd: null,
+        output: "file contents",
+        file: "/tmp/test.txt",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("read_file");
+    expect(texts).toContain("/tmp/test.txt");
+  });
+
+  test("state: includes change paths and values", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "state",
+        changes: [
+          { op: "replace", path: "/messages/0/content", value: "hello" },
+          { op: "add", path: "/count", value: 42 },
+        ],
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("/messages/0/content");
+    expect(texts).toContain("hello");
+    expect(texts).toContain("/count");
+    expect(texts).toContain("42");
+  });
+
+  test("store: includes change paths and values", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "store",
+        changes: [{ op: "add", path: "/key", value: "val" }],
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("/key");
+    expect(texts).toContain("val");
+  });
+
+  test("model: includes model name", () => {
     const texts = eventSearchText(
       makeNode({
         event: "model",
@@ -115,24 +205,27 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Model Call (assistant): gpt-4");
+    expect(texts).toContain("gpt-4");
   });
 
-  test("model: includes title without role when absent", () => {
+  test("model: extracts text from output choices", () => {
     const texts = eventSearchText(
       makeNode({
         event: "model",
         model: "gpt-4",
         role: null,
-        output: { choices: [] },
+        output: {
+          choices: [{ message: { content: "hello world", role: "assistant" } }],
+        },
         input: [],
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Model Call: gpt-4");
+    expect(texts).toContain("gpt-4");
+    expect(texts).toContain("hello world");
   });
 
-  test("step: includes formatted title with type prefix", () => {
+  test("step: includes name and type as separate values", () => {
     const texts = eventSearchText(
       makeNode({
         event: "step",
@@ -141,10 +234,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("solver: generate");
+    expect(texts).toContain("generate");
+    expect(texts).toContain("solver");
   });
 
-  test("step: includes 'Step: name' when no type", () => {
+  test("step: includes name when no type", () => {
     const texts = eventSearchText(
       makeNode({
         event: "step",
@@ -153,10 +247,10 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Step: my_step");
+    expect(texts).toContain("my_step");
   });
 
-  test("subtask: 'Fork:' for fork type, 'Subtask:' for others", () => {
+  test("subtask: includes name and type", () => {
     const fork = eventSearchText(
       makeNode({
         event: "subtask",
@@ -167,7 +261,8 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(fork).toContain("Fork: parallel");
+    expect(fork).toContain("parallel");
+    expect(fork).toContain("fork");
 
     const sub = eventSearchText(
       makeNode({
@@ -179,10 +274,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(sub).toContain("Subtask: check");
+    expect(sub).toContain("check");
+    expect(sub).toContain("subtask");
   });
 
-  test("tool: includes 'Tool:' title", () => {
+  test("tool: includes view title and function name", () => {
     const texts = eventSearchText(
       makeNode({
         event: "tool",
@@ -194,11 +290,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Tool: Web Search");
+    expect(texts).toContain("Web Search");
     expect(texts).toContain("search");
   });
 
-  test("error: includes 'Error' title", () => {
+  test("error: includes error message", () => {
     const texts = eventSearchText(
       makeNode({
         event: "error",
@@ -206,11 +302,10 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Error");
     expect(texts).toContain("something broke");
   });
 
-  test("logger: includes level as title", () => {
+  test("logger: includes message and filename", () => {
     const texts = eventSearchText(
       makeNode({
         event: "logger",
@@ -222,11 +317,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("WARNING");
     expect(texts).toContain("disk space low");
+    expect(texts).toContain("main.py");
   });
 
-  test("info: includes 'Info' title with source", () => {
+  test("info: includes source and data", () => {
     const texts = eventSearchText(
       makeNode({
         event: "info",
@@ -235,11 +330,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Info: system");
+    expect(texts).toContain("system");
     expect(texts).toContain("startup complete");
   });
 
-  test("info: includes 'Info' title without source", () => {
+  test("info: includes data without source", () => {
     const texts = eventSearchText(
       makeNode({
         event: "info",
@@ -248,34 +343,10 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Info");
+    expect(texts).toContain("startup complete");
   });
 
-  test("sample_init: includes 'Sample' title", () => {
-    const texts = eventSearchText(
-      makeNode({
-        event: "sample_init",
-        sample: { target: "expected answer" },
-        timestamp: "2024-01-01T00:00:00Z",
-      })
-    );
-    expect(texts).toContain("Sample");
-    expect(texts).toContain("expected answer");
-  });
-
-  test("input: includes 'Input' title", () => {
-    const texts = eventSearchText(
-      makeNode({
-        event: "input",
-        input_ansi: "user typed this",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
-    );
-    expect(texts).toContain("Input");
-    expect(texts).toContain("user typed this");
-  });
-
-  test("span_begin: includes formatted title with type prefix", () => {
+  test("span_begin: includes name and type as separate values", () => {
     const texts = eventSearchText(
       makeNode({
         event: "span_begin",
@@ -284,10 +355,11 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("solver: evaluate");
+    expect(texts).toContain("evaluate");
+    expect(texts).toContain("solver");
   });
 
-  test("span_begin: uses 'Init' override for init name", () => {
+  test("span_begin: includes name when no type", () => {
     const texts = eventSearchText(
       makeNode({
         event: "span_begin",
@@ -296,22 +368,10 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Init");
+    expect(texts).toContain("init");
   });
 
-  test("span_begin: includes 'Step: name' when no type and no override", () => {
-    const texts = eventSearchText(
-      makeNode({
-        event: "span_begin",
-        name: "my_span",
-        type: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
-    );
-    expect(texts).toContain("Step: my_span");
-  });
-
-  test("compaction: includes 'Compaction' title", () => {
+  test("compaction: includes source and serialized event", () => {
     const texts = eventSearchText(
       makeNode({
         event: "compaction",
@@ -321,14 +381,13 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("Compaction");
     expect(texts).toContain("inspect");
   });
 
   test("unknown event: returns empty array", () => {
     const texts = eventSearchText(
       makeNode({
-        event: "state",
+        event: "span_end",
         timestamp: "2024-01-01T00:00:00Z",
       })
     );

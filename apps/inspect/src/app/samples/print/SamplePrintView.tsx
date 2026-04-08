@@ -5,6 +5,10 @@ import { VirtuosoHandle } from "react-virtuoso";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import {
+  flatTree,
+  TranscriptVirtualListComponent,
+} from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
   Card,
@@ -29,8 +33,6 @@ import { useLogRouteParams } from "../../routing/url";
 import { printHeadingHtml } from "../../utils/print";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
-import { TranscriptVirtualListComponent } from "../transcript/TranscriptVirtualListComponent";
-import { flatTree } from "../transcript/transform/flatten";
 import { useEventNodes } from "../transcript/transform/hooks";
 
 import styles from "./SamplePrintView.module.css";
