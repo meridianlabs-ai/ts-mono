@@ -11,6 +11,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import pc from "picocolors";
 
 /**
  * Walk up from startDir looking for a directory containing the given marker file.
@@ -69,4 +70,23 @@ export function requirePythonRepoRoot(packageName) {
     );
   }
   return root;
+}
+
+/**
+ * Vite plugin that warns when watch mode is active outside a submodule mount.
+ *
+ * @param {string} packageName - Expected `name` value in pyproject.toml.
+ * @returns {import("vite").Plugin}
+ */
+export function warnIfWatchingWithoutSubmodule(packageName) {
+  return {
+    name: "warn-no-submodule-watch",
+    configResolved(config) {
+      if (!config.build.watch) return;
+      if (findPythonRepoRoot(packageName)) return;
+      console.log(
+        `\n${pc.red(pc.bold("⚠  pnpm watch outside a submodule mount has no effect!"))}\n${pc.red(`   dist will not be copied — mount ts-mono at src/${packageName}/_view/ts-mono/`)}\n`,
+      );
+    },
+  };
 }
