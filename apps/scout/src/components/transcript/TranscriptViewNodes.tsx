@@ -154,9 +154,13 @@ export const TranscriptViewNodes = forwardRef<
           behavior: "auto",
           offset: offsetTop ? -offsetTop : undefined,
         });
+      } else {
+        // Non-virtual fallback: find the DOM element and scroll it into view
+        const el = scrollRef?.current?.querySelector(`[id="${eventId}"]`);
+        el?.scrollIntoView({ block: "start", behavior: "auto" });
       }
     },
-    [flattenedNodes, offsetTop]
+    [flattenedNodes, offsetTop, scrollRef]
   );
 
   const scrollToIndex = useCallback(
