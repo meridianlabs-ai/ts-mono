@@ -46,6 +46,7 @@ import {
   useCollapsedState,
   useListKeyboardNavigation,
   useScrollDirection,
+  useScrubberProgress,
 } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
@@ -322,6 +323,20 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
 
   // ---------------------------------------------------------------------------
+  // Scrubber: scroll progress for minimap scrubber
+  // ---------------------------------------------------------------------------
+
+  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
+
+  const handleScrub = useCallback(
+    (progress: number) => {
+      headroomResetAnchor(true);
+      scrubTo(progress);
+    },
+    [headroomResetAnchor, scrubTo]
+  );
+
+  // ---------------------------------------------------------------------------
   // Sticky swimlane height tracking
   // ---------------------------------------------------------------------------
 
@@ -512,6 +527,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                       root: timelineData.root,
                       selection: minimapSelection,
                       mapping: rootTimeMapping,
+                      scrubberProgress,
+                      onScrub: handleScrub,
                     },
                     timelineConfig,
                     timelineSelector:

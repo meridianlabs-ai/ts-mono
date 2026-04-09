@@ -35,12 +35,11 @@ import {
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty, useScrubberProgress } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
-import { useScrubberProgress } from "../hooks/useScrubberPercent";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineConfig } from "../hooks/useTimelineConfig";
 import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
@@ -376,34 +375,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const eventsListId = selected ? `${id}:${selected}` : id;
 
   // Scrubber scroll progress (0–1) for the minimap
-  const listKey = `live-virtual-list-${eventsListId}`;
-  const scrubberProgress = useScrubberProgress(listKey);
-
-  const getVisibleRange = useStore((state) => state.getVisibleRange);
-  const storeSetVisibleRange = useStore((state) => state.setVisibleRange);
-
-  const handleRangeChanged = useCallback(
-    (range: { startIndex: number; endIndex: number; totalCount: number }) => {
-      storeSetVisibleRange(listKey, range);
-    },
-    [storeSetVisibleRange, listKey]
-  );
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      const { totalCount } = getVisibleRange(listKey);
-      if (totalCount <= 1) return;
-      // Map progress (0–1) directly to a list index. scrollToIndex with
-      // align:"start" naturally clamps at the bottom of the list, so we
-      // don't need to subtract viewport size (which varies with item height).
-      const targetIndex = Math.round(progress * (totalCount - 1));
-      // Suppress headroom direction changes during programmatic scroll
-      // so the swimlane header doesn't collapse/reveal while scrubbing.
-      onHeadroomResetAnchor?.(true);
-      eventsListRef.current?.scrollToIndex(targetIndex);
-    },
-    [getVisibleRange, listKey, onHeadroomResetAnchor]
-  );
+  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
 
   // Outline callback props — wire store to shared TranscriptOutline component
   const outlineCollapsedEvents = useStore(
@@ -472,6 +444,14 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const turnMap = useMemo(
     () => computeTurnMap(outlineFilteredNodes, flattenedNodes),
     [outlineFilteredNodes, flattenedNodes]
+  );
+
+  const handleScrub = useCallback(
+    (progress: number) => {
+      onHeadroomResetAnchor?.(true);
+      scrubTo(progress);
+    },
+    [onHeadroomResetAnchor, scrubTo]
   );
 
   // Clean up per-agent state when the transcript panel unmounts
@@ -710,7 +690,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               turnMap={turnMap}
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
-              onRangeChanged={handleRangeChanged}
               collapsedEvents={outlineCollapsedEvents}
               onCollapse={setOutlineCollapsedEvent}
             />

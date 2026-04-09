@@ -39,10 +39,14 @@ export interface AppSlice {
     setListPosition: (name: string, state: StateSnapshot) => void;
     clearListPosition: (name: string) => void;
 
-    getVisibleRange: (name: string) => { startIndex: number; endIndex: number };
+    getVisibleRange: (name: string) => {
+      startIndex: number;
+      endIndex: number;
+      totalCount: number;
+    };
     setVisibleRange: (
       name: string,
-      value: { startIndex: number; endIndex: number }
+      value: { startIndex: number; endIndex: number; totalCount: number }
     ) => void;
     clearVisibleRange: (name: string) => void;
 
@@ -239,12 +243,12 @@ export const createAppSlice = (
         if (Object.keys(state.app.visibleRanges).includes(name)) {
           return state.app.visibleRanges[name];
         } else {
-          return { startIndex: 0, endIndex: 0 };
+          return { startIndex: 0, endIndex: 0, totalCount: 0 };
         }
       },
       setVisibleRange: (
         name: string,
-        value: { startIndex: number; endIndex: number }
+        value: { startIndex: number; endIndex: number; totalCount: number }
       ) => {
         set((state) => {
           state.app.visibleRanges[name] = value;

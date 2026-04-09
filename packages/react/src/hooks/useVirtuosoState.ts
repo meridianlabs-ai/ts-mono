@@ -20,11 +20,14 @@ export const useVirtuosoState = (
   const [restoreState, setListPosition, clearListPosition] =
     useProperty<StateSnapshot>("listPosition", elementKey);
 
-  const [visibleRange = { startIndex: 0, endIndex: 0 }, setVisibleRange] =
-    useProperty<{ startIndex: number; endIndex: number }>(
-      "visibleRange",
-      elementKey
-    );
+  const [
+    visibleRange = { startIndex: 0, endIndex: 0, totalCount: 0 },
+    setVisibleRange,
+  ] = useProperty<{
+    startIndex: number;
+    endIndex: number;
+    totalCount: number;
+  }>("visibleRange", elementKey);
 
   const debouncedFnRef = useRef<DebouncedFunction<
     (isScrolling: boolean) => void

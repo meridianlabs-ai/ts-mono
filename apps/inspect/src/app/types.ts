@@ -51,7 +51,10 @@ export interface AppState {
   };
   scrollPositions: Record<string, number>;
   listPositions: Record<string, StateSnapshot>;
-  visibleRanges: Record<string, { startIndex: number; endIndex: number }>;
+  visibleRanges: Record<
+    string,
+    { startIndex: number; endIndex: number; totalCount: number }
+  >;
   collapsed: Record<string, boolean>;
   messages: Record<string, boolean>;
   propertyBags: Record<string, Record<string, unknown>>;

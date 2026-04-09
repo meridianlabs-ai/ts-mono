@@ -14,6 +14,7 @@ export * from "./useCollapsedState";
 export * from "./useCollapsibleIds";
 export * from "./useStatefulScrollPosition";
 export * from "./useVirtuosoState";
+export * from "./useScrubberProgress";
 export * from "./useRafThrottle";
 export * from "./useScrollTrack";
 export * from "./useRevokableUrls";

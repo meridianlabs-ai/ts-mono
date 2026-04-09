@@ -54,11 +54,6 @@ export interface TranscriptViewNodesProps {
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
-  onRangeChanged?: (range: {
-    startIndex: number;
-    endIndex: number;
-    totalCount: number;
-  }) => void;
 
   // Collapse state callbacks (app provides via its store)
   collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
@@ -93,7 +88,6 @@ export const TranscriptViewNodes = forwardRef<
     turnMap,
     getEventUrl,
     linkingEnabled,
-    onRangeChanged,
     collapsedEvents,
     onCollapse: onCollapseCallback,
   },
@@ -221,7 +215,6 @@ export const TranscriptViewNodes = forwardRef<
           getCollapsed={getCollapsed}
           getEventUrl={getEventUrl}
           linkingEnabled={linkingEnabled}
-          onRangeChanged={onRangeChanged}
         />
       </div>
     </StickyScrollProvider>
