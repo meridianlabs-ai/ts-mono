@@ -35,7 +35,11 @@ import {
   useTranscriptTimeline,
   type TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
-import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import {
+  NoContentsPanel,
+  StickyScroll,
+  StickyScrollProvider,
+} from "@tsmono/react/components";
 import {
   useCollapsedState,
   useListKeyboardNavigation,
@@ -554,20 +558,30 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
             </StickyScroll>
           </div>
 
-          <TranscriptVirtualList
-            id={id}
-            listHandle={listHandle}
-            eventNodes={flattenedNodes}
-            scrollRef={scrollRef}
-            running={running}
-            initialEventId={effectiveInitialEventId}
-            offsetTop={effectiveOffsetTop}
-            className={styles.listContainer}
-            turnMap={turnMap}
-            onCollapse={onCollapse}
-            getCollapsed={getCollapsed}
-            renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-          />
+          <StickyScrollProvider value={scrollRef ?? null}>
+            <div
+              style={
+                {
+                  "--inspect-event-panel-sticky-top": `${effectiveOffsetTop}px`,
+                } as CSSProperties
+              }
+            >
+              <TranscriptVirtualList
+                id={id}
+                listHandle={listHandle}
+                eventNodes={flattenedNodes}
+                scrollRef={scrollRef}
+                running={running}
+                initialEventId={effectiveInitialEventId}
+                offsetTop={effectiveOffsetTop}
+                className={styles.listContainer}
+                turnMap={turnMap}
+                onCollapse={onCollapse}
+                getCollapsed={getCollapsed}
+                renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
+              />
+            </div>
+          </StickyScrollProvider>
         </div>
       </div>
     );
