@@ -9,13 +9,14 @@ import {
   useState,
 } from "react";
 
-import { ApplicationIcons } from "../../components/icons";
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
-} from "../../components/MarkdownDivWithReferences";
+} from "@tsmono/react/components";
+
+import { ApplicationIcons } from "../../components/icons";
 import { useApi } from "../../state/store";
-import { Result, SavedSearch } from "../../types/api-types";
+import { Result, SavedSearch, SearchRequest } from "../../types/api-types";
 import { useProjectConfig } from "../server/useProjectConfig";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
@@ -71,12 +72,23 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       setLoading(true);
       setHasSearched(true);
 
+      const request: SearchRequest =
+        searchType === "grep"
+          ? {
+              ignore_case: true,
+              query: text,
+              regex: false,
+              type: "grep",
+              word_boundary: false,
+            }
+          : {
+              query: text,
+              type: "llm",
+              model: model || null,
+            };
+
       void api
-        .postSearch(transcriptDir, transcriptId, {
-          query: text,
-          type: searchType,
-          model: searchType === "llm" && model ? model : null,
-        })
+        .postSearch(transcriptDir, transcriptId, request)
         .then((saved) => {
           setCurrentSearch(saved);
           // Update recent searches: replace if same search_id, otherwise prepend
@@ -108,6 +120,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       textareaRef.current.value = search.query;
     }
     setSearchType(search.type);
+    if (search.type === "llm") {
+      setModel(search.model ?? "");
+    }
   }, []);
 
   const showRecentSearches =

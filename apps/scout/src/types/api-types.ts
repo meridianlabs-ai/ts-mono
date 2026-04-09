@@ -47,7 +47,11 @@ export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
 
 export type Reference = components["schemas"]["Reference"];
 export type Result = components["schemas"]["Result"];
-export type SearchRequest = components["schemas"]["SearchRequest"];
+export type GrepSearchRequest = components["schemas"]["GrepSearchRequest"];
+export type LlmSearchRequest = components["schemas"]["LlmSearchRequest"];
+export type SearchRequest = GrepSearchRequest | LlmSearchRequest;
+export type GrepSavedSearch = components["schemas"]["GrepSavedSearch"];
+export type LlmSavedSearch = components["schemas"]["LlmSavedSearch"];
 export type SavedSearch = components["schemas"]["SavedSearch"];
 export type SavedSearchListResponse =
   components["schemas"]["SavedSearchListResponse"];
