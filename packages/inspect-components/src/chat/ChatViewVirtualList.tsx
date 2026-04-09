@@ -127,9 +127,15 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     linking,
     tools,
   }: ChatViewVirtualListComponentProps) {
+    const resolveInto = tools?.resolveIntoPreviousMessage ?? true;
     const collapsedMessages = useMemo(() => {
-      return resolveMessages(messages);
-    }, [messages]);
+      return resolveInto
+        ? resolveMessages(messages)
+        : messages.map((msg) => ({
+            message: msg,
+            toolMessages: [],
+          }));
+    }, [resolveInto, messages]);
 
     const initialMessageIndex = useMemo(() => {
       if (initialMessageId === null || initialMessageId === undefined) {

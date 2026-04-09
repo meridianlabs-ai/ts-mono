@@ -121,10 +121,14 @@ export function useTranscriptTimeline(
   const timelines = convertedTimelines ?? [builtTimeline];
 
   const {
-    active: timeline,
+    active: activeTimeline,
     activeIndex: activeTimelineIndex,
     setActive: setActiveTimeline,
   } = useActiveTimeline(timelines, props?.activeTimelineProps);
+
+  // timelines is always non-empty here (built from events or serverTimelines),
+  // so activeTimeline is guaranteed to be defined.
+  const timeline = activeTimeline!;
 
   const state = useTimeline(timeline, timelineOptions, props?.timelineProps);
 

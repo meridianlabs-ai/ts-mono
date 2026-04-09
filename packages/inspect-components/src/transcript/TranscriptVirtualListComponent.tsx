@@ -143,7 +143,7 @@ export const TranscriptVirtualListComponent: FC<
       const previousIndex = index - 1;
       const nextIndex = index + 1;
       const previous =
-        previousIndex > 0 && previousIndex <= eventNodes.length
+        previousIndex >= 0 && previousIndex < eventNodes.length
           ? eventNodes[previousIndex]
           : undefined;
       const next =

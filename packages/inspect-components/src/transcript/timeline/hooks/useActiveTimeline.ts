@@ -14,8 +14,8 @@ import type { Timeline } from "../core";
 // =============================================================================
 
 export interface UseActiveTimelineResult {
-  /** The currently active Timeline. */
-  active: Timeline;
+  /** The currently active Timeline, or `undefined` when `timelines` is empty. */
+  active: Timeline | undefined;
   /** 0-based index of the active timeline. */
   activeIndex: number;
   /** Switch to a different timeline by index. Resets selection. */
@@ -47,8 +47,7 @@ export function useActiveTimeline(
     return idx >= 0 && idx < timelines.length ? idx : 0;
   }, [propsActiveIndex, timelines.length]);
 
-  // Safe access — always falls back to first timeline
-  const active = timelines[activeIndex] ?? timelines[0]!;
+  const active = timelines[activeIndex] ?? timelines[0];
 
   const setActive = useCallback(
     (index: number) => {
