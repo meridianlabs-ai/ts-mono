@@ -46,7 +46,7 @@ export function useScrollDirection(
   scrollRef: RefObject<HTMLElement | null>,
   options?: UseScrollDirectionOptions
 ): UseScrollDirectionResult {
-  const threshold = options?.threshold ?? 15;
+  const threshold = options?.threshold ?? 40;
   const transitionLockMs = options?.transitionLockMs ?? 250;
   const suppressRef = options?.suppressRef;
 
@@ -134,6 +134,15 @@ export function useScrollDirection(
         if (!transitionLockedRef.current) {
           setHidden(false);
         }
+        return;
+      }
+
+      // At the very bottom — ignore overscroll bounce. Reset anchor so
+      // the bounce-back doesn't register as an upward scroll.
+      const atBottom =
+        scrollEl.scrollHeight - scrollTop - scrollEl.clientHeight < 1;
+      if (atBottom) {
+        directionAnchorRef.current = scrollTop;
         return;
       }
 
