@@ -61,6 +61,7 @@ export interface AppSlice {
     setPropertyValue: <T>(bagName: string, key: string, value: T) => void;
     removePropertyValue: (bagName: string, key: string) => void;
     removeAllProperties: (bagName: string) => void;
+    removeByPrefix: (bagName: string, prefix: string) => void;
 
     setUrlHash: (urlHash: string) => void;
 
@@ -323,6 +324,29 @@ export const createAppSlice = (
         set((state) => {
           const { [bagName]: _, ...rest } = state.app.propertyBags;
           state.app.propertyBags = rest;
+        });
+      },
+
+      removeByPrefix: (bagName: string, prefix: string) => {
+        set((state) => {
+          const bag = state.app.propertyBags[bagName];
+          if (!bag) return;
+          let changed = false;
+          const next = { ...bag };
+          for (const key of Object.keys(next)) {
+            if (key.startsWith(prefix)) {
+              delete next[key];
+              changed = true;
+            }
+          }
+          if (changed) {
+            if (Object.keys(next).length === 0) {
+              const { [bagName]: _, ...rest } = state.app.propertyBags;
+              state.app.propertyBags = rest;
+            } else {
+              state.app.propertyBags[bagName] = next;
+            }
+          }
         });
       },
 

@@ -19,6 +19,7 @@ export interface ComponentStateHooks {
   useRemoveValue: () => (id: string, prop: string) => void;
   useEntries: (id: string) => Record<string, unknown> | undefined;
   useRemoveAll: () => (id: string) => void;
+  useRemoveByPrefix: () => (id: string, prefix: string) => void;
 }
 
 const ComponentStateContext = createContext<ComponentStateHooks | null>(null);

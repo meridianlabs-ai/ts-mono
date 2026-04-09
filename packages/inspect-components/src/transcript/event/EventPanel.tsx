@@ -11,7 +11,7 @@ import {
 import { CopyButton } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { useStickyObserver } from "../useStickyObserver";
+import { useStickyObserver } from "../hooks/useStickyObserver";
 
 import { EventNavs } from "./EventNavs";
 import styles from "./EventPanel.module.css";

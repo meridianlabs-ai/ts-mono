@@ -80,7 +80,16 @@ export {
 } from "./state/StateEventRenderers";
 
 // Hooks
-export { useStickyObserver } from "./useStickyObserver";
+export { useStickyObserver } from "./hooks/useStickyObserver";
+export { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+export { useListPositionManager } from "./hooks/useListPositionManager";
+
+// Layout
+export {
+  TranscriptLayout,
+  type TranscriptLayoutProps,
+  type TranscriptLayoutOutlineProps,
+} from "./TranscriptLayout";
 
 // Icons
 export { TranscriptIcons } from "./icons";
