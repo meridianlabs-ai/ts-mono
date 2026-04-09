@@ -32,12 +32,11 @@ import type {
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useScrubberProgress } from "@tsmono/react/hooks";
 
+import { useListPositionManager } from "./hooks/useListPositionManager";
+import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import { resolveMessageToEvent } from "./resolveMessageToEvent";
-import {
-  AgentCardView,
-  TimelineSwimLanes,
-} from "./timeline/components";
+import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { type TimelineSpan } from "./timeline/core";
 import {
   useEventNodes,
@@ -52,9 +51,8 @@ import {
   buildSpanSelectKeys,
   getSelectedSpans,
 } from "./timeline/timelineEventNodes";
-import {
-  TimelineSelectContext,
-} from "./TimelineSelectContext";
+import { TimelineSelectContext } from "./TimelineSelectContext";
+import styles from "./TranscriptLayout.module.css";
 import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
@@ -65,10 +63,6 @@ import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
-import { useListPositionManager } from "./hooks/useListPositionManager";
-import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
-
-import styles from "./TranscriptLayout.module.css";
 
 // =============================================================================
 // Types
@@ -204,8 +198,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const timelineConfig = useTimelineConfig();
   const resolvedMarkerConfig =
     markerConfigOverride ?? timelineConfig.markerConfig;
-  const resolvedAgentConfig =
-    agentConfigOverride ?? timelineConfig.agentConfig;
+  const resolvedAgentConfig = agentConfigOverride ?? timelineConfig.agentConfig;
 
   // ---------------------------------------------------------------------------
   // Timeline pipeline
@@ -214,7 +207,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const timelineProps = useMemo(
     () =>
       timelineSelection
-        ? { timelineProps: timelineSelection, activeTimelineProps: activeTimeline }
+        ? {
+            timelineProps: timelineSelection,
+            activeTimelineProps: activeTimeline,
+          }
         : undefined,
     [timelineSelection, activeTimeline]
   );
@@ -255,7 +251,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }, [showSwimlanesOption, hasTimeline, regionCounts, timelines.length]);
 
   const swimlanesDefaultCollapsed = useMemo(() => {
-    if (showSwimlanesOption === "auto" && !hasTimeline && regionCounts.size === 0) {
+    if (
+      showSwimlanesOption === "auto" &&
+      !hasTimeline &&
+      regionCounts.size === 0
+    ) {
       return true;
     }
     return hasTimeline ? false : undefined;
@@ -382,7 +382,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (events.length <= 0 || collapsed === undefined || !onSetCollapsedEvents) {
+    if (
+      events.length <= 0 ||
+      collapsed === undefined ||
+      !onSetCollapsedEvents
+    ) {
       return;
     }
     if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
@@ -530,7 +534,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 defaultCollapsedIds={defaultCollapsedIds}
                 scrollRef={scrollRef}
                 running={running}
-                agentName={outline.name ?? (showSwimlanes ? outlineAgentName : undefined)}
+                agentName={
+                  outline.name ?? (showSwimlanes ? outlineAgentName : undefined)
+                }
                 scrollTrackOffset={effectiveOffsetTop}
                 getCollapsed={
                   collapsedEvents
@@ -584,6 +590,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               id={effectiveListId}
               eventNodes={eventNodes}
               defaultCollapsedIds={defaultCollapsedIds}
+              running={running}
               initialEventId={effectiveInitialEventId}
               offsetTop={effectiveOffsetTop}
               className={styles.eventsList}

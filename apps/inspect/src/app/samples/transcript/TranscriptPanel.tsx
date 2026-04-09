@@ -11,7 +11,10 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
-import { TranscriptLayout, type TranscriptViewNodesHandle } from "@tsmono/inspect-components/transcript";
+import {
+  TranscriptLayout,
+  type TranscriptViewNodesHandle,
+} from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 

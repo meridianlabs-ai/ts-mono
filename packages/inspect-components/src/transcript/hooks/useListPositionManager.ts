@@ -52,11 +52,7 @@ export function useListPositionManager(
 
     // When navigating "up" in breadcrumbs (from child to parent),
     // also discard all child positions
-    if (
-      selected &&
-      prevSelected &&
-      prevSelected.startsWith(selected + "/")
-    ) {
+    if (selected && prevSelected && prevSelected.startsWith(selected + "/")) {
       removeByPrefix(
         "listPosition",
         `${kVirtuosoKeyPrefix}${baseListId}:${selected}/`

@@ -8,10 +8,9 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import { MarkdownReference } from "@tsmono/react/components";
 
-import { useStore } from "../../state/store";
-import { Event } from "../../types/api-types";
 import { scanResultRoute } from "../../router/url";
-import { ScannerInput } from "../../types/api-types";
+import { useStore } from "../../state/store";
+import { Event, ScannerInput } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
   isEventInput,

@@ -2,8 +2,8 @@ import { clsx } from "clsx";
 import { FC } from "react";
 import { useLocation } from "react-router-dom";
 
-import { ApplicationIcons } from "../../icons";
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
+import { ApplicationIcons } from "../../icons";
 import { getActivityByRoute } from "../../router/activities";
 import { AppConfig } from "../../types/api-types";
 import { appAliasedPath } from "../server/useAppConfig";

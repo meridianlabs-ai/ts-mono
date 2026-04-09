@@ -12,9 +12,9 @@ import { useProperty } from "@tsmono/react/hooks";
 import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
+import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineSearchParams } from "../hooks/useTimeline";
-import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 
 // =============================================================================
 // Types
@@ -107,9 +107,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // Store-backed collapse state
   // ---------------------------------------------------------------------------
 
-  const collapsedEvents = useStore(
-    (state) => state.transcriptCollapsedEvents
-  );
+  const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
   const setCollapsedEvent = useStore(
     (state) => state.setTranscriptCollapsedEvent
   );
