@@ -19,7 +19,7 @@ import moduleStyles from "./TabSet.module.css";
 interface TabSetProps {
   id: string;
   tabsRef?: RefObject<HTMLUListElement | null>;
-  type?: "tabs" | "pills";
+  type?: "tabs" | "pills" | "pills-small";
   className?: string | string[];
   tabPanelsClassName?: string | string[];
   tabControlsClassName?: string | string[];
@@ -64,8 +64,9 @@ export const TabSet: FC<TabSetProps> = ({
         id={id}
         className={clsx(
           "nav",
-          `nav-${type}`,
+          type === "pills-small" ? "nav-pills" : `nav-${type}`,
           type === "tabs" ? moduleStyles.tabStyle : undefined,
+          type === "pills-small" ? moduleStyles.pillSmallContainer : undefined,
           className,
           moduleStyles.tabs
         )}
@@ -90,7 +91,7 @@ export const TabSet: FC<TabSetProps> = ({
 
 // Individual Tab Component
 const Tab: FC<{
-  type?: "tabs" | "pills";
+  type?: "tabs" | "pills" | "pills-small";
   tab: ReactElement<TabPanelProps>;
   index: number;
   className?: string | string[];
@@ -107,8 +108,12 @@ const Tab: FC<{
           "nav-link",
           className,
           isActive && "active",
-          type === "pills" ? moduleStyles.pill : moduleStyles.tab,
-          "text-size-small",
+          type === "pills-small"
+            ? moduleStyles.pillSmall
+            : type === "pills"
+              ? moduleStyles.pill
+              : moduleStyles.tab,
+          type === "pills-small" ? "text-size-smallest" : "text-size-small",
           "text-style-label"
         )}
         type="button"

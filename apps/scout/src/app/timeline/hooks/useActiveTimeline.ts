@@ -1,45 +1,34 @@
 /**
- * Manages which timeline is active when multiple timelines are available.
+ * Scout-specific active timeline hook.
  *
- * The active timeline is driven by the `timeline_view` URL search param,
- * matched case-insensitively against timeline names. Switching resets the
- * `selected` param (clears swimlane selection).
+ * Thin wrapper around the shared `useActiveTimeline` that persists the
+ * active timeline index in URL search params via react-router-dom.
  */
 
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import type { Timeline } from "../../../components/transcript/timeline";
+import {
+  useActiveTimeline as useActiveTimelineShared,
+  type Timeline,
+  type UseActiveTimelineProps,
+  type UseActiveTimelineResult,
+} from "@tsmono/inspect-components/transcript";
+
+// Re-export shared types for existing consumers.
+export type { UseActiveTimelineResult };
 
 // =============================================================================
-// Constants
+// URL param helpers
 // =============================================================================
 
 const kTimelineViewParam = "timeline_view";
 const kSelectedParam = "selected";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface UseActiveTimelineResult {
-  /** The currently active Timeline. */
-  active: Timeline;
-  /** 0-based index of the active timeline. */
-  activeIndex: number;
-  /** Switch to a different timeline by index. Resets selection. */
-  setActive: (index: number) => void;
-  /** All available timelines. */
-  timelines: Timeline[];
-}
-
-// =============================================================================
-// Hook
-// =============================================================================
-
-export function useActiveTimeline(
+/** Creates UseActiveTimelineProps backed by URL search params. */
+export function useActiveTimelineSearchParams(
   timelines: Timeline[]
-): UseActiveTimelineResult {
+): UseActiveTimelineProps {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const viewParam = searchParams.get(kTimelineViewParam);
@@ -52,10 +41,7 @@ export function useActiveTimeline(
     return idx >= 0 ? idx : 0;
   }, [viewParam, timelines]);
 
-  // Safe access — always falls back to first timeline
-  const active = timelines[activeIndex] ?? timelines[0]!;
-
-  const setActive = useCallback(
+  const onActiveChange = useCallback(
     (index: number) => {
       if (index < 0 || index >= timelines.length) return;
       setSearchParams(
@@ -77,5 +63,16 @@ export function useActiveTimeline(
     [setSearchParams, timelines]
   );
 
-  return { active, activeIndex, setActive, timelines };
+  return { activeIndex, onActiveChange };
+}
+
+// =============================================================================
+// Hook
+// =============================================================================
+
+export function useActiveTimeline(
+  timelines: Timeline[]
+): UseActiveTimelineResult {
+  const props = useActiveTimelineSearchParams(timelines);
+  return useActiveTimelineShared(timelines, props);
 }

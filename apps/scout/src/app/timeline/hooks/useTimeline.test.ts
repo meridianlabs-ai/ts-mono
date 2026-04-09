@@ -4,6 +4,7 @@ import { createElement, type PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
+import { isSingleSpan } from "@tsmono/inspect-components/transcript";
 import {
   getTimeline,
   S1_SEQUENTIAL,
@@ -11,8 +12,7 @@ import {
   S3_DEEP,
   S4_PARALLEL,
   S7_FLAT,
-} from "../testHelpers";
-import { isSingleSpan } from "../utils/swimlaneRows";
+} from "@tsmono/inspect-components/transcript/test-helpers";
 
 import { useTimeline } from "./useTimeline";
 

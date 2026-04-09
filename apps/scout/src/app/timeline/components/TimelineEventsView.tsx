@@ -11,9 +11,12 @@ import {
 } from "react";
 
 import {
+  AgentCardView,
+  buildSpanSelectKeys,
   computeTurnMap,
   EventNode,
   flatTree,
+  getSelectedSpans,
   kCollapsibleEventTypes,
   kSandboxSignalName,
   kTranscriptCollapseScope,
@@ -22,35 +25,26 @@ import {
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TimelineSelectContext,
+  TimelineSwimLanes,
   TranscriptOutline,
+  TranscriptViewNodes,
+  useEventNodes,
+  type MarkerConfig,
+  type TimelineSpan,
+  type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty, useScrubberProgress } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
-import { AgentCardView } from "../../../components/transcript/AgentCardView";
-import { useEventNodes } from "../../../components/transcript/hooks/useEventNodes";
-import { resolveMessageToEvent } from "../../../components/transcript/resolveMessageToEvent";
-import type { TimelineSpan } from "../../../components/transcript/timeline";
-import {
-  TranscriptViewNodes,
-  type TranscriptViewNodesHandle,
-} from "../../../components/transcript/TranscriptViewNodes";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
-import { useScrubberProgress } from "../hooks/useScrubberPercent";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineConfig } from "../hooks/useTimelineConfig";
 import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
-import {
-  buildSpanSelectKeys,
-  getSelectedSpans,
-  parseSelection,
-} from "../timelineEventNodes";
-import type { MarkerConfig } from "../utils/markers";
+import { resolveMessageToEvent } from "../resolveMessageToEvent";
 
 import styles from "./TimelineEventsView.module.css";
-import { TimelineSwimLanes } from "./TimelineSwimLanes";
 
 // =============================================================================
 // Types
@@ -171,6 +165,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
+    outlineAgentName,
   } = useTranscriptTimeline(
     events,
     resolvedMarkerConfig,
@@ -380,34 +375,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const eventsListId = selected ? `${id}:${selected}` : id;
 
   // Scrubber scroll progress (0–1) for the minimap
-  const listKey = `live-virtual-list-${eventsListId}`;
-  const scrubberProgress = useScrubberProgress(listKey);
-
-  const getVisibleRange = useStore((state) => state.getVisibleRange);
-  const storeSetVisibleRange = useStore((state) => state.setVisibleRange);
-
-  const handleRangeChanged = useCallback(
-    (range: { startIndex: number; endIndex: number; totalCount: number }) => {
-      storeSetVisibleRange(listKey, range);
-    },
-    [storeSetVisibleRange, listKey]
-  );
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      const { totalCount } = getVisibleRange(listKey);
-      if (totalCount <= 1) return;
-      // Map progress (0–1) directly to a list index. scrollToIndex with
-      // align:"start" naturally clamps at the bottom of the list, so we
-      // don't need to subtract viewport size (which varies with item height).
-      const targetIndex = Math.round(progress * (totalCount - 1));
-      // Suppress headroom direction changes during programmatic scroll
-      // so the swimlane header doesn't collapse/reveal while scrubbing.
-      onHeadroomResetAnchor?.(true);
-      eventsListRef.current?.scrollToIndex(targetIndex);
-    },
-    [getVisibleRange, listKey, onHeadroomResetAnchor]
-  );
+  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
 
   // Outline callback props — wire store to shared TranscriptOutline component
   const outlineCollapsedEvents = useStore(
@@ -476,6 +444,14 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const turnMap = useMemo(
     () => computeTurnMap(outlineFilteredNodes, flattenedNodes),
     [outlineFilteredNodes, flattenedNodes]
+  );
+
+  const handleScrub = useCallback(
+    (progress: number) => {
+      onHeadroomResetAnchor?.(true);
+      scrubTo(progress);
+    },
+    [onHeadroomResetAnchor, scrubTo]
   );
 
   // Clean up per-agent state when the transcript panel unmounts
@@ -550,7 +526,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const outlineHasNodes = isOutlineCollapsed
     ? hasMatchingEvents
     : reportedHasNodes;
-  const [outlineWidth, setOutlineWidth] = useState<number | undefined>();
   const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
     setReportedHasNodes(hasNodes);
   }, []);
@@ -558,18 +533,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
   // Derived values
   // ---------------------------------------------------------------------------
-
-  // Compute the agent name for the outline header.
-  // When a swimlane row is selected, show its name; otherwise show the root.
-  const outlineAgentName = useMemo(() => {
-    if (!timelineState.selected) return timelineData.root.name;
-    // For iterative rows, selected includes a span index suffix (e.g.
-    // "transcript/explore:0"). Parse it to get the base row key.
-    const parsed = parseSelection(timelineState.selected);
-    const rowKey = parsed?.rowKey ?? timelineState.selected;
-    const row = timelineState.rows.find((r) => r.key === rowKey);
-    return row?.name ?? timelineData.root.name;
-  }, [timelineState.selected, timelineState.rows, timelineData.root.name]);
 
   const renderAgentCard = useCallback(
     (node: EventNode, className?: string | string[]) => {
@@ -649,9 +612,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
           )}
           style={
             {
-              ...(!isOutlineCollapsed && outlineWidth
-                ? { "--outline-width": `${outlineWidth}px` }
-                : undefined),
               "--outline-top": `${offsetTop + stickySwimLaneHeight}px`,
             } as CSSProperties
           }
@@ -668,7 +628,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
                 scrollRef={scrollRef}
                 agentName={outlineAgentName}
                 onHasNodesChange={handleOutlineHasNodesChange}
-                onWidthChange={setOutlineWidth}
                 onNavigateToEvent={handleOutlineNavigate}
                 scrollTrackOffset={offsetTop + stickySwimLaneHeight}
                 getCollapsed={getOutlineCollapsed}
@@ -714,7 +673,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
               turnMap={turnMap}
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
-              onRangeChanged={handleRangeChanged}
+              collapsedEvents={outlineCollapsedEvents}
+              onCollapse={setOutlineCollapsedEvent}
             />
           ) : (
             <NoContentsPanel text="No events match the current filter" />

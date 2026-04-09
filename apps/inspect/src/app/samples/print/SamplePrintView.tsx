@@ -8,6 +8,7 @@ import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import {
   flatTree,
   TranscriptVirtualListComponent,
+  useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
@@ -33,7 +34,6 @@ import { useLogRouteParams } from "../../routing/url";
 import { printHeadingHtml } from "../../utils/print";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
-import { useEventNodes } from "../transcript/transform/hooks";
 
 import styles from "./SamplePrintView.module.css";
 

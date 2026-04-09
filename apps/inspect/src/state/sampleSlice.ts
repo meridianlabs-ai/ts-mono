@@ -20,6 +20,7 @@ export const kDefaultExcludeEvents = [
   "sandbox",
   "state",
   "store",
+  "branch",
 ];
 
 export interface SampleSlice {
@@ -59,6 +60,9 @@ export interface SampleSlice {
 
     setSelectedOutlineId: (id: string) => void;
     clearSelectedOutlineId: () => void;
+
+    setTimelineSelected: (selected: string | null) => void;
+    setActiveTimelineIndex: (index: number) => void;
 
     // Used by useSampleLoader to clear state for running samples
     clearSampleForPolling: (
@@ -106,6 +110,9 @@ const initialState: SampleState = {
 
   collapsedIdBuckets: {},
   selectedOutlineId: undefined,
+
+  timelineSelected: null,
+  activeTimelineIndex: 0,
 };
 
 export const createSampleSlice = (
@@ -170,7 +177,13 @@ export const createSampleSlice = (
           state.sample.runningEvents = [];
           state.sample.sampleStatus = "ok";
           state.sample.downloadProgress = undefined;
+          state.sample.timelineSelected = null;
+          state.sample.activeTimelineIndex = 0;
           state.log.selectedSampleHandle = undefined;
+
+          // Clear persisted scroll/list positions
+          delete state.app.propertyBags["scrollPosition"];
+          delete state.app.propertyBags["listPosition"];
         });
       },
       prepareForSampleLoad: (
@@ -186,7 +199,13 @@ export const createSampleSlice = (
           state.sample.runningEvents = [];
           state.sample.sampleStatus = "loading";
           state.sample.sampleError = undefined;
+          state.sample.timelineSelected = null;
+          state.sample.activeTimelineIndex = 0;
           state.sample.sample_identifier = { logFile, id, epoch };
+
+          // Clear persisted scroll/list positions so the new sample starts at top
+          delete state.app.propertyBags["scrollPosition"];
+          delete state.app.propertyBags["listPosition"];
         });
       },
       setSampleStatus: (status: SampleStatus) =>
@@ -286,6 +305,16 @@ export const createSampleSlice = (
       clearSelectedOutlineId: () => {
         set((state) => {
           state.sample.selectedOutlineId = undefined;
+        });
+      },
+      setTimelineSelected: (selected: string | null) => {
+        set((state) => {
+          state.sample.timelineSelected = selected;
+        });
+      },
+      setActiveTimelineIndex: (index: number) => {
+        set((state) => {
+          state.sample.activeTimelineIndex = index;
         });
       },
       clearSampleForPolling: (

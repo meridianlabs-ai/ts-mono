@@ -10,7 +10,7 @@
   display: grid;
   grid-column-gap: 1em;
   border-bottom: solid var(--bs-border-color) 1px;
-  padding: 1em 1em 1em 1em;
+  padding: 0.5rem;
 }
 
 .centerLabel {

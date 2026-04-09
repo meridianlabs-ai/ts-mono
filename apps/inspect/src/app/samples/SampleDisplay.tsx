@@ -446,6 +446,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             tabControlsClassName={clsx("text-size-base")}
             tabPanelsClassName={clsx(styles.tabPanel)}
             tools={tools}
+            type="pills-small"
           >
             <TabPanel
               key={kSampleTranscriptTabId}
@@ -478,6 +479,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 topOffset={tabsHeight}
                 running={running}
                 scrollRef={scrollRef}
+                timelines={sample?.timelines ?? undefined}
               />
             </TabPanel>
             <TabPanel
