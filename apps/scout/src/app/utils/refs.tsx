@@ -1,10 +1,15 @@
-import { ReactNode, useMemo } from "react";
+import { FC, ReactNode, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ChatView } from "@tsmono/inspect-components/chat";
+import {
+  TranscriptViewNodes,
+  useEventNodes,
+} from "@tsmono/inspect-components/transcript";
 import { MarkdownReference } from "@tsmono/react/components";
 
-import { TranscriptView } from "../../components/TranscriptView";
+import { useStore } from "../../state/store";
+import { Event } from "../../types/api-types";
 import { scanResultRoute } from "../../router/url";
 import { ScannerInput } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
@@ -207,4 +212,35 @@ const referenceTable = (
   } else {
     return {};
   }
+};
+
+// =============================================================================
+// Inline transcript preview component (replaces the old TranscriptView wrapper)
+// =============================================================================
+
+const TranscriptView: FC<{ id: string; events: Event[] }> = ({
+  id,
+  events,
+}) => {
+  const { eventNodes, defaultCollapsedIds } = useEventNodes(events, false);
+  const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
+  const setTranscriptCollapsedEvent = useStore(
+    (state) => state.setTranscriptCollapsedEvent
+  );
+  const onCollapse = useCallback(
+    (scope: string, nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(scope, nodeId, collapsed);
+    },
+    [setTranscriptCollapsedEvent]
+  );
+
+  return (
+    <TranscriptViewNodes
+      id={id}
+      eventNodes={eventNodes}
+      defaultCollapsedIds={defaultCollapsedIds}
+      collapsedEvents={collapsedEvents}
+      onCollapse={onCollapse}
+    />
+  );
 };

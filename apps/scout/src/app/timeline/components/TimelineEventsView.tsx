@@ -9,7 +9,7 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import type { TimelineOptions } from "../hooks/useTimeline";

@@ -8,7 +8,7 @@ import { FC, useCallback, useRef, useState } from "react";
 
 import { AutocompleteInput, PopOver } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { Chip } from "../../components/Chip";
 
 import styles from "./ValidationCaseLabelsEditor.module.css";

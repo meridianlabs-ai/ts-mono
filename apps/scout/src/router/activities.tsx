@@ -1,4 +1,4 @@
-import { ApplicationIcons } from "../components/icons";
+import { ApplicationIcons } from "../icons";
 
 declare const __SCOUT_RUN_SCAN__: boolean;
 

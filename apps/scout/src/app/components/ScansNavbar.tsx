@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { dirname } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { scanRoute, scansRoute } from "../../router/url";
 import { useStore } from "../../state/store";
 import { useScanRoute } from "../hooks/useScanRoute";

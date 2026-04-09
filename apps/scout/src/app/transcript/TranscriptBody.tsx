@@ -25,7 +25,7 @@ import {
 } from "@tsmono/react/components";
 import { isHostedEnvironment } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";

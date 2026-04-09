@@ -2,7 +2,7 @@ import { FC, useCallback } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../components/icons";
+import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 import { GRID_STATE_NAME } from "../../../components/DataframeView";
 

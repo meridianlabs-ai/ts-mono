@@ -6,7 +6,7 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useState } from "react";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { ScansNavbar } from "../components/ScansNavbar";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useTranscriptsFilterBarProps } from "../hooks/useTranscriptsFilterBarProps";
