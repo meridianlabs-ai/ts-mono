@@ -180,6 +180,10 @@ export const createSampleSlice = (
           state.sample.timelineSelected = null;
           state.sample.activeTimelineIndex = 0;
           state.log.selectedSampleHandle = undefined;
+
+          // Clear persisted scroll/list positions
+          delete state.app.propertyBags["scrollPosition"];
+          delete state.app.propertyBags["listPosition"];
         });
       },
       prepareForSampleLoad: (
@@ -198,6 +202,10 @@ export const createSampleSlice = (
           state.sample.timelineSelected = null;
           state.sample.activeTimelineIndex = 0;
           state.sample.sample_identifier = { logFile, id, epoch };
+
+          // Clear persisted scroll/list positions so the new sample starts at top
+          delete state.app.propertyBags["scrollPosition"];
+          delete state.app.propertyBags["listPosition"];
         });
       },
       setSampleStatus: (status: SampleStatus) =>
