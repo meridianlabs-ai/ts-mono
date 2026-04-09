@@ -301,34 +301,31 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
  * Creates a shifted time mapping for a branch row in fork-relative mode.
  *
  * The branch's wall-clock range [branchStart, branchEnd] is linearly remapped
- * so that it starts at `forkPercent` in the timeline's percentage space. The
- * branch's width is proportional to its duration relative to the parent's total
- * time range, preserving visual duration proportionality.
+ * so that it starts at `forkPercent` in the timeline's percentage space and
+ * fills to 100%. This ensures branches are always visually prominent regardless
+ * of how small their duration is relative to the parent timeline.
  *
  * @param branchStart  Branch content start time
  * @param branchEnd    Branch content end time
  * @param forkPercent  The fork marker's percentage position on the parent row (0-100)
- * @param parentTotalRangeMs  The parent timeline's total time range in milliseconds
  */
 export function createShiftedMapping(
   branchStart: Date,
   branchEnd: Date,
-  forkPercent: number,
-  parentTotalRangeMs: number
+  forkPercent: number
 ): TimeMapping {
   const startMs = branchStart.getTime();
   const endMs = branchEnd.getTime();
   const branchDurationMs = endMs - startMs;
 
-  // Scale factor: branch width as a percentage, proportional to parent range
-  const scaleFactor =
-    parentTotalRangeMs > 0 ? (branchDurationMs / parentTotalRangeMs) * 100 : 0;
+  // Fill from the fork point to 100% of the bar
+  const availablePercent = 100 - forkPercent;
 
   return {
     toPercent(timestamp: Date): number {
       if (branchDurationMs <= 0) return forkPercent;
       const t = (timestamp.getTime() - startMs) / branchDurationMs;
-      return Math.max(0, Math.min(100, forkPercent + t * scaleFactor));
+      return Math.max(0, Math.min(100, forkPercent + t * availablePercent));
     },
     hasCompression: false,
     gaps: [],

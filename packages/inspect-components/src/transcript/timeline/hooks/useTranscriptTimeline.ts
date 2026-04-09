@@ -146,8 +146,8 @@ export function useTranscriptTimeline(
   // Compute per-branch shifted time mappings when fork-relative mode is active.
   const branchMappings = useMemo(() => {
     if (!forkRelative || !showBranches) return undefined;
-    return computeBranchMappings(visibleRows, timeMapping, state.node);
-  }, [forkRelative, showBranches, visibleRows, timeMapping, state.node]);
+    return computeBranchMappings(visibleRows, timeMapping);
+  }, [forkRelative, showBranches, visibleRows, timeMapping]);
 
   const layouts = useMemo(
     () =>
@@ -306,8 +306,7 @@ const kBranchKeyPattern = /\/branch-([^/]*)-(\d+)$/;
 
 function computeBranchMappings(
   rows: ReadonlyArray<SwimlaneRow>,
-  trunkMapping: TimeMapping,
-  node: TimelineSpan
+  trunkMapping: TimeMapping
 ): ReadonlyMap<string, TimeMapping> {
   const mappings = new Map<string, TimeMapping>();
 
@@ -315,10 +314,6 @@ function computeBranchMappings(
   for (const row of rows) {
     rowByKey.set(row.key, row);
   }
-
-  const nodeStartMs = node.startTime(false).getTime();
-  const nodeEndMs = node.endTime(false).getTime();
-  const parentTotalRangeMs = nodeEndMs - nodeStartMs;
 
   for (const row of rows) {
     if (!row.branch || !row.branchedFrom) continue;
@@ -350,12 +345,7 @@ function computeBranchMappings(
 
     mappings.set(
       row.key,
-      createShiftedMapping(
-        row.startTime,
-        row.endTime,
-        forkPercent,
-        parentTotalRangeMs
-      )
+      createShiftedMapping(row.startTime, row.endTime, forkPercent)
     );
   }
 
