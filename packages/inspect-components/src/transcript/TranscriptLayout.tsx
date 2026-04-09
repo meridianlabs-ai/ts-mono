@@ -4,6 +4,13 @@
  * Encapsulates the full visual structure: timeline swimlanes, transcript
  * outline, and virtualized event list. Apps provide events, selection
  * state adapters, and store-backed collapse callbacks.
+ *
+ * General behaviors that both apps benefit from:
+ * - Message ID → event resolution (citation navigation)
+ * - Bulk collapse/expand of all collapsible events
+ * - Outline auto-hide when no displayable nodes exist
+ * - Branch scroll target handling
+ * - Empty state display
  */
 
 import clsx from "clsx";
@@ -13,17 +20,20 @@ import {
   ReactNode,
   RefObject,
   useCallback,
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 
 import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
-import { StickyScroll } from "@tsmono/react/components";
+import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useScrubberProgress } from "@tsmono/react/hooks";
 
 import { TranscriptOutline } from "./outline/TranscriptOutline";
+import { resolveMessageToEvent } from "./resolveMessageToEvent";
 import {
   AgentCardView,
   TimelineSwimLanes,
@@ -38,7 +48,10 @@ import {
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
-import { buildSpanSelectKeys } from "./timeline/timelineEventNodes";
+import {
+  buildSpanSelectKeys,
+  getSelectedSpans,
+} from "./timeline/timelineEventNodes";
 import {
   TimelineSelectContext,
 } from "./TimelineSelectContext";
@@ -46,7 +59,12 @@ import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "./TranscriptViewNodes";
-import { EventNode, kTranscriptOutlineCollapseScope } from "./types";
+import {
+  EventNode,
+  kCollapsibleEventTypes,
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
+} from "./types";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 
@@ -66,7 +84,6 @@ export interface TranscriptLayoutOutlineProps {
   name?: string;
   renderLink?: (url: string, children: ReactNode) => ReactNode;
   onNavigateToEvent?: (eventId: string) => void;
-  onHasNodesChange?: (hasNodes: boolean) => void;
   selectedId?: string | null;
   setSelectedId?: (id: string | null) => void;
 }
@@ -101,12 +118,18 @@ export interface TranscriptLayoutProps {
 
   // --- Event list ---
   listId: string;
+  /** Deep-link to a specific event on mount. Takes priority over initialMessageId. */
   initialEventId?: string | null;
+  /** Deep-link to a message ID, resolved to the best matching event.
+   *  Used for citation navigation — resolves against selected span first, then root. */
+  initialMessageId?: string | null;
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
 
   // --- Collapse state (from app store) ---
+  /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
+  collapsed?: boolean;
   collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
   onCollapse?: (scope: string, nodeId: string, collapsed: boolean) => void;
   onSetCollapsedEvents?: (scope: string, ids: Record<string, boolean>) => void;
@@ -114,8 +137,32 @@ export interface TranscriptLayoutProps {
   // --- Outline ---
   outline: TranscriptLayoutOutlineProps;
 
+  /** Text shown when no events match the current filter. Pass null to disable empty state. */
+  emptyText?: string | null;
   className?: string;
 }
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+const collectAllCollapsibleIds = (
+  nodes: EventNode[]
+): Record<string, boolean> => {
+  const result: Record<string, boolean> = {};
+  const traverse = (nodeList: EventNode[]) => {
+    for (const node of nodeList) {
+      if (kCollapsibleEventTypes.includes(node.event.event)) {
+        result[node.id] = true;
+      }
+      if (node.children.length > 0) {
+        traverse(node.children);
+      }
+    }
+  };
+  traverse(nodes);
+  return result;
+};
 
 // =============================================================================
 // Component
@@ -138,13 +185,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   onHeadroomResetAnchor,
   listId,
   initialEventId,
+  initialMessageId,
   eventsListRef,
   getEventUrl,
   linkingEnabled,
+  collapsed,
   collapsedEvents,
   onCollapse,
   onSetCollapsedEvents,
   outline,
+  emptyText = "No events match the current filter",
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -182,6 +232,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     activeTimelineIndex,
     setActiveTimeline,
     regionCounts,
+    branchScrollTarget,
     highlightedKeys,
     outlineAgentName,
   } = useTranscriptTimeline(
@@ -277,6 +328,113 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
+  // Message ID → event resolution
+  // ---------------------------------------------------------------------------
+
+  // Resolve message ID against the selected span first, then fall back to root.
+  const resolvedLocal = useMemo(() => {
+    if (initialEventId || !initialMessageId) return undefined;
+    const selectedSpans = getSelectedSpans(
+      timelineState.rows,
+      timelineState.selected
+    );
+    for (const span of selectedSpans) {
+      const result = resolveMessageToEvent(initialMessageId, span);
+      if (result && !result.agentSpanId) return result;
+    }
+    return undefined;
+  }, [
+    initialEventId,
+    initialMessageId,
+    timelineState.rows,
+    timelineState.selected,
+  ]);
+
+  const resolvedRoot = useMemo(() => {
+    if (initialEventId || !initialMessageId || resolvedLocal) return undefined;
+    return resolveMessageToEvent(initialMessageId, timelineData.root);
+  }, [initialEventId, initialMessageId, resolvedLocal, timelineData.root]);
+
+  const resolved = resolvedLocal ?? resolvedRoot;
+
+  // Side-effect: navigate to the correct swimlane when resolution came from root
+  useEffect(() => {
+    if (!resolvedRoot) return;
+    if (resolvedRoot.agentSpanId) {
+      selectBySpanId(resolvedRoot.agentSpanId);
+    } else if (timelineState.selected) {
+      timelineState.clearSelection();
+    }
+  }, [resolvedRoot, selectBySpanId, timelineState]);
+
+  const effectiveInitialEventId =
+    initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
+
+  // Suppress headroom collapse when a branch click triggers a programmatic scroll
+  useEffect(() => {
+    if (branchScrollTarget) {
+      onHeadroomResetAnchor?.(true);
+    }
+  }, [branchScrollTarget, onHeadroomResetAnchor]);
+
+  // ---------------------------------------------------------------------------
+  // Bulk collapse/expand
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (events.length <= 0 || collapsed === undefined || !onSetCollapsedEvents) {
+      return;
+    }
+    if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
+      onSetCollapsedEvents(kTranscriptCollapseScope, defaultCollapsedIds);
+    } else if (collapsed) {
+      const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
+      onSetCollapsedEvents(kTranscriptCollapseScope, allCollapsibleIds);
+    }
+  }, [
+    defaultCollapsedIds,
+    eventNodes,
+    collapsed,
+    onSetCollapsedEvents,
+    events.length,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Outline auto-hide
+  // ---------------------------------------------------------------------------
+  //
+  // Track whether the outline component reports displayable nodes. When the
+  // outline is collapsed (unmounted), it can't report, so we optimistically
+  // fall back to eventNodes.length > 0 to keep the toggle enabled.
+  //
+  // Auto-hide the outline when content has no nodes (e.g. utility agent)
+  // without touching the user's persistent preference. When the user navigates
+  // back to an agent with outline content, the preference is still intact.
+
+  const [reportedHasNodes, setReportedHasNodes] = useState(true);
+
+  // Reset to optimistic when eventNodes change (e.g. agent selection changes).
+  // Uses "adjust state during render" pattern to avoid an extra effect cycle.
+  const [prevEventNodes, setPrevEventNodes] = useState(eventNodes);
+  if (prevEventNodes !== eventNodes) {
+    setPrevEventNodes(eventNodes);
+    if (!reportedHasNodes) {
+      setReportedHasNodes(true);
+    }
+  }
+
+  const hasMatchingEvents = eventNodes.length > 0;
+  const autoHidden = !reportedHasNodes && !outline.collapsed;
+  const isOutlineCollapsed = outline.collapsed || autoHidden;
+
+  const outlineHasNodes = isOutlineCollapsed
+    ? hasMatchingEvents
+    : reportedHasNodes;
+  const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
+    setReportedHasNodes(hasNodes);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Agent card rendering
   // ---------------------------------------------------------------------------
 
@@ -353,7 +511,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         <div
           className={clsx(
             styles.container,
-            outline.collapsed && styles.outlineCollapsed
+            isOutlineCollapsed && styles.outlineCollapsed
           )}
           style={
             {
@@ -366,7 +524,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
             className={styles.outline}
             offsetTop={effectiveOffsetTop}
           >
-            {!outline.collapsed && (
+            {!isOutlineCollapsed && (
               <TranscriptOutline
                 eventNodes={eventNodes}
                 defaultCollapsedIds={defaultCollapsedIds}
@@ -395,41 +553,50 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 getEventUrl={getEventUrl}
                 renderLink={outline.renderLink}
                 onNavigateToEvent={outline.onNavigateToEvent}
-                onHasNodesChange={outline.onHasNodesChange}
+                onHasNodesChange={handleOutlineHasNodesChange}
               />
             )}
             <button
               type="button"
               className={styles.outlineToggle}
               onClick={
-                !outline.toggleDisabled
-                  ? () => outline.onCollapsedChange(!outline.collapsed)
+                outlineHasNodes && !outline.toggleDisabled
+                  ? () => outline.onCollapsedChange(!isOutlineCollapsed)
                   : undefined
               }
-              aria-disabled={outline.toggleDisabled}
-              title={outline.toggleTitle}
-              aria-label={outline.collapsed ? "Show outline" : "Hide outline"}
+              aria-disabled={outline.toggleDisabled || !outlineHasNodes}
+              title={
+                outline.toggleTitle ??
+                (!outlineHasNodes
+                  ? "No outline available for the current filter"
+                  : undefined)
+              }
+              aria-label={isOutlineCollapsed ? "Show outline" : "Hide outline"}
             >
               <i className={outline.toggleIcon} />
             </button>
           </StickyScroll>
           <div className={styles.separator} />
-          <TranscriptViewNodes
-            key={effectiveListId}
-            ref={eventsListRef}
-            id={effectiveListId}
-            eventNodes={eventNodes}
-            defaultCollapsedIds={defaultCollapsedIds}
-            initialEventId={initialEventId}
-            offsetTop={effectiveOffsetTop}
-            className={styles.eventsList}
-            scrollRef={scrollRef}
-            renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-            getEventUrl={getEventUrl}
-            linkingEnabled={linkingEnabled}
-            collapsedEvents={collapsedEvents}
-            onCollapse={onCollapse}
-          />
+          {hasMatchingEvents ? (
+            <TranscriptViewNodes
+              key={effectiveListId}
+              ref={eventsListRef}
+              id={effectiveListId}
+              eventNodes={eventNodes}
+              defaultCollapsedIds={defaultCollapsedIds}
+              initialEventId={effectiveInitialEventId}
+              offsetTop={effectiveOffsetTop}
+              className={styles.eventsList}
+              scrollRef={scrollRef}
+              renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
+              getEventUrl={getEventUrl}
+              linkingEnabled={linkingEnabled}
+              collapsedEvents={collapsedEvents}
+              onCollapse={onCollapse}
+            />
+          ) : emptyText !== null ? (
+            <NoContentsPanel text={emptyText} />
+          ) : null}
         </div>
       </div>
     </TimelineSelectContext.Provider>

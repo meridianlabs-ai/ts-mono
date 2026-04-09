@@ -1,50 +1,20 @@
-import clsx from "clsx";
-import {
-  CSSProperties,
-  FC,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
-  AgentCardView,
-  buildSpanSelectKeys,
-  computeTurnMap,
-  EventNode,
-  flatTree,
-  getSelectedSpans,
-  kCollapsibleEventTypes,
-  kSandboxSignalName,
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
-  noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
-  TimelineSelectContext,
-  TimelineSwimLanes,
-  TranscriptOutline,
-  TranscriptViewNodes,
-  useEventNodes,
+  buildTimeline,
+  convertServerTimeline,
+  TranscriptLayout,
   type MarkerConfig,
-  type TimelineSpan,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
-import { useProperty, useScrubberProgress } from "@tsmono/react/hooks";
+import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../components/icons";
 import { useStore } from "../../../state/store";
 import type { Event, ServerTimeline } from "../../../types/api-types";
 import type { TimelineOptions } from "../hooks/useTimeline";
-import { useTimelineConfig } from "../hooks/useTimelineConfig";
-import { useTranscriptTimeline } from "../hooks/useTranscriptTimeline";
-import { resolveMessageToEvent } from "../resolveMessageToEvent";
-
-import styles from "./TimelineEventsView.module.css";
+import { useTimelineSearchParams } from "../hooks/useTimeline";
+import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 
 // =============================================================================
 // Types
@@ -91,28 +61,6 @@ interface TimelineEventsViewProps {
 }
 
 // =============================================================================
-// Helpers
-// =============================================================================
-
-const collectAllCollapsibleIds = (
-  nodes: EventNode[]
-): Record<string, boolean> => {
-  const result: Record<string, boolean> = {};
-  const traverse = (nodeList: EventNode[]) => {
-    for (const node of nodeList) {
-      if (kCollapsibleEventTypes.includes(node.event.event)) {
-        result[node.id] = true;
-      }
-      if (node.children.length > 0) {
-        traverse(node.children);
-      }
-    }
-  };
-  traverse(nodes);
-  return result;
-};
-
-// =============================================================================
 // Component
 // =============================================================================
 
@@ -137,361 +85,40 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   className,
 }) => {
   // ---------------------------------------------------------------------------
-  // Timeline config (persistent user preferences)
+  // URL-param-backed selection adapters
   // ---------------------------------------------------------------------------
 
-  const timelineConfig = useTimelineConfig();
+  const timelineSelection = useTimelineSearchParams();
 
-  // Props override hook values when explicitly provided
-  const resolvedMarkerConfig = markerConfig ?? timelineConfig.markerConfig;
-  const resolvedAgentConfig = agentConfig ?? timelineConfig.agentConfig;
-
-  // ---------------------------------------------------------------------------
-  // Timeline pipeline
-  // ---------------------------------------------------------------------------
-
-  const {
-    timeline: timelineData,
-    state: timelineState,
-    layouts: timelineLayouts,
-    rootTimeMapping,
-    selectedEvents,
-    sourceSpans,
-    minimapSelection,
-    hasTimeline,
-    timelines,
-    activeTimelineIndex,
-    setActiveTimeline,
-    regionCounts,
-    branchScrollTarget,
-    highlightedKeys,
-    outlineAgentName,
-  } = useTranscriptTimeline(
-    events,
-    resolvedMarkerConfig,
-    resolvedAgentConfig,
-    serverTimelines
+  // Build timelines to resolve the URL-param-based active index.
+  // The shared hook rebuilds them internally (memoized), so no perf cost.
+  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
+  const convertedTimelines = useMemo(
+    () =>
+      serverTimelines && serverTimelines.length > 0
+        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
+        : null,
+    [serverTimelines, events]
   );
+  const timelinesArray = convertedTimelines ?? [builtTimeline];
+  const activeTimeline = useActiveTimelineSearchParams(timelinesArray);
 
   // ---------------------------------------------------------------------------
-  // Scroll-resetting selection wrappers
-  // ---------------------------------------------------------------------------
-  //
-  // Every user-initiated selection change (swimlane click, agent card click,
-  // breadcrumb) flows through these wrappers. They imperatively clear the
-  // saved Virtuoso state and scroll to top *before* the URL update, so the
-  // new Virtuoso instance mounts into a clean scroll position.
-
-  const clearListPosition = useStore((state) => state.clearListPosition);
-  const clearListPositionsWithPrefix = useStore(
-    (state) => state.clearListPositionsWithPrefix
-  );
-
-  const resetScrollForSelection = useCallback(
-    (nextKey: string | null) => {
-      // Clear saved Virtuoso state for the target agent
-      const nextListId = nextKey ? `${id}:${nextKey}` : id;
-      clearListPosition(`live-virtual-list-${nextListId}`);
-
-      // When navigating "up" in breadcrumbs, also discard child positions
-      const currentSelected = timelineState.selected;
-      if (
-        nextKey &&
-        currentSelected &&
-        currentSelected.startsWith(nextKey + "/")
-      ) {
-        clearListPositionsWithPrefix(`live-virtual-list-${id}:${nextKey}/`);
-      }
-
-      scrollRef.current?.scrollTo({ top: 0 });
-    },
-    [
-      id,
-      scrollRef,
-      timelineState.selected,
-      clearListPosition,
-      clearListPositionsWithPrefix,
-    ]
-  );
-
-  const { select: rawSelect, clearSelection: rawClearSelection } =
-    timelineState;
-
-  const select = useCallback(
-    (key: string | null) => {
-      resetScrollForSelection(key);
-      rawSelect(key);
-    },
-    [resetScrollForSelection, rawSelect]
-  );
-
-  const clearSelection = useCallback(() => {
-    resetScrollForSelection(null);
-    rawClearSelection();
-  }, [resetScrollForSelection, rawClearSelection]);
-
-  // TimelineState with scroll-resetting select/clearSelection for swimlanes
-  const patchedTimelineState = useMemo(
-    () => ({ ...timelineState, select, clearSelection }),
-    [timelineState, select, clearSelection]
-  );
-
-  // Reset scroll + Virtuoso state when switching between timelines
-  const resetActiveTimeline = useCallback(
-    (index: number) => {
-      resetScrollForSelection(null);
-      setActiveTimeline(index);
-    },
-    [resetScrollForSelection, setActiveTimeline]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Span selection context (agent card clicks → swimlane selection)
+  // Store-backed collapse state
   // ---------------------------------------------------------------------------
 
-  const spanSelectKeys = useMemo(
-    () => buildSpanSelectKeys(timelineState.rows),
-    [timelineState.rows]
-  );
-  const selectBySpanId = useCallback(
-    (spanId: string) => {
-      const key = spanSelectKeys.get(spanId);
-      if (!key) return;
-      select(key.key);
-    },
-    [spanSelectKeys, select]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Message ID → event resolution
-  // ---------------------------------------------------------------------------
-
-  // Resolve message ID against the selected span first, then fall back to root.
-  const resolvedLocal = useMemo(() => {
-    if (initialEventId || !initialMessageId) return undefined;
-    const selectedSpans = getSelectedSpans(
-      timelineState.rows,
-      timelineState.selected
-    );
-    for (const span of selectedSpans) {
-      const result = resolveMessageToEvent(initialMessageId, span);
-      if (result && !result.agentSpanId) return result;
-    }
-    return undefined;
-  }, [
-    initialEventId,
-    initialMessageId,
-    timelineState.rows,
-    timelineState.selected,
-  ]);
-
-  const resolvedRoot = useMemo(() => {
-    if (initialEventId || !initialMessageId || resolvedLocal) return undefined;
-    const result = resolveMessageToEvent(initialMessageId, timelineData.root);
-    return result;
-  }, [initialEventId, initialMessageId, resolvedLocal, timelineData.root]);
-
-  const resolved = resolvedLocal ?? resolvedRoot;
-
-  // Side-effect: navigate to the correct swimlane when resolution came from root
-  useEffect(() => {
-    if (!resolvedRoot) return;
-    if (resolvedRoot.agentSpanId) {
-      selectBySpanId(resolvedRoot.agentSpanId);
-    } else if (timelineState.selected) {
-      clearSelection();
-    }
-  }, [resolvedRoot, selectBySpanId, clearSelection, timelineState.selected]);
-
-  const effectiveInitialEventId =
-    initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
-
-  // Suppress headroom collapse when a branch click triggers a programmatic
-  // scroll to the branch separator. Without this, the scroll-down is
-  // interpreted as a user gesture and collapses the swimlanes.
-  useEffect(() => {
-    if (branchScrollTarget) {
-      onHeadroomResetAnchor?.(true);
-    }
-  }, [branchScrollTarget, onHeadroomResetAnchor]);
-
-  // ---------------------------------------------------------------------------
-  // Sticky swimlane state
-  // ---------------------------------------------------------------------------
-
-  const [isSwimLaneSticky, setIsSwimLaneSticky] = useState(false);
-  const [stickySwimLaneHeight, setStickySwimLaneHeight] = useState(0);
-  const swimLaneStickyContentRef = useRef<HTMLDivElement | null>(null);
-
-  const handleSwimLaneStickyChange = useCallback((sticky: boolean) => {
-    setIsSwimLaneSticky(sticky);
-    if (!sticky) {
-      setStickySwimLaneHeight(0);
-    }
-  }, []);
-
-  // Measure the sticky swimlane height via ResizeObserver
-  useEffect(() => {
-    const el = swimLaneStickyContentRef.current;
-    if (!isSwimLaneSticky || !el) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      setStickySwimLaneHeight(el.getBoundingClientRect().height);
-    });
-    observer.observe(el);
-    setStickySwimLaneHeight(el.getBoundingClientRect().height);
-    return () => observer.disconnect();
-  }, [isSwimLaneSticky]);
-
-  // ---------------------------------------------------------------------------
-  // Event nodes
-  // ---------------------------------------------------------------------------
-
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
-    selectedEvents,
-    false,
-    sourceSpans
-  );
-  const hasMatchingEvents = eventNodes.length > 0;
-
-  // Ref to the event list for imperative scroll-to-event from outline clicks.
-  const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
-  const handleOutlineNavigate = useCallback(
-    (eventId: string) => {
-      // Suppress headroom direction changes during the programmatic scroll
-      // so the swimlane header doesn't collapse/reveal mid-animation.
-      onHeadroomResetAnchor?.(true);
-      eventsListRef.current?.scrollToEvent(eventId);
-    },
-    [onHeadroomResetAnchor]
-  );
-
-  // Per-agent scroll position persistence using Virtuoso StateSnapshot.
-  // Each agent gets its own Virtuoso instance (via React `key`) so that
-  // item measurements and scroll position are preserved independently.
-  // Scroll reset is handled imperatively by the selection wrappers above.
-  const selected = timelineState.selected;
-  const eventsListId = selected ? `${id}:${selected}` : id;
-
-  // Scrubber scroll progress (0–1) for the minimap
-  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
-
-  // Outline callback props — wire store to shared TranscriptOutline component
-  const outlineCollapsedEvents = useStore(
+  const collapsedEvents = useStore(
     (state) => state.transcriptCollapsedEvents
   );
-  const setOutlineCollapsedEvent = useStore(
+  const setCollapsedEvent = useStore(
     (state) => state.setTranscriptCollapsedEvent
   );
-  const setOutlineCollapsedEvents = useStore(
-    (state) => state.setTranscriptCollapsedEvents
-  );
-  const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
-  const setSelectedOutlineId = useStore(
-    (state) => state.setTranscriptOutlineId
-  );
-
-  const getOutlineCollapsed = useCallback(
-    (scope: string, nodeId: string) =>
-      outlineCollapsedEvents[scope]?.[nodeId] === true,
-    [outlineCollapsedEvents]
-  );
-  const getOutlineCollapsedEvents = useCallback(
-    () =>
-      outlineCollapsedEvents[kTranscriptOutlineCollapseScope] as
-        | Record<string, boolean>
-        | undefined,
-    [outlineCollapsedEvents]
-  );
-
-  // Compute turn map for sticky turn labels in the transcript.
-  // Uses the same outline-filtered node list as TranscriptOutline so turn
-  // numbers match the sidebar.
-  const outlineFilteredNodes = useMemo(() => {
-    return flatTree(
-      eventNodes,
-      (outlineCollapsedEvents
-        ? (outlineCollapsedEvents[kTranscriptOutlineCollapseScope] as
-            | Record<string, boolean>
-            | undefined)
-        : undefined) || defaultCollapsedIds,
-      [
-        removeNodeVisitor("logger"),
-        removeNodeVisitor("info"),
-        removeNodeVisitor("state"),
-        removeNodeVisitor("store"),
-        removeNodeVisitor("approval"),
-        removeNodeVisitor("input"),
-        removeNodeVisitor("sandbox"),
-        removeStepSpanNameVisitor(kSandboxSignalName),
-        noScorerChildren(),
-      ]
-    );
-  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
-
-  const flattenedNodes = useMemo(() => {
-    return flatTree(
-      eventNodes,
-      (outlineCollapsedEvents
-        ? (outlineCollapsedEvents[kTranscriptCollapseScope] as
-            | Record<string, boolean>
-            | undefined)
-        : undefined) || defaultCollapsedIds
-    );
-  }, [eventNodes, outlineCollapsedEvents, defaultCollapsedIds]);
-
-  const turnMap = useMemo(
-    () => computeTurnMap(outlineFilteredNodes, flattenedNodes),
-    [outlineFilteredNodes, flattenedNodes]
-  );
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      onHeadroomResetAnchor?.(true);
-      scrubTo(progress);
-    },
-    [onHeadroomResetAnchor, scrubTo]
-  );
-
-  // Clean up per-agent state when the transcript panel unmounts
-  // (e.g. navigating to a different transcript).
-  const clearTranscriptOutlineId = useStore(
-    (state) => state.clearTranscriptOutlineId
-  );
-
-  useEffect(() => {
-    const prefix = `live-virtual-list-${id}:`;
-    return () => {
-      clearListPositionsWithPrefix(prefix);
-      clearTranscriptOutlineId();
-    };
-  }, [id, clearListPositionsWithPrefix, clearTranscriptOutlineId]);
-
-  // Bulk collapse/expand effect driven by parent's `collapsed` prop
   const setCollapsedEvents = useStore(
     (state) => state.setTranscriptCollapsedEvents
   );
-  useEffect(() => {
-    if (events.length <= 0 || collapsed === undefined) {
-      return;
-    }
-    if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
-      setCollapsedEvents(kTranscriptCollapseScope, defaultCollapsedIds);
-    } else if (collapsed) {
-      const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      setCollapsedEvents(kTranscriptCollapseScope, allCollapsibleIds);
-    }
-  }, [
-    defaultCollapsedIds,
-    eventNodes,
-    collapsed,
-    setCollapsedEvents,
-    events.length,
-  ]);
 
   // ---------------------------------------------------------------------------
-  // Outline state
+  // Outline state (persistent user preference)
   // ---------------------------------------------------------------------------
 
   const [outlineCollapsed, setOutlineCollapsed] = useProperty<boolean>(
@@ -501,55 +128,43 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   );
   const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
-  // Track whether the outline component reports displayable nodes.
-  // When the outline is collapsed (unmounted), it can't report, so we
-  // optimistically fall back to hasMatchingEvents to keep the toggle enabled.
-  const [reportedHasNodes, setReportedHasNodes] = useState(true);
-
-  // Reset to optimistic when eventNodes change (e.g. agent selection changes).
-  // This lets the outline mount, discover its nodes, and report back.
-  // Uses "adjust state during render" pattern to avoid an extra effect cycle.
-  const [prevEventNodes, setPrevEventNodes] = useState(eventNodes);
-  if (prevEventNodes !== eventNodes) {
-    setPrevEventNodes(eventNodes);
-    if (!reportedHasNodes) {
-      setReportedHasNodes(true);
-    }
-  }
-
-  // Auto-hide the outline when content has no nodes (e.g. utility agent)
-  // without touching the user's persistent preference. When the user navigates
-  // back to an agent with outline content, the preference is still intact.
-  const autoHidden = !reportedHasNodes && !userOutlineCollapsed;
-  const isOutlineCollapsed = userOutlineCollapsed || autoHidden;
-
-  const outlineHasNodes = isOutlineCollapsed
-    ? hasMatchingEvents
-    : reportedHasNodes;
-  const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
-    setReportedHasNodes(hasNodes);
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Derived values
-  // ---------------------------------------------------------------------------
-
-  const renderAgentCard = useCallback(
-    (node: EventNode, className?: string | string[]) => {
-      const span = node.sourceSpan as TimelineSpan | undefined;
-      if (!span) return null;
-      return <AgentCardView span={span} className={className} />;
+  const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
+  const rawSetSelectedOutlineId = useStore(
+    (state) => state.setTranscriptOutlineId
+  );
+  const clearTranscriptOutlineId = useStore(
+    (state) => state.clearTranscriptOutlineId
+  );
+  const setSelectedOutlineId = useCallback(
+    (id: string | null) => {
+      if (id) {
+        rawSetSelectedOutlineId(id);
+      } else {
+        clearTranscriptOutlineId();
+      }
     },
-    []
+    [rawSetSelectedOutlineId, clearTranscriptOutlineId]
   );
 
-  const showSwimlanes = timelineProp !== false;
-  const swimlanesDefaultCollapsed =
-    timelineProp === "auto" && !hasTimeline && regionCounts.size === 0
-      ? true
-      : hasTimeline
-        ? false
-        : undefined;
+  // Clean up outline ID on unmount
+  useEffect(() => {
+    return () => {
+      clearTranscriptOutlineId();
+    };
+  }, [clearTranscriptOutlineId]);
+
+  // ---------------------------------------------------------------------------
+  // Outline navigation
+  // ---------------------------------------------------------------------------
+
+  const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
+  const handleOutlineNavigate = useCallback(
+    (eventId: string) => {
+      onHeadroomResetAnchor?.(true);
+      eventsListRef.current?.scrollToEvent(eventId);
+    },
+    [onHeadroomResetAnchor]
+  );
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -560,127 +175,39 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
 
   return (
-    <TimelineSelectContext.Provider value={selectBySpanId}>
-      <div className={clsx(styles.root, className)}>
-        {showSwimlanes && (
-          <StickyScroll
-            scrollRef={scrollRef}
-            offsetTop={offsetTop}
-            zIndex={500}
-            preserveHeight={true}
-            onStickyChange={handleSwimLaneStickyChange}
-          >
-            <div ref={swimLaneStickyContentRef}>
-              <TimelineSwimLanes
-                layouts={timelineLayouts}
-                timeline={patchedTimelineState}
-                header={{
-                  rootLabel: timelineData.root.name,
-                  onScrollToTop: scrollToTop,
-                  minimap: {
-                    root: timelineData.root,
-                    selection: minimapSelection,
-                    mapping: rootTimeMapping,
-                    scrubberProgress,
-                    onScrub: handleScrub,
-                  },
-                  timelineConfig,
-                  timelineSelector:
-                    timelines.length > 1
-                      ? {
-                          timelines,
-                          activeIndex: activeTimelineIndex,
-                          onSelect: resetActiveTimeline,
-                        }
-                      : undefined,
-                }}
-                onMarkerNavigate={onMarkerNavigate}
-                isSticky={isSwimLaneSticky}
-                headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
-                onLayoutShift={onHeadroomResetAnchor}
-                regionCounts={regionCounts}
-                defaultCollapsed={swimlanesDefaultCollapsed}
-                highlightedKeys={highlightedKeys}
-              />
-            </div>
-          </StickyScroll>
-        )}
-        <div
-          className={clsx(
-            styles.eventsContainer,
-            isOutlineCollapsed && styles.outlineCollapsed
-          )}
-          style={
-            {
-              "--outline-top": `${offsetTop + stickySwimLaneHeight}px`,
-            } as CSSProperties
-          }
-        >
-          <StickyScroll
-            scrollRef={scrollRef}
-            className={styles.eventsOutline}
-            offsetTop={offsetTop + stickySwimLaneHeight}
-          >
-            {!isOutlineCollapsed && (
-              <TranscriptOutline
-                eventNodes={eventNodes}
-                defaultCollapsedIds={defaultCollapsedIds}
-                scrollRef={scrollRef}
-                agentName={outlineAgentName}
-                onHasNodesChange={handleOutlineHasNodesChange}
-                onNavigateToEvent={handleOutlineNavigate}
-                scrollTrackOffset={offsetTop + stickySwimLaneHeight}
-                getCollapsed={getOutlineCollapsed}
-                setCollapsed={setOutlineCollapsedEvent}
-                getCollapsedEvents={getOutlineCollapsedEvents}
-                setCollapsedEvents={setOutlineCollapsedEvents}
-                selectedOutlineId={selectedOutlineId}
-                setSelectedOutlineId={setSelectedOutlineId}
-              />
-            )}
-            <button
-              type="button"
-              className={styles.outlineToggle}
-              onClick={
-                outlineHasNodes
-                  ? () => setOutlineCollapsed(!isOutlineCollapsed)
-                  : undefined
-              }
-              aria-disabled={!outlineHasNodes}
-              title={
-                outlineHasNodes
-                  ? undefined
-                  : "No outline available for the current filter"
-              }
-              aria-label={isOutlineCollapsed ? "Show outline" : "Hide outline"}
-            >
-              <i className={ApplicationIcons.sidebar} />
-            </button>
-          </StickyScroll>
-          <div className={styles.eventsSeparator} />
-          {hasMatchingEvents ? (
-            <TranscriptViewNodes
-              key={eventsListId}
-              ref={eventsListRef}
-              id={eventsListId}
-              eventNodes={eventNodes}
-              defaultCollapsedIds={defaultCollapsedIds}
-              initialEventId={effectiveInitialEventId}
-              offsetTop={offsetTop + stickySwimLaneHeight}
-              className={styles.eventsList}
-              scrollRef={scrollRef}
-              renderAgentCard={renderAgentCard}
-              turnMap={turnMap}
-              getEventUrl={getEventUrl}
-              linkingEnabled={linkingEnabled}
-              collapsedEvents={outlineCollapsedEvents}
-              onCollapse={setOutlineCollapsedEvent}
-            />
-          ) : (
-            <NoContentsPanel text="No events match the current filter" />
-          )}
-        </div>
-      </div>
-    </TimelineSelectContext.Provider>
+    <TranscriptLayout
+      events={events}
+      scrollRef={scrollRef}
+      offsetTop={offsetTop}
+      timelineSelection={timelineSelection}
+      activeTimeline={activeTimeline}
+      serverTimelines={serverTimelines}
+      markerConfig={markerConfig}
+      agentConfig={agentConfig}
+      showSwimlanes={timelineProp}
+      onMarkerNavigate={onMarkerNavigate}
+      swimlaneHeaderExtras={{ onScrollToTop: scrollToTop }}
+      headroomHidden={headroomHidden}
+      onHeadroomResetAnchor={onHeadroomResetAnchor}
+      listId={id}
+      initialEventId={initialEventId}
+      initialMessageId={initialMessageId}
+      eventsListRef={eventsListRef}
+      getEventUrl={getEventUrl}
+      linkingEnabled={linkingEnabled}
+      collapsed={collapsed}
+      collapsedEvents={collapsedEvents}
+      onCollapse={setCollapsedEvent}
+      onSetCollapsedEvents={setCollapsedEvents}
+      outline={{
+        collapsed: userOutlineCollapsed,
+        onCollapsedChange: setOutlineCollapsed,
+        toggleIcon: ApplicationIcons.sidebar,
+        onNavigateToEvent: handleOutlineNavigate,
+        selectedId: selectedOutlineId,
+        setSelectedId: setSelectedOutlineId,
+      }}
+      className={className}
+    />
   );
 };

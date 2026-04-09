@@ -6,10 +6,7 @@
  * scrolling to an agent card that displays it, or selecting a swimlane first.
  */
 
-import type {
-  TimelineEvent,
-  TimelineSpan,
-} from "@tsmono/inspect-components/transcript";
+import type { TimelineEvent, TimelineSpan } from "./timeline/core";
 
 // =============================================================================
 // Public API

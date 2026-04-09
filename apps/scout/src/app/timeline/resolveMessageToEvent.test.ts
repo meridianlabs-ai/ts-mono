@@ -8,7 +8,7 @@ import {
 
 import type { Event } from "../../types/api-types";
 
-import { resolveMessageToEvent } from "./resolveMessageToEvent";
+import { resolveMessageToEvent } from "@tsmono/inspect-components/transcript";
 
 // =============================================================================
 // Test helpers — minimal factories for TimelineSpan/TimelineEvent

@@ -49,6 +49,12 @@ export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 // Search text
 export { eventSearchText } from "./eventSearchText";
 
+// Message ID resolution
+export {
+  resolveMessageToEvent,
+  type ResolvedMessageEvent,
+} from "./resolveMessageToEvent";
+
 // Outline visitors
 export {
   collapseScoring,
