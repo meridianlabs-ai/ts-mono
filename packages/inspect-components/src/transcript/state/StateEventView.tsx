@@ -1,5 +1,3 @@
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
 import clsx from "clsx";
 import { FC, ReactNode, useEffect, useMemo } from "react";
 
@@ -66,7 +64,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
     const isStore = eventNode.event.event === "store";
     const afterClone = structuredClone(after) || {};
     return generatePreview(event.changes, afterClone, isStore);
-  }, [event.changes, after]);
+  }, [event.changes, eventNode.event.event, after]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
@@ -74,7 +72,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
     if (changePreview === undefined && onAutoCollapse) {
       onAutoCollapse(eventNode.id);
     }
-  }, [changePreview, onAutoCollapse]);
+  }, [changePreview, onAutoCollapse, eventNode.id]);
 
   return (
     <EventPanel

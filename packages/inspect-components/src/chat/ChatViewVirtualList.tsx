@@ -170,8 +170,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
           />
         );
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [id, collapsedMessages, display, labels, linking, tools]
+      [id, display, labels, linking, tools]
     );
 
     const Item = ({
