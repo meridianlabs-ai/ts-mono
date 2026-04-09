@@ -42,6 +42,8 @@ export interface TranscriptViewNodesProps {
   id: string;
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
+  /** Whether events are still being streamed (enables auto-follow scroll). */
+  running?: boolean;
   nodeFilter?: (node: EventNode<EventType>[]) => EventNode<EventType>[];
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
@@ -79,6 +81,7 @@ export const TranscriptViewNodes = forwardRef<
     id,
     eventNodes,
     defaultCollapsedIds,
+    running,
     nodeFilter,
     scrollRef,
     initialEventId,
@@ -206,6 +209,7 @@ export const TranscriptViewNodes = forwardRef<
           listHandle={listHandle}
           eventNodes={flattenedNodes}
           scrollRef={scrollRef}
+          running={running}
           offsetTop={offsetTop}
           className={clsx(className)}
           initialEventId={initialEventId}
