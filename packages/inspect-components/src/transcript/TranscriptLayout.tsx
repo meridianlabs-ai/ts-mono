@@ -547,10 +547,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 setCollapsed={onCollapse}
                 getCollapsedEvents={
                   collapsedEvents
-                    ? () =>
-                        collapsedEvents[kTranscriptOutlineCollapseScope] as
-                          | Record<string, boolean>
-                          | undefined
+                    ? () => collapsedEvents[kTranscriptOutlineCollapseScope]
                     : undefined
                 }
                 setCollapsedEvents={onSetCollapsedEvents}
