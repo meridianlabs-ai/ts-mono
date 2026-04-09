@@ -12,7 +12,10 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import {
+  ChatViewVirtualList,
+  messagesToStr,
+} from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   MetaDataGrid,
@@ -30,7 +33,6 @@ import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
-import { messagesToStr } from "../utils/messages";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";

@@ -1,9 +1,5 @@
-import {
+import type {
   ChatMessage,
-  ChatMessageAssistant,
-  ChatMessageSystem,
-  ChatMessageTool,
-  ChatMessageUser,
   ContentAudio,
   ContentData,
   ContentDocument,
@@ -12,7 +8,7 @@ import {
   ContentText,
   ContentToolUse,
   ContentVideo,
-} from "../../types/api-types";
+} from "@tsmono/inspect-common/types";
 
 export interface MessagesToStrOptions {
   excludeSystem?: boolean;
@@ -32,11 +28,7 @@ export const messagesToStr = (
 };
 
 const messageToStr = (
-  message:
-    | ChatMessageSystem
-    | ChatMessageUser
-    | ChatMessageAssistant
-    | ChatMessageTool,
+  message: ChatMessage,
   options: MessagesToStrOptions
 ): string | null => {
   // Exclude system messages if requested
@@ -56,22 +48,19 @@ const messageToStr = (
     message.role === "assistant" &&
     message.tool_calls
   ) {
-    const assistantMsg = message;
     let entry = `${message.role.toUpperCase()}:\n${content}\n`;
 
-    if (assistantMsg.tool_calls) {
-      for (const tool of assistantMsg.tool_calls) {
-        const funcName = tool.function;
-        const args = tool.arguments;
+    for (const tool of message.tool_calls) {
+      const funcName = tool.function;
+      const args = tool.arguments;
 
-        if (typeof args === "object" && args !== null) {
-          const argsText = Object.entries(args)
-            .map(([k, v]) => `${k}: ${String(v)}`)
-            .join("\n");
-          entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
-        } else {
-          entry += `\nTool Call: ${funcName}\n`;
-        }
+      if (typeof args === "object" && args !== null) {
+        const argsText = Object.entries(args)
+          .map(([k, v]) => `${k}: ${String(v)}`)
+          .join("\n");
+        entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
+      } else {
+        entry += `\nTool Call: ${funcName}\n`;
       }
     }
 
@@ -83,10 +72,9 @@ const messageToStr = (
     if (options.excludeToolUsage) {
       return null;
     }
-    const toolMsg = message;
-    const funcName = toolMsg.function || "unknown";
-    const errorPart = toolMsg.error
-      ? `\n\nError in tool call '${funcName}':\n${toolMsg.error.message}\n`
+    const funcName = message.function || "unknown";
+    const errorPart = message.error
+      ? `\n\nError in tool call '${funcName}':\n${message.error.message}\n`
       : "";
     return `${message.role.toUpperCase()}:\n${content}${errorPart}\n`;
   }
@@ -95,16 +83,18 @@ const messageToStr = (
   return `${message.role.toUpperCase()}:\n${content}\n`;
 };
 
+type ContentItem =
+  | ContentText
+  | ContentReasoning
+  | ContentImage
+  | ContentAudio
+  | ContentVideo
+  | ContentData
+  | ContentToolUse
+  | ContentDocument;
+
 const textFromContent = (
-  content:
-    | ContentText
-    | ContentReasoning
-    | ContentImage
-    | ContentAudio
-    | ContentVideo
-    | ContentData
-    | ContentToolUse
-    | ContentDocument,
+  content: ContentItem,
   excludeToolUsage: boolean,
   excludeReasoning: boolean
 ): string | null => {
@@ -113,17 +103,13 @@ const textFromContent = (
       return content.text;
 
     case "reasoning": {
-      const reasoningContent = content;
       if (excludeReasoning) {
         return null;
       }
-      const reasoning = reasoningContent.redacted
-        ? reasoningContent.summary
-        : reasoningContent.reasoning;
+      const reasoning = content.redacted ? content.summary : content.reasoning;
       if (!reasoning) {
         return null;
       }
-      // Bracket it with start/finish since it could be multiple lines long
       return `\n<think>${reasoning}</think>`;
     }
 
@@ -131,9 +117,8 @@ const textFromContent = (
       if (excludeToolUsage) {
         return null;
       }
-      const toolUse = content;
-      const errorStr = toolUse.error ? ` ${toolUse.error}` : "";
-      return `\nTool Use: ${toolUse.name}(${toolUse.arguments}) -> ${toolUse.result}${errorStr}`;
+      const errorStr = content.error ? ` ${content.error}` : "";
+      return `\nTool Use: ${content.name}(${content.arguments}) -> ${content.result}${errorStr}`;
     }
 
     case "image":
@@ -149,18 +134,7 @@ const textFromContent = (
 };
 
 const betterContentText = (
-  content:
-    | string
-    | Array<
-        | ContentText
-        | ContentReasoning
-        | ContentImage
-        | ContentAudio
-        | ContentVideo
-        | ContentData
-        | ContentToolUse
-        | ContentDocument
-      >,
+  content: string | ContentItem[],
   excludeToolUsage: boolean,
   excludeReasoning: boolean
 ): string => {

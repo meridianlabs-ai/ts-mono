@@ -13,7 +13,10 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
-import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import {
+  ChatViewVirtualList,
+  messagesToStr,
+} from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   RecordTree,
@@ -58,7 +61,6 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { messagesToStr } from "../shared/messages";
 
 import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";

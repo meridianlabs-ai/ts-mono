@@ -1,9 +1,8 @@
-import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { FC, RefObject, useCallback, useEffect, useRef } from "react";
 
 import {
-  buildTimeline,
-  convertServerTimeline,
   TranscriptLayout,
+  useTimelinesArray,
   type MarkerConfig,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
@@ -90,17 +89,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
 
   const timelineSelection = useTimelineSearchParams();
 
-  // Build timelines to resolve the URL-param-based active index.
-  // The shared hook rebuilds them internally (memoized), so no perf cost.
-  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
-  const convertedTimelines = useMemo(
-    () =>
-      serverTimelines && serverTimelines.length > 0
-        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
-        : null,
-    [serverTimelines, events]
-  );
-  const timelinesArray = convertedTimelines ?? [builtTimeline];
+  const timelinesArray = useTimelinesArray(events, serverTimelines);
   const activeTimeline = useActiveTimelineSearchParams(timelinesArray);
 
   // ---------------------------------------------------------------------------

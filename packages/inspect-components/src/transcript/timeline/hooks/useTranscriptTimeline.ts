@@ -16,7 +16,6 @@ import type {
 } from "@tsmono/inspect-common/types";
 
 import type { Timeline, TimelineSpan } from "../core";
-import { buildTimeline, convertServerTimeline } from "../core";
 import {
   defaultMarkerConfig,
   resolveForkTimestamp,
@@ -54,6 +53,7 @@ import {
   type TimelineState,
   type UseTimelineProps,
 } from "./useTimeline";
+import { useTimelinesArray } from "./useTimelinesArray";
 
 const emptySourceSpans: ReadonlyMap<string, TimelineSpan> = new Map();
 const emptyHighlightedKeys: ReadonlyMap<string, number> = new Map();
@@ -110,15 +110,7 @@ export function useTranscriptTimeline(
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
   const forkRelative = timelineOptions?.forkRelative ?? false;
-  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
-  const convertedTimelines = useMemo(
-    () =>
-      serverTimelines && serverTimelines.length > 0
-        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
-        : null,
-    [serverTimelines, events]
-  );
-  const timelines = convertedTimelines ?? [builtTimeline];
+  const timelines = useTimelinesArray(events, serverTimelines);
 
   const {
     active: activeTimeline,

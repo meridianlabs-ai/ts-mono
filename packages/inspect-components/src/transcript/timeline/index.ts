@@ -102,6 +102,7 @@ export {
   useEventNodes,
   useTimeline,
   useTimelineConfig,
+  useTimelinesArray,
   useTranscriptTimeline,
   type BranchLookupResult,
   type TimelineOptions,

@@ -21,3 +21,4 @@ export {
   type UseTranscriptTimelineProps,
 } from "./useTranscriptTimeline";
 export { useEventNodes } from "./useEventNodes";
+export { useTimelinesArray } from "./useTimelinesArray";
