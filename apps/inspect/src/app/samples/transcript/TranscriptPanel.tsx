@@ -17,6 +17,7 @@ import { VirtuosoHandle } from "react-virtuoso";
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
   AgentCardView,
+  buildSpanSelectKeys,
   computeTurnMap,
   EventNode,
   flatTree as flattenTree,
@@ -27,6 +28,7 @@ import {
   noScorerChildren,
   removeNodeVisitor,
   removeStepSpanNameVisitor,
+  TimelineSelectContext,
   TimelineSwimLanes,
   TranscriptOutline,
   TranscriptVirtualList,
@@ -348,6 +350,23 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, [isSwimLaneSticky]);
 
   // ---------------------------------------------------------------------------
+  // Span selection context (agent card clicks → swimlane selection)
+  // ---------------------------------------------------------------------------
+
+  const spanSelectKeys = useMemo(
+    () => buildSpanSelectKeys(timelineState.rows),
+    [timelineState.rows]
+  );
+  const selectBySpanId = useCallback(
+    (spanId: string) => {
+      const key = spanSelectKeys.get(spanId);
+      if (!key) return;
+      setTimelineSelected(key.key);
+    },
+    [spanSelectKeys, setTimelineSelected]
+  );
+
+  // ---------------------------------------------------------------------------
   // Agent card rendering (for timeline-scoped events)
   // ---------------------------------------------------------------------------
 
@@ -473,117 +492,119 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     return <NoContentsPanel text={message} />;
   } else {
     return (
-      <div className={styles.root}>
-        {showSwimlanes && (
-          <StickyScroll
-            scrollRef={scrollRef}
-            offsetTop={topOffset}
-            zIndex={500}
-            preserveHeight={true}
-            onStickyChange={handleSwimLaneStickyChange}
-          >
-            <div ref={swimLaneStickyContentRef}>
-              <TimelineSwimLanes
-                layouts={timelineLayouts}
-                timeline={timelineState}
-                header={{
-                  rootLabel: timelineData.root.name,
-                  minimap: {
-                    root: timelineData.root,
-                    selection: minimapSelection,
-                    mapping: rootTimeMapping,
-                  },
-                  timelineConfig,
-                  timelineSelector:
-                    builtTimelines.length > 1
-                      ? {
-                          timelines: builtTimelines,
-                          activeIndex: resolvedActiveIndex,
-                          onSelect: setActiveTimeline,
-                        }
-                      : undefined,
-                }}
-                onMarkerNavigate={onMarkerNavigate}
-                isSticky={isSwimLaneSticky}
-                headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
-                onLayoutShift={onHeadroomResetAnchor}
-                defaultCollapsed={hasTimeline ? false : undefined}
-                regionCounts={regionCounts}
-                highlightedKeys={highlightedKeys}
-              />
-            </div>
-          </StickyScroll>
-        )}
-        <div
-          className={clsx(
-            styles.container,
-            outlineCollapsed ? styles.collapsed : undefined
-          )}
-          style={
-            showSwimlanes
-              ? ({
-                  "--outline-top": `${effectiveOffsetTop}px`,
-                } as CSSProperties)
-              : undefined
-          }
-        >
-          <div className={styles.treeContainer}>
+      <TimelineSelectContext.Provider value={selectBySpanId}>
+        <div className={styles.root}>
+          {showSwimlanes && (
             <StickyScroll
               scrollRef={scrollRef}
-              offsetTop={effectiveOffsetTop}
-              className={styles.stickyOutline}
+              offsetTop={topOffset}
+              zIndex={500}
+              preserveHeight={true}
+              onStickyChange={handleSwimLaneStickyChange}
             >
-              <TranscriptOutline
-                className={clsx(styles.outline)}
-                eventNodes={eventNodes}
-                defaultCollapsedIds={defaultCollapsedIds}
-                running={running}
-                scrollRef={scrollRef}
-                scrollTrackOffset={effectiveOffsetTop}
-                getCollapsed={getOutlineCollapsed}
-                setCollapsed={onOutlineCollapse}
-                getCollapsedEvents={getOutlineCollapsedEvents}
-                setCollapsedEvents={setCollapsedEvents}
-                selectedOutlineId={selectedOutlineId}
-                setSelectedOutlineId={setSelectedOutlineId}
-                getEventUrl={getEventUrl}
-                renderLink={renderLink}
-              />
-              <div
-                className={styles.outlineToggle}
-                onClick={() => setOutlineCollapsed(!outlineCollapsed)}
-              >
-                <i className={ApplicationIcons.sidebar} />
+              <div ref={swimLaneStickyContentRef}>
+                <TimelineSwimLanes
+                  layouts={timelineLayouts}
+                  timeline={timelineState}
+                  header={{
+                    rootLabel: timelineData.root.name,
+                    minimap: {
+                      root: timelineData.root,
+                      selection: minimapSelection,
+                      mapping: rootTimeMapping,
+                    },
+                    timelineConfig,
+                    timelineSelector:
+                      builtTimelines.length > 1
+                        ? {
+                            timelines: builtTimelines,
+                            activeIndex: resolvedActiveIndex,
+                            onSelect: setActiveTimeline,
+                          }
+                        : undefined,
+                  }}
+                  onMarkerNavigate={onMarkerNavigate}
+                  isSticky={isSwimLaneSticky}
+                  headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
+                  onLayoutShift={onHeadroomResetAnchor}
+                  defaultCollapsed={hasTimeline ? false : undefined}
+                  regionCounts={regionCounts}
+                  highlightedKeys={highlightedKeys}
+                />
               </div>
             </StickyScroll>
-          </div>
-
-          <StickyScrollProvider value={scrollRef ?? null}>
-            <div
-              style={
-                {
-                  "--inspect-event-panel-sticky-top": `${effectiveOffsetTop}px`,
-                } as CSSProperties
-              }
-            >
-              <TranscriptVirtualList
-                id={id}
-                listHandle={listHandle}
-                eventNodes={flattenedNodes}
+          )}
+          <div
+            className={clsx(
+              styles.container,
+              outlineCollapsed ? styles.collapsed : undefined
+            )}
+            style={
+              showSwimlanes
+                ? ({
+                    "--outline-top": `${effectiveOffsetTop}px`,
+                  } as CSSProperties)
+                : undefined
+            }
+          >
+            <div className={styles.treeContainer}>
+              <StickyScroll
                 scrollRef={scrollRef}
-                running={running}
-                initialEventId={effectiveInitialEventId}
                 offsetTop={effectiveOffsetTop}
-                className={styles.listContainer}
-                turnMap={turnMap}
-                onCollapse={onCollapse}
-                getCollapsed={getCollapsed}
-                renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-              />
+                className={styles.stickyOutline}
+              >
+                <TranscriptOutline
+                  className={clsx(styles.outline)}
+                  eventNodes={eventNodes}
+                  defaultCollapsedIds={defaultCollapsedIds}
+                  running={running}
+                  scrollRef={scrollRef}
+                  scrollTrackOffset={effectiveOffsetTop}
+                  getCollapsed={getOutlineCollapsed}
+                  setCollapsed={onOutlineCollapse}
+                  getCollapsedEvents={getOutlineCollapsedEvents}
+                  setCollapsedEvents={setCollapsedEvents}
+                  selectedOutlineId={selectedOutlineId}
+                  setSelectedOutlineId={setSelectedOutlineId}
+                  getEventUrl={getEventUrl}
+                  renderLink={renderLink}
+                />
+                <div
+                  className={styles.outlineToggle}
+                  onClick={() => setOutlineCollapsed(!outlineCollapsed)}
+                >
+                  <i className={ApplicationIcons.sidebar} />
+                </div>
+              </StickyScroll>
             </div>
-          </StickyScrollProvider>
+
+            <StickyScrollProvider value={scrollRef ?? null}>
+              <div
+                style={
+                  {
+                    "--inspect-event-panel-sticky-top": `${effectiveOffsetTop}px`,
+                  } as CSSProperties
+                }
+              >
+                <TranscriptVirtualList
+                  id={id}
+                  listHandle={listHandle}
+                  eventNodes={flattenedNodes}
+                  scrollRef={scrollRef}
+                  running={running}
+                  initialEventId={effectiveInitialEventId}
+                  offsetTop={effectiveOffsetTop}
+                  className={styles.listContainer}
+                  turnMap={turnMap}
+                  onCollapse={onCollapse}
+                  getCollapsed={getCollapsed}
+                  renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
+                />
+              </div>
+            </StickyScrollProvider>
+          </div>
         </div>
-      </div>
+      </TimelineSelectContext.Provider>
     );
   }
 });
