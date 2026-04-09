@@ -9,7 +9,7 @@
 .container {
   display: grid;
   width: 100%;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: var(--outline-width, 180px) 1fr;
   min-height: 100vh;
   transition: grid-template-columns 0.3s ease;
 }
@@ -19,16 +19,19 @@
 }
 
 .container.collapsed {
-  grid-template-columns: 1.5em 1fr;
+  grid-template-columns: 28px 1fr;
 }
 
 .treeContainer {
-  padding: 0.5em;
+  padding-left: 0.5rem;
+  padding-top: 0.2rem;
   border-right: solid 1px var(--bs-light-border-subtle);
   width: 100%;
 }
 
-.stickyOutline {
+/* Cap height and scroll internally only when expanded —
+   overflow clips the toggle button when collapsed. */
+.container:not(.collapsed) .stickyOutline {
   max-height: calc(100vh - var(--outline-top, 0px));
   overflow-y: auto;
 }
@@ -49,8 +52,8 @@
   cursor: pointer;
   font-size: 0.8em;
   position: absolute;
-  top: 0.5em;
-  right: 0.5em;
+  top: 0;
+  right: 0.3em;
 }
 
 .collapsed .outline {

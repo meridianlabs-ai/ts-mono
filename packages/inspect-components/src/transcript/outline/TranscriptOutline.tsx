@@ -187,6 +187,22 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     onWidthChange?.(outlineWidth);
   }, [outlineWidth, onWidthChange]);
 
+  // Set --outline-width on the nearest grid ancestor so the column resizes
+  // automatically without each app needing to wire up the CSS variable.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    let ancestor: HTMLElement | null = el.parentElement;
+    while (ancestor) {
+      if (getComputedStyle(ancestor).display === "grid") {
+        ancestor.style.setProperty("--outline-width", `${outlineWidth}px`);
+        return;
+      }
+      ancestor = ancestor.parentElement;
+    }
+  }, [outlineWidth]);
+
   // All event nodes for scroll tracking
   const allNodesList = useMemo(() => {
     return flatTree(eventNodes, null);
@@ -284,7 +300,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   );
 
   return (
-    <div style={style}>
+    <div ref={rootRef} style={style}>
       {agentName && (
         <div
           className={clsx(

@@ -22,7 +22,6 @@ import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   noScorerChildren,
-  parseSelection,
   removeNodeVisitor,
   removeStepSpanNameVisitor,
   TimelineSelectContext,
@@ -166,6 +165,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
+    outlineAgentName,
   } = useTranscriptTimeline(
     events,
     resolvedMarkerConfig,
@@ -526,7 +526,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const outlineHasNodes = isOutlineCollapsed
     ? hasMatchingEvents
     : reportedHasNodes;
-  const [outlineWidth, setOutlineWidth] = useState<number | undefined>();
   const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
     setReportedHasNodes(hasNodes);
   }, []);
@@ -534,18 +533,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
   // Derived values
   // ---------------------------------------------------------------------------
-
-  // Compute the agent name for the outline header.
-  // When a swimlane row is selected, show its name; otherwise show the root.
-  const outlineAgentName = useMemo(() => {
-    if (!timelineState.selected) return timelineData.root.name;
-    // For iterative rows, selected includes a span index suffix (e.g.
-    // "transcript/explore:0"). Parse it to get the base row key.
-    const parsed = parseSelection(timelineState.selected);
-    const rowKey = parsed?.rowKey ?? timelineState.selected;
-    const row = timelineState.rows.find((r) => r.key === rowKey);
-    return row?.name ?? timelineData.root.name;
-  }, [timelineState.selected, timelineState.rows, timelineData.root.name]);
 
   const renderAgentCard = useCallback(
     (node: EventNode, className?: string | string[]) => {
@@ -625,9 +612,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
           )}
           style={
             {
-              ...(!isOutlineCollapsed && outlineWidth
-                ? { "--outline-width": `${outlineWidth}px` }
-                : undefined),
               "--outline-top": `${offsetTop + stickySwimLaneHeight}px`,
             } as CSSProperties
           }
@@ -644,7 +628,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
                 scrollRef={scrollRef}
                 agentName={outlineAgentName}
                 onHasNodesChange={handleOutlineHasNodesChange}
-                onWidthChange={setOutlineWidth}
                 onNavigateToEvent={handleOutlineNavigate}
                 scrollTrackOffset={offsetTop + stickySwimLaneHeight}
                 getCollapsed={getOutlineCollapsed}

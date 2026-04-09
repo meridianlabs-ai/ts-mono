@@ -156,6 +156,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
+    outlineAgentName,
   } = useTranscriptTimeline(
     filteredEvents,
     timelineConfig.markerConfig,
@@ -577,6 +578,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                   running={running}
                   scrollRef={scrollRef}
                   scrollTrackOffset={effectiveOffsetTop}
+                  agentName={showSwimlanes ? outlineAgentName : undefined}
                   getCollapsed={getOutlineCollapsed}
                   setCollapsed={onOutlineCollapse}
                   getCollapsedEvents={getOutlineCollapsedEvents}
