@@ -2,13 +2,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveMessageToEvent,
   TimelineEvent,
   TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
 
 import type { Event } from "../../types/api-types";
-
-import { resolveMessageToEvent } from "./resolveMessageToEvent";
 
 // =============================================================================
 // Test helpers — minimal factories for TimelineSpan/TimelineEvent

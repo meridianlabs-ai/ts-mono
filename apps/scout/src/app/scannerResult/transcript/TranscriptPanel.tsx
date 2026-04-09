@@ -1,10 +1,14 @@
 import clsx from "clsx";
-import { FC, useRef } from "react";
+import { FC, useCallback, useRef } from "react";
 
-import { EventNode } from "@tsmono/inspect-components/transcript";
-import type { EventType } from "@tsmono/inspect-components/transcript";
+import {
+  EventNode,
+  TranscriptViewNodes,
+  useEventNodes,
+  type EventType,
+} from "@tsmono/inspect-components/transcript";
 
-import { TranscriptView } from "../../../components/TranscriptView";
+import { useStore } from "../../../state/store";
 import { ScanResultData } from "../../types";
 
 import styles from "./TranscriptPanel.module.css";
@@ -22,13 +26,33 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  const { eventNodes, defaultCollapsedIds } = useEventNodes(
+    resultData?.scanEvents || [],
+    false
+  );
+
+  const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
+  const setTranscriptCollapsedEvent = useStore(
+    (state) => state.setTranscriptCollapsedEvent
+  );
+
+  const onCollapse = useCallback(
+    (scope: string, nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(scope, nodeId, collapsed);
+    },
+    [setTranscriptCollapsedEvent]
+  );
+
   return (
     <div ref={scrollRef} className={clsx(styles.container)}>
-      <TranscriptView
+      <TranscriptViewNodes
         id={id}
-        events={resultData?.scanEvents || []}
-        scrollRef={scrollRef}
+        eventNodes={eventNodes}
+        defaultCollapsedIds={defaultCollapsedIds}
         nodeFilter={nodeFilter}
+        scrollRef={scrollRef}
+        collapsedEvents={collapsedEvents}
+        onCollapse={onCollapse}
       />
     </div>
   );

@@ -16,7 +16,7 @@ import {
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import {
   getScannerParam,
   getValidationParam,

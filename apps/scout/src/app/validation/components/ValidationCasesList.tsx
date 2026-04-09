@@ -3,7 +3,7 @@ import { CSSProperties, FC, useCallback, useMemo, useState } from "react";
 
 import { Modal } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { useTranscriptsByIds } from "../hooks/useTranscriptsByIds";

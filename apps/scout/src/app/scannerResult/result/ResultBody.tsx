@@ -6,7 +6,7 @@ import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";

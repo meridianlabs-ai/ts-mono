@@ -4,7 +4,7 @@ import { FC } from "react";
 import { CopyButton } from "@tsmono/react/components";
 import { formatDateTime, prettyDirUri, toRelativePath } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { useApi } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { DownloadScanButton } from "../components/DownloadScanButton";

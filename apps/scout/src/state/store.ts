@@ -186,6 +186,7 @@ interface StoreState {
   ) => T | undefined;
   removePropertyValue: (id: string, propertyName: string) => void;
   removeAllProperties: (id: string) => void;
+  removeByPrefix: (id: string, prefix: string) => void;
 
   getScrollPosition: (path: string) => number | undefined;
   setScrollPosition: (path: string, position: number) => void;
@@ -465,6 +466,28 @@ export const createStore = (api: ScoutApiV2) =>
             set((state) => {
               const { [id]: _, ...remaining } = state.properties;
               state.properties = remaining;
+            });
+          },
+          removeByPrefix(id: string, prefix: string) {
+            set((state) => {
+              const bag = state.properties[id];
+              if (!bag) return;
+              let changed = false;
+              const next = { ...bag };
+              for (const key of Object.keys(next)) {
+                if (key.startsWith(prefix)) {
+                  delete next[key];
+                  changed = true;
+                }
+              }
+              if (changed) {
+                if (Object.keys(next).length === 0) {
+                  const { [id]: _, ...remaining } = state.properties;
+                  state.properties = remaining;
+                } else {
+                  state.properties[id] = next;
+                }
+              }
             });
           },
           getScrollPosition(path) {

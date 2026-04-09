@@ -4,7 +4,7 @@ import { FC, useRef } from "react";
 import { PopOver } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import type { OperatorModel } from "../../query";
 
 import { Chip } from "./Chip";

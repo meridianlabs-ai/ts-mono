@@ -6,7 +6,7 @@ import { ChangeEvent, FC, useMemo } from "react";
 
 import { TextInput } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { ValidationCase } from "../../../types/api-types";
 import { extractUniqueSplits } from "../utils";
 

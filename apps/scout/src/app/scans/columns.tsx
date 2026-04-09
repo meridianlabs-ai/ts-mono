@@ -2,7 +2,7 @@ import clsx from "clsx";
 
 import { formatNumber, printObject } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
 import { BaseColumnMeta, ExtendedColumnDef } from "../components/columnTypes";

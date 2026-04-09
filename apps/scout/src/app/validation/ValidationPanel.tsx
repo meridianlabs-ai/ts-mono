@@ -17,7 +17,7 @@ import {
 import { Modal, NonIdealState, TextInput } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useAppConfig } from "../server/useAppConfig";
 import {

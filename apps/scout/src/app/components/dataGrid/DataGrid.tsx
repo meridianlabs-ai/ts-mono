@@ -21,8 +21,8 @@ import {
   useState,
 } from "react";
 
-import { ApplicationIcons } from "../../../components/icons";
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
+import { ApplicationIcons } from "../../../icons";
 import type { SimpleCondition } from "../../../query/types";
 import { openRouteInNewTab } from "../../../router/url";
 import { FilterType } from "../../../state/store";

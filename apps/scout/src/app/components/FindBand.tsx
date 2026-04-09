@@ -5,7 +5,7 @@ import { useExtendedFind } from "@tsmono/react/components";
 
 import "./FindBand.css";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 
 interface FindBandProps {
   onClose?: () => void;

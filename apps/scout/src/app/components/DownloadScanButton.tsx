@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 
 import styles from "./DownloadScanButton.module.css";
 

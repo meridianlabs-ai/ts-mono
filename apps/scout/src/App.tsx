@@ -21,7 +21,7 @@ import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
-import { ApplicationIcons } from "./components/icons";
+import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";
 
 const componentIcons: ComponentIcons = {

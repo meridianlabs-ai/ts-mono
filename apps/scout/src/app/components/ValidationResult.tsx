@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { JsonValue } from "../../types/json-value";
 
 import styles from "./ValidationResult.module.css";

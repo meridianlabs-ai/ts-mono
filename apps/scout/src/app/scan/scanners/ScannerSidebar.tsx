@@ -6,7 +6,7 @@ import { VirtuosoHandle } from "react-virtuoso";
 import { LabeledValue, LiveVirtualList } from "@tsmono/react/components";
 import { formatPercent, formatPrettyDecimal } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import { updateScannerParam } from "../../../router/url";
 import { useStore } from "../../../state/store";
 import { Status, ValidationResults } from "../../../types/api-types";

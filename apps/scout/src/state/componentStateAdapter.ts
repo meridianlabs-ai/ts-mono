@@ -17,4 +17,5 @@ export const scoutStateHooks: ComponentStateHooks = {
   useEntries: (id: string) =>
     useStore(useCallback((state) => state.properties[id], [id])),
   useRemoveAll: () => useStore((state) => state.removeAllProperties),
+  useRemoveByPrefix: () => useStore((state) => state.removeByPrefix),
 };

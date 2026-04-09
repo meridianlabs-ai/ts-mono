@@ -4,7 +4,7 @@ import { FC, useCallback, useRef, useState } from "react";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import type { SimpleCondition } from "../../query/types";
 import type { ColumnFilter } from "../../state/store";
 

@@ -18,4 +18,5 @@ export const inspectStateHooks: ComponentStateHooks = {
   useEntries: (id: string) =>
     useStore(useCallback((state) => state.app.propertyBags[id], [id])),
   useRemoveAll: () => useStore((state) => state.appActions.removeAllProperties),
+  useRemoveByPrefix: () => useStore((state) => state.appActions.removeByPrefix),
 };

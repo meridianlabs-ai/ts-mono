@@ -6,19 +6,22 @@
   min-height: 0;
 }
 
-.eventsContainer {
+.container {
   display: grid;
   width: 100%;
   grid-template-columns: var(--outline-width, 180px) 1px 1fr;
   min-height: 100vh;
-  padding-bottom: 44px;
 }
 
-.eventsContainer.outlineCollapsed {
+.container > * {
+  min-width: 0;
+}
+
+.container.outlineCollapsed {
   grid-template-columns: 28px 1px 1fr;
 }
 
-.eventsOutline {
+.outline {
   padding-left: 0.5rem;
   padding-top: 0.4rem;
   /* Prevent stretching to the full grid-row height so that
@@ -29,7 +32,7 @@
 /* Cap height to the visible area below the sticky offset and
    scroll internally when the outline is taller.
    Only when expanded — overflow clips the toggle button when collapsed. */
-.eventsContainer:not(.outlineCollapsed) > .eventsOutline {
+.container:not(.outlineCollapsed) > .outline {
   max-height: calc(100vh - var(--outline-top, 0px));
   overflow-y: auto;
 }
@@ -48,7 +51,7 @@
   opacity: 0.4;
 }
 
-.eventsSeparator {
+.separator {
   background-color: var(--bs-border-color);
 }
 

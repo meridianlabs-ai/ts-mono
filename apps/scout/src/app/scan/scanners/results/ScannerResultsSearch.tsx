@@ -2,7 +2,7 @@ import { ChangeEvent, FC, useCallback } from "react";
 
 import { TextInput } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../components/icons";
+import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsSearch.module.css";

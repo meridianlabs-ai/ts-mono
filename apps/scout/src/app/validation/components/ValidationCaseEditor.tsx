@@ -15,7 +15,7 @@ import {
   MenuActionButton,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../components/icons";
+import { ApplicationIcons } from "../../../icons";
 import {
   getValidationParam,
   getValidationSetParam,

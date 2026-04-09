@@ -49,6 +49,12 @@ export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 // Search text
 export { eventSearchText } from "./eventSearchText";
 
+// Message ID resolution
+export {
+  resolveMessageToEvent,
+  type ResolvedMessageEvent,
+} from "./resolveMessageToEvent";
+
 // Outline visitors
 export {
   collapseScoring,
@@ -80,7 +86,16 @@ export {
 } from "./state/StateEventRenderers";
 
 // Hooks
-export { useStickyObserver } from "./useStickyObserver";
+export { useStickyObserver } from "./hooks/useStickyObserver";
+export { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+export { useListPositionManager } from "./hooks/useListPositionManager";
+
+// Layout
+export {
+  TranscriptLayout,
+  type TranscriptLayoutProps,
+  type TranscriptLayoutOutlineProps,
+} from "./TranscriptLayout";
 
 // Icons
 export { TranscriptIcons } from "./icons";

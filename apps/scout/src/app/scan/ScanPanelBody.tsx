@@ -9,7 +9,7 @@ import {
   TabSet,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { GRID_STATE_NAME } from "../components/DataframeView";

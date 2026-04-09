@@ -3,7 +3,7 @@ import { FC, ReactNode, useRef, useState } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 
 import styles from "./FilterBar.module.css";
 
