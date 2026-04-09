@@ -446,6 +446,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             tabControlsClassName={clsx("text-size-base")}
             tabPanelsClassName={clsx(styles.tabPanel)}
             tools={tools}
+            type="pills-small"
           >
             <TabPanel
               key={kSampleTranscriptTabId}

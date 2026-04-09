@@ -28,6 +28,14 @@
   align-self: end;
 }
 
+.pillSmallContainer {
+  gap: 0.25rem;
+}
+
+.pillSmall {
+  padding: 0.3rem 0.5rem;
+}
+
 .tabIcon {
   margin-right: 0.5em;
 }
