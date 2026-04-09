@@ -578,7 +578,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                   running={running}
                   scrollRef={scrollRef}
                   scrollTrackOffset={effectiveOffsetTop}
-                  agentName={showSwimlanes ? outlineAgentName : undefined}
+                  agentName={
+                    showSwimlanes && !outlineCollapsed
+                      ? outlineAgentName
+                      : undefined
+                  }
                   getCollapsed={getOutlineCollapsed}
                   setCollapsed={onOutlineCollapse}
                   getCollapsedEvents={getOutlineCollapsedEvents}
