@@ -14,5 +14,13 @@ export interface LogListRow {
   itemCount?: number;
   log?: LogHandle;
   searchText?: string; // Pre-computed searchable text for fast Cmd+F search
+  path?: string;
+  totalSamples?: number;
+  completedSamples?: number;
+  sandbox?: string;
+  totalTokens?: number;
+  duration?: number; // in seconds
+  taskFile?: string;
+  taskArgs?: string;
   [key: string]: any; // For dynamic score columns
 }

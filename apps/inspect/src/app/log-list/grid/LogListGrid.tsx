@@ -2,6 +2,7 @@ import type {
   CellMouseDownEvent,
   GridColumnsChangedEvent,
   IRowNode,
+  ModelUpdatedEvent,
   RowClickedEvent,
   StateUpdatedEvent,
 } from "ag-grid-community";
@@ -31,19 +32,21 @@ import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
-import { useLogListColumns } from "./columns/hooks";
+import { type LogListMode, useLogListColumns } from "./columns/hooks";
 import { LogListRow } from "./columns/types";
 
 interface LogListGridProps {
   items: Array<FileLogItem | FolderLogItem | PendingTaskItem>;
   currentPath?: string;
   gridRef?: RefObject<AgGridReact<LogListRow> | null>;
+  mode?: LogListMode;
 }
 
 export const LogListGrid: FC<LogListGridProps> = ({
   items,
   currentPath,
   gridRef: externalGridRef,
+  mode = "logs",
 }) => {
   const {
     gridState,
@@ -88,7 +91,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
       .filter((file) => file !== undefined);
   }, [items]);
 
-  const { columns } = useLogListColumns();
+  const { columns } = useLogListColumns(mode);
 
   const initialGridState = useMemo(() => {
     if (previousLogPath !== undefined && previousLogPath !== currentPath) {
@@ -117,6 +120,36 @@ export const LogListGrid: FC<LogListGridProps> = ({
           ? logDetails[item.log.name]
           : undefined;
 
+      // Compute total tokens across all models
+      let totalTokens: number | undefined;
+      if (details?.stats?.model_usage) {
+        totalTokens = 0;
+        for (const usage of Object.values(details.stats.model_usage)) {
+          totalTokens += usage.total_tokens;
+        }
+      }
+
+      // Compute duration in seconds
+      let duration: number | undefined;
+      if (details?.stats?.started_at && details?.stats?.completed_at) {
+        const start = new Date(details.stats.started_at).getTime();
+        const end = new Date(details.stats.completed_at).getTime();
+        if (start && end && end > start) {
+          duration = (end - start) / 1000;
+        }
+      }
+
+      // Format task args
+      let taskArgs: string | undefined;
+      if (details?.eval?.task_args) {
+        const entries = Object.entries(details.eval.task_args);
+        if (entries.length > 0) {
+          taskArgs = entries
+            .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+            .join(", ");
+        }
+      }
+
       const row: LogListRow = {
         id: item.id,
         name: item.name,
@@ -138,6 +171,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
         completedAt: preview?.completed_at,
         itemCount: item.type === "folder" ? item.itemCount : undefined,
         log: item.type === "file" ? item.log : undefined,
+        path: item.type === "file" ? item.name : undefined,
+        totalSamples: details?.results?.total_samples,
+        completedSamples: details?.results?.completed_samples,
+        sandbox: details?.eval?.sandbox?.type,
+        totalTokens,
+        duration,
+        taskFile: details?.eval?.task_file ?? undefined,
+        taskArgs,
       };
 
       // Add individual scorer columns from results
@@ -256,17 +297,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const handleFilterChanged = useCallback(async () => {
     await loadAllLogOverviews();
     setWatchedLogs(logFiles);
-    if (gridRef.current?.api) {
-      const displayedRowCount = gridRef.current.api.getDisplayedRowCount();
-      setFilteredCount(displayedRowCount);
-    }
-  }, [
-    loadAllLogOverviews,
-    setWatchedLogs,
-    logFiles,
-    setFilteredCount,
-    gridRef,
-  ]);
+  }, [loadAllLogOverviews, setWatchedLogs, logFiles]);
+
+  const handleModelUpdated = useCallback(
+    (e: ModelUpdatedEvent<LogListRow>) => {
+      setFilteredCount(e.api.getDisplayedRowCount());
+    },
+    [setFilteredCount]
+  );
 
   const maxColCount = useRef(0);
 
@@ -411,16 +449,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
           suppressCellFocus={true}
           onStateUpdated={(e: StateUpdatedEvent<LogListRow>) => {
             setGridState(e.state);
-            if (gridRef.current?.api) {
-              const displayedRowCount =
-                gridRef.current.api.getDisplayedRowCount();
-              setFilteredCount(displayedRowCount);
-            }
           }}
           onRowClicked={handleRowClick}
           onCellMouseDown={handleCellMouseDown}
           onSortChanged={handleSortChanged}
           onFilterChanged={handleFilterChanged}
+          onModelUpdated={handleModelUpdated}
           loading={data.length === 0 && (loading > 0 || syncing)}
         />
       </div>

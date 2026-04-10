@@ -267,6 +267,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     [setColumnVisibility]
   );
 
+
   const progress = useMemo(() => {
     let pending = 0;
     let total = 0;
@@ -370,6 +371,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             items={logItems}
             currentPath={currentDir}
             gridRef={gridRef}
+            mode={mode}
           />
         </div>
         <LogListFooter
