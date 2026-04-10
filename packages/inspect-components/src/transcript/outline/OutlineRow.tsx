@@ -13,23 +13,21 @@ import styles from "./OutlineRow.module.css";
 
 export interface OutlineRowProps {
   node: EventNode;
-  collapseScope: string;
   running?: boolean;
   selected?: boolean;
   getEventUrl?: (eventId: string) => string | undefined;
   onSelect?: (nodeId: string) => void;
   /** Called when a URL isn't available but the user clicks to navigate to an event. */
   onNavigateToEvent?: (eventId: string) => void;
-  /** Callback-based collapse state (replaces store hooks). */
-  getCollapsed?: (scope: string, id: string) => boolean;
-  setCollapsed?: (scope: string, id: string, collapsed: boolean) => void;
+  /** Callback-based collapse state. */
+  getCollapsed?: (id: string) => boolean;
+  setCollapsed?: (id: string, collapsed: boolean) => void;
   /** Optional custom link renderer for deep linking (replaces react-router Link). */
   renderLink?: (url: string, children: ReactNode) => ReactNode;
 }
 
 export const OutlineRow: FC<OutlineRowProps> = ({
   node,
-  collapseScope,
   running,
   selected,
   getEventUrl,
@@ -39,7 +37,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
   setCollapsed,
   renderLink,
 }) => {
-  const collapsed = getCollapsed?.(collapseScope, node.id) ?? false;
+  const collapsed = getCollapsed?.(node.id) ?? false;
   const icon = iconForNode(node);
   const toggle = toggleIcon(node, collapsed);
 
@@ -67,7 +65,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
           className={styles.toggle}
           onClick={() => {
             if (node.children.length > 0) {
-              setCollapsed?.(collapseScope, node.id, !collapsed);
+              setCollapsed?.(node.id, !collapsed);
             }
           }}
         >

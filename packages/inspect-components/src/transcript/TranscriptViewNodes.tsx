@@ -28,10 +28,6 @@ import {
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
-import {
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
-} from "./types";
 import type { EventNode, EventPanelCallbacks, EventType } from "./types";
 
 // =============================================================================
@@ -57,9 +53,11 @@ export interface TranscriptViewNodesProps {
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
 
-  // Collapse state callbacks (app provides via its store)
-  collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
-  onCollapse?: (scope: string, nodeId: string, collapsed: boolean) => void;
+  // Collapse state (app provides via its store, already scope-specific)
+  collapsedTranscript?: Record<string, boolean>;
+  /** Outline collapse state, used only for turn-map computation. */
+  collapsedOutline?: Record<string, boolean>;
+  onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -91,31 +89,29 @@ export const TranscriptViewNodes = forwardRef<
     turnMap,
     getEventUrl,
     linkingEnabled,
-    collapsedEvents,
-    onCollapse: onCollapseCallback,
+    collapsedTranscript,
+    collapsedOutline,
+    onCollapseTranscript,
   },
   ref
 ) {
   const listHandle = useRef<VirtuosoHandle | null>(null);
 
-  const onCollapse = useCallback(
-    (nodeId: string, collapsed: boolean) => {
-      onCollapseCallback?.(kTranscriptCollapseScope, nodeId, collapsed);
-    },
-    [onCollapseCallback]
-  );
-
   const getCollapsed = useCallback(
     (nodeId: string) => {
-      const scopeEvents = collapsedEvents?.[kTranscriptCollapseScope];
-      return scopeEvents?.[nodeId] === true;
+      return collapsedTranscript?.[nodeId] === true;
     },
-    [collapsedEvents]
+    [collapsedTranscript]
   );
 
   const eventCallbacks = useMemo<EventPanelCallbacks>(
-    () => ({ onCollapse, getCollapsed, getEventUrl, linkingEnabled }),
-    [onCollapse, getCollapsed, getEventUrl, linkingEnabled]
+    () => ({
+      onCollapse: onCollapseTranscript,
+      getCollapsed,
+      getEventUrl,
+      linkingEnabled,
+    }),
+    [onCollapseTranscript, getCollapsed, getEventUrl, linkingEnabled]
   );
 
   const filteredEventNodes = nodeFilter ? nodeFilter(eventNodes) : eventNodes;
@@ -123,20 +119,16 @@ export const TranscriptViewNodes = forwardRef<
   const flattenedNodes = useMemo(() => {
     return flatTree(
       filteredEventNodes,
-      (collapsedEvents
-        ? collapsedEvents[kTranscriptCollapseScope]
-        : undefined) || defaultCollapsedIds
+      collapsedTranscript || defaultCollapsedIds
     );
-  }, [filteredEventNodes, collapsedEvents, defaultCollapsedIds]);
+  }, [filteredEventNodes, collapsedTranscript, defaultCollapsedIds]);
 
   // Auto-compute turnMap when not provided by the parent
   const computedTurnMap = useMemo(() => {
     if (turnMap) return turnMap;
     const outlineFiltered = flatTree(
       filteredEventNodes,
-      (collapsedEvents
-        ? collapsedEvents[kTranscriptOutlineCollapseScope]
-        : undefined) || defaultCollapsedIds,
+      collapsedOutline || defaultCollapsedIds,
       [
         removeNodeVisitor("logger"),
         removeNodeVisitor("info"),
@@ -153,7 +145,7 @@ export const TranscriptViewNodes = forwardRef<
   }, [
     turnMap,
     filteredEventNodes,
-    collapsedEvents,
+    collapsedOutline,
     defaultCollapsedIds,
     flattenedNodes,
   ]);

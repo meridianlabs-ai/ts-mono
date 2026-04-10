@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { ChatView } from "@tsmono/inspect-components/chat";
 import {
+  kTranscriptCollapseScope,
   TranscriptViewNodes,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
@@ -226,9 +227,12 @@ const TranscriptView: FC<{ id: string; events: Event[] }> = ({
   const setTranscriptCollapsedEvent = useStore(
     (state) => state.setTranscriptCollapsedEvent
   );
-  const onCollapse = useCallback(
-    (scope: string, nodeId: string, collapsed: boolean) => {
-      setTranscriptCollapsedEvent(scope, nodeId, collapsed);
+
+  const collapsedTranscript = collapsedEvents[kTranscriptCollapseScope];
+
+  const onCollapseTranscript = useCallback(
+    (nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(kTranscriptCollapseScope, nodeId, collapsed);
     },
     [setTranscriptCollapsedEvent]
   );
@@ -238,8 +242,8 @@ const TranscriptView: FC<{ id: string; events: Event[] }> = ({
       id={id}
       eventNodes={eventNodes}
       defaultCollapsedIds={defaultCollapsedIds}
-      collapsedEvents={collapsedEvents}
-      onCollapse={onCollapse}
+      collapsedTranscript={collapsedTranscript}
+      onCollapseTranscript={onCollapseTranscript}
     />
   );
 };

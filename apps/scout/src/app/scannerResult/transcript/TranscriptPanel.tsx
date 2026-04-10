@@ -3,6 +3,7 @@ import { FC, useCallback, useRef } from "react";
 
 import {
   EventNode,
+  kTranscriptCollapseScope,
   TranscriptViewNodes,
   useEventNodes,
   type EventType,
@@ -36,9 +37,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = ({
     (state) => state.setTranscriptCollapsedEvent
   );
 
-  const onCollapse = useCallback(
-    (scope: string, nodeId: string, collapsed: boolean) => {
-      setTranscriptCollapsedEvent(scope, nodeId, collapsed);
+  const collapsedTranscript = collapsedEvents[kTranscriptCollapseScope];
+
+  const onCollapseTranscript = useCallback(
+    (nodeId: string, collapsed: boolean) => {
+      setTranscriptCollapsedEvent(kTranscriptCollapseScope, nodeId, collapsed);
     },
     [setTranscriptCollapsedEvent]
   );
@@ -51,8 +54,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = ({
         defaultCollapsedIds={defaultCollapsedIds}
         nodeFilter={nodeFilter}
         scrollRef={scrollRef}
-        collapsedEvents={collapsedEvents}
-        onCollapse={onCollapse}
+        collapsedTranscript={collapsedTranscript}
+        onCollapseTranscript={onCollapseTranscript}
       />
     </div>
   );

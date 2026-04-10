@@ -13,6 +13,7 @@ export type {
   EventType,
   EventTypeValue,
   StateManager,
+  TranscriptCollapseState,
   TranscriptEventState,
   TranscriptState,
 } from "./types";

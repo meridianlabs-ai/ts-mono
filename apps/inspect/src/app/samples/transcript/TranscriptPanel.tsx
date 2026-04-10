@@ -10,7 +10,12 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
-import { TranscriptLayout } from "@tsmono/inspect-components/transcript";
+import {
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
+  TranscriptLayout,
+  type TranscriptCollapseState,
+} from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
@@ -103,10 +108,28 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const collapsedEvents = useStore((state) => state.sample.collapsedEvents);
-  const setCollapsedEvents = useStore(
+  const setCollapsedEventsStore = useStore(
     (state) => state.sampleActions.setCollapsedEvents
   );
-  const collapseEvent = useStore((state) => state.sampleActions.collapseEvent);
+  const collapseEventStore = useStore(
+    (state) => state.sampleActions.collapseEvent
+  );
+
+  const collapseState = useMemo<TranscriptCollapseState>(() => {
+    const events = collapsedEvents ?? undefined;
+    return {
+      transcript: events?.[kTranscriptCollapseScope],
+      outline: events?.[kTranscriptOutlineCollapseScope],
+      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
+        collapseEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
+        collapseEventStore(kTranscriptOutlineCollapseScope, nodeId, collapsed),
+      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    };
+  }, [collapsedEvents, collapseEventStore, setCollapsedEventsStore]);
 
   // Bulk collapse mode: "collapsed" | "expanded" | null
   // Map to the layout's collapsed?: boolean prop
@@ -266,9 +289,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       getEventUrl={getEventUrl}
       linkingEnabled={true}
       collapsed={layoutCollapsed}
-      collapsedEvents={collapsedEvents ?? undefined}
-      onCollapse={collapseEvent}
-      onSetCollapsedEvents={setCollapsedEvents}
+      collapseState={collapseState}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,

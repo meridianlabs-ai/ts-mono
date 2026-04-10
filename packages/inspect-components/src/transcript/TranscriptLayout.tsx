@@ -60,8 +60,7 @@ import {
 import {
   EventNode,
   kCollapsibleEventTypes,
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
+  type TranscriptCollapseState,
 } from "./types";
 
 // =============================================================================
@@ -124,9 +123,7 @@ export interface TranscriptLayoutProps {
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
   collapsed?: boolean;
-  collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
-  onCollapse?: (scope: string, nodeId: string, collapsed: boolean) => void;
-  onSetCollapsedEvents?: (scope: string, ids: Record<string, boolean>) => void;
+  collapseState?: TranscriptCollapseState;
 
   // --- Outline ---
   outline: TranscriptLayoutOutlineProps;
@@ -184,9 +181,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   getEventUrl,
   linkingEnabled,
   collapsed,
-  collapsedEvents,
-  onCollapse,
-  onSetCollapsedEvents,
+  collapseState,
   outline,
   emptyText = "No events match the current filter",
   className,
@@ -381,25 +376,26 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Bulk collapse/expand
   // ---------------------------------------------------------------------------
 
+  const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
   useEffect(() => {
     if (
       events.length <= 0 ||
       collapsed === undefined ||
-      !onSetCollapsedEvents
+      !onSetTranscriptCollapsed
     ) {
       return;
     }
     if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
-      onSetCollapsedEvents(kTranscriptCollapseScope, defaultCollapsedIds);
+      onSetTranscriptCollapsed(defaultCollapsedIds);
     } else if (collapsed) {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      onSetCollapsedEvents(kTranscriptCollapseScope, allCollapsibleIds);
+      onSetTranscriptCollapsed(allCollapsibleIds);
     }
   }, [
     defaultCollapsedIds,
     eventNodes,
     collapsed,
-    onSetCollapsedEvents,
+    onSetTranscriptCollapsed,
     events.length,
   ]);
 
@@ -539,18 +535,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 }
                 scrollTrackOffset={effectiveOffsetTop}
                 getCollapsed={
-                  collapsedEvents
-                    ? (scope: string, nodeId: string) =>
-                        collapsedEvents[scope]?.[nodeId] === true
+                  collapseState?.outline
+                    ? (nodeId: string) =>
+                        collapseState.outline?.[nodeId] === true
                     : undefined
                 }
-                setCollapsed={onCollapse}
-                getCollapsedEvents={
-                  collapsedEvents
-                    ? () => collapsedEvents[kTranscriptOutlineCollapseScope]
-                    : undefined
-                }
-                setCollapsedEvents={onSetCollapsedEvents}
+                setCollapsed={collapseState?.onCollapseOutline}
+                collapsedEvents={collapseState?.outline}
+                setCollapsedEvents={collapseState?.onSetOutlineCollapsed}
                 selectedOutlineId={outline.selectedId}
                 setSelectedOutlineId={outline.setSelectedId}
                 getEventUrl={getEventUrl}
@@ -595,8 +587,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
-              collapsedEvents={collapsedEvents}
-              onCollapse={onCollapse}
+              collapsedTranscript={collapseState?.transcript}
+              collapsedOutline={collapseState?.outline}
+              onCollapseTranscript={collapseState?.onCollapseTranscript}
             />
           ) : emptyText !== null ? (
             <NoContentsPanel text={emptyText} />

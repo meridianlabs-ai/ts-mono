@@ -1,9 +1,12 @@
-import { FC, RefObject, useCallback, useEffect, useRef } from "react";
+import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   useTimelinesArray,
   type MarkerConfig,
+  type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
@@ -97,11 +100,31 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
 
   const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
-  const setCollapsedEvent = useStore(
+  const setCollapsedEventStore = useStore(
     (state) => state.setTranscriptCollapsedEvent
   );
-  const setCollapsedEvents = useStore(
+  const setCollapsedEventsStore = useStore(
     (state) => state.setTranscriptCollapsedEvents
+  );
+
+  const collapseState = useMemo<TranscriptCollapseState>(
+    () => ({
+      transcript: collapsedEvents[kTranscriptCollapseScope],
+      outline: collapsedEvents[kTranscriptOutlineCollapseScope],
+      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
+        setCollapsedEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
+        setCollapsedEventStore(
+          kTranscriptOutlineCollapseScope,
+          nodeId,
+          collapsed
+        ),
+      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    }),
+    [collapsedEvents, setCollapsedEventStore, setCollapsedEventsStore]
   );
 
   // ---------------------------------------------------------------------------
@@ -183,9 +206,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}
       collapsed={collapsed}
-      collapsedEvents={collapsedEvents}
-      onCollapse={setCollapsedEvent}
-      onSetCollapsedEvents={setCollapsedEvents}
+      collapseState={collapseState}
       outline={{
         collapsed: userOutlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
