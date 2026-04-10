@@ -524,11 +524,11 @@ export const useLogListColumns = (
         allCols.splice(1, 0, nameCol);
       }
 
-      // move "status" to be right after the type icon
+      // move "status" to be right after the name column
       const statusIdx = allCols.findIndex((col) => col.field === "status");
-      if (statusIdx > 1) {
+      if (statusIdx > 2) {
         const [statusCol] = allCols.splice(statusIdx, 1);
-        allCols.splice(1, 0, statusCol);
+        allCols.splice(2, 0, statusCol);
       }
     }
 
