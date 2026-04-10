@@ -18,11 +18,12 @@ import {
 } from "./StateEventRenderers";
 import styles from "./StateEventView.module.css";
 
-interface StateEventViewProps extends EventPanelCallbacks {
+interface StateEventViewProps {
   eventNode: EventNode<StateEvent | StoreEvent>;
   isStore?: boolean;
   className?: string | string[];
   onAutoCollapse?: (eventId: string) => void;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 type JsonChangeOp = JsonChange["op"];
@@ -33,10 +34,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
   eventNode,
   className,
   onAutoCollapse,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
 
@@ -84,10 +82,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
       }
       text={!changePreview ? summary : undefined}
       collapsibleContent={true}
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       {changePreview ? (
         <div data-name="Summary" className={clsx(styles.summary)}>

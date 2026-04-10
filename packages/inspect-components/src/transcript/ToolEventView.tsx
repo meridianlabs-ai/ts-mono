@@ -26,11 +26,12 @@ import {
   EventType,
 } from "./types";
 
-interface ToolEventViewProps extends EventPanelCallbacks {
+interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
   context?: EventNodeContext;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const ToolEventView: FC<ToolEventViewProps> = ({
@@ -38,10 +39,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   childNodes,
   className,
   context,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
 
@@ -99,10 +97,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
       turnLabel={turnLabel}
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>
         <ToolCallView

@@ -32,7 +32,7 @@ import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
-import type { EventNode, EventType } from "./types";
+import type { EventNode, EventPanelCallbacks, EventType } from "./types";
 
 // =============================================================================
 // Types
@@ -111,6 +111,11 @@ export const TranscriptViewNodes = forwardRef<
       return scopeEvents?.[nodeId] === true;
     },
     [collapsedEvents]
+  );
+
+  const eventCallbacks = useMemo<EventPanelCallbacks>(
+    () => ({ onCollapse, getCollapsed, getEventUrl, linkingEnabled }),
+    [onCollapse, getCollapsed, getEventUrl, linkingEnabled]
   );
 
   const filteredEventNodes = nodeFilter ? nodeFilter(eventNodes) : eventNodes;
@@ -215,10 +220,7 @@ export const TranscriptViewNodes = forwardRef<
           initialEventId={initialEventId}
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       </div>
     </StickyScrollProvider>

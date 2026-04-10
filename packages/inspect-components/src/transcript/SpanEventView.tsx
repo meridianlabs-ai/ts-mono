@@ -8,20 +8,18 @@ import { EventPanel } from "./event/EventPanel";
 import { kSandboxSignalName } from "./transform/fixups";
 import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
-interface SpanEventViewProps extends EventPanelCallbacks {
+interface SpanEventViewProps {
   eventNode: EventNode<SpanBeginEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const SpanEventView: FC<SpanEventViewProps> = ({
   eventNode,
   childNodes,
   className,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const descriptor = spanDescriptor(event);
@@ -47,10 +45,7 @@ export const SpanEventView: FC<SpanEventViewProps> = ({
       }
       text={text}
       icon={descriptor.icon}
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     />
   );
 };

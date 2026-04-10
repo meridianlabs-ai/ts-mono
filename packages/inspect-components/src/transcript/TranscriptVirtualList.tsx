@@ -46,7 +46,7 @@ import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 export const TranscriptVirtualList = memo(TranscriptVirtualListComponent);
 TranscriptVirtualList.displayName = "TranscriptVirtualList";
 
-interface RenderedEventNodeProps extends EventPanelCallbacks {
+interface RenderedEventNodeProps {
   node: EventNode;
   next?: EventNode;
   className?: string | string[];
@@ -56,6 +56,7 @@ interface RenderedEventNodeProps extends EventPanelCallbacks {
     node: EventNode,
     className?: string | string[]
   ) => ReactNode;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 /**
@@ -68,10 +69,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
   context,
   onAutoCollapse,
   renderAgentCard,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   switch (node.event.event) {
     case "sample_init":
@@ -129,8 +127,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           showToolCalls={next?.event.event !== "tool"}
           className={className}
           context={context}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -156,10 +153,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StateEvent>}
           className={className}
           onAutoCollapse={onAutoCollapse}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -176,10 +170,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<SpanBeginEvent>}
           childNodes={node.children}
           className={className}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
     }
@@ -190,10 +181,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StepEvent>}
           childNodes={node.children}
           className={className}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -203,10 +191,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<StoreEvent>}
           className={className}
           onAutoCollapse={onAutoCollapse}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -216,10 +201,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={node as EventNode<SubtaskEvent>}
           className={className}
           childNodes={node.children}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -230,10 +212,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           className={className}
           childNodes={node.children}
           context={context}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       );
 

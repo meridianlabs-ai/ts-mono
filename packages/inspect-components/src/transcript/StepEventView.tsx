@@ -8,20 +8,18 @@ import { EventPanel } from "./event/EventPanel";
 import { kSandboxSignalName } from "./transform/fixups";
 import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
-interface StepEventViewProps extends EventPanelCallbacks {
+interface StepEventViewProps {
   eventNode: EventNode<StepEvent>;
   childNodes: EventNode<EventType>[];
   className?: string | string[];
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const StepEventView: FC<StepEventViewProps> = ({
   eventNode,
   childNodes,
   className,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const descriptor = stepDescriptor(event);
@@ -42,10 +40,7 @@ export const StepEventView: FC<StepEventViewProps> = ({
       }
       icon={descriptor.icon}
       text={text}
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     />
   );
 };

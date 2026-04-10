@@ -20,15 +20,14 @@ import { EventTimingPanel } from "./event/EventTimingPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
-import { EventNode, EventNodeContext } from "./types";
+import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface ModelEventViewProps {
   eventNode: EventNode<ModelEvent>;
   className?: string | string[];
   showToolCalls: boolean;
   context?: EventNodeContext;
-  getEventUrl?: (eventId: string) => string | undefined;
-  linkingEnabled?: boolean;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const ModelEventView: FC<ModelEventViewProps> = ({
@@ -36,8 +35,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   showToolCalls,
   className,
   context,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const totalUsage = event.output.usage?.total_tokens;
@@ -108,8 +106,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       }
       icon={TranscriptIcons.model}
       turnLabel={turnLabel}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.container}>
         <ChatView

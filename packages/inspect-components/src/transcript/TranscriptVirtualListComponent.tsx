@@ -19,7 +19,7 @@ import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
-interface TranscriptVirtualListComponentProps extends EventPanelCallbacks {
+interface TranscriptVirtualListComponentProps {
   id: string;
   listHandle: RefObject<VirtuosoHandle | null>;
   eventNodes: EventNode[];
@@ -36,6 +36,7 @@ interface TranscriptVirtualListComponentProps extends EventPanelCallbacks {
     node: EventNode,
     className?: string | string[]
   ) => ReactNode;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 /**
@@ -57,10 +58,7 @@ export const TranscriptVirtualListComponent: FC<
   onNativeFindChanged,
   onAutoCollapse,
   renderAgentCard,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const useVirtualization =
     !disableVirtualization && (running || eventNodes.length > 100);
@@ -186,24 +184,12 @@ export const TranscriptVirtualListComponent: FC<
             context={context}
             onAutoCollapse={onAutoCollapse}
             renderAgentCard={renderAgentCard}
-            onCollapse={onCollapse}
-            getCollapsed={getCollapsed}
-            getEventUrl={getEventUrl}
-            linkingEnabled={linkingEnabled}
+            eventCallbacks={eventCallbacks}
           />
         </div>
       );
     },
-    [
-      eventNodes,
-      contextMap,
-      onAutoCollapse,
-      renderAgentCard,
-      onCollapse,
-      getCollapsed,
-      getEventUrl,
-      linkingEnabled,
-    ]
+    [eventNodes, contextMap, onAutoCollapse, renderAgentCard, eventCallbacks]
   );
 
   if (useVirtualization) {
