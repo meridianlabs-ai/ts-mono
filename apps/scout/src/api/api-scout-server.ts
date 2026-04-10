@@ -9,7 +9,6 @@ import {
   AppConfig,
   CreateValidationSetRequest,
   Event,
-  EventsData,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,
@@ -243,7 +242,7 @@ export const apiScoutServer = (
       excludeColumns?: string[]
     ): Promise<ArrayBuffer> => {
       const params = excludeColumns?.length
-        ? `?exclude_columns=${excludeColumns.join(",")}`
+        ? `?exclude_columns=${excludeColumns.map(encodeURIComponent).join(",")}`
         : "";
       const result = await requestApi.fetchBytes(
         "GET",
@@ -257,12 +256,9 @@ export const apiScoutServer = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
-      const raw = await asyncJsonParse<{
-        input_type: string;
-        input: unknown;
-        input_data: EventsData | null;
-        scan_events: Event[];
-      }>(
+      const raw = await asyncJsonParse<
+        ScannerInputResponse & { scan_events: Event[] }
+      >(
         (
           await requestApi.fetchString(
             "GET",
@@ -273,10 +269,10 @@ export const apiScoutServer = (
 
       return {
         input: {
-          input_type: raw.input_type as ScannerInputResponse["input_type"],
+          input_type: raw.input_type,
           input: expandInputEvents(
             raw.input,
-            raw.input_type as ScannerInputResponse["input_type"],
+            raw.input_type,
             raw.input_data
           ),
         },
