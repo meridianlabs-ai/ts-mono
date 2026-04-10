@@ -1178,6 +1178,20 @@ export interface components {
             total_samples: number;
         };
         /**
+         * EvalRetryError
+         * @description Error from a retried sample attempt.
+         */
+        EvalRetryError: {
+            /** Events */
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            /** Message */
+            message: string;
+            /** Traceback */
+            traceback: string;
+            /** Traceback Ansi */
+            traceback_ansi: string;
+        };
+        /**
          * EvalRevision
          * @description Git revision for evaluation.
          */
@@ -1211,7 +1225,7 @@ export interface components {
             epoch: number;
             error?: components["schemas"]["EvalError"] | null;
             /** Error Retries */
-            error_retries?: components["schemas"]["EvalError"][] | null;
+            error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
             events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
