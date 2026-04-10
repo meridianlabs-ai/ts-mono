@@ -51,9 +51,21 @@ export type CompactionEvent = components["schemas"]["CompactionEvent"];
 export type Event = components["schemas"]["Event"];
 export type InvalidationTopic = components["schemas"]["InvalidationTopic"];
 export type RawEncoding = components["schemas"]["RawEncoding"];
-export type ScannerInputResponse =
-  components["schemas"]["ScannerInputResponse"];
 export type EventsData = components["schemas"]["EventsData"];
+
+/** Response shape from GET /{scanner}/{uuid}?columns=input,input_type,input_data */
+export interface ScannerInputResponse {
+  input_type:
+    | "transcript"
+    | "event"
+    | "events"
+    | "message"
+    | "messages"
+    | "timeline"
+    | "timelines";
+  input: unknown;
+  input_data: EventsData | null;
+}
 
 export type JsonChange = components["schemas"]["JsonChange"];
 
@@ -144,4 +156,4 @@ export interface ToolFunction {
   name: string;
 }
 
-export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
+export type ScannerInput = Pick<ScannerInputResponse, "input_type" | "input">;
