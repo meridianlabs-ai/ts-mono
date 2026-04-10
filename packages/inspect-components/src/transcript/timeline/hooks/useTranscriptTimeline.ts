@@ -108,44 +108,9 @@ export interface UseTranscriptTimelineOptions {
   activeTimelineProps?: UseActiveTimelineProps;
 }
 
-/**
- * @deprecated Use the options-object overload instead.
- */
-export function useTranscriptTimeline(
-  events: Event[],
-  markerConfig?: MarkerConfig,
-  timelineOptions?: TimelineOptions,
-  serverTimelines?: ServerTimeline[],
-  props?: {
-    timelineProps?: UseTimelineProps;
-    activeTimelineProps?: UseActiveTimelineProps;
-  }
-): TranscriptTimelineResult;
 export function useTranscriptTimeline(
   options: UseTranscriptTimelineOptions
-): TranscriptTimelineResult;
-export function useTranscriptTimeline(
-  eventsOrOptions: Event[] | UseTranscriptTimelineOptions,
-  markerConfigArg?: MarkerConfig,
-  timelineOptionsArg?: TimelineOptions,
-  serverTimelinesArg?: ServerTimeline[],
-  propsArg?: {
-    timelineProps?: UseTimelineProps;
-    activeTimelineProps?: UseActiveTimelineProps;
-  }
 ): TranscriptTimelineResult {
-  // Normalise: support both positional and options-object signatures.
-  const opts: UseTranscriptTimelineOptions = Array.isArray(eventsOrOptions)
-    ? {
-        events: eventsOrOptions,
-        markerConfig: markerConfigArg,
-        timelineOptions: timelineOptionsArg,
-        serverTimelines: serverTimelinesArg,
-        timelineProps: propsArg?.timelineProps,
-        activeTimelineProps: propsArg?.activeTimelineProps,
-      }
-    : eventsOrOptions;
-
   const {
     events,
     markerConfig = defaultMarkerConfig,
@@ -153,7 +118,7 @@ export function useTranscriptTimeline(
     serverTimelines,
     timelineProps,
     activeTimelineProps,
-  } = opts;
+  } = options;
 
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
