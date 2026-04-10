@@ -132,13 +132,13 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, [collapsedEvents, collapseEventStore, setCollapsedEventsStore]);
 
   // Bulk collapse mode: "collapsed" | "expanded" | null
-  // Map to the layout's collapsed?: boolean prop
+  // Map to the layout's bulkCollapse?: "collapse" | "expand" prop
   const collapsedMode = useStore((state) => state.sample.collapsedMode);
-  const layoutCollapsed = useMemo(() => {
-    if (collapsedMode === "collapsed") return true;
-    if (collapsedMode === "expanded") return false;
+  const bulkCollapse = useMemo<"collapse" | "expand" | undefined>(() => {
+    if (collapsedMode === "collapsed") return "collapse";
+    if (collapsedMode === "expanded") return "expand";
     // collapsedMode === null: apply defaults if no collapsedEvents yet
-    if (!collapsedEvents) return false;
+    if (!collapsedEvents) return "expand";
     return undefined;
   }, [collapsedMode, collapsedEvents]);
 
@@ -275,7 +275,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       initialEventId={initialEventId}
       getEventUrl={getEventUrl}
       linkingEnabled={true}
-      collapsed={layoutCollapsed}
+      bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{
         collapsed: outlineCollapsed,

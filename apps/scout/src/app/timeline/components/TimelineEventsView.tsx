@@ -37,8 +37,8 @@ interface TimelineEventsViewProps {
   defaultOutlineExpanded?: boolean;
   /** Unique ID for the virtual list. */
   id: string;
-  /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
-  collapsed?: boolean;
+  /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
+  bulkCollapse?: "collapse" | "expand";
   /** Called when a marker (error, compaction) is clicked on the swimlane.
    *  Optional `selectedKey` requests the bar be selected atomically with navigation. */
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
@@ -74,7 +74,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   initialMessageId,
   defaultOutlineExpanded = false,
   id,
-  collapsed,
+  bulkCollapse,
   onMarkerNavigate,
   markerConfig,
   timeline: timelineProp = "auto",
@@ -195,7 +195,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}
-      collapsed={collapsed}
+      bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{
         collapsed: userOutlineCollapsed,

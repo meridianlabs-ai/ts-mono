@@ -337,7 +337,13 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialMessageId={messageParam}
         defaultOutlineExpanded={true}
         id="transcript-events-list"
-        collapsed={eventsCollapsed}
+        bulkCollapse={
+          eventsCollapsed === undefined
+            ? undefined
+            : eventsCollapsed
+              ? "collapse"
+              : "expand"
+        }
         onMarkerNavigate={handleMarkerNavigate}
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}

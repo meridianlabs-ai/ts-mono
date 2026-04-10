@@ -121,8 +121,8 @@ export interface TranscriptLayoutProps {
   linkingEnabled?: boolean;
 
   // --- Collapse state (from app store) ---
-  /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
-  collapsed?: boolean;
+  /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
+  bulkCollapse?: "collapse" | "expand";
   collapseState?: TranscriptCollapseState;
 
   // --- Outline ---
@@ -180,7 +180,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   eventsListRef,
   getEventUrl,
   linkingEnabled,
-  collapsed,
+  bulkCollapse,
   collapseState,
   outline,
   emptyText = "No events match the current filter",
@@ -378,23 +378,22 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
   useEffect(() => {
-    if (
-      events.length <= 0 ||
-      collapsed === undefined ||
-      !onSetTranscriptCollapsed
-    ) {
+    if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
-    if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
+    if (
+      bulkCollapse === "expand" &&
+      Object.keys(defaultCollapsedIds).length > 0
+    ) {
       onSetTranscriptCollapsed(defaultCollapsedIds);
-    } else if (collapsed) {
+    } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
   }, [
     defaultCollapsedIds,
     eventNodes,
-    collapsed,
+    bulkCollapse,
     onSetTranscriptCollapsed,
     events.length,
   ]);
