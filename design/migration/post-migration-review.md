@@ -182,9 +182,9 @@ Uses `TranscriptViewNodes` directly — no swimlanes, outline, sticky scroll, or
 
 Both fields are now computed in the shared package: `hasToolEvents` in `TranscriptVirtualListComponent`, `turnInfo` via auto-computed `turnMap` in `TranscriptViewNodes`. Neither is app-specific anymore.
 
-### 8.4 `useTimelineConfig` is not scoped — all samples share the same persistent state
+### 8.4 ✅ `useTimelineConfig` is not scoped — all samples share the same persistent state
 
-All calls to `useTimelineConfig` read/write the same `useProperty("timeline", ...)` keys regardless of which sample or timeline is active. If a user enables "show branches" for one sample, it applies everywhere. This may be intentional (global preference), but it's worth documenting.
+Intentional: these are global user preferences, not per-sample state. Added a comment to the module docstring documenting this.
 
 ### 8.5 ✅ Inconsistent `display` options between apps
 

@@ -2,7 +2,9 @@
  * Persistent configuration for timeline options (markers, agents).
  *
  * Each setting is stored via `useProperty` under the "timeline" id namespace
- * so values persist in the store across unmounts.
+ * so values persist in the store across unmounts. Settings are intentionally
+ * global — they apply to all samples/timelines as shared user preferences
+ * rather than per-sample state.
  */
 
 import { useCallback, useMemo } from "react";
