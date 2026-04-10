@@ -311,7 +311,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         scrollRef={activeScrollRef}
         linking={{
           enabled: isHostedEnvironment(),
-          getUrl: getFullMessageUrl,
+          getMessageUrl: getFullMessageUrl,
         }}
       />
     </TabPanel>

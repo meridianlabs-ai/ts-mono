@@ -478,7 +478,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 events={sampleEvents || []}
                 eventsCleared={eventsCleared}
                 initialEventId={sampleDetailNavigation.event}
-                topOffset={tabsHeight}
+                offsetTop={tabsHeight}
                 running={running}
                 scrollRef={scrollRef}
                 timelines={sample?.timelines ?? undefined}
@@ -503,7 +503,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 id={`${baseId}-chat-${id}`}
                 messages={sampleMessages}
                 initialMessageId={sampleDetailNavigation.message}
-                topOffset={tabsHeight}
+                offsetTop={tabsHeight}
                 display={{
                   indented: true,
                   unlabeledRoles: ["assistant"],
@@ -511,7 +511,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 }}
                 linking={{
                   enabled: isHostedEnvironment(),
-                  getUrl: getMessageUrl,
+                  getMessageUrl: getMessageUrl,
                 }}
                 onNativeFindChanged={setNativeFind}
                 scrollRef={scrollRef}

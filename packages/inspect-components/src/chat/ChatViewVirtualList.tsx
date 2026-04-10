@@ -32,7 +32,7 @@ export interface ChatViewVirtualListProps {
   messages: ChatMessage[];
   className?: string | string[];
   initialMessageId?: string | null;
-  topOffset?: number;
+  offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
@@ -51,7 +51,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     id,
     messages,
     initialMessageId,
-    topOffset,
+    offsetTop,
     className,
     scrollRef,
     running,
@@ -97,7 +97,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
           scrollRef={scrollRef}
           messages={messages}
           initialMessageId={initialMessageId}
-          topOffset={topOffset}
+          offsetTop={offsetTop}
           running={running}
           display={display}
           labels={labels}
@@ -118,7 +118,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     listHandle,
     messages,
     initialMessageId,
-    topOffset,
+    offsetTop,
     className,
     scrollRef,
     running,
@@ -127,7 +127,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     linking,
     tools,
   }: ChatViewVirtualListComponentProps) {
-    const resolveInto = tools?.resolveIntoPreviousMessage ?? true;
+    const resolveInto = tools?.collapseToolMessages ?? true;
     const collapsedMessages = useMemo(() => {
       return resolveInto
         ? resolveMessages(messages)
@@ -200,7 +200,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
         data={collapsedMessages}
         renderRow={renderRow}
         initialTopMostItemIndex={initialMessageIndex}
-        offsetTop={topOffset}
+        offsetTop={offsetTop}
         live={running}
         showProgress={running}
         components={{ Item }}

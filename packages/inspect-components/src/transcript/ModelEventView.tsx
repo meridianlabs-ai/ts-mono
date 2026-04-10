@@ -114,7 +114,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           messages={[...userMessages, ...(outputMessages || [])]}
           tools={{
             callStyle: showToolCalls ? "complete" : "omit",
-            resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+            collapseToolMessages: context?.hasToolEvents !== false,
           }}
           labels={{ show: false }}
         />
@@ -160,7 +160,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             id={`${eventNode.id}-model-input-full`}
             messages={[...event.input, ...(outputMessages || [])]}
             tools={{
-              resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+              collapseToolMessages: context?.hasToolEvents !== false,
             }}
           />
         </EventSection>

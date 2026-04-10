@@ -144,7 +144,7 @@ const InputRenderer: FC<InputRendererProps> = ({
           className={className}
           scrollRef={scrollRef}
           initialMessageId={initialMessageId}
-          labels={{ highlight: highlightLabeled, values: labels }}
+          labels={{ highlight: highlightLabeled, messageLabels: labels }}
         />
       );
     } else if (inputData.input.events && inputData.input.events.length > 0) {

@@ -36,7 +36,7 @@ interface TranscriptPanelProps {
   scrollRef: RefObject<HTMLDivElement | null>;
   running?: boolean;
   initialEventId?: string | null;
-  topOffset?: number;
+  offsetTop?: number;
   eventsCleared?: boolean;
   timelines?: ServerTimeline[];
 }
@@ -52,7 +52,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     events,
     running,
     initialEventId,
-    topOffset,
+    offsetTop,
     eventsCleared,
     timelines: serverTimelines,
   } = props;
@@ -263,7 +263,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       events={filteredEvents}
       running={running}
       scrollRef={scrollRef}
-      offsetTop={topOffset}
+      offsetTop={offsetTop}
       timelineSelection={timelineSelection}
       activeTimeline={activeTimeline}
       serverTimelines={serverTimelines}

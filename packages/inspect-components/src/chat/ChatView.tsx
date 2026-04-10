@@ -34,7 +34,7 @@ export const ChatView: FC<ChatViewProps> = ({
   linking,
   tools,
 }) => {
-  const resolveInto = tools?.resolveIntoPreviousMessage ?? true;
+  const resolveInto = tools?.collapseToolMessages ?? true;
   const collapsedMessages = resolveInto
     ? resolveMessages(messages)
     : messages.map((msg) => {

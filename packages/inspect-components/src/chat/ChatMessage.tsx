@@ -33,7 +33,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const unlabeledRoles = display?.unlabeledRoles;
   const formatDateTime = display?.formatDateTime;
   const linkingEnabled = linking?.enabled ?? false;
-  const getMessageUrl = linking?.getUrl;
+  const getMessageUrl = linking?.getMessageUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
 
   const messageUrl = getMessageUrl?.(message.id || "");

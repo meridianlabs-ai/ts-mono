@@ -127,7 +127,7 @@ const referenceTable = (
         return (
           <ChatView
             messages={[inputData.input]}
-            tools={{ resolveIntoPreviousMessage: false }}
+            tools={{ collapseToolMessages: false }}
           />
         );
       },
@@ -140,7 +140,7 @@ const referenceTable = (
             return (
               <ChatView
                 messages={[msg]}
-                tools={{ resolveIntoPreviousMessage: false }}
+                tools={{ collapseToolMessages: false }}
               />
             );
           };
@@ -201,7 +201,7 @@ const referenceTable = (
           return (
             <ChatView
               messages={[msg]}
-              tools={{ resolveIntoPreviousMessage: false }}
+              tools={{ collapseToolMessages: false }}
             />
           );
         };

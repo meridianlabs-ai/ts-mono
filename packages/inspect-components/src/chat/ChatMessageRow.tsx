@@ -43,10 +43,10 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   tools,
 }) => {
   const showLabels = labels?.show ?? true;
-  const labelValues = labels?.values;
+  const labelValues = labels?.messageLabels;
   const highlightLabeled = labels?.highlight ?? false;
   const toolCallStyle = tools?.callStyle ?? "complete";
-  const getCustomToolView = tools?.getCustomView;
+  const getCustomToolView = tools?.renderToolCall;
 
   const views: ReactNode[] = [];
   const viewLabels: Array<string | undefined> = [];
