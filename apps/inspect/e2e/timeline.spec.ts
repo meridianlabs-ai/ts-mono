@@ -5,7 +5,7 @@
  * transcript panel when sample.timelines is populated. They are the
  * acceptance tests for the shared TimelineTranscriptView migration.
  *
- * Marked as test.fixme until timeline support is wired up in Inspect.
+ * Timeline support is now wired up via TranscriptLayout.
  */
 
 import { http, HttpResponse } from "msw";
@@ -202,13 +202,10 @@ async function openTranscriptWithTimeline(
 }
 
 // ---------------------------------------------------------------------------
-// Timeline acceptance tests — will pass once timelines are wired up
+// Timeline acceptance tests
 // ---------------------------------------------------------------------------
 
-test.fixme("sample with timelines shows swimlane grid", async ({
-  page,
-  network,
-}) => {
+test("sample with timelines shows swimlane grid", async ({ page, network }) => {
   await openTranscriptWithTimeline(page, network);
 
   // Swimlane grid should be visible
@@ -224,30 +221,34 @@ test.fixme("sample with timelines shows swimlane grid", async ({
   ).toBeVisible();
 });
 
-test.fixme("sample with timelines shows event list", async ({
-  page,
-  network,
-}) => {
-  await openTranscriptWithTimeline(page, network);
-
-  // Event list should still render alongside swimlanes
-  await expect(page.getByText("Exploring the code").first()).toBeVisible();
-  await expect(page.getByText("Building the feature").first()).toBeVisible();
-});
-
-test.fixme("clicking a swimlane row updates selection", async ({
-  page,
-  network,
-}) => {
+test("sample with timelines shows event list", async ({ page, network }) => {
   await openTranscriptWithTimeline(page, network);
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
   await expect(swimlane).toBeVisible();
 
-  // Click the "Explore" row
-  const exploreRow = swimlane.getByRole("row").filter({ hasText: "Explore" });
-  await exploreRow.click();
+  // Click the root "Transcript" row to show all events
+  const rootRow = swimlane.getByRole("row").filter({ hasText: "Transcript" });
+  await rootRow.click();
 
-  // URL should update with selection param
-  await expect(page).toHaveURL(/selected=/);
+  // Root event and sub-agent entries should be visible in the event list
+  await expect(page.getByText("sub-agent: explore").first()).toBeVisible();
+  await expect(page.getByText("sub-agent: build").first()).toBeVisible();
+});
+
+test("clicking a swimlane row updates selection", async ({ page, network }) => {
+  await openTranscriptWithTimeline(page, network);
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // Click the "Build" row
+  const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
+  await buildRow.click();
+
+  // The event list should now show only the Build agent's content
+  await expect(page.getByText("Building the feature").first()).toBeVisible();
+
+  // The Explore agent's content should no longer be visible
+  await expect(page.getByText("Exploring the code")).not.toBeVisible();
 });
