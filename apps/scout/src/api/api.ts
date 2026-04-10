@@ -63,14 +63,9 @@ export interface ScoutApiV2 {
   getScannerDataframe(
     scansDir: string,
     scanPath: string,
-    scanner: string
-  ): Promise<ArrayBuffer | Uint8Array>;
-  getScannerDataframeInput(
-    scansDir: string,
-    scanPath: string,
     scanner: string,
-    uuid: string
-  ): Promise<ScannerInput>;
+    excludeColumns?: string[]
+  ): Promise<ArrayBuffer | Uint8Array>;
   getScannerDataframeDetail(
     scansDir: string,
     scanPath: string,

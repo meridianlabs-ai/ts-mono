@@ -14,7 +14,12 @@ export const useSelectedScanDataframe = (): AsyncData<ColumnTable> => {
 
   return useScanDataframe(
     resolvedScansDir && scanPath && scanner.data
-      ? { scansDir: resolvedScansDir, scanPath, scanner: scanner.data }
+      ? {
+          scansDir: resolvedScansDir,
+          scanPath,
+          scanner: scanner.data,
+          excludeColumns: ["input", "scan_events"],
+        }
       : skipToken
   );
 };

@@ -16,7 +16,6 @@ import {
   ProjectConfigInput,
   RawEncoding,
   ScanJobConfig,
-  ScannerInput,
   ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
@@ -240,36 +239,17 @@ export const apiScoutServer = (
     getScannerDataframe: async (
       scansDir: string,
       scanPath: string,
-      scanner: string
+      scanner: string,
+      excludeColumns?: string[]
     ): Promise<ArrayBuffer> => {
+      const params = excludeColumns?.length
+        ? `?exclude_columns=${excludeColumns.join(",")}`
+        : "";
       const result = await requestApi.fetchBytes(
         "GET",
-        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}`
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}${params}`
       );
       return result.data;
-    },
-    getScannerDataframeInput: async (
-      scansDir: string,
-      scanPath: string,
-      scanner: string,
-      uuid: string
-    ): Promise<ScannerInput> => {
-      const result = await asyncJsonParse<ScannerInputResponse>(
-        (
-          await requestApi.fetchString(
-            "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/input`
-          )
-        ).raw
-      );
-      return {
-        input_type: result.input_type,
-        input: expandInputEvents(
-          result.input,
-          result.input_type,
-          result.input_data
-        ),
-      };
     },
     getScannerDataframeDetail: async (
       scansDir: string,
@@ -280,35 +260,27 @@ export const apiScoutServer = (
       const raw = await asyncJsonParse<{
         input_type: string;
         input: unknown;
-        input_data: unknown;
-        scan_events: unknown;
+        input_data: EventsData | null;
+        scan_events: Event[];
       }>(
         (
           await requestApi.fetchString(
             "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/fields?fields=input,input_type,input_data,scan_events`
+            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?columns=input,input_type,input_data,scan_events`
           )
         ).raw
       );
-
-      const [scanEvents] = await Promise.all([
-        asyncJsonParse<Event[]>(
-          typeof raw.scan_events === "string"
-            ? raw.scan_events
-            : JSON.stringify(raw.scan_events ?? [])
-        ),
-      ]);
 
       return {
         input: {
           input_type: raw.input_type as ScannerInputResponse["input_type"],
           input: expandInputEvents(
-            raw.input as ScannerInputResponse["input"],
+            raw.input,
             raw.input_type as ScannerInputResponse["input_type"],
-            raw.input_data as EventsData | null
+            raw.input_data
           ),
         },
-        scanEvents: scanEvents ?? [],
+        scanEvents: raw.scan_events ?? [],
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
