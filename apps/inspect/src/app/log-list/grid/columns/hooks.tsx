@@ -22,7 +22,11 @@ const styles = { ...sharedStyles, ...localStyles };
 
 const EmptyCell = () => <div>-</div>;
 
-export const useLogListColumns = (): {
+export type LogListMode = "logs" | "tasks";
+
+export const useLogListColumns = (
+  mode: LogListMode = "logs"
+): {
   columns: ColDef<LogListRow>[];
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
@@ -269,13 +273,22 @@ export const useLogListColumns = (): {
         resizable: true,
         valueGetter: (params) => {
           const item = params.data;
-          if (!item || item.type !== "file") return "";
-          return basename(item.name);
+          if (!item) return "";
+          if (item.type === "folder") return item.name;
+          if (item.type === "file") return basename(item.name);
+          return "";
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
-          if (!item || item.type === "folder" || item.type === "pending-task") {
+          if (!item || item.type === "pending-task") {
             return <EmptyCell />;
+          }
+          if (item.type === "folder") {
+            return (
+              <div className={styles.nameCell}>
+                <span className={styles.folder}>{item.name}</span>
+              </div>
+            );
           }
           const value = basename(item.name);
           return <div className={styles.nameCell}>{value}</div>;
@@ -329,8 +342,17 @@ export const useLogListColumns = (): {
       }
     );
 
-    return [...baseColumns, ...scorerColumns];
-  }, [scorerMap]);
+    const allCols = [...baseColumns, ...scorerColumns];
+
+    // Move "name" (File Name) to be the second column (after the type icon)
+    const nameIdx = allCols.findIndex((col) => col.field === "name");
+    if (nameIdx > 1) {
+      const [nameCol] = allCols.splice(nameIdx, 1);
+      allCols.splice(1, 0, nameCol);
+    }
+
+    return allCols;
+  }, [scorerMap, mode]);
 
   const columns = useMemo((): ColDef<LogListRow>[] => {
     const columnsWithVisibility = allColumns.map((col: ColDef<LogListRow>) => {

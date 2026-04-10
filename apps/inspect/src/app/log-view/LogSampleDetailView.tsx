@@ -7,7 +7,12 @@ import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
 import { useLogSampleNavigation } from "../routing/sampleNavigation";
-import { logSamplesUrl, logsUrl, useLogRouteParams } from "../routing/url";
+import {
+  logSamplesUrl,
+  logsUrl,
+  useLogRouteParams,
+  useRoutePrefix,
+} from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
 
 /**
@@ -41,6 +46,7 @@ export const LogSampleDetailView: FC = () => {
   usePollSample();
 
   const navigate = useNavigate();
+  const prefix = useRoutePrefix();
 
   // Get store state and actions for log loading
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
@@ -113,12 +119,13 @@ export const LogSampleDetailView: FC = () => {
           logPath,
           sample.id,
           sample.epoch,
-          sampleTabId
+          sampleTabId,
+          prefix
         );
         navigate(url, { replace: true });
       }
     }
-  }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate]);
+  }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate, prefix]);
 
   // Get navigation handlers from the hook
   const { onPrevious, onNext, hasPrevious, hasNext } = useLogSampleNavigation();
@@ -133,7 +140,7 @@ export const LogSampleDetailView: FC = () => {
     (file: string, log_dir?: string) => {
       if (!logPath || !file) {
         // Empty file = home button, go to root
-        return logsUrl(file, log_dir);
+        return logsUrl(file, log_dir, undefined, prefix);
       }
 
       // Normalize: remove trailing slash for comparison
@@ -145,13 +152,13 @@ export const LogSampleDetailView: FC = () => {
         normalizedFile === logPath ||
         normalizedFile === `${logPath}/sample`
       ) {
-        return logsUrl(logPath, log_dir, kLogViewSamplesTabId);
+        return logsUrl(logPath, log_dir, kLogViewSamplesTabId, prefix);
       }
 
-      // Otherwise, use the default logsUrl behavior (for parent folders)
-      return logsUrl(file, log_dir);
+      // Otherwise, use the route-appropriate URL (for parent folders / back)
+      return logsUrl(file, log_dir, undefined, prefix);
     },
-    [logPath]
+    [logPath, prefix]
   );
 
   return (

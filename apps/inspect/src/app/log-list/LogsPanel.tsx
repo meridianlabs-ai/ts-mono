@@ -22,7 +22,7 @@ import { useFlowServerData } from "../flow/hooks";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
-import { logsUrl, useLogRouteParams } from "../routing/url";
+import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns } from "./grid/columns/hooks";
@@ -40,11 +40,17 @@ const rootName = (relativePath: string) => {
   return parts[0];
 };
 
+export type LogsPanelMode = "logs" | "tasks";
+
 interface LogsPanelProps {
   maybeShowSingleLog?: boolean;
+  mode?: LogsPanelMode;
 }
 
-export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
+export const LogsPanel: FC<LogsPanelProps> = ({
+  maybeShowSingleLog,
+  mode = "logs",
+}) => {
   const { loadLogs } = useLogs();
   const gridRef = useRef<AgGridReact<LogListRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -113,6 +119,45 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
     Array<FileLogItem | FolderLogItem | PendingTaskItem>,
     boolean,
   ] = useMemo(() => {
+    if (mode === "tasks") {
+      // Flat mode: show all log files without folder grouping
+      const fileItems: Array<FileLogItem | PendingTaskItem> = [];
+      const existingLogTaskIds = new Set<string>();
+      let _hasRetriedLogs = false;
+
+      for (const logFile of logFiles) {
+        if (logFile.task_id) {
+          existingLogTaskIds.add(logFile.task_id);
+        }
+
+        if (logFile.retried) {
+          _hasRetriedLogs = true;
+        }
+
+        if (showRetriedLogs || !logFile.retried) {
+          const relativePath = directoryRelativeUrl(logFile.name, logDir);
+          const decodedPath = decodeURIComponent(relativePath);
+
+          fileItems.push({
+            id: logFile.name,
+            name: decodedPath,
+            type: "file",
+            url: tasksUrl(decodedPath, logDir),
+            log: logFile,
+            logPreview: logPreviews[logFile.name],
+          });
+        }
+      }
+
+      const allItems = appendPendingItems(
+        evalSet,
+        existingLogTaskIds,
+        fileItems
+      );
+      return [allItems, _hasRetriedLogs];
+    }
+
+    // Folder-grouped mode (default)
     const folderItems: Array<FileLogItem | FolderLogItem | PendingTaskItem> =
       [];
     const fileItems: Array<FileLogItem | FolderLogItem | PendingTaskItem> = [];
@@ -192,9 +237,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
     );
 
     return [_logFiles, _hasRetriedLogs];
-  }, [evalSet, logFiles, currentDir, logDir, logPreviews, showRetriedLogs]);
+  }, [mode, evalSet, logFiles, currentDir, logDir, logPreviews, showRetriedLogs]);
 
-  const { columns, setColumnVisibility } = useLogListColumns();
+  const { columns, setColumnVisibility } = useLogListColumns(mode);
 
   // Wrapper that clears filters for columns that are being hidden
   const handleColumnVisibilityChange = useCallback(
@@ -268,8 +313,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
   return (
     <div className={clsx(styles.panel)}>
       <ApplicationNavbar
-        fnNavigationUrl={logsUrl}
-        currentPath={logPath}
+        fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
+        currentPath={mode === "tasks" ? undefined : logPath}
         showActivity="log"
       >
         {hasFilter && (
@@ -306,7 +351,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({ maybeShowSingleLog }) => {
           }}
         />
 
-        <ViewSegmentedControl selectedSegment="logs" />
+        <ViewSegmentedControl selectedSegment={mode === "tasks" ? "tasks" : "logs"} />
         {flowData && <FlowButton />}
       </ApplicationNavbar>
 

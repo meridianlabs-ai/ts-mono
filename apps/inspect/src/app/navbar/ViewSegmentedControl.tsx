@@ -18,8 +18,8 @@ interface ViewSegmentControlProps {
 }
 
 const segments = [
-  { id: "logs", label: "Logs", icon: ApplicationIcons.file },
   { id: "tasks", label: "Tasks", icon: ApplicationIcons.navbar.tasks },
+  { id: "logs", label: "Folders", icon: ApplicationIcons.file },
   { id: "samples", label: "Samples", icon: ApplicationIcons.sample },
 ];
 

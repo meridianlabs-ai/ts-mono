@@ -14,7 +14,6 @@ import { AppErrorBoundary } from "../AppErrorBoundary";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
-import { TasksPanel } from "../tasks-panel/TasksPanel";
 
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
@@ -83,7 +82,7 @@ export const AppRouter = createHashRouter(
       children: [
         {
           index: true, // This will match exactly the "/" path
-          element: <LogsPanel maybeShowSingleLog={true} />,
+          element: <LogsPanel mode="tasks" maybeShowSingleLog={true} />,
         },
         {
           path: kLogsRouteUrlPattern,
@@ -97,7 +96,7 @@ export const AppRouter = createHashRouter(
         },
         {
           path: kTasksRouteUrlPattern,
-          element: <TasksPanel />,
+          element: <LogsPanel mode="tasks" />,
         },
         {
           path: kTaskRouteUrlPattern,

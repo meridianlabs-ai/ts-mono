@@ -7,7 +7,7 @@ import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
-import { logsUrl, useLogRouteParams } from "../routing/url";
+import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
 
 import { LogView } from "./LogView";
 
@@ -31,6 +31,9 @@ export const LogViewLayout: FC = () => {
 
   // Route params
   const { logPath } = useLogRouteParams();
+  const prefix = useRoutePrefix();
+  const navigationUrl = (file: string, log_dir?: string) =>
+    logsUrl(file, log_dir, undefined, prefix);
 
   // The main application reference
   const mainAppRef = useRef<HTMLDivElement>(null);
@@ -80,7 +83,7 @@ export const LogViewLayout: FC = () => {
         {showFind ? <FindBand /> : ""}
         {!singleFileMode ? (
           <ApplicationNavbar
-            fnNavigationUrl={logsUrl}
+            fnNavigationUrl={navigationUrl}
             currentPath={logPath}
             showActivity="log"
           />
