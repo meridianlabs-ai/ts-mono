@@ -402,6 +402,15 @@ function collectFromContent(
   branches?: ReadonlyArray<TimelineSpan>,
   branchPrefix: string = ""
 ): void {
+  // When there's exactly one agent span in this content, inline its events
+  // instead of emitting an empty agent card. This avoids a redundant wrapper
+  // when the root view has a single agent plus scoring.
+  const agentSpans = content.filter(
+    (item): item is TimelineSpan =>
+      item.type === "span" && item.spanType === "agent"
+  );
+  const inlineAgentId = agentSpans.length === 1 ? agentSpans[0]?.id : undefined;
+
   // Track agent tool_call_ids whose results are shown on the AgentCard,
   // so we can filter them from the next model event's input.
   const pendingToolCallIds = new Set<string>();
@@ -509,7 +518,7 @@ function collectFromContent(
       };
       out.push(beginEvent);
 
-      if (item.spanType === "agent") {
+      if (item.spanType === "agent" && item.id !== inlineAgentId) {
         // Agent spans: emit empty begin/end pair. Content is accessed
         // by selecting the swimlane row, not by expanding in-place.
         sourceSpans.set(item.id, item);
