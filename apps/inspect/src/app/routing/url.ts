@@ -290,6 +290,8 @@ export const useSamplesRouteParams = () => {
 export const kLogsRoutUrlPattern = "/logs";
 export const kLogRouteUrlPattern = "/logs/*";
 export const kSamplesRouteUrlPattern = "/samples";
+export const kTasksRouteUrlPattern = "/tasks";
+export const kTaskRouteUrlPattern = "/tasks/*";
 
 export const baseUrl = (
   logPath: string,
@@ -488,6 +490,51 @@ export const sampleMessageUrl = (
 ) => {
   const baseUrl = builder(logPath, sampleId, sampleEpoch, kSampleMessagesTabId);
   return `${baseUrl}?message=${messageId}`;
+};
+
+export const tasksUrl = (log_file: string, log_dir?: string) => {
+  const path = makeLogsPath(log_file, log_dir);
+  const decodedLogSegment = decodeUrlParam(path) || path;
+  return encodePathParts(`/tasks/${decodedLogSegment}`);
+};
+
+/**
+ * Hook that parses tasks route parameters from the splat route.
+ * Handles nested paths properly by parsing the full path after /tasks/
+ */
+export const useTasksRouteParams = () => {
+  const location = useLocation();
+
+  return useMemo(() => {
+    const rawPath = location.pathname;
+
+    // Extract the splat path (everything after /tasks/)
+    const tasksMatch = rawPath.match(/^\/tasks\/(.*)$/);
+    const splatPath = tasksMatch ? tasksMatch[1] : "";
+
+    // Check for sample detail route: /tasks/path/to/file.eval/sample/id/epoch/tabId
+    const sampleMatch = splatPath.match(
+      /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
+    );
+
+    if (sampleMatch) {
+      const [, logPath, sampleId, epoch, tabId] = sampleMatch;
+      return {
+        tasksPath: decodeUrlParam(logPath),
+        sampleId: decodeUrlParam(sampleId),
+        epoch: decodeUrlParam(epoch),
+        tabId: tabId ? decodeUrlParam(tabId) : undefined,
+      };
+    }
+
+    // Otherwise it's just a path (file or empty)
+    return {
+      tasksPath: splatPath ? decodeUrlParam(splatPath) : undefined,
+      sampleId: undefined,
+      epoch: undefined,
+      tabId: undefined,
+    };
+  }, [location.pathname]);
 };
 
 export const samplesUrl = (log_file: string, log_dir?: string) => {
