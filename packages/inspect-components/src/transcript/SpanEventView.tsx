@@ -11,7 +11,7 @@ import { EventNode, EventPanelCallbacks, EventType } from "./types";
 interface SpanEventViewProps {
   eventNode: EventNode<SpanBeginEvent>;
   childNodes: EventNode<EventType>[];
-  className?: string | string[];
+  className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }
 

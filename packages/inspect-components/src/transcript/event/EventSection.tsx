@@ -9,7 +9,7 @@ interface EventSectionProps {
   title: string;
   children: ReactNode;
   copyContent?: string;
-  className?: string | string[];
+  className?: string;
 }
 
 /**

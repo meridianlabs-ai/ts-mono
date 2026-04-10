@@ -11,7 +11,7 @@ import { EventNode, EventPanelCallbacks, EventType } from "./types";
 interface StepEventViewProps {
   eventNode: EventNode<StepEvent>;
   childNodes: EventNode<EventType>[];
-  className?: string | string[];
+  className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }
 

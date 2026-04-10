@@ -438,7 +438,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // ---------------------------------------------------------------------------
 
   const renderAgentCard = useCallback(
-    (node: EventNode, agentCardClassName?: string | string[]) => {
+    (node: EventNode, agentCardClassName?: string) => {
       const span = node.sourceSpan as TimelineSpan | undefined;
       if (!span) return null;
       return <AgentCardView span={span} className={agentCardClassName} />;

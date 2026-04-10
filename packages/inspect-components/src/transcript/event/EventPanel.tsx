@@ -25,7 +25,7 @@ const kDefaultIcon = "bi bi-table";
 
 interface EventPanelProps {
   eventNodeId: string;
-  className?: string | string[];
+  className?: string;
   title?: string;
   subTitle?: string;
   text?: string;

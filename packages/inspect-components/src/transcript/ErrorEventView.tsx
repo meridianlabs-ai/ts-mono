@@ -10,7 +10,7 @@ import { EventNode } from "./types";
 
 interface ErrorEventViewProps {
   eventNode: EventNode<ErrorEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const ErrorEventView: FC<ErrorEventViewProps> = ({

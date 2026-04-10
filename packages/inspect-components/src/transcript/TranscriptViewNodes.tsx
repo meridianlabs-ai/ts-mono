@@ -44,11 +44,8 @@ export interface TranscriptViewNodesProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
   offsetTop?: number;
-  className?: string | string[];
-  renderAgentCard?: (
-    node: EventNode,
-    className?: string | string[]
-  ) => ReactNode;
+  className?: string;
+  renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;

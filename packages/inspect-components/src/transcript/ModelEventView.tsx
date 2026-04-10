@@ -24,7 +24,7 @@ import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface ModelEventViewProps {
   eventNode: EventNode<ModelEvent>;
-  className?: string | string[];
+  className?: string;
   showToolCalls: boolean;
   context?: EventNodeContext;
   eventCallbacks?: EventPanelCallbacks;
@@ -187,7 +187,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
 interface APIViewProps {
   call: ModelCall;
-  className?: string | string[];
+  className?: string;
 }
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {

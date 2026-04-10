@@ -17,7 +17,7 @@ import { EventNode } from "./types";
 
 interface SampleInitEventViewProps {
   eventNode: EventNode<SampleInitEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const SampleInitEventView: FC<SampleInitEventViewProps> = ({

@@ -21,7 +21,7 @@ import styles from "./StateEventView.module.css";
 interface StateEventViewProps {
   eventNode: EventNode<StateEvent | StoreEvent>;
   isStore?: boolean;
-  className?: string | string[];
+  className?: string;
   onAutoCollapse?: (eventId: string) => void;
   eventCallbacks?: EventPanelCallbacks;
 }

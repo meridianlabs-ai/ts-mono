@@ -29,7 +29,7 @@ import {
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
   childNodes: EventNode<EventType>[];
-  className?: string | string[];
+  className?: string;
   context?: EventNodeContext;
   eventCallbacks?: EventPanelCallbacks;
 }

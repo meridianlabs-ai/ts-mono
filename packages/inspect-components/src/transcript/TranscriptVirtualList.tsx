@@ -49,13 +49,10 @@ TranscriptVirtualList.displayName = "TranscriptVirtualList";
 interface RenderedEventNodeProps {
   node: EventNode;
   next?: EventNode;
-  className?: string | string[];
+  className?: string;
   context?: EventNodeContext;
   onAutoCollapse?: (eventId: string) => void;
-  renderAgentCard?: (
-    node: EventNode,
-    className?: string | string[]
-  ) => ReactNode;
+  renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   eventCallbacks?: EventPanelCallbacks;
 }
 

@@ -14,7 +14,7 @@ const kArrowRightIcon = "bi bi-arrow-right";
 interface SubtaskEventViewProps {
   eventNode: EventNode<SubtaskEvent>;
   childNodes: EventNode<EventType>[];
-  className?: string | string[];
+  className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }
 

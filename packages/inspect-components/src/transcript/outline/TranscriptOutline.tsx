@@ -34,7 +34,7 @@ interface TranscriptOutlineProps {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
   running?: boolean;
-  className?: string | string[];
+  className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   style?: CSSProperties;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */

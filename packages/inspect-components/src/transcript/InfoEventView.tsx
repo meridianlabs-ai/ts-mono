@@ -13,7 +13,7 @@ import { EventNode } from "./types";
 
 interface InfoEventViewProps {
   eventNode: EventNode<InfoEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const InfoEventView: FC<InfoEventViewProps> = ({

@@ -10,7 +10,7 @@ import { EventNode } from "./types";
 
 interface InputEventViewProps {
   eventNode: EventNode<InputEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const InputEventView: FC<InputEventViewProps> = ({

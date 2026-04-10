@@ -17,7 +17,7 @@ import { EventNode } from "./types";
 
 interface SandboxEventViewProps {
   eventNode: EventNode<SandboxEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const SandboxEventView: FC<SandboxEventViewProps> = ({

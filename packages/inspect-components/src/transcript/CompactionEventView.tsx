@@ -12,7 +12,7 @@ import { EventNode } from "./types";
 
 interface CompactionEventViewProps {
   eventNode: EventNode<CompactionEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const CompactionEventView: FC<CompactionEventViewProps> = ({

@@ -27,15 +27,12 @@ interface TranscriptVirtualListComponentProps {
   offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
-  className?: string | string[];
+  className?: string;
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   disableVirtualization?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
   onAutoCollapse?: (eventId: string) => void;
-  renderAgentCard?: (
-    node: EventNode,
-    className?: string | string[]
-  ) => ReactNode;
+  renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   eventCallbacks?: EventPanelCallbacks;
 }
 

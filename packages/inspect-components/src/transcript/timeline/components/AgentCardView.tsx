@@ -17,7 +17,7 @@ import { useTimelineIcons } from "./TimelineIconsContext";
 
 interface AgentCardViewProps {
   span: TimelineSpan;
-  className?: string | string[];
+  className?: string;
 }
 
 export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {

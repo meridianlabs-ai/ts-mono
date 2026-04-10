@@ -12,7 +12,7 @@ import { EventNode } from "./types";
 
 interface LoggerEventViewProps {
   eventNode: EventNode<LoggerEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const LoggerEventView: FC<LoggerEventViewProps> = ({
