@@ -58,9 +58,8 @@ const kDefaultForkRelative = false;
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
-  const sorted1 = [...a].sort();
-  const sorted2 = [...b].sort();
-  return sorted1.every((v, i) => v === sorted2[i]);
+  const set = new Set(a);
+  return b.every((v) => set.has(v));
 }
 
 // =============================================================================

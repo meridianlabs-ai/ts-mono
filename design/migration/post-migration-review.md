@@ -6,239 +6,115 @@ Commits reviewed: `b3ac7bda` through `54cf26e9`.
 
 ---
 
-## Priority 1: Bugs
+## Priority 1: Bugs — ✅ All resolved
 
-### 1.1 Off-by-one in `TranscriptVirtualListComponent` — attached styling broken for item at index 1
+### 1.1 ✅ Off-by-one in `TranscriptVirtualListComponent` — attached styling broken for item at index 1
 
-**File:** `packages/inspect-components/src/transcript/TranscriptVirtualListComponent.tsx:146`
+Fixed: changed `previousIndex > 0` to `previousIndex >= 0`.
 
-```ts
-const previous =
-  previousIndex > 0 && previousIndex <= eventNodes.length
-    ? eventNodes[previousIndex]
-    : undefined;
-```
+### 1.2 ✅ Empty `timelines[]` crashes `useActiveTimeline` via non-null assertion
 
-When `index === 1`, `previousIndex === 0`, and `0 > 0` is `false` — so `previous` is always `undefined` for the second item. This breaks the `attached` / `attachedChild` CSS classes: a tool event at position 1 following a model event at position 0 will never get the attached styling.
+Fixed: removed `!` non-null assertion; return type widened to `Timeline | undefined`.
 
-**Fix:** Change `previousIndex > 0` to `previousIndex >= 0`.
+### 1.3 ✅ `ChatViewVirtualListComponent` ignores `resolveIntoPreviousMessage`
 
-### 1.2 Empty `timelines[]` crashes `useActiveTimeline` via non-null assertion
-
-**File:** `packages/inspect-components/src/transcript/timeline/hooks/useActiveTimeline.ts:51`
-
-```ts
-const active = timelines[activeIndex] ?? timelines[0]!;
-```
-
-If `timelines` is empty (e.g., during loading), `timelines[0]` is `undefined` and `!` just hides the crash. Callers receive a `Timeline` typed value that is actually `undefined`.
-
-**Fix:** Guard early: if `timelines.length === 0`, return a sentinel/null state. Or widen the return type to `Timeline | undefined` and thread the optionality to callers.
-
-### 1.3 `ChatViewVirtualListComponent` ignores `resolveIntoPreviousMessage`
-
-**File:** `packages/inspect-components/src/chat/ChatViewVirtualList.tsx` (internal component)
-
-`ChatView` respects `tools?.resolveIntoPreviousMessage` — when `false`, it maps messages without collapsing tool messages into the previous assistant message. But `ChatViewVirtualListComponent` unconditionally calls `resolveMessages(messages)`, ignoring this flag. Switching from non-virtualized to virtualized mode (triggered by `running=true` or `messages.length > 200`) silently changes rendering behavior.
-
-**Fix:** Pass `tools?.resolveIntoPreviousMessage` to the virtualized component and respect it in the `useMemo`.
+Fixed: virtualized component now respects `tools?.collapseToolMessages` (renamed from `resolveIntoPreviousMessage`).
 
 ---
 
-## Priority 2: Project Rule Violations
+## Priority 2: Project Rule Violations — ✅ All resolved
 
-### 2.1 `eslint-disable react-hooks/exhaustive-deps` — file-wide in `StateEventView.tsx`
+### 2.1 ✅ `eslint-disable react-hooks/exhaustive-deps` — file-wide in `StateEventView.tsx`
 
-**File:** `packages/inspect-components/src/transcript/state/StateEventView.tsx:1-2`
+Fixed: suppression removed; dependency arrays corrected.
 
-```ts
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
-```
+### 2.2 ✅ `eslint-disable react-hooks/exhaustive-deps` — per-line in `ChatViewVirtualList.tsx`
 
-Direct violation of the project rule: _"Never suppress `react-hooks/exhaustive-deps` as a fix."_ File-wide suppression in a state/store-related component risks stale closures in collapse/expand effects.
+Fixed: suppression removed; dependency array corrected.
 
-**Fix:** Remove the suppression; audit each hook and fix dependency arrays properly.
+### 2.3 ✅ Blanket `/* eslint-disable */` in `tool.ts`
 
-### 2.2 `eslint-disable react-hooks/exhaustive-deps` — per-line in `ChatViewVirtualList.tsx`
-
-**File:** `packages/inspect-components/src/chat/ChatViewVirtualList.tsx:167-168`
-
-```ts
-// eslint-disable-next-line react-hooks/exhaustive-deps
-[id, collapsedMessages, display, labels, linking, tools]
-```
-
-Same rule violation. The `renderRow` callback closes over the `item` passed by the virtualizer — `collapsedMessages` is structurally irrelevant to the callback itself.
-
-**Fix:** Remove the suppression and correct the dependency array.
-
-### 2.3 Blanket `/* eslint-disable */` in `tool.ts`
-
-**File:** `packages/inspect-components/src/chat/tools/tool.ts:1`
-
-A whole-file `/* eslint-disable */` with no justification. The file's content uses no `any` or assertions — the suppression appears left over. In a shared package, this silently permits future violations.
-
-**Fix:** Remove the blanket disable. Add narrow per-line suppressions with justification if any specific lines need them.
+Fixed: blanket disable removed; one targeted per-line suppression with justification remains.
 
 ---
 
-## Priority 3: DRY / Code Sharing
+## Priority 3: DRY / Code Sharing — ✅ All resolved
 
-### 3.1 `messagesToStr` duplicated across both apps
+### 3.1 ✅ `messagesToStr` duplicated across both apps
 
-**Files:**
-- `apps/inspect/src/app/shared/messages.ts`
-- `apps/scout/src/app/utils/messages.ts`
+Fixed: consolidated into `packages/inspect-components/src/chat/messages.ts`; app-local copies removed.
 
-Near-identical implementations of `messagesToStr`, `messageToStr`, `textFromContent`, and `betterContentText`. Both used from "Copy Transcript" toolbar buttons. The inspect version also has type assertions (`message as ChatMessageAssistant`) that violate the project's "no type assertions" rule.
+### 3.2 ✅ Timeline build logic duplicated in 3 places
 
-**Fix:** Move into `packages/inspect-components/src/chat/` and export from the package. Remove both app-local copies. Use the scout version's control-flow narrowing pattern (no type assertions).
+Fixed: extracted `useTimelinesArray` hook into the shared package.
 
-### 3.2 Timeline build logic duplicated in 3 places
+### 3.3 ✅ `setSelectedOutlineId` null-guard pattern duplicated in both apps
 
-**Files:**
-- `packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts` (canonical)
-- `apps/scout/src/app/timeline/hooks/useTranscriptTimeline.ts` (scout wrapper)
-- `apps/scout/src/app/timeline/components/TimelineEventsView.tsx:95-103`
-
-The `buildTimeline` + `convertServerTimeline` computation is memoized separately at each call site. The root cause is that `useActiveTimelineSearchParams` needs the timelines array before `useTranscriptTimeline` builds it internally.
-
-**Fix:** Extract a `useTimelinesArray(events, serverTimelines)` hook so both the URL-param adapter and the orchestrator share a single memoized computation. Or allow `TranscriptLayout` to accept pre-built timelines.
-
-### 3.3 `setSelectedOutlineId` null-guard pattern duplicated in both apps
-
-**Files:**
-- `apps/inspect/src/app/samples/transcript/TranscriptPanel.tsx:168-177`
-- `apps/scout/src/app/timeline/components/TimelineEventsView.tsx:136-145`
-
-Both wrap `set` + `clear` store actions into a single `(id: string | null) => void` callback to match the outline interface. This is a direct consequence of the type mismatch in Priority 5.3.
-
-**Fix:** Resolves automatically when the `setSelectedId` type is corrected (see 5.3).
+Fixed: resolved by correcting the `setSelectedId` type (5.3).
 
 ---
 
-## Priority 4: Dead Code / Cleanup
+## Priority 4: Dead Code / Cleanup — ✅ All resolved
 
-### 4.1 Dead `toolMessages` prop on `ChatMessage`
+### 4.1 ✅ Dead `toolMessages` prop on `ChatMessage`
 
-**File:** `packages/inspect-components/src/chat/ChatMessage.tsx:23-36`
+Fixed: removed from interface and all call sites.
 
-`ChatMessageProps` declares `toolMessages: ChatMessageTool[]` as required, but the component never references it (it's not even destructured). Tool output rendering happens in `ChatMessageRow` via `ToolCallView`.
+### 4.2 ✅ Dead `eventsListRef` in inspect's `TranscriptPanel`
 
-**Fix:** Remove `toolMessages` from the interface and all call sites.
+Fixed: dead ref removed.
 
-### 4.2 Dead `eventsListRef` in inspect's `TranscriptPanel`
+### 4.3 ✅ Dead `breadcrumbs` / `onBreadcrumbSelect` in `TimelineHeaderProps`
 
-**File:** `apps/inspect/src/app/samples/transcript/TranscriptPanel.tsx:190,276`
+Not an issue: these fields are only on the internal `HeaderRowProps` (not exported `TimelineHeaderProps`), computed and passed internally within `TimelineSwimLanes`. No external caller can set them.
 
-`eventsListRef` is created and passed to `TranscriptLayout` but never read. `onNavigateToEvent` is never wired, so outline clicks that fall back to the imperative scroll path silently no-op. Scout handles this correctly.
+### 4.4 ✅ `TranscriptVirtualList` is a thin memo wrapper that adds no value
 
-**Fix:** Either wire `onNavigateToEvent` to `eventsListRef.current?.scrollToEvent(eventId)`, or remove the ref if URL-based navigation is the sole intended mechanism in inspect.
-
-### 4.3 Dead `breadcrumbs` / `onBreadcrumbSelect` in `TimelineHeaderProps`
-
-**File:** `packages/inspect-components/src/transcript/timeline/components/TimelineSwimLanes.tsx`
-
-Neither `TranscriptLayout` nor any consumer populates `breadcrumbs` or `onBreadcrumbSelect` in the `header` prop. Breadcrumbs are computed internally in `TimelineSwimLanes`.
-
-**Fix:** Remove the vestigial fields from `TimelineHeaderProps`.
-
-### 4.4 `TranscriptVirtualList` is a thin memo wrapper that adds no value
-
-**File:** `packages/inspect-components/src/transcript/TranscriptVirtualList.tsx:70-95`
-
-`TranscriptVirtualListInner` does nothing but forward all props to `TranscriptVirtualListComponent`. The two interfaces (`TranscriptVirtualListProps` and `TranscriptVirtualListComponentProps`) are defined separately and can silently drift. Every new prop must be added to both.
-
-**Fix:** Replace with `memo(TranscriptVirtualListComponent)` + `displayName`. Or consolidate the two prop interfaces.
+Fixed: replaced with `memo(TranscriptVirtualListComponent)` + `displayName`; consolidated to single interface.
 
 ---
 
 ## Priority 5: Props API Improvements
 
-### 5.1 `EventPanelCallbacks` prop-drilled through 5 layers — use context
+### 5.1 ✅ `EventPanelCallbacks` prop-drilled through 5 layers — won't fix
 
-**Files:** `types.ts`, `TranscriptViewNodes.tsx`, `TranscriptVirtualList.tsx`, `TranscriptVirtualListComponent.tsx`, individual event views, `EventPanel.tsx`
+Kept as explicit props. These components may be externally consumable in the future, and props are self-documenting — consumers see exactly what each component needs at the type level. A context would hide requirements behind a runtime provider, making external consumption harder and errors less obvious. The prop-drilling is verbose but honest.
 
-`onCollapse`, `getCollapsed`, `getEventUrl`, and `linkingEnabled` are threaded through five component layers unchanged. The data is read-only (two getters + a boolean) and changes only when the parent store changes. This is the strongest candidate for a `TranscriptCallbackContext` in the entire package.
+### 5.2 ✅ `scope` parameter on collapse callbacks is leaked implementation detail
 
-**Impact:** Eliminates boilerplate props from ~15 component signatures.
+Fixed: scope removed from callback signatures; split into separate callbacks.
 
-### 5.2 `scope` parameter on collapse callbacks is leaked implementation detail
+### 5.3 ✅ `setSelectedId: (id: string | null) => void` type mismatch
 
-**Files:** `TranscriptLayout.tsx`, `TranscriptViewNodes.tsx`
+Fixed: changed to `setSelectedId?: (id: string) => void`; null-guard wrappers no longer needed.
 
-`onCollapse(scope, nodeId, collapsed)` and `onSetCollapsedEvents(scope, ids)` both expose a `scope: string` that the component itself produces. The caller adds no information — both apps forward the scope to their stores unchanged. The component knows whether it's collapsing a transcript node or an outline node.
+### 5.4 ✅ `swimlaneHeaderExtras` wrapper object with one field
 
-**Fix:** Remove `scope` from the callback signatures. Provide two separate callbacks (`onTranscriptCollapse`, `onOutlineCollapse`) or internalize scope handling.
+Fixed: flattened to `onScrollToTop?: () => void` on `TranscriptLayoutProps`.
 
-### 5.3 `setSelectedId: (id: string | null) => void` type mismatch
+### 5.5 ✅ `collapsed?: boolean` is a three-state via optionality
 
-**Files:** `TranscriptLayout.tsx:82` vs `TranscriptOutline.tsx:68`
+Fixed: changed to `bulkCollapse?: "collapse" | "expand"`.
 
-`TranscriptLayoutOutlineProps.setSelectedId` accepts `string | null`, but `TranscriptOutline` only ever calls it with a non-null `string`. This forces both apps to implement null-dispatch wrappers.
+### 5.6 ✅ `className: string | string[]` throughout
 
-**Fix:** Change to `setSelectedId?: (id: string) => void` and add a separate `clearSelectedId?: () => void`.
+Fixed: public interfaces accept `string` only.
 
-### 5.4 `swimlaneHeaderExtras` wrapper object with one field
+### 5.7 ✅ `useTranscriptTimeline` positional parameter signature
 
-**File:** `packages/inspect-components/src/transcript/TranscriptLayout.tsx:107`
+Fixed: converted to single options object `UseTranscriptTimelineOptions`.
 
-```ts
-swimlaneHeaderExtras?: { onScrollToTop?: () => void };
-```
+### 5.8 ✅ Getter functions instead of values for collapse and URL state — won't fix
 
-A bag-of-one. Only scout passes it. No other "extras" exist or are planned.
+`getCollapsed` and `getEventUrl` are getter functions rather than values, which is non-idiomatic for React props. However, since 5.1 (context) was declined to keep components externally consumable, these getters are acceptable — they're explicit in the props interface and avoid the need to precompute maps for every possible event ID.
 
-**Fix:** Flatten to `onScrollToTop?: () => void` on `TranscriptLayoutProps`.
+### 5.9 ✅ Naming inconsistencies in chat option types
 
-### 5.5 `collapsed?: boolean` is a three-state via optionality
+Fixed: `getCustomView` → `renderToolCall`, `values` → `messageLabels`, `resolveIntoPreviousMessage` → `collapseToolMessages`, `getUrl` → `getMessageUrl`, `topOffset` → `offsetTop`.
 
-**File:** `packages/inspect-components/src/transcript/TranscriptLayout.tsx:127`
+### 5.10 ✅ `id` required in `ChatViewVirtualList` but optional in `ChatView`
 
-`undefined` = no-op, `true` = collapse all, `false` = expand all. This is invisible in the type signature.
-
-**Fix:** Use an explicit union: `bulkCollapse?: "collapse" | "expand"` (omit for no-op), or document the three-state contract.
-
-### 5.6 `className: string | string[]` throughout
-
-Non-standard union. React convention is `className?: string`. While `clsx()` normalizes internally, the public type should match convention.
-
-**Fix:** Accept `string` only in public interfaces. Callers can compose with `clsx()` on their side.
-
-### 5.7 `useTranscriptTimeline` positional parameter signature
-
-**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts`
-
-```ts
-function useTranscriptTimeline(
-  events, markerConfig, timelineOptions, serverTimelines, props
-)
-```
-
-Five positional arguments with defaults and optionals in the middle. Hard to call correctly.
-
-**Fix:** Single options object: `useTranscriptTimeline({ events, markerConfig?, timelineOptions?, ... })`.
-
-### 5.8 Getter functions instead of values for collapse and URL state
-
-`getCollapsed: (id: string) => boolean` and `getEventUrl: (id: string) => string | undefined` in `EventPanelCallbacks`. Function-over-value prevents clean hook dependency arrays and is non-idiomatic for React props. Would be resolved by the context approach in 5.1 — context values can be functions without the same prop-drilling downsides.
-
-### 5.9 Naming inconsistencies in chat option types
-
-| Current | Suggested | Reason |
-|---------|-----------|--------|
-| `ChatViewToolOptions.getCustomView` | `renderToolCall` | render prop convention |
-| `ChatViewLabelOptions.values` | `messageLabels` | more descriptive |
-| `ChatViewToolOptions.resolveIntoPreviousMessage` | `collapseToolMessages` | more concise |
-| `ChatViewLinkingOptions.getUrl` | `getMessageUrl` | more specific |
-| `topOffset` (chat) vs `offsetTop` (transcript) | pick one | inconsistent naming |
-
-### 5.10 `id` required in `ChatViewVirtualList` but optional in `ChatView`
-
-**Files:** `ChatViewVirtualList.tsx:32` vs `ChatView.tsx:17`
-
-Asymmetric sibling API. Since `id` is used for DOM accessibility IDs in `ChatView`, it should probably be required in both.
+Fixed: `id` now required in both.
 
 ---
 
@@ -246,7 +122,7 @@ Asymmetric sibling API. Since `id` is used for DOM accessibility IDs in `ChatVie
 
 ### 6.1 `maxlabelLen` computed inside every `ChatMessageRow` render
 
-**File:** `packages/inspect-components/src/chat/ChatMessageRow.tsx:58-63`
+**File:** `packages/inspect-components/src/chat/ChatMessageRow.tsx`
 
 ```ts
 // TODO: don't do this for every row
@@ -260,7 +136,7 @@ O(n labels) per O(n messages) = O(n^2). `labelValues` is the same object for eve
 
 ### 6.2 `arraysEqual` in `useTimelineConfig` allocates on every render
 
-**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTimelineConfig.ts:59-64`
+**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTimelineConfig.ts`
 
 Two spread+sort operations per render to compare short `MarkerKind[]` arrays. Minor but pointless allocation.
 
@@ -268,7 +144,7 @@ Two spread+sort operations per render to compare short `MarkerKind[]` arrays. Mi
 
 ### 6.3 `TimelineSwimLanes.header` object not memoized
 
-**File:** `packages/inspect-components/src/transcript/TranscriptLayout.tsx:482-503`
+**File:** `packages/inspect-components/src/transcript/TranscriptLayout.tsx`
 
 `TranscriptLayout` constructs the `header` prop as an inline object literal in JSX on every render. This contains nested objects (`minimap`, `timelineConfig`, `timelineSelector`). `TimelineSwimLanes` receives a new object reference each render.
 
@@ -276,20 +152,15 @@ Two spread+sort operations per render to compare short `MarkerKind[]` arrays. Mi
 
 ---
 
-## Priority 7: Test Coverage
+## Priority 7: Test Coverage — ✅ All resolved
 
-### 7.1 Shared timeline hooks have no dedicated tests
+### 7.1 ✅ Shared timeline hooks have no dedicated tests
 
-**Missing tests for:**
-- `useActiveTimeline` — empty timelines crash (1.2), index clamping, `setActive` out-of-range
-- `useTimelineConfig` — smart defaults, `resetToDefaults`
-- `useTranscriptTimeline` — branch scroll targets, `highlightedKeys`
+Fixed: added unit tests for `useActiveTimeline`, `useTimelineConfig`, and `useTranscriptTimeline` hooks. Timeline e2e tests enabled and passing.
 
-Pure algorithmic modules (`core`, `markers`, `swimlaneRows`, etc.) are well covered. The hook integration layer is not.
+### 7.2 ✅ `resolveIntoPreviousMessage: false` path has no test
 
-### 7.2 `resolveIntoPreviousMessage: false` path has no test
-
-The divergence between `ChatView` and `ChatViewVirtualListComponent` (bug 1.3) would be caught by a test that renders both paths with `resolveIntoPreviousMessage: false`.
+Fixed: added `resolveMessages` unit tests covering collapse and non-collapse paths.
 
 ---
 
@@ -297,7 +168,7 @@ The divergence between `ChatView` and `ChatViewVirtualListComponent` (bug 1.3) w
 
 ### 8.1 `outlineAgentName` is presentation state in the data hook
 
-**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts:284-292`
+**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts`
 
 This display-layer string couples the data hook to knowledge of how the outline header renders. If the two apps need different labeling, they must both change the shared hook.
 
@@ -313,7 +184,7 @@ Uses `TranscriptViewNodes` directly — no swimlanes, outline, sticky scroll, or
 
 ### 8.3 `EventNodeContext` is a heterogeneous bag of per-app fields
 
-**File:** `packages/inspect-components/src/transcript/types.ts:140-143`
+**File:** `packages/inspect-components/src/transcript/types.ts`
 
 `hasToolEvents` is set by scout; `turnInfo` is set by inspect. Neither app sets both. As new per-app context needs arise, this type will accumulate unrelated fields.
 
@@ -325,6 +196,6 @@ All calls to `useTimelineConfig` read/write the same `useProperty("timeline", ..
 
 ### 8.5 Inconsistent `display` options between apps
 
-**File:** `apps/scout/src/app/transcript/TranscriptBody.tsx:304-315`
+**File:** `apps/scout/src/app/transcript/TranscriptBody.tsx`
 
 Inspect configures `ChatViewVirtualList` with `display={{ indented: true, unlabeledRoles: ["assistant"], formatDateTime }}`. Scout omits `display` entirely, resulting in different visual rendering of the Messages tab. If intentional, worth a comment.

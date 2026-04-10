@@ -18,6 +18,7 @@ import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { ChatMessageRow } from "./ChatMessageRow";
 import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
+import { computeMaxLabelLength } from "./labelLength";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {
@@ -155,6 +156,11 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
       return index !== -1 ? index : undefined;
     }, [initialMessageId, collapsedMessages]);
 
+    const maxLabelLength = useMemo(
+      () => computeMaxLabelLength(labels?.messageLabels),
+      [labels?.messageLabels]
+    );
+
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
         return (
@@ -167,10 +173,11 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
             labels={labels}
             linking={linking}
             tools={tools}
+            maxLabelLength={maxLabelLength}
           />
         );
       },
-      [id, display, labels, linking, tools]
+      [id, display, labels, linking, tools, maxLabelLength]
     );
 
     const Item = ({

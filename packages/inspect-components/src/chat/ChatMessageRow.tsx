@@ -26,6 +26,7 @@ interface ChatMessageRowProps {
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  maxLabelLength?: number;
 }
 
 /**
@@ -41,6 +42,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   labels,
   linking,
   tools,
+  maxLabelLength,
 }) => {
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
@@ -55,12 +57,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   if (useLabels) {
     // The chat message and label
     const number = index + 1;
-    // TODO: don't do this for every row
-    const maxlabelLen = labelValues
-      ? Object.values(labelValues).reduce((curr, r) => {
-          return Math.max(r.length, curr);
-        }, 0)
-      : 3;
+    const maxlabelLen = maxLabelLength ?? 3;
     const chatMessageLabel =
       labelValues && resolvedMessage.message.id
         ? labelValues[resolvedMessage.message.id] ||

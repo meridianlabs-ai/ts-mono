@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, useMemo } from "react";
 
 import type { ChatMessage as ChatMessageType } from "@tsmono/inspect-common/types";
 
 import { ChatMessageRow } from "./ChatMessageRow";
+import { computeMaxLabelLength } from "./labelLength";
 import { resolveMessages } from "./messages";
 import {
   ChatViewDisplayOptions,
@@ -43,6 +44,10 @@ export const ChatView: FC<ChatViewProps> = ({
           toolMessages: [],
         };
       });
+  const maxLabelLength = useMemo(
+    () => computeMaxLabelLength(labels?.messageLabels),
+    [labels?.messageLabels]
+  );
   return (
     <div className={clsx(className)}>
       {collapsedMessages.map((msg, index) => {
@@ -56,6 +61,7 @@ export const ChatView: FC<ChatViewProps> = ({
             labels={labels}
             linking={linking}
             tools={tools}
+            maxLabelLength={maxLabelLength}
           />
         );
       })}

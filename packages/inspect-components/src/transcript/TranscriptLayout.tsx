@@ -294,6 +294,41 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor, scrubTo]
   );
 
+  const swimlaneHeader = useMemo(
+    () => ({
+      rootLabel: timelineData.root.name,
+      onScrollToTop,
+      minimap: {
+        root: timelineData.root,
+        selection: minimapSelection,
+        mapping: rootTimeMapping,
+        scrubberProgress,
+        onScrub: handleScrub,
+      },
+      timelineConfig,
+      timelineSelector:
+        timelines.length > 1
+          ? {
+              timelines,
+              activeIndex: activeTimelineIndex,
+              onSelect: setActiveTimeline,
+            }
+          : undefined,
+    }),
+    [
+      timelineData.root,
+      onScrollToTop,
+      minimapSelection,
+      rootTimeMapping,
+      scrubberProgress,
+      handleScrub,
+      timelineConfig,
+      timelines,
+      activeTimelineIndex,
+      setActiveTimeline,
+    ]
+  );
+
   // ---------------------------------------------------------------------------
   // Span selection context (agent card clicks → swimlane selection)
   // ---------------------------------------------------------------------------
@@ -464,26 +499,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               <TimelineSwimLanes
                 layouts={timelineLayouts}
                 timeline={timelineState}
-                header={{
-                  rootLabel: timelineData.root.name,
-                  ...(onScrollToTop ? { onScrollToTop } : undefined),
-                  minimap: {
-                    root: timelineData.root,
-                    selection: minimapSelection,
-                    mapping: rootTimeMapping,
-                    scrubberProgress,
-                    onScrub: handleScrub,
-                  },
-                  timelineConfig,
-                  timelineSelector:
-                    timelines.length > 1
-                      ? {
-                          timelines,
-                          activeIndex: activeTimelineIndex,
-                          onSelect: setActiveTimeline,
-                        }
-                      : undefined,
-                }}
+                header={swimlaneHeader}
                 onMarkerNavigate={onMarkerNavigate}
                 isSticky={isSwimLaneSticky}
                 headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
