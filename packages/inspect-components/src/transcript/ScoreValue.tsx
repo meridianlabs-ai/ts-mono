@@ -7,7 +7,7 @@ import { isRecord } from "@tsmono/util";
 
 interface ScoreProps {
   score: JsonValue;
-  className?: string | string[];
+  className?: string;
   maxRows?: number;
 }
 

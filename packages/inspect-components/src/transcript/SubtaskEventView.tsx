@@ -11,20 +11,18 @@ import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
 const kArrowRightIcon = "bi bi-arrow-right";
 
-interface SubtaskEventViewProps extends EventPanelCallbacks {
+interface SubtaskEventViewProps {
   eventNode: EventNode<SubtaskEvent>;
   childNodes: EventNode<EventType>[];
-  className?: string | string[];
+  className?: string;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
   eventNode,
   childNodes,
   className,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const body: ReactNode[] = [];
@@ -64,10 +62,7 @@ export const SubtaskEventView: FC<SubtaskEventViewProps> = ({
       }
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       {body}
     </EventPanel>

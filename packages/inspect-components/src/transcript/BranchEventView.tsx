@@ -12,7 +12,7 @@ import { EventNode } from "./types";
 
 interface BranchEventViewProps {
   eventNode: EventNode<BranchEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const BranchEventView: FC<BranchEventViewProps> = ({

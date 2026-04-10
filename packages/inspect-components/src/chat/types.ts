@@ -9,11 +9,13 @@ export interface ChatViewDisplayOptions {
   unlabeledRoles?: string[];
   /** Format timestamps shown on messages. When absent, timestamps are hidden. */
   formatDateTime?: (date: Date) => string;
+  /** Apply a background color to user messages. Default: true. */
+  highlightUserMessage?: boolean;
 }
 
 export interface ChatViewLabelOptions {
   /** Custom labels keyed by message id (e.g. citation refs). */
-  values?: Record<string, string>;
+  messageLabels?: Record<string, string>;
   /** Show auto-numbered labels. Default: true. */
   show?: boolean;
   /** Highlight rows that have a label. Default: false. */
@@ -24,7 +26,7 @@ export interface ChatViewLinkingOptions {
   /** Show link UI on messages. Default: false. */
   enabled?: boolean;
   /** Build a shareable URL for a message id. */
-  getUrl?: (messageId: string) => string | undefined;
+  getMessageUrl?: (messageId: string) => string | undefined;
   /** Icon class for the link button. Default: "bi bi-link-45deg". */
   icon?: string;
 }
@@ -33,9 +35,9 @@ export interface ChatViewToolOptions {
   /** How tool calls render: full detail, inline summary, or hidden. Default: "complete". */
   callStyle?: ChatViewToolCallStyle;
   /** Collapse tool responses into the preceding assistant message. Default: true. */
-  resolveIntoPreviousMessage?: boolean;
+  collapseToolMessages?: boolean;
   /** Override default tool call rendering for specific tools. */
-  getCustomView?: (
+  renderToolCall?: (
     props: import("./tools/ToolCallView").ToolCallViewProps
   ) => React.ReactNode | undefined;
 }

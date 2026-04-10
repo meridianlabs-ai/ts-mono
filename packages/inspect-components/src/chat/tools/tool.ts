@@ -1,4 +1,3 @@
-/* eslint-disable */
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
 
 export const kToolTodoContentType = "agent/todo-list";
@@ -26,8 +25,8 @@ export const resolveToolInput = (
     args.length > 0 ? `${toolName}(${args.join(", ")})` : toolName;
 
   // For Task tool, use the subagent_type as the display name
-  if (fn === "Task" && toolArgs.subagent_type) {
-    const subagentType = String(toolArgs.subagent_type);
+  if (fn === "Task" && typeof toolArgs.subagent_type === "string") {
+    const subagentType = toolArgs.subagent_type;
     return {
       name: fn,
       functionCall: `Task: ${subagentType}`,
@@ -146,7 +145,10 @@ const extractInput = (
           ? `"${value}"`
           : typeof value === "object" || Array.isArray(value)
             ? JSON.stringify(value, undefined, 2)
-            : String(value);
+            : // Remaining cases are number | boolean | bigint | symbol | undefined
+              // — all safe for String().
+              // eslint-disable-next-line @typescript-eslint/no-base-to-string
+              String(value);
     return `${key}: ${quotedValue}`;
   };
 

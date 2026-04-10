@@ -2,7 +2,9 @@
  * Persistent configuration for timeline options (markers, agents).
  *
  * Each setting is stored via `useProperty` under the "timeline" id namespace
- * so values persist in the store across unmounts.
+ * so values persist in the store across unmounts. Settings are intentionally
+ * global — they apply to all samples/timelines as shared user preferences
+ * rather than per-sample state.
  */
 
 import { useCallback, useMemo } from "react";
@@ -58,9 +60,8 @@ const kDefaultForkRelative = false;
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
-  const sorted1 = [...a].sort();
-  const sorted2 = [...b].sort();
-  return sorted1.every((v, i) => v === sorted2[i]);
+  const set = new Set(a);
+  return b.every((v) => set.has(v));
 }
 
 // =============================================================================

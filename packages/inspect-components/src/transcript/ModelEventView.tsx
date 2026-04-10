@@ -20,15 +20,14 @@ import { EventTimingPanel } from "./event/EventTimingPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
-import { EventNode, EventNodeContext } from "./types";
+import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface ModelEventViewProps {
   eventNode: EventNode<ModelEvent>;
-  className?: string | string[];
+  className?: string;
   showToolCalls: boolean;
   context?: EventNodeContext;
-  getEventUrl?: (eventId: string) => string | undefined;
-  linkingEnabled?: boolean;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const ModelEventView: FC<ModelEventViewProps> = ({
@@ -36,8 +35,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   showToolCalls,
   className,
   context,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const totalUsage = event.output.usage?.total_tokens;
@@ -108,8 +106,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       }
       icon={TranscriptIcons.model}
       turnLabel={turnLabel}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.container}>
         <ChatView
@@ -117,7 +114,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           messages={[...userMessages, ...(outputMessages || [])]}
           tools={{
             callStyle: showToolCalls ? "complete" : "omit",
-            resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+            collapseToolMessages: context?.hasToolEvents !== false,
           }}
           labels={{ show: false }}
         />
@@ -163,7 +160,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             id={`${eventNode.id}-model-input-full`}
             messages={[...event.input, ...(outputMessages || [])]}
             tools={{
-              resolveIntoPreviousMessage: context?.hasToolEvents !== false,
+              collapseToolMessages: context?.hasToolEvents !== false,
             }}
           />
         </EventSection>
@@ -190,7 +187,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
 interface APIViewProps {
   call: ModelCall;
-  className?: string | string[];
+  className?: string;
 }
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {

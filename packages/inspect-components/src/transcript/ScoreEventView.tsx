@@ -13,7 +13,7 @@ import { EventNode } from "./types";
 
 interface ScoreEventViewProps {
   eventNode: EventNode<ScoreEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const ScoreEventView: FC<ScoreEventViewProps> = ({

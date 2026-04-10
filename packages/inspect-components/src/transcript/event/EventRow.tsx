@@ -8,7 +8,7 @@ const kDefaultIcon = "bi bi-table";
 interface EventRowProps {
   title: string;
   icon: string;
-  className?: string | string[];
+  className?: string;
   children?: ReactNode | ReactNode[];
 }
 /**

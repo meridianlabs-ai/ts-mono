@@ -1,5 +1,3 @@
-// TODO: lint react-hooks/exhaustive-deps
-/* eslint-disable react-hooks/exhaustive-deps */
 import clsx from "clsx";
 import { FC, ReactNode, useEffect, useMemo } from "react";
 
@@ -20,11 +18,12 @@ import {
 } from "./StateEventRenderers";
 import styles from "./StateEventView.module.css";
 
-interface StateEventViewProps extends EventPanelCallbacks {
+interface StateEventViewProps {
   eventNode: EventNode<StateEvent | StoreEvent>;
   isStore?: boolean;
-  className?: string | string[];
+  className?: string;
   onAutoCollapse?: (eventId: string) => void;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 type JsonChangeOp = JsonChange["op"];
@@ -35,10 +34,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
   eventNode,
   className,
   onAutoCollapse,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
 
@@ -66,7 +62,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
     const isStore = eventNode.event.event === "store";
     const afterClone = structuredClone(after) || {};
     return generatePreview(event.changes, afterClone, isStore);
-  }, [event.changes, after]);
+  }, [event.changes, eventNode.event.event, after]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
@@ -74,7 +70,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
     if (changePreview === undefined && onAutoCollapse) {
       onAutoCollapse(eventNode.id);
     }
-  }, [changePreview, onAutoCollapse]);
+  }, [changePreview, onAutoCollapse, eventNode.id]);
 
   return (
     <EventPanel
@@ -86,10 +82,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
       }
       text={!changePreview ? summary : undefined}
       collapsibleContent={true}
-      onCollapse={onCollapse}
-      getCollapsed={getCollapsed}
-      getEventUrl={getEventUrl}
-      linkingEnabled={linkingEnabled}
+      eventCallbacks={eventCallbacks}
     >
       {changePreview ? (
         <div data-name="Summary" className={clsx(styles.summary)}>

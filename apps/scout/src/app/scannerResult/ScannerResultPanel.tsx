@@ -4,8 +4,6 @@ import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { EventNode } from "@tsmono/inspect-components/transcript";
-import type { EventType } from "@tsmono/inspect-components/transcript";
 import {
   ExtendedFindProvider,
   JSONPanel,
@@ -302,11 +300,7 @@ export const ScannerResultPanel: FC = () => {
             handleTabChange(kTabIdTranscript);
           }}
         >
-          <TranscriptPanel
-            id="scan-transcript"
-            resultData={resultData}
-            nodeFilter={skipScanSpan}
-          />
+          <TranscriptPanel id="scan-transcript" resultData={resultData} />
         </TabPanel>
       ) : undefined}
       <TabPanel
@@ -402,13 +396,4 @@ export const ScannerResultPanel: FC = () => {
       )}
     </div>
   );
-};
-
-const skipScanSpan = (
-  nodes: EventNode<EventType>[]
-): EventNode<EventType>[] => {
-  if (nodes.length === 1 && nodes[0]?.event.event === "span_begin") {
-    return nodes[0].children;
-  }
-  return nodes;
 };

@@ -28,11 +28,7 @@ import {
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
-import {
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
-} from "./types";
-import type { EventNode, EventType } from "./types";
+import type { EventNode, EventPanelCallbacks } from "./types";
 
 // =============================================================================
 // Types
@@ -44,22 +40,20 @@ export interface TranscriptViewNodesProps {
   defaultCollapsedIds: Record<string, boolean>;
   /** Whether events are still being streamed (enables auto-follow scroll). */
   running?: boolean;
-  nodeFilter?: (node: EventNode<EventType>[]) => EventNode<EventType>[];
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
   offsetTop?: number;
-  className?: string | string[];
-  renderAgentCard?: (
-    node: EventNode,
-    className?: string | string[]
-  ) => ReactNode;
+  className?: string;
+  renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
 
-  // Collapse state callbacks (app provides via its store)
-  collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
-  onCollapse?: (scope: string, nodeId: string, collapsed: boolean) => void;
+  // Collapse state (app provides via its store, already scope-specific)
+  collapsedTranscript?: Record<string, boolean>;
+  /** Outline collapse state, used only for turn-map computation. */
+  collapsedOutline?: Record<string, boolean>;
+  onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -82,7 +76,6 @@ export const TranscriptViewNodes = forwardRef<
     eventNodes,
     defaultCollapsedIds,
     running,
-    nodeFilter,
     scrollRef,
     initialEventId,
     offsetTop = 10,
@@ -91,47 +84,41 @@ export const TranscriptViewNodes = forwardRef<
     turnMap,
     getEventUrl,
     linkingEnabled,
-    collapsedEvents,
-    onCollapse: onCollapseCallback,
+    collapsedTranscript,
+    collapsedOutline,
+    onCollapseTranscript,
   },
   ref
 ) {
   const listHandle = useRef<VirtuosoHandle | null>(null);
 
-  const onCollapse = useCallback(
-    (nodeId: string, collapsed: boolean) => {
-      onCollapseCallback?.(kTranscriptCollapseScope, nodeId, collapsed);
-    },
-    [onCollapseCallback]
-  );
-
   const getCollapsed = useCallback(
     (nodeId: string) => {
-      const scopeEvents = collapsedEvents?.[kTranscriptCollapseScope];
-      return scopeEvents?.[nodeId] === true;
+      return collapsedTranscript?.[nodeId] === true;
     },
-    [collapsedEvents]
+    [collapsedTranscript]
   );
 
-  const filteredEventNodes = nodeFilter ? nodeFilter(eventNodes) : eventNodes;
+  const eventCallbacks = useMemo<EventPanelCallbacks>(
+    () => ({
+      onCollapse: onCollapseTranscript,
+      getCollapsed,
+      getEventUrl,
+      linkingEnabled,
+    }),
+    [onCollapseTranscript, getCollapsed, getEventUrl, linkingEnabled]
+  );
 
   const flattenedNodes = useMemo(() => {
-    return flatTree(
-      filteredEventNodes,
-      (collapsedEvents
-        ? collapsedEvents[kTranscriptCollapseScope]
-        : undefined) || defaultCollapsedIds
-    );
-  }, [filteredEventNodes, collapsedEvents, defaultCollapsedIds]);
+    return flatTree(eventNodes, collapsedTranscript || defaultCollapsedIds);
+  }, [eventNodes, collapsedTranscript, defaultCollapsedIds]);
 
   // Auto-compute turnMap when not provided by the parent
   const computedTurnMap = useMemo(() => {
     if (turnMap) return turnMap;
     const outlineFiltered = flatTree(
-      filteredEventNodes,
-      (collapsedEvents
-        ? collapsedEvents[kTranscriptOutlineCollapseScope]
-        : undefined) || defaultCollapsedIds,
+      eventNodes,
+      collapsedOutline || defaultCollapsedIds,
       [
         removeNodeVisitor("logger"),
         removeNodeVisitor("info"),
@@ -147,8 +134,8 @@ export const TranscriptViewNodes = forwardRef<
     return computeTurnMap(outlineFiltered, flattenedNodes);
   }, [
     turnMap,
-    filteredEventNodes,
-    collapsedEvents,
+    eventNodes,
+    collapsedOutline,
     defaultCollapsedIds,
     flattenedNodes,
   ]);
@@ -215,10 +202,7 @@ export const TranscriptViewNodes = forwardRef<
           initialEventId={initialEventId}
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
-          onCollapse={onCollapse}
-          getCollapsed={getCollapsed}
-          getEventUrl={getEventUrl}
-          linkingEnabled={linkingEnabled}
+          eventCallbacks={eventCallbacks}
         />
       </div>
     </StickyScrollProvider>

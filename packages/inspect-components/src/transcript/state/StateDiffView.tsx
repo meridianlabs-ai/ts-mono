@@ -6,7 +6,7 @@ import { FC } from "react";
 interface StateDiffViewProps {
   before: object;
   after: object;
-  className?: string | string[];
+  className?: string;
 }
 
 /**

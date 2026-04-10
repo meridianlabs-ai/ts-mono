@@ -126,6 +126,26 @@ export interface EventPanelCallbacks {
   linkingEnabled?: boolean;
 }
 
+/**
+ * Collapse state and callbacks for transcript and outline scopes.
+ * Apps provide scope-specific callbacks so components don't need
+ * to know about scope string constants.
+ */
+export interface TranscriptCollapseState {
+  /** Current collapsed node IDs for the transcript event list. */
+  transcript?: Record<string, boolean>;
+  /** Current collapsed node IDs for the outline. */
+  outline?: Record<string, boolean>;
+  /** Collapse/expand a single transcript event node. */
+  onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
+  /** Collapse/expand a single outline node. */
+  onCollapseOutline?: (nodeId: string, collapsed: boolean) => void;
+  /** Bulk-set transcript collapsed state (for collapse-all / expand-all). */
+  onSetTranscriptCollapsed?: (ids: Record<string, boolean>) => void;
+  /** Bulk-set outline collapsed state (for initialization). */
+  onSetOutlineCollapsed?: (ids: Record<string, boolean>) => void;
+}
+
 export interface TranscriptEventState {
   selectedNav?: string;
   collapsed?: boolean;

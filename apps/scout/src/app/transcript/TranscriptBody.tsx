@@ -12,7 +12,10 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import {
+  ChatViewVirtualList,
+  messagesToStr,
+} from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   MetaDataGrid,
@@ -23,14 +26,13 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
-import { isHostedEnvironment } from "@tsmono/util";
+import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
-import { messagesToStr } from "../utils/messages";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
@@ -307,9 +309,13 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialMessageId={messageParam}
         className={styles.chatList}
         scrollRef={activeScrollRef}
+        display={{
+          unlabeledRoles: ["assistant"],
+          formatDateTime,
+        }}
         linking={{
           enabled: isHostedEnvironment(),
-          getUrl: getFullMessageUrl,
+          getMessageUrl: getFullMessageUrl,
         }}
       />
     </TabPanel>
@@ -335,7 +341,13 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialMessageId={messageParam}
         defaultOutlineExpanded={true}
         id="transcript-events-list"
-        collapsed={eventsCollapsed}
+        bulkCollapse={
+          eventsCollapsed === undefined
+            ? undefined
+            : eventsCollapsed
+              ? "collapse"
+              : "expand"
+        }
         onMarkerNavigate={handleMarkerNavigate}
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}

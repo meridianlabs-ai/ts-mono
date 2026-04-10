@@ -13,7 +13,10 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
-import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import {
+  ChatViewVirtualList,
+  messagesToStr,
+} from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   RecordTree,
@@ -58,7 +61,6 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { messagesToStr } from "../shared/messages";
 
 import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
@@ -476,7 +478,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 events={sampleEvents || []}
                 eventsCleared={eventsCleared}
                 initialEventId={sampleDetailNavigation.event}
-                topOffset={tabsHeight}
+                offsetTop={tabsHeight}
                 running={running}
                 scrollRef={scrollRef}
                 timelines={sample?.timelines ?? undefined}
@@ -501,7 +503,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 id={`${baseId}-chat-${id}`}
                 messages={sampleMessages}
                 initialMessageId={sampleDetailNavigation.message}
-                topOffset={tabsHeight}
+                offsetTop={tabsHeight}
                 display={{
                   indented: true,
                   unlabeledRoles: ["assistant"],
@@ -509,7 +511,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 }}
                 linking={{
                   enabled: isHostedEnvironment(),
-                  getUrl: getMessageUrl,
+                  getMessageUrl: getMessageUrl,
                 }}
                 onNativeFindChanged={setNativeFind}
                 scrollRef={scrollRef}

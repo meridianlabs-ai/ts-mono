@@ -60,8 +60,7 @@ import {
 import {
   EventNode,
   kCollapsibleEventTypes,
-  kTranscriptCollapseScope,
-  kTranscriptOutlineCollapseScope,
+  type TranscriptCollapseState,
 } from "./types";
 
 // =============================================================================
@@ -79,7 +78,7 @@ export interface TranscriptLayoutOutlineProps {
   renderLink?: (url: string, children: ReactNode) => ReactNode;
   onNavigateToEvent?: (eventId: string) => void;
   selectedId?: string | null;
-  setSelectedId?: (id: string | null) => void;
+  setSelectedId?: (id: string) => void;
 }
 
 export interface TranscriptLayoutProps {
@@ -104,7 +103,7 @@ export interface TranscriptLayoutProps {
   // --- Swimlane control ---
   showSwimlanes?: boolean | "auto";
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
-  swimlaneHeaderExtras?: { onScrollToTop?: () => void };
+  onScrollToTop?: () => void;
 
   // --- Headroom ---
   headroomHidden?: boolean;
@@ -122,14 +121,13 @@ export interface TranscriptLayoutProps {
   linkingEnabled?: boolean;
 
   // --- Collapse state (from app store) ---
-  /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
-  collapsed?: boolean;
-  collapsedEvents?: Record<string, Record<string, boolean> | undefined>;
-  onCollapse?: (scope: string, nodeId: string, collapsed: boolean) => void;
-  onSetCollapsedEvents?: (scope: string, ids: Record<string, boolean>) => void;
+  /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
+  bulkCollapse?: "collapse" | "expand";
+  collapseState?: TranscriptCollapseState;
 
   // --- Outline ---
-  outline: TranscriptLayoutOutlineProps;
+  /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
+  outline?: TranscriptLayoutOutlineProps;
 
   /** Text shown when no events match the current filter. Pass null to disable empty state. */
   emptyText?: string | null;
@@ -174,7 +172,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   agentConfig: agentConfigOverride,
   showSwimlanes: showSwimlanesOption = "auto",
   onMarkerNavigate,
-  swimlaneHeaderExtras,
+  onScrollToTop,
   headroomHidden,
   onHeadroomResetAnchor,
   listId,
@@ -183,10 +181,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   eventsListRef,
   getEventUrl,
   linkingEnabled,
-  collapsed,
-  collapsedEvents,
-  onCollapse,
-  onSetCollapsedEvents,
+  bulkCollapse,
+  collapseState,
   outline,
   emptyText = "No events match the current filter",
   className,
@@ -204,17 +200,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Timeline pipeline
   // ---------------------------------------------------------------------------
 
-  const timelineProps = useMemo(
-    () =>
-      timelineSelection
-        ? {
-            timelineProps: timelineSelection,
-            activeTimelineProps: activeTimeline,
-          }
-        : undefined,
-    [timelineSelection, activeTimeline]
-  );
-
   const {
     timeline: timelineData,
     state: timelineState,
@@ -230,14 +215,15 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
-    outlineAgentName,
-  } = useTranscriptTimeline(
+    selectedRowName,
+  } = useTranscriptTimeline({
     events,
-    resolvedMarkerConfig,
-    resolvedAgentConfig,
+    markerConfig: resolvedMarkerConfig,
+    timelineOptions: resolvedAgentConfig,
     serverTimelines,
-    timelineProps
-  );
+    timelineProps: timelineSelection,
+    activeTimelineProps: activeTimeline,
+  });
 
   // ---------------------------------------------------------------------------
   // Swimlane visibility
@@ -307,6 +293,41 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       scrubTo(progress);
     },
     [onHeadroomResetAnchor, scrubTo]
+  );
+
+  const swimlaneHeader = useMemo(
+    () => ({
+      rootLabel: timelineData.root.name,
+      onScrollToTop,
+      minimap: {
+        root: timelineData.root,
+        selection: minimapSelection,
+        mapping: rootTimeMapping,
+        scrubberProgress,
+        onScrub: handleScrub,
+      },
+      timelineConfig,
+      timelineSelector:
+        timelines.length > 1
+          ? {
+              timelines,
+              activeIndex: activeTimelineIndex,
+              onSelect: setActiveTimeline,
+            }
+          : undefined,
+    }),
+    [
+      timelineData.root,
+      onScrollToTop,
+      minimapSelection,
+      rootTimeMapping,
+      scrubberProgress,
+      handleScrub,
+      timelineConfig,
+      timelines,
+      activeTimelineIndex,
+      setActiveTimeline,
+    ]
   );
 
   // ---------------------------------------------------------------------------
@@ -381,25 +402,25 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Bulk collapse/expand
   // ---------------------------------------------------------------------------
 
+  const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
   useEffect(() => {
-    if (
-      events.length <= 0 ||
-      collapsed === undefined ||
-      !onSetCollapsedEvents
-    ) {
+    if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
-    if (!collapsed && Object.keys(defaultCollapsedIds).length > 0) {
-      onSetCollapsedEvents(kTranscriptCollapseScope, defaultCollapsedIds);
-    } else if (collapsed) {
+    if (
+      bulkCollapse === "expand" &&
+      Object.keys(defaultCollapsedIds).length > 0
+    ) {
+      onSetTranscriptCollapsed(defaultCollapsedIds);
+    } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      onSetCollapsedEvents(kTranscriptCollapseScope, allCollapsibleIds);
+      onSetTranscriptCollapsed(allCollapsibleIds);
     }
   }, [
     defaultCollapsedIds,
     eventNodes,
-    collapsed,
-    onSetCollapsedEvents,
+    bulkCollapse,
+    onSetTranscriptCollapsed,
     events.length,
   ]);
 
@@ -428,8 +449,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }
 
   const hasMatchingEvents = eventNodes.length > 0;
-  const autoHidden = !reportedHasNodes && !outline.collapsed;
-  const isOutlineCollapsed = outline.collapsed || autoHidden;
+  const autoHidden = outline ? !reportedHasNodes && !outline.collapsed : false;
+  const isOutlineCollapsed = !outline || outline.collapsed || autoHidden;
 
   const outlineHasNodes = isOutlineCollapsed
     ? hasMatchingEvents
@@ -443,7 +464,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // ---------------------------------------------------------------------------
 
   const renderAgentCard = useCallback(
-    (node: EventNode, agentCardClassName?: string | string[]) => {
+    (node: EventNode, agentCardClassName?: string) => {
       const span = node.sourceSpan as TimelineSpan | undefined;
       if (!span) return null;
       return <AgentCardView span={span} className={agentCardClassName} />;
@@ -479,28 +500,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               <TimelineSwimLanes
                 layouts={timelineLayouts}
                 timeline={timelineState}
-                header={{
-                  rootLabel: timelineData.root.name,
-                  ...(swimlaneHeaderExtras?.onScrollToTop
-                    ? { onScrollToTop: swimlaneHeaderExtras.onScrollToTop }
-                    : undefined),
-                  minimap: {
-                    root: timelineData.root,
-                    selection: minimapSelection,
-                    mapping: rootTimeMapping,
-                    scrubberProgress,
-                    onScrub: handleScrub,
-                  },
-                  timelineConfig,
-                  timelineSelector:
-                    timelines.length > 1
-                      ? {
-                          timelines,
-                          activeIndex: activeTimelineIndex,
-                          onSelect: setActiveTimeline,
-                        }
-                      : undefined,
-                }}
+                header={swimlaneHeader}
                 onMarkerNavigate={onMarkerNavigate}
                 isSticky={isSwimLaneSticky}
                 headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
@@ -515,7 +515,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         <div
           className={clsx(
             styles.container,
-            isOutlineCollapsed && styles.outlineCollapsed
+            !outline && styles.noOutline,
+            outline && isOutlineCollapsed && styles.outlineCollapsed
           )}
           style={
             {
@@ -523,63 +524,66 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
             } as CSSProperties
           }
         >
-          <StickyScroll
-            scrollRef={scrollRef}
-            className={styles.outline}
-            offsetTop={effectiveOffsetTop}
-          >
-            {!isOutlineCollapsed && (
-              <TranscriptOutline
-                eventNodes={eventNodes}
-                defaultCollapsedIds={defaultCollapsedIds}
+          {outline && (
+            <>
+              <StickyScroll
                 scrollRef={scrollRef}
-                running={running}
-                agentName={
-                  outline.name ?? (showSwimlanes ? outlineAgentName : undefined)
-                }
-                scrollTrackOffset={effectiveOffsetTop}
-                getCollapsed={
-                  collapsedEvents
-                    ? (scope: string, nodeId: string) =>
-                        collapsedEvents[scope]?.[nodeId] === true
-                    : undefined
-                }
-                setCollapsed={onCollapse}
-                getCollapsedEvents={
-                  collapsedEvents
-                    ? () => collapsedEvents[kTranscriptOutlineCollapseScope]
-                    : undefined
-                }
-                setCollapsedEvents={onSetCollapsedEvents}
-                selectedOutlineId={outline.selectedId}
-                setSelectedOutlineId={outline.setSelectedId}
-                getEventUrl={getEventUrl}
-                renderLink={outline.renderLink}
-                onNavigateToEvent={outline.onNavigateToEvent}
-                onHasNodesChange={handleOutlineHasNodesChange}
-              />
-            )}
-            <button
-              type="button"
-              className={styles.outlineToggle}
-              onClick={
-                outlineHasNodes && !outline.toggleDisabled
-                  ? () => outline.onCollapsedChange(!isOutlineCollapsed)
-                  : undefined
-              }
-              aria-disabled={outline.toggleDisabled || !outlineHasNodes}
-              title={
-                outline.toggleTitle ??
-                (!outlineHasNodes
-                  ? "No outline available for the current filter"
-                  : undefined)
-              }
-              aria-label={isOutlineCollapsed ? "Show outline" : "Hide outline"}
-            >
-              <i className={outline.toggleIcon} />
-            </button>
-          </StickyScroll>
-          <div className={styles.separator} />
+                className={styles.outline}
+                offsetTop={effectiveOffsetTop}
+              >
+                {!isOutlineCollapsed && (
+                  <TranscriptOutline
+                    eventNodes={eventNodes}
+                    defaultCollapsedIds={defaultCollapsedIds}
+                    scrollRef={scrollRef}
+                    running={running}
+                    agentName={
+                      outline.name ??
+                      (showSwimlanes ? selectedRowName : undefined)
+                    }
+                    scrollTrackOffset={effectiveOffsetTop}
+                    getCollapsed={
+                      collapseState?.outline
+                        ? (nodeId: string) =>
+                            collapseState.outline?.[nodeId] === true
+                        : undefined
+                    }
+                    setCollapsed={collapseState?.onCollapseOutline}
+                    collapsedEvents={collapseState?.outline}
+                    setCollapsedEvents={collapseState?.onSetOutlineCollapsed}
+                    selectedOutlineId={outline.selectedId}
+                    setSelectedOutlineId={outline.setSelectedId}
+                    getEventUrl={getEventUrl}
+                    renderLink={outline.renderLink}
+                    onNavigateToEvent={outline.onNavigateToEvent}
+                    onHasNodesChange={handleOutlineHasNodesChange}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={styles.outlineToggle}
+                  onClick={
+                    outlineHasNodes && !outline.toggleDisabled
+                      ? () => outline.onCollapsedChange(!isOutlineCollapsed)
+                      : undefined
+                  }
+                  aria-disabled={outline.toggleDisabled || !outlineHasNodes}
+                  title={
+                    outline.toggleTitle ??
+                    (!outlineHasNodes
+                      ? "No outline available for the current filter"
+                      : undefined)
+                  }
+                  aria-label={
+                    isOutlineCollapsed ? "Show outline" : "Hide outline"
+                  }
+                >
+                  <i className={outline.toggleIcon} />
+                </button>
+              </StickyScroll>
+              <div className={styles.separator} />
+            </>
+          )}
           {hasMatchingEvents ? (
             <TranscriptViewNodes
               key={effectiveListId}
@@ -595,8 +599,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
               getEventUrl={getEventUrl}
               linkingEnabled={linkingEnabled}
-              collapsedEvents={collapsedEvents}
-              onCollapse={onCollapse}
+              collapsedTranscript={collapseState?.transcript}
+              collapsedOutline={collapseState?.outline}
+              onCollapseTranscript={collapseState?.onCollapseTranscript}
             />
           ) : emptyText !== null ? (
             <NoContentsPanel text={emptyText} />

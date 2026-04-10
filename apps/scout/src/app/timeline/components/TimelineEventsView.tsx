@@ -1,10 +1,12 @@
 import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
-  buildTimeline,
-  convertServerTimeline,
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
   TranscriptLayout,
+  useTimelinesArray,
   type MarkerConfig,
+  type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
@@ -35,8 +37,8 @@ interface TimelineEventsViewProps {
   defaultOutlineExpanded?: boolean;
   /** Unique ID for the virtual list. */
   id: string;
-  /** Bulk collapse/expand of all collapsible events. undefined = no-op. */
-  collapsed?: boolean;
+  /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
+  bulkCollapse?: "collapse" | "expand";
   /** Called when a marker (error, compaction) is clicked on the swimlane.
    *  Optional `selectedKey` requests the bar be selected atomically with navigation. */
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
@@ -72,7 +74,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   initialMessageId,
   defaultOutlineExpanded = false,
   id,
-  collapsed,
+  bulkCollapse,
   onMarkerNavigate,
   markerConfig,
   timeline: timelineProp = "auto",
@@ -90,17 +92,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
 
   const timelineSelection = useTimelineSearchParams();
 
-  // Build timelines to resolve the URL-param-based active index.
-  // The shared hook rebuilds them internally (memoized), so no perf cost.
-  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
-  const convertedTimelines = useMemo(
-    () =>
-      serverTimelines && serverTimelines.length > 0
-        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
-        : null,
-    [serverTimelines, events]
-  );
-  const timelinesArray = convertedTimelines ?? [builtTimeline];
+  const timelinesArray = useTimelinesArray(events, serverTimelines);
   const activeTimeline = useActiveTimelineSearchParams(timelinesArray);
 
   // ---------------------------------------------------------------------------
@@ -108,11 +100,31 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
 
   const collapsedEvents = useStore((state) => state.transcriptCollapsedEvents);
-  const setCollapsedEvent = useStore(
+  const setCollapsedEventStore = useStore(
     (state) => state.setTranscriptCollapsedEvent
   );
-  const setCollapsedEvents = useStore(
+  const setCollapsedEventsStore = useStore(
     (state) => state.setTranscriptCollapsedEvents
+  );
+
+  const collapseState = useMemo<TranscriptCollapseState>(
+    () => ({
+      transcript: collapsedEvents[kTranscriptCollapseScope],
+      outline: collapsedEvents[kTranscriptOutlineCollapseScope],
+      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
+        setCollapsedEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
+        setCollapsedEventStore(
+          kTranscriptOutlineCollapseScope,
+          nodeId,
+          collapsed
+        ),
+      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    }),
+    [collapsedEvents, setCollapsedEventStore, setCollapsedEventsStore]
   );
 
   // ---------------------------------------------------------------------------
@@ -127,21 +139,11 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
-  const rawSetSelectedOutlineId = useStore(
+  const setSelectedOutlineId = useStore(
     (state) => state.setTranscriptOutlineId
   );
   const clearTranscriptOutlineId = useStore(
     (state) => state.clearTranscriptOutlineId
-  );
-  const setSelectedOutlineId = useCallback(
-    (id: string | null) => {
-      if (id) {
-        rawSetSelectedOutlineId(id);
-      } else {
-        clearTranscriptOutlineId();
-      }
-    },
-    [rawSetSelectedOutlineId, clearTranscriptOutlineId]
   );
 
   // Clean up outline ID on unmount
@@ -184,7 +186,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       agentConfig={agentConfig}
       showSwimlanes={timelineProp}
       onMarkerNavigate={onMarkerNavigate}
-      swimlaneHeaderExtras={{ onScrollToTop: scrollToTop }}
+      onScrollToTop={scrollToTop}
       headroomHidden={headroomHidden}
       onHeadroomResetAnchor={onHeadroomResetAnchor}
       listId={id}
@@ -193,10 +195,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}
-      collapsed={collapsed}
-      collapsedEvents={collapsedEvents}
-      onCollapse={setCollapsedEvent}
-      onSetCollapsedEvents={setCollapsedEvents}
+      bulkCollapse={bulkCollapse}
+      collapseState={collapseState}
       outline={{
         collapsed: userOutlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,

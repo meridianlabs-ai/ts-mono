@@ -16,7 +16,6 @@ import type {
 } from "@tsmono/inspect-common/types";
 
 import type { Timeline, TimelineSpan } from "../core";
-import { buildTimeline, convertServerTimeline } from "../core";
 import {
   defaultMarkerConfig,
   resolveForkTimestamp,
@@ -54,6 +53,7 @@ import {
   type TimelineState,
   type UseTimelineProps,
 } from "./useTimeline";
+import { useTimelinesArray } from "./useTimelinesArray";
 
 const emptySourceSpans: ReadonlyMap<string, TimelineSpan> = new Map();
 const emptyHighlightedKeys: ReadonlyMap<string, number> = new Map();
@@ -89,11 +89,19 @@ export interface TranscriptTimelineResult {
   branchScrollTarget: string | null;
   /** Row key -> highlight clip percentage (0-100) within the bar area. */
   highlightedKeys: ReadonlyMap<string, number>;
-  /** Agent name for the outline header (selected row name or root name). */
-  outlineAgentName: string;
+  /** Name of the currently selected swimlane row, or the root name when nothing is selected. */
+  selectedRowName: string;
 }
 
-export interface UseTranscriptTimelineProps {
+export interface UseTranscriptTimelineOptions {
+  /** The flat event array to process. */
+  events: Event[];
+  /** Marker configuration for swimlane layout. Defaults to `defaultMarkerConfig`. */
+  markerConfig?: MarkerConfig;
+  /** Timeline agent filtering/branch options. */
+  timelineOptions?: TimelineOptions;
+  /** Server-provided timelines (used when available instead of building from events). */
+  serverTimelines?: ServerTimeline[];
   /** Props for timeline selection state. */
   timelineProps?: UseTimelineProps;
   /** Props for active timeline state. */
@@ -101,32 +109,33 @@ export interface UseTranscriptTimelineProps {
 }
 
 export function useTranscriptTimeline(
-  events: Event[],
-  markerConfig: MarkerConfig = defaultMarkerConfig,
-  timelineOptions?: TimelineOptions,
-  serverTimelines?: ServerTimeline[],
-  props?: UseTranscriptTimelineProps
+  options: UseTranscriptTimelineOptions
 ): TranscriptTimelineResult {
+  const {
+    events,
+    markerConfig = defaultMarkerConfig,
+    timelineOptions,
+    serverTimelines,
+    timelineProps,
+    activeTimelineProps,
+  } = options;
+
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
   const forkRelative = timelineOptions?.forkRelative ?? false;
-  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
-  const convertedTimelines = useMemo(
-    () =>
-      serverTimelines && serverTimelines.length > 0
-        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
-        : null,
-    [serverTimelines, events]
-  );
-  const timelines = convertedTimelines ?? [builtTimeline];
+  const timelines = useTimelinesArray(events, serverTimelines);
 
   const {
-    active: timeline,
+    active: activeTimeline,
     activeIndex: activeTimelineIndex,
     setActive: setActiveTimeline,
-  } = useActiveTimeline(timelines, props?.activeTimelineProps);
+  } = useActiveTimeline(timelines, activeTimelineProps);
 
-  const state = useTimeline(timeline, timelineOptions, props?.timelineProps);
+  // timelines is always non-empty here (built from events or serverTimelines),
+  // so activeTimeline is guaranteed to be defined.
+  const timeline = activeTimeline!;
+
+  const state = useTimeline(timeline, timelineOptions, timelineProps);
 
   // Filter out child rows whose spans contain no events.
   // The parent row (depth 0) is always kept.
@@ -283,7 +292,7 @@ export function useTranscriptTimeline(
 
   // Compute the agent name for the outline header.
   // When a swimlane row is selected, show its name; otherwise show the root.
-  const outlineAgentName = useMemo(() => {
+  const selectedRowName = useMemo(() => {
     if (!state.selected) return timeline.root.name;
     const parsed = parseSelection(state.selected);
     const rowKey = parsed?.rowKey ?? state.selected;
@@ -307,7 +316,7 @@ export function useTranscriptTimeline(
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
-    outlineAgentName,
+    selectedRowName,
   };
 }
 

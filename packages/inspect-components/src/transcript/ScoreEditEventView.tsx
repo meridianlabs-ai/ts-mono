@@ -13,7 +13,7 @@ import { EventNode } from "./types";
 
 interface ScoreEditEventViewProps {
   eventNode: EventNode<ScoreEditEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 const kUnchangedSentinel = "UNCHANGED";

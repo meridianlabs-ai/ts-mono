@@ -20,12 +20,12 @@ interface ChatMessageRowProps {
   index: number;
   parentName: string;
   resolvedMessage: ResolvedMessage;
-  highlightUserMessage?: boolean;
   className?: string | string[];
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  maxLabelLength?: number;
 }
 
 /**
@@ -35,18 +35,19 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   index,
   parentName,
   resolvedMessage,
-  highlightUserMessage,
   className,
   display,
   labels,
   linking,
   tools,
+  maxLabelLength,
 }) => {
+  const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
-  const labelValues = labels?.values;
+  const labelValues = labels?.messageLabels;
   const highlightLabeled = labels?.highlight ?? false;
   const toolCallStyle = tools?.callStyle ?? "complete";
-  const getCustomToolView = tools?.getCustomView;
+  const getCustomToolView = tools?.renderToolCall;
 
   const views: ReactNode[] = [];
   const viewLabels: Array<string | undefined> = [];
@@ -55,12 +56,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   if (useLabels) {
     // The chat message and label
     const number = index + 1;
-    // TODO: don't do this for every row
-    const maxlabelLen = labelValues
-      ? Object.values(labelValues).reduce((curr, r) => {
-          return Math.max(r.length, curr);
-        }, 0)
-      : 3;
+    const maxlabelLen = maxLabelLength ?? 3;
     const chatMessageLabel =
       labelValues && resolvedMessage.message.id
         ? labelValues[resolvedMessage.message.id] ||
@@ -74,7 +70,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     <ChatMessage
       id={`${parentName}-chat-messages`}
       message={resolvedMessage.message}
-      toolMessages={resolvedMessage.toolMessages}
       display={display}
       linking={linking}
     />

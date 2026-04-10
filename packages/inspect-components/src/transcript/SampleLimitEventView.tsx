@@ -13,7 +13,7 @@ import { EventNode } from "./types";
 type EvalSampleLimitType = EvalSampleLimit["type"];
 interface SampleLimitEventViewProps {
   eventNode: EventNode<SampleLimitEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({

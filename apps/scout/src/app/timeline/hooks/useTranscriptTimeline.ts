@@ -5,13 +5,10 @@
  * URL-param-backed selection and active-timeline state.
  */
 
-import { useMemo } from "react";
-
 import type { Event } from "@tsmono/inspect-common/types";
 import {
-  buildTimeline,
-  convertServerTimeline,
   defaultMarkerConfig,
+  useTimelinesArray,
   useTranscriptTimeline as useTranscriptTimelineShared,
   type MarkerConfig,
   type TranscriptTimelineResult,
@@ -32,27 +29,15 @@ export function useTranscriptTimeline(
   serverTimelines?: ServerTimeline[]
 ): TranscriptTimelineResult {
   const timelineProps = useTimelineSearchParams();
-
-  // Build the timelines here so we can resolve the URL-param-based active
-  // index. The shared hook rebuilds them internally (memoized), so the
-  // duplication is negligible.
-  const builtTimeline = useMemo(() => buildTimeline(events), [events]);
-  const convertedTimelines = useMemo(
-    () =>
-      serverTimelines && serverTimelines.length > 0
-        ? serverTimelines.map((tl) => convertServerTimeline(tl, events))
-        : null,
-    [serverTimelines, events]
-  );
-  const timelines = convertedTimelines ?? [builtTimeline];
-
+  const timelines = useTimelinesArray(events, serverTimelines);
   const activeTimelineProps = useActiveTimelineSearchParams(timelines);
 
-  return useTranscriptTimelineShared(
+  return useTranscriptTimelineShared({
     events,
     markerConfig,
     timelineOptions,
     serverTimelines,
-    { timelineProps, activeTimelineProps }
-  );
+    timelineProps,
+    activeTimelineProps,
+  });
 }

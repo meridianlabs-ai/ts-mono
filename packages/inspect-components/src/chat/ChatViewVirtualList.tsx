@@ -18,6 +18,7 @@ import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { ChatMessageRow } from "./ChatMessageRow";
 import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
+import { computeMaxLabelLength } from "./labelLength";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {
@@ -32,7 +33,7 @@ export interface ChatViewVirtualListProps {
   messages: ChatMessage[];
   className?: string | string[];
   initialMessageId?: string | null;
-  topOffset?: number;
+  offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
@@ -51,7 +52,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     id,
     messages,
     initialMessageId,
-    topOffset,
+    offsetTop,
     className,
     scrollRef,
     running,
@@ -97,7 +98,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
           scrollRef={scrollRef}
           messages={messages}
           initialMessageId={initialMessageId}
-          topOffset={topOffset}
+          offsetTop={offsetTop}
           running={running}
           display={display}
           labels={labels}
@@ -118,7 +119,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     listHandle,
     messages,
     initialMessageId,
-    topOffset,
+    offsetTop,
     className,
     scrollRef,
     running,
@@ -127,9 +128,15 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     linking,
     tools,
   }: ChatViewVirtualListComponentProps) {
+    const resolveInto = tools?.collapseToolMessages ?? true;
     const collapsedMessages = useMemo(() => {
-      return resolveMessages(messages);
-    }, [messages]);
+      return resolveInto
+        ? resolveMessages(messages)
+        : messages.map((msg) => ({
+            message: msg,
+            toolMessages: [],
+          }));
+    }, [resolveInto, messages]);
 
     const initialMessageIndex = useMemo(() => {
       if (initialMessageId === null || initialMessageId === undefined) {
@@ -149,6 +156,11 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
       return index !== -1 ? index : undefined;
     }, [initialMessageId, collapsedMessages]);
 
+    const maxLabelLength = useMemo(
+      () => computeMaxLabelLength(labels?.messageLabels),
+      [labels?.messageLabels]
+    );
+
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
         return (
@@ -156,16 +168,15 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
             index={index}
             parentName={id || "chat-virtual-list"}
             resolvedMessage={item}
-            highlightUserMessage={true}
             display={display}
             labels={labels}
             linking={linking}
             tools={tools}
+            maxLabelLength={maxLabelLength}
           />
         );
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [id, collapsedMessages, display, labels, linking, tools]
+      [id, display, labels, linking, tools, maxLabelLength]
     );
 
     const Item = ({
@@ -195,7 +206,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
         data={collapsedMessages}
         renderRow={renderRow}
         initialTopMostItemIndex={initialMessageIndex}
-        offsetTop={topOffset}
+        offsetTop={offsetTop}
         live={running}
         showProgress={running}
         components={{ Item }}

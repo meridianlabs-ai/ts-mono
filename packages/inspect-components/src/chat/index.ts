@@ -11,6 +11,9 @@ export type {
 export type { Message, ResolvedMessage } from "./messages";
 export { resolveMessages } from "./messages";
 
+export type { MessagesToStrOptions } from "./messagesToStr";
+export { messagesToStr } from "./messagesToStr";
+
 export { messageSearchText } from "./messageSearchText";
 
 // Tool utilities

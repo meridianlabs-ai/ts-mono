@@ -8,7 +8,7 @@ import { EventNode } from "./types";
 
 interface ApprovalEventViewProps {
   eventNode: EventNode<ApprovalEvent>;
-  className?: string | string[];
+  className?: string;
 }
 
 /**

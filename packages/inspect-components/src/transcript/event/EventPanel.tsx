@@ -12,6 +12,7 @@ import { CopyButton } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { useStickyObserver } from "../hooks/useStickyObserver";
+import type { EventPanelCallbacks } from "../types";
 
 import { EventNavs } from "./EventNavs";
 import styles from "./EventPanel.module.css";
@@ -24,7 +25,7 @@ const kDefaultIcon = "bi bi-table";
 
 interface EventPanelProps {
   eventNodeId: string;
-  className?: string | string[];
+  className?: string;
   title?: string;
   subTitle?: string;
   text?: string;
@@ -39,14 +40,8 @@ interface EventPanelProps {
   depth?: number;
   /** Turn label displayed in the header (e.g. "turn 1/3"). */
   turnLabel?: string;
-  /** Callback to set collapse state. If not provided, collapse is not persisted externally. */
-  onCollapse?: (id: string, collapsed: boolean) => void;
-  /** Callback to get collapse state. */
-  getCollapsed?: (id: string) => boolean;
-  /** Callback to generate a deep-link URL for this event. */
-  getEventUrl?: (eventId: string) => string | undefined;
-  /** Whether deep linking is enabled. */
-  linkingEnabled?: boolean;
+  /** Collapse state and deep-link callbacks from the app store. */
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 interface ChildProps {
@@ -70,11 +65,10 @@ export const EventPanel: FC<EventPanelProps> = ({
   muted,
   depth,
   turnLabel,
-  onCollapse,
-  getCollapsed,
-  getEventUrl,
-  linkingEnabled,
+  eventCallbacks,
 }) => {
+  const { onCollapse, getCollapsed, getEventUrl, linkingEnabled } =
+    eventCallbacks ?? {};
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
 

@@ -6,14 +6,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
+  kTranscriptCollapseScope,
+  kTranscriptOutlineCollapseScope,
   TranscriptLayout,
-  type TranscriptViewNodesHandle,
+  type TranscriptCollapseState,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
@@ -35,7 +36,7 @@ interface TranscriptPanelProps {
   scrollRef: RefObject<HTMLDivElement | null>;
   running?: boolean;
   initialEventId?: string | null;
-  topOffset?: number;
+  offsetTop?: number;
   eventsCleared?: boolean;
   timelines?: ServerTimeline[];
 }
@@ -51,7 +52,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     events,
     running,
     initialEventId,
-    topOffset,
+    offsetTop,
     eventsCleared,
     timelines: serverTimelines,
   } = props;
@@ -107,19 +108,37 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const collapsedEvents = useStore((state) => state.sample.collapsedEvents);
-  const setCollapsedEvents = useStore(
+  const setCollapsedEventsStore = useStore(
     (state) => state.sampleActions.setCollapsedEvents
   );
-  const collapseEvent = useStore((state) => state.sampleActions.collapseEvent);
+  const collapseEventStore = useStore(
+    (state) => state.sampleActions.collapseEvent
+  );
+
+  const collapseState = useMemo<TranscriptCollapseState>(() => {
+    const events = collapsedEvents ?? undefined;
+    return {
+      transcript: events?.[kTranscriptCollapseScope],
+      outline: events?.[kTranscriptOutlineCollapseScope],
+      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
+        collapseEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
+        collapseEventStore(kTranscriptOutlineCollapseScope, nodeId, collapsed),
+      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    };
+  }, [collapsedEvents, collapseEventStore, setCollapsedEventsStore]);
 
   // Bulk collapse mode: "collapsed" | "expanded" | null
-  // Map to the layout's collapsed?: boolean prop
+  // Map to the layout's bulkCollapse?: "collapse" | "expand" prop
   const collapsedMode = useStore((state) => state.sample.collapsedMode);
-  const layoutCollapsed = useMemo(() => {
-    if (collapsedMode === "collapsed") return true;
-    if (collapsedMode === "expanded") return false;
+  const bulkCollapse = useMemo<"collapse" | "expand" | undefined>(() => {
+    if (collapsedMode === "collapsed") return "collapse";
+    if (collapsedMode === "expanded") return "expand";
     // collapsedMode === null: apply defaults if no collapsedEvents yet
-    if (!collapsedEvents) return false;
+    if (!collapsedEvents) return "expand";
     return undefined;
   }, [collapsedMode, collapsedEvents]);
 
@@ -159,21 +178,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const outlineCollapsed = outlineCollapsedRaw ?? false;
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
-  const rawSetSelectedOutlineId = useStore(
+  const setSelectedOutlineId = useStore(
     (state) => state.sampleActions.setSelectedOutlineId
-  );
-  const clearSelectedOutlineId = useStore(
-    (state) => state.sampleActions.clearSelectedOutlineId
-  );
-  const setSelectedOutlineId = useCallback(
-    (id: string | null) => {
-      if (id) {
-        rawSetSelectedOutlineId(id);
-      } else {
-        clearSelectedOutlineId();
-      }
-    },
-    [rawSetSelectedOutlineId, clearSelectedOutlineId]
   );
 
   // Sync initial event ID to outline selection for deep-link navigation
@@ -182,12 +188,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       setSelectedOutlineId(initialEventId);
     }
   }, [initialEventId, setSelectedOutlineId]);
-
-  // ---------------------------------------------------------------------------
-  // Event list ref & outline navigation
-  // ---------------------------------------------------------------------------
-
-  const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
 
   // ---------------------------------------------------------------------------
   // Deep-link URL builder
@@ -263,7 +263,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       events={filteredEvents}
       running={running}
       scrollRef={scrollRef}
-      offsetTop={topOffset}
+      offsetTop={offsetTop}
       timelineSelection={timelineSelection}
       activeTimeline={activeTimeline}
       serverTimelines={serverTimelines}
@@ -273,13 +273,10 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       onHeadroomResetAnchor={onHeadroomResetAnchor}
       listId={id}
       initialEventId={initialEventId}
-      eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={true}
-      collapsed={layoutCollapsed}
-      collapsedEvents={collapsedEvents ?? undefined}
-      onCollapse={collapseEvent}
-      onSetCollapsedEvents={setCollapsedEvents}
+      bulkCollapse={bulkCollapse}
+      collapseState={collapseState}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,

@@ -14,7 +14,7 @@ import { useScrollTrack, useVirtuosoState } from "@tsmono/react/hooks";
 
 import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
-import { EventNode, kTranscriptOutlineCollapseScope } from "../types";
+import { EventNode } from "../types";
 
 import { OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
@@ -34,7 +34,7 @@ interface TranscriptOutlineProps {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
   running?: boolean;
-  className?: string | string[];
+  className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   style?: CSSProperties;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */
@@ -52,16 +52,13 @@ interface TranscriptOutlineProps {
   /** URL generator for deep linking to events. */
   getEventUrl?: (eventId: string) => string | undefined;
   /** Get collapsed state for an outline node. */
-  getCollapsed?: (scope: string, id: string) => boolean;
+  getCollapsed?: (id: string) => boolean;
   /** Set collapsed state for an outline node. */
-  setCollapsed?: (scope: string, id: string, collapsed: boolean) => void;
-  /** Get the full collapsed events map for a scope. */
-  getCollapsedEvents?: () => Record<string, boolean> | undefined;
+  setCollapsed?: (id: string, collapsed: boolean) => void;
+  /** Current collapsed events for the outline scope. */
+  collapsedEvents?: Record<string, boolean>;
   /** Set multiple collapsed events at once (for initialization). */
-  setCollapsedEvents?: (
-    scope: string,
-    collapsed: Record<string, boolean>
-  ) => void;
+  setCollapsedEvents?: (collapsed: Record<string, boolean>) => void;
   /** Currently selected outline node ID. */
   selectedOutlineId?: string | null;
   /** Set the selected outline node ID. */
@@ -103,7 +100,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   getEventUrl,
   getCollapsed,
   setCollapsed,
-  getCollapsedEvents,
+  collapsedEvents,
   setCollapsedEvents,
   selectedOutlineId,
   setSelectedOutlineId,
@@ -112,9 +109,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   const id = "transcript-tree";
   const listHandle = useRef<VirtuosoHandle | null>(null);
   const { getRestoreState } = useVirtuosoState(listHandle, id);
-
-  // Get collapsed events for filtering
-  const collapsedEvents = getCollapsedEvents?.();
 
   // Flag to indicate programmatic scrolling is in progress.
   const isProgrammaticScrolling = useRef(false);
@@ -249,10 +243,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   // Initialize collapsed events from defaults
   useEffect(() => {
     if (!collapsedEvents && Object.keys(defaultCollapsedIds).length > 0) {
-      setCollapsedEvents?.(
-        kTranscriptOutlineCollapseScope,
-        defaultCollapsedIds
-      );
+      setCollapsedEvents?.(defaultCollapsedIds);
     }
   }, [defaultCollapsedIds, collapsedEvents, setCollapsedEvents]);
 
@@ -269,7 +260,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       } else {
         return (
           <OutlineRow
-            collapseScope={kTranscriptOutlineCollapseScope}
             node={node}
             key={node.id}
             running={running && index === outlineNodeList.length - 1}
