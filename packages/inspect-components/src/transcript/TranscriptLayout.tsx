@@ -103,7 +103,7 @@ export interface TranscriptLayoutProps {
   // --- Swimlane control ---
   showSwimlanes?: boolean | "auto";
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
-  swimlaneHeaderExtras?: { onScrollToTop?: () => void };
+  onScrollToTop?: () => void;
 
   // --- Headroom ---
   headroomHidden?: boolean;
@@ -171,7 +171,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   agentConfig: agentConfigOverride,
   showSwimlanes: showSwimlanesOption = "auto",
   onMarkerNavigate,
-  swimlaneHeaderExtras,
+  onScrollToTop,
   headroomHidden,
   onHeadroomResetAnchor,
   listId,
@@ -477,9 +477,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 timeline={timelineState}
                 header={{
                   rootLabel: timelineData.root.name,
-                  ...(swimlaneHeaderExtras?.onScrollToTop
-                    ? { onScrollToTop: swimlaneHeaderExtras.onScrollToTop }
-                    : undefined),
+                  ...(onScrollToTop ? { onScrollToTop } : undefined),
                   minimap: {
                     root: timelineData.root,
                     selection: minimapSelection,
