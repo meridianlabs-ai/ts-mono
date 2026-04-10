@@ -9,6 +9,8 @@ export interface ChatViewDisplayOptions {
   unlabeledRoles?: string[];
   /** Format timestamps shown on messages. When absent, timestamps are hidden. */
   formatDateTime?: (date: Date) => string;
+  /** Apply a background color to user messages. Default: true. */
+  highlightUserMessage?: boolean;
 }
 
 export interface ChatViewLabelOptions {

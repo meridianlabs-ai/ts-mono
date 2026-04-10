@@ -168,7 +168,6 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
             index={index}
             parentName={id || "chat-virtual-list"}
             resolvedMessage={item}
-            highlightUserMessage={true}
             display={display}
             labels={labels}
             linking={linking}

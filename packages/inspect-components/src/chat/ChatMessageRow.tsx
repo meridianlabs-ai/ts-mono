@@ -20,7 +20,6 @@ interface ChatMessageRowProps {
   index: number;
   parentName: string;
   resolvedMessage: ResolvedMessage;
-  highlightUserMessage?: boolean;
   className?: string | string[];
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
@@ -36,7 +35,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   index,
   parentName,
   resolvedMessage,
-  highlightUserMessage,
   className,
   display,
   labels,
@@ -44,6 +42,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   tools,
   maxLabelLength,
 }) => {
+  const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
   const highlightLabeled = labels?.highlight ?? false;
