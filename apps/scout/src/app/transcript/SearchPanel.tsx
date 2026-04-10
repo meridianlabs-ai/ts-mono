@@ -1,4 +1,6 @@
+import clsx from "clsx";
 import {
+  ChangeEvent,
   FC,
   FormEvent,
   KeyboardEvent,
@@ -12,11 +14,14 @@ import {
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
+  SegmentedControl,
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../components/icons";
 import { useApi } from "../../state/store";
 import { Result, SavedSearch, SearchRequest } from "../../types/api-types";
+import { Chip } from "../components/Chip";
+import { ChipGroup } from "../components/ChipGroup";
 import { useProjectConfig } from "../server/useProjectConfig";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
@@ -24,12 +29,25 @@ import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./SearchPanel.module.css";
 
 type SearchType = "grep" | "llm";
+type PanelView = "results" | "recent";
 
-interface SearchPanelProps {
+type GrepOptions = {
+  ignoreCase: boolean;
+  regex: boolean;
+  wordBoundary: boolean;
+};
+
+const defaultGrepOptions: GrepOptions = {
+  ignoreCase: true,
+  regex: false,
+  wordBoundary: false,
+};
+
+type SearchPanelProps = {
   transcriptDir: string;
   transcriptId: string;
   onClose: () => void;
-}
+};
 
 export const SearchPanel: FC<SearchPanelProps> = ({
   transcriptDir,
@@ -41,19 +59,15 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const projectConfig = useProjectConfig();
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
   const [recentSearches, setRecentSearches] = useState<SavedSearch[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<SearchType>("grep");
+  const [panelView, setPanelView] = useState<PanelView>("recent");
+  const [grepOptions, setGrepOptions] =
+    useState<GrepOptions>(defaultGrepOptions);
   const [model, setModel] = useState<string>("");
-  const [modelInitialized, setModelInitialized] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const { getFullMessageUrl } = useTranscriptNavigation();
-
-  useEffect(() => {
-    if (!modelInitialized && projectConfig.data?.config.model) {
-      setModel(projectConfig.data.config.model);
-      setModelInitialized(true);
-    }
-  }, [modelInitialized, projectConfig.data]);
 
   useEffect(() => {
     void api.getSearches(transcriptDir, transcriptId).then((response) => {
@@ -61,30 +75,42 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     });
   }, [api, transcriptDir, transcriptId]);
 
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [query, resizeTextarea]);
+
   const handleSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-      const text = textarea.value.trim();
+      const text = query.trim();
       if (!text || loading) return;
 
       setLoading(true);
       setHasSearched(true);
+      setPanelView("results");
+      setCurrentSearch(null);
 
       const request: SearchRequest =
         searchType === "grep"
           ? {
-              ignore_case: true,
+              ignore_case: grepOptions.ignoreCase,
               query: text,
-              regex: false,
+              regex: grepOptions.regex,
               type: "grep",
-              word_boundary: false,
+              word_boundary: grepOptions.wordBoundary,
             }
           : {
               query: text,
               type: "llm",
-              model: model || null,
+              model: model.trim() || projectConfig.data?.config.model || null,
             };
 
       void api
@@ -103,7 +129,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
           setLoading(false);
         });
     },
-    [api, transcriptDir, transcriptId, searchType, loading, model]
+    [
+      api,
+      transcriptDir,
+      transcriptId,
+      grepOptions.ignoreCase,
+      grepOptions.regex,
+      grepOptions.wordBoundary,
+      searchType,
+      loading,
+      model,
+      projectConfig.data?.config.model,
+      query,
+    ]
   );
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -116,17 +154,40 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const handleSelectRecent = useCallback((search: SavedSearch) => {
     setCurrentSearch(search);
     setHasSearched(true);
-    if (textareaRef.current) {
-      textareaRef.current.value = search.query;
-    }
+    setQuery(search.query);
     setSearchType(search.type);
+    setPanelView("results");
     if (search.type === "llm") {
       setModel(search.model ?? "");
+    } else {
+      setGrepOptions({
+        ignoreCase: search.ignore_case,
+        regex: search.regex,
+        wordBoundary: search.word_boundary,
+      });
     }
   }, []);
 
-  const showRecentSearches =
-    !hasSearched && !loading && recentSearches.length > 0;
+  const toggleGrepOption = useCallback((key: keyof GrepOptions) => {
+    setGrepOptions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }, []);
+
+  const handleSearchTypeChange = useCallback((type: SearchType) => {
+    setSearchType(type);
+  }, []);
+
+  const handleQueryChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      setQuery(e.target.value);
+    },
+    []
+  );
+
+  const showResults = panelView === "results";
+  const showRecentSearches = panelView === "recent";
 
   return (
     <div className={styles.container}>
@@ -136,41 +197,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         onClose={onClose}
       />
       <div className={styles.body}>
-        <div className={styles.searchArea}>
-          <div className={styles.typeToggle}>
-            <button
-              type="button"
-              className={
-                searchType === "grep"
-                  ? styles.typeButtonActive
-                  : styles.typeButton
-              }
-              onClick={() => setSearchType("grep")}
-            >
-              Grep
-            </button>
-            <button
-              type="button"
-              className={
-                searchType === "llm"
-                  ? styles.typeButtonActive
-                  : styles.typeButton
-              }
-              onClick={() => setSearchType("llm")}
-            >
-              LLM
-            </button>
-          </div>
-          {searchType === "llm" && (
-            <input
-              type="text"
-              className={styles.modelInput}
-              placeholder="Model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            />
-          )}
-          <form className={styles.form} onSubmit={handleSubmit}>
+        <form className={styles.searchArea} onSubmit={handleSubmit}>
+          <div className={styles.inputShell}>
             <textarea
               ref={textareaRef}
               className={styles.textarea}
@@ -179,42 +207,126 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                   ? "Search for text..."
                   : "Ask a question about this transcript..."
               }
-              rows={1}
+              value={query}
+              rows={4}
+              onChange={handleQueryChange}
               onKeyDown={handleKeyDown}
             />
+          </div>
+          <div className={styles.controlsRow}>
+            <div className={styles.typeToggle}>
+              <SegmentedControl
+                selectedId={searchType}
+                segments={[
+                  { id: "llm", label: "LLM" },
+                  { id: "grep", label: "Grep" },
+                ]}
+                onSegmentChange={(segmentId) =>
+                  handleSearchTypeChange(segmentId as SearchType)
+                }
+              />
+            </div>
+            <div className={styles.modeRow}>
+              {searchType === "grep" ? (
+                <div className={styles.modeControls}>
+                  <ModeToggle
+                    label="Ignore Case"
+                    active={grepOptions.ignoreCase}
+                    onClick={() => toggleGrepOption("ignoreCase")}
+                  />
+                  <ModeToggle
+                    label="Regex"
+                    active={grepOptions.regex}
+                    onClick={() => toggleGrepOption("regex")}
+                  />
+                  <ModeToggle
+                    label="Whole Word"
+                    active={grepOptions.wordBoundary}
+                    onClick={() => toggleGrepOption("wordBoundary")}
+                  />
+                </div>
+              ) : (
+                <div className={styles.modelPill}>
+                  <i
+                    className={clsx(ApplicationIcons.model, styles.modelIcon)}
+                  />
+                  <span className={styles.modelLabel}>Model</span>
+                  <input
+                    type="text"
+                    className={styles.modelInput}
+                    placeholder={
+                      projectConfig.data?.config.model || "Project default"
+                    }
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <div className={styles.footerRow}>
+            <button
+              type="button"
+              className={clsx(
+                styles.footerAction,
+                showRecentSearches && styles.footerActionActive
+              )}
+              onClick={() => setPanelView("recent")}
+            >
+              Recent
+            </button>
             <button
               type="submit"
-              className={styles.searchButton}
-              title="Search"
-              disabled={loading}
+              className={styles.runButton}
+              disabled={loading || !query.trim()}
             >
-              <i className={ApplicationIcons.search} />
+              {loading ? "Running..." : "Run"}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
         <div className={styles.results}>
-          {loading && <div className={styles.loading}>Searching...</div>}
-          {!loading && hasSearched && currentSearch === null && (
-            <div className={styles.noResults}>No results found</div>
+          {showResults && loading && (
+            <div className={styles.emptyState}>Searching…</div>
           )}
-          {!loading &&
+          {showResults && !loading && hasSearched && currentSearch === null && (
+            <div className={styles.emptyState}>No results found</div>
+          )}
+          {showResults &&
+            !loading &&
             hasSearched &&
             currentSearch !== null &&
             currentSearch.results.length === 0 && (
-              <div className={styles.noResults}>No results found</div>
+              <div className={styles.emptyState}>No results found</div>
             )}
-          {currentSearch?.results.map((result, index) => (
-            <SearchResult
-              key={result.uuid ?? index}
-              result={result}
-              getFullMessageUrl={getFullMessageUrl}
-            />
-          ))}
-          {showRecentSearches && (
+          {showResults &&
+            !loading &&
+            currentSearch !== null &&
+            currentSearch.results.length > 0 && (
+              <div className={styles.sectionHeader}>Results</div>
+            )}
+          {showResults &&
+            currentSearch?.results.map((result, index) => (
+              <SearchResult
+                key={result.uuid ?? index}
+                result={result}
+                getFullMessageUrl={getFullMessageUrl}
+              />
+            ))}
+          {showResults && !loading && !hasSearched && (
+            <div className={styles.emptyState}>
+              Run a search or open a recent query.
+            </div>
+          )}
+          {showRecentSearches && recentSearches.length > 0 && (
             <RecentSearches
               searches={recentSearches}
               onSelect={handleSelectRecent}
             />
+          )}
+          {showRecentSearches && recentSearches.length === 0 && (
+            <div className={styles.emptyState}>
+              Recent searches will show up here.
+            </div>
           )}
         </div>
       </div>
@@ -222,12 +334,27 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   );
 };
 
+const ModeToggle: FC<{
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}> = ({ active, label, onClick }) => (
+  <button
+    type="button"
+    className={clsx(styles.modeToggle, active && styles.modeToggleActive)}
+    onClick={onClick}
+    aria-pressed={active}
+  >
+    {label}
+  </button>
+);
+
 const RecentSearches: FC<{
   searches: SavedSearch[];
   onSelect: (search: SavedSearch) => void;
 }> = ({ searches, onSelect }) => (
   <div className={styles.recentSearches}>
-    <div className={styles.recentHeader}>Recent searches</div>
+    <div className={styles.sectionHeader}>Recent searches</div>
     {searches.map((search) => (
       <button
         key={search.search_id}
@@ -235,8 +362,22 @@ const RecentSearches: FC<{
         className={styles.recentItem}
         onClick={() => onSelect(search)}
       >
-        <span className={styles.recentType}>{search.type}</span>
-        <span className={styles.recentQuery}>{search.query}</span>
+        <div className={styles.recentQuery}>{search.query}</div>
+        <ChipGroup className={styles.recentMeta}>
+          <Chip value={search.type === "llm" ? "LLM" : "Grep"} />
+          {search.type === "llm" && search.model ? (
+            <Chip label="Model" value={search.model} />
+          ) : undefined}
+          {search.type === "grep" && search.regex ? (
+            <Chip value="Regex" />
+          ) : undefined}
+          {search.type === "grep" && search.word_boundary ? (
+            <Chip value="Whole Word" />
+          ) : undefined}
+          {search.type === "grep" && search.ignore_case ? (
+            <Chip value="Ignore Case" />
+          ) : undefined}
+        </ChipGroup>
       </button>
     ))}
   </div>
