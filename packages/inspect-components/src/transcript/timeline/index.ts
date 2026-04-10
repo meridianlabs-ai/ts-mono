@@ -112,7 +112,7 @@ export {
   type UseActiveTimelineResult,
   type UseTimelineConfigResult,
   type UseTimelineProps,
-  type UseTranscriptTimelineProps,
+  type UseTranscriptTimelineOptions,
 } from "./hooks";
 
 // Components (React UI)

@@ -199,17 +199,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Timeline pipeline
   // ---------------------------------------------------------------------------
 
-  const timelineProps = useMemo(
-    () =>
-      timelineSelection
-        ? {
-            timelineProps: timelineSelection,
-            activeTimelineProps: activeTimeline,
-          }
-        : undefined,
-    [timelineSelection, activeTimeline]
-  );
-
   const {
     timeline: timelineData,
     state: timelineState,
@@ -226,13 +215,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     branchScrollTarget,
     highlightedKeys,
     outlineAgentName,
-  } = useTranscriptTimeline(
+  } = useTranscriptTimeline({
     events,
-    resolvedMarkerConfig,
-    resolvedAgentConfig,
+    markerConfig: resolvedMarkerConfig,
+    timelineOptions: resolvedAgentConfig,
     serverTimelines,
-    timelineProps
-  );
+    timelineProps: timelineSelection,
+    activeTimelineProps: activeTimeline,
+  });
 
   // ---------------------------------------------------------------------------
   // Swimlane visibility

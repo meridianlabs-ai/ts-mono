@@ -93,20 +93,68 @@ export interface TranscriptTimelineResult {
   outlineAgentName: string;
 }
 
-export interface UseTranscriptTimelineProps {
+export interface UseTranscriptTimelineOptions {
+  /** The flat event array to process. */
+  events: Event[];
+  /** Marker configuration for swimlane layout. Defaults to `defaultMarkerConfig`. */
+  markerConfig?: MarkerConfig;
+  /** Timeline agent filtering/branch options. */
+  timelineOptions?: TimelineOptions;
+  /** Server-provided timelines (used when available instead of building from events). */
+  serverTimelines?: ServerTimeline[];
   /** Props for timeline selection state. */
   timelineProps?: UseTimelineProps;
   /** Props for active timeline state. */
   activeTimelineProps?: UseActiveTimelineProps;
 }
 
+/**
+ * @deprecated Use the options-object overload instead.
+ */
 export function useTranscriptTimeline(
   events: Event[],
-  markerConfig: MarkerConfig = defaultMarkerConfig,
+  markerConfig?: MarkerConfig,
   timelineOptions?: TimelineOptions,
   serverTimelines?: ServerTimeline[],
-  props?: UseTranscriptTimelineProps
+  props?: {
+    timelineProps?: UseTimelineProps;
+    activeTimelineProps?: UseActiveTimelineProps;
+  }
+): TranscriptTimelineResult;
+export function useTranscriptTimeline(
+  options: UseTranscriptTimelineOptions
+): TranscriptTimelineResult;
+export function useTranscriptTimeline(
+  eventsOrOptions: Event[] | UseTranscriptTimelineOptions,
+  markerConfigArg?: MarkerConfig,
+  timelineOptionsArg?: TimelineOptions,
+  serverTimelinesArg?: ServerTimeline[],
+  propsArg?: {
+    timelineProps?: UseTimelineProps;
+    activeTimelineProps?: UseActiveTimelineProps;
+  }
 ): TranscriptTimelineResult {
+  // Normalise: support both positional and options-object signatures.
+  const opts: UseTranscriptTimelineOptions = Array.isArray(eventsOrOptions)
+    ? {
+        events: eventsOrOptions,
+        markerConfig: markerConfigArg,
+        timelineOptions: timelineOptionsArg,
+        serverTimelines: serverTimelinesArg,
+        timelineProps: propsArg?.timelineProps,
+        activeTimelineProps: propsArg?.activeTimelineProps,
+      }
+    : eventsOrOptions;
+
+  const {
+    events,
+    markerConfig = defaultMarkerConfig,
+    timelineOptions,
+    serverTimelines,
+    timelineProps,
+    activeTimelineProps,
+  } = opts;
+
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
   const forkRelative = timelineOptions?.forkRelative ?? false;
@@ -116,13 +164,13 @@ export function useTranscriptTimeline(
     active: activeTimeline,
     activeIndex: activeTimelineIndex,
     setActive: setActiveTimeline,
-  } = useActiveTimeline(timelines, props?.activeTimelineProps);
+  } = useActiveTimeline(timelines, activeTimelineProps);
 
   // timelines is always non-empty here (built from events or serverTimelines),
   // so activeTimeline is guaranteed to be defined.
   const timeline = activeTimeline!;
 
-  const state = useTimeline(timeline, timelineOptions, props?.timelineProps);
+  const state = useTimeline(timeline, timelineOptions, timelineProps);
 
   // Filter out child rows whose spans contain no events.
   // The parent row (depth 0) is always kept.

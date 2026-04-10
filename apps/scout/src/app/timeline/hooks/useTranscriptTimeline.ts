@@ -32,11 +32,12 @@ export function useTranscriptTimeline(
   const timelines = useTimelinesArray(events, serverTimelines);
   const activeTimelineProps = useActiveTimelineSearchParams(timelines);
 
-  return useTranscriptTimelineShared(
+  return useTranscriptTimelineShared({
     events,
     markerConfig,
     timelineOptions,
     serverTimelines,
-    { timelineProps, activeTimelineProps }
-  );
+    timelineProps,
+    activeTimelineProps,
+  });
 }
