@@ -214,7 +214,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
-    outlineAgentName,
+    selectedRowName,
   } = useTranscriptTimeline({
     events,
     markerConfig: resolvedMarkerConfig,
@@ -534,7 +534,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 scrollRef={scrollRef}
                 running={running}
                 agentName={
-                  outline.name ?? (showSwimlanes ? outlineAgentName : undefined)
+                  outline.name ?? (showSwimlanes ? selectedRowName : undefined)
                 }
                 scrollTrackOffset={effectiveOffsetTop}
                 getCollapsed={

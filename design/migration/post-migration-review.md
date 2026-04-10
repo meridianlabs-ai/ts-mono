@@ -166,13 +166,9 @@ Fixed: added `resolveMessages` unit tests covering collapse and non-collapse pat
 
 ## Priority 8: Design Observations (Non-Blocking)
 
-### 8.1 `outlineAgentName` is presentation state in the data hook
+### 8.1 ✅ `outlineAgentName` is presentation state in the data hook
 
-**File:** `packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts`
-
-This display-layer string couples the data hook to knowledge of how the outline header renders. If the two apps need different labeling, they must both change the shared hook.
-
-**Suggestion:** Expose `selectedRowName` or let each app derive the label from `state.rows` + `state.selected`.
+Fixed: renamed to `selectedRowName` — a presentation-neutral name that describes the data without coupling to the outline UI.
 
 ### 8.2 Scout scanner `TranscriptPanel` bypasses `TranscriptLayout` entirely
 

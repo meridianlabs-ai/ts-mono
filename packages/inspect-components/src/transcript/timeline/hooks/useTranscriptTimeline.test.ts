@@ -169,7 +169,7 @@ describe("useTranscriptTimeline", () => {
     expect(result.current.activeTimelineIndex).toBe(0);
   });
 
-  it("outlineAgentName defaults to root name", () => {
+  it("selectedRowName defaults to root name", () => {
     const { result } = renderHook(() =>
       useTranscriptTimeline({
         events,
@@ -177,7 +177,7 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.outlineAgentName).toBe("Transcript");
+    expect(result.current.selectedRowName).toBe("Transcript");
   });
 
   it("highlightedKeys is empty when no branch is selected", () => {

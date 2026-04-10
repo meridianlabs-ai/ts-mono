@@ -89,8 +89,8 @@ export interface TranscriptTimelineResult {
   branchScrollTarget: string | null;
   /** Row key -> highlight clip percentage (0-100) within the bar area. */
   highlightedKeys: ReadonlyMap<string, number>;
-  /** Agent name for the outline header (selected row name or root name). */
-  outlineAgentName: string;
+  /** Name of the currently selected swimlane row, or the root name when nothing is selected. */
+  selectedRowName: string;
 }
 
 export interface UseTranscriptTimelineOptions {
@@ -292,7 +292,7 @@ export function useTranscriptTimeline(
 
   // Compute the agent name for the outline header.
   // When a swimlane row is selected, show its name; otherwise show the root.
-  const outlineAgentName = useMemo(() => {
+  const selectedRowName = useMemo(() => {
     if (!state.selected) return timeline.root.name;
     const parsed = parseSelection(state.selected);
     const rowKey = parsed?.rowKey ?? state.selected;
@@ -316,7 +316,7 @@ export function useTranscriptTimeline(
     regionCounts,
     branchScrollTarget,
     highlightedKeys,
-    outlineAgentName,
+    selectedRowName,
   };
 }
 
