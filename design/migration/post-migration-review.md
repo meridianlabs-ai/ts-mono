@@ -178,20 +178,14 @@ Uses `TranscriptViewNodes` directly — no swimlanes, outline, sticky scroll, or
 
 **Suggestion:** Add a comment explaining the intentional divergence.
 
-### 8.3 `EventNodeContext` is a heterogeneous bag of per-app fields
+### 8.3 ✅ `EventNodeContext` is a heterogeneous bag of per-app fields — no longer applicable
 
-**File:** `packages/inspect-components/src/transcript/types.ts`
-
-`hasToolEvents` is set by scout; `turnInfo` is set by inspect. Neither app sets both. As new per-app context needs arise, this type will accumulate unrelated fields.
-
-**Suggestion:** Consider discriminated union or per-app extension interface.
+Both fields are now computed in the shared package: `hasToolEvents` in `TranscriptVirtualListComponent`, `turnInfo` via auto-computed `turnMap` in `TranscriptViewNodes`. Neither is app-specific anymore.
 
 ### 8.4 `useTimelineConfig` is not scoped — all samples share the same persistent state
 
 All calls to `useTimelineConfig` read/write the same `useProperty("timeline", ...)` keys regardless of which sample or timeline is active. If a user enables "show branches" for one sample, it applies everywhere. This may be intentional (global preference), but it's worth documenting.
 
-### 8.5 Inconsistent `display` options between apps
+### 8.5 ✅ Inconsistent `display` options between apps
 
-**File:** `apps/scout/src/app/transcript/TranscriptBody.tsx`
-
-Inspect configures `ChatViewVirtualList` with `display={{ indented: true, unlabeledRoles: ["assistant"], formatDateTime }}`. Scout omits `display` entirely, resulting in different visual rendering of the Messages tab. If intentional, worth a comment.
+Fixed: scout's `TranscriptBody` now passes `unlabeledRoles: ["assistant"]` and `formatDateTime` to match inspect's Messages tab behavior. Scout intentionally omits `indented: true` for density in its transcript layout.

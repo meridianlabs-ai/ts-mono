@@ -26,7 +26,7 @@ import {
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
-import { isHostedEnvironment } from "@tsmono/util";
+import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { getValidationParam, updateValidationParam } from "../../router/url";
@@ -309,6 +309,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialMessageId={messageParam}
         className={styles.chatList}
         scrollRef={activeScrollRef}
+        display={{
+          unlabeledRoles: ["assistant"],
+          formatDateTime,
+        }}
         linking={{
           enabled: isHostedEnvironment(),
           getMessageUrl: getFullMessageUrl,
