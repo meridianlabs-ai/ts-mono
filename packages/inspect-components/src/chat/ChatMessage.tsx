@@ -1,11 +1,7 @@
 import clsx from "clsx";
 import { FC, memo, useState } from "react";
 
-import type {
-  ChatMessageTool,
-  ContentImage,
-  ContentText,
-} from "@tsmono/inspect-common/types";
+import type { ContentImage, ContentText } from "@tsmono/inspect-common/types";
 import {
   CopyButton,
   ExpandablePanel,
@@ -23,7 +19,6 @@ import { ChatViewDisplayOptions, ChatViewLinkingOptions } from "./types";
 interface ChatMessageProps {
   id: string;
   message: Message;
-  toolMessages: ChatMessageTool[];
   display?: ChatViewDisplayOptions;
   linking?: ChatViewLinkingOptions;
 }

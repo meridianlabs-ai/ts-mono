@@ -1,5 +1,4 @@
-import { FC, memo, ReactNode, RefObject } from "react";
-import { VirtuosoHandle } from "react-virtuoso";
+import { FC, memo, ReactNode } from "react";
 
 import type {
   ApprovalEvent,
@@ -44,55 +43,8 @@ import { ToolEventView } from "./ToolEventView";
 import { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
-interface TranscriptVirtualListProps extends EventPanelCallbacks {
-  id: string;
-  eventNodes: EventNode[];
-  listHandle: RefObject<VirtuosoHandle | null>;
-  initialEventId?: string | null;
-  offsetTop?: number;
-  scrollRef?: RefObject<HTMLDivElement | null>;
-  running?: boolean;
-  className?: string | string[];
-  turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
-  disableVirtualization?: boolean;
-  onNativeFindChanged?: (nativeFind: boolean) => void;
-  onAutoCollapse?: (eventId: string) => void;
-  /** Optional renderer for span_begin events that represent agents/branches. */
-  renderAgentCard?: (
-    node: EventNode,
-    className?: string | string[]
-  ) => ReactNode;
-}
-
-/**
- * Renders the Transcript Virtual List.
- */
-const TranscriptVirtualListInner: FC<TranscriptVirtualListProps> = (props) => {
-  return (
-    <TranscriptVirtualListComponent
-      id={props.id}
-      listHandle={props.listHandle}
-      eventNodes={props.eventNodes}
-      initialEventId={props.initialEventId}
-      offsetTop={props.offsetTop}
-      scrollRef={props.scrollRef}
-      running={props.running}
-      className={props.className}
-      turnMap={props.turnMap}
-      disableVirtualization={props.disableVirtualization}
-      onNativeFindChanged={props.onNativeFindChanged}
-      onAutoCollapse={props.onAutoCollapse}
-      renderAgentCard={props.renderAgentCard}
-      onCollapse={props.onCollapse}
-      getCollapsed={props.getCollapsed}
-      getEventUrl={props.getEventUrl}
-      linkingEnabled={props.linkingEnabled}
-    />
-  );
-};
-TranscriptVirtualListInner.displayName = "TranscriptVirtualList";
-
-export const TranscriptVirtualList = memo(TranscriptVirtualListInner);
+export const TranscriptVirtualList = memo(TranscriptVirtualListComponent);
+TranscriptVirtualList.displayName = "TranscriptVirtualList";
 
 interface RenderedEventNodeProps extends EventPanelCallbacks {
   node: EventNode;

@@ -80,17 +80,13 @@ export type TimelineNavigation = Pick<
   "selected" | "select" | "clearSelection"
 >;
 
-/** Header configuration: root label + optional minimap + breadcrumbs. */
+/** Header configuration: root label + optional minimap. */
 export interface TimelineHeaderProps {
   rootLabel: string;
   /** Called on header click to scroll the view to the top. */
   onScrollToTop?: () => void;
   /** Minimap props for the zoom indicator. */
   minimap?: TimelineMinimapProps;
-  /** Breadcrumb segments derived from the selected row's ancestry. */
-  breadcrumbs?: BreadcrumbSegment[];
-  /** Called when a breadcrumb segment is clicked. */
-  onBreadcrumbSelect?: (key: string) => void;
   /** Timeline config for the options popover. When provided, shows the options button. */
   timelineConfig?: UseTimelineConfigResult;
   /** Timeline selector for switching between multiple timelines. */
@@ -722,7 +718,12 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 // HeaderRow (internal)
 // =============================================================================
 
-const HeaderRow: FC<TimelineHeaderProps> = ({
+interface HeaderRowProps extends TimelineHeaderProps {
+  breadcrumbs?: BreadcrumbSegment[];
+  onBreadcrumbSelect?: (key: string) => void;
+}
+
+const HeaderRow: FC<HeaderRowProps> = ({
   rootLabel,
   minimap,
   onScrollToTop,

@@ -74,7 +74,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     <ChatMessage
       id={`${parentName}-chat-messages`}
       message={resolvedMessage.message}
-      toolMessages={resolvedMessage.toolMessages}
       display={display}
       linking={linking}
     />
