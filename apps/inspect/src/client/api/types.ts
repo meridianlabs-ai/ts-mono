@@ -39,10 +39,28 @@ import {
   EvalSampleTarget,
 } from "../../@types/extraInspect";
 
+export interface MessagePoolData {
+  id: number;
+  sample_id: string;
+  epoch: number;
+  msg_id: string;
+  data: string;
+}
+
+export interface CallPoolData {
+  id: number;
+  sample_id: string;
+  epoch: number;
+  hash: string;
+  data: string;
+}
+
 // Hand-coded — references the local EventData with typed event union
 export interface SampleData {
   events: EventData[];
   attachments: AttachmentData[];
+  message_pool: MessagePoolData[];
+  call_pool: CallPoolData[];
 }
 
 export type ProgressCallback = (
@@ -188,7 +206,9 @@ export interface LogViewAPI {
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number
+    last_attachment?: number,
+    last_message_pool?: number,
+    last_call_pool?: number
   ) => Promise<SampleDataResponse | undefined>;
 }
 
@@ -233,7 +253,9 @@ export interface ClientAPI {
     id: string | number,
     epoch: number,
     last_event?: number,
-    last_attachment?: number
+    last_attachment?: number,
+    last_message_pool?: number,
+    last_call_pool?: number
   ) => Promise<SampleDataResponse | undefined>;
 
   // Events
