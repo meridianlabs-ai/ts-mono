@@ -7,6 +7,7 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
+import { PreformattedTooltip } from "../PreformattedTooltip";
 import { ApplicationIcons } from "../../../appearance/icons";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import {
@@ -116,6 +117,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipValueGetter: (params) => params.value || undefined,
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return "";
@@ -151,6 +153,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipField: "model",
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item) return null;
@@ -271,6 +274,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipValueGetter: (params) => params.value || undefined,
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return "";
@@ -302,6 +306,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipField: "path",
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item?.path) return <EmptyCell />;
@@ -389,6 +394,12 @@ export const useLogListColumns = (
           }
           return <div>{formatTime(params.value)}</div>;
         },
+        tooltipValueGetter: (params) => {
+          if (params.value === undefined || params.value === null) {
+            return undefined;
+          }
+          return formatTime(params.value);
+        },
       },
       {
         field: "taskFile",
@@ -398,6 +409,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipField: "taskFile",
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           if (!params.value) return <EmptyCell />;
           return <div className={styles.nameCell}>{params.value}</div>;
@@ -415,6 +427,12 @@ export const useLogListColumns = (
           if (!params.value) return <EmptyCell />;
           return <div className={styles.nameCell}>{params.value}</div>;
         },
+        tooltipValueGetter: (params) => {
+          const raw = params.data?.taskArgsRaw;
+          if (!raw) return undefined;
+          return JSON.stringify(raw, null, 2);
+        },
+        tooltipComponent: PreformattedTooltip,
       },
     ];
 

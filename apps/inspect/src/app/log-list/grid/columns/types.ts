@@ -22,5 +22,6 @@ export interface LogListRow {
   duration?: number; // in seconds
   taskFile?: string;
   taskArgs?: string;
+  taskArgsRaw?: Record<string, unknown>;
   [key: string]: any; // For dynamic score columns
 }

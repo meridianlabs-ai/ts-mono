@@ -179,6 +179,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         duration,
         taskFile: details?.eval?.task_file ?? undefined,
         taskArgs,
+        taskArgsRaw: details?.eval?.task_args ?? undefined,
       };
 
       // Add individual scorer columns from results
@@ -431,6 +432,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
             filter: true,
             resizable: true,
           }}
+          tooltipShowDelay={2000}
+          tooltipInteraction={true}
+          popupParent={document.body}
           autoSizeStrategy={{ type: "fitGridWidth" }}
           headerHeight={25}
           rowSelection={{ mode: "singleRow", checkboxes: false }}
