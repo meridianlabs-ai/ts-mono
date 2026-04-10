@@ -7,7 +7,6 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import { PreformattedTooltip } from "../PreformattedTooltip";
 import { ApplicationIcons } from "../../../appearance/icons";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import {
@@ -15,6 +14,7 @@ import {
   createFolderFirstComparator,
 } from "../../../shared/gridComparators";
 import { getFieldKey } from "../../../shared/gridUtils";
+import { PreformattedTooltip } from "../PreformattedTooltip";
 
 import localStyles from "./columns.module.css";
 import { LogListRow } from "./types";

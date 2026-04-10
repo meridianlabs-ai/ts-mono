@@ -44,7 +44,7 @@ export const LogListFooter: FC<LogListFooterProps> = ({
             </div>
           </div>
         ) : (
-          progressBar ?? null
+          (progressBar ?? null)
         )}
       </div>
       <div className={clsx(styles.center)} />

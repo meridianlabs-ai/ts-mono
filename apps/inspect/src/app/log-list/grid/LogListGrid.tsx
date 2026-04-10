@@ -32,7 +32,7 @@ import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
-import { type LogListMode, useLogListColumns } from "./columns/hooks";
+import { useLogListColumns, type LogListMode } from "./columns/hooks";
 import { LogListRow } from "./columns/types";
 
 interface LogListGridProps {

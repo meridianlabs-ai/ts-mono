@@ -237,7 +237,15 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     );
 
     return [_logFiles, _hasRetriedLogs];
-  }, [mode, evalSet, logFiles, currentDir, logDir, logPreviews, showRetriedLogs]);
+  }, [
+    mode,
+    evalSet,
+    logFiles,
+    currentDir,
+    logDir,
+    logPreviews,
+    showRetriedLogs,
+  ]);
 
   const { columns, setColumnVisibility } = useLogListColumns(mode);
 
@@ -266,7 +274,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     },
     [setColumnVisibility]
   );
-
 
   const progress = useMemo(() => {
     let pending = 0;
@@ -352,7 +359,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
           }}
         />
 
-        <ViewSegmentedControl selectedSegment={mode === "tasks" ? "tasks" : "logs"} />
+        <ViewSegmentedControl
+          selectedSegment={mode === "tasks" ? "tasks" : "logs"}
+        />
         {flowData && <FlowButton />}
       </ApplicationNavbar>
 

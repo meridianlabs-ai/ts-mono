@@ -10,10 +10,10 @@ import {
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
 import {
-  type RoutePrefix,
   baseUrl,
   logSamplesUrl,
   useLogRouteParams,
+  type RoutePrefix,
 } from "../routing/url";
 
 import { LogViewLayout } from "./LogViewLayout";
