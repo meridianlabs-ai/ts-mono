@@ -13,7 +13,7 @@ import {
 } from "./types";
 
 export interface ChatViewProps {
-  id?: string;
+  id: string;
   messages: ChatMessageType[];
   className?: string | string[];
   display?: ChatViewDisplayOptions;

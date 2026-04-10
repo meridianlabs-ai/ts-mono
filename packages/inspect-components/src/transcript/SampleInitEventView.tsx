@@ -64,7 +64,10 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
       }
     >
       <div data-name="Sample" className={styles.sample}>
-        <ChatView messages={stateObj["messages"] as ChatMessage[]} />
+        <ChatView
+          id="sample-init-messages"
+          messages={stateObj["messages"] as ChatMessage[]}
+        />
         <div>
           {event.sample.choices
             ? event.sample.choices.map((choice, index) => {

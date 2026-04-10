@@ -126,6 +126,7 @@ const referenceTable = (
       [inputData.input.id]: () => {
         return (
           <ChatView
+            id={`ref-preview-${inputData.input.id}`}
             messages={[inputData.input]}
             tools={{ collapseToolMessages: false }}
           />
@@ -139,6 +140,7 @@ const referenceTable = (
           acc[msg.id] = () => {
             return (
               <ChatView
+                id={`ref-preview-${msg.id}`}
                 messages={[msg]}
                 tools={{ collapseToolMessages: false }}
               />
@@ -200,6 +202,7 @@ const referenceTable = (
         acc[msg.id] = () => {
           return (
             <ChatView
+              id={`ref-preview-${msg.id}`}
               messages={[msg]}
               tools={{ collapseToolMessages: false }}
             />
