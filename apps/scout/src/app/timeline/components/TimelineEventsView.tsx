@@ -139,21 +139,11 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
-  const rawSetSelectedOutlineId = useStore(
+  const setSelectedOutlineId = useStore(
     (state) => state.setTranscriptOutlineId
   );
   const clearTranscriptOutlineId = useStore(
     (state) => state.clearTranscriptOutlineId
-  );
-  const setSelectedOutlineId = useCallback(
-    (id: string | null) => {
-      if (id) {
-        rawSetSelectedOutlineId(id);
-      } else {
-        clearTranscriptOutlineId();
-      }
-    },
-    [rawSetSelectedOutlineId, clearTranscriptOutlineId]
   );
 
   // Clean up outline ID on unmount

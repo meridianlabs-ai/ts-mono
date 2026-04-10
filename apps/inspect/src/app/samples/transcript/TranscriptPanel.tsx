@@ -178,21 +178,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const outlineCollapsed = outlineCollapsedRaw ?? false;
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
-  const rawSetSelectedOutlineId = useStore(
+  const setSelectedOutlineId = useStore(
     (state) => state.sampleActions.setSelectedOutlineId
-  );
-  const clearSelectedOutlineId = useStore(
-    (state) => state.sampleActions.clearSelectedOutlineId
-  );
-  const setSelectedOutlineId = useCallback(
-    (id: string | null) => {
-      if (id) {
-        rawSetSelectedOutlineId(id);
-      } else {
-        clearSelectedOutlineId();
-      }
-    },
-    [rawSetSelectedOutlineId, clearSelectedOutlineId]
   );
 
   // Sync initial event ID to outline selection for deep-link navigation

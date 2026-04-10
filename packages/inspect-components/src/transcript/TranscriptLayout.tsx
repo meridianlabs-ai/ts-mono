@@ -78,7 +78,7 @@ export interface TranscriptLayoutOutlineProps {
   renderLink?: (url: string, children: ReactNode) => ReactNode;
   onNavigateToEvent?: (eventId: string) => void;
   selectedId?: string | null;
-  setSelectedId?: (id: string | null) => void;
+  setSelectedId?: (id: string) => void;
 }
 
 export interface TranscriptLayoutProps {
