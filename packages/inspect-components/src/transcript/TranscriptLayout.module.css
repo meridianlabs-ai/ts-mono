@@ -21,6 +21,10 @@
   grid-template-columns: 28px 1px 1fr;
 }
 
+.container.noOutline {
+  grid-template-columns: 1fr;
+}
+
 .outline {
   padding-left: 0.5rem;
   padding-top: 0.4rem;

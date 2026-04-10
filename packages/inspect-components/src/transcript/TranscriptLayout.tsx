@@ -126,7 +126,8 @@ export interface TranscriptLayoutProps {
   collapseState?: TranscriptCollapseState;
 
   // --- Outline ---
-  outline: TranscriptLayoutOutlineProps;
+  /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
+  outline?: TranscriptLayoutOutlineProps;
 
   /** Text shown when no events match the current filter. Pass null to disable empty state. */
   emptyText?: string | null;
@@ -448,8 +449,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }
 
   const hasMatchingEvents = eventNodes.length > 0;
-  const autoHidden = !reportedHasNodes && !outline.collapsed;
-  const isOutlineCollapsed = outline.collapsed || autoHidden;
+  const autoHidden = outline ? !reportedHasNodes && !outline.collapsed : false;
+  const isOutlineCollapsed = !outline || outline.collapsed || autoHidden;
 
   const outlineHasNodes = isOutlineCollapsed
     ? hasMatchingEvents
@@ -514,7 +515,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         <div
           className={clsx(
             styles.container,
-            isOutlineCollapsed && styles.outlineCollapsed
+            !outline && styles.noOutline,
+            outline && isOutlineCollapsed && styles.outlineCollapsed
           )}
           style={
             {
@@ -522,59 +524,66 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
             } as CSSProperties
           }
         >
-          <StickyScroll
-            scrollRef={scrollRef}
-            className={styles.outline}
-            offsetTop={effectiveOffsetTop}
-          >
-            {!isOutlineCollapsed && (
-              <TranscriptOutline
-                eventNodes={eventNodes}
-                defaultCollapsedIds={defaultCollapsedIds}
+          {outline && (
+            <>
+              <StickyScroll
                 scrollRef={scrollRef}
-                running={running}
-                agentName={
-                  outline.name ?? (showSwimlanes ? selectedRowName : undefined)
-                }
-                scrollTrackOffset={effectiveOffsetTop}
-                getCollapsed={
-                  collapseState?.outline
-                    ? (nodeId: string) =>
-                        collapseState.outline?.[nodeId] === true
-                    : undefined
-                }
-                setCollapsed={collapseState?.onCollapseOutline}
-                collapsedEvents={collapseState?.outline}
-                setCollapsedEvents={collapseState?.onSetOutlineCollapsed}
-                selectedOutlineId={outline.selectedId}
-                setSelectedOutlineId={outline.setSelectedId}
-                getEventUrl={getEventUrl}
-                renderLink={outline.renderLink}
-                onNavigateToEvent={outline.onNavigateToEvent}
-                onHasNodesChange={handleOutlineHasNodesChange}
-              />
-            )}
-            <button
-              type="button"
-              className={styles.outlineToggle}
-              onClick={
-                outlineHasNodes && !outline.toggleDisabled
-                  ? () => outline.onCollapsedChange(!isOutlineCollapsed)
-                  : undefined
-              }
-              aria-disabled={outline.toggleDisabled || !outlineHasNodes}
-              title={
-                outline.toggleTitle ??
-                (!outlineHasNodes
-                  ? "No outline available for the current filter"
-                  : undefined)
-              }
-              aria-label={isOutlineCollapsed ? "Show outline" : "Hide outline"}
-            >
-              <i className={outline.toggleIcon} />
-            </button>
-          </StickyScroll>
-          <div className={styles.separator} />
+                className={styles.outline}
+                offsetTop={effectiveOffsetTop}
+              >
+                {!isOutlineCollapsed && (
+                  <TranscriptOutline
+                    eventNodes={eventNodes}
+                    defaultCollapsedIds={defaultCollapsedIds}
+                    scrollRef={scrollRef}
+                    running={running}
+                    agentName={
+                      outline.name ??
+                      (showSwimlanes ? selectedRowName : undefined)
+                    }
+                    scrollTrackOffset={effectiveOffsetTop}
+                    getCollapsed={
+                      collapseState?.outline
+                        ? (nodeId: string) =>
+                            collapseState.outline?.[nodeId] === true
+                        : undefined
+                    }
+                    setCollapsed={collapseState?.onCollapseOutline}
+                    collapsedEvents={collapseState?.outline}
+                    setCollapsedEvents={collapseState?.onSetOutlineCollapsed}
+                    selectedOutlineId={outline.selectedId}
+                    setSelectedOutlineId={outline.setSelectedId}
+                    getEventUrl={getEventUrl}
+                    renderLink={outline.renderLink}
+                    onNavigateToEvent={outline.onNavigateToEvent}
+                    onHasNodesChange={handleOutlineHasNodesChange}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={styles.outlineToggle}
+                  onClick={
+                    outlineHasNodes && !outline.toggleDisabled
+                      ? () => outline.onCollapsedChange(!isOutlineCollapsed)
+                      : undefined
+                  }
+                  aria-disabled={outline.toggleDisabled || !outlineHasNodes}
+                  title={
+                    outline.toggleTitle ??
+                    (!outlineHasNodes
+                      ? "No outline available for the current filter"
+                      : undefined)
+                  }
+                  aria-label={
+                    isOutlineCollapsed ? "Show outline" : "Hide outline"
+                  }
+                >
+                  <i className={outline.toggleIcon} />
+                </button>
+              </StickyScroll>
+              <div className={styles.separator} />
+            </>
+          )}
           {hasMatchingEvents ? (
             <TranscriptViewNodes
               key={effectiveListId}

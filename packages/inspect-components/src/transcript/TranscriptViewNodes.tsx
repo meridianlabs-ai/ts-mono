@@ -28,7 +28,7 @@ import {
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
-import type { EventNode, EventPanelCallbacks, EventType } from "./types";
+import type { EventNode, EventPanelCallbacks } from "./types";
 
 // =============================================================================
 // Types
@@ -40,7 +40,6 @@ export interface TranscriptViewNodesProps {
   defaultCollapsedIds: Record<string, boolean>;
   /** Whether events are still being streamed (enables auto-follow scroll). */
   running?: boolean;
-  nodeFilter?: (node: EventNode<EventType>[]) => EventNode<EventType>[];
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
   offsetTop?: number;
@@ -77,7 +76,6 @@ export const TranscriptViewNodes = forwardRef<
     eventNodes,
     defaultCollapsedIds,
     running,
-    nodeFilter,
     scrollRef,
     initialEventId,
     offsetTop = 10,
@@ -111,20 +109,15 @@ export const TranscriptViewNodes = forwardRef<
     [onCollapseTranscript, getCollapsed, getEventUrl, linkingEnabled]
   );
 
-  const filteredEventNodes = nodeFilter ? nodeFilter(eventNodes) : eventNodes;
-
   const flattenedNodes = useMemo(() => {
-    return flatTree(
-      filteredEventNodes,
-      collapsedTranscript || defaultCollapsedIds
-    );
-  }, [filteredEventNodes, collapsedTranscript, defaultCollapsedIds]);
+    return flatTree(eventNodes, collapsedTranscript || defaultCollapsedIds);
+  }, [eventNodes, collapsedTranscript, defaultCollapsedIds]);
 
   // Auto-compute turnMap when not provided by the parent
   const computedTurnMap = useMemo(() => {
     if (turnMap) return turnMap;
     const outlineFiltered = flatTree(
-      filteredEventNodes,
+      eventNodes,
       collapsedOutline || defaultCollapsedIds,
       [
         removeNodeVisitor("logger"),
@@ -141,7 +134,7 @@ export const TranscriptViewNodes = forwardRef<
     return computeTurnMap(outlineFiltered, flattenedNodes);
   }, [
     turnMap,
-    filteredEventNodes,
+    eventNodes,
     collapsedOutline,
     defaultCollapsedIds,
     flattenedNodes,

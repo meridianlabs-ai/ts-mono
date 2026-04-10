@@ -170,13 +170,9 @@ Fixed: added `resolveMessages` unit tests covering collapse and non-collapse pat
 
 Fixed: renamed to `selectedRowName` — a presentation-neutral name that describes the data without coupling to the outline UI.
 
-### 8.2 Scout scanner `TranscriptPanel` bypasses `TranscriptLayout` entirely
+### 8.2 ✅ Scout scanner `TranscriptPanel` bypasses `TranscriptLayout` entirely
 
-**File:** `apps/scout/src/app/scannerResult/transcript/TranscriptPanel.tsx`
-
-Uses `TranscriptViewNodes` directly — no swimlanes, outline, sticky scroll, or empty-state display. This may be intentional for the lightweight scanner context, but the decision is undocumented.
-
-**Suggestion:** Add a comment explaining the intentional divergence.
+Fixed: scanner `TranscriptPanel` now uses `TranscriptLayout` with `showSwimlanes={false}` and no `outline` (single-column layout). The root scan span is stripped at the flat event level before passing to the layout, eliminating the `nodeFilter` prop. `nodeFilter` removed from `TranscriptViewNodes` as it has no remaining consumers.
 
 ### 8.3 ✅ `EventNodeContext` is a heterogeneous bag of per-app fields — no longer applicable
 
