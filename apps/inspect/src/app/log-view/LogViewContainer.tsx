@@ -89,6 +89,7 @@ export const LogViewContainer: FC = () => {
     searchParams,
     sampleTabId,
     navigate,
+    prefix,
   ]);
 
   useEffect(() => {
@@ -102,7 +103,7 @@ export const LogViewContainer: FC = () => {
       clearInitialState();
       navigate(url);
     }
-  }, [initialState, evalSpec, clearInitialState, navigate]);
+  }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPath = usePrevious<string | undefined>(logPath);
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
