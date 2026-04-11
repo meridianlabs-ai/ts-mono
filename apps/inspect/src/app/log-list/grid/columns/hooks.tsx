@@ -2,11 +2,11 @@ import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import clsx from "clsx";
 import { useEffect, useMemo } from "react";
 
-import { basename, formatPrettyDecimal } from "@tsmono/util";
+import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
-import { formatDateTime } from "../../../../utils/format";
+import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import {
@@ -14,6 +14,7 @@ import {
   createFolderFirstComparator,
 } from "../../../shared/gridComparators";
 import { getFieldKey } from "../../../shared/gridUtils";
+import { PreformattedTooltip } from "../PreformattedTooltip";
 
 import localStyles from "./columns.module.css";
 import { LogListRow } from "./types";
@@ -22,7 +23,11 @@ const styles = { ...sharedStyles, ...localStyles };
 
 const EmptyCell = () => <div>-</div>;
 
-export const useLogListColumns = (): {
+export type LogListMode = "logs" | "tasks";
+
+export const useLogListColumns = (
+  mode: LogListMode = "logs"
+): {
   columns: ColDef<LogListRow>[];
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
@@ -112,6 +117,7 @@ export const useLogListColumns = (): {
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipValueGetter: (params) => params.value || undefined,
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return "";
@@ -147,6 +153,7 @@ export const useLogListColumns = (): {
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipField: "model",
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item) return null;
@@ -267,19 +274,165 @@ export const useLogListColumns = (): {
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipValueGetter: (params) => params.value || undefined,
         valueGetter: (params) => {
           const item = params.data;
-          if (!item || item.type !== "file") return "";
-          return basename(item.name);
+          if (!item) return "";
+          if (item.type === "folder") return item.name;
+          if (item.type === "file") return basename(item.name);
+          return "";
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
-          if (!item || item.type === "folder" || item.type === "pending-task") {
+          if (!item || item.type === "pending-task") {
             return <EmptyCell />;
+          }
+          if (item.type === "folder") {
+            return (
+              <div className={styles.nameCell}>
+                <span className={styles.folder}>{item.name}</span>
+              </div>
+            );
           }
           const value = basename(item.name);
           return <div className={styles.nameCell}>{value}</div>;
         },
+      },
+      {
+        field: "path",
+        headerName: "Path",
+        initialWidth: 300,
+        minWidth: 100,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        tooltipField: "path",
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          const item = params.data;
+          if (!item?.path) return <EmptyCell />;
+          return <div className={styles.nameCell}>{item.path}</div>;
+        },
+      },
+      {
+        field: "totalSamples",
+        headerName: "Samples",
+        initialWidth: 90,
+        minWidth: 60,
+        maxWidth: 120,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatNumber(params.value)}</div>;
+        },
+      },
+      {
+        field: "completedSamples",
+        headerName: "Completed Samples",
+        initialWidth: 130,
+        minWidth: 80,
+        maxWidth: 160,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatNumber(params.value)}</div>;
+        },
+      },
+      {
+        field: "sandbox",
+        headerName: "Sandbox",
+        initialWidth: 100,
+        minWidth: 60,
+        maxWidth: 150,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div>{params.value}</div>;
+        },
+      },
+      {
+        field: "totalTokens",
+        headerName: "Tokens",
+        initialWidth: 100,
+        minWidth: 60,
+        maxWidth: 140,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatNumber(params.value)}</div>;
+        },
+      },
+      {
+        field: "duration",
+        headerName: "Duration",
+        initialWidth: 120,
+        minWidth: 70,
+        maxWidth: 160,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        valueFormatter: (params) => {
+          if (params.value === undefined || params.value === null) return "";
+          return formatTime(params.value);
+        },
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatTime(params.value)}</div>;
+        },
+        tooltipValueGetter: (params) => {
+          if (params.value === undefined || params.value === null) {
+            return undefined;
+          }
+          return formatTime(params.value);
+        },
+      },
+      {
+        field: "taskFile",
+        headerName: "Task File",
+        initialWidth: 200,
+        minWidth: 100,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        tooltipField: "taskFile",
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{params.value}</div>;
+        },
+      },
+      {
+        field: "taskArgs",
+        headerName: "Task Args",
+        initialWidth: 200,
+        minWidth: 100,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{params.value}</div>;
+        },
+        tooltipValueGetter: (params) => {
+          const raw = params.data?.taskArgsRaw;
+          if (!raw) return undefined;
+          return JSON.stringify(raw, null, 2);
+        },
+        tooltipComponent: PreformattedTooltip,
       },
     ];
 
@@ -329,16 +482,87 @@ export const useLogListColumns = (): {
       }
     );
 
-    return [...baseColumns, ...scorerColumns];
-  }, [scorerMap]);
+    const allCols = [...baseColumns, ...scorerColumns];
+
+    if (mode === "tasks") {
+      // Tasks view: remove the type icon column (no folders in flat view)
+      const typeIdx = allCols.findIndex((col) => col.field === "type");
+      if (typeIdx >= 0) {
+        allCols.splice(typeIdx, 1);
+      }
+
+      // Tasks view column order
+      const tasksFieldOrder = [
+        "status",
+        "task",
+        "model",
+        "taskArgs",
+        "score",
+        "completedAt",
+        "totalSamples",
+        "completedSamples",
+        "totalTokens",
+        "duration",
+        "name",
+        "sandbox",
+        "taskFile",
+      ];
+      allCols.sort((a, b) => {
+        const aIdx = tasksFieldOrder.indexOf(a.field || "");
+        const bIdx = tasksFieldOrder.indexOf(b.field || "");
+        // Fields in the order list come first, in specified order
+        // Fields not in the list (scorer columns) go after
+        const aOrder = aIdx >= 0 ? aIdx : tasksFieldOrder.length;
+        const bOrder = bIdx >= 0 ? bIdx : tasksFieldOrder.length;
+        return aOrder - bOrder;
+      });
+    } else {
+      // Logs view: move "name" (File Name) to be the second column (after the type icon)
+      const nameIdx = allCols.findIndex((col) => col.field === "name");
+      if (nameIdx > 1) {
+        const [nameCol] = allCols.splice(nameIdx, 1);
+        allCols.splice(1, 0, nameCol);
+      }
+
+      // move "status" to be right after the name column
+      const statusIdx = allCols.findIndex((col) => col.field === "status");
+      if (statusIdx > 2) {
+        const [statusCol] = allCols.splice(statusIdx, 1);
+        allCols.splice(2, 0, statusCol);
+      }
+    }
+
+    return allCols;
+  }, [scorerMap, mode]);
+
+  // Default hidden columns per mode
+  const defaultHiddenFields = useMemo(() => {
+    const hidden = new Set<string>();
+    if (mode === "tasks") {
+      // Tasks: hide completedSamples, sandbox, taskFile by default
+      hidden.add("sandbox");
+      hidden.add("taskFile");
+      hidden.add("name");
+      hidden.add("path");
+      hidden.add("completedSamples");
+    } else {
+      // Logs: hide path, completedSamples, sandbox, taskFile by default
+      hidden.add("path");
+      hidden.add("completedSamples");
+      hidden.add("sandbox");
+      hidden.add("taskFile");
+    }
+    return hidden;
+  }, [mode]);
 
   const columns = useMemo((): ColDef<LogListRow>[] => {
     const columnsWithVisibility = allColumns.map((col: ColDef<LogListRow>) => {
       const field = getFieldKey(col);
-      // Default to visible if not explicitly set, except for scorer columns
       const isScoreColumn = field.startsWith("score_");
-      const isVisible =
-        columnVisibility[field] ?? (isScoreColumn ? false : true);
+      const defaultVisible = isScoreColumn
+        ? false
+        : !defaultHiddenFields.has(field);
+      const isVisible = columnVisibility[field] ?? defaultVisible;
       return {
         ...col,
         hide: !isVisible,
@@ -346,7 +570,7 @@ export const useLogListColumns = (): {
     });
 
     return columnsWithVisibility;
-  }, [allColumns, columnVisibility]);
+  }, [allColumns, columnVisibility, defaultHiddenFields]);
 
   return {
     columns,

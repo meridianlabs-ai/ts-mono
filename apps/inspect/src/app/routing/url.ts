@@ -100,9 +100,9 @@ export const useLogRouteParams = () => {
     // Example: /logs/path/to/file.eval/samples/sample/ascii%2Fbike/1
     const rawPath = location.pathname;
 
-    // Extract the splat path (everything after /logs/)
-    const logsMatch = rawPath.match(/^\/logs\/(.*)$/);
-    const splatPath = logsMatch ? logsMatch[1] : "";
+    // Extract the splat path (everything after /logs/ or /tasks/)
+    const logsMatch = rawPath.match(/^\/(logs|tasks)\/(.*)$/);
+    const splatPath = logsMatch ? logsMatch[2] : "";
 
     // Check for sample UUID route pattern
     const sampleUuidMatch = splatPath.match(
@@ -290,16 +290,30 @@ export const useSamplesRouteParams = () => {
 export const kLogsRoutUrlPattern = "/logs";
 export const kLogRouteUrlPattern = "/logs/*";
 export const kSamplesRouteUrlPattern = "/samples";
+export const kTasksRouteUrlPattern = "/tasks";
+export const kTaskRouteUrlPattern = "/tasks/*";
+
+export type RoutePrefix = "/logs" | "/tasks";
+
+/**
+ * Hook that returns the current route prefix based on the URL.
+ * Returns "/tasks" when under /tasks/*, "/logs" otherwise.
+ */
+export const useRoutePrefix = (): RoutePrefix => {
+  const location = useLocation();
+  return location.pathname.startsWith("/tasks") ? "/tasks" : "/logs";
+};
 
 export const baseUrl = (
   logPath: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number
+  sampleEpoch?: string | number,
+  prefix: RoutePrefix = "/logs"
 ) => {
   if (sampleId !== undefined && sampleEpoch !== undefined) {
-    return logSamplesUrl(logPath, sampleId, sampleEpoch);
+    return logSamplesUrl(logPath, sampleId, sampleEpoch, undefined, prefix);
   } else {
-    return logsUrl(logPath);
+    return logsUrl(logPath, undefined, undefined, prefix);
   }
 };
 
@@ -312,6 +326,9 @@ export type SampleUrlBuilder = (
 
 export const useSampleUrlBuilder = () => {
   const location = useLocation();
+  const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
+    ? "/tasks"
+    : "/logs";
   return (
     logPath: string,
     sampleId?: string | number,
@@ -321,7 +338,7 @@ export const useSampleUrlBuilder = () => {
     if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
       return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
     } else {
-      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId);
+      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
     }
   };
 };
@@ -330,7 +347,8 @@ export const logSamplesUrl = (
   logPath: string,
   sampleId?: string | number,
   sampleEpoch?: string | number,
-  sampleTabId?: string
+  sampleTabId?: string,
+  prefix: RoutePrefix = "/logs"
 ) => {
   // Ensure logPath is decoded before encoding for URL construction
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
@@ -340,11 +358,11 @@ export const logSamplesUrl = (
     // This must be done before encodePathParts since it splits on /
     const encodedSampleId = encodeURIComponent(String(sampleId));
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`
+      `${prefix}/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`
     );
   } else {
     return encodePathParts(
-      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`
+      `${prefix}/${decodedLogPath}/samples/${sampleTabId || ""}`
     );
   }
 };
@@ -353,13 +371,14 @@ export const printSampleUrl = (
   logPath: string,
   sampleId: string | number,
   epoch: string | number,
-  view: string
+  view: string,
+  prefix: RoutePrefix = "/logs"
 ) => {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
   const encodedSampleId = encodeURIComponent(String(sampleId));
   return (
     encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${epoch}/print`
+      `${prefix}/${decodedLogPath}/samples/sample/${encodedSampleId}/${epoch}/print`
     ) + `?view=${view}`
   );
 };
@@ -490,14 +509,64 @@ export const sampleMessageUrl = (
   return `${baseUrl}?message=${messageId}`;
 };
 
+export const tasksUrl = (log_file: string, log_dir?: string) => {
+  const path = makeLogsPath(log_file, log_dir);
+  const decodedLogSegment = decodeUrlParam(path) || path;
+  return encodePathParts(`/tasks/${decodedLogSegment}`);
+};
+
+/**
+ * Hook that parses tasks route parameters from the splat route.
+ * Handles nested paths properly by parsing the full path after /tasks/
+ */
+export const useTasksRouteParams = () => {
+  const location = useLocation();
+
+  return useMemo(() => {
+    const rawPath = location.pathname;
+
+    // Extract the splat path (everything after /tasks/)
+    const tasksMatch = rawPath.match(/^\/tasks\/(.*)$/);
+    const splatPath = tasksMatch ? tasksMatch[1] : "";
+
+    // Check for sample detail route: /tasks/path/to/file.eval/sample/id/epoch/tabId
+    const sampleMatch = splatPath.match(
+      /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
+    );
+
+    if (sampleMatch) {
+      const [, logPath, sampleId, epoch, tabId] = sampleMatch;
+      return {
+        tasksPath: decodeUrlParam(logPath),
+        sampleId: decodeUrlParam(sampleId),
+        epoch: decodeUrlParam(epoch),
+        tabId: tabId ? decodeUrlParam(tabId) : undefined,
+      };
+    }
+
+    // Otherwise it's just a path (file or empty)
+    return {
+      tasksPath: splatPath ? decodeUrlParam(splatPath) : undefined,
+      sampleId: undefined,
+      epoch: undefined,
+      tabId: undefined,
+    };
+  }, [location.pathname]);
+};
+
 export const samplesUrl = (log_file: string, log_dir?: string) => {
   const path = makeLogsPath(log_file, log_dir);
   const decodedLogSegment = decodeUrlParam(path) || path;
   return encodePathParts(`/samples/${decodedLogSegment}`);
 };
 
-export const logsUrl = (log_file: string, log_dir?: string, tabId?: string) => {
-  return logsUrlRaw(makeLogsPath(log_file, log_dir), tabId);
+export const logsUrl = (
+  log_file: string,
+  log_dir?: string,
+  tabId?: string,
+  prefix: RoutePrefix = "/logs"
+) => {
+  return logsUrlRaw(makeLogsPath(log_file, log_dir), tabId, prefix);
 };
 
 export const makeLogsPath = (log_file: string, log_dir?: string) => {
@@ -505,14 +574,18 @@ export const makeLogsPath = (log_file: string, log_dir?: string) => {
   return pathSegment;
 };
 
-export const logsUrlRaw = (log_segment: string, tabId?: string) => {
+export const logsUrlRaw = (
+  log_segment: string,
+  tabId?: string,
+  prefix: RoutePrefix = "/logs"
+) => {
   // Ensure log_segment is decoded before encoding for URL construction
   const decodedLogSegment = decodeUrlParam(log_segment) || log_segment;
 
   if (tabId) {
-    return encodePathParts(`/logs/${decodedLogSegment}/${tabId}`);
+    return encodePathParts(`${prefix}/${decodedLogSegment}/${tabId}`);
   } else {
-    return encodePathParts(`/logs/${decodedLogSegment}`);
+    return encodePathParts(`${prefix}/${decodedLogSegment}`);
   }
 };
 
