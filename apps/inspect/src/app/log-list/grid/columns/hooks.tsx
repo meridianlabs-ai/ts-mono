@@ -544,6 +544,7 @@ export const useLogListColumns = (
       hidden.add("taskFile");
       hidden.add("name");
       hidden.add("path");
+      hidden.add("completedSamples");
     } else {
       // Logs: hide path, completedSamples, sandbox, taskFile by default
       hidden.add("path");
