@@ -129,12 +129,18 @@ function setupHandlers(
 // ---------------------------------------------------------------------------
 
 // Helper to click a segment button by name (avoids matching column headers)
-function segmentButton(page: Parameters<Parameters<typeof test>[2]>[0]["page"], name: string) {
+function segmentButton(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  name: string
+) {
   return page.getByRole("button", { name });
 }
 
 // Helper to find a cell in the grid's File Name column
-function gridCell(page: Parameters<Parameters<typeof test>[2]>[0]["page"], text: string) {
+function gridCell(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  text: string
+) {
   return page.locator(".ag-cell").filter({ hasText: text }).first();
 }
 
