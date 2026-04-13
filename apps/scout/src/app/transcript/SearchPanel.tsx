@@ -5,7 +5,6 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -17,11 +16,11 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../components/icons";
-import { useApi } from "../../state/store";
 import { Result, SavedSearch, SearchRequest } from "../../types/api-types";
 import { Chip } from "../components/Chip";
 import { ChipGroup } from "../components/ChipGroup";
 import { useProjectConfig } from "../server/useProjectConfig";
+import { useCreateSearch, useSearches } from "../server/useSearches";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -66,12 +65,11 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   transcriptId,
   onClose,
 }) => {
-  const api = useApi();
   const projectConfig = useProjectConfig();
+  const searches = useSearches({ transcriptDir, transcriptId });
+  const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
-  const [recentSearches, setRecentSearches] = useState<SavedSearch[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<SearchType>("grep");
   const [panelView, setPanelView] = useState<PanelView>("results");
   const [grepOptions, setGrepOptions] =
@@ -79,12 +77,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const [model, setModel] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
   const { getFullMessageUrl } = useTranscriptNavigation();
-
-  useEffect(() => {
-    void api.getSearches(transcriptDir, transcriptId).then((response) => {
-      setRecentSearches(response.items);
-    });
-  }, [api, transcriptDir, transcriptId]);
+  const recentSearches = searches.data?.items ?? [];
+  const loading = createSearchMutation.isPending;
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -92,10 +86,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       const text = query.trim();
       if (!text || loading) return;
 
-      setLoading(true);
       setHasSearched(true);
       setPanelView("results");
       setCurrentSearch(null);
+      createSearchMutation.reset();
 
       const request: SearchRequest =
         searchType === "grep"
@@ -112,26 +106,14 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               model: model.trim() || projectConfig.data?.config.model || null,
             };
 
-      void api
-        .postSearch(transcriptDir, transcriptId, request)
-        .then((saved) => {
+      createSearchMutation.mutate(request, {
+        onSuccess: (saved) => {
           setCurrentSearch(saved);
-          // Update recent searches: replace if same search_id, otherwise prepend
-          setRecentSearches((prev) => {
-            const filtered = prev.filter(
-              (s) => s.search_id !== saved.search_id
-            );
-            return [saved, ...filtered];
-          });
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+        },
+      });
     },
     [
-      api,
-      transcriptDir,
-      transcriptId,
+      createSearchMutation,
       grepOptions.ignoreCase,
       grepOptions.regex,
       grepOptions.wordBoundary,
@@ -151,6 +133,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   }, []);
 
   const handleSelectRecent = useCallback((search: SavedSearch) => {
+    createSearchMutation.reset();
     setCurrentSearch(search);
     setHasSearched(true);
     setQuery(search.query);
@@ -165,7 +148,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         wordBoundary: search.word_boundary,
       });
     }
-  }, []);
+  }, [createSearchMutation]);
 
   const toggleGrepOption = useCallback((key: keyof GrepOptions) => {
     setGrepOptions((prev) => ({
@@ -286,11 +269,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
           {showResults && loading && (
             <div className={styles.emptyState}>Searching…</div>
           )}
-          {showResults && !loading && hasSearched && currentSearch === null && (
+          {showResults && !loading && createSearchMutation.isError && (
+            <div className={styles.emptyState}>Search failed. Try again.</div>
+          )}
+          {showResults &&
+            !loading &&
+            !createSearchMutation.isError &&
+            hasSearched &&
+            currentSearch === null && (
             <div className={styles.emptyState}>No results found</div>
           )}
           {showResults &&
             !loading &&
+            !createSearchMutation.isError &&
             hasSearched &&
             currentSearch !== null &&
             currentSearch.results.length === 0 && (
@@ -315,17 +306,28 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               Run a search or open a recent query.
             </div>
           )}
+          {showRecentSearches && searches.loading && (
+            <div className={styles.emptyState}>Loading recent searches…</div>
+          )}
+          {showRecentSearches && searches.error && !searches.loading && (
+            <div className={styles.emptyState}>
+              Unable to load recent searches.
+            </div>
+          )}
           {showRecentSearches && recentSearches.length > 0 && (
             <RecentSearches
               searches={recentSearches}
               onSelect={handleSelectRecent}
             />
           )}
-          {showRecentSearches && recentSearches.length === 0 && (
+          {showRecentSearches &&
+            !searches.loading &&
+            !searches.error &&
+            recentSearches.length === 0 && (
             <div className={styles.emptyState}>
               Recent searches will show up here.
             </div>
-          )}
+            )}
         </div>
       </div>
     </div>
@@ -405,6 +407,7 @@ const SearchResult: FC<{
   const matchCount =
     typeof result.value === "number" ? result.value : undefined;
 
+  // TODO: could try ResultPanel, maybe doesn't fit our needs
   return (
     <div className={styles.resultCard}>
       {matchCount !== undefined && (
