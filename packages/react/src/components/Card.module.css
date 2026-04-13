@@ -10,7 +10,9 @@
 
 .headerContainer.headerModern {
   color: var(--bs-secondary);
-  padding: 0.5rem 0.5rem 0rem 0.5rem;
+  padding: 0.25rem 0.5rem 0rem 0.5rem;
+  border-bottom: none;
+  background-color: var(--bs-body-bg);
 }
 
 .headerIcon:not(.headerIconEmpty) {
@@ -23,7 +25,7 @@
 }
 
 .card {
-  background-color: var(--bs-light-bg-subtle);
+  background-color: var(--bs-body-bg);
   border: solid 1px var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
   overflow: hidden;

@@ -5,7 +5,7 @@ import { RecordTree } from "@tsmono/inspect-components/content";
 import {
   Card,
   CardBody,
-  LabeledValue,
+  CardHeader,
   NoContentsPanel,
 } from "@tsmono/react/components";
 
@@ -26,13 +26,12 @@ export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
         {!hasMetadata && <NoContentsPanel text={"No metadata available"} />}
         {hasMetadata && (
           <Card>
+            <CardHeader label="Metadata" type="modern" />
             <CardBody>
-              <LabeledValue label="Metadata">
-                <RecordTree
-                  id={`result-metadata-${resultData.identifier}`}
-                  record={resultData.metadata || {}}
-                />
-              </LabeledValue>
+              <RecordTree
+                id={`result-metadata-${resultData.identifier}`}
+                record={resultData.metadata || {}}
+              />
             </CardBody>
           </Card>
         )}
