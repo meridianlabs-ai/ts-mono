@@ -1,5 +1,6 @@
 .ansi {
-  margin: 1em 0;
+  margin: 0.5em 0;
+  font-size: clamp(0.3rem, 1.1vw, 0.8rem) !important;
 }
 
 .headerRow {
