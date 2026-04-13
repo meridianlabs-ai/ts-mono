@@ -18,6 +18,7 @@ import { truncateMarkdown } from "../../utils/markdown";
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
 import styles from "./SampleSummaryView.module.css";
+import { isCancelled, sampleStatus } from "./status/sampleStatus";
 
 const kMaxCellTextLength = 256;
 interface SampleSummaryViewProps {
@@ -44,6 +45,7 @@ interface SampleFields {
   working_time?: EvalSampleWorkingTime;
   total_time?: EvalSample["total_time"];
   error?: string;
+  cancelled?: boolean;
 }
 
 function isEvalSample(
@@ -74,7 +76,8 @@ const resolveSample = (
   const limit = isEvalSample(sample) ? sample.limit?.type : undefined;
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
-  const error = isEvalSample(sample) ? sample.error?.message : undefined;
+  const cancelled = isCancelled(sample);
+  const error = isEvalSample(sample) ? sample.error?.message : undefined ;
   const retries = isEvalSample(sample)
     ? sample.error_retries?.length
     : sample.retries;
@@ -89,6 +92,7 @@ const resolveSample = (
     working_time,
     total_time,
     error,
+    cancelled
   };
 };
 
@@ -105,6 +109,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     return undefined;
   }
   const fields = resolveSample(sample, sampleDescriptor);
+  console.log({fields})
 
   const shape = sampleDescriptor?.messageShape;
   const limitSize = shape?.limitSize ?? 0;
@@ -219,6 +224,14 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       size: `${shape?.errorSize ?? 1}em`,
       center: true,
     });
+  }
+
+  if (fields.cancelled) {
+    columns.push({
+      label: "Status",
+      value: "Cancelled",
+      size: `10em`,
+    }); 
   }
 
   // Check if sample is invalidated (only available on full EvalSample)

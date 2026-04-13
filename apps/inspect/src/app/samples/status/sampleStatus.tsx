@@ -6,6 +6,8 @@ import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
 
 import styles from "./sampleStatus.module.css";
+import { SampleSummary } from "../../../client/api/types";
+import { EvalSample } from "@tsmono/inspect-common";
 
 type SampleStatus = "running" | "ok" | "error" | "cancelled";
 export const sampleStatus = (
@@ -17,6 +19,16 @@ export const sampleStatus = (
   }
   return completed ? "ok" : "running";
 };
+
+export const isCancelled = (sample: SampleSummary | EvalSample): boolean  => {
+  if ("error" in sample && sample.error) {
+    if (typeof(sample.error) === "string") {
+      return errorType(sample.error) === "CancelledError";
+    }
+    return errorType(sample.error.message) === "CancelledError";  
+  }
+  return false;
+}
 
 /** Sortable string value for use as ag-grid valueGetter.
  *  Prefix gives desired sort order (started → error → cancelled → success);
