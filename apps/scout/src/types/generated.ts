@@ -561,7 +561,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** ActiveScanInfo */
+        /**
+         * ActiveScanInfo
+         * @description Info for an active scan stored in the KV store.
+         */
         ActiveScanInfo: {
             /** Config */
             config: string;
@@ -582,7 +585,10 @@ export interface components {
             /** Total Scans */
             total_scans: number;
         };
-        /** ActiveScansResponse */
+        /**
+         * ActiveScansResponse
+         * @description Response body for GET /scans/active endpoint.
+         */
         ActiveScansResponse: {
             /** Items */
             items: {
@@ -1129,19 +1135,28 @@ export interface components {
             /** Video */
             video: string;
         };
-        /** CreateValidationSetRequest */
+        /**
+         * CreateValidationSetRequest
+         * @description Request body for POST /validations endpoint.
+         */
         CreateValidationSetRequest: {
             /** Cases */
             cases: components["schemas"]["ValidationCaseRequest"][];
             /** Path */
             path: string;
         };
-        /** DistResponse */
+        /**
+         * DistResponse
+         * @description Response body for GET /dist endpoint.
+         */
         DistResponse: {
             /** Path */
             path: string;
         };
-        /** DistinctRequest */
+        /**
+         * DistinctRequest
+         * @description Request body for POST /transcripts/{dir}/distinct endpoint.
+         */
         DistinctRequest: {
             /** Column */
             column: string;
@@ -1688,7 +1703,13 @@ export interface components {
             /** Content */
             content: components["schemas"]["Logprob"][];
         };
-        /** MessageFormatOptions */
+        /**
+         * MessageFormatOptions
+         * @description Message formatting options for controlling message content display.
+         *
+         *     These options control which parts of messages are included when
+         *     formatting messages to strings.
+         */
         MessageFormatOptions: {
             /**
              * Exclude Reasoning
@@ -2082,7 +2103,10 @@ export interface components {
          * @constant
          */
         RawEncoding: "zstd";
-        /** RenameValidationSetRequest */
+        /**
+         * RenameValidationSetRequest
+         * @description Request body for PUT /validations/{uri}/rename endpoint.
+         */
         RenameValidationSetRequest: {
             /** Name */
             name: string;
@@ -2313,7 +2337,10 @@ export interface components {
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
         };
-        /** ScanMetrics */
+        /**
+         * ScanMetrics
+         * @description Encapsulates all worker-related metrics.
+         */
         ScanMetrics: {
             /**
              * Batch Failures
@@ -2542,7 +2569,10 @@ export interface components {
              */
             type: "eval_log" | "database";
         };
-        /** ScannerInfo */
+        /**
+         * ScannerInfo
+         * @description Info about a registered scanner factory.
+         */
         ScannerInfo: {
             /** Description */
             description?: string | null;
@@ -2571,7 +2601,10 @@ export interface components {
              */
             input_type: "transcript" | "event" | "events" | "message" | "messages" | "timeline" | "timelines";
         };
-        /** ScannerParam */
+        /**
+         * ScannerParam
+         * @description Parameter definition for a scanner factory.
+         */
         ScannerParam: {
             /** Default */
             default?: unknown | null;
@@ -2642,19 +2675,28 @@ export interface components {
             tokens: number;
             validation: components["schemas"]["ValidationResults"] | null;
         };
-        /** ScannersResponse */
+        /**
+         * ScannersResponse
+         * @description Response body for GET /scanners endpoint.
+         */
         ScannersResponse: {
             /** Items */
             items: components["schemas"]["ScannerInfo"][];
         };
-        /** ScansRequest */
+        /**
+         * ScansRequest
+         * @description Request body for POST /scans endpoint.
+         */
         ScansRequest: {
             filter?: components["schemas"]["Condition"] | null;
             /** Order By */
             order_by?: components["schemas"]["OrderBy"] | components["schemas"]["OrderBy"][] | null;
             pagination?: components["schemas"]["Pagination"] | null;
         };
-        /** ScansResponse */
+        /**
+         * ScansResponse
+         * @description Response body for POST /scans endpoint.
+         */
         ScansResponse: {
             /** Items */
             items: components["schemas"]["ScanRow"][];
@@ -2880,7 +2922,10 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
-        /** Status */
+        /**
+         * Status
+         * @description Status of scan job.
+         */
         Status: {
             /** Complete */
             complete: boolean;
@@ -3109,7 +3154,10 @@ export interface components {
             /** Title */
             title?: string | null;
         };
-        /** ToolCallError */
+        /**
+         * ToolCallError
+         * @description Error raised by a tool call.
+         */
         ToolCallError: {
             /** Message */
             message: string;
@@ -3193,7 +3241,10 @@ export interface components {
             /** Working Time */
             working_time?: number | null;
         };
-        /** ToolFunction */
+        /**
+         * ToolFunction
+         * @description Indicate that a specific tool function should be called.
+         */
         ToolFunction: {
             /** Name */
             name: string;
@@ -3391,7 +3442,10 @@ export interface components {
             /** Transcript Id */
             transcript_id: string;
         };
-        /** TranscriptsRequest */
+        /**
+         * TranscriptsRequest
+         * @description Request body for POST /transcripts endpoint.
+         */
         TranscriptsRequest: {
             filter?: components["schemas"]["Condition"] | null;
             /** Order By */
@@ -3452,7 +3506,10 @@ export interface components {
             split?: string | null;
             target?: components["schemas"]["JsonValue"] | null;
         };
-        /** ValidationCaseRequest */
+        /**
+         * ValidationCaseRequest
+         * @description Request body for creating or updating a validation case.
+         */
         ValidationCaseRequest: {
             /** Id */
             id?: string | string[] | null;
