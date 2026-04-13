@@ -1,13 +1,12 @@
+import { VscodeTextarea } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
-  ChangeEvent,
   FC,
   FormEvent,
   KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
@@ -49,12 +48,24 @@ type SearchPanelProps = {
   onClose: () => void;
 };
 
+function getInputValue(e: Event): string {
+  return (e.target as HTMLTextAreaElement).value;
+}
+
+function configureSearchTextarea(el: HTMLElement | null) {
+  if (!el) return;
+  el.setAttribute("spellcheck", "false");
+  const shadowTextarea = el.shadowRoot?.querySelector("textarea");
+  if (shadowTextarea instanceof HTMLTextAreaElement) {
+    shadowTextarea.setAttribute("spellcheck", "false");
+  }
+}
+
 export const SearchPanel: FC<SearchPanelProps> = ({
   transcriptDir,
   transcriptId,
   onClose,
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = useApi();
   const projectConfig = useProjectConfig();
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
@@ -62,7 +73,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<SearchType>("grep");
-  const [panelView, setPanelView] = useState<PanelView>("recent");
+  const [panelView, setPanelView] = useState<PanelView>("results");
   const [grepOptions, setGrepOptions] =
     useState<GrepOptions>(defaultGrepOptions);
   const [model, setModel] = useState<string>("");
@@ -74,18 +85,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       setRecentSearches(response.items);
     });
   }, [api, transcriptDir, transcriptId]);
-
-  const resizeTextarea = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    textarea.style.height = "0px";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
-  }, []);
-
-  useEffect(() => {
-    resizeTextarea();
-  }, [query, resizeTextarea]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -144,10 +143,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     ]
   );
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      textareaRef.current?.form?.requestSubmit();
+      e.currentTarget.closest("form")?.requestSubmit();
     }
   }, []);
 
@@ -179,12 +178,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     setSearchType(type);
   }, []);
 
-  const handleQueryChange = useCallback(
-    (e: ChangeEvent<HTMLTextAreaElement>) => {
-      setQuery(e.target.value);
-    },
-    []
-  );
+  const handleQueryInput = useCallback((e: Event) => {
+    setQuery(getInputValue(e));
+  }, []);
 
   const showResults = panelView === "results";
   const showRecentSearches = panelView === "recent";
@@ -198,22 +194,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       />
       <div className={styles.body}>
         <form className={styles.searchArea} onSubmit={handleSubmit}>
-          <div className={styles.inputShell}>
-            <textarea
-              ref={textareaRef}
-              className={styles.textarea}
-              placeholder={
-                searchType === "grep"
-                  ? "Search for text..."
-                  : "Ask a question about this transcript..."
-              }
-              value={query}
-              rows={4}
-              onChange={handleQueryChange}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-          <div className={styles.controlsRow}>
+          <div className={styles.topRow}>
             <div className={styles.typeToggle}>
               <SegmentedControl
                 selectedId={searchType}
@@ -226,6 +207,35 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 }
               />
             </div>
+            <button
+              type="button"
+              className={clsx(
+                styles.footerAction,
+                showRecentSearches && styles.footerActionActive
+              )}
+              onClick={() => setPanelView("recent")}
+            >
+              Recent
+            </button>
+          </div>
+          <div className={styles.inputShell}>
+            <VscodeTextarea
+              ref={configureSearchTextarea}
+              className={styles.textarea}
+              placeholder={
+                searchType === "grep"
+                  ? "Search for text..."
+                  : "Ask a question about this transcript..."
+              }
+              value={query}
+              rows={4}
+              onInput={handleQueryInput}
+              onKeyDown={handleKeyDown}
+              spellCheck={false}
+              autocomplete="off"
+            />
+          </div>
+          <div className={styles.controlsRow}>
             <div className={styles.modeRow}>
               {searchType === "grep" ? (
                 <div className={styles.modeControls}>
@@ -263,18 +273,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 </div>
               )}
             </div>
-          </div>
-          <div className={styles.footerRow}>
-            <button
-              type="button"
-              className={clsx(
-                styles.footerAction,
-                showRecentSearches && styles.footerActionActive
-              )}
-              onClick={() => setPanelView("recent")}
-            >
-              Recent
-            </button>
             <button
               type="submit"
               className={styles.runButton}

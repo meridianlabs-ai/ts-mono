@@ -22,15 +22,12 @@
 
 .inputShell {
   display: flex;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
-  background-color: var(--inspect-input-background);
-  padding: 0.45rem 0.55rem;
+  min-width: 0;
 }
 
-.inputShell:focus-within {
-  outline: 1px solid var(--inspect-focus-border-gray-color);
-  outline-offset: -1px;
+.inputShell :global(vscode-textarea) {
+  display: block;
+  width: 100%;
 }
 
 .controlsRow {
@@ -40,6 +37,13 @@
   flex-wrap: wrap;
 }
 
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .typeToggle {
   display: flex;
   flex: 0 0 auto;
@@ -47,21 +51,9 @@
 
 .textarea {
   width: 100%;
-  resize: none;
   font-family: inherit;
   font-size: var(--inspect-font-size-small);
-  line-height: 1.45;
-  padding: 0;
-  border: 0;
-  background: transparent;
   color: var(--bs-body-color);
-  min-height: 4.25rem;
-  max-height: 11rem;
-  overflow-y: auto;
-}
-
-.textarea:focus {
-  outline: none;
 }
 
 .modeRow {
@@ -148,13 +140,6 @@
   outline: none;
 }
 
-.footerRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
 .footerAction {
   padding: 0.2rem 0;
   border: 0;
@@ -174,6 +159,7 @@
 }
 
 .runButton {
+  flex: 0 0 auto;
   padding: 0.24rem 0.65rem;
   border: 1px solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
