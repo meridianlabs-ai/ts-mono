@@ -49,6 +49,12 @@
   flex: 0 0 auto;
 }
 
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .textarea {
   width: 100%;
   font-family: inherit;
@@ -140,21 +146,30 @@
   outline: none;
 }
 
-.footerAction {
-  padding: 0.2rem 0;
+.iconAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 0;
+  border-radius: 4px;
   background: transparent;
   color: var(--bs-secondary-color);
-  font-size: var(--inspect-font-size-small);
-  font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.footerAction:hover {
+.iconAction:hover {
+  background: var(--vscode-toolbar-hoverBackground);
   color: var(--bs-body-color);
 }
 
-.footerActionActive {
+.iconActionActive {
+  background: var(--vscode-toolbar-hoverBackground);
   color: var(--bs-body-color);
 }
 
