@@ -18,7 +18,7 @@ import { truncateMarkdown } from "../../utils/markdown";
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
 import styles from "./SampleSummaryView.module.css";
-import { isCancelled, sampleStatus } from "./status/sampleStatus";
+import { isCancelled } from "./status/sampleStatus";
 
 const kMaxCellTextLength = 256;
 interface SampleSummaryViewProps {
@@ -77,7 +77,7 @@ const resolveSample = (
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
   const cancelled = isCancelled(sample);
-  const error = isEvalSample(sample) ? sample.error?.message : undefined ;
+  const error = isEvalSample(sample) ? sample.error?.message : undefined;
   const retries = isEvalSample(sample)
     ? sample.error_retries?.length
     : sample.retries;
@@ -92,7 +92,7 @@ const resolveSample = (
     working_time,
     total_time,
     error,
-    cancelled
+    cancelled,
   };
 };
 
@@ -109,8 +109,6 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     return undefined;
   }
   const fields = resolveSample(sample, sampleDescriptor);
-  console.log({fields})
-
   const shape = sampleDescriptor?.messageShape;
   const limitSize = shape?.limitSize ?? 0;
   const retrySize = shape?.retriesSize ?? 0;
@@ -231,7 +229,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       label: "Status",
       value: "Cancelled",
       size: `10em`,
-    }); 
+    });
   }
 
   // Check if sample is invalidated (only available on full EvalSample)

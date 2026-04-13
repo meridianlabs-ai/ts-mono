@@ -268,7 +268,6 @@ export function buildColumnDefs(
         const error = params.data.data.error;
         const s = sampleStatus(params.data.completed, params.data.data.error);
 
-
         return (
           <div
             className={clsx(
@@ -283,8 +282,7 @@ export function buildColumnDefs(
           </div>
         );
       },
-
-    }
+    },
   ];
 
   scoreLabels.forEach((label, i) => {
