@@ -85,6 +85,7 @@ export const ApplicationIcons = {
   fork: "bi bi-sign-intersection-y-fill",
   home: "bi bi-house",
   highlight: "bi bi-highlighter",
+  history: "bi bi-clock-history",
   info: "bi bi-info-circle",
   input: "bi bi-terminal",
   inspect: "ii inspect-icon-16",

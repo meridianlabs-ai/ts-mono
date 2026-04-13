@@ -132,22 +132,36 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     }
   }, []);
 
-  const handleSelectRecent = useCallback((search: SavedSearch) => {
+  const handleSelectRecent = useCallback(
+    (search: SavedSearch) => {
+      createSearchMutation.reset();
+      setCurrentSearch(search);
+      setHasSearched(true);
+      setQuery(search.query);
+      setSearchType(search.type);
+      setPanelView("results");
+      if (search.type === "llm") {
+        setModel(search.model ?? "");
+      } else {
+        setGrepOptions({
+          ignoreCase: search.ignore_case,
+          regex: search.regex,
+          wordBoundary: search.word_boundary,
+        });
+      }
+    },
+    [createSearchMutation]
+  );
+
+  const handleNewSearch = useCallback(() => {
     createSearchMutation.reset();
-    setCurrentSearch(search);
-    setHasSearched(true);
-    setQuery(search.query);
-    setSearchType(search.type);
+    setCurrentSearch(null);
+    setQuery("");
+    setSearchType("grep");
     setPanelView("results");
-    if (search.type === "llm") {
-      setModel(search.model ?? "");
-    } else {
-      setGrepOptions({
-        ignoreCase: search.ignore_case,
-        regex: search.regex,
-        wordBoundary: search.word_boundary,
-      });
-    }
+    setGrepOptions(defaultGrepOptions);
+    setModel("");
+    setHasSearched(false);
   }, [createSearchMutation]);
 
   const toggleGrepOption = useCallback((key: keyof GrepOptions) => {
@@ -190,18 +204,32 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 }
               />
             </div>
-            <button
-              type="button"
-              className={clsx(
-                styles.footerAction,
-                showRecentSearches && styles.footerActionActive
-              )}
-              onClick={() => setPanelView("recent")}
-            >
-              Recent
-            </button>
+            <div className={styles.topActions}>
+              <button
+                type="button"
+                className={clsx(
+                  styles.iconAction,
+                  showRecentSearches && styles.iconActionActive
+                )}
+                onClick={() => setPanelView("recent")}
+                title="Recent searches"
+                aria-label="Recent searches"
+              >
+                <i className={ApplicationIcons.history} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.iconAction}
+                onClick={handleNewSearch}
+                title="New search"
+                aria-label="New search"
+              >
+                <i className={ApplicationIcons.add} aria-hidden="true" />
+              </button>
+            </div>
           </div>
           <div className={styles.inputShell}>
+            {/* TODO: grow up to 10 lines tall and then scroll */}
             <VscodeTextarea
               ref={configureSearchTextarea}
               className={styles.textarea}
@@ -277,8 +305,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             !createSearchMutation.isError &&
             hasSearched &&
             currentSearch === null && (
-            <div className={styles.emptyState}>No results found</div>
-          )}
+              <div className={styles.emptyState}>No results found</div>
+            )}
           {showResults &&
             !loading &&
             !createSearchMutation.isError &&
@@ -324,9 +352,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             !searches.loading &&
             !searches.error &&
             recentSearches.length === 0 && (
-            <div className={styles.emptyState}>
-              Recent searches will show up here.
-            </div>
+              <div className={styles.emptyState}>
+                Recent searches will show up here.
+              </div>
             )}
         </div>
       </div>
