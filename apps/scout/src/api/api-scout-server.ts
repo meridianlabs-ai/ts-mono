@@ -270,11 +270,7 @@ export const apiScoutServer = (
       return {
         input: {
           input_type: raw.input_type,
-          input: expandInputEvents(
-            raw.input,
-            raw.input_type,
-            raw.input_data
-          ),
+          input: expandInputEvents(raw.input, raw.input_type, raw.input_data),
         },
         scanEvents: raw.scan_events ?? [],
       };

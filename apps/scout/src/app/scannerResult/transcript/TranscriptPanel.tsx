@@ -6,8 +6,8 @@ import {
   TranscriptLayout,
 } from "@tsmono/inspect-components/transcript";
 
-import { Event } from "../../../types/api-types";
 import { useStore } from "../../../state/store";
+import { Event } from "../../../types/api-types";
 
 import styles from "./TranscriptPanel.module.css";
 
