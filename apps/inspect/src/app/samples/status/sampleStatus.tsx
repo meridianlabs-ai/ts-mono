@@ -1,7 +1,9 @@
 import clsx from "clsx";
 
+import { EvalSample } from "@tsmono/inspect-common";
 import { PulsingDots } from "@tsmono/react/components";
 
+import { SampleSummary } from "../../../client/api/types";
 import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
 
@@ -16,6 +18,16 @@ export const sampleStatus = (
     return errorType(error) === "CancelledError" ? "cancelled" : "error";
   }
   return completed ? "ok" : "running";
+};
+
+export const isCancelled = (sample: SampleSummary | EvalSample): boolean => {
+  if ("error" in sample && sample.error) {
+    if (typeof sample.error === "string") {
+      return errorType(sample.error) === "CancelledError";
+    }
+    return errorType(sample.error.message) === "CancelledError";
+  }
+  return false;
 };
 
 /** Sortable string value for use as ag-grid valueGetter.

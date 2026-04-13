@@ -252,6 +252,37 @@ export function buildColumnDefs(
         );
       },
     },
+    {
+      colId: "sampleStatusMsg",
+      headerName: "Status",
+      width: (shape?.errorSize ?? 1) * 26,
+      minWidth: 28,
+      hide: !shape?.errorSize,
+      valueGetter: (params) => {
+        if (!params.data) return "";
+        const s = sampleStatus(params.data.completed, params.data.data.error);
+        return s;
+      },
+      cellRenderer: (params: ICellRendererParams<SampleListItem>) => {
+        if (!params.data) return null;
+        const error = params.data.data.error;
+        const s = sampleStatus(params.data.completed, params.data.data.error);
+
+        return (
+          <div
+            className={clsx(
+              "sample-status",
+              "text-size-small",
+              "three-line-clamp",
+              styles.cell,
+              styles.wrapAnywhere
+            )}
+          >
+            {s === "cancelled" ? s : error ? error : s}
+          </div>
+        );
+      },
+    },
   ];
 
   scoreLabels.forEach((label, i) => {
