@@ -1,5 +1,5 @@
 import { FC, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import {
@@ -9,7 +9,12 @@ import {
 } from "../../state/hooks";
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
-import { baseUrl, logSamplesUrl, useLogRouteParams } from "../routing/url";
+import {
+  baseUrl,
+  logSamplesUrl,
+  useLogRouteParams,
+  type RoutePrefix,
+} from "../routing/url";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -40,6 +45,10 @@ export const LogViewContainer: FC = () => {
   );
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
+    ? "/tasks"
+    : "/logs";
   const sampleSummaries = useSampleSummaries();
   const [searchParams] = useSearchParams();
 
@@ -63,7 +72,8 @@ export const LogViewContainer: FC = () => {
           logPath,
           sample.id,
           sample.epoch,
-          sampleTabId
+          sampleTabId,
+          prefix
         );
         const finalUrl = searchParams.toString()
           ? `${url}?${searchParams.toString()}`
@@ -79,6 +89,7 @@ export const LogViewContainer: FC = () => {
     searchParams,
     sampleTabId,
     navigate,
+    prefix,
   ]);
 
   useEffect(() => {
@@ -86,12 +97,13 @@ export const LogViewContainer: FC = () => {
       const url = baseUrl(
         initialState.log,
         initialState.sample_id,
-        initialState.sample_epoch
+        initialState.sample_epoch,
+        prefix
       );
       clearInitialState();
       navigate(url);
     }
-  }, [initialState, evalSpec, clearInitialState, navigate]);
+  }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPath = usePrevious<string | undefined>(logPath);
   const syncLogs = useStore((state) => state.logsActions.syncLogs);

@@ -19,6 +19,14 @@ export const LogListFooter: FC<LogListFooterProps> = ({
   progressBar,
 }) => {
   const effectiveItemCount = filteredCount ?? itemCount;
+  const label = itemCountLabel || "items";
+
+  const countText =
+    effectiveItemCount === 0
+      ? ""
+      : filteredCount !== undefined && filteredCount !== itemCount
+        ? `${effectiveItemCount.toLocaleString()} / ${itemCount.toLocaleString()} ${label}`
+        : `${effectiveItemCount.toLocaleString()} ${label}`;
 
   return (
     <div className={clsx("text-size-smaller", styles.footer)}>
@@ -35,21 +43,13 @@ export const LogListFooter: FC<LogListFooterProps> = ({
               {progressText}...
             </div>
           </div>
-        ) : null}
+        ) : (
+          (progressBar ?? null)
+        )}
       </div>
       <div className={clsx(styles.center)} />
       <div className={clsx(styles.right)}>
-        {progressBar ? (
-          progressBar
-        ) : (
-          <div>
-            {effectiveItemCount === 0
-              ? ""
-              : filteredCount !== undefined && filteredCount !== itemCount
-                ? `${effectiveItemCount} / ${itemCount} ${itemCountLabel || "items"}`
-                : `${effectiveItemCount} ${itemCountLabel || "items"}`}
-          </div>
-        )}
+        <div>{countText}</div>
       </div>
     </div>
   );

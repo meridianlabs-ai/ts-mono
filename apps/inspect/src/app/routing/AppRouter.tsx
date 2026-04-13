@@ -17,9 +17,12 @@ import { LogViewContainer } from "../log-view/LogViewContainer";
 
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
+import { TasksRouter } from "./TasksRouter";
 import {
   kLogRouteUrlPattern,
   kLogsRoutUrlPattern as kLogsRouteUrlPattern,
+  kTaskRouteUrlPattern,
+  kTasksRouteUrlPattern,
   useLogRouteParams,
 } from "./url";
 
@@ -79,7 +82,7 @@ export const AppRouter = createHashRouter(
       children: [
         {
           index: true, // This will match exactly the "/" path
-          element: <LogsPanel maybeShowSingleLog={true} />,
+          element: <LogsPanel mode="tasks" maybeShowSingleLog={true} />,
         },
         {
           path: kLogsRouteUrlPattern,
@@ -90,6 +93,14 @@ export const AppRouter = createHashRouter(
           // The RouteDispatcher parses the path and routes to the appropriate component
           path: kLogRouteUrlPattern,
           element: <RouteDispatcher />,
+        },
+        {
+          path: kTasksRouteUrlPattern,
+          element: <LogsPanel mode="tasks" />,
+        },
+        {
+          path: kTaskRouteUrlPattern,
+          element: <TasksRouter />,
         },
         {
           path: "/samples/*",

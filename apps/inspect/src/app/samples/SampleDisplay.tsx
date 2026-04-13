@@ -59,6 +59,7 @@ import {
   printSampleUrl,
   sampleMessageUrl,
   useLogOrSampleRouteParams,
+  useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
 
@@ -92,6 +93,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Tab ids
   const baseId = `sample-display`;
 
+  const prefix = useRoutePrefix();
   const sampleData = useSampleData();
   const sample = useMemo(() => {
     return sampleData.getSelectedSample();
@@ -254,11 +256,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         printLogPath,
         printSampleId,
         printEpoch,
-        effectiveSelectedTab
+        effectiveSelectedTab,
+        prefix
       );
       window.open(`#${printUrl}`, "_blank");
     }
-  }, [printLogPath, printSampleId, printEpoch, effectiveSelectedTab]);
+  }, [printLogPath, printSampleId, printEpoch, effectiveSelectedTab, prefix]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
   useEffect(() => {

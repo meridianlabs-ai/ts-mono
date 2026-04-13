@@ -8,10 +8,11 @@ import { sampleIdsEqual } from "../shared/sample";
 
 import {
   logSamplesUrl,
-  logsUrl,
   logsUrlRaw,
+  makeLogsPath,
   samplesSampleUrl,
   useLogRouteParams,
+  useRoutePrefix,
 } from "./url";
 
 export const useLogNavigation = () => {
@@ -19,21 +20,22 @@ export const useLogNavigation = () => {
   const { logPath: routeLogPath } = useLogRouteParams();
   const logDir = useStore((state) => state.logs.logDir);
   const loadedLog = useStore((state) => state.log.loadedLog);
+  const prefix = useRoutePrefix();
 
   const selectTab = useCallback(
     (tabId: string) => {
       // Only update URL if we have a loaded log
       if (loadedLog && routeLogPath) {
         // We already have the logPath from params, just navigate to the tab
-        const url = logsUrlRaw(routeLogPath, tabId);
+        const url = logsUrlRaw(routeLogPath, tabId, prefix);
         navigate(url);
       } else if (loadedLog) {
         // Fallback to constructing the path if needed
-        const url = logsUrl(loadedLog, logDir, tabId);
+        const url = logsUrlRaw(makeLogsPath(loadedLog, logDir), tabId, prefix);
         navigate(url);
       }
     },
-    [loadedLog, routeLogPath, logDir, navigate]
+    [loadedLog, routeLogPath, logDir, navigate, prefix]
   );
 
   return {
@@ -43,6 +45,7 @@ export const useLogNavigation = () => {
 
 export const useSampleUrl = () => {
   const { logPath, sampleTabId } = useLogRouteParams();
+  const prefix = useRoutePrefix();
 
   const logDirectory = useStore((state) => state.logs.logDir);
 
@@ -76,13 +79,14 @@ export const useSampleUrl = () => {
           resolvedPath,
           sampleId,
           epoch,
-          currentSampleTabId
+          currentSampleTabId,
+          prefix
         );
         return url;
       }
       return undefined;
     },
-    [resolveLogPath, sampleTabId]
+    [resolveLogPath, sampleTabId, prefix]
   );
   return getSampleUrl;
 };
@@ -93,6 +97,7 @@ export const useSampleUrl = () => {
  */
 export const useSampleNavigation = () => {
   const navigate = useNavigate();
+  const prefix = useRoutePrefix();
 
   // The log directory
   const logDirectory = useStore((state) => state.logs.logDir);
@@ -148,13 +153,19 @@ export const useSampleNavigation = () => {
         // Use specified sampleTabId if provided, otherwise use current sampleTabId from URL params
         const currentSampleTabId = specifiedSampleTabId || sampleTabId;
 
-        const url = logSamplesUrl(resolvedPath, id, epoch, currentSampleTabId);
+        const url = logSamplesUrl(
+          resolvedPath,
+          id,
+          epoch,
+          currentSampleTabId,
+          prefix
+        );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
         navigate(url);
       }
     },
-    [resolveLogPath, selectSample, navigate, sampleTabId]
+    [resolveLogPath, selectSample, navigate, sampleTabId, prefix]
   );
 
   const navigateSampleIndex = useCallback(
@@ -206,23 +217,24 @@ export const useSampleNavigation = () => {
           resolvedPath,
           sampleId,
           epoch,
-          currentSampleTabId
+          currentSampleTabId,
+          prefix
         );
         return `#${url}`;
       }
       return undefined;
     },
-    [resolveLogPath, sampleTabId]
+    [resolveLogPath, sampleTabId, prefix]
   );
 
   // Navigate back from sample detail view
   const clearSampleUrl = useCallback(() => {
     const resolvedPath = resolveLogPath();
     if (resolvedPath) {
-      const url = logsUrlRaw(resolvedPath, tabId);
+      const url = logsUrlRaw(resolvedPath, tabId, prefix);
       navigate(url);
     }
-  }, [resolveLogPath, navigate, tabId]);
+  }, [resolveLogPath, navigate, tabId, prefix]);
 
   return {
     showSample,
@@ -287,6 +299,7 @@ export const useSamplesGridNavigation = () => {
  */
 export const useLogSampleNavigation = () => {
   const navigate = useNavigate();
+  const prefix = useRoutePrefix();
   const { logPath: routeLogPath, sampleTabId } = useLogRouteParams();
 
   // Fall back to selectedLogFile for VSCode single-file mode where route params aren't available
@@ -333,7 +346,8 @@ export const useLogSampleNavigation = () => {
         logPath,
         prevSample.id,
         prevSample.epoch,
-        sampleTabId
+        sampleTabId,
+        prefix
       );
       navigate(url);
     }
@@ -345,6 +359,7 @@ export const useLogSampleNavigation = () => {
     sampleTabId,
     selectSample,
     navigate,
+    prefix,
   ]);
 
   // Navigate to next sample
@@ -358,7 +373,8 @@ export const useLogSampleNavigation = () => {
         logPath,
         nextSample.id,
         nextSample.epoch,
-        sampleTabId
+        sampleTabId,
+        prefix
       );
       navigate(url);
     }
@@ -370,6 +386,7 @@ export const useLogSampleNavigation = () => {
     sampleTabId,
     selectSample,
     navigate,
+    prefix,
   ]);
 
   return {

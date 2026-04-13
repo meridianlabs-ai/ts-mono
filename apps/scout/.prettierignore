@@ -3,3 +3,4 @@ openapi.json
 src/types/generated.ts
 playwright-report/
 test-results/
+*.md
