@@ -24,6 +24,7 @@ export const kSampleTranscriptTabId = `transcript`;
 export const kSampleScoringTabId = `scoring`;
 export const kSampleMetdataTabId = `metadata`;
 export const kSampleErrorTabId = `error`;
+export const kSampleRetriesTabId = `retries`;
 export const kSampleErrorRetriesTabId = `retry-errors`;
 export const kSampleJsonTabId = `json`;
 
@@ -33,6 +34,7 @@ export const kSampleTabIds = [
   kSampleScoringTabId,
   kSampleMetdataTabId,
   kSampleErrorTabId,
+  kSampleRetriesTabId,
   kSampleErrorRetriesTabId,
   kSampleJsonTabId,
 ];
