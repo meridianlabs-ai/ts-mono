@@ -321,7 +321,7 @@ export const createSamplesDescriptor = (
         10,
         Math.max(
           shape.retriesSize,
-          sample.retries ? String(sample.retries).length : 0
+          sample.retries ? String(sample.retries).length + 2 : 0
         )
       );
       shape.errorSize = Math.min(
