@@ -303,9 +303,7 @@ function processMessagePool(
     `Processing ${sampleData.message_pool.length} message pool entries`
   );
   for (const entry of sampleData.message_pool) {
-    pollingState.messagePool.push(
-      JSON.parse(entry.data) as ChatMessage
-    );
+    pollingState.messagePool.push(JSON.parse(entry.data) as ChatMessage);
     pollingState.messagePoolId = Math.max(pollingState.messagePoolId, entry.id);
   }
 }
