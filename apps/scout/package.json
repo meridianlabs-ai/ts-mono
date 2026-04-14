@@ -67,7 +67,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.39.2",
     "eventsource": "^4.1.0",
-    "jsdom": "^27.3.0",
+    "jsdom": "^29.0.2",
     "msw": "^2.13.2",
     "openapi-typescript": "^7.10.1",
     "postcss-url": "^10.1.3",
