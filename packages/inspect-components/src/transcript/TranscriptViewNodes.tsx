@@ -28,7 +28,7 @@ import {
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
-import type { EventNode, EventPanelCallbacks } from "./types";
+import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 // =============================================================================
 // Types
@@ -54,6 +54,8 @@ export interface TranscriptViewNodesProps {
   /** Outline collapse state, used only for turn-map computation. */
   collapsedOutline?: Record<string, boolean>;
   onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
+  /** Extra context fields merged into every EventNodeContext entry. */
+  eventNodeContext?: Partial<EventNodeContext>;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -87,6 +89,7 @@ export const TranscriptViewNodes = forwardRef<
     collapsedTranscript,
     collapsedOutline,
     onCollapseTranscript,
+    eventNodeContext,
   },
   ref
 ) {
@@ -203,6 +206,7 @@ export const TranscriptViewNodes = forwardRef<
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
+          eventNodeContext={eventNodeContext}
         />
       </div>
     </StickyScrollProvider>

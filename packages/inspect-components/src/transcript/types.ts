@@ -160,4 +160,6 @@ export type TranscriptState = Record<string, TranscriptEventState>;
 export interface EventNodeContext {
   hasToolEvents?: boolean;
   turnInfo?: { turnNumber: number; totalTurns: number };
+  /** When true, event views should show inline expansion UX element. (e.g. ModelEventView shows a "Show all messages" toggle for expanding filtered input.) */
+  inlineExpansionUX?: boolean;
 }

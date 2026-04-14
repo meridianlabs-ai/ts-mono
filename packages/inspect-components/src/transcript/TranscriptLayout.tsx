@@ -59,6 +59,7 @@ import {
 } from "./TranscriptViewNodes";
 import {
   EventNode,
+  type EventNodeContext,
   kCollapsibleEventTypes,
   type TranscriptCollapseState,
 } from "./types";
@@ -129,6 +130,9 @@ export interface TranscriptLayoutProps {
   /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
   outline?: TranscriptLayoutOutlineProps;
 
+  /** Extra context fields merged into every EventNodeContext entry. */
+  eventNodeContext?: Partial<EventNodeContext>;
+
   /** Text shown when no events match the current filter. Pass null to disable empty state. */
   emptyText?: string | null;
   className?: string;
@@ -184,6 +188,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   bulkCollapse,
   collapseState,
   outline,
+  eventNodeContext,
   emptyText = "No events match the current filter",
   className,
 }) => {
@@ -602,6 +607,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               collapsedTranscript={collapseState?.transcript}
               collapsedOutline={collapseState?.outline}
               onCollapseTranscript={collapseState?.onCollapseTranscript}
+              eventNodeContext={eventNodeContext}
             />
           ) : emptyText !== null ? (
             <NoContentsPanel text={emptyText} />

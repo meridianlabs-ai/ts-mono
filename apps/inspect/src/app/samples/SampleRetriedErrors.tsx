@@ -142,6 +142,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
               showSwimlanes={false}
               collapseState={collapseState}
               bulkCollapse={bulkCollapse}
+              eventNodeContext={{ inlineExpansionUX: true }}
             />
           </div>
         )}

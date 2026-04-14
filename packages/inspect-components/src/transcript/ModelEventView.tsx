@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, useMemo, useRef } from "react";
+import { FC, Fragment, useMemo, useRef, useState } from "react";
 
 import type {
   ChatMessage,
@@ -86,6 +86,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     }
   }
 
+  const hasHiddenMessages = event.input.length > userMessages.length;
+  const [showAllMessages, setShowAllMessages] = useState(false);
+
+  const summaryMessages = showAllMessages
+    ? [...event.input, ...(outputMessages || [])]
+    : [...userMessages, ...(outputMessages || [])];
+
   const panelTitle = event.role
     ? `Model Call (${event.role}): ${event.model}`
     : `Model Call: ${event.model}`;
@@ -109,9 +116,23 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.container}>
+        {context?.inlineExpansionUX && hasHiddenMessages && !showAllMessages && (
+          <div className={clsx("text-size-small", styles.showAllLink)}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowAllMessages(true);
+              }}
+            >
+              <i className={clsx(TranscriptIcons.expand, styles.showAllIcon)} />
+              Show all messages
+            </a>
+          </div>
+        )}
         <ChatView
           id={`${eventNode.id}-model-output`}
-          messages={[...userMessages, ...(outputMessages || [])]}
+          messages={summaryMessages}
           tools={{
             callStyle: showToolCalls ? "complete" : "omit",
             collapseToolMessages: context?.hasToolEvents !== false,
