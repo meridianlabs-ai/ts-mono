@@ -16,7 +16,7 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../components/icons";
-import { Result, SavedSearch, SearchRequest } from "../../types/api-types";
+import { Result, SavedSearch } from "../../types/api-types";
 import { Chip } from "../components/Chip";
 import { ChipGroup } from "../components/ChipGroup";
 import { useProjectConfig } from "../server/useProjectConfig";
@@ -25,15 +25,14 @@ import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./SearchPanel.module.css";
+import { buildSearchRequest } from "./searchRequest";
+import type {
+  GrepOptions,
+  SearchType,
+  TranscriptSearchScope,
+} from "./searchRequest";
 
-type SearchType = "grep" | "llm";
 type PanelView = "results" | "recent";
-
-type GrepOptions = {
-  ignoreCase: boolean;
-  regex: boolean;
-  wordBoundary: boolean;
-};
 
 const defaultGrepOptions: GrepOptions = {
   ignoreCase: true,
@@ -42,6 +41,7 @@ const defaultGrepOptions: GrepOptions = {
 };
 
 type SearchPanelProps = {
+  scope: TranscriptSearchScope;
   transcriptDir: string;
   transcriptId: string;
   onClose: () => void;
@@ -61,13 +61,17 @@ function configureSearchTextarea(el: HTMLElement | null) {
 }
 
 export const SearchPanel: FC<SearchPanelProps> = ({
+  scope,
   transcriptDir,
   transcriptId,
   onClose,
 }) => {
   const projectConfig = useProjectConfig();
+  const { getFullMessageUrl } = useTranscriptNavigation();
+
   const searches = useSearches({ transcriptDir, transcriptId });
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
+
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState<SearchType>("llm");
@@ -76,7 +80,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     useState<GrepOptions>(defaultGrepOptions);
   const [model, setModel] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
-  const { getFullMessageUrl } = useTranscriptNavigation();
+
   const recentSearches = searches.data?.items ?? [];
   const loading = createSearchMutation.isPending;
 
@@ -91,35 +95,26 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       setCurrentSearch(null);
       createSearchMutation.reset();
 
-      const request: SearchRequest =
-        searchType === "grep"
-          ? {
-              ignore_case: grepOptions.ignoreCase,
-              query: text,
-              regex: grepOptions.regex,
-              type: "grep",
-              word_boundary: grepOptions.wordBoundary,
-            }
-          : {
-              query: text,
-              type: "llm",
-              model: model.trim() || projectConfig.data?.config.model || null,
-            };
+      const request = buildSearchRequest({
+        defaultModel: projectConfig.data?.config.model,
+        grepOptions,
+        model,
+        query: text,
+        scope,
+        searchType,
+      });
 
       createSearchMutation.mutate(request, {
-        onSuccess: (saved) => {
-          setCurrentSearch(saved);
-        },
+        onSuccess: setCurrentSearch,
       });
     },
     [
       createSearchMutation,
-      grepOptions.ignoreCase,
-      grepOptions.regex,
-      grepOptions.wordBoundary,
+      grepOptions,
       searchType,
       loading,
       model,
+      scope,
       projectConfig.data?.config.model,
       query,
     ]
