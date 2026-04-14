@@ -403,10 +403,7 @@ function resolvePoolRefs(event: Event, pollingState: PollingState): Event {
 
   const msgKey = (withInput.call.call_key as string) || "messages";
   const request = { ...withInput.call.request };
-  request[msgKey] = expandRefs(
-    withInput.call.call_refs,
-    pollingState.callPool
-  );
+  request[msgKey] = expandRefs(withInput.call.call_refs, pollingState.callPool);
   return {
     ...withInput,
     call: {
