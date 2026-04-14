@@ -298,10 +298,7 @@ function processMessagePool(
   sampleData: SampleData,
   pollingState: PollingState
 ) {
-  if (!sampleData.message_pool?.length) return;
-  log.debug(
-    `Processing ${sampleData.message_pool.length} message pool entries`
-  );
+  if (!sampleData.message_pool.length) return;
   for (const entry of sampleData.message_pool) {
     pollingState.messagePool.push(JSON.parse(entry.data) as ChatMessage);
     pollingState.messagePoolId = Math.max(pollingState.messagePoolId, entry.id);
@@ -309,8 +306,7 @@ function processMessagePool(
 }
 
 function processCallPool(sampleData: SampleData, pollingState: PollingState) {
-  if (!sampleData.call_pool?.length) return;
-  log.debug(`Processing ${sampleData.call_pool.length} call pool entries`);
+  if (!sampleData.call_pool.length) return;
   for (const entry of sampleData.call_pool) {
     pollingState.callPool.push(JSON.parse(entry.data) as JsonValue);
     pollingState.callPoolId = Math.max(pollingState.callPoolId, entry.id);
@@ -334,7 +330,7 @@ function processEvents(
     const existingIndex = pollingState.eventMapping[eventData.event_id];
 
     // Resolve attachments within this event
-    let resolvedEvent = resolveAttachments<Event>(
+    const withAttachments = resolveAttachments<Event>(
       eventData.event,
       pollingState.attachments,
       (attachmentId: string) => {
@@ -356,12 +352,12 @@ function processEvents(
     );
 
     // Resolve pool refs for model events
-    resolvedEvent = resolvePoolRefs(resolvedEvent, pollingState);
+    const withPoolRefs = resolvePoolRefs(withAttachments, pollingState);
 
     // Resolve attachments again after pool expansion, since pool entries
     // may contain attachment:// URIs that weren't visible before expansion.
-    resolvedEvent = resolveAttachments<Event>(
-      resolvedEvent,
+    const resolvedEvent = resolveAttachments<Event>(
+      withPoolRefs,
       pollingState.attachments
     );
 
@@ -387,44 +383,39 @@ function expandRefs<T>(refs: [number, number][], pool: T[]): T[] {
 }
 
 function resolvePoolRefs(event: Event, pollingState: PollingState): Event {
-  const ev = event as ModelEvent;
-  if (ev.event !== "model") return event;
+  if (event.event !== "model") return event;
 
-  let resolved = ev;
+  const withInput =
+    Array.isArray(event.input_refs) && pollingState.messagePool.length > 0
+      ? {
+          ...event,
+          input: expandRefs(
+            event.input_refs,
+            pollingState.messagePool
+          ) satisfies ModelEvent["input"],
+          input_refs: null,
+        }
+      : event;
 
-  if (
-    Array.isArray(resolved.input_refs) &&
-    pollingState.messagePool.length > 0
-  ) {
-    resolved = {
-      ...resolved,
-      input: expandRefs(
-        resolved.input_refs as [number, number][],
-        pollingState.messagePool
-      ) as ModelEvent["input"],
-      input_refs: null,
-    };
+  if (!withInput.call || !Array.isArray(withInput.call.call_refs)) {
+    return withInput;
   }
 
-  if (resolved.call && Array.isArray(resolved.call.call_refs)) {
-    const msgKey = (resolved.call.call_key as string) || "messages";
-    const request = { ...resolved.call.request };
-    request[msgKey] = expandRefs(
-      resolved.call.call_refs as [number, number][],
-      pollingState.callPool
-    );
-    resolved = {
-      ...resolved,
-      call: {
-        ...resolved.call,
-        request,
-        call_refs: null,
-        call_key: null,
-      },
-    };
-  }
-
-  return resolved;
+  const msgKey = (withInput.call.call_key as string) || "messages";
+  const request = { ...withInput.call.request };
+  request[msgKey] = expandRefs(
+    withInput.call.call_refs,
+    pollingState.callPool
+  );
+  return {
+    ...withInput,
+    call: {
+      ...withInput.call,
+      request,
+      call_refs: null,
+      call_key: null,
+    },
+  };
 }
 
 const findMaxId = (

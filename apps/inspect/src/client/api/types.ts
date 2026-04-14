@@ -2,6 +2,7 @@ import type {
   ApprovalEvent,
   AttachmentData,
   BranchEvent,
+  CallPoolData,
   CompactionEvent,
   ErrorEvent,
   EvalError,
@@ -20,6 +21,7 @@ import type {
   LogHandle,
   LogInfo,
   LogUpdate,
+  MessagePoolData,
   ModelEvent,
   SampleInitEvent,
   SampleLimitEvent,
@@ -39,21 +41,7 @@ import {
   EvalSampleTarget,
 } from "../../@types/extraInspect";
 
-export interface MessagePoolData {
-  id: number;
-  sample_id: string;
-  epoch: number;
-  msg_id: string;
-  data: string;
-}
-
-export interface CallPoolData {
-  id: number;
-  sample_id: string;
-  epoch: number;
-  hash: string;
-  data: string;
-}
+export type { CallPoolData, MessagePoolData };
 
 // Hand-coded — references the local EventData with typed event union
 export interface SampleData {
