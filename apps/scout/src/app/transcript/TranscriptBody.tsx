@@ -39,6 +39,7 @@ import { ValidationCaseEditor } from "../validation/components/ValidationCaseEdi
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
+import type { TranscriptSearchScope } from "./searchRequest";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
 
@@ -107,6 +108,13 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   );
   const resolvedSelectedTranscriptTab =
     tabParam || selectedTranscriptTab || defaultTab;
+  const searchScope: TranscriptSearchScope | undefined =
+    resolvedSelectedTranscriptTab === kTranscriptMessagesTabId
+      ? "messages"
+      : resolvedSelectedTranscriptTab === kTranscriptEventsTabId
+        ? "events"
+        : undefined;
+  const searchAvailable = searchScope !== undefined;
 
   const handleTabChange = useCallback(
     (tabId: string) => {
@@ -192,7 +200,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // When a sidebar is open, the split layout's start pane becomes the actual
   // scroll container (not the outer transcriptContainer), so we swap the ref.
   const activeSidebar = getSidebarParam(searchParams);
-  const anySidebarOpen = activeSidebar !== undefined;
+  const resolvedActiveSidebar =
+    activeSidebar === "search" && !searchAvailable ? undefined : activeSidebar;
+  const anySidebarOpen = resolvedActiveSidebar !== undefined;
   const activeScrollRef = anySidebarOpen ? splitStartRef : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
@@ -299,24 +309,28 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       className={styles.tabTool}
       subtle={true}
       title={
-        activeSidebar === "validation"
+        resolvedActiveSidebar === "validation"
           ? "Hide validation editor"
           : "Show validation editor"
       }
     />
   );
 
-  tabTools.push(
-    <ToolButton
-      key="search-sidebar-toggle"
-      label="Search"
-      icon={ApplicationIcons.search}
-      onClick={toggleSearchSidebar}
-      className={styles.tabTool}
-      subtle={true}
-      title={activeSidebar === "search" ? "Hide search" : "Show search"}
-    />
-  );
+  if (searchAvailable) {
+    tabTools.push(
+      <ToolButton
+        key="search-sidebar-toggle"
+        label="Search"
+        icon={ApplicationIcons.search}
+        onClick={toggleSearchSidebar}
+        className={styles.tabTool}
+        subtle={true}
+        title={
+          resolvedActiveSidebar === "search" ? "Hide search" : "Show search"
+        }
+      />
+    );
+  }
 
   const messagesPanel = (
     <TabPanel
@@ -471,15 +485,16 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div
             slot="end"
             className={
-              activeSidebar === "validation"
+              resolvedActiveSidebar === "validation"
                 ? styles.validationSidebar
                 : styles.searchSidebar
             }
           >
-            {activeSidebar === "validation" ? (
+            {resolvedActiveSidebar === "validation" ? (
               <ValidationCaseEditor transcriptId={transcript.transcript_id} />
             ) : (
               <SearchPanel
+                scope={searchScope!}
                 transcriptDir={resolvedTranscriptsDir}
                 transcriptId={transcript.transcript_id}
                 onClose={toggleSearchSidebar}
