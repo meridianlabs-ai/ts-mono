@@ -520,6 +520,19 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** CallPoolData */
+        CallPoolData: {
+            /** Data */
+            data: string;
+            /** Epoch */
+            epoch: number;
+            /** Hash */
+            hash: string;
+            /** Id */
+            id: number;
+            /** Sample Id */
+            sample_id: string;
+        };
         /**
          * ChatCompletionChoice
          * @description Choice generated for completion.
@@ -1919,6 +1932,19 @@ export interface components {
             /** Content */
             content: components["schemas"]["Logprob"][];
         };
+        /** MessagePoolData */
+        MessagePoolData: {
+            /** Data */
+            data: string;
+            /** Epoch */
+            epoch: number;
+            /** Id */
+            id: number;
+            /** Msg Id */
+            msg_id: string;
+            /** Sample Id */
+            sample_id: string;
+        };
         /**
          * MetadataEdit
          * @description Edit action for metadata.
@@ -2169,8 +2195,18 @@ export interface components {
         SampleData: {
             /** Attachments */
             attachments: components["schemas"]["AttachmentData"][];
+            /**
+             * Call Pool
+             * @default []
+             */
+            call_pool: components["schemas"]["CallPoolData"][];
             /** Events */
             events: components["schemas"]["EventData"][];
+            /**
+             * Message Pool
+             * @default []
+             */
+            message_pool: components["schemas"]["MessagePoolData"][];
         };
         /**
          * SampleInitEvent
@@ -3368,6 +3404,8 @@ export interface operations {
                 epoch: number;
                 "last-event-id"?: number | null;
                 "after-attachment-id"?: number | null;
+                "after-message-pool-id"?: number | null;
+                "after-call-pool-id"?: number | null;
             };
             header?: never;
             path?: never;
