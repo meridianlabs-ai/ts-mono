@@ -116,20 +116,24 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.container}>
-        {context?.inlineExpansionUX && hasHiddenMessages && !showAllMessages && (
-          <div className={clsx("text-size-small", styles.showAllLink)}>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowAllMessages(true);
-              }}
-            >
-              <i className={clsx(TranscriptIcons.expand, styles.showAllIcon)} />
-              Show all messages
-            </a>
-          </div>
-        )}
+        {context?.inlineExpansionUX &&
+          hasHiddenMessages &&
+          !showAllMessages && (
+            <div className={clsx("text-size-small", styles.showAllLink)}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowAllMessages(true);
+                }}
+              >
+                <i
+                  className={clsx(TranscriptIcons.expand, styles.showAllIcon)}
+                />
+                Show all messages
+              </a>
+            </div>
+          )}
         <ChatView
           id={`${eventNode.id}-model-output`}
           messages={summaryMessages}

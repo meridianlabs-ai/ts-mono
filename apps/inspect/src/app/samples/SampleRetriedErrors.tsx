@@ -59,10 +59,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   const initialCollapsed = useMemo(() => {
     const ids: Record<string, boolean> = {};
     for (const event of retry.events || []) {
-      if (
-        (event.event === "state" || event.event === "store") &&
-        event.uuid
-      ) {
+      if ((event.event === "state" || event.event === "store") && event.uuid) {
         ids[event.uuid] = true;
       }
     }
@@ -88,7 +85,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
         : Object.keys(initialCollapsed).length > 0
           ? initialCollapsed
           : undefined,
-    [transcriptCollapsed, initialCollapsed],
+    [transcriptCollapsed, initialCollapsed]
   );
 
   const collapseState = useMemo<TranscriptCollapseState>(
@@ -104,7 +101,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
         setBulkCollapse(undefined);
       },
     }),
-    [effectiveCollapsed],
+    [effectiveCollapsed]
   );
 
   return (
@@ -152,8 +149,5 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
 };
 
 const RetryTraceback: FC<{ retry: EvalRetryError }> = ({ retry }) => (
-  <ANSIDisplay
-    output={retry.traceback_ansi}
-    className={styles.ansi}
-  />
+  <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
 );

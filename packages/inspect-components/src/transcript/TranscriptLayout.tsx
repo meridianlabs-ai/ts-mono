@@ -59,8 +59,8 @@ import {
 } from "./TranscriptViewNodes";
 import {
   EventNode,
-  type EventNodeContext,
   kCollapsibleEventTypes,
+  type EventNodeContext,
   type TranscriptCollapseState,
 } from "./types";
 
