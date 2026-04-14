@@ -121,6 +121,7 @@ export type ApproverPolicyConfig = S["ApproverPolicyConfig"];
 
 // Server response types
 export type AttachmentData = S["AttachmentData"];
+export type CallPoolData = S["CallPoolData"];
 export type EventData = S["EventData"];
 export type EvalSampleSummary = S["EvalSampleSummary"];
 export type LogDirResponse = S["LogDirResponse"];
@@ -136,6 +137,7 @@ export type TaskDisplayMetric = S["TaskDisplayMetric"];
 export type JsonChange = S["JsonChange"];
 export type JsonValue = S["JsonValue"];
 export type LogUpdate = S["LogUpdate"];
+export type MessagePoolData = S["MessagePoolData"];
 export type LoggingMessage = S["LoggingMessage"];
 export type MetadataEdit = S["MetadataEdit"];
 export type TagsEdit = S["TagsEdit"];
