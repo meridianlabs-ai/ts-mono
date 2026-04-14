@@ -47,8 +47,8 @@ export {
 // Event utilities
 export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 
-// Search text
-export { eventSearchText } from "./eventSearchText";
+// Search text and event serialization
+export { eventSearchText, eventsToStr } from "./eventText";
 
 // Message ID resolution
 export {
