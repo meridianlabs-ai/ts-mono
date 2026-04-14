@@ -14,7 +14,7 @@ import { VirtuosoHandle } from "react-virtuoso";
 
 import { LiveVirtualList } from "@tsmono/react/components";
 
-import { eventSearchText } from "./eventSearchText";
+import { eventSearchText } from "./eventText";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";

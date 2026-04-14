@@ -21,6 +21,7 @@ import {
   DisplayModeContext,
   RecordTree,
 } from "@tsmono/inspect-components/content";
+import { eventsToStr } from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
 import {
   ANSIDisplay,
@@ -335,6 +336,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }, 1250);
           }
         },
+        Transcript: () => {
+          if (sampleEvents && sampleEvents.length > 0) {
+            navigator.clipboard.writeText(eventsToStr(sampleEvents));
+            setIcon(ApplicationIcons.confirm);
+            setTimeout(() => {
+              setIcon(ApplicationIcons.copy);
+            }, 1250);
+          }
+        },
       }}
     />
   );
@@ -354,10 +364,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             );
           },
           Messages: () => {
-            api.download_file(
-              `${sampleId}-messages.txt`,
-              messagesToStr(sample.messages ?? [])
-            );
+            if (sample.messages && sample.messages.length > 0) {
+              api.download_file(
+                `${sampleId}-messages.txt`,
+                messagesToStr(sample.messages)
+              );
+            }
+          },
+          Transcript: () => {
+            if (sampleEvents && sampleEvents.length > 0) {
+              api.download_file(
+                `${sampleId}-transcript.txt`,
+                eventsToStr(sampleEvents)
+              );
+            }
           },
         }}
       />

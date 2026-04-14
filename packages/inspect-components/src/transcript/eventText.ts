@@ -1,32 +1,36 @@
 import type { Content } from "@tsmono/inspect-common/types";
 
-import type { EventNode } from "./types";
+import type { EventType } from "./types";
+import { EventNode } from "./types";
 
 /**
- * Extracts searchable text from an EventNode for find-in-page functionality.
+ * Extracts labeled fields from an event for search and text serialization.
  */
-export const eventSearchText = (node: EventNode): string[] => {
-  const texts: string[] = [];
-  const event = node.event;
+const extractEventFields = (event: EventType): [string, string][] => {
+  const fields: [string, string][] = [];
 
   switch (event.event) {
     case "model": {
       const modelEvent = event;
       // Model name (displayed in title)
       if (modelEvent.model) {
-        texts.push(modelEvent.model);
+        fields.push(["model", modelEvent.model]);
       }
       // Extract text from model output
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
-          texts.push(...extractContentText(choice.message.content));
+          for (const text of extractContentText(choice.message.content)) {
+            fields.push(["output", text]);
+          }
         }
       }
       // Extract text from user/system input messages shown in the view
       if (modelEvent.input) {
         for (const msg of modelEvent.input) {
           if (msg.role === "user" || msg.role === "system") {
-            texts.push(...extractContentText(msg.content));
+            for (const text of extractContentText(msg.content)) {
+              fields.push([msg.role, text]);
+            }
           }
         }
       }
@@ -46,27 +50,27 @@ export const eventSearchText = (node: EventNode): string[] => {
             return typeof val === "string" ? val : JSON.stringify(val);
           }
         );
-        texts.push(resolvedTitle);
+        fields.push(["title", resolvedTitle]);
       }
       // Tool function name
       if (toolEvent.function) {
-        texts.push(toolEvent.function);
+        fields.push(["function", toolEvent.function]);
       }
       // Tool arguments
       if (toolEvent.arguments) {
-        texts.push(JSON.stringify(toolEvent.arguments));
+        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
-          texts.push(toolEvent.result);
+          fields.push(["result", toolEvent.result]);
         } else {
-          texts.push(JSON.stringify(toolEvent.result));
+          fields.push(["result", JSON.stringify(toolEvent.result)]);
         }
       }
       // Tool error
       if (toolEvent.error?.message) {
-        texts.push(toolEvent.error.message);
+        fields.push(["error", toolEvent.error.message]);
       }
       break;
     }
@@ -74,10 +78,10 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "error": {
       const errorEvent = event;
       if (errorEvent.error?.message) {
-        texts.push(errorEvent.error.message);
+        fields.push(["message", errorEvent.error.message]);
       }
       if (errorEvent.error?.traceback) {
-        texts.push(errorEvent.error.traceback);
+        fields.push(["traceback", errorEvent.error.traceback]);
       }
       break;
     }
@@ -85,11 +89,11 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "logger": {
       const loggerEvent = event;
       if (loggerEvent.message?.message) {
-        texts.push(loggerEvent.message.message);
+        fields.push(["message", loggerEvent.message.message]);
       }
       // Filename shown in the view
       if (loggerEvent.message?.filename) {
-        texts.push(loggerEvent.message.filename);
+        fields.push(["filename", loggerEvent.message.filename]);
       }
       break;
     }
@@ -98,13 +102,13 @@ export const eventSearchText = (node: EventNode): string[] => {
       const infoEvent = event;
       // Source shown in title
       if (infoEvent.source) {
-        texts.push(infoEvent.source);
+        fields.push(["source", infoEvent.source]);
       }
       if (infoEvent.data) {
         if (typeof infoEvent.data === "string") {
-          texts.push(infoEvent.data);
+          fields.push(["data", infoEvent.data]);
         } else {
-          texts.push(JSON.stringify(infoEvent.data));
+          fields.push(["data", JSON.stringify(infoEvent.data)]);
         }
       }
       break;
@@ -113,10 +117,10 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "branch": {
       const branchEvent = event;
       if (branchEvent.from_span) {
-        texts.push(branchEvent.from_span);
+        fields.push(["from_span", branchEvent.from_span]);
       }
       if (branchEvent.from_message) {
-        texts.push(branchEvent.from_message);
+        fields.push(["from_message", branchEvent.from_message]);
       }
       break;
     }
@@ -125,20 +129,20 @@ export const eventSearchText = (node: EventNode): string[] => {
       const compactionEvent = event;
       // Source shown in title
       if (compactionEvent.source) {
-        texts.push(compactionEvent.source);
+        fields.push(["source", compactionEvent.source]);
       }
-      texts.push(JSON.stringify(compactionEvent));
+      fields.push(["event", JSON.stringify(compactionEvent)]);
       break;
     }
 
     case "step": {
       const stepEvent = event;
       if (stepEvent.name) {
-        texts.push(stepEvent.name);
+        fields.push(["name", stepEvent.name]);
       }
       // Type shown in title (e.g., "solver: name")
       if (stepEvent.type) {
-        texts.push(stepEvent.type);
+        fields.push(["type", stepEvent.type]);
       }
       break;
     }
@@ -146,18 +150,18 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "subtask": {
       const subtaskEvent = event;
       if (subtaskEvent.name) {
-        texts.push(subtaskEvent.name);
+        fields.push(["name", subtaskEvent.name]);
       }
       // Type shown in title
       if (subtaskEvent.type) {
-        texts.push(subtaskEvent.type);
+        fields.push(["type", subtaskEvent.type]);
       }
       // Input/result shown in summary
       if (subtaskEvent.input) {
-        texts.push(JSON.stringify(subtaskEvent.input));
+        fields.push(["input", JSON.stringify(subtaskEvent.input)]);
       }
       if (subtaskEvent.result) {
-        texts.push(JSON.stringify(subtaskEvent.result));
+        fields.push(["result", JSON.stringify(subtaskEvent.result)]);
       }
       break;
     }
@@ -165,11 +169,11 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "span_begin": {
       const spanEvent = event;
       if (spanEvent.name) {
-        texts.push(spanEvent.name);
+        fields.push(["name", spanEvent.name]);
       }
       // Type shown in title
       if (spanEvent.type) {
-        texts.push(spanEvent.type);
+        fields.push(["type", spanEvent.type]);
       }
       break;
     }
@@ -177,20 +181,25 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "score": {
       const scoreEvent = event;
       if (scoreEvent.score.answer) {
-        texts.push(scoreEvent.score.answer);
+        fields.push(["answer", scoreEvent.score.answer]);
       }
       if (scoreEvent.score.explanation) {
-        texts.push(scoreEvent.score.explanation);
+        fields.push(["explanation", scoreEvent.score.explanation]);
       }
       if (scoreEvent.score.value !== undefined) {
         const val = scoreEvent.score.value;
-        texts.push(typeof val === "string" ? val : JSON.stringify(val));
+        fields.push([
+          "value",
+          typeof val === "string" ? val : JSON.stringify(val),
+        ]);
       }
       if (scoreEvent.target) {
         if (typeof scoreEvent.target === "string") {
-          texts.push(scoreEvent.target);
+          fields.push(["target", scoreEvent.target]);
         } else if (Array.isArray(scoreEvent.target)) {
-          texts.push(...scoreEvent.target);
+          for (const t of scoreEvent.target) {
+            fields.push(["target", t]);
+          }
         }
       }
       break;
@@ -199,19 +208,19 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "score_edit": {
       const scoreEditEvent = event;
       if (scoreEditEvent.score_name) {
-        texts.push(scoreEditEvent.score_name);
+        fields.push(["score_name", scoreEditEvent.score_name]);
       }
       if (
         scoreEditEvent.edit.answer &&
         scoreEditEvent.edit.answer !== "UNCHANGED"
       ) {
-        texts.push(scoreEditEvent.edit.answer);
+        fields.push(["answer", scoreEditEvent.edit.answer]);
       }
       if (
         scoreEditEvent.edit.explanation &&
         scoreEditEvent.edit.explanation !== "UNCHANGED"
       ) {
-        texts.push(scoreEditEvent.edit.explanation);
+        fields.push(["explanation", scoreEditEvent.edit.explanation]);
       }
       break;
     }
@@ -221,13 +230,13 @@ export const eventSearchText = (node: EventNode): string[] => {
       const sample = sampleInitEvent.sample;
       if (sample.target) {
         if (typeof sample.target === "string") {
-          texts.push(sample.target);
+          fields.push(["target", sample.target]);
         } else {
-          texts.push(JSON.stringify(sample.target));
+          fields.push(["target", JSON.stringify(sample.target)]);
         }
       }
       if (sample.metadata && Object.keys(sample.metadata).length > 0) {
-        texts.push(JSON.stringify(sample.metadata));
+        fields.push(["metadata", JSON.stringify(sample.metadata)]);
       }
       break;
     }
@@ -235,10 +244,10 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "sample_limit": {
       const sampleLimitEvent = event;
       if (sampleLimitEvent.message) {
-        texts.push(sampleLimitEvent.message);
+        fields.push(["message", sampleLimitEvent.message]);
       }
       if (sampleLimitEvent.type) {
-        texts.push(sampleLimitEvent.type);
+        fields.push(["type", sampleLimitEvent.type]);
       }
       break;
     }
@@ -246,7 +255,7 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "input": {
       const inputEvent = event;
       if (inputEvent.input) {
-        texts.push(inputEvent.input);
+        fields.push(["input", inputEvent.input]);
       }
       break;
     }
@@ -254,13 +263,13 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "approval": {
       const approvalEvent = event;
       if (approvalEvent.decision) {
-        texts.push(approvalEvent.decision);
+        fields.push(["decision", approvalEvent.decision]);
       }
       if (approvalEvent.explanation) {
-        texts.push(approvalEvent.explanation);
+        fields.push(["explanation", approvalEvent.explanation]);
       }
       if (approvalEvent.approver) {
-        texts.push(approvalEvent.approver);
+        fields.push(["approver", approvalEvent.approver]);
       }
       break;
     }
@@ -268,16 +277,16 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "sandbox": {
       const sandboxEvent = event;
       if (sandboxEvent.action) {
-        texts.push(sandboxEvent.action);
+        fields.push(["action", sandboxEvent.action]);
       }
       if (sandboxEvent.cmd) {
-        texts.push(sandboxEvent.cmd);
+        fields.push(["cmd", sandboxEvent.cmd]);
       }
       if (sandboxEvent.output) {
-        texts.push(sandboxEvent.output);
+        fields.push(["output", sandboxEvent.output]);
       }
       if (sandboxEvent.file) {
-        texts.push(sandboxEvent.file);
+        fields.push(["file", sandboxEvent.file]);
       }
       break;
     }
@@ -286,20 +295,45 @@ export const eventSearchText = (node: EventNode): string[] => {
     case "store": {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
-        texts.push(change.path);
+        fields.push(["path", change.path]);
         if (change.value !== undefined) {
-          texts.push(
+          fields.push([
+            "value",
             typeof change.value === "string"
               ? change.value
-              : JSON.stringify(change.value)
-          );
+              : JSON.stringify(change.value),
+          ]);
         }
       }
       break;
     }
   }
 
-  return texts;
+  return fields;
+};
+
+/**
+ * Extracts searchable text from an EventNode for find-in-page functionality.
+ */
+export const eventSearchText = (node: EventNode): string[] => {
+  return extractEventFields(node.event).map(([, v]) => v);
+};
+
+/**
+ * Converts an array of events to a human-readable text transcript.
+ */
+export const eventsToStr = (events: EventType[]): string => {
+  return events
+    .map((event) => {
+      const fields = extractEventFields(event);
+      if (fields.length === 0) return null;
+      const body = fields
+        .map(([k, v]) => (v.includes("\n") ? `${k}:\n${v}` : `${k}: ${v}`))
+        .join("\n");
+      return `[${event.event}]\n${body}`;
+    })
+    .filter((s): s is string => s !== null)
+    .join("\n\n");
 };
 
 /**
