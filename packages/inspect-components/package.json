@@ -42,7 +42,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.2",
-    "jsdom": "^27.3.0",
+    "jsdom": "^29.0.2",
     "json5": "^2.2.3",
     "jsondiffpatch": "^0.7.3",
     "react": "^19.2.5",
