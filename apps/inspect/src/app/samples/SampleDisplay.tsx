@@ -326,7 +326,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }, 1250);
           }
         },
-        Transcript: () => {
+        Messages: () => {
           if (sample?.messages) {
             navigator.clipboard.writeText(messagesToStr(sample.messages));
             setIcon(ApplicationIcons.confirm);
@@ -353,9 +353,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               JSON.stringify(sample, null, 2)
             );
           },
-          Transcript: () => {
+          Messages: () => {
             api.download_file(
-              `${sampleId}-transcript.txt`,
+              `${sampleId}-messages.txt`,
               messagesToStr(sample.messages ?? [])
             );
           },
