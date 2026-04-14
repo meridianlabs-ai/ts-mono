@@ -180,9 +180,9 @@ const elevateChildNode = (
   );
 
   if (targetIndex === -1) {
-    console.log(
-      `No ${childEventType} event found in a span, this is very unexpected.`
-    );
+    // Tool/subtask events have span_id set to the parent span (not the
+    // tool span itself), so they end up as siblings rather than children.
+    // When this happens, return null to keep the span node as-is.
     return null;
   }
 
