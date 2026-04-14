@@ -70,7 +70,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
   const [query, setQuery] = useState("");
-  const [searchType, setSearchType] = useState<SearchType>("grep");
+  const [searchType, setSearchType] = useState<SearchType>("llm");
   const [panelView, setPanelView] = useState<PanelView>("results");
   const [grepOptions, setGrepOptions] =
     useState<GrepOptions>(defaultGrepOptions);
@@ -157,7 +157,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     createSearchMutation.reset();
     setCurrentSearch(null);
     setQuery("");
-    setSearchType("grep");
+    setSearchType("llm");
     setPanelView("results");
     setGrepOptions(defaultGrepOptions);
     setModel("");
