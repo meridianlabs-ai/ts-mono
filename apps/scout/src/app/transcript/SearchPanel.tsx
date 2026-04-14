@@ -69,7 +69,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const projectConfig = useProjectConfig();
   const { getFullMessageUrl } = useTranscriptNavigation();
 
-  const searches = useSearches({ transcriptDir, transcriptId });
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
   const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
@@ -81,7 +80,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const [model, setModel] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
 
-  const recentSearches = searches.data?.items ?? [];
   const loading = createSearchMutation.isPending;
 
   const handleSubmit = useCallback(
@@ -324,33 +322,13 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 getFullMessageUrl={getFullMessageUrl}
               />
             ))}
-          {showResults && !loading && !hasSearched && (
-            <div className={styles.emptyState}>
-              Run a search or open a recent query.
-            </div>
-          )}
-          {showRecentSearches && searches.loading && (
-            <div className={styles.emptyState}>Loading recent searches…</div>
-          )}
-          {showRecentSearches && searches.error && !searches.loading && (
-            <div className={styles.emptyState}>
-              Unable to load recent searches.
-            </div>
-          )}
-          {showRecentSearches && recentSearches.length > 0 && (
+          {showRecentSearches && (
             <RecentSearches
-              searches={recentSearches}
+              transcriptDir={transcriptDir}
+              transcriptId={transcriptId}
               onSelect={handleSelectRecent}
             />
           )}
-          {showRecentSearches &&
-            !searches.loading &&
-            !searches.error &&
-            recentSearches.length === 0 && (
-              <div className={styles.emptyState}>
-                Recent searches will show up here.
-              </div>
-            )}
         </div>
       </div>
     </div>
@@ -373,38 +351,63 @@ const ModeToggle: FC<{
 );
 
 const RecentSearches: FC<{
-  searches: SavedSearch[];
+  transcriptDir: string;
+  transcriptId: string;
   onSelect: (search: SavedSearch) => void;
-}> = ({ searches, onSelect }) => (
-  <div className={styles.recentSearches}>
-    <div className={styles.sectionHeader}>Recent searches</div>
-    {searches.map((search) => (
-      <button
-        key={search.search_id}
-        type="button"
-        className={styles.recentItem}
-        onClick={() => onSelect(search)}
-      >
-        <div className={styles.recentQuery}>{search.query}</div>
-        <ChipGroup className={styles.recentMeta}>
-          <Chip value={search.type === "llm" ? "LLM" : "Grep"} />
-          {search.type === "llm" && search.model ? (
-            <Chip label="Model" value={search.model} />
-          ) : undefined}
-          {search.type === "grep" && search.regex ? (
-            <Chip value="Regex" />
-          ) : undefined}
-          {search.type === "grep" && search.word_boundary ? (
-            <Chip value="Whole Word" />
-          ) : undefined}
-          {search.type === "grep" && search.ignore_case ? (
-            <Chip value="Ignore Case" />
-          ) : undefined}
-        </ChipGroup>
-      </button>
-    ))}
-  </div>
-);
+}> = ({ transcriptDir, transcriptId, onSelect }) => {
+  const searches = useSearches({ transcriptDir, transcriptId });
+
+  if (searches.loading) {
+    return <div className={styles.emptyState}>Loading recent searches…</div>;
+  }
+
+  if (searches.error) {
+    return (
+      <div className={styles.emptyState}>Unable to load recent searches.</div>
+    );
+  }
+
+  const items = searches.data.items;
+
+  if (items.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        Recent searches will show up here.
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.recentSearches}>
+      <div className={styles.sectionHeader}>Recent searches</div>
+      {items.map((search) => (
+        <button
+          key={search.search_id}
+          type="button"
+          className={styles.recentItem}
+          onClick={() => onSelect(search)}
+        >
+          <div className={styles.recentQuery}>{search.query}</div>
+          <ChipGroup className={styles.recentMeta}>
+            <Chip value={search.type === "llm" ? "LLM" : "Grep"} />
+            {search.type === "llm" && search.model ? (
+              <Chip label="Model" value={search.model} />
+            ) : undefined}
+            {search.type === "grep" && search.regex ? (
+              <Chip value="Regex" />
+            ) : undefined}
+            {search.type === "grep" && search.word_boundary ? (
+              <Chip value="Whole Word" />
+            ) : undefined}
+            {search.type === "grep" && search.ignore_case ? (
+              <Chip value="Ignore Case" />
+            ) : undefined}
+          </ChipGroup>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const SearchResult: FC<{
   result: Result;
