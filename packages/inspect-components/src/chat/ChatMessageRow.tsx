@@ -68,7 +68,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   // The chat message
   views.push(
     <ChatMessage
-      id={`${parentName}-chat-messages`}
+      id={`${parentName}-chat-messages-${index}`}
       message={resolvedMessage.message}
       display={display}
       linking={linking}
