@@ -16,6 +16,7 @@ export const TranscriptIcons = {
   arrows: {
     right: "bi bi-arrow-right",
   },
+  expand: "bi bi-chevron-up",
   compaction: "bi bi-arrows-collapse-vertical",
   edit: "bi bi-pencil-square",
   error: "bi bi-exclamation-circle-fill",

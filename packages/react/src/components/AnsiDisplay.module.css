@@ -69,7 +69,6 @@
 }
 
 .ansiDisplayToggle {
-  padding: 0.1rem;
-  padding-left: 0.5rem;
+  padding: 0 0.2rem;
   background-color: var(--bs-body-bg);
 }

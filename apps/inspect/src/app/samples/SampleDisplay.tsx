@@ -44,6 +44,7 @@ import {
   kSampleJsonTabId,
   kSampleMessagesTabId,
   kSampleMetdataTabId,
+  kSampleRetriesTabId,
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../constants";
@@ -67,6 +68,7 @@ import {
 import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
+import { SampleRetriedErrors } from "./SampleRetriedErrors";
 import { SampleSummaryView } from "./SampleSummaryView";
 import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
@@ -578,12 +580,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <NoContentsPanel text="No sample metadata available" />
               )}
             </TabPanel>
-            {sample?.error ||
-            (sample?.error_retries && sample?.error_retries.length > 0) ? (
+            {sample?.error && (
               <TabPanel
                 id={kSampleErrorTabId}
                 className="sample-tab"
-                title="Errors"
+                title="Error"
                 onSelected={onSelectedTab}
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
@@ -603,26 +604,28 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                       </CardBody>
                     </Card>
                   ) : undefined}
-                  {sample.error_retries?.map((retry, index) => {
-                    return (
-                      <Card key={`sample-retry-error-${index}`}>
-                        <CardHeader label={`Attempt ${index + 1}`} />
-                        <CardBody>
-                          <ANSIDisplay
-                            output={retry.traceback_ansi}
-                            className={clsx("text-size-small", styles.ansi)}
-                            style={{
-                              fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
-                              margin: "0.5em 0",
-                            }}
-                          />
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
+                </div>
+              </TabPanel>
+            )}
+
+            {sample?.error_retries && sample.error_retries.length > 0 ? (
+              <TabPanel
+                id={kSampleRetriesTabId}
+                className="sample-tab"
+                title="Retries"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleRetriesTabId}
+              >
+                <div className={styles.retriedErrors}>
+                  <SampleRetriedErrors
+                    id={sample.uuid || String(sample.id)}
+                    retries={sample.error_retries}
+                    scrollRef={scrollRef}
+                  />
                 </div>
               </TabPanel>
             ) : null}
+
             <TabPanel
               id={kSampleJsonTabId}
               className={"sample-tab"}

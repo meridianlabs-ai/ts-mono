@@ -36,6 +36,7 @@ export type EvalScore = S["EvalScore"];
 export type EvalScorer = S["EvalScorer"];
 export type EvalSpec = S["EvalSpec"];
 export type EvalStats = S["EvalStats"];
+export type EvalRetryError = S["EvalRetryError"];
 
 // Event types
 export type Event = S["Event"];

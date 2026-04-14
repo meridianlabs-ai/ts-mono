@@ -34,6 +34,8 @@ interface TranscriptVirtualListComponentProps {
   onAutoCollapse?: (eventId: string) => void;
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   eventCallbacks?: EventPanelCallbacks;
+  /** Extra context fields merged into every EventNodeContext entry. */
+  eventNodeContext?: Partial<EventNodeContext>;
 }
 
 /**
@@ -56,6 +58,7 @@ export const TranscriptVirtualListComponent: FC<
   onAutoCollapse,
   renderAgentCard,
   eventCallbacks,
+  eventNodeContext,
 }) => {
   const useVirtualization =
     !disableVirtualization && (running || eventNodes.length > 100);
@@ -126,10 +129,10 @@ export const TranscriptVirtualListComponent: FC<
     for (const [i, node] of eventNodes.entries()) {
       const hasToolEvents = hasToolEventsAtCurrentDepth(i);
       const turnInfo = turnMap?.get(node.id);
-      map.set(node.id, { hasToolEvents, turnInfo });
+      map.set(node.id, { hasToolEvents, turnInfo, ...eventNodeContext });
     }
     return map;
-  }, [eventNodes, hasToolEventsAtCurrentDepth, turnMap]);
+  }, [eventNodes, hasToolEventsAtCurrentDepth, turnMap, eventNodeContext]);
 
   const renderRow = useCallback(
     (index: number, item: EventNode, style?: CSSProperties) => {

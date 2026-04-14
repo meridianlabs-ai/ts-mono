@@ -46,6 +46,26 @@
   margin: 0.5em 0;
 }
 
+.showAllLink {
+  text-align: center;
+  padding: 0.5em 0 0.7em;
+}
+
+.showAllLink a {
+  cursor: pointer;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+}
+
+.showAllIcon {
+  margin-right: 0.35em;
+}
+
+.showAllLink a:hover {
+  color: var(--bs-body-color);
+  text-decoration: underline;
+}
+
 .toolConfig {
   display: grid;
   grid-template-columns: max-content auto;

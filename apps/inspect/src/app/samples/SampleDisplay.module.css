@@ -61,3 +61,11 @@
 .overflowVisible {
   overflow-y: visible;
 }
+
+.retriedErrors {
+  margin: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  align-self: stretch;
+  flex: 1;
+}
