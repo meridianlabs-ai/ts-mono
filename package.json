@@ -47,7 +47,7 @@
     "@manypkg/cli": "^0.25.1",
     "@tsmono/prettier-config": "workspace:*",
     "picocolors": "^1.1.1",
-    "prettier": "^3.7.4",
-    "turbo": "^2.9.4"
+    "prettier": "^3.8.2",
+    "turbo": "^2.9.6"
   }
 }
