@@ -110,11 +110,11 @@
   border: 1px solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
   background-color: var(--bs-body-bg);
+  transition: border-color 0.12s ease;
 }
 
 .modelPill:focus-within {
-  outline: 1px solid var(--inspect-focus-border-gray-color);
-  outline-offset: -1px;
+  border-color: var(--vscode-focusBorder);
 }
 
 .modelIcon,
