@@ -302,30 +302,34 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
  *
  * The branch's wall-clock range [branchStart, branchEnd] is linearly remapped
  * so that it starts at `forkPercent` in the timeline's percentage space and
- * fills to 100%. This ensures branches are always visually prominent regardless
- * of how small their duration is relative to the parent timeline.
+ * uses the trunk mapping's time scale for its width. This makes branch bars
+ * proportional to their actual duration rather than stretching to 100%.
  *
- * @param branchStart  Branch content start time
- * @param branchEnd    Branch content end time
- * @param forkPercent  The fork marker's percentage position on the parent row (0-100)
+ * @param branchStart   Branch content start time
+ * @param branchEnd     Branch content end time
+ * @param forkPercent   The fork marker's percentage position on the parent row (0-100)
+ * @param trunkMapping  The parent/trunk time mapping, used to derive the time scale
  */
 export function createShiftedMapping(
   branchStart: Date,
   branchEnd: Date,
-  forkPercent: number
+  forkPercent: number,
+  trunkMapping: TimeMapping
 ): TimeMapping {
   const startMs = branchStart.getTime();
   const endMs = branchEnd.getTime();
   const branchDurationMs = endMs - startMs;
 
-  // Fill from the fork point to 100% of the bar
-  const availablePercent = 100 - forkPercent;
+  // Use the trunk mapping's scale: the branch's width in percent should match
+  // the proportion of time it would occupy on the trunk timeline.
+  const branchWidthPercent =
+    trunkMapping.toPercent(branchEnd) - trunkMapping.toPercent(branchStart);
 
   return {
     toPercent(timestamp: Date): number {
       if (branchDurationMs <= 0) return forkPercent;
       const t = (timestamp.getTime() - startMs) / branchDurationMs;
-      return Math.max(0, Math.min(100, forkPercent + t * availablePercent));
+      return Math.max(0, Math.min(100, forkPercent + t * branchWidthPercent));
     },
     hasCompression: false,
     gaps: [],
