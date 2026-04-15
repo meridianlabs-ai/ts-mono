@@ -1,11 +1,12 @@
 import { StateStorage } from "zustand/middleware";
 
+import type { Event } from "@tsmono/inspect-common/types";
+
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
-  Event,
   InvalidationTopic,
   Pagination,
   ProjectConfig,

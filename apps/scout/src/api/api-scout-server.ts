@@ -1,5 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
@@ -8,7 +9,6 @@ import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
-  Event,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,

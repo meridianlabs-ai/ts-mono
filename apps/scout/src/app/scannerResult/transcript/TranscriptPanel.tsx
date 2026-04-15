@@ -1,13 +1,13 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef } from "react";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import {
   kTranscriptCollapseScope,
   TranscriptLayout,
 } from "@tsmono/inspect-components/transcript";
 
 import { useStore } from "../../../state/store";
-import { Event } from "../../../types/api-types";
 
 import styles from "./TranscriptPanel.module.css";
 
