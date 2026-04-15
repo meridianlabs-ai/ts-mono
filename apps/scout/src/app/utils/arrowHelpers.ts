@@ -301,7 +301,6 @@ const tryParseJson = async <T>(text: unknown): Promise<T> => {
   }
 };
 
-
 const parseSimpleValue = (
   val: unknown,
   valueType: ScanResultValueType
