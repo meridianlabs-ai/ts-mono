@@ -784,36 +784,6 @@ exports[`timeline pipeline snapshots > S11a: branches > produces stable row layo
   {
     "depth": 2,
     "isParent": false,
-    "key": "transcript/build/code",
-    "markerCount": 0,
-    "name": "Code",
-    "spanCount": 1,
-    "spans": [
-      {
-        "left": 1.96,
-        "width": 43.14,
-      },
-    ],
-    "totalTokens": 10000,
-  },
-  {
-    "depth": 2,
-    "isParent": false,
-    "key": "transcript/build/test",
-    "markerCount": 0,
-    "name": "Test",
-    "spanCount": 1,
-    "spans": [
-      {
-        "left": 47.06,
-        "width": 29.41,
-      },
-    ],
-    "totalTokens": 5800,
-  },
-  {
-    "depth": 2,
-    "isParent": false,
     "key": "transcript/build/branch-model-call-5-1",
     "markerCount": 0,
     "name": "Refactor",
@@ -886,6 +856,36 @@ exports[`timeline pipeline snapshots > S11a: branches > produces stable row layo
     ],
     "totalTokens": 3300,
   },
+  {
+    "depth": 2,
+    "isParent": false,
+    "key": "transcript/build/code",
+    "markerCount": 0,
+    "name": "Code",
+    "spanCount": 1,
+    "spans": [
+      {
+        "left": 1.96,
+        "width": 43.14,
+      },
+    ],
+    "totalTokens": 10000,
+  },
+  {
+    "depth": 2,
+    "isParent": false,
+    "key": "transcript/build/test",
+    "markerCount": 0,
+    "name": "Test",
+    "spanCount": 1,
+    "spans": [
+      {
+        "left": 47.06,
+        "width": 29.41,
+      },
+    ],
+    "totalTokens": 5800,
+  },
 ]
 `;
 
@@ -920,22 +920,6 @@ exports[`timeline pipeline snapshots > S11a: branches > produces stable swimlane
     "name": "Build",
     "spanCount": 1,
     "totalTokens": 22000,
-  },
-  {
-    "branch": null,
-    "depth": 2,
-    "key": "transcript/build/code",
-    "name": "Code",
-    "spanCount": 1,
-    "totalTokens": 10000,
-  },
-  {
-    "branch": null,
-    "depth": 2,
-    "key": "transcript/build/test",
-    "name": "Test",
-    "spanCount": 1,
-    "totalTokens": 5800,
   },
   {
     "branch": true,
@@ -976,6 +960,22 @@ exports[`timeline pipeline snapshots > S11a: branches > produces stable swimlane
     "name": "Rewrite",
     "spanCount": 1,
     "totalTokens": 3300,
+  },
+  {
+    "branch": null,
+    "depth": 2,
+    "key": "transcript/build/code",
+    "name": "Code",
+    "spanCount": 1,
+    "totalTokens": 10000,
+  },
+  {
+    "branch": null,
+    "depth": 2,
+    "key": "transcript/build/test",
+    "name": "Test",
+    "spanCount": 1,
+    "totalTokens": 5800,
   },
 ]
 `;
