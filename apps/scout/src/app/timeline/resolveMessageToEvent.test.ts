@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import {
   resolveMessageToEvent,
   TimelineEvent,
   TimelineSpan,
 } from "@tsmono/inspect-components/transcript";
-
-import type { Event } from "../../types/api-types";
 
 // =============================================================================
 // Test helpers — minimal factories for TimelineSpan/TimelineEvent

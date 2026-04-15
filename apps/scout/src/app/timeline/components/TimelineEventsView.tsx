@@ -1,5 +1,6 @@
 import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
@@ -13,7 +14,7 @@ import { useProperty } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
-import type { Event, ServerTimeline } from "../../../types/api-types";
+import type { ServerTimeline } from "../../../types/api-types";
 import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineSearchParams } from "../hooks/useTimeline";

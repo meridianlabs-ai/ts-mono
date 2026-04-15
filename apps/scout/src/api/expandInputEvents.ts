@@ -1,10 +1,7 @@
+import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
-import type {
-  Event,
-  ScannerInputResponse,
-  Transcript,
-} from "../types/api-types";
+import type { ScannerInputResponse, Transcript } from "../types/api-types";
 
 /**
  * Expand condensed events in a scan result input.

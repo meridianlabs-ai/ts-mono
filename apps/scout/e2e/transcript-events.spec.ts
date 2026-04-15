@@ -7,14 +7,16 @@
  */
 import { http, HttpResponse } from "msw";
 
-import { encodeBase64Url } from "@tsmono/util";
-
 import type {
   ErrorEvent,
   Event,
-  MessagesEventsResponse,
   ScoreEvent,
   ToolEvent,
+} from "@tsmono/inspect-common/types";
+import { encodeBase64Url } from "@tsmono/util";
+
+import type {
+  MessagesEventsResponse,
   TranscriptInfo,
 } from "../src/types/api-types";
 
