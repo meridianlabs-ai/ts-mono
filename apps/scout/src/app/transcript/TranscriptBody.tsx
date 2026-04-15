@@ -200,10 +200,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // When a sidebar is open, the split layout's start pane becomes the actual
   // scroll container (not the outer transcriptContainer), so we swap the ref.
   const activeSidebar = getSidebarParam(searchParams);
-  const resolvedActiveSidebar =
-    activeSidebar === "search" && !searchAvailable ? undefined : activeSidebar;
-  const anySidebarOpen = resolvedActiveSidebar !== undefined;
-  const activeScrollRef = anySidebarOpen ? splitStartRef : scrollRef;
+  const activeScrollRef =
+    activeSidebar === "validation" ? splitStartRef : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
@@ -300,22 +298,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <CopyToolbarButton transcript={transcript} className={styles.tabTool} />
   );
 
-  tabTools.push(
-    <ToolButton
-      key="validation-sidebar-toggle"
-      label="Validation"
-      icon={ApplicationIcons.edit}
-      onClick={toggleValidationSidebar}
-      className={styles.tabTool}
-      subtle={true}
-      title={
-        resolvedActiveSidebar === "validation"
-          ? "Hide validation editor"
-          : "Show validation editor"
-      }
-    />
-  );
-
   if (searchAvailable) {
     tabTools.push(
       <ToolButton
@@ -325,12 +307,26 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         onClick={toggleSearchSidebar}
         className={styles.tabTool}
         subtle={true}
-        title={
-          resolvedActiveSidebar === "search" ? "Hide search" : "Show search"
-        }
+        title={activeSidebar === "search" ? "Hide search" : "Show search"}
       />
     );
   }
+
+  tabTools.push(
+    <ToolButton
+      key="validation-sidebar-toggle"
+      label="Validation"
+      icon={ApplicationIcons.edit}
+      onClick={toggleValidationSidebar}
+      className={styles.tabTool}
+      subtle={true}
+      title={
+        activeSidebar === "validation"
+          ? "Hide validation editor"
+          : "Show validation editor"
+      }
+    />
+  );
 
   const messagesPanel = (
     <TabPanel
@@ -395,6 +391,16 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         onHeadroomResetAnchor={onHeadroomResetAnchor}
         getEventUrl={getFullEventUrl}
         linkingEnabled={isHostedEnvironment()}
+        sidebar={
+          activeSidebar === "search" && resolvedTranscriptsDir ? (
+            <SearchPanel
+              scope="events"
+              transcriptDir={resolvedTranscriptsDir}
+              transcriptId={transcript.transcript_id}
+              onClose={toggleSearchSidebar}
+            />
+          ) : undefined
+        }
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
@@ -471,7 +477,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   return (
     <DisplayModeContext.Provider value={displayModeContextValue}>
-      {anySidebarOpen ? (
+      {activeSidebar === "validation" ? (
         <VscodeSplitLayout
           className={styles.splitLayout}
           fixedPane="end"
@@ -482,24 +488,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div slot="start" ref={splitStartRef} className={styles.splitStart}>
             {tabSetContent}
           </div>
-          <div
-            slot="end"
-            className={
-              resolvedActiveSidebar === "validation"
-                ? styles.validationSidebar
-                : styles.searchSidebar
-            }
-          >
-            {resolvedActiveSidebar === "validation" ? (
-              <ValidationCaseEditor transcriptId={transcript.transcript_id} />
-            ) : (
-              <SearchPanel
-                scope={searchScope!}
-                transcriptDir={resolvedTranscriptsDir}
-                transcriptId={transcript.transcript_id}
-                onClose={toggleSearchSidebar}
-              />
-            )}
+          <div slot="end" className={styles.validationSidebar}>
+            <ValidationCaseEditor transcriptId={transcript.transcript_id} />
           </div>
         </VscodeSplitLayout>
       ) : (
