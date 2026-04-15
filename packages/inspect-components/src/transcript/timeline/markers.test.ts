@@ -366,7 +366,7 @@ describe("collectMarkers", () => {
       expect(markers[0]!.reference).toBe("msg-1");
     });
 
-    it("falls back to branch start time when branchedFrom UUID is not found", () => {
+    it("falls back to parent start time when branchedFrom UUID is not found", () => {
       const branch = makeBranchObj("nonexistent", [makeModelEventNode(2)]);
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {
@@ -377,10 +377,10 @@ describe("collectMarkers", () => {
 
       expect(markers).toHaveLength(1);
       expect(markers[0]!.kind).toBe("branch");
-      expect(markers[0]!.timestamp).toEqual(ts(2));
+      expect(markers[0]!.timestamp).toEqual(ts(0)); // falls back to parent start
     });
 
-    it("falls back to branch start time when branchedFrom is empty", () => {
+    it("falls back to parent start time when branchedFrom is empty", () => {
       const branch = makeBranchObj("", [makeModelEventNode(2)], 2, 4);
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {
@@ -391,7 +391,7 @@ describe("collectMarkers", () => {
 
       expect(markers).toHaveLength(1);
       expect(markers[0]!.kind).toBe("branch");
-      expect(markers[0]!.timestamp).toEqual(ts(2));
+      expect(markers[0]!.timestamp).toEqual(ts(0)); // falls back to parent start
     });
 
     it("S11a: emits one marker per branch", () => {
