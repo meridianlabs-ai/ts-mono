@@ -367,7 +367,12 @@ function computeBranchMappings(
 
     mappings.set(
       row.key,
-      createShiftedMapping(row.startTime, row.endTime, forkPercent)
+      createShiftedMapping(
+        row.startTime,
+        row.endTime,
+        forkPercent,
+        trunkMapping
+      )
     );
   }
 
