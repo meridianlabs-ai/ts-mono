@@ -6,7 +6,11 @@ import type {
 } from "@tsmono/inspect-common/types";
 import type { EventType } from "@tsmono/inspect-components/transcript";
 
-import { ScannerInput, ScannerInputResponse, Transcript } from "../types/api-types";
+import {
+  ScannerInput,
+  ScannerInputResponse,
+  Transcript,
+} from "../types/api-types";
 
 export interface ScanResultSummary {
   // Basic Info
