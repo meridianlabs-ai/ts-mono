@@ -11,12 +11,13 @@ import {
   ScanResultData,
   ScanResultReference,
   ScanResultSummary,
+  ScanResultValueType,
 } from "../types";
 
 export const parseScanResultData = async (
   filtered: ColumnTable
 ): Promise<ScanResultData> => {
-  const valueType = filtered.get("value_type", 0) as ValueType;
+  const valueType = filtered.get("value_type", 0) as ScanResultValueType;
 
   const transcript_agent_args_raw = getOptionalColumn<string>(
     filtered,
@@ -209,7 +210,7 @@ export const parseScanResultSummaries = async (
     rowData.map(async (row) => {
       const r = row as Record<string, unknown>;
 
-      const valueType = r.value_type as ValueType;
+      const valueType = r.value_type as ScanResultValueType;
 
       // Note that validation_result and validation_target will always a JSON deserializable string as of Jan 7 2026, but prior to this it could be stored as a boolean directly. This conditionality deals with that.
       const [
@@ -300,11 +301,9 @@ const tryParseJson = async <T>(text: unknown): Promise<T> => {
   }
 };
 
-type ValueType = "string" | "number" | "boolean" | "null" | "array" | "object";
-
 const parseSimpleValue = (
   val: unknown,
-  valueType: ValueType
+  valueType: ScanResultValueType
 ): Promise<
   string | number | boolean | null | unknown[] | object | undefined
 > =>

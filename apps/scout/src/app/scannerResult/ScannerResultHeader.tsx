@@ -18,7 +18,6 @@ import {
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
-  MessageType,
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
@@ -183,7 +182,7 @@ const transcriptCols = (
   return cols;
 };
 
-const messageCols = (message: MessageType, status?: Status) => {
+const messageCols = (message: ChatMessage, status?: Status) => {
   const cols: Column[] = [
     {
       label: "Message ID",
