@@ -9,13 +9,14 @@ import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  EventsData,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
   RawEncoding,
   ScanJobConfig,
-  ScannerInputResponse,
+  ScannerInput,
   ScannersResponse,
   ScansResponse,
   Status,
@@ -257,7 +258,7 @@ export const apiScoutServer = (
       uuid: string
     ): Promise<ScanResultDetail> => {
       const raw = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] }
+        ScannerInput & { input_data?: EventsData | null; scan_events: Event[] }
       >(
         (
           await requestApi.fetchString(

@@ -1,17 +1,17 @@
 import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
-import type { ScannerInputResponse, Transcript } from "../types/api-types";
+import type { EventsData, ScannerInput, Transcript } from "../types/api-types";
 
 /**
  * Expand condensed events in a scan result input.
  * Handles both "transcript" (events inside Transcript object) and "events" input types.
  */
 export function expandInputEvents(
-  input: ScannerInputResponse["input"],
-  inputType: ScannerInputResponse["input_type"],
-  inputData: ScannerInputResponse["input_data"]
-): ScannerInputResponse["input"] {
+  input: ScannerInput["input"],
+  inputType: ScannerInput["input_type"],
+  inputData: EventsData | null | undefined
+): ScannerInput["input"] {
   if (!inputData) return input;
 
   if (inputType === "transcript") {

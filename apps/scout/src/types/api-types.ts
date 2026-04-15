@@ -26,7 +26,7 @@ export type ProjectConfig = S["ProjectConfig-Output"];
 export type ProjectConfigInput = S["ProjectConfig-Input"];
 export type InvalidationTopic = S["InvalidationTopic"];
 export type RawEncoding = S["RawEncoding"];
-export type ScannerInputResponse = S["ScannerInputResponse"];
+export type EventsData = S["EventsData"];
 
 // Timeline types (server-provided, snake_case)
 export type ServerTimeline = S["Timeline"];
@@ -43,4 +43,14 @@ export type ValidationEntry = S["ValidationEntry"];
 export type ValidationMetrics = S["ValidationMetrics"];
 export type ValidationResults = S["ValidationResults"];
 
-export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
+export interface ScannerInput {
+  input: unknown;
+  input_type:
+    | "transcript"
+    | "event"
+    | "events"
+    | "message"
+    | "messages"
+    | "timeline"
+    | "timelines";
+}
