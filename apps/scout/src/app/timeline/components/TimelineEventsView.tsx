@@ -1,4 +1,13 @@
-import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { VscodeSplitLayout } from "@vscode-elements/react-elements";
+import {
+  FC,
+  ReactNode,
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import {
@@ -18,6 +27,8 @@ import type { ServerTimeline } from "../../../types/api-types";
 import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineSearchParams } from "../hooks/useTimeline";
+
+import styles from "./TimelineEventsView.module.css";
 
 // =============================================================================
 // Types
@@ -60,6 +71,10 @@ interface TimelineEventsViewProps {
   getEventUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
+  /** Optional sidebar rendered alongside the events view (e.g. a SearchPanel).
+   *  When provided, the content is wrapped in a VscodeSplitLayout so the user
+   *  can resize the sidebar. */
+  sidebar?: ReactNode;
   className?: string;
 }
 
@@ -85,8 +100,20 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   onHeadroomResetAnchor,
   getEventUrl,
   linkingEnabled,
+  sidebar,
   className,
 }) => {
+  // ---------------------------------------------------------------------------
+  // Scroll container
+  // ---------------------------------------------------------------------------
+  // When a sidebar is rendered we wrap the content in VscodeSplitLayout. The
+  // split layout's start slot becomes the actual scroll container, so we
+  // create a local ref and use it instead of the parent-provided scrollRef
+  // for sticky/scroll wiring inside this component.
+
+  const splitStartRef = useRef<HTMLDivElement | null>(null);
+  const effectiveScrollRef = sidebar ? splitStartRef : scrollRef;
+
   // ---------------------------------------------------------------------------
   // URL-param-backed selection adapters
   // ---------------------------------------------------------------------------
@@ -191,17 +218,17 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   );
 
   const scrollToTop = useCallback(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [scrollRef]);
+    effectiveScrollRef.current?.scrollTo({ top: 0 });
+  }, [effectiveScrollRef]);
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
-  return (
+  const layout = (
     <TranscriptLayout
       events={events}
-      scrollRef={scrollRef}
+      scrollRef={effectiveScrollRef}
       offsetTop={offsetTop}
       timelineSelection={timelineSelection}
       activeTimeline={activeTimeline}
@@ -231,5 +258,26 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       }}
       className={className}
     />
+  );
+
+  if (!sidebar) {
+    return layout;
+  }
+
+  return (
+    <VscodeSplitLayout
+      className={styles.splitLayout}
+      fixedPane="end"
+      initialHandlePosition="70%"
+      minEnd="280px"
+      minStart="320px"
+    >
+      <div slot="start" ref={splitStartRef} className={styles.splitStart}>
+        {layout}
+      </div>
+      <div slot="end" className={styles.sidebar}>
+        {sidebar}
+      </div>
+    </VscodeSplitLayout>
   );
 };
