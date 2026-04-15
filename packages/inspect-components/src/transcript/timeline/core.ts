@@ -84,6 +84,7 @@ export class TimelineEvent {
    * `branchedFrom` is a message ID (not an event UUID). It may match:
    * 1. A model event's output message ID (`output.choices[0].message.id`)
    * 2. A tool event's message ID (`message_id`)
+   * 3. A model event's input message ID (any message in `input` with matching `id`)
    *
    * This is used to locate the fork point for branches.
    */
@@ -94,6 +95,17 @@ export class TimelineEvent {
         | { choices?: Array<{ message?: { id?: string } }> }
         | undefined;
       if (outMsg?.choices?.[0]?.message?.id === messageId) return true;
+
+      // Check input messages — branchedFrom may reference a message in the
+      // model call's input (e.g. the last user message before the fork).
+      const input = (e as Record<string, unknown>).input as
+        | Array<{ id?: string }>
+        | undefined;
+      if (input) {
+        for (const msg of input) {
+          if (msg.id === messageId) return true;
+        }
+      }
     } else if (e.event === "tool") {
       if ((e as Record<string, unknown>).message_id === messageId) return true;
     }

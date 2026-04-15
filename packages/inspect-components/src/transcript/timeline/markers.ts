@@ -210,20 +210,23 @@ function collectBranchMarkers(
  *
  * `branch.branchedFrom` is a message ID (not an event UUID). Searches
  * parent events for one that produced or carries this message ID.
- * Falls back to `branch.startTime()` when branchedFrom is missing or
- * no matching event is found.
+ *
+ * When `branchedFrom` is empty the branch is unrolled from the very
+ * beginning, so we return the parent's start time.
+ *
+ * Falls back to `parent.startTime()` when no matching event is found.
  */
 export function resolveForkTimestamp(
   parent: TimelineSpan,
   branch: TimelineSpan
 ): Date {
-  if (!branch.branchedFrom) return branch.startTime();
+  if (!branch.branchedFrom) return parent.startTime();
   for (const item of parent.content) {
     if (item.type === "event" && item.matchesMessageId(branch.branchedFrom)) {
       return item.startTime();
     }
   }
-  return branch.startTime();
+  return parent.startTime();
 }
 
 /**

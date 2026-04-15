@@ -343,7 +343,7 @@
 .connectorArrow {
   position: absolute;
   top: 50%;
-  transform: translate(-1px, calc(-50% + 0.5px));
+  transform: translate(-1px, -50%);
   width: 0;
   height: 0;
   border-top: 3px solid transparent;

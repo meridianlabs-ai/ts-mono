@@ -338,7 +338,7 @@ function computeBranchMappings(
   }
 
   for (const row of rows) {
-    if (!row.branch || !row.branchedFrom) continue;
+    if (!row.branch) continue;
 
     const parentKey = row.key.replace(kBranchKeyPattern, "");
     const parentRow = rowByKey.get(parentKey);
