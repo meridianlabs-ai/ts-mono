@@ -3,13 +3,13 @@ import JSON5 from "json5";
 
 import { asyncJsonParse } from "@tsmono/util";
 
-import { ScanResultReference, ValueType } from "../types";
+import { ScanResultReference, ScanResultValueType } from "../types";
 
 interface Result {
   uuid?: string | null;
   label?: string | null;
   value: unknown;
-  type?: ValueType | null;
+  type?: ScanResultValueType | null;
   answer?: string | null;
   explanation?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -333,7 +333,7 @@ async function createSyntheticRows(
   }
 }
 
-function inferType(value: unknown): ValueType {
+function inferType(value: unknown): ScanResultValueType {
   if (typeof value === "boolean") {
     return "boolean";
   } else if (typeof value === "number") {

@@ -1,9 +1,5 @@
 import type {
   ChatMessage,
-  ChatMessageAssistant,
-  ChatMessageSystem,
-  ChatMessageTool,
-  ChatMessageUser,
   Event,
   JsonValue,
   ModelUsage,
@@ -11,8 +7,6 @@ import type {
 import type { EventType } from "@tsmono/inspect-components/transcript";
 
 import { ScannerInputResponse, Transcript } from "../types/api-types";
-
-export type InputType = ScannerInputResponse["input_type"];
 
 export interface ScanResultSummary {
   // Basic Info
@@ -26,7 +20,7 @@ export interface ScanResultSummary {
   timestamp?: string;
 
   // Input
-  inputType: InputType;
+  inputType: ScannerInputResponse["input_type"];
 
   // Refs
   eventReferences: ScanResultReference[];
@@ -38,7 +32,7 @@ export interface ScanResultSummary {
 
   // Value
   value: string | boolean | number | null | unknown[] | object;
-  valueType: ValueType;
+  valueType: ScanResultValueType;
 
   // Scan metadata
   scanError?: string;
@@ -92,12 +86,6 @@ export interface ScanResultReference {
   cite?: string;
 }
 
-export type MessageType =
-  | ChatMessageSystem
-  | ChatMessageUser
-  | ChatMessageAssistant
-  | ChatMessageTool;
-
 export interface SortColumn {
   column: string;
   direction: "asc" | "desc";
@@ -118,7 +106,7 @@ export type ResultGroup =
   | "model"
   | "none";
 
-export type ValueType =
+export type ScanResultValueType =
   | "boolean"
   | "number"
   | "string"
@@ -180,7 +168,7 @@ export function isMessageInput(
   input: ScannerInputResponse
 ): input is ScannerInputResponse & {
   inputType: "message";
-  input: MessageType;
+  input: ChatMessage;
 } {
   return input.input_type === "message";
 }
