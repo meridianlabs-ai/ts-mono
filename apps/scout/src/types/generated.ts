@@ -1538,9 +1538,21 @@ export interface components {
             description?: string | null;
             /** Enum */
             enum?: unknown[] | null;
+            /** Examples */
+            examples?: unknown[] | null;
             /** Format */
             format?: string | null;
             items?: components["schemas"]["JSONSchema-Input"] | null;
+            /** Maxlength */
+            maxLength?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minlength */
+            minLength?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Pattern */
+            pattern?: string | null;
             /** Properties */
             properties?: {
                 [key: string]: components["schemas"]["JSONSchema-Input"];
@@ -1565,9 +1577,21 @@ export interface components {
             description?: string | null;
             /** Enum */
             enum?: unknown[] | null;
+            /** Examples */
+            examples?: unknown[] | null;
             /** Format */
             format?: string | null;
             items?: components["schemas"]["JSONSchema-Output"] | null;
+            /** Maxlength */
+            maxLength?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minlength */
+            minLength?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Pattern */
+            pattern?: string | null;
             /** Properties */
             properties?: {
                 [key: string]: components["schemas"]["JSONSchema-Output"];
