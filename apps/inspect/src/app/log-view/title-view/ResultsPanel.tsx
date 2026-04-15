@@ -15,6 +15,7 @@ import { groupScorers } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ResultsPanel.module.css";
+import { ScoreAgGrid } from "./ScoreAgGrid";
 import { ScoreGrid } from "./ScoreGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
@@ -147,13 +148,12 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
               showing={showing}
               setShowing={setShowing}
               title={"Scoring Detail"}
-              overflow="scroll"
+              overflow="hidden"
+              padded={false}
             >
-              <ScoreGrid
+              <ScoreAgGrid
                 scoreGroups={grouped}
                 showReducer={showReducer}
-                className={styles.modalScores}
-                striped={false}
               />
             </Modal>
             <LinkButton

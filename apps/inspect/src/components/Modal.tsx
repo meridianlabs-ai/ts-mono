@@ -11,6 +11,7 @@ interface ModalProps {
   children: ReactNode;
   className?: string | string[];
   overflow?: "auto" | "hidden" | "scroll" | "visible";
+  padded?: boolean;
 }
 
 export const Modal: FC<ModalProps> = ({
@@ -21,6 +22,7 @@ export const Modal: FC<ModalProps> = ({
   children,
   className,
   overflow = "visible",
+  padded = true,
 }) => {
   return (
     <>
@@ -62,6 +64,7 @@ export const Modal: FC<ModalProps> = ({
             <div
               className={clsx(
                 "modal-body",
+                !padded && styles.noPadding,
                 overflow === "auto"
                   ? styles.overflowAuto
                   : overflow === "hidden"
