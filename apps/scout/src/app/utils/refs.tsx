@@ -1,6 +1,7 @@
 import { FC, ReactNode, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import {
   kTranscriptCollapseScope,
@@ -11,7 +12,7 @@ import { MarkdownReference } from "@tsmono/react/components";
 
 import { scanResultRoute } from "../../router/url";
 import { useStore } from "../../state/store";
-import { Event, ScannerInput } from "../../types/api-types";
+import { ScannerInput } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
   isEventInput,

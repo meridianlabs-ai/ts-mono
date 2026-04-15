@@ -1,8 +1,9 @@
+import type { ModelEvent } from "@tsmono/inspect-common/types";
+
 import type {
   ActiveScansResponse,
   AppConfig,
   MessagesEventsResponse,
-  ModelEvent,
   ProjectConfig,
   ScanRow,
   ScansResponse,

@@ -1,10 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { isRecord } from "@tsmono/util";
-
-import { JsonValue } from "../../types/api-types";
 
 interface ScoreProps {
   score: JsonValue;

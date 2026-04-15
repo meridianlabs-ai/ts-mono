@@ -5,9 +5,8 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useEffect, useState } from "react";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import { useDebouncedCallback } from "@tsmono/react/hooks";
-
-import { JsonValue } from "../../../types/api-types";
 
 type TargetMode = "true" | "false" | "other" | "unset";
 

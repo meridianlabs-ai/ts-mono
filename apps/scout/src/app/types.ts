@@ -1,6 +1,4 @@
-import type { EventType } from "@tsmono/inspect-components/transcript";
-
-import {
+import type {
   ChatMessage,
   ChatMessageAssistant,
   ChatMessageSystem,
@@ -9,9 +7,10 @@ import {
   Event,
   JsonValue,
   ModelUsage,
-  ScannerInputResponse,
-  Transcript,
-} from "../types/api-types";
+} from "@tsmono/inspect-common/types";
+import type { EventType } from "@tsmono/inspect-components/transcript";
+
+import { ScannerInputResponse, Transcript } from "../types/api-types";
 
 export type InputType = ScannerInputResponse["input_type"];
 

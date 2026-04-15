@@ -8,6 +8,7 @@ import clsx from "clsx";
 import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import {
   ConfirmationDialog,
   ErrorPanel,
@@ -24,7 +25,6 @@ import {
 } from "../../../router/url";
 import { useStore } from "../../../state/store";
 import {
-  JsonValue,
   ValidationCase,
   ValidationCaseRequest,
 } from "../../../types/api-types";
