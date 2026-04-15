@@ -201,7 +201,7 @@ export interface paths {
         };
         /**
          * Get scanner dataframe containing results for all transcripts
-         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Excludes input column for efficiency; use the input endpoint for input text.
+         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Use exclude_columns to omit heavy columns from the response.
          */
         get: operations["scan_df_scans__dir___scan___scanner__get"];
         put?: never;
@@ -212,7 +212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/scans/{dir}/{scan}/{scanner}/{uuid}/input": {
+    "/scans/{dir}/{scan}/{scanner}/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
@@ -220,10 +220,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get scanner input for a specific result
-         * @description Returns a JSON envelope with input, input_type, and input_data (EventsData pools for condensed events, or null).
+         * Get specific columns for a result row
+         * @description Returns requested columns as a JSON object. Pass a comma-separated list via the `columns` query parameter.
          */
-        get: operations["scanner_input_scans__dir___scan___scanner___uuid__input_get"];
+        get: operations["scanner_row_scans__dir___scan___scanner___uuid__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1521,21 +1521,9 @@ export interface components {
             description?: string | null;
             /** Enum */
             enum?: unknown[] | null;
-            /** Examples */
-            examples?: unknown[] | null;
             /** Format */
             format?: string | null;
             items?: components["schemas"]["JSONSchema-Input"] | null;
-            /** Maxlength */
-            maxLength?: number | null;
-            /** Maximum */
-            maximum?: number | null;
-            /** Minlength */
-            minLength?: number | null;
-            /** Minimum */
-            minimum?: number | null;
-            /** Pattern */
-            pattern?: string | null;
             /** Properties */
             properties?: {
                 [key: string]: components["schemas"]["JSONSchema-Input"];
@@ -1560,21 +1548,9 @@ export interface components {
             description?: string | null;
             /** Enum */
             enum?: unknown[] | null;
-            /** Examples */
-            examples?: unknown[] | null;
             /** Format */
             format?: string | null;
             items?: components["schemas"]["JSONSchema-Output"] | null;
-            /** Maxlength */
-            maxLength?: number | null;
-            /** Maximum */
-            maximum?: number | null;
-            /** Minlength */
-            minLength?: number | null;
-            /** Minimum */
-            minimum?: number | null;
-            /** Pattern */
-            pattern?: string | null;
             /** Properties */
             properties?: {
                 [key: string]: components["schemas"]["JSONSchema-Output"];
@@ -2582,24 +2558,6 @@ export interface components {
             params: components["schemas"]["ScannerParam"][];
             /** Version */
             version: number;
-        };
-        /**
-         * ScannerInputResponse
-         * @description Response body for GET /scans/{dir}/{scan}/scanners/{scanner}/input/{uuid}.
-         *
-         *     Used only for OpenAPI schema generation — the endpoint returns a
-         *     pre-serialized JSON string via ``Response`` to avoid parsing/re-encoding
-         *     the raw parquet payloads.
-         */
-        ScannerInputResponse: {
-            /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
-            input_data?: components["schemas"]["EventsData"] | null;
-            /**
-             * Input Type
-             * @enum {string}
-             */
-            input_type: "transcript" | "event" | "events" | "message" | "messages" | "timeline" | "timelines";
         };
         /**
          * ScannerParam
@@ -3920,7 +3878,10 @@ export interface operations {
     };
     scan_df_scans__dir___scan___scanner__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of column names to exclude */
+                exclude_columns?: string | null;
+            };
             header?: never;
             path: {
                 /** @description Scans directory (base64url-encoded) */
@@ -3945,9 +3906,12 @@ export interface operations {
             };
         };
     };
-    scanner_input_scans__dir___scan___scanner___uuid__input_get: {
+    scanner_row_scans__dir___scan___scanner___uuid__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of column names to return */
+                columns?: string | null;
+            };
             header?: never;
             path: {
                 /** @description Scans directory (base64url-encoded) */
@@ -3969,7 +3933,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScannerInputResponse"];
+                    "application/json": unknown;
                 };
             };
         };
