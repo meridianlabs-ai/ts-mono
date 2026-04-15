@@ -15,10 +15,10 @@ import type {
 
 import type { Timeline } from "../core";
 import {
-  TimelineEvent,
-  TimelineSpan,
   buildTimeline,
   convertServerTimeline,
+  TimelineEvent,
+  TimelineSpan,
 } from "../core";
 
 // =============================================================================
@@ -174,9 +174,7 @@ function buildOrphanContent(
     const children = spanChildren.get(spanId) ?? [];
 
     // Sort children by start time
-    children.sort(
-      (a, b) => a.startTime().getTime() - b.startTime().getTime()
-    );
+    children.sort((a, b) => a.startTime().getTime() - b.startTime().getTime());
 
     if (children.length === 0) continue;
 
@@ -210,9 +208,7 @@ function buildOrphanContent(
 
   // Root-level items
   const rootItems = spanChildren.get(null) ?? [];
-  rootItems.sort(
-    (a, b) => a.startTime().getTime() - b.startTime().getTime()
-  );
+  rootItems.sort((a, b) => a.startTime().getTime() - b.startTime().getTime());
   return rootItems;
 }
 

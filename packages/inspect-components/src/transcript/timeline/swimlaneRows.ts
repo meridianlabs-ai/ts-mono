@@ -483,28 +483,9 @@ function flattenChildren(
       compareByTime(a, b)
   );
 
-  // Emit rows with recursive descent
+  // Emit rows: branch rows first (they fork from the parent node's execution),
+  // then child span entries with recursive descent.
   const result: SwimlaneRow[] = [];
-  for (const entry of entries) {
-    result.push({
-      key: entry.key,
-      name: entry.displayName,
-      depth,
-      spans: entry.rowSpans,
-      totalTokens: entry.totalTokens,
-      startTime: entry.startTime,
-      endTime: entry.endTime,
-    });
-    result.push(
-      ...flattenChildren(
-        entry.spans,
-        depth,
-        entry.key,
-        includeUtility,
-        showBranches
-      )
-    );
-  }
 
   // Emit branch rows when enabled. Each branch becomes a child row of the
   // node that owns it, with its own bar and optional nested children.
@@ -575,6 +556,28 @@ function flattenChildren(
         );
       }
     }
+  }
+
+  // Emit child span entries with recursive descent
+  for (const entry of entries) {
+    result.push({
+      key: entry.key,
+      name: entry.displayName,
+      depth,
+      spans: entry.rowSpans,
+      totalTokens: entry.totalTokens,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+    });
+    result.push(
+      ...flattenChildren(
+        entry.spans,
+        depth,
+        entry.key,
+        includeUtility,
+        showBranches
+      )
+    );
   }
 
   return result;
