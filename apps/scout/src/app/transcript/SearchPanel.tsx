@@ -270,17 +270,20 @@ export const SearchPanel = ({
               {searchType === "grep" ? (
                 <div className={styles.modeControls}>
                   <ModeToggle
-                    label="Ignore Case"
+                    icon="case-sensitive"
+                    title="Ignore Case"
                     active={grepOptions.ignoreCase}
                     onClick={() => toggleGrepOption("ignoreCase")}
                   />
                   <ModeToggle
-                    label="Regex"
+                    icon="regex"
+                    title="Regex"
                     active={grepOptions.regex}
                     onClick={() => toggleGrepOption("regex")}
                   />
                   <ModeToggle
-                    label="Whole Word"
+                    icon="whole-word"
+                    title="Whole Word"
                     active={grepOptions.wordBoundary}
                     onClick={() => toggleGrepOption("wordBoundary")}
                   />
@@ -368,16 +371,18 @@ export const SearchPanel = ({
 
 const ModeToggle: FC<{
   active: boolean;
-  label: string;
+  icon: string;
+  title: string;
   onClick: () => void;
-}> = ({ active, label, onClick }) => (
+}> = ({ active, icon, title, onClick }) => (
   <button
     type="button"
     className={clsx(styles.modeToggle, active && styles.modeToggleActive)}
     onClick={onClick}
     aria-pressed={active}
+    title={title}
   >
-    {label}
+    <i className={`codicon codicon-${icon}`} />
   </button>
 );
 
