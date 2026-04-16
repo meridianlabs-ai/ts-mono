@@ -201,7 +201,7 @@ export interface paths {
         };
         /**
          * Get scanner dataframe containing results for all transcripts
-         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Use exclude_columns to omit heavy columns from the response.
+         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Use exclude_column to omit heavy columns from the response.
          */
         get: operations["scan_df_scans__dir___scan___scanner__get"];
         put?: never;
@@ -221,7 +221,7 @@ export interface paths {
         };
         /**
          * Get specific columns for a result row
-         * @description Returns requested columns as a JSON object. Pass a comma-separated list via the `columns` query parameter.
+         * @description Returns requested columns as a JSON object. Repeat the `column` query parameter for each column.
          */
         get: operations["scanner_row_scans__dir___scan___scanner___uuid__get"];
         put?: never;
@@ -3934,8 +3934,8 @@ export interface operations {
     scan_df_scans__dir___scan___scanner__get: {
         parameters: {
             query?: {
-                /** @description Comma-separated list of column names to exclude */
-                exclude_columns?: string | null;
+                /** @description Column names to exclude (repeat for multiple) */
+                exclude_column?: string[];
             };
             header?: never;
             path: {
@@ -3964,8 +3964,8 @@ export interface operations {
     scanner_row_scans__dir___scan___scanner___uuid__get: {
         parameters: {
             query?: {
-                /** @description Comma-separated list of column names to return */
-                columns?: string | null;
+                /** @description Column names to return (repeat for multiple) */
+                column?: string[];
             };
             header?: never;
             path: {
