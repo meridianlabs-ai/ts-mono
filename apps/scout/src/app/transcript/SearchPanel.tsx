@@ -34,10 +34,28 @@ import type {
 
 type PanelView = "results" | "recent";
 
-const defaultGrepOptions: GrepOptions = {
-  ignoreCase: true,
-  regex: false,
-  wordBoundary: false,
+type SearchPanelState = {
+  query: string;
+  searchType: SearchType;
+  panelView: PanelView;
+  hasSearched: boolean;
+  currentSearch: SavedSearch | null;
+  grepOptions: GrepOptions;
+  model: string;
+};
+
+const initialState: SearchPanelState = {
+  query: "",
+  searchType: "llm",
+  panelView: "results",
+  hasSearched: false,
+  currentSearch: null,
+  grepOptions: {
+    ignoreCase: true,
+    regex: false,
+    wordBoundary: false,
+  },
+  model: "",
 };
 
 type SearchPanelProps = {
@@ -60,25 +78,27 @@ function configureSearchTextarea(el: HTMLElement | null) {
   }
 }
 
-export const SearchPanel: FC<SearchPanelProps> = ({
+export const SearchPanel = ({
   scope,
   transcriptDir,
   transcriptId,
   onClose,
-}) => {
+}: SearchPanelProps) => {
   const projectConfig = useProjectConfig();
   const { getFullMessageUrl } = useTranscriptNavigation();
 
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
-  const [currentSearch, setCurrentSearch] = useState<SavedSearch | null>(null);
-  const [query, setQuery] = useState("");
-  const [searchType, setSearchType] = useState<SearchType>("llm");
-  const [panelView, setPanelView] = useState<PanelView>("results");
-  const [grepOptions, setGrepOptions] =
-    useState<GrepOptions>(defaultGrepOptions);
-  const [model, setModel] = useState<string>("");
-  const [hasSearched, setHasSearched] = useState(false);
+  const [state, setState] = useState<SearchPanelState>(initialState);
+  const {
+    query,
+    searchType,
+    panelView,
+    hasSearched,
+    currentSearch,
+    grepOptions,
+    model,
+  } = state;
 
   const loading = createSearchMutation.isPending;
 
@@ -88,9 +108,12 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       const text = query.trim();
       if (!text || loading) return;
 
-      setHasSearched(true);
-      setPanelView("results");
-      setCurrentSearch(null);
+      setState((prev) => ({
+        ...prev,
+        hasSearched: true,
+        panelView: "results",
+        currentSearch: null,
+      }));
       createSearchMutation.reset();
 
       const request = buildSearchRequest({
@@ -103,7 +126,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       });
 
       createSearchMutation.mutate(request, {
-        onSuccess: setCurrentSearch,
+        onSuccess: (search) =>
+          setState((prev) => ({ ...prev, currentSearch: search })),
       });
     },
     [
@@ -128,48 +152,48 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const handleSelectRecent = useCallback(
     (search: SavedSearch) => {
       createSearchMutation.reset();
-      setCurrentSearch(search);
-      setHasSearched(true);
-      setQuery(search.query);
-      setSearchType(search.type);
-      setPanelView("results");
-      if (search.type === "llm") {
-        setModel(search.model ?? "");
-      } else {
-        setGrepOptions({
-          ignoreCase: search.ignore_case,
-          regex: search.regex,
-          wordBoundary: search.word_boundary,
-        });
-      }
+      setState((prev) => {
+        const next: SearchPanelState = {
+          ...prev,
+          currentSearch: search,
+          hasSearched: true,
+          query: search.query,
+          searchType: search.type,
+          panelView: "results",
+        };
+        if (search.type === "llm") {
+          next.model = search.model ?? "";
+        } else {
+          next.grepOptions = {
+            ignoreCase: search.ignore_case,
+            regex: search.regex,
+            wordBoundary: search.word_boundary,
+          };
+        }
+        return next;
+      });
     },
     [createSearchMutation]
   );
 
   const handleNewSearch = useCallback(() => {
     createSearchMutation.reset();
-    setCurrentSearch(null);
-    setQuery("");
-    setSearchType("llm");
-    setPanelView("results");
-    setGrepOptions(defaultGrepOptions);
-    setModel("");
-    setHasSearched(false);
+    setState(initialState);
   }, [createSearchMutation]);
 
   const toggleGrepOption = useCallback((key: keyof GrepOptions) => {
-    setGrepOptions((prev) => ({
+    setState((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      grepOptions: { ...prev.grepOptions, [key]: !prev.grepOptions[key] },
     }));
   }, []);
 
   const handleSearchTypeChange = useCallback((type: SearchType) => {
-    setSearchType(type);
+    setState((prev) => ({ ...prev, searchType: type }));
   }, []);
 
   const handleQueryInput = useCallback((e: Event) => {
-    setQuery(getInputValue(e));
+    setState((prev) => ({ ...prev, query: getInputValue(e) }));
   }, []);
 
   const showResults = panelView === "results";
@@ -204,7 +228,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                   styles.iconAction,
                   showRecentSearches && styles.iconActionActive
                 )}
-                onClick={() => setPanelView("recent")}
+                onClick={() =>
+                  setState((prev) => ({ ...prev, panelView: "recent" }))
+                }
                 title="Recent searches"
                 aria-label="Recent searches"
               >
@@ -272,7 +298,12 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                       projectConfig.data?.config.model || "Project default"
                     }
                     value={model}
-                    onChange={(e) => setModel(e.target.value)}
+                    onChange={(e) =>
+                      setState((prev) => ({
+                        ...prev,
+                        model: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               )}
