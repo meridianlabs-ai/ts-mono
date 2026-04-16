@@ -1,5 +1,6 @@
 import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import {
+  CSSProperties,
   FC,
   ReactNode,
   RefObject,
@@ -264,9 +265,13 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     return layout;
   }
 
-  return (
     <VscodeSplitLayout
       className={styles.splitLayout}
+      style={
+        {
+          "--split-top": `${offsetTop}px`,
+        } as CSSProperties
+      }
       fixedPane="end"
       initialHandlePosition="70%"
       minEnd="280px"
