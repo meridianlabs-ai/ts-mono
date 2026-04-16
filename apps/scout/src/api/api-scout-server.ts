@@ -258,15 +258,13 @@ export const apiScoutServer = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
-      const params = new URLSearchParams();
-      params.set("columns", "input,input_type,input_data,scan_events");
       const raw = await asyncJsonParse<
         ScannerInputResponse & { scan_events: Event[] }
       >(
         (
           await requestApi.fetchString(
             "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?${params}`
+            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?columns=input,input_type,input_data,scan_events`
           )
         ).raw
       );
