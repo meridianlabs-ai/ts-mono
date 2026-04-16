@@ -241,12 +241,14 @@ export const apiScoutServer = (
       scanner: string,
       excludeColumns?: string[]
     ): Promise<ArrayBuffer> => {
-      const params = excludeColumns?.length
-        ? `?exclude_columns=${excludeColumns.map(encodeURIComponent).join(",")}`
-        : "";
+      const params = new URLSearchParams();
+      if (excludeColumns?.length) {
+        params.set("exclude_columns", excludeColumns.join(","));
+      }
+      const query = params.size ? `?${params}` : "";
       const result = await requestApi.fetchBytes(
         "GET",
-        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}${params}`
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}${query}`
       );
       return result.data;
     },
@@ -256,13 +258,15 @@ export const apiScoutServer = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
+      const params = new URLSearchParams();
+      params.set("columns", "input,input_type,input_data,scan_events");
       const raw = await asyncJsonParse<
         ScannerInputResponse & { scan_events: Event[] }
       >(
         (
           await requestApi.fetchString(
             "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?columns=input,input_type,input_data,scan_events`
+            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?${params}`
           )
         ).raw
       );
