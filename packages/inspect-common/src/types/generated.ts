@@ -1617,7 +1617,7 @@ export interface components {
             /** Cache Prompt */
             cache_prompt?: "auto" | boolean | null;
             /** Effort */
-            effort?: ("low" | "medium" | "high" | "max") | null;
+            effort?: ("low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Extra Body */
             extra_body?: {
                 [key: string]: unknown;
@@ -1653,7 +1653,7 @@ export interface components {
             /** Presence Penalty */
             presence_penalty?: number | null;
             /** Reasoning Effort */
-            reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh") | null;
+            reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
             reasoning_history?: ("none" | "all" | "last" | "auto") | null;
             /** Reasoning Summary */
