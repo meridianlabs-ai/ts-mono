@@ -360,6 +360,7 @@ export const SearchPanel = ({
             <RecentSearches
               transcriptDir={transcriptDir}
               transcriptId={transcriptId}
+              searchType={searchType}
               onSelect={handleSelectRecent}
             />
           )}
@@ -389,8 +390,9 @@ const ModeToggle: FC<{
 const RecentSearches: FC<{
   transcriptDir: string;
   transcriptId: string;
+  searchType: SearchType;
   onSelect: (search: SavedSearch) => void;
-}> = ({ transcriptDir, transcriptId, onSelect }) => {
+}> = ({ transcriptDir, transcriptId, searchType, onSelect }) => {
   const searches = useSearches({ transcriptDir, transcriptId });
 
   if (searches.loading) {
@@ -403,7 +405,9 @@ const RecentSearches: FC<{
     );
   }
 
-  const items = searches.data.items;
+  const items = searches.data.items.filter(
+    (search) => search.type === searchType
+  );
 
   if (items.length === 0) {
     return (
