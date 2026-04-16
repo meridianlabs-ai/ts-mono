@@ -241,11 +241,9 @@ export const apiScoutServer = (
       scanner: string,
       excludeColumns?: string[]
     ): Promise<ArrayBuffer> => {
-      const params = new URLSearchParams();
-      if (excludeColumns?.length) {
-        params.set("exclude_columns", excludeColumns.join(","));
-      }
-      const query = params.size ? `?${params}` : "";
+      const query = excludeColumns?.length
+        ? `?exclude_columns=${excludeColumns.join(",")}`
+        : "";
       const result = await requestApi.fetchBytes(
         "GET",
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}${query}`
