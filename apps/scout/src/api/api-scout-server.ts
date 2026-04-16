@@ -258,23 +258,24 @@ export const apiScoutServer = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
-      const raw = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] }
-      >(
-        (
-          await requestApi.fetchString(
-            "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?columns=input,input_type,input_data,scan_events`
-          )
-        ).raw
+      const { raw } = await requestApi.fetchString(
+        "GET",
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?columns=input,input_type,input_data,scan_events`
       );
+      const parsed = await asyncJsonParse<
+        ScannerInputResponse & { scan_events: Event[] }
+      >(raw);
 
       return {
         input: {
-          input_type: raw.input_type,
-          input: expandInputEvents(raw.input, raw.input_type, raw.input_data),
+          input_type: parsed.input_type,
+          input: expandInputEvents(
+            parsed.input,
+            parsed.input_type,
+            parsed.input_data
+          ),
         },
-        scanEvents: raw.scan_events ?? [],
+        scanEvents: parsed.scan_events ?? [],
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
