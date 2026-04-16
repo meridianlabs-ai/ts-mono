@@ -1,5 +1,7 @@
 import { StateStorage } from "zustand/middleware";
 
+import type { Event } from "@tsmono/inspect-common/types";
+
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
@@ -23,6 +25,11 @@ import {
 export type ClientStorage = StateStorage;
 
 export type ScalarValue = string | number | boolean | null;
+
+export interface ScanResultDetail {
+  input: ScannerInput;
+  scanEvents: Event[];
+}
 
 /** Topic versions: maps topic name to timestamp. */
 export type TopicVersions = Record<InvalidationTopic, string>;
@@ -57,14 +64,15 @@ export interface ScoutApiV2 {
   getScannerDataframe(
     scansDir: string,
     scanPath: string,
-    scanner: string
+    scanner: string,
+    excludeColumns?: string[]
   ): Promise<ArrayBuffer | Uint8Array>;
-  getScannerDataframeInput(
+  getScannerDataframeDetail(
     scansDir: string,
     scanPath: string,
     scanner: string,
     uuid: string
-  ): Promise<ScannerInput>;
+  ): Promise<ScanResultDetail>;
   getActiveScans(): Promise<ActiveScansResponse>;
   postCode(condition: Condition): Promise<Record<string, string>>;
   getProjectConfig(): Promise<{ config: ProjectConfig; etag: string }>;

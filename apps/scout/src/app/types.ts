@@ -6,7 +6,11 @@ import type {
 } from "@tsmono/inspect-common/types";
 import type { EventType } from "@tsmono/inspect-components/transcript";
 
-import { ScannerInputResponse, Transcript } from "../types/api-types";
+import {
+  ScannerInput,
+  ScannerInputResponse,
+  Transcript,
+} from "../types/api-types";
 
 export interface ScanResultSummary {
   // Basic Info
@@ -55,7 +59,7 @@ export interface ScanResultData extends ScanResultSummary {
   scanError?: string;
   scanErrorTraceback?: string;
   scanErrorRefusal?: boolean;
-  scanEvents: Event[];
+  scanEvents?: Event[];
   scanId: string;
   scanMetadata: Record<string, JsonValue>;
   scanModelUsage: Record<string, ModelUsage>;
@@ -156,40 +160,36 @@ export function isObjectValue(
 
 // Type guard functions for DataFrameInput
 export function isTranscriptInput(
-  input: ScannerInputResponse
-): input is ScannerInputResponse & {
-  inputType: "transcript";
+  input: ScannerInput
+): input is ScannerInput & {
+  input_type: "transcript";
   input: Transcript;
 } {
   return input.input_type === "transcript";
 }
 
-export function isMessageInput(
-  input: ScannerInputResponse
-): input is ScannerInputResponse & {
-  inputType: "message";
+export function isMessageInput(input: ScannerInput): input is ScannerInput & {
+  input_type: "message";
   input: ChatMessage;
 } {
   return input.input_type === "message";
 }
 
-export function isMessagesInput(
-  input: ScannerInputResponse
-): input is ScannerInputResponse & {
-  inputType: "messages";
+export function isMessagesInput(input: ScannerInput): input is ScannerInput & {
+  input_type: "messages";
   input: ChatMessage[];
 } {
   return input.input_type === "messages";
 }
 
 export function isEventInput(
-  input: ScannerInputResponse
-): input is ScannerInputResponse & { inputType: "event"; input: EventType } {
+  input: ScannerInput
+): input is ScannerInput & { input_type: "event"; input: EventType } {
   return input.input_type === "event";
 }
 
 export function isEventsInput(
-  input: ScannerInputResponse
-): input is ScannerInputResponse & { inputType: "events"; input: Event[] } {
+  input: ScannerInput
+): input is ScannerInput & { input_type: "events"; input: Event[] } {
   return input.input_type === "events";
 }

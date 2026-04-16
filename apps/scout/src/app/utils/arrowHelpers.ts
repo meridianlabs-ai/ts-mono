@@ -52,7 +52,7 @@ export const parseScanResultData = async (
     parseJson(filtered.get("input_ids", 0) as string),
     parseJson(filtered.get("message_references", 0) as string),
     parseJson(filtered.get("metadata", 0) as string),
-    parseJson(filtered.get("scan_events", 0) as string),
+    parseJson(getOptionalColumn<string>(filtered, "scan_events") ?? null),
     parseJson(filtered.get("scan_metadata", 0) as string),
     parseJson(filtered.get("scan_model_usage", 0) as string),
     parseJson(filtered.get("scan_tags", 0) as string),
@@ -72,21 +72,22 @@ export const parseScanResultData = async (
   ]);
 
   const identifier = filtered.get("identifier", 0) as string;
-  const uuid = filtered.get("uuid", 0) as string | undefined;
+  const uuid = getOptionalColumn<string>(filtered, "uuid");
   const timestamp = getOptionalColumn<string>(filtered, "timestamp");
-  const answer = filtered.get("answer", 0) as string | undefined;
+  const answer = getOptionalColumn<string>(filtered, "answer");
   const label = getOptionalColumn<string>(filtered, "label");
-  const explanation = filtered.get("explanation", 0) as string | undefined;
+  const explanation = getOptionalColumn<string>(filtered, "explanation");
   const inputType = filtered.get("input_type", 0) as
     | "transcript"
     | "message"
     | "messages"
     | "event"
     | "events";
-  const scanError = filtered.get("scan_error", 0) as string | undefined;
-  const scanErrorTraceback = filtered.get("scan_error_traceback", 0) as
-    | string
-    | undefined;
+  const scanError = getOptionalColumn<string>(filtered, "scan_error");
+  const scanErrorTraceback = getOptionalColumn<string>(
+    filtered,
+    "scan_error_traceback"
+  );
   const scanErrorRefusal =
     getOptionalColumn<boolean>(filtered, "scan_error_refusal") ?? false;
   const scanId = filtered.get("scan_id", 0) as string;
@@ -161,7 +162,7 @@ export const parseScanResultData = async (
     scanError,
     scanErrorTraceback,
     scanErrorRefusal,
-    scanEvents: scanEvents as Event[],
+    scanEvents: scanEvents as Event[] | undefined,
     scanId,
     scanMetadata: scanMetadata as Record<string, JsonValue>,
     scanModelUsage: scanModelUsage as Record<string, ModelUsage>,

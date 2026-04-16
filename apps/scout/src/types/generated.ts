@@ -201,7 +201,7 @@ export interface paths {
         };
         /**
          * Get scanner dataframe containing results for all transcripts
-         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Excludes input column for efficiency; use the input endpoint for input text.
+         * @description Streams scanner results as Arrow IPC format with LZ4 compression. Use exclude_columns to omit heavy columns from the response.
          */
         get: operations["scan_df_scans__dir___scan___scanner__get"];
         put?: never;
@@ -212,7 +212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/scans/{dir}/{scan}/{scanner}/{uuid}/input": {
+    "/scans/{dir}/{scan}/{scanner}/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
@@ -220,10 +220,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get scanner input for a specific result
-         * @description Returns a JSON envelope with input, input_type, and input_data (EventsData pools for condensed events, or null).
+         * Get specific columns for a result row
+         * @description Returns requested columns as a JSON object. Pass a comma-separated list via the `columns` query parameter.
          */
-        get: operations["scanner_input_scans__dir___scan___scanner___uuid__input_get"];
+        get: operations["scanner_row_scans__dir___scan___scanner___uuid__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -275,6 +275,23 @@ export interface paths {
         };
         /** Raw Encoding */
         get: operations["_raw_encoding_schema_raw_encoding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schema/scanner-input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scanner Input */
+        get: operations["_scanner_input_schema_scanner_input_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2585,11 +2602,7 @@ export interface components {
         };
         /**
          * ScannerInputResponse
-         * @description Response body for GET /scans/{dir}/{scan}/scanners/{scanner}/input/{uuid}.
-         *
-         *     Used only for OpenAPI schema generation — the endpoint returns a
-         *     pre-serialized JSON string via ``Response`` to avoid parsing/re-encoding
-         *     the raw parquet payloads.
+         * @description Schema-only type for scanner input column values.
          */
         ScannerInputResponse: {
             /** Input */
@@ -3920,7 +3933,10 @@ export interface operations {
     };
     scan_df_scans__dir___scan___scanner__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of column names to exclude */
+                exclude_columns?: string | null;
+            };
             header?: never;
             path: {
                 /** @description Scans directory (base64url-encoded) */
@@ -3945,9 +3961,12 @@ export interface operations {
             };
         };
     };
-    scanner_input_scans__dir___scan___scanner___uuid__input_get: {
+    scanner_row_scans__dir___scan___scanner___uuid__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of column names to return */
+                columns?: string | null;
+            };
             header?: never;
             path: {
                 /** @description Scans directory (base64url-encoded) */
@@ -3969,7 +3988,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScannerInputResponse"];
+                    "application/json": unknown;
                 };
             };
         };
@@ -4030,6 +4049,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RawEncoding"];
+                };
+            };
+        };
+    };
+    _scanner_input_schema_scanner_input_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScannerInputResponse"];
                 };
             };
         };

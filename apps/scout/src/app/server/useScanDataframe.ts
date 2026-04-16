@@ -11,6 +11,7 @@ type ScanDataframeParams = {
   scansDir: string;
   scanPath: string;
   scanner: string;
+  excludeColumns?: string[];
 };
 
 // Fetches scanner dataframe from the server by location and scanner
@@ -28,6 +29,7 @@ export const useScanDataframe = (
             params.scansDir,
             params.scanPath,
             params.scanner,
+            params.excludeColumns,
             "scans-inv",
           ],
     queryFn:
@@ -39,7 +41,8 @@ export const useScanDataframe = (
                 await api.getScannerDataframe(
                   params.scansDir,
                   params.scanPath,
-                  params.scanner
+                  params.scanner,
+                  params.excludeColumns
                 )
               )
             ),

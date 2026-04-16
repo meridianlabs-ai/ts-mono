@@ -1,5 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
@@ -14,7 +15,6 @@ import {
   ProjectConfigInput,
   RawEncoding,
   ScanJobConfig,
-  ScannerInput,
   ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
@@ -26,7 +26,13 @@ import {
   ValidationCaseRequest,
 } from "../types/api-types";
 
-import { NoPersistence, ScalarValue, ScoutApiV2, TopicVersions } from "./api";
+import {
+  NoPersistence,
+  ScalarValue,
+  ScanResultDetail,
+  ScoutApiV2,
+  TopicVersions,
+} from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
 import { expandInputEvents } from "./expandInputEvents";
 import { serverRequestApi } from "./request";
@@ -232,35 +238,44 @@ export const apiScoutServer = (
     getScannerDataframe: async (
       scansDir: string,
       scanPath: string,
-      scanner: string
+      scanner: string,
+      excludeColumns?: string[]
     ): Promise<ArrayBuffer> => {
+      const params = new URLSearchParams();
+      for (const col of excludeColumns ?? []) {
+        params.append("exclude_column", col);
+      }
+      const query = params.size ? `?${params}` : "";
       const result = await requestApi.fetchBytes(
         "GET",
-        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}`
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}${query}`
       );
       return result.data;
     },
-    getScannerDataframeInput: async (
+    getScannerDataframeDetail: async (
       scansDir: string,
       scanPath: string,
       scanner: string,
       uuid: string
-    ): Promise<ScannerInput> => {
-      const result = await asyncJsonParse<ScannerInputResponse>(
-        (
-          await requestApi.fetchString(
-            "GET",
-            `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}/input`
-          )
-        ).raw
+    ): Promise<ScanResultDetail> => {
+      const { raw } = await requestApi.fetchString(
+        "GET",
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
       );
+      const parsed = await asyncJsonParse<
+        ScannerInputResponse & { scan_events: Event[] }
+      >(raw);
+
       return {
-        input_type: result.input_type,
-        input: expandInputEvents(
-          result.input,
-          result.input_type,
-          result.input_data
-        ),
+        input: {
+          input_type: parsed.input_type,
+          input: expandInputEvents(
+            parsed.input,
+            parsed.input_type,
+            parsed.input_data
+          ),
+        },
+        scanEvents: parsed.scan_events ?? [],
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>

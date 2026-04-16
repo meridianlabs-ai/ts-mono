@@ -2,20 +2,19 @@ import { skipToken } from "@tanstack/react-query";
 
 import { AsyncData } from "@tsmono/util";
 
-import { ScannerInput } from "../../types/api-types";
-import { useScanDataframeInput } from "../server/useScanDataframeInput";
+import { ScanResultDetail } from "../../api/api";
+import { useScanDataframeDetail } from "../server/useScanDataframeDetail";
 
 import { useScanRoute } from "./useScanRoute";
 import { useSelectedScanner } from "./useSelectedScanner";
 
-export const useSelectedScanResultInputData = (
+export const useSelectedScanResultDetail = (
   scanUuid?: string
-): AsyncData<ScannerInput> => {
+): AsyncData<ScanResultDetail> => {
   const { resolvedScansDir, scanPath } = useScanRoute();
-
   const scanner = useSelectedScanner();
 
-  return useScanDataframeInput(
+  return useScanDataframeDetail(
     resolvedScansDir && scanPath && scanner.data && scanUuid
       ? {
           scansDir: resolvedScansDir,
