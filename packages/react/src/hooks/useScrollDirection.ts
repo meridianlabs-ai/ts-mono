@@ -7,6 +7,9 @@ import {
   useState,
 } from "react";
 
+const asArray = <T>(v: T | ReadonlyArray<T>): ReadonlyArray<T> =>
+  Array.isArray(v) ? (v as ReadonlyArray<T>) : [v as T];
+
 interface UseScrollDirectionOptions {
   /** Minimum px delta before recognizing a direction change. Default: 15 */
   threshold?: number;
@@ -82,10 +85,7 @@ export function useScrollDirection(
 
   // Normalize input to an array of refs.
   const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
-    () =>
-      Array.isArray(scrollRef)
-        ? scrollRef
-        : [scrollRef as RefObject<HTMLElement | null>],
+    () => asArray(scrollRef),
     // Array identity changes each render unless the caller memoizes — treat
     // the joined length + identity of the first ref as the stable key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
