@@ -1,25 +1,44 @@
-/* Bound the split layout to the viewport (minus the parent's top offset
-   so the tab bar stays visible). Without an explicit height, the split
-   layout would grow to fit its content and the parent page would scroll
-   instead of each pane scrolling independently. */
-.splitLayout {
-  height: calc(100vh - var(--split-top, 0px));
+/* The main column flows naturally inside the outer scroll container (the
+   transcript container), which is what drives scrolling. The sidebar stays
+   pinned via position: sticky. A thin draggable handle between them lets the
+   user resize the sidebar width. */
+.sidebarLayout {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    4px
+    var(--sidebar-width, 380px);
   width: 100%;
+  min-height: 100%;
+  align-items: start;
 }
 
-.splitStart {
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
+.sidebarMain {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+.sidebarHandle {
+  position: sticky;
+  top: var(--sidebar-top, 0);
+  height: calc(100vh - var(--sidebar-top, 0px));
+  cursor: ew-resize;
+  background-color: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.sidebarHandle:hover,
+.sidebarHandle:active {
+  background-color: var(--vscode-sash-hoverBorder, var(--bs-border-color));
 }
 
 .sidebar {
+  position: sticky;
+  top: var(--sidebar-top, 0);
+  height: calc(100vh - var(--sidebar-top, 0px));
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
   background-color: var(--bs-body-bg);
 }
