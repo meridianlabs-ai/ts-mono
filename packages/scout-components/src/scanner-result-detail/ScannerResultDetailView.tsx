@@ -66,18 +66,14 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {data.label ? (
         <>
-          <div className={clsx(styles.label)}>
-            Label
-          </div>
+          <div className={clsx(styles.label)}>Label</div>
           <div>{data.label}</div>
         </>
       ) : null}
 
       {valueStacked ? (
         <div className={clsx(styles.colspan)}>
-          <div className={clsx(styles.label)}>
-            Value
-          </div>
+          <div className={clsx(styles.label)}>Value</div>
           <div className={clsx(hasValidation ? styles.values : undefined)}>
             {valueNode}
             {validationNode}
@@ -85,9 +81,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
         </div>
       ) : (
         <>
-          <div className={clsx(styles.label)}>
-            Value
-          </div>
+          <div className={clsx(styles.label)}>Value</div>
           <div className={clsx(hasValidation ? styles.values : undefined)}>
             {valueNode}
             {validationNode}
@@ -97,18 +91,14 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {data.answer ? (
         <>
-          <div className={clsx(styles.label)}>
-            Answer
-          </div>
+          <div className={clsx(styles.label)}>Answer</div>
           <div>{data.answer}</div>
         </>
       ) : null}
 
       {data.explanation ? (
         <div className={clsx(styles.colspan)}>
-          <div className={clsx(styles.label)}>
-            Explanation
-          </div>
+          <div className={clsx(styles.label)}>Explanation</div>
           <Explanation
             explanation={data.explanation}
             references={references}

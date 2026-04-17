@@ -511,19 +511,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )
               ) : (
                 <TranscriptPanel
-                  id={`${baseId}-transcript-display-${id}`}  
+                  id={`${baseId}-transcript-display-${id}`}
                   key={`${baseId}-transcript-display-${id}`}
                   scrollRef={scrollRef}
                   offsetTop={tabsHeight}
-                  
                   sampleId={sample?.id ?? undefined}
                   sampleEpoch={sample?.epoch ?? undefined}
                   running={running}
-                  
                   events={sampleEvents}
                   timelines={sample?.timelines ?? undefined}
                   scans={sample?.scores ?? undefined}
-                  
                   initialEventId={sampleDetailNavigation.event}
                 />
               )}

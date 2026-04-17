@@ -9,9 +9,9 @@ import {
 } from "@tsmono/scout-components/scanner-result-detail";
 import { metadataWithoutScannerKeys } from "@tsmono/scout-components/sentinels";
 
-import { buildScoreMarkdownRefs, MakeCiteUrl } from "./scanReferences";
 import { SampleScannerPicker } from "./SampleScannerPicker";
 import styles from "./SampleScansSidebar.module.css";
+import { buildScoreMarkdownRefs, MakeCiteUrl } from "./scanReferences";
 
 interface SampleScansSidebarProps {
   scores: Record<string, Score>;
@@ -31,7 +31,7 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
 
   const references = useMemo(
     () => buildScoreMarkdownRefs(score?.metadata ?? null, makeCiteUrl),
-    [score?.metadata, makeCiteUrl],
+    [score?.metadata, makeCiteUrl]
   );
 
   if (!score) return null;

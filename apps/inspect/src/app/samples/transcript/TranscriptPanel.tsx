@@ -37,8 +37,8 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
-import { useMakeCiteUrl } from "../scans/scanReferences";
 import { SampleScansSidebar } from "../scans/SampleScansSidebar";
+import { useMakeCiteUrl } from "../scans/scanReferences";
 
 interface TranscriptPanelProps {
   id: string;
@@ -289,7 +289,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const eventNodeContext = useMemo(
     () =>
       Object.keys(messageLabels).length > 0 ? { messageLabels } : undefined,
-    [messageLabels],
+    [messageLabels]
   );
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);

@@ -65,7 +65,7 @@ export const Value: FC<ValueProps> = ({
       <div
         className={clsx(
           styles.boolean,
-          input.value ? styles.true : styles.false,
+          input.value ? styles.true : styles.false
         )}
       >
         {String(input.value)}
@@ -118,7 +118,7 @@ const ValueList: FC<{
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block,
+        style === "inline" ? styles.inline : styles.block
       )}
     >
       {itemsToDisplay.map((item, index) => {
@@ -127,7 +127,7 @@ const ValueList: FC<{
           item,
           identifier,
           references,
-          interactive,
+          interactive
         );
         return (
           <Fragment key={`value-table-row-${index}`}>
@@ -136,7 +136,7 @@ const ValueList: FC<{
                 styles.valueKey,
                 "text-style-label",
                 "text-style-secondary",
-                "text-size-smallest",
+                "text-size-smallest"
               )}
             >
               [{index}]
@@ -156,14 +156,7 @@ const ValueTable: FC<{
   interactive: boolean;
   references?: MarkdownReference[];
   style: "inline" | "block";
-}> = ({
-  value,
-  identifier,
-  maxTableSize,
-  interactive,
-  references,
-  style,
-}) => {
+}> = ({ value, identifier, maxTableSize, interactive, references, style }) => {
   const sortedKeys = Object.keys(value).sort((a, b) => {
     const aVal = value[a];
     const bVal = value[b];
@@ -183,7 +176,7 @@ const ValueTable: FC<{
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block,
+        style === "inline" ? styles.inline : styles.block
       )}
     >
       {keysToDisplay.map((key, index) => {
@@ -192,7 +185,7 @@ const ValueTable: FC<{
           value[key],
           identifier,
           references,
-          interactive,
+          interactive
         );
         return (
           <Fragment key={`value-table-row-${key}`}>
@@ -201,7 +194,7 @@ const ValueTable: FC<{
                 styles.valueKey,
                 "text-style-label",
                 "text-style-secondary",
-                "text-size-smallest",
+                "text-size-smallest"
               )}
             >
               {key}
@@ -217,7 +210,7 @@ const ValueTable: FC<{
               styles.valueKey,
               "text-style-label",
               "text-style-secondary",
-              "text-size-smallest",
+              "text-size-smallest"
             )}
           >
             {notShown} more…
@@ -234,7 +227,7 @@ const renderValue = (
   val: unknown,
   identifier: string | undefined,
   references: MarkdownReference[] | undefined,
-  interactive: boolean,
+  interactive: boolean
 ): ReactNode => {
   if (typeof val === "string") {
     return <MarkdownDivWithReferences markdown={val} references={references} />;

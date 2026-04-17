@@ -82,7 +82,10 @@ export function useScrollDirection(
 
   // Normalize input to an array of refs.
   const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
-    () => (Array.isArray(scrollRef) ? scrollRef : [scrollRef as RefObject<HTMLElement | null>]),
+    () =>
+      Array.isArray(scrollRef)
+        ? scrollRef
+        : [scrollRef as RefObject<HTMLElement | null>],
     // Array identity changes each render unless the caller memoizes — treat
     // the joined length + identity of the first ref as the stable key.
     // eslint-disable-next-line react-hooks/exhaustive-deps

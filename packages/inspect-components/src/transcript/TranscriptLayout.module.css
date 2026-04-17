@@ -9,8 +9,10 @@
 .container {
   display: grid;
   width: 100%;
-  grid-template-columns:
-    var(--outline-width, 180px) 1px 1fr 1px var(--right-pane-width, 360px);
+  grid-template-columns: var(--outline-width, 180px) 1px 1fr 1px var(
+      --right-pane-width,
+      360px
+    );
   min-height: 100vh;
 }
 
@@ -28,8 +30,7 @@
 }
 
 .container.rightPaneCollapsed {
-  grid-template-columns:
-    var(--outline-width, 180px) 1px 1fr 1px 22px;
+  grid-template-columns: var(--outline-width, 180px) 1px 1fr 1px 22px;
 }
 
 .container.outlineCollapsed.rightPaneCollapsed {

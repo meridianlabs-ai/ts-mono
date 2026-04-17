@@ -17,8 +17,8 @@ import clsx from "clsx";
 import {
   CSSProperties,
   FC,
-  PointerEvent as ReactPointerEvent,
   ReactNode,
+  PointerEvent as ReactPointerEvent,
   RefObject,
   useCallback,
   useEffect,
@@ -573,11 +573,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
           e.preventDefault();
           main.scrollBy({ top: e.deltaY, behavior: "auto" });
         }
-      } else if (
-        e.deltaY < 0 &&
-        sidebar.scrollTop <= 0 &&
-        main.scrollTop > 0
-      ) {
+      } else if (e.deltaY < 0 && sidebar.scrollTop <= 0 && main.scrollTop > 0) {
         // Sidebar is sticky and already at its own top — wheeling up should
         // bring the header back, so forward to main.
         e.preventDefault();

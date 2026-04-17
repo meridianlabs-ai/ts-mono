@@ -1,11 +1,12 @@
+import { ColDef, themeBalham } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import { ColDef, themeBalham } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import "../../shared/agGrid";
+
 import { ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ScoreAgGrid.module.css";
@@ -94,7 +95,7 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
             return formatPrettyDecimal(params.value as number);
           },
           type: "numericColumn",
-        }),
+        })
       ),
     ];
 

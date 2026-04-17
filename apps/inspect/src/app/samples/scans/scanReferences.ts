@@ -31,7 +31,7 @@ type Metadata = Record<string, unknown> | null | undefined;
  */
 export function findEventForMessage(
   messageId: string,
-  events: readonly Event[] | null | undefined,
+  events: readonly Event[] | null | undefined
 ): string | undefined {
   if (!events) return undefined;
   let inputMatch: string | undefined;
@@ -65,7 +65,7 @@ export function findEventForMessage(
 
 export function buildScoreMarkdownRefs(
   metadata: Metadata,
-  makeUrl: (id: string, type: ScannerRefType) => string | undefined,
+  makeUrl: (id: string, type: ScannerRefType) => string | undefined
 ): MarkdownReference[] {
   return readScannerReferences(metadata).map((ref) => ({
     id: ref.id,
@@ -76,7 +76,7 @@ export function buildScoreMarkdownRefs(
 
 export type MakeCiteUrl = (
   id: string,
-  type: ScannerRefType,
+  type: ScannerRefType
 ) => string | undefined;
 
 /**
@@ -106,28 +106,19 @@ export function useMakeCiteUrl(opts: {
       // Both reference types ultimately resolve to an event uuid — the
       // transcript renders events, not the flat message list, so "message"
       // refs are mapped to the event that contains the message.
-      const eventId =
-        type === "event" ? id : findEventForMessage(id, events);
+      const eventId = type === "event" ? id : findEventForMessage(id, events);
       if (!eventId) return undefined;
       const path = sampleEventUrl(
         builder,
         eventId,
         urlLogPath,
         effectiveSampleId,
-        effectiveEpoch,
+        effectiveEpoch
       );
       // MarkdownDivWithReferences only intercepts clicks whose href starts
       // with "#/"; plain paths would trigger a full browser navigation.
       return path ? `#${path}` : undefined;
     },
-    [
-      events,
-      sampleId,
-      sampleEpoch,
-      builder,
-      urlLogPath,
-      urlSampleId,
-      urlEpoch,
-    ],
+    [events, sampleId, sampleEpoch, builder, urlLogPath, urlSampleId, urlEpoch]
   );
 }

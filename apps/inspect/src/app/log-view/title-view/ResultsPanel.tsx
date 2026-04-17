@@ -151,10 +151,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
               overflow="hidden"
               padded={false}
             >
-              <ScoreAgGrid
-                scoreGroups={grouped}
-                showReducer={showReducer}
-              />
+              <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
             </Modal>
             <LinkButton
               className={styles.moreButton}

@@ -1,8 +1,8 @@
-import clsx from "clsx";
 import {
   VscodeOption,
   VscodeSingleSelect,
 } from "@vscode-elements/react-elements";
+import clsx from "clsx";
 import { FC, useCallback } from "react";
 
 import styles from "./SampleScannerPicker.module.css";

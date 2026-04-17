@@ -58,10 +58,7 @@ export const objectScoreDescriptor = (
 
         scores.push(
           <Fragment key={key}>
-            <div
-              className={clsx(styles.key, "text-size-smaller")}
-              title={key}
-            >
+            <div className={clsx(styles.key, "text-size-smaller")} title={key}>
               {key}
             </div>
             <div className={clsx(styles.value, "text-size-base")}>

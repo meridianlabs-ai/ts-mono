@@ -16,7 +16,7 @@ export function isScannerScore(metadata: Metadata): boolean {
 }
 
 export function metadataWithoutScannerKeys(
-  metadata: Metadata,
+  metadata: Metadata
 ): Record<string, unknown> {
   if (!metadata) return {};
   const {

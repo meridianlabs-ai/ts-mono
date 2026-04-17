@@ -14,7 +14,7 @@ describe("isScannerScore", () => {
     expect(
       isScannerScore({
         scanner_references: [{ type: "message", id: "m1", cite: "[M1]" }],
-      }),
+      })
     ).toBe(true);
   });
 
@@ -89,8 +89,7 @@ describe("readScannerReferences", () => {
 });
 
 describe("buildScoreMarkdownRefs", () => {
-  const makeUrl = (id: string, type: "message" | "event") =>
-    `#/${type}/${id}`;
+  const makeUrl = (id: string, type: "message" | "event") => `#/${type}/${id}`;
 
   test("wires id, cite, citeUrl correctly", () => {
     const input = {
@@ -111,8 +110,8 @@ describe("buildScoreMarkdownRefs", () => {
   });
 
   test("returns [] for empty scanner_references list", () => {
-    expect(
-      buildScoreMarkdownRefs({ scanner_references: [] }, makeUrl),
-    ).toEqual([]);
+    expect(buildScoreMarkdownRefs({ scanner_references: [] }, makeUrl)).toEqual(
+      []
+    );
   });
 });

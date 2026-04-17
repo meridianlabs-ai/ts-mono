@@ -24,37 +24,37 @@ interface ValueOnly {
 }
 
 export function isStringValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "string"; value: string } {
   return r.valueType === "string";
 }
 
 export function isNumberValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "number"; value: number } {
   return r.valueType === "number";
 }
 
 export function isBooleanValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "boolean"; value: boolean } {
   return r.valueType === "boolean";
 }
 
 export function isNullValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "null"; value: null } {
   return r.valueType === "null";
 }
 
 export function isArrayValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "array"; value: unknown[] } {
   return r.valueType === "array";
 }
 
 export function isObjectValue<T extends ValueOnly>(
-  r: T,
+  r: T
 ): r is T & { valueType: "object"; value: Record<string, unknown> } {
   return r.valueType === "object";
 }

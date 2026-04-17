@@ -80,10 +80,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
       {hasExplanation && (
         <div className={clsx(styles.result, "text-size-smaller")}>
           <div className={clsx(styles.explanation, "text-size-smaller")}>
-            <Explanation
-              explanation={summary.explanation}
-              references={refs}
-            />
+            <Explanation explanation={summary.explanation} references={refs} />
           </div>
 
           <div

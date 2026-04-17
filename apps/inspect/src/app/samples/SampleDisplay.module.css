@@ -1,4 +1,3 @@
-
 .tabControls {
   position: sticky;
   z-index: 1001;
@@ -62,4 +61,3 @@
   align-self: stretch;
   flex: 1;
 }
-

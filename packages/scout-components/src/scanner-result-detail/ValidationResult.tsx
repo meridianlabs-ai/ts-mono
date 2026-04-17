@@ -52,7 +52,7 @@ const Result: FC<{ value: boolean; targetValue?: string }> = ({
         className={clsx(
           styles.targetValue,
           "text-size-smallestest",
-          "text-style-secondary",
+          "text-style-secondary"
         )}
         title={targetValue}
       >
