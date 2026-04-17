@@ -2,6 +2,10 @@ import { useCallback } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
+import {
+  readScannerReferences,
+  type ScannerRefType,
+} from "@tsmono/scout-components/sentinels";
 
 import {
   sampleEventUrl,
@@ -9,54 +13,7 @@ import {
   useSampleUrlBuilder,
 } from "../../routing/url";
 
-const kScannerReferencesKey = "scanner_references";
-const kScannerContentKey = "scanner_content";
-
-export type ScannerRefType = "message" | "event";
-
-export interface ScannerRefEntry {
-  type: ScannerRefType;
-  id: string;
-  cite: string;
-}
-
 type Metadata = Record<string, unknown> | null | undefined;
-
-export function isScannerScore(metadata: Metadata): boolean {
-  return !!metadata && kScannerReferencesKey in metadata;
-}
-
-export function metadataWithoutScannerKeys(
-  metadata: Metadata,
-): Record<string, unknown> {
-  if (!metadata) return {};
-  const {
-    [kScannerReferencesKey]: _refs,
-    [kScannerContentKey]: _content,
-    ...rest
-  } = metadata;
-  return rest;
-}
-
-export function readScannerReferences(metadata: Metadata): ScannerRefEntry[] {
-  if (!metadata) return [];
-  const raw = metadata[kScannerReferencesKey];
-  if (!Array.isArray(raw)) return [];
-  const entries: ScannerRefEntry[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const { type, id, cite } = item as Record<string, unknown>;
-    if (
-      (type === "message" || type === "event") &&
-      typeof id === "string" &&
-      typeof cite === "string" &&
-      cite.length > 0
-    ) {
-      entries.push({ type, id, cite });
-    }
-  }
-  return entries;
-}
 
 /**
  * Walk a list of events to find the event that contains a given message id.
@@ -85,7 +42,7 @@ export function findEventForMessage(
       if (!e.uuid) continue;
       for (const choice of e.output?.choices ?? []) {
         if (choice.message?.id === messageId) {
-          return e.uuid; // highest-priority match — done
+          return e.uuid;
         }
       }
       if (!inputMatch) {
@@ -110,7 +67,6 @@ export function buildScoreMarkdownRefs(
   metadata: Metadata,
   makeUrl: (id: string, type: ScannerRefType) => string | undefined,
 ): MarkdownReference[] {
-  if (!isScannerScore(metadata)) return [];
   return readScannerReferences(metadata).map((ref) => ({
     id: ref.id,
     cite: ref.cite,
@@ -126,7 +82,7 @@ export type MakeCiteUrl = (
 /**
  * Hook that returns a cite URL builder closing over the sample's events and
  * identifiers. Call this wherever those values are already available and pass
- * the returned function to `buildScoreMarkdownRefs` (or `SampleScoresSidebar`)
+ * the returned function to `buildScoreMarkdownRefs` (or `SampleScansSidebar`)
  * so the score-rendering components don't have to know about navigation.
  */
 export function useMakeCiteUrl(opts: {

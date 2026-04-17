@@ -93,6 +93,7 @@
     "@tsmono/inspect-common": "workspace:*",
     "@tsmono/inspect-components": "workspace:*",
     "@tsmono/react": "workspace:*",
+    "@tsmono/scout-components": "workspace:*",
     "@tsmono/util": "workspace:*",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",

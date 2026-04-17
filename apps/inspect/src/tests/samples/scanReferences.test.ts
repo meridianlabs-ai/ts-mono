@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  buildScoreMarkdownRefs,
   isScannerScore,
   metadataWithoutScannerKeys,
   readScannerReferences,
-} from "../../app/samples/scores/scoreReferences";
+} from "@tsmono/scout-components/sentinels";
+
+import { buildScoreMarkdownRefs } from "../../app/samples/scans/scanReferences";
 
 describe("isScannerScore", () => {
   test("true when scanner_references key is present (including empty list)", () => {
@@ -104,7 +105,7 @@ describe("buildScoreMarkdownRefs", () => {
     ]);
   });
 
-  test("returns [] when isScannerScore is false", () => {
+  test("returns [] when metadata has no scanner_references", () => {
     expect(buildScoreMarkdownRefs({ foo: "bar" }, makeUrl)).toEqual([]);
     expect(buildScoreMarkdownRefs(null, makeUrl)).toEqual([]);
   });

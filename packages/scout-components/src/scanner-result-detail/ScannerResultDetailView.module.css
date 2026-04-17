@@ -1,0 +1,29 @@
+.container {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-self: start;
+  gap: 0.5rem;
+}
+
+.colspan {
+  grid-column: span 2;
+}
+
+.header {
+  grid-column: span 2;
+}
+
+.values {
+  display: flex;
+}
+
+.validation {
+  margin-left: 1rem;
+  display: grid;
+  grid-template-columns: max-content max-content;
+}
+
+.validationLabel {
+  padding-right: 0.5rem;
+  margin-top: 2px;
+}

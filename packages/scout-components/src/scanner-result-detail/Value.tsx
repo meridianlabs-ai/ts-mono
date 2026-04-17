@@ -16,15 +16,21 @@ import {
   isNumberValue,
   isObjectValue,
   isStringValue,
-  ScanResultSummary,
-} from "../types";
-
+  ValueType,
+} from "./types";
 import styles from "./Value.module.css";
 
+interface ValueInput {
+  value: unknown;
+  valueType: ValueType;
+}
+
 interface ValueProps {
-  summary: ScanResultSummary;
-  references: MarkdownReference[];
-  style: "inline" | "block";
+  value: unknown;
+  valueType: ValueType;
+  identifier?: string;
+  references?: MarkdownReference[];
+  style?: "inline" | "block";
   maxTableSize?: number;
   interactive?: boolean;
   options?: {
@@ -33,42 +39,46 @@ interface ValueProps {
 }
 
 export const Value: FC<ValueProps> = ({
-  summary: result,
+  value,
+  valueType,
+  identifier,
   references,
-  style,
+  style = "block",
   maxTableSize = 5,
   interactive = false,
   options,
 }): ReactNode => {
-  if (isStringValue(result)) {
+  const input: ValueInput = { value, valueType };
+
+  if (isStringValue(input)) {
     return (
       <MarkdownDivWithReferences
-        markdown={result.value}
+        markdown={input.value}
         references={references}
         options={options}
       />
     );
-  } else if (isNumberValue(result) && result.value !== null) {
-    return formatPrettyDecimal(result.value);
-  } else if (isBooleanValue(result)) {
+  } else if (isNumberValue(input) && input.value !== null) {
+    return formatPrettyDecimal(input.value);
+  } else if (isBooleanValue(input)) {
     return (
       <div
         className={clsx(
           styles.boolean,
-          result.value ? styles.true : styles.false
+          input.value ? styles.true : styles.false,
         )}
       >
-        {String(result.value)}
+        {String(input.value)}
       </div>
     );
-  } else if (isNullValue(result)) {
+  } else if (isNullValue(input)) {
     return <code>null</code>;
-  } else if (isArrayValue(result)) {
+  } else if (isArrayValue(input)) {
     return (
-      <div title={JSON5.stringify(result.value, null, 2)}>
+      <div title={JSON5.stringify(input.value, null, 2)}>
         <ValueList
-          value={result.value}
-          summary={result}
+          value={input.value}
+          identifier={identifier}
           references={references}
           style={style}
           maxListSize={maxTableSize}
@@ -76,12 +86,12 @@ export const Value: FC<ValueProps> = ({
         />
       </div>
     );
-  } else if (isObjectValue(result)) {
+  } else if (isObjectValue(input)) {
     return (
-      <div title={JSON5.stringify(result.value, null, 2)}>
+      <div title={JSON5.stringify(input.value, null, 2)}>
         <ValueTable
-          value={result.value}
-          summary={result}
+          value={input.value}
+          identifier={identifier}
           references={references}
           style={style}
           maxTableSize={maxTableSize}
@@ -96,37 +106,28 @@ export const Value: FC<ValueProps> = ({
 
 const ValueList: FC<{
   value: unknown[];
-  summary: ScanResultSummary;
+  identifier?: string;
   maxListSize: number;
   interactive: boolean;
-  references: MarkdownReference[];
+  references?: MarkdownReference[];
   style: "inline" | "block";
-}> = ({
-  value,
-  summary: result,
-  maxListSize,
-  interactive,
-  references,
-  style,
-}) => {
-  // Display only maxListSize rows
+}> = ({ value, identifier, maxListSize, interactive, references, style }) => {
   const itemsToDisplay = value.slice(0, maxListSize);
 
-  // Display the rows
   return (
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
+        style === "inline" ? styles.inline : styles.block,
       )}
     >
       {itemsToDisplay.map((item, index) => {
         const displayValue = renderValue(
           index,
           item,
-          result,
+          identifier,
           references,
-          interactive
+          interactive,
         );
         return (
           <Fragment key={`value-table-row-${index}`}>
@@ -135,7 +136,7 @@ const ValueList: FC<{
                 styles.valueKey,
                 "text-style-label",
                 "text-style-secondary",
-                "text-size-smallest"
+                "text-size-smallest",
               )}
             >
               [{index}]
@@ -149,53 +150,49 @@ const ValueList: FC<{
 };
 
 const ValueTable: FC<{
-  value: object;
-  summary: ScanResultSummary;
+  value: Record<string, unknown>;
+  identifier?: string;
   maxTableSize: number;
   interactive: boolean;
-  references: MarkdownReference[];
+  references?: MarkdownReference[];
   style: "inline" | "block";
 }> = ({
   value,
-  summary: result,
+  identifier,
   maxTableSize,
   interactive,
   references,
   style,
 }) => {
-  // Sort keys by the value (desc, so true to false), then slice 5 keys to display
   const sortedKeys = Object.keys(value).sort((a, b) => {
-    const aVal = (value as Record<string, unknown>)[a];
-    const bVal = (value as Record<string, unknown>)[b];
+    const aVal = value[a];
+    const bVal = value[b];
     if (typeof aVal === "boolean" && typeof bVal === "boolean") {
       return Number(bVal) - Number(aVal);
     } else if (typeof aVal === "number" && typeof bVal === "number") {
       return bVal - aVal;
     } else {
-      // Keep original order if not boolean
       return 0;
     }
   });
 
-  // Display only 5 rows
   const keysToDisplay = sortedKeys.slice(0, maxTableSize);
   const notShown = Object.keys(value).length - maxTableSize;
 
-  // Display the rows
   return (
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
+        style === "inline" ? styles.inline : styles.block,
       )}
     >
       {keysToDisplay.map((key, index) => {
         const displayValue = renderValue(
           index,
-          (value as Record<string, unknown>)[key],
-          result,
+          value[key],
+          identifier,
           references,
-          interactive
+          interactive,
         );
         return (
           <Fragment key={`value-table-row-${key}`}>
@@ -204,7 +201,7 @@ const ValueTable: FC<{
                 styles.valueKey,
                 "text-style-label",
                 "text-style-secondary",
-                "text-size-smallest"
+                "text-size-smallest",
               )}
             >
               {key}
@@ -220,7 +217,7 @@ const ValueTable: FC<{
               styles.valueKey,
               "text-style-label",
               "text-style-secondary",
-              "text-size-smallest"
+              "text-size-smallest",
             )}
           >
             {notShown} more…
@@ -232,13 +229,12 @@ const ValueTable: FC<{
   );
 };
 
-// Renders a simple value (don't further render objects or lists here)
 const renderValue = (
   index: number,
   val: unknown,
-  summary: ScanResultSummary,
-  references: MarkdownReference[],
-  interactive: boolean
+  identifier: string | undefined,
+  references: MarkdownReference[] | undefined,
+  interactive: boolean,
 ): ReactNode => {
   if (typeof val === "string") {
     return <MarkdownDivWithReferences markdown={val} references={references} />;
@@ -259,7 +255,7 @@ const renderValue = (
       printObject(val, 35)
     ) : (
       <RecordTree
-        id={`value-record-${summary.identifier}-${index}`}
+        id={`value-record-${identifier ?? "na"}-${index}`}
         record={val as Record<string, unknown>}
       />
     );

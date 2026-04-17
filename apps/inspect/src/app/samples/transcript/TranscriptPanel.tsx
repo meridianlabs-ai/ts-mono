@@ -32,8 +32,8 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
-import { useMakeCiteUrl } from "../scores/scoreReferences";
-import { SampleScoresSidebar } from "../scores/SampleScoresSidebar";
+import { useMakeCiteUrl } from "../scans/scanReferences";
+import { SampleScansSidebar } from "../scans/SampleScansSidebar";
 
 interface TranscriptPanelProps {
   id: string;
@@ -73,7 +73,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
   // events / sample identifiers, so construct the URL fn here and hand it
-  // down — SampleScoresSidebar doesn't need to know about navigation.
+  // down — SampleScansSidebar doesn't need to know about navigation.
   const makeCiteUrl = useMakeCiteUrl({ events, sampleId, sampleEpoch });
 
   // ---------------------------------------------------------------------------
@@ -351,7 +351,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
               width: scoresWidth,
               onWidthChange: setScoresWidth,
               content: (
-                <SampleScoresSidebar
+                <SampleScansSidebar
                   scores={scores}
                   makeCiteUrl={makeCiteUrl}
                 />
