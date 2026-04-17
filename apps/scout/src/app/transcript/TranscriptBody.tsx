@@ -295,7 +295,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   );
 
   tabTools.push(
-    <CopyToolbarButton transcript={transcript} className={styles.tabTool} />
+    <CopyToolbarButton
+      key="copy-toolbar-button"
+      transcript={transcript}
+      className={styles.tabTool}
+    />
   );
 
   if (searchAvailable) {
