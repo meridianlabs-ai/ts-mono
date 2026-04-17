@@ -197,6 +197,14 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
+        tooltipValueGetter: (params) => {
+          const item = params.data;
+          if (!item) return undefined;
+          if (item.status === "error" && item.errorMessage) {
+            return item.errorMessage;
+          }
+          return item.status || undefined;
+        },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item) return null;
@@ -434,6 +442,80 @@ export const useLogListColumns = (
         },
         tooltipComponent: PreformattedTooltip,
       },
+      {
+        field: "tags",
+        headerName: "Tags",
+        initialWidth: 80,
+        minWidth: 80,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        valueGetter: (params) => {
+          const tags = params.data?.tags;
+          if (!tags || tags.length === 0) return "";
+          return tags.join(", ");
+        },
+        tooltipValueGetter: (params) => params.value || undefined,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{params.value}</div>;
+        },
+      },
+      {
+        field: "percentCompleted",
+        headerName: "% Completed",
+        initialWidth: 110,
+        minWidth: 80,
+        maxWidth: 140,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        valueFormatter: (params) => {
+          if (params.value === undefined || params.value === null) return "";
+          return `${formatPrettyDecimal(params.value)}%`;
+        },
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatPrettyDecimal(params.value)}%</div>;
+        },
+      },
+      {
+        field: "sampleErrors",
+        headerName: "Sample Errors",
+        initialWidth: 110,
+        minWidth: 60,
+        maxWidth: 140,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatNumber(params.value)}</div>;
+        },
+      },
+      {
+        field: "errorMessage",
+        headerName: "Error",
+        initialWidth: 300,
+        minWidth: 100,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        valueGetter: (params) => {
+          const msg = params.data?.errorMessage;
+          if (!msg) return "";
+          return msg.split("\n")[0];
+        },
+        tooltipValueGetter: (params) => params.data?.errorMessage || undefined,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{params.value}</div>;
+        },
+      },
     ];
 
     // Add scorer columns (currently only showing when we detect them)
@@ -497,12 +579,16 @@ export const useLogListColumns = (
         "task",
         "model",
         "taskArgs",
+        "tags",
         "score",
         "completedAt",
         "totalSamples",
         "completedSamples",
+        "percentCompleted",
+        "sampleErrors",
         "totalTokens",
         "duration",
+        "errorMessage",
         "name",
         "sandbox",
         "taskFile",
@@ -552,6 +638,10 @@ export const useLogListColumns = (
       hidden.add("sandbox");
       hidden.add("taskFile");
     }
+    // New columns default to hidden in both views
+    hidden.add("percentCompleted");
+    hidden.add("sampleErrors");
+    hidden.add("errorMessage");
     return hidden;
   }, [mode]);
 
