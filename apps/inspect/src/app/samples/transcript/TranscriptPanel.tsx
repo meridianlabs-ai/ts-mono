@@ -22,7 +22,10 @@ import {
   type TranscriptCollapseState,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
-import { readScannerReferences } from "@tsmono/scout-components/sentinels";
+import {
+  isScannerScore,
+  readScannerReferences,
+} from "@tsmono/scout-components/sentinels";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
@@ -68,10 +71,23 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     initialEventId,
     offsetTop,
     timelines: serverTimelines,
-    scans: scores,
+    scans: allScores,
     sampleId,
     sampleEpoch,
   } = props;
+
+  // Narrow to scanner-produced scores only. The sidebar is a scans sidebar,
+  // not a scoring sidebar — non-scanner scores belong in the Scoring tab.
+  const scores = useMemo(() => {
+    if (!allScores) return null;
+    const filtered: Record<string, Score> = {};
+    for (const [key, score] of Object.entries(allScores)) {
+      if (isScannerScore(score.metadata)) {
+        filtered[key] = score;
+      }
+    }
+    return filtered;
+  }, [allScores]);
 
   // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
   // events / sample identifiers, so construct the URL fn here and hand it
