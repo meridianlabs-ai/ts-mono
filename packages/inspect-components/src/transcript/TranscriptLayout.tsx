@@ -841,31 +841,12 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
           {rightPane && (
             <>
               <div className={styles.rightSeparator} />
-              <div className={styles.rightPaneWrap}>
-                <StickyScroll
-                  ref={rightPaneScrollRef}
-                  scrollRef={scrollRef}
-                  className={styles.rightPane}
-                  offsetTop={effectiveOffsetTop}
-                >
-                  {!rightPane.collapsed && rightPane.title ? (
-                    <div className={styles.sidebarHeader}>
-                      <span
-                        className={clsx(
-                          styles.sidebarHeaderTitle,
-                          "text-size-smaller"
-                        )}
-                      >
-                        {rightPane.title}
-                      </span>
-                    </div>
-                  ) : null}
-                  {!rightPane.collapsed ? rightPane.content : null}
-                </StickyScroll>
-                {/* Buttons and the resizer live OUTSIDE StickyScroll so the
-                    native scrollbar does not capture clicks on their right
-                    edges. They remain absolute-positioned against the
-                    wrapper. */}
+              <StickyScroll
+                ref={rightPaneScrollRef}
+                scrollRef={scrollRef}
+                className={styles.rightPane}
+                offsetTop={effectiveOffsetTop}
+              >
                 {!rightPane.collapsed ? (
                   <>
                     {rightPaneOnWidthChange && (
@@ -880,6 +861,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         onPointerCancel={handleRightPanePointerUp}
                       />
                     )}
+                    {rightPane.title && (
+                      <div className={styles.sidebarHeader}>
+                        <span
+                          className={clsx(
+                            styles.sidebarHeaderTitle,
+                            "text-size-smaller"
+                          )}
+                        >
+                          {rightPane.title}
+                        </span>
+                      </div>
+                    )}
                     <button
                       type="button"
                       className={styles.sidebarHeaderClose}
@@ -892,6 +885,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     >
                       <i className="bi bi-x" />
                     </button>
+                    {rightPane.content}
                   </>
                 ) : (
                   <button
@@ -907,7 +901,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     <i className={rightPane.toggleIcon} />
                   </button>
                 )}
-              </div>
+              </StickyScroll>
             </>
           )}
         </div>
