@@ -3,6 +3,12 @@
 repos:
   - repo: local
     hooks:
+      - id: pnpm-lint-fix
+        name: pnpm lint --fix
+        entry: pnpm exec turbo run lint -- --fix
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: pnpm-format
         name: pnpm format
         entry: pnpm format
