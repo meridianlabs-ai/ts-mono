@@ -1,5 +1,15 @@
 import clsx from "clsx";
-import { ButtonHTMLAttributes, forwardRef, ReactNode, useState } from "react";
+import {
+  ButtonHTMLAttributes,
+  forwardRef,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./ToolDropdownButton.module.css";
@@ -32,6 +42,59 @@ export const ToolDropdownButton = forwardRef<
   ) => {
     const icons = useComponentIcons();
     const [isOpen, setIsOpen] = useState(false);
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{
+      top: number;
+      left?: number;
+      right?: number;
+      minWidth: number;
+    } | null>(null);
+
+    const setRef = useCallback(
+      (el: HTMLButtonElement | null) => {
+        buttonRef.current = el;
+        if (typeof ref === "function") {
+          ref(el);
+        } else if (ref && "current" in ref) {
+          (ref as { current: HTMLButtonElement | null }).current = el;
+        }
+      },
+      [ref]
+    );
+
+    const computePosition = useCallback(() => {
+      const btn = buttonRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      const top = rect.bottom + 4;
+      const minWidth = rect.width;
+      if (dropdownAlign === "right") {
+        setMenuPosition({
+          top,
+          right: window.innerWidth - rect.right,
+          minWidth,
+        });
+      } else {
+        setMenuPosition({ top, left: rect.left, minWidth });
+      }
+    }, [dropdownAlign]);
+
+    useLayoutEffect(() => {
+      if (!isOpen) return;
+      computePosition();
+    }, [isOpen, computePosition]);
+
+    // Re-compute on resize/scroll so the menu stays anchored to the button.
+    useEffect(() => {
+      if (!isOpen) return;
+      const handler = () => computePosition();
+      window.addEventListener("resize", handler);
+      window.addEventListener("scroll", handler, true);
+      return () => {
+        window.removeEventListener("resize", handler);
+        window.removeEventListener("scroll", handler, true);
+      };
+    }, [isOpen, computePosition]);
 
     const handleItemClick = (fn: () => void) => {
       fn();
@@ -41,7 +104,7 @@ export const ToolDropdownButton = forwardRef<
     return (
       <div className={clsx(styles.dropdownContainer)}>
         <button
-          ref={ref}
+          ref={setRef}
           type="button"
           className={clsx(
             "btn",
@@ -57,29 +120,37 @@ export const ToolDropdownButton = forwardRef<
           {label}
           <i className={clsx(icons.chevronDown, styles.chevron)} />
         </button>
-        {isOpen && (
-          <>
-            <div className={styles.backdrop} onClick={() => setIsOpen(false)} />
-            <div
-              className={clsx(
-                styles.dropdownMenu,
-                dropdownAlign === "right" ? styles.alignRight : undefined,
-                dropdownClassName
-              )}
-            >
-              {Object.entries(items).map(([itemLabel, fn]) => (
-                <button
-                  key={itemLabel}
-                  type="button"
-                  className={styles.dropdownItem}
-                  onClick={() => handleItemClick(fn)}
-                >
-                  {itemLabel}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {isOpen &&
+          menuPosition &&
+          createPortal(
+            <>
+              <div
+                className={styles.backdrop}
+                onClick={() => setIsOpen(false)}
+              />
+              <div
+                className={clsx(styles.dropdownMenu, dropdownClassName)}
+                style={{
+                  top: menuPosition.top,
+                  left: menuPosition.left,
+                  right: menuPosition.right,
+                  minWidth: menuPosition.minWidth,
+                }}
+              >
+                {Object.entries(items).map(([itemLabel, fn]) => (
+                  <button
+                    key={itemLabel}
+                    type="button"
+                    className={styles.dropdownItem}
+                    onClick={() => handleItemClick(fn)}
+                  >
+                    {itemLabel}
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body
+          )}
       </div>
     );
   }
