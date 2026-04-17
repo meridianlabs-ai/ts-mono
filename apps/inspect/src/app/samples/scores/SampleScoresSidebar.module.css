@@ -1,0 +1,21 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.sectionLabel {
+  margin-bottom: 0.1em;
+}
+
+.singleScorer {
+  font-weight: 600;
+}

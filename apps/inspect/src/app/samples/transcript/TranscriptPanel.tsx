@@ -6,17 +6,20 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
+import type {
+  Score,
+  Timeline as ServerTimeline,
+} from "@tsmono/inspect-common/types";
 import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   type TranscriptCollapseState,
 } from "@tsmono/inspect-components/transcript";
-import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
@@ -29,16 +32,25 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
+import { useMakeCiteUrl } from "../scores/scoreReferences";
+import { SampleScoresSidebar } from "../scores/SampleScoresSidebar";
 
 interface TranscriptPanelProps {
   id: string;
-  events: Events;
   scrollRef: RefObject<HTMLDivElement | null>;
-  running?: boolean;
-  initialEventId?: string | null;
   offsetTop?: number;
-  eventsCleared?: boolean;
+
+  // The sample
+  sampleId?: string | number;
+  sampleEpoch?: number;
+  running?: boolean;
+
+  // The transcript data
+  events: Events;
   timelines?: ServerTimeline[];
+  scans?: Record<string, Score> | null;
+
+  initialEventId?: string | null;
 }
 
 /**
@@ -53,9 +65,16 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     running,
     initialEventId,
     offsetTop,
-    eventsCleared,
     timelines: serverTimelines,
+    scans: scores,
+    sampleId,
+    sampleEpoch,
   } = props;
+
+  // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
+  // events / sample identifiers, so construct the URL fn here and hand it
+  // down — SampleScoresSidebar doesn't need to know about navigation.
+  const makeCiteUrl = useMakeCiteUrl({ events, sampleId, sampleEpoch });
 
   // ---------------------------------------------------------------------------
   // Event type filtering
@@ -64,8 +83,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const filteredEventTypes = useStore(
     (state) => state.sample.eventFilter.filteredTypes
   );
-
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
   const filteredEvents = useMemo(() => {
     if (filteredEventTypes.length === 0) {
@@ -146,8 +163,18 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Headroom: collapse swimlanes on scroll-down, expand on scroll-up
   // ---------------------------------------------------------------------------
 
+  // Refs to the outline / rightPane sticky scroll containers so their
+  // internal scrolling also participates in headroom-direction detection.
+  const outlineScrollRef = useRef<HTMLDivElement | null>(null);
+  const rightPaneScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollRefs = useMemo(
+    () => [scrollRef, outlineScrollRef, rightPaneScrollRef],
+    [scrollRef]
+  );
+
   const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
-    useScrollDirection(scrollRef);
+    useScrollDirection(scrollRefs);
 
   const onHeadroomResetAnchor = useCallback(
     (debounce?: boolean) => headroomResetAnchor(debounce),
@@ -176,6 +203,38 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [setPropertyValue, outlineKey]
   );
   const outlineCollapsed = outlineCollapsedRaw ?? false;
+
+  // ---------------------------------------------------------------------------
+  // Scores sidebar collapse state
+  // ---------------------------------------------------------------------------
+
+  const scoresKey = `transcript-scores-${logPath || "na"}`;
+  const scoresCollapsedRaw = useStore((state) => {
+    const bag = state.app.propertyBags["collapse-state-scope"];
+    return bag?.[scoresKey] as boolean | undefined;
+  });
+  const setScoresCollapsed = useCallback(
+    (value: boolean) => {
+      setPropertyValue("collapse-state-scope", scoresKey, value);
+    },
+    [setPropertyValue, scoresKey]
+  );
+  const scoresCollapsed = scoresCollapsedRaw ?? false;
+
+  // Scores sidebar width (global preference, persisted across samples).
+  const scoresWidthRaw = useStore((state) => {
+    const bag = state.app.propertyBags["sidebar-widths"];
+    return bag?.["scores"] as number | undefined;
+  });
+  const scoresWidth = scoresWidthRaw ?? 380;
+  const setScoresWidth = useCallback(
+    (value: number) => {
+      setPropertyValue("sidebar-widths", "scores", value);
+    },
+    [setPropertyValue]
+  );
+
+  const hasScores = !!scores && Object.keys(scores).length > 0;
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
   const setSelectedOutlineId = useStore(
@@ -247,17 +306,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Render
   // ---------------------------------------------------------------------------
 
-  if (sampleStatus === "loading" && events.length === 0) {
-    return undefined;
-  }
-
-  if (events.length === 0) {
-    const message = eventsCleared
-      ? "Transcript events were removed because this sample exceeds the browser's size limit. Use the Messages tab to view the conversation."
-      : "No events to display.";
-    return <NoContentsPanel text={message} />;
-  }
-
   return (
     <TranscriptLayout
       events={filteredEvents}
@@ -277,14 +325,40 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
+      outlineScrollRef={outlineScrollRef}
+      rightPaneScrollRef={rightPaneScrollRef}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
         toggleIcon: ApplicationIcons.sidebar,
+        toggleTitle: outlineCollapsed
+          ? "Show transcript outline"
+          : "Hide transcript outline",
         renderLink,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
       }}
+      rightPane={
+        hasScores && scores
+          ? {
+              collapsed: scoresCollapsed,
+              onCollapsedChange: setScoresCollapsed,
+              toggleIcon: ApplicationIcons.scoringSidebar,
+              toggleTitle: scoresCollapsed
+                ? "Show scan results"
+                : "Hide scan results",
+              label: "scans",
+              width: scoresWidth,
+              onWidthChange: setScoresWidth,
+              content: (
+                <SampleScoresSidebar
+                  scores={scores}
+                  makeCiteUrl={makeCiteUrl}
+                />
+              ),
+            }
+          : undefined
+      }
       emptyText={
         filteredEventTypes.length > 0
           ? "The currently applied filter hides all events."

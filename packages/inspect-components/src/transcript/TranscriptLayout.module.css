@@ -9,25 +9,52 @@
 .container {
   display: grid;
   width: 100%;
-  grid-template-columns: var(--outline-width, 180px) 1px 1fr;
+  grid-template-columns:
+    var(--outline-width, 180px) 1px 1fr 1px var(--right-pane-width, 360px);
   min-height: 100vh;
 }
 
 .container > * {
   min-width: 0;
+  padding-bottom: 1rem;
 }
 
 .container.outlineCollapsed {
-  grid-template-columns: 28px 1px 1fr;
+  grid-template-columns: 22px 1px 1fr 1px var(--right-pane-width, 360px);
 }
 
 .container.noOutline {
+  grid-template-columns: 1fr 1px var(--right-pane-width, 360px);
+}
+
+.container.rightPaneCollapsed {
+  grid-template-columns:
+    var(--outline-width, 180px) 1px 1fr 1px 22px;
+}
+
+.container.outlineCollapsed.rightPaneCollapsed {
+  grid-template-columns: 22px 1px 1fr 1px 22px;
+}
+
+.container.noOutline.rightPaneCollapsed {
+  grid-template-columns: 1fr 1px 22px;
+}
+
+.container.noRightPane {
+  grid-template-columns: var(--outline-width, 180px) 1px 1fr;
+}
+
+.container.outlineCollapsed.noRightPane {
+  grid-template-columns: 22px 1px 1fr;
+}
+
+.container.noOutline.noRightPane {
   grid-template-columns: 1fr;
 }
 
 .outline {
-  padding-left: 0.5rem;
-  padding-top: 0.4rem;
+  padding-left: 0.2rem;
+  padding-top: 0.2rem;
   /* Prevent stretching to the full grid-row height so that
      position:sticky has room to travel within the cell. */
   align-self: start;
@@ -37,7 +64,7 @@
    scroll internally when the outline is taller.
    Only when expanded — overflow clips the toggle button when collapsed. */
 .container:not(.outlineCollapsed) > .outline {
-  max-height: calc(100vh - var(--outline-top, 0px));
+  max-height: calc(var(--scroller-height, 100vh) - var(--outline-top, 0px));
   overflow-y: auto;
 }
 
@@ -46,8 +73,8 @@
   cursor: pointer;
   font-size: 0.8em;
   position: absolute;
-  top: 0.5em;
-  right: 0.5em;
+  top: 0.2rem;
+  right: 0.2rem;
 }
 
 .outlineToggle[aria-disabled="true"] {
@@ -59,6 +86,91 @@
   background-color: var(--bs-border-color);
 }
 
+.rightSeparator {
+  background-color: var(--bs-border-color);
+}
+
+.rightPane {
+  padding-top: 0.2rem;
+  padding-right: 0.2rem;
+  align-self: start;
+}
+
+.container:not(.rightPaneCollapsed) > .rightPane {
+  padding-left: 0.2rem;
+  /* Leave room on the right for the absolutely-positioned close button. */
+  padding-right: 1.2rem;
+  max-height: calc(var(--scroller-height, 100vh) - var(--outline-top, 0px));
+  overflow-y: auto;
+}
+
+.rightPaneResizer {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+  background-color: transparent;
+  transition: background-color 120ms ease;
+}
+
+.rightPaneResizer:hover,
+.rightPaneResizer:active {
+  background-color: var(--bs-primary-border-subtle);
+}
+
+.rightPaneToggle {
+  all: unset;
+  cursor: pointer;
+  font-size: 0.8em;
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+}
+
 .eventsList {
   padding-bottom: 1rem;
+}
+
+.sidebarHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4em;
+  margin-bottom: 0.3rem;
+}
+
+.sidebarHeaderIcon {
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.sidebarHeaderTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  top: 1px;
+}
+
+.sidebarHeaderClose {
+  all: unset;
+  cursor: pointer;
+  font-size: 0.9em;
+  padding: 0 0.2em;
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  z-index: 1;
+}
+
+.sidebarHeaderClose:hover {
+  opacity: 0.7;
 }

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { JSX } from "react";
+import { Fragment, JSX } from "react";
 
 import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
 
@@ -57,12 +57,17 @@ export const objectScoreDescriptor = (
             : String(value);
 
         scores.push(
-          <>
-            <div className={clsx(styles.key, "text-size-smaller")}>{key}</div>
+          <Fragment key={key}>
+            <div
+              className={clsx(styles.key, "text-size-smaller")}
+              title={key}
+            >
+              {key}
+            </div>
             <div className={clsx(styles.value, "text-size-base")}>
               {formattedValue}
             </div>
-          </>
+          </Fragment>
         );
       });
 
