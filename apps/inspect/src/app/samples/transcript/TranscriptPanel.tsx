@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -21,6 +22,7 @@ import {
   type TranscriptCollapseState,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
+import { readScannerReferences } from "@tsmono/scout-components/sentinels";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
@@ -236,6 +238,44 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   const hasScores = !!scores && Object.keys(scores).length > 0;
 
+  // ---------------------------------------------------------------------------
+  // Selected scanner
+  // ---------------------------------------------------------------------------
+
+  const [selectedScanner, setSelectedScanner] = useState<string>("");
+
+  useEffect(() => {
+    const scanners = scores ? Object.keys(scores) : [];
+    if (scanners.length === 0) {
+      if (selectedScanner !== "") setSelectedScanner("");
+    } else if (!scanners.includes(selectedScanner)) {
+      setSelectedScanner(scanners[0]);
+    }
+  }, [scores, selectedScanner]);
+
+  // ---------------------------------------------------------------------------
+  // Message-label map for the currently-selected scanner.
+  // ---------------------------------------------------------------------------
+
+  const messageLabels = useMemo(() => {
+    if (!hasScores || scoresCollapsed) return {};
+    const score = selectedScanner ? scores?.[selectedScanner] : undefined;
+    const refs = readScannerReferences(score?.metadata);
+    const map: Record<string, string> = {};
+    for (const r of refs) {
+      if (r.type === "message" && r.id && r.cite) {
+        map[r.id] = r.cite;
+      }
+    }
+    return map;
+  }, [hasScores, scoresCollapsed, scores, selectedScanner]);
+
+  const eventNodeContext = useMemo(
+    () =>
+      Object.keys(messageLabels).length > 0 ? { messageLabels } : undefined,
+    [messageLabels],
+  );
+
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
   const setSelectedOutlineId = useStore(
     (state) => state.sampleActions.setSelectedOutlineId
@@ -319,6 +359,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       onMarkerNavigate={onMarkerNavigate}
       headroomHidden={headroomHidden}
       onHeadroomResetAnchor={onHeadroomResetAnchor}
+      eventNodeContext={eventNodeContext}
       listId={id}
       initialEventId={initialEventId}
       getEventUrl={getEventUrl}
@@ -354,6 +395,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
                 <SampleScansSidebar
                   scores={scores}
                   makeCiteUrl={makeCiteUrl}
+                  selected={selectedScanner}
+                  onSelectedChange={setSelectedScanner}
                 />
               ),
             }

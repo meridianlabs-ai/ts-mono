@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 
 import type { Score } from "@tsmono/inspect-common/types";
 import {
@@ -16,23 +16,17 @@ import styles from "./SampleScansSidebar.module.css";
 interface SampleScansSidebarProps {
   scores: Record<string, Score>;
   makeCiteUrl: MakeCiteUrl;
+  selected: string;
+  onSelectedChange: (scanner: string) => void;
 }
 
 export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
   scores,
   makeCiteUrl,
+  selected,
+  onSelectedChange,
 }) => {
   const scanners = Object.keys(scores);
-  const [selected, setSelected] = useState<string>(scanners[0] ?? "");
-
-  // If the currently selected scanner is no longer present (sample change),
-  // clamp to the first available scanner.
-  useEffect(() => {
-    if (!scanners.includes(selected) && scanners.length > 0) {
-      setSelected(scanners[0]);
-    }
-  }, [scanners, selected]);
-
   const score: Score | undefined = selected ? scores[selected] : undefined;
 
   const references = useMemo(
@@ -55,7 +49,7 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
       <SampleScannerPicker
         scanners={scanners}
         selected={selected}
-        onChange={setSelected}
+        onChange={onSelectedChange}
       />
     ) : scanners.length === 1 ? (
       <span className={clsx(styles.singleScanner, "text-size-base")}>
