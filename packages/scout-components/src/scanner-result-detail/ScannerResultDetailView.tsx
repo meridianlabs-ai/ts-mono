@@ -31,6 +31,40 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
     data.validationResult !== undefined && data.validationResult !== null;
   const hasMetadata =
     data.metadata !== undefined && Object.keys(data.metadata).length > 0;
+  const valueStacked =
+    data.valueType === "object" || data.valueType === "array";
+
+  const valueNode = (
+    <Value
+      value={data.value}
+      valueType={data.valueType}
+      identifier={data.identifier}
+      style="block"
+      maxTableSize={1000}
+      interactive={interactive}
+      references={references}
+      options={options}
+    />
+  );
+
+  const validationNode = hasValidation ? (
+    <div className={clsx(styles.validation)}>
+      <div
+        className={clsx(
+          "text-style-label",
+          "text-style-secondary",
+          styles.validationLabel,
+        )}
+      >
+        Validation
+      </div>
+      <ValidationResult
+        result={data.validationResult!}
+        target={data.validationTarget}
+        label={data.label}
+      />
+    </div>
+  ) : null;
 
   return (
     <div className={clsx(styles.container, "text-size-small")}>
@@ -45,39 +79,27 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
         </>
       ) : null}
 
-      <div className={clsx("text-style-label", "text-style-secondary")}>
-        Value
-      </div>
-      <div className={clsx(hasValidation ? styles.values : undefined)}>
-        <Value
-          value={data.value}
-          valueType={data.valueType}
-          identifier={data.identifier}
-          style="block"
-          maxTableSize={1000}
-          interactive={interactive}
-          references={references}
-          options={options}
-        />
-        {hasValidation ? (
-          <div className={clsx(styles.validation)}>
-            <div
-              className={clsx(
-                "text-style-label",
-                "text-style-secondary",
-                styles.validationLabel,
-              )}
-            >
-              Validation
-            </div>
-            <ValidationResult
-              result={data.validationResult!}
-              target={data.validationTarget}
-              label={data.label}
-            />
+      {valueStacked ? (
+        <div className={clsx(styles.colspan)}>
+          <div className={clsx("text-style-label", "text-style-secondary")}>
+            Value
           </div>
-        ) : null}
-      </div>
+          <div className={clsx(hasValidation ? styles.values : undefined)}>
+            {valueNode}
+            {validationNode}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={clsx("text-style-label", "text-style-secondary")}>
+            Value
+          </div>
+          <div className={clsx(hasValidation ? styles.values : undefined)}>
+            {valueNode}
+            {validationNode}
+          </div>
+        </>
+      )}
 
       {data.answer ? (
         <>
