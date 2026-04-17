@@ -510,8 +510,7 @@ export const useLogListColumns = (
           if (!msg) return "";
           return msg.split("\n")[0];
         },
-        tooltipValueGetter: (params) =>
-          params.data?.errorMessage || undefined,
+        tooltipValueGetter: (params) => params.data?.errorMessage || undefined,
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           if (!params.value) return <EmptyCell />;
           return <div className={styles.nameCell}>{params.value}</div>;
