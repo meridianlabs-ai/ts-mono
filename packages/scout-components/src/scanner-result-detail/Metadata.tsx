@@ -7,12 +7,10 @@ import {
   MarkdownReference,
 } from "@tsmono/react/components";
 
-import { JsonValue } from "../../types/json-value";
-
 import styles from "./Metadata.module.css";
 
 interface MetadataProps {
-  metadata: Record<string, JsonValue>;
+  metadata: Record<string, unknown>;
   references?: MarkdownReference[];
   options?: {
     previewRefsOnHover?: boolean;
@@ -47,7 +45,7 @@ export const Metadata: FC<MetadataProps> = ({
 
 interface MetadataValueProps {
   id: string;
-  value: JsonValue;
+  value: unknown;
   references?: MarkdownReference[];
   options?: {
     previewRefsOnHover?: boolean;
@@ -81,7 +79,6 @@ const MetadataValue: FC<MetadataValueProps> = ({
   }
 
   if (Array.isArray(value)) {
-    // Convert array to record with index keys for RecordTree
     const record: Record<string, unknown> = {};
     value.forEach((item, i) => {
       record[`[${i}]`] = item;
@@ -91,9 +88,9 @@ const MetadataValue: FC<MetadataValueProps> = ({
     );
   }
 
-  // Primitives: number, boolean, null
   if (value === null) {
     return <code>null</code>;
   }
-  return <span>{String(value)}</span>;
+  // At this point value is a primitive (number, boolean, undefined, bigint, symbol).
+  return <span>{String(value as number | boolean)}</span>;
 };

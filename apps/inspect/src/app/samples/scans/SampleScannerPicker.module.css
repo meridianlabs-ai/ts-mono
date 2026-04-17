@@ -1,0 +1,10 @@
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.picker > vscode-single-select {
+  flex: 1;
+  min-width: 0;
+}

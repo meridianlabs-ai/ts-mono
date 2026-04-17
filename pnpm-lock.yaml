@@ -75,9 +75,18 @@ importers:
       '@tsmono/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@tsmono/scout-components':
+        specifier: workspace:*
+        version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
+      '@vscode-elements/react-elements':
+        specifier: ^2.4.0
+        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       ag-grid-community:
         specifier: ^34.3.1
         version: 34.3.1
@@ -274,6 +283,12 @@ importers:
       '@tsmono/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@tsmono/scout-components':
+        specifier: workspace:*
+        version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -662,6 +677,57 @@ importers:
       vitest:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(msw@2.13.2(@types/node@25.6.0)(typescript@6.0.2))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
+
+  packages/scout-components:
+    dependencies:
+      '@tsmono/inspect-components':
+        specifier: workspace:*
+        version: link:../inspect-components
+      '@tsmono/react':
+        specifier: workspace:*
+        version: link:../react
+      '@tsmono/util':
+        specifier: workspace:*
+        version: link:../util
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+    devDependencies:
+      '@tsmono/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint-config
+      '@tsmono/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+      '@types/css-modules':
+        specifier: ^1.0.5
+        version: 1.0.5
+      '@types/json5':
+        specifier: ^2.2.0
+        version: 2.2.0
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.14
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.2
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      typescript-eslint:
+        specifier: ^8.58.2
+        version: 8.58.2(eslint@9.39.2)(typescript@6.0.2)
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(msw@2.13.2(@types/node@25.6.0)(typescript@6.0.2))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
+
+  packages/theme: {}
 
   packages/util:
     devDependencies:

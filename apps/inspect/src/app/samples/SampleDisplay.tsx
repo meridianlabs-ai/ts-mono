@@ -319,6 +319,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       key="sample-copy"
       label="Copy"
       icon={icon}
+      dropdownClassName="text-size-smallest"
       items={{
         UUID: () => {
           if (sample?.uuid) {
@@ -358,6 +359,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         key="sample-download"
         label="Download"
         icon={ApplicationIcons.downloadLog}
+        dropdownClassName="text-size-smallest"
         items={{
           "Sample JSON": () => {
             api.download_file(
@@ -497,17 +499,31 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 positionEl={filterRef.current}
               />
 
-              <TranscriptPanel
-                key={`${baseId}-transcript-display-${id}`}
-                id={`${baseId}-transcript-display-${id}`}
-                events={sampleEvents || []}
-                eventsCleared={eventsCleared}
-                initialEventId={sampleDetailNavigation.event}
-                offsetTop={tabsHeight}
-                running={running}
-                scrollRef={scrollRef}
-                timelines={sample?.timelines ?? undefined}
-              />
+              {!sampleEvents || sampleEvents.length === 0 ? (
+                sampleData.status === "loading" ? null : (
+                  <NoContentsPanel
+                    text={
+                      eventsCleared
+                        ? "Transcript events were removed because this sample exceeds the browser's size limit. Use the Messages tab to view the conversation."
+                        : "No events to display."
+                    }
+                  />
+                )
+              ) : (
+                <TranscriptPanel
+                  id={`${baseId}-transcript-display-${id}`}
+                  key={`${baseId}-transcript-display-${id}`}
+                  scrollRef={scrollRef}
+                  offsetTop={tabsHeight}
+                  sampleId={sample?.id ?? undefined}
+                  sampleEpoch={sample?.epoch ?? undefined}
+                  running={running}
+                  events={sampleEvents}
+                  timelines={sample?.timelines ?? undefined}
+                  scans={sample?.scores ?? undefined}
+                  initialEventId={sampleDetailNavigation.event}
+                />
+              )}
             </TabPanel>
             <TabPanel
               key={kSampleMessagesTabId}
