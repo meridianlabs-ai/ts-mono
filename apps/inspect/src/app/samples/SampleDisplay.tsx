@@ -319,6 +319,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       key="sample-copy"
       label="Copy"
       icon={icon}
+      dropdownClassName="text-size-smallest"
       items={{
         UUID: () => {
           if (sample?.uuid) {
@@ -358,6 +359,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         key="sample-download"
         label="Download"
         icon={ApplicationIcons.downloadLog}
+        dropdownClassName="text-size-smallest"
         items={{
           "Sample JSON": () => {
             api.download_file(

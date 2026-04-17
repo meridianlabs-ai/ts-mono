@@ -66,7 +66,7 @@ export const ToolDropdownButton = forwardRef<
       const btn = buttonRef.current;
       if (!btn) return;
       const rect = btn.getBoundingClientRect();
-      const top = rect.bottom + 4;
+      const top = rect.bottom;
       const minWidth = rect.width;
       if (dropdownAlign === "right") {
         setMenuPosition({
@@ -102,7 +102,7 @@ export const ToolDropdownButton = forwardRef<
     };
 
     return (
-      <div className={clsx(styles.dropdownContainer)}>
+      <>
         <button
           ref={setRef}
           type="button"
@@ -151,7 +151,7 @@ export const ToolDropdownButton = forwardRef<
             </>,
             document.body
           )}
-      </div>
+      </>
     );
   }
 );

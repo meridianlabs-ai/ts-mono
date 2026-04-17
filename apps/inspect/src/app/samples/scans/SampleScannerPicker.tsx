@@ -27,6 +27,7 @@ export const SampleScannerPicker: FC<SampleScannerPickerProps> = ({
       label={selected}
       icon={ApplicationIcons.scorer}
       items={items}
+      dropdownClassName="text-size-small"
     />
   );
 };
