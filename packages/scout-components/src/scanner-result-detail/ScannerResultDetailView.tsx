@@ -49,13 +49,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
   const validationNode = hasValidation ? (
     <div className={clsx(styles.validation)}>
-      <div
-        className={clsx(
-          "text-style-label",
-          "text-style-secondary",
-          styles.validationLabel,
-        )}
-      >
+      <div className={clsx(styles.label, styles.validationLabel)}>
         Validation
       </div>
       <ValidationResult
@@ -72,7 +66,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {data.label ? (
         <>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
+          <div className={clsx(styles.label)}>
             Label
           </div>
           <div>{data.label}</div>
@@ -81,7 +75,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {valueStacked ? (
         <div className={clsx(styles.colspan)}>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
+          <div className={clsx(styles.label)}>
             Value
           </div>
           <div className={clsx(hasValidation ? styles.values : undefined)}>
@@ -91,7 +85,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
         </div>
       ) : (
         <>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
+          <div className={clsx(styles.label)}>
             Value
           </div>
           <div className={clsx(hasValidation ? styles.values : undefined)}>
@@ -103,7 +97,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {data.answer ? (
         <>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
+          <div className={clsx(styles.label)}>
             Answer
           </div>
           <div>{data.answer}</div>
@@ -112,7 +106,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
 
       {data.explanation ? (
         <div className={clsx(styles.colspan)}>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
+          <div className={clsx(styles.label)}>
             Explanation
           </div>
           <Explanation

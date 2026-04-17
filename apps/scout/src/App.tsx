@@ -8,6 +8,8 @@ import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
+import "@tsmono/theme/base";
+import "@tsmono/theme/vscode";
 import "./app/App.css";
 
 import {

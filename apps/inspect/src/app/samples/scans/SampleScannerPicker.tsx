@@ -1,8 +1,11 @@
-import { FC, useMemo } from "react";
+import clsx from "clsx";
+import {
+  VscodeOption,
+  VscodeSingleSelect,
+} from "@vscode-elements/react-elements";
+import { FC, useCallback } from "react";
 
-import { ToolDropdownButton } from "@tsmono/react/components";
-
-import { ApplicationIcons } from "../../appearance/icons";
+import styles from "./SampleScannerPicker.module.css";
 
 interface SampleScannerPickerProps {
   scanners: string[];
@@ -15,19 +18,26 @@ export const SampleScannerPicker: FC<SampleScannerPickerProps> = ({
   selected,
   onChange,
 }) => {
-  const items = useMemo(() => {
-    return scanners.reduce<Record<string, () => void>>((acc, scanner) => {
-      acc[scanner] = () => onChange(scanner);
-      return acc;
-    }, {});
-  }, [scanners, onChange]);
+  const handleChange = useCallback(
+    (e: Event) => {
+      const value = (e.target as { value?: string } | null)?.value;
+      if (typeof value === "string") onChange(value);
+    },
+    [onChange]
+  );
 
   return (
-    <ToolDropdownButton
-      label={selected}
-      icon={ApplicationIcons.scorer}
-      items={items}
-      dropdownClassName="text-size-small"
-    />
+    <div className={styles.picker}>
+      <span className={clsx("text-size-smaller", "text-style-secondary")}>
+        scanner:
+      </span>
+      <VscodeSingleSelect value={selected} onChange={handleChange}>
+        {scanners.map((scanner) => (
+          <VscodeOption key={scanner} value={scanner}>
+            {scanner}
+          </VscodeOption>
+        ))}
+      </VscodeSingleSelect>
+    </div>
   );
 };

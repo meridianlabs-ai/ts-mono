@@ -52,7 +52,7 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
         onChange={onSelectedChange}
       />
     ) : scanners.length === 1 ? (
-      <span className={clsx(styles.singleScanner, "text-size-base")}>
+      <span className={clsx(styles.singleScanner, "text-size-smaller")}>
         {scanners[0]}
       </span>
     ) : null;
