@@ -36,6 +36,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
     <div id={id} className={clsx(styles.rootControl)}>
       {segments.map((segment, index) => (
         <button
+          type="button"
           key={segment.id}
           className={clsx(
             styles.segment,
