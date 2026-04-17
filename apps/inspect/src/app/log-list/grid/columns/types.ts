@@ -23,5 +23,6 @@ export interface LogListRow {
   taskFile?: string;
   taskArgs?: string;
   taskArgsRaw?: Record<string, unknown>;
+  tags?: string[];
   [key: string]: any; // For dynamic score columns
 }

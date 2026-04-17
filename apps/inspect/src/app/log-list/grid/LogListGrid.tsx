@@ -180,6 +180,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         taskFile: details?.eval?.task_file ?? undefined,
         taskArgs,
         taskArgsRaw: details?.eval?.task_args ?? undefined,
+        tags: details?.tags,
       };
 
       // Add individual scorer columns from results
@@ -196,7 +197,13 @@ export const LogListGrid: FC<LogListGridProps> = ({
       }
 
       // Pre-compute searchable text for fast Cmd+F search
-      row.searchText = [row.name, row.task, row.model, row.id]
+      row.searchText = [
+        row.name,
+        row.task,
+        row.model,
+        row.id,
+        ...(row.tags ?? []),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

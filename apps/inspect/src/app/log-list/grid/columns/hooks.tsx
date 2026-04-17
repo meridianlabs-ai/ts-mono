@@ -434,6 +434,25 @@ export const useLogListColumns = (
         },
         tooltipComponent: PreformattedTooltip,
       },
+      {
+        field: "tags",
+        headerName: "Tags",
+        initialWidth: 80,
+        minWidth: 80,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        valueGetter: (params) => {
+          const tags = params.data?.tags;
+          if (!tags || tags.length === 0) return "";
+          return tags.join(", ");
+        },
+        tooltipValueGetter: (params) => params.value || undefined,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{params.value}</div>;
+        },
+      },
     ];
 
     // Add scorer columns (currently only showing when we detect them)
@@ -497,6 +516,7 @@ export const useLogListColumns = (
         "task",
         "model",
         "taskArgs",
+        "tags",
         "score",
         "completedAt",
         "totalSamples",
