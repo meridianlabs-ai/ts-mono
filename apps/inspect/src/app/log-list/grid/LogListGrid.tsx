@@ -150,6 +150,20 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
 
+      // Percent of samples completed
+      let percentCompleted: number | undefined;
+      const total = details?.results?.total_samples;
+      const completed = details?.results?.completed_samples;
+      if (total && total > 0 && completed !== undefined) {
+        percentCompleted = (completed / total) * 100;
+      }
+
+      // Count of sample errors
+      let sampleErrors: number | undefined;
+      if (details?.sampleSummaries) {
+        sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
+      }
+
       const row: LogListRow = {
         id: item.id,
         name: item.name,
@@ -181,6 +195,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
         taskArgs,
         taskArgsRaw: details?.eval?.task_args ?? undefined,
         tags: details?.tags,
+        percentCompleted,
+        sampleErrors,
+        errorMessage: details?.error?.message,
       };
 
       // Add individual scorer columns from results

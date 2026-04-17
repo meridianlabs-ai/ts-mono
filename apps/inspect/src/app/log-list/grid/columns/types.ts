@@ -24,5 +24,8 @@ export interface LogListRow {
   taskArgs?: string;
   taskArgsRaw?: Record<string, unknown>;
   tags?: string[];
+  percentCompleted?: number;
+  sampleErrors?: number;
+  errorMessage?: string;
   [key: string]: any; // For dynamic score columns
 }
