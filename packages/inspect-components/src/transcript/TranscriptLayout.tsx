@@ -22,6 +22,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -407,8 +408,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Bulk collapse/expand
   // ---------------------------------------------------------------------------
 
-  const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
+  const onSetTranscriptCollapsedRef = useRef(
+    collapseState?.onSetTranscriptCollapsed
+  );
   useEffect(() => {
+    onSetTranscriptCollapsedRef.current =
+      collapseState?.onSetTranscriptCollapsed;
+  });
+
+  useEffect(() => {
+    const onSetTranscriptCollapsed = onSetTranscriptCollapsedRef.current;
     if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
@@ -421,13 +430,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
-  }, [
-    defaultCollapsedIds,
-    eventNodes,
-    bulkCollapse,
-    onSetTranscriptCollapsed,
-    events.length,
-  ]);
+  }, [defaultCollapsedIds, eventNodes, bulkCollapse, events.length]);
 
   // ---------------------------------------------------------------------------
   // Outline auto-hide
