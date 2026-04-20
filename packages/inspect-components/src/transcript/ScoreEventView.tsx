@@ -9,16 +9,18 @@ import { EventPanel } from "./event/EventPanel";
 import { TranscriptIcons } from "./icons";
 import styles from "./ScoreEventView.module.css";
 import { ScoreValue } from "./ScoreValue";
-import { EventNode } from "./types";
+import { EventNode, type EventPanelCallbacks } from "./types";
 
 interface ScoreEventViewProps {
   eventNode: EventNode<ScoreEvent>;
   className?: string;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 export const ScoreEventView: FC<ScoreEventViewProps> = ({
   eventNode,
   className,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
   const resolvedTarget = event.target
@@ -37,6 +39,7 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
       }
       icon={TranscriptIcons.scorer}
       collapsibleContent={true}
+      eventCallbacks={eventCallbacks}
     >
       <div data-name="Explanation" className={clsx(styles.explanation)}>
         {event.target ? (

@@ -60,6 +60,7 @@ import {
 import {
   EventNode,
   kCollapsibleEventTypes,
+  kContentCollapsibleEventTypes,
   type EventNodeContext,
   type TranscriptCollapseState,
 } from "./types";
@@ -148,7 +149,10 @@ const collectAllCollapsibleIds = (
   const result: Record<string, boolean> = {};
   const traverse = (nodeList: EventNode[]) => {
     for (const node of nodeList) {
-      if (kCollapsibleEventTypes.includes(node.event.event)) {
+      if (
+        kCollapsibleEventTypes.includes(node.event.event) ||
+        kContentCollapsibleEventTypes.includes(node.event.event)
+      ) {
         result[node.id] = true;
       }
       if (node.children.length > 0) {

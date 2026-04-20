@@ -9,11 +9,12 @@ import { EventPanel } from "./event/EventPanel";
 import { TranscriptIcons } from "./icons";
 import styles from "./ScoreEditEventView.module.css";
 import { ScoreValue } from "./ScoreValue";
-import { EventNode } from "./types";
+import { EventNode, type EventPanelCallbacks } from "./types";
 
 interface ScoreEditEventViewProps {
   eventNode: EventNode<ScoreEditEvent>;
   className?: string;
+  eventCallbacks?: EventPanelCallbacks;
 }
 
 const kUnchangedSentinel = "UNCHANGED";
@@ -21,6 +22,7 @@ const kUnchangedSentinel = "UNCHANGED";
 export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
   eventNode,
   className,
+  eventCallbacks,
 }) => {
   const event = eventNode.event;
 
@@ -36,6 +38,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
       subTitle={subtitle}
       collapsibleContent={true}
       icon={TranscriptIcons.edit}
+      eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary">
         <div
