@@ -412,22 +412,38 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
-    if (
-      bulkCollapse === "expand" &&
-      Object.keys(defaultCollapsedIds).length > 0
-    ) {
-      onSetTranscriptCollapsed(defaultCollapsedIds);
+    if (bulkCollapse === "expand") {
+      onSetTranscriptCollapsed({});
     } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
-  }, [
-    defaultCollapsedIds,
-    eventNodes,
-    bulkCollapse,
-    onSetTranscriptCollapsed,
-    events.length,
-  ]);
+  }, [eventNodes, bulkCollapse, onSetTranscriptCollapsed, events.length]);
+
+  // Lazy-seed: when the user toggles an individual node for the first time
+  // (store scope is empty), seed the store with defaults before applying the
+  // toggle so that all other nodes retain their default collapsed state.
+  const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
+  const onCollapseTranscript = useCallback(
+    (nodeId: string, collapsed: boolean) => {
+      if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
+      if (!collapseState?.transcript) {
+        // First toggle — seed defaults then apply the toggle
+        onSetTranscriptCollapsed({
+          ...defaultCollapsedIds,
+          [nodeId]: collapsed,
+        });
+      } else {
+        onCollapseTranscriptRaw(nodeId, collapsed);
+      }
+    },
+    [
+      onCollapseTranscriptRaw,
+      onSetTranscriptCollapsed,
+      collapseState?.transcript,
+      defaultCollapsedIds,
+    ]
+  );
 
   // ---------------------------------------------------------------------------
   // Outline auto-hide
@@ -606,7 +622,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               linkingEnabled={linkingEnabled}
               collapsedTranscript={collapseState?.transcript}
               collapsedOutline={collapseState?.outline}
-              onCollapseTranscript={collapseState?.onCollapseTranscript}
+              onCollapseTranscript={onCollapseTranscript}
               eventNodeContext={eventNodeContext}
             />
           ) : emptyText !== null ? (

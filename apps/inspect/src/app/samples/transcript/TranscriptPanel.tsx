@@ -160,10 +160,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const bulkCollapse = useMemo<"collapse" | "expand" | undefined>(() => {
     if (collapsedMode === "collapsed") return "collapse";
     if (collapsedMode === "expanded") return "expand";
-    // collapsedMode === null: apply defaults if no collapsedEvents yet
-    if (!collapsedEvents) return "expand";
     return undefined;
-  }, [collapsedMode, collapsedEvents]);
+  }, [collapsedMode]);
 
   // ---------------------------------------------------------------------------
   // Headroom: collapse swimlanes on scroll-down, expand on scroll-up
