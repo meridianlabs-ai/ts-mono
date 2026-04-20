@@ -13,7 +13,6 @@ export interface LogListRow {
   completedAt?: string;
   itemCount?: number;
   log?: LogHandle;
-  searchText?: string; // Pre-computed searchable text for fast Cmd+F search
   path?: string;
   totalSamples?: number;
   completedSamples?: number;
@@ -23,5 +22,9 @@ export interface LogListRow {
   taskFile?: string;
   taskArgs?: string;
   taskArgsRaw?: Record<string, unknown>;
+  tags?: string[];
+  percentCompleted?: number;
+  sampleErrors?: number;
+  errorMessage?: string;
   [key: string]: any; // For dynamic score columns
 }
