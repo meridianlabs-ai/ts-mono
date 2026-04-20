@@ -36,7 +36,6 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
       icon={TranscriptIcons.scorer}
-      collapsibleContent={true}
     >
       <div data-name="Explanation" className={clsx(styles.explanation)}>
         {event.target ? (

@@ -34,12 +34,16 @@ export interface StateManager {
 export const kTranscriptCollapseScope = "transcript-collapse";
 export const kTranscriptOutlineCollapseScope = "transcript-outline";
 
+/** Event types whose *children* can be collapsed (tree collapse). */
 export const kCollapsibleEventTypes = [
   STEP,
   SPAN_BEGIN,
   TYPE_TOOL,
   TYPE_SUBTASK,
 ];
+
+/** Event types whose *content* can be collapsed (panel-level collapse). */
+export const kContentCollapsibleEventTypes: string[] = ["state", "store"];
 
 export type EventType =
   | SampleInitEvent

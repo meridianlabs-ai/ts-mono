@@ -97,9 +97,9 @@ export const TranscriptViewNodes = forwardRef<
 
   const getCollapsed = useCallback(
     (nodeId: string) => {
-      return collapsedTranscript?.[nodeId] === true;
+      return (collapsedTranscript || defaultCollapsedIds)[nodeId] === true;
     },
-    [collapsedTranscript]
+    [collapsedTranscript, defaultCollapsedIds]
   );
 
   const eventCallbacks = useMemo<EventPanelCallbacks>(
