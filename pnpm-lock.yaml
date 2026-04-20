@@ -88,8 +88,8 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       ag-grid-community:
-        specifier: ^34.3.1
-        version: 34.3.1
+        specifier: ^35.2.1
+        version: 35.2.1
       ag-grid-react:
         specifier: ^34.3.1
         version: 34.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -296,8 +296,8 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       ag-grid-community:
-        specifier: ^34.3.1
-        version: 34.3.1
+        specifier: ^35.2.1
+        version: 35.2.1
       ag-grid-react:
         specifier: ^34.3.1
         version: 34.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -2400,6 +2400,7 @@ packages:
   '@xmldom/xmldom@0.9.9':
     resolution: {integrity: sha512-qycIHAucxy/LXAYIjmLmtQ8q9GPnMbnjG1KXhWm9o5sCr6pOYDATkMPiTNa6/v8eELyqOQ2FsEqeoFYmgv/gJg==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2419,8 +2420,14 @@ packages:
   ag-charts-types@12.3.1:
     resolution: {integrity: sha512-5216xYoawnvMXDFI6kTpPku+mH0Csiwu/FE7lsAm8Z22HEN6ciSG/V7g+IrpLWncELqksgENebCTP75PZ3CsHA==}
 
+  ag-charts-types@13.2.1:
+    resolution: {integrity: sha512-r7veb3QqJtIKlXmeUsLR4/oDPwmHxFI2tmbZra/203mdaz3uwQUrrgYNg628nrK+7L2YxXnwGc6L05tWjLLjNQ==}
+
   ag-grid-community@34.3.1:
     resolution: {integrity: sha512-PwlrPudsFOzGumphi2y9ihWeaUlIwKhOra/MXu2LjeV2U8DgLLcYS8CartE5Hszhn1poJHawwI9HWrxlKliwdw==}
+
+  ag-grid-community@35.2.1:
+    resolution: {integrity: sha512-ycmGI+1EbUT7i3eg/Kgi1owwnkdHXRufo10Xm6cfSsVPM3TMpvlbLgi28KIPt9DGHZWHq9fOBn7nxMNdv1Yaow==}
 
   ag-grid-react@34.3.1:
     resolution: {integrity: sha512-1UTlBT+xJkjNZAuf7RxK61mgxKGTPB+6XR99oIHq7cYC89kJmLbWqhHt/1XqRWF5cAgSKk8u+HtOQaN8tAZStw==}
@@ -6486,9 +6493,15 @@ snapshots:
 
   ag-charts-types@12.3.1: {}
 
+  ag-charts-types@13.2.1: {}
+
   ag-grid-community@34.3.1:
     dependencies:
       ag-charts-types: 12.3.1
+
+  ag-grid-community@35.2.1:
+    dependencies:
+      ag-charts-types: 13.2.1
 
   ag-grid-react@34.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
     dependencies:

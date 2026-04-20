@@ -93,7 +93,7 @@
     "@tsmono/theme": "workspace:*",
     "@tsmono/util": "workspace:*",
     "@vscode-elements/react-elements": "^2.4.0",
-    "ag-grid-community": "^34.3.1",
+    "ag-grid-community": "^35.2.1",
     "ag-grid-react": "^34.3.1",
     "ansi-output": "^0.0.9",
     "apache-arrow": "^21.1.0",
