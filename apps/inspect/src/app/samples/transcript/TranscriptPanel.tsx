@@ -115,21 +115,44 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     (state) => state.sampleActions.collapseEvent
   );
 
+  const onCollapseTranscript = useCallback(
+    (nodeId: string, collapsed: boolean) =>
+      collapseEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+    [collapseEventStore]
+  );
+  const onCollapseOutline = useCallback(
+    (nodeId: string, collapsed: boolean) =>
+      collapseEventStore(kTranscriptOutlineCollapseScope, nodeId, collapsed),
+    [collapseEventStore]
+  );
+  const onSetTranscriptCollapsed = useCallback(
+    (ids: Record<string, boolean>) =>
+      setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+    [setCollapsedEventsStore]
+  );
+  const onSetOutlineCollapsed = useCallback(
+    (ids: Record<string, boolean>) =>
+      setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    [setCollapsedEventsStore]
+  );
+
   const collapseState = useMemo<TranscriptCollapseState>(() => {
     const events = collapsedEvents ?? undefined;
     return {
       transcript: events?.[kTranscriptCollapseScope],
       outline: events?.[kTranscriptOutlineCollapseScope],
-      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
-        collapseEventStore(kTranscriptCollapseScope, nodeId, collapsed),
-      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
-        collapseEventStore(kTranscriptOutlineCollapseScope, nodeId, collapsed),
-      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
-        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
-      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
-        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+      onCollapseTranscript,
+      onCollapseOutline,
+      onSetTranscriptCollapsed,
+      onSetOutlineCollapsed,
     };
-  }, [collapsedEvents, collapseEventStore, setCollapsedEventsStore]);
+  }, [
+    collapsedEvents,
+    onCollapseTranscript,
+    onCollapseOutline,
+    onSetTranscriptCollapsed,
+    onSetOutlineCollapsed,
+  ]);
 
   // Bulk collapse mode: "collapsed" | "expanded" | null
   // Map to the layout's bulkCollapse?: "collapse" | "expand" prop

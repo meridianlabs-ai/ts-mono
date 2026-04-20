@@ -108,24 +108,47 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     (state) => state.setTranscriptCollapsedEvents
   );
 
+  const onCollapseTranscript = useCallback(
+    (nodeId: string, collapsed: boolean) =>
+      setCollapsedEventStore(kTranscriptCollapseScope, nodeId, collapsed),
+    [setCollapsedEventStore]
+  );
+  const onCollapseOutline = useCallback(
+    (nodeId: string, collapsed: boolean) =>
+      setCollapsedEventStore(
+        kTranscriptOutlineCollapseScope,
+        nodeId,
+        collapsed
+      ),
+    [setCollapsedEventStore]
+  );
+  const onSetTranscriptCollapsed = useCallback(
+    (ids: Record<string, boolean>) =>
+      setCollapsedEventsStore(kTranscriptCollapseScope, ids),
+    [setCollapsedEventsStore]
+  );
+  const onSetOutlineCollapsed = useCallback(
+    (ids: Record<string, boolean>) =>
+      setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    [setCollapsedEventsStore]
+  );
+
   const collapseState = useMemo<TranscriptCollapseState>(
     () => ({
       transcript: collapsedEvents[kTranscriptCollapseScope],
       outline: collapsedEvents[kTranscriptOutlineCollapseScope],
-      onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
-        setCollapsedEventStore(kTranscriptCollapseScope, nodeId, collapsed),
-      onCollapseOutline: (nodeId: string, collapsed: boolean) =>
-        setCollapsedEventStore(
-          kTranscriptOutlineCollapseScope,
-          nodeId,
-          collapsed
-        ),
-      onSetTranscriptCollapsed: (ids: Record<string, boolean>) =>
-        setCollapsedEventsStore(kTranscriptCollapseScope, ids),
-      onSetOutlineCollapsed: (ids: Record<string, boolean>) =>
-        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+      onCollapseTranscript,
+      onCollapseOutline,
+      onSetTranscriptCollapsed,
+      onSetOutlineCollapsed,
     }),
-    [collapsedEvents, setCollapsedEventStore, setCollapsedEventsStore]
+    [
+      collapsedEvents,
+      onCollapseTranscript,
+      onCollapseOutline,
+      onSetTranscriptCollapsed,
+      onSetOutlineCollapsed,
+    ]
   );
 
   // ---------------------------------------------------------------------------
