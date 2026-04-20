@@ -43,12 +43,7 @@ export const kCollapsibleEventTypes = [
 ];
 
 /** Event types whose *content* can be collapsed (panel-level collapse). */
-export const kContentCollapsibleEventTypes: string[] = [
-  "score",
-  "score_edit",
-  "state",
-  "store",
-];
+export const kContentCollapsibleEventTypes: string[] = ["state", "store"];
 
 export type EventType =
   | SampleInitEvent

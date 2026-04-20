@@ -133,7 +133,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <ScoreEventView
           eventNode={node as EventNode<ScoreEvent>}
           className={className}
-          eventCallbacks={eventCallbacks}
         />
       );
 
@@ -142,7 +141,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <ScoreEditEventView
           eventNode={node as EventNode<ScoreEditEvent>}
           className={className}
-          eventCallbacks={eventCallbacks}
         />
       );
 
