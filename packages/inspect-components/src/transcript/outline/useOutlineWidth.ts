@@ -63,7 +63,7 @@ export function useOutlineWidth(
       header.className = [
         outlineStyles.rootHeader ?? "",
         "text-size-smaller",
-        "text-style-label",
+        "text-style-secondary",
       ].join(" ");
       header.style.overflow = "visible";
       header.style.textOverflow = "clip";

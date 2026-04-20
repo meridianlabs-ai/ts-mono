@@ -296,7 +296,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
           className={clsx(
             styles.rootHeader,
             "text-size-smaller",
-            "text-style-label"
+            "text-style-secondary"
           )}
         >
           {agentName}

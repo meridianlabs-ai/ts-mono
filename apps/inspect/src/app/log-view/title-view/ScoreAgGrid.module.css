@@ -1,0 +1,5 @@
+.gridContainer {
+  width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+}

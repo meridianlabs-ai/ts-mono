@@ -115,6 +115,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
                 label={`Attempt ${selectedIndex + 1}`}
                 items={dropdownItems}
                 className={clsx("text-size-smallest", styles.attemptDropdown)}
+                dropdownClassName="text-size-smallest"
               />
             )}
             {hasEvents && (

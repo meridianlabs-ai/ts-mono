@@ -3,15 +3,17 @@ import { FC, memo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { MarkdownReference } from "@tsmono/react/components";
+import {
+  Explanation,
+  ValidationResult,
+  Value,
+} from "@tsmono/scout-components/scanner-result-detail";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
-import { Explanation } from "../../../components/Explanation";
 import { TaskName } from "../../../components/TaskName";
-import { ValidationResult } from "../../../components/ValidationResult";
-import { Value } from "../../../components/Value";
 import { useScanRoute } from "../../../hooks/useScanRoute";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
@@ -78,7 +80,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
       {hasExplanation && (
         <div className={clsx(styles.result, "text-size-smaller")}>
           <div className={clsx(styles.explanation, "text-size-smaller")}>
-            <Explanation summary={summary} references={refs} />
+            <Explanation explanation={summary.explanation} references={refs} />
           </div>
 
           <div
@@ -117,7 +119,13 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
 
       <div className={clsx(styles.value, "text-size-smaller")}>
         {!summary.scanError && (
-          <Value summary={summary} style="inline" references={refs} />
+          <Value
+            value={summary.value}
+            valueType={summary.valueType}
+            identifier={summary.identifier}
+            style="inline"
+            references={refs}
+          />
         )}
       </div>
       {hasValidations && (

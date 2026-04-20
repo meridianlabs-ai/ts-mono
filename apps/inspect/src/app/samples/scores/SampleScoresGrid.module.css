@@ -2,12 +2,14 @@
   display: grid;
   grid-template-columns:
     minmax(0, max-content) minmax(0, auto) minmax(0, max-content)
-    auto;
+    minmax(0, 1fr);
   column-gap: 0.75em;
 }
 
 .container .cell {
   margin-bottom: 0.5em;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .fullWidth {

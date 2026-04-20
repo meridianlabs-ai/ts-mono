@@ -5,10 +5,8 @@ import {
   MarkdownReference,
 } from "@tsmono/react/components";
 
-import { ScanResultSummary } from "../types";
-
 interface ExplanationProps {
-  summary?: ScanResultSummary;
+  explanation?: string;
   references?: MarkdownReference[];
   options?: {
     previewRefsOnHover?: boolean;
@@ -16,13 +14,13 @@ interface ExplanationProps {
 }
 
 export const Explanation: FC<ExplanationProps> = ({
-  summary,
+  explanation,
   references,
   options,
 }): ReactNode => {
   return (
     <MarkdownDivWithReferences
-      markdown={summary?.explanation || ""}
+      markdown={explanation ?? ""}
       references={references}
       options={options}
     />

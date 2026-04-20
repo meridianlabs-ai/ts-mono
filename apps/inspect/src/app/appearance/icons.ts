@@ -133,6 +133,7 @@ export const ApplicationIcons = {
   samples: "bi bi-file-spreadsheet",
   sandbox: "bi bi-box-seam",
   scorer: "bi bi-calculator",
+  scoringSidebar: "bi bi-radar",
   search: "bi bi-search",
   sidebar: "bi bi-list",
   solvers: {

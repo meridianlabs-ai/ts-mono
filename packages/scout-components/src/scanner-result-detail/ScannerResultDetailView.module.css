@@ -1,0 +1,37 @@
+.container {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-self: start;
+  gap: 0.5rem;
+}
+
+.colspan {
+  grid-column: span 2;
+}
+
+.label {
+  font-size: var(--inspect-font-size-base);
+  font-weight: 600;
+  border-bottom: 1px solid var(--bs-border-color);
+  padding-bottom: 0.25em;
+  margin-bottom: 0.5em;
+}
+
+.header {
+  grid-column: span 2;
+}
+
+.values {
+  display: flex;
+}
+
+.validation {
+  margin-left: 1rem;
+  display: grid;
+  grid-template-columns: max-content max-content;
+}
+
+.validationLabel {
+  padding-right: 0.5rem;
+  margin-top: 2px;
+}

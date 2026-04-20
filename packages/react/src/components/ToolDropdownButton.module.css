@@ -1,19 +1,9 @@
-.dropdownContainer {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
 :global(.btn).toolButton {
   background-color: var(--bs-light-border-subtle);
 }
 
 :global(.btn).toolButton.bodyColor {
   background-color: var(--bs-body-bg);
-}
-
-:global(.btn-tools).toolButton {
-  border: solid 1px var(--bs-border-color);
 }
 
 .toolButton {
@@ -44,26 +34,19 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 998;
+  /* Above Bootstrap's sticky-top (1020) so sticky bars don't occlude the menu. */
+  z-index: 1049;
 }
 
 .dropdownMenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 0.25rem;
+  position: fixed;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 0.25rem;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  z-index: 999;
-  min-width: 100%;
+  /* Above Bootstrap's sticky-top (1020) so sticky bars don't occlude the menu. */
+  z-index: 1050;
   overflow: hidden;
-}
-
-.dropdownMenu.alignRight {
-  right: 0;
-  left: auto;
 }
 
 .dropdownItem {

@@ -2,12 +2,9 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { MarkdownReference, NoContentsPanel } from "@tsmono/react/components";
+import { ScannerResultDetailView } from "@tsmono/scout-components/scanner-result-detail";
 
 import { ScannerInput } from "../../../types/api-types";
-import { Explanation } from "../../components/Explanation";
-import { Metadata } from "../../components/Metadata";
-import { ValidationResult } from "../../components/ValidationResult";
-import { Value } from "../../components/Value";
 import { ScanResultData } from "../../types";
 import { useMarkdownRefs } from "../../utils/refs";
 
@@ -30,76 +27,22 @@ export const ResultSidebar: FC<ResultSidebarProps> = ({
 
   return (
     <div className={clsx(styles.sidebar)}>
-      <div className={clsx(styles.container, "text-size-small")}>
-        {resultData.label && (
-          <>
-            <div className={clsx("text-style-label", "text-style-secondary")}>
-              Label
-            </div>
-            <div>{resultData.label}</div>
-          </>
-        )}
-        <div className={clsx("text-style-label", "text-style-secondary")}>
-          Value
-        </div>
-        <div
-          className={clsx(
-            resultData.validationResult !== undefined
-              ? styles.values
-              : undefined
-          )}
-        >
-          <Value
-            summary={resultData}
-            style="block"
-            maxTableSize={1000}
-            interactive={true}
-            references={refs}
-            options={{ previewRefsOnHover: false }}
-          />
-          {resultData.validationResult !== undefined &&
-          resultData.validationResult !== null ? (
-            <div className={clsx(styles.validation)}>
-              <div
-                className={clsx(
-                  "text-style-label",
-                  "text-style-secondary",
-                  styles.validationLabel
-                )}
-              >
-                Validation
-              </div>
-              <ValidationResult
-                result={resultData.validationResult}
-                target={resultData.validationTarget}
-                label={resultData.label}
-              />
-            </div>
-          ) : undefined}
-        </div>
-        <div className={clsx(styles.colspan)}>
-          <div className={clsx("text-style-label", "text-style-secondary")}>
-            Explanation
-          </div>
-          <Explanation
-            summary={resultData}
-            references={refs}
-            options={{ previewRefsOnHover: false }}
-          />
-        </div>
-        {resultData.metadata && Object.keys(resultData.metadata).length > 0 && (
-          <div className={clsx(styles.colspan)}>
-            <div
-              className={clsx("text-style-label", "text-style-secondary")}
-            ></div>
-            <Metadata
-              metadata={resultData.metadata}
-              references={refs}
-              options={{ previewRefsOnHover: false }}
-            />
-          </div>
-        )}
-      </div>
+      <ScannerResultDetailView
+        data={{
+          identifier: resultData.identifier,
+          label: resultData.label,
+          value: resultData.value,
+          valueType: resultData.valueType,
+          answer: resultData.answer,
+          explanation: resultData.explanation,
+          metadata: resultData.metadata,
+          validationResult: resultData.validationResult,
+          validationTarget: resultData.validationTarget,
+        }}
+        references={refs}
+        interactive
+        options={{ previewRefsOnHover: false }}
+      />
     </div>
   );
 };
