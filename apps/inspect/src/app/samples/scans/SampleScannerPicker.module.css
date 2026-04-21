@@ -4,7 +4,16 @@
   gap: 0.5rem;
 }
 
-.picker > vscode-single-select {
-  flex: 1;
+.picker > .select {
+  /* Fit content rather than filling the flex container. */
+  width: auto;
   min-width: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  /* Bootstrap's default 2.25rem leaves a lot of dead space after the chevron;
+     tighten it and pull the chevron background closer to the edge. */
+  padding-right: 1.5rem;
+  background-position:
+    right 0.3rem center,
+    center right 0.3rem;
 }
