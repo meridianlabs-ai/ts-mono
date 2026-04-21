@@ -102,6 +102,21 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
         </Section>
       ) : null}
 
+      {data.explanation ? (
+        <Section
+          id="explanation"
+          heading="Explanation"
+          open={isOpen("explanation")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
+          <Explanation
+            explanation={data.explanation}
+            references={references}
+            options={options}
+          />
+        </Section>
+      ) : null}
+
       <Section
         id="value"
         heading="Value"
@@ -143,21 +158,6 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
           onToggle={setCollapsedFromOpen(setCollapsed)}
         >
           <div>{data.answer}</div>
-        </Section>
-      ) : null}
-
-      {data.explanation ? (
-        <Section
-          id="explanation"
-          heading="Explanation"
-          open={isOpen("explanation")}
-          onToggle={setCollapsedFromOpen(setCollapsed)}
-        >
-          <Explanation
-            explanation={data.explanation}
-            references={references}
-            options={options}
-          />
         </Section>
       ) : null}
 
