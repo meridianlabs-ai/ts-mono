@@ -478,6 +478,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{dir}/{id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search a transcript
+         * @description Search a transcript using grep or LLM-based search.
+         *
+         *     Returns cached results if the same search was run before.
+         */
+        post: operations["search_transcripts__dir___id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transcripts/{dir}/{id}/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List saved searches for a transcript
+         * @description List all saved searches for a transcript, newest first.
+         */
+        get: operations["list_searches_transcripts__dir___id__searches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transcripts/{dir}/{id}/searches/{search_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a saved search
+         * @description Get a single saved search by ID.
+         */
+        get: operations["get_search_transcripts__dir___id__searches__search_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved search
+         * @description Delete a saved search by ID.
+         */
+        delete: operations["delete_search_transcripts__dir___id__searches__search_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/validations": {
         parameters: {
             query?: never;
@@ -1439,6 +1505,63 @@ export interface components {
             /** Verbosity */
             verbosity?: ("low" | "medium" | "high") | null;
         };
+        /**
+         * GrepSavedSearch
+         * @description A persisted grep search result.
+         */
+        GrepSavedSearch: {
+            /** Created At */
+            created_at: string;
+            /** Ignore Case */
+            ignore_case: boolean;
+            /** Query */
+            query: string;
+            /** Regex */
+            regex: boolean;
+            /** Results */
+            results: components["schemas"]["Result"][];
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /** Word Boundary */
+            word_boundary: boolean;
+        };
+        /**
+         * GrepSearchRequest
+         * @description Request body for grep transcript searches.
+         */
+        GrepSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /**
+             * Ignore Case
+             * @default true
+             */
+            ignore_case: boolean;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Query */
+            query: string;
+            /**
+             * Regex
+             * @default false
+             */
+            regex: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /**
+             * Word Boundary
+             * @default false
+             */
+            word_boundary: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1620,6 +1743,27 @@ export interface components {
         };
         JsonValue: JsonValue;
         /**
+         * LlmSavedSearch
+         * @description A persisted LLM search result.
+         */
+        LlmSavedSearch: {
+            /** Created At */
+            created_at: string;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /** Results */
+            results: components["schemas"]["Result"][];
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+        };
+        /**
          * LlmScannerParams
          * @description Parameters for llm_scanner.
          */
@@ -1632,6 +1776,25 @@ export interface components {
             preprocessor?: components["schemas"]["MessageFormatOptions"] | null;
             /** Question */
             question: string;
+        };
+        /**
+         * LlmSearchRequest
+         * @description Request body for LLM transcript searches.
+         */
+        LlmSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
         };
         /**
          * LoggerEvent
@@ -2121,6 +2284,21 @@ export interface components {
          */
         RawEncoding: "zstd";
         /**
+         * Reference
+         * @description Reference to scanned content.
+         */
+        Reference: {
+            /** Cite */
+            cite?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "message" | "event";
+        };
+        /**
          * RenameValidationSetRequest
          * @description Request body for PUT /validations/{uri}/rename endpoint.
          */
@@ -2153,6 +2331,29 @@ export interface components {
             name: string;
             /** Strict */
             strict?: boolean | null;
+        };
+        /**
+         * Result
+         * @description Scan result.
+         */
+        Result: {
+            /** Answer */
+            answer?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Type */
+            type?: string | null;
+            /** Uuid */
+            uuid?: string | null;
+            value: components["schemas"]["JsonValue"];
         };
         /**
          * Sample
@@ -2298,6 +2499,15 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        SavedSearch: components["schemas"]["GrepSavedSearch"] | components["schemas"]["LlmSavedSearch"];
+        /**
+         * SavedSearchListResponse
+         * @description Response from the list searches endpoint.
+         */
+        SavedSearchListResponse: {
+            /** Items */
+            items: components["schemas"]["SavedSearch"][];
         };
         /**
          * ScanJobConfig
@@ -4310,6 +4520,112 @@ export interface operations {
                     /** @description Raw compressed bytes when X-Accept-Raw-Encoding header matches the source compression (e.g., zstd). Check X-Content-Encoding header for the compression format. */
                     "application/octet-stream": unknown;
                 };
+            };
+        };
+    };
+    search_transcripts__dir___id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrepSearchRequest"] | components["schemas"]["LlmSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearch"];
+                };
+            };
+        };
+    };
+    list_searches_transcripts__dir___id__searches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchListResponse"];
+                };
+            };
+        };
+    };
+    get_search_transcripts__dir___id__searches__search_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+                /** @description Search ID */
+                search_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearch"];
+                };
+            };
+        };
+    };
+    delete_search_transcripts__dir___id__searches__search_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+                /** @description Search ID */
+                search_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
