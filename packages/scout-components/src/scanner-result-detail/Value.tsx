@@ -88,7 +88,13 @@ export const Value: FC<ValueProps> = ({
     );
   } else if (isObjectValue(input)) {
     return (
-      <div title={maxTableSize < Object.keys(input.value).length ? JSON5.stringify(input.value, null, 2) : undefined}>
+      <div
+        title={
+          maxTableSize < Object.keys(input.value).length
+            ? JSON5.stringify(input.value, null, 2)
+            : undefined
+        }
+      >
         <ValueTable
           value={input.value}
           identifier={identifier}
