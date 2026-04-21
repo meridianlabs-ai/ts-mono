@@ -74,10 +74,7 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
 
           {options && Object.keys(options).length > 0 ? (
             <EventSection title={`Options`}>
-              <MetaDataGrid
-                entries={options as Record<string, unknown>}
-                options={{ plain: true }}
-              />
+              <MetaDataGrid entries={options} options={{ plain: true }} />
             </EventSection>
           ) : undefined}
         </div>

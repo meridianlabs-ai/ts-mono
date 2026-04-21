@@ -157,7 +157,7 @@ const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
     }
     return {};
   } else if (typeof content.arguments === "object") {
-    return content.arguments as Record<string, unknown>;
+    return content.arguments;
   } else if (content.arguments) {
     return { arguments: content.arguments };
   } else {

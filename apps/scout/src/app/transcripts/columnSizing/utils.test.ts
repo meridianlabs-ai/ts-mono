@@ -44,7 +44,7 @@ describe("getColumnConstraints", () => {
         size: 100,
         minSize: 50,
         maxSize: 200,
-      } as TranscriptColumn,
+      },
     ];
 
     const constraints = getColumnConstraints(columns);
@@ -61,7 +61,7 @@ describe("getColumnConstraints", () => {
       {
         accessorKey: "test",
         header: "Test",
-      } as TranscriptColumn,
+      },
     ];
 
     const constraints = getColumnConstraints(columns);
@@ -79,7 +79,7 @@ describe("getColumnConstraints", () => {
         id: "custom-id",
         header: "Test",
         size: 120,
-      } as TranscriptColumn,
+      },
     ];
 
     const constraints = getColumnConstraints(columns);
@@ -96,14 +96,14 @@ describe("getColumnConstraints", () => {
         size: 100,
         minSize: 60,
         maxSize: 200,
-      } as TranscriptColumn,
+      },
       {
         accessorKey: "col2",
         header: "Column 2",
         size: 150,
         minSize: 80,
         maxSize: 300,
-      } as TranscriptColumn,
+      },
     ];
 
     const constraints = getColumnConstraints(columns);

@@ -37,14 +37,14 @@ describe("useColumnSizing", () => {
       size: 100,
       minSize: 50,
       maxSize: 200,
-    } as TranscriptColumn,
+    },
     {
       accessorKey: "col2",
       header: "Column 2",
       size: 150,
       minSize: 80,
       maxSize: 300,
-    } as TranscriptColumn,
+    },
   ];
 
   const mockTableRef = {

@@ -18,12 +18,12 @@ describe("sizingStrategies", () => {
           accessorKey: "col1",
           header: "Column 1",
           size: 100,
-        } as TranscriptColumn,
+        },
         {
           accessorKey: "col2",
           header: "Column 2",
           size: 200,
-        } as TranscriptColumn,
+        },
       ];
 
       const sizes = strategy.computeSizes({
@@ -45,11 +45,11 @@ describe("sizingStrategies", () => {
           accessorKey: "col1",
           header: "Column 1",
           size: 100,
-        } as TranscriptColumn,
+        },
         {
           accessorKey: "col2",
           header: "Column 2",
-        } as TranscriptColumn,
+        },
       ];
 
       const sizes = strategy.computeSizes({
@@ -87,7 +87,7 @@ describe("sizingStrategies", () => {
           accessorKey: "col1",
           header: "Column 1",
           size: 100,
-        } as TranscriptColumn,
+        },
       ];
 
       const sizes = strategy.computeSizes({
@@ -107,7 +107,7 @@ describe("sizingStrategies", () => {
         {
           accessorKey: "col1",
           header: "Column 1",
-        } as TranscriptColumn,
+        },
       ];
 
       const sizes = strategy.computeSizes({

@@ -87,7 +87,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
 
   const handleThumbClick = useCallback(
     (e: MouseEvent<HTMLDivElement>) => {
-      const index = Number((e.currentTarget as HTMLDivElement).dataset.index);
+      const index = Number(e.currentTarget.dataset.index);
       openLightbox(index);
     },
     [openLightbox]

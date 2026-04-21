@@ -248,7 +248,7 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       if (!value) {
         return "-";
       }
-      const date = new Date(value as string | number);
+      const date = new Date(value);
       return date.toLocaleString();
     },
   }),
@@ -389,7 +389,7 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       if (Array.isArray(value)) {
         return printArray(value, 1000);
       } else if (typeof value === "object") {
-        return printObject(value as Record<string, unknown>, 1000);
+        return printObject(value, 1000);
       } else if (typeof value === "number") {
         return formatPrettyDecimal(value);
       } else {

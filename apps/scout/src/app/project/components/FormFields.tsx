@@ -227,6 +227,8 @@ export const KeyValueField: FC<KeyValueFieldProps> = ({
     const currentParsed = parseKeyValueLines(text);
     const valueParsed = parseKeyValueLines(configText);
     if (JSON.stringify(currentParsed) !== JSON.stringify(valueParsed)) {
+      // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(configText);
     }
     // TODO: lint react-hooks/exhaustive-deps - review this

@@ -76,7 +76,7 @@ function makeServerSpan(
     agent_result: null,
     outline: null,
     ...overrides,
-  } as ServerTimelineSpan;
+  };
 }
 
 function makeServerTimeline(root: ServerTimelineSpan): ServerTimeline {
@@ -84,7 +84,7 @@ function makeServerTimeline(root: ServerTimelineSpan): ServerTimeline {
     name: "test",
     description: "test timeline",
     root,
-  } as ServerTimeline;
+  };
 }
 
 // =============================================================================
@@ -423,7 +423,7 @@ describe("convertServerTimeline", () => {
           outline: {
             nodes: [{ event: "evt-1", children: [] }],
           },
-        } as Partial<ServerTimelineSpan> & { id: string; name: string })
+        })
       );
 
       const result = convertServerTimeline(server, events);

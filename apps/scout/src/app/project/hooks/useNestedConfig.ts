@@ -25,7 +25,7 @@ export function useNestedConfig<T extends Record<string, unknown>>(
     if (typeof configValue === "object" && configValue !== null) {
       return { ...configValue }; // Shallow copy
     }
-    return {} as Partial<T>;
+    return {};
   }, [configValue]);
 
   const setEnabled = useCallback(
@@ -81,7 +81,8 @@ export function useBatchConfig<T extends Record<string, unknown>>(
       const size =
         typeof configValue === "number"
           ? configValue
-          : (existingConfig as Record<string, unknown>).size;
+          : // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- rule false positive: `existingConfig` collapses to `{}` on the else branch; assertion is load-bearing
+            (existingConfig as Record<string, unknown>).size;
       updateParent({
         ...(size !== undefined ? { size } : {}),
         ...existingConfig,

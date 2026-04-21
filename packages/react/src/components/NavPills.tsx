@@ -85,7 +85,7 @@ const NavPill: FC<NavPillProps> = ({
   const active = activeItem === title;
   const handleClick = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
-      const target = (e.currentTarget as HTMLButtonElement).dataset.target;
+      const target = e.currentTarget.dataset.target;
       if (target) {
         setActiveItem(target);
       }
