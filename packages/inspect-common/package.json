@@ -24,7 +24,7 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
-    "eslint": "^9.39.2",
+    "eslint": "^10.1.0",
     "openapi-typescript": "^7.10.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0",
