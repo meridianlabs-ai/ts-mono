@@ -1,9 +1,5 @@
-import {
-  VscodeOption,
-  VscodeSingleSelect,
-} from "@vscode-elements/react-elements";
 import clsx from "clsx";
-import { FC, useCallback } from "react";
+import { ChangeEvent, FC, useCallback } from "react";
 
 import styles from "./SampleScannerPicker.module.css";
 
@@ -19,10 +15,7 @@ export const SampleScannerPicker: FC<SampleScannerPickerProps> = ({
   onChange,
 }) => {
   const handleChange = useCallback(
-    (e: Event) => {
-      const value = (e.target as { value?: string } | null)?.value;
-      if (typeof value === "string") onChange(value);
-    },
+    (e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value),
     [onChange]
   );
 
@@ -31,13 +24,23 @@ export const SampleScannerPicker: FC<SampleScannerPickerProps> = ({
       <span className={clsx("text-size-smaller", "text-style-secondary")}>
         scanner:
       </span>
-      <VscodeSingleSelect value={selected} onChange={handleChange}>
+      <select
+        className={clsx(
+          "form-select",
+          "form-select-sm",
+          "text-size-smaller",
+          styles.select
+        )}
+        aria-label="Select scanner"
+        value={selected}
+        onChange={handleChange}
+      >
         {scanners.map((scanner) => (
-          <VscodeOption key={scanner} value={scanner}>
+          <option key={scanner} value={scanner}>
             {scanner}
-          </VscodeOption>
+          </option>
         ))}
-      </VscodeSingleSelect>
+      </select>
     </div>
   );
 };

@@ -1,7 +1,9 @@
+import { VscodeCollapsible } from "@vscode-elements/react-elements";
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useCallback } from "react";
 
 import { MarkdownReference } from "@tsmono/react/components";
+import { useCollapsibleIds } from "@tsmono/react/hooks";
 
 import { Explanation } from "./Explanation";
 import { Metadata } from "./Metadata";
@@ -20,6 +22,56 @@ interface ScannerResultDetailViewProps {
   };
 }
 
+type SectionId =
+  | "label"
+  | "value"
+  | "validation"
+  | "answer"
+  | "explanation"
+  | "metadata";
+
+const kCollapseScope = "scanner-result-sections";
+
+interface SectionProps {
+  id: SectionId;
+  heading: string;
+  open: boolean;
+  onToggle: (id: SectionId, open: boolean) => void;
+  children: ReactNode;
+}
+
+const Section: FC<SectionProps> = ({
+  id,
+  heading,
+  open,
+  onToggle,
+  children,
+}) => {
+  const attachToggleListener = useCallback(
+    (el: HTMLElement | null) => {
+      if (!el) return;
+      const handler = (e: Event) => {
+        const detail = (e as CustomEvent<{ open: boolean }>).detail;
+        onToggle(id, detail.open);
+      };
+      el.addEventListener("vsc-collapsible-toggle", handler);
+      return () => el.removeEventListener("vsc-collapsible-toggle", handler);
+    },
+    [id, onToggle]
+  );
+
+  return (
+    <VscodeCollapsible
+      ref={attachToggleListener}
+      heading={heading}
+      open={open}
+      className={styles.section}
+    >
+      {children}
+    </VscodeCollapsible>
+  );
+};
+
 export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
   data,
   references,
@@ -31,94 +83,105 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
     data.validationResult !== undefined && data.validationResult !== null;
   const hasMetadata =
     data.metadata !== undefined && Object.keys(data.metadata).length > 0;
-  const valueStacked =
-    data.valueType === "object" || data.valueType === "array";
 
-  const valueNode = (
-    <Value
-      value={data.value}
-      valueType={data.valueType}
-      identifier={data.identifier}
-      style="block"
-      maxTableSize={1000}
-      interactive={interactive}
-      references={references}
-      options={options}
-    />
-  );
-
-  const validationNode = hasValidation ? (
-    <div className={clsx(styles.validation)}>
-      <div className={clsx(styles.label, styles.validationLabel)}>
-        Validation
-      </div>
-      <ValidationResult
-        result={data.validationResult!}
-        target={data.validationTarget}
-        label={data.label}
-      />
-    </div>
-  ) : null;
+  const [collapsedIds, setCollapsed] = useCollapsibleIds(kCollapseScope);
+  const isOpen = (id: SectionId) => !collapsedIds[id];
 
   return (
     <div className={clsx(styles.container, "text-size-small")}>
       {header ? <div className={styles.header}>{header}</div> : null}
 
-      {data.label ? (
-        <>
-          <div className={clsx(styles.label)}>Label</div>
-          <div>{data.label}</div>
-        </>
-      ) : null}
-
-      {valueStacked ? (
-        <div className={clsx(styles.colspan)}>
-          <div className={clsx(styles.label)}>Value</div>
-          <div className={clsx(hasValidation ? styles.values : undefined)}>
-            {valueNode}
-            {validationNode}
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={clsx(styles.label)}>Value</div>
-          <div className={clsx(hasValidation ? styles.values : undefined)}>
-            {valueNode}
-            {validationNode}
-          </div>
-        </>
-      )}
-
-      {data.answer ? (
-        <>
-          <div className={clsx(styles.label)}>Answer</div>
-          <div>{data.answer}</div>
-        </>
-      ) : null}
-
       {data.explanation ? (
-        <div className={clsx(styles.colspan)}>
-          <div className={clsx(styles.label)}>Explanation</div>
+        <Section
+          id="explanation"
+          heading="Explanation"
+          open={isOpen("explanation")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
           <Explanation
             explanation={data.explanation}
             references={references}
             options={options}
           />
-        </div>
+        </Section>
+      ) : null}
+
+      {data.label ? (
+        <Section
+          id="label"
+          heading="Label"
+          open={isOpen("label")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
+          <div>{data.label}</div>
+        </Section>
+      ) : null}
+
+      <Section
+        id="value"
+        heading="Value"
+        open={isOpen("value")}
+        onToggle={setCollapsedFromOpen(setCollapsed)}
+      >
+        <Value
+          value={data.value}
+          valueType={data.valueType}
+          identifier={data.identifier}
+          style="block"
+          maxTableSize={1000}
+          interactive={interactive}
+          references={references}
+          options={options}
+        />
+      </Section>
+
+      {hasValidation ? (
+        <Section
+          id="validation"
+          heading="Validation"
+          open={isOpen("validation")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
+          <ValidationResult
+            result={data.validationResult!}
+            target={data.validationTarget}
+            label={data.label}
+          />
+        </Section>
+      ) : null}
+
+      {data.answer ? (
+        <Section
+          id="answer"
+          heading="Answer"
+          open={isOpen("answer")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
+          <div>{data.answer}</div>
+        </Section>
       ) : null}
 
       {hasMetadata ? (
-        <div className={clsx(styles.colspan)}>
-          <div
-            className={clsx("text-style-label", "text-style-secondary")}
-          ></div>
+        <Section
+          id="metadata"
+          heading="Metadata"
+          open={isOpen("metadata")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
           <Metadata
             metadata={data.metadata!}
             references={references}
             options={options}
           />
-        </div>
+        </Section>
       ) : null}
     </div>
   );
 };
+
+// Adapts useCollapsibleIds' (id, collapsed) setter to the Section's
+// (id, open) callback — collapsed is the negation of open.
+const setCollapsedFromOpen =
+  (setCollapsed: (id: string, collapsed: boolean) => void) =>
+  (id: SectionId, open: boolean) =>
+    setCollapsed(id, !open);
