@@ -91,17 +91,6 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
     <div className={clsx(styles.container, "text-size-small")}>
       {header ? <div className={styles.header}>{header}</div> : null}
 
-      {data.label ? (
-        <Section
-          id="label"
-          heading="Label"
-          open={isOpen("label")}
-          onToggle={setCollapsedFromOpen(setCollapsed)}
-        >
-          <div>{data.label}</div>
-        </Section>
-      ) : null}
-
       {data.explanation ? (
         <Section
           id="explanation"
@@ -114,6 +103,17 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
             references={references}
             options={options}
           />
+        </Section>
+      ) : null}
+
+      {data.label ? (
+        <Section
+          id="label"
+          heading="Label"
+          open={isOpen("label")}
+          onToggle={setCollapsedFromOpen(setCollapsed)}
+        >
+          <div>{data.label}</div>
         </Section>
       ) : null}
 
