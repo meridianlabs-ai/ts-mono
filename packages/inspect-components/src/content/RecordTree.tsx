@@ -91,7 +91,13 @@ export const RecordTree: FC<RecordTreeProps> = ({
 
     const defaultCollapsedIds = items.reduce(
       (prev, item) => {
-        if (item.depth >= defaultExpandLevel && item.hasChildren) {
+        if (!item.hasChildren) {
+          return prev;
+        }
+        if (
+          item.depth >= defaultExpandLevel ||
+          (item.childCount !== undefined && item.childCount > 5)
+        ) {
           prev[item.id] = true;
         }
         return prev;
@@ -281,6 +287,7 @@ interface MetadataItem {
   value: string | number | boolean | null;
   depth: number;
   hasChildren: boolean;
+  childCount?: number;
 }
 
 export const toTreeItems = (
@@ -346,12 +353,15 @@ const processNodeRecursive = (
   // For non-primitives (objects, arrays, functions, etc.)
   let displayValue: string | number | boolean | null = null;
   let processChildren = false;
+  let childCount: number | undefined;
 
   if (Array.isArray(value)) {
     processChildren = true;
+    childCount = value.length;
     displayValue = `Array(${value.length})`;
   } else if (typeof value === "object" && value !== null) {
     processChildren = true;
+    childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;
   } else {
     // Other types like functions, symbols. These are treated as leaf nodes.
@@ -360,7 +370,14 @@ const processNodeRecursive = (
   }
 
   // Add the item
-  items.push({ id, key, value: displayValue, depth, hasChildren: true });
+  items.push({
+    id,
+    key,
+    value: displayValue,
+    depth,
+    hasChildren: true,
+    childCount,
+  });
 
   // Process children
   if (processChildren && !collapsedIds[id]) {
