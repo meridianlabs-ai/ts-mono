@@ -2,3 +2,18 @@
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--bs-body-bg);
+  /* Pull up/out to cover the .rightPane scroll-container padding so scrolling
+     content doesn't peek through above or beside the pinned header. */
+  margin: -0.2rem -0.5rem 0.5rem;
+  padding: 0 0.4rem 0.5rem 0.5rem;
+}
+
+.singleScanner {
+  color: var(--bs-secondary);
+}
