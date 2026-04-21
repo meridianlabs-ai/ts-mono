@@ -254,6 +254,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
   return (
     <Virtuoso
       ref={listHandle}
+      // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to state-backed element prop)
       customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}

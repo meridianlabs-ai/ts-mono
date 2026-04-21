@@ -64,7 +64,7 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
   const collapsedMessages = resolvedMessages
     .map((resolved) => {
       if (resolved.message.role === "system") {
-        systemMessages.push(resolved.message as ChatMessageSystem);
+        systemMessages.push(resolved.message);
       }
       return resolved;
     })

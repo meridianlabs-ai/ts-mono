@@ -40,7 +40,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
     }
     const remaining = wait - (now - previous);
 
-    args = callArgs as unknown as Parameters<T>;
+    args = callArgs;
 
     if (remaining <= 0 || remaining > wait) {
       if (timeout) {

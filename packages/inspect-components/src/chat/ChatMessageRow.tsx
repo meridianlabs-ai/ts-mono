@@ -145,10 +145,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             output={resolvedToolOutput}
             view={
               tool_call.view
-                ? substituteToolCallContent(
-                    tool_call.view,
-                    tool_call.arguments as Record<string, unknown>
-                  )
+                ? substituteToolCallContent(tool_call.view, tool_call.arguments)
                 : undefined
             }
             getCustomToolView={getCustomToolView}
@@ -262,12 +259,12 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
                 citations: null,
               },
             ],
-          } as ContentTool;
+          } satisfies ContentTool;
         } else if (con.type !== "tool_use") {
           return {
             content: [con],
             type: "tool",
-          } as ContentTool;
+          } satisfies ContentTool;
         }
       })
       .filter((con) => con !== undefined);

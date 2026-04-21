@@ -28,16 +28,20 @@
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@types/css-modules": "^1.0.5",
     "@types/json5": "^2.2.0",
     "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.2",
+    "jsdom": "^29.0.2",
     "json5": "^2.2.3",
     "react": "^19.2.5",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.2",
+    "react-dom": "^19.2.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.0",
     "vitest": "^4.1.4"
   }
 }

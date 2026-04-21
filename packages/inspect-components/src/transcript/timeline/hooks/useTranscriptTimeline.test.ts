@@ -53,7 +53,7 @@ function makeModelEvent(uuid: string, startSec: number, endSec: number): Event {
 }
 
 function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid } as ServerTimelineEvent;
+  return { type: "event", event: uuid };
 }
 
 function makeServerSpan(
@@ -70,7 +70,7 @@ function makeServerSpan(
     agent_result: null,
     outline: null,
     ...overrides,
-  } as ServerTimelineSpan;
+  };
 }
 
 // =============================================================================

@@ -63,6 +63,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Stable ref for setIsOpen to avoid re-running effects when the callback identity changes
   const setIsOpenRef = useRef(setIsOpen);
+  // eslint-disable-next-line react-hooks/refs -- latest-callback ref pattern; rule doesn't model this
   setIsOpenRef.current = setIsOpen;
 
   // Setup hover timer and mouse movement detection
@@ -117,6 +118,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
 
     if (!isOpen || hoverDelay <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- conditional sync of external prop, not cascading
       setShouldShowPopover(isOpen);
 
       // Track whether mousedown originated inside popover content.
@@ -201,6 +203,7 @@ export const PopOver: React.FC<PopOverProps> = ({
         document.body.appendChild(container);
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React with externally-created DOM node
       setPortalContainer(container);
 
       return () => {
@@ -223,6 +226,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       name: "arrow",
       enabled: showArrow,
       options: {
+        // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
         element: arrowRef.current,
         padding: 5, // This keeps the arrow from getting too close to the corner
       },
@@ -249,6 +253,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     attributes,
     state,
     update,
+    // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
   } = usePopper(positionEl, popperRef.current, {
     placement,
     strategy: "fixed",
@@ -264,7 +269,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       }, 10);
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- arrowRef.current is a mutable ref read
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs -- arrowRef.current mutable read; see meridianlabs-ai/ts-mono#90
   }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself

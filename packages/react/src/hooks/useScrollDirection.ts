@@ -88,7 +88,7 @@ export function useScrollDirection(
     () => asArray(scrollRef),
     // Array identity changes each render unless the caller memoizes — treat
     // the joined length + identity of the first ref as the stable key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo -- non-literal dep list is intentional (stable key)
     Array.isArray(scrollRef) ? scrollRef : [scrollRef]
   );
 
@@ -121,6 +121,7 @@ export function useScrollDirection(
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/refs -- refArray is an array of ref objects, not .current reads; false positive (facebook/react#34775)
   }, [refArray]);
 
   // Reset hidden state when the primary scroll element changes.

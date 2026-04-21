@@ -219,7 +219,7 @@ function asJsonRpcRequest(data: unknown): JsonRpcRequest | null {
 function asJsonRpcResponse(data: unknown): JsonRpcResponse | null {
   const message = asJsonRpcMessage(data);
   if (message) {
-    return message as JsonRpcResponse;
+    return message;
   }
   return null;
 }

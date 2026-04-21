@@ -13,7 +13,7 @@ const highlightCodeBlocks = (container: HTMLElement) => {
     }
     if (block.className.includes("language-")) {
       block.classList.add("sourceCode");
-      highlightElement(block as HTMLElement);
+      highlightElement(block);
       block.setAttribute("data-highlighted", "true");
     }
   });

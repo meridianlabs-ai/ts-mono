@@ -58,39 +58,42 @@ const MetadataValue: FC<MetadataValueProps> = ({
   references,
   options,
 }) => {
-  if (typeof value === "string") {
-    return (
-      <MarkdownDivWithReferences
-        markdown={value}
-        references={references}
-        options={options}
-      />
-    );
+  switch (typeof value) {
+    case "string":
+      return (
+        <MarkdownDivWithReferences
+          markdown={value}
+          references={references}
+          options={options}
+        />
+      );
+    case "object": {
+      if (value === null) {
+        return <code>null</code>;
+      }
+      if (Array.isArray(value)) {
+        const record: Record<string, unknown> = {};
+        value.forEach((item, i) => {
+          record[`[${i}]`] = item;
+        });
+        return (
+          <RecordTree
+            id={`metadata-${id}`}
+            record={record}
+            useBorders={false}
+          />
+        );
+      }
+      return (
+        <RecordTree
+          id={`metadata-${id}`}
+          record={value as Record<string, unknown>}
+          useBorders={false}
+        />
+      );
+    }
+    // At this point value is a primitive (number, boolean, undefined, bigint, symbol).
+    default:
+      return <span>{String(value)}</span>;
   }
-
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    return (
-      <RecordTree
-        id={`metadata-${id}`}
-        record={value as Record<string, unknown>}
-        useBorders={false}
-      />
-    );
-  }
-
-  if (Array.isArray(value)) {
-    const record: Record<string, unknown> = {};
-    value.forEach((item, i) => {
-      record[`[${i}]`] = item;
-    });
-    return (
-      <RecordTree id={`metadata-${id}`} record={record} useBorders={false} />
-    );
-  }
-
-  if (value === null) {
-    return <code>null</code>;
-  }
-  // At this point value is a primitive (number, boolean, undefined, bigint, symbol).
-  return <span>{String(value as number | boolean)}</span>;
 };

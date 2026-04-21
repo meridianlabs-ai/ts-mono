@@ -77,7 +77,6 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       }
 
       // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: show sanitized placeholder synchronously before async render
       setRenderedHtml(sanitizeMarkdown(markdown));
 
       // Process markdown asynchronously using the queue
