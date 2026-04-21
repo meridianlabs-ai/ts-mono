@@ -67,7 +67,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.2",
