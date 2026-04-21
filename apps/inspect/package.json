@@ -71,7 +71,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.2",
-    "globals": "^15.6.0",
+    "globals": "^17.5.0",
     "msw": "^2.13.4",
     "picocolors": "^1.1.1",
     "postcss": "^8.5.10",
