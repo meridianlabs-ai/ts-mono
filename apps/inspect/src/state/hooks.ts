@@ -545,60 +545,80 @@ const simplifiedStatusForDeduplication = (status: EvalLogStatus | undefined) =>
   status === "started" || status === "success" ? status : "_other_";
 
 export type LogHandleWithretried = LogHandle & { retried?: boolean };
+
+type LogPreviewStatusMap = Record<
+  string,
+  { status?: EvalLogStatus } | undefined
+>;
+
+/**
+ * Pure dedup logic for {@link useLogsWithretried}.
+ *
+ * Groups logs by (parent directory, task_id) so that logs sharing a task_id
+ * across different folders (e.g. copied log directories under a shared parent)
+ * are not treated as retries of each other. Within each group, the "best"
+ * log wins (started > success > other, ties broken by newest mtime) and is
+ * marked `retried: false`; the rest are marked `retried: true`.
+ */
+export const computeLogsWithRetried = (
+  logs: LogHandle[],
+  logPreviews: LogPreviewStatusMap
+): LogHandleWithretried[] => {
+  const logsByGroup = logs.reduce(
+    (acc: Record<string, LogHandleWithretried[]>, log) => {
+      const taskId = log.task_id;
+      if (taskId) {
+        const slash = log.name.lastIndexOf("/");
+        const parent = slash >= 0 ? log.name.substring(0, slash) : "";
+        const key = `${parent}|${taskId}`;
+        if (!(key in acc)) acc[key] = [];
+        acc[key].push(log);
+      }
+      return acc;
+    },
+    {}
+  );
+  // For each group, select the best item (prefer running/complete over error)
+  // Sort by status priority: started > success > error, cancelled, or missing if logPreview is not loaded
+  // If same priority, take the latest one
+  const bestByName: Record<string, LogHandleWithretried> = {};
+  for (const items of Object.values(logsByGroup)) {
+    items.sort((a, b) => {
+      const as = simplifiedStatusForDeduplication(logPreviews[a.name]?.status);
+      const bs = simplifiedStatusForDeduplication(logPreviews[b.name]?.status);
+      const am = a.mtime ?? 0;
+      const bm = b.mtime ?? 0;
+
+      if (as === bs) return bm - am; // newest on top
+      if (as === "started") return -1;
+      if (bs === "started") return 1;
+      if (as === "success") return -1;
+      if (bs === "success") return 1;
+
+      console.warn(`Unexpected status combination: ${as}, ${bs}`, a, b);
+      return 0;
+    });
+    const { name } = items[0];
+    bestByName[name] = { ...items[0], retried: false };
+  }
+
+  // Rebuild logs maintaining order, marking duplicates as skippable
+  return logs.map(
+    (log) =>
+      bestByName[log.name] ?? {
+        ...log,
+        // task_id is optional for backward compatibility, only new logs files can be skippable
+        retried: log.task_id ? true : undefined,
+      }
+  );
+};
+
 export const useLogsWithretried = (): LogHandleWithretried[] => {
   const logs = useStore((state) => state.logs.logs);
   const logPreviews = useStore((state) => state.logs.logPreviews);
 
-  const logsWithEvalSetRetry = useMemo(() => {
-    const logsByTaskId = logs.reduce(
-      (acc: Record<string, LogHandleWithretried[]>, log) => {
-        const taskId = log.task_id;
-        if (taskId) {
-          if (!(taskId in acc)) acc[taskId] = [];
-          acc[taskId].push(log);
-        }
-        return acc;
-      },
-      {}
-    );
-    // For each task_id, select the best item (prefer running/complete over error)
-    // Sort by status priority: started > success > error, cancelled, or missing if logPreview is not loaded
-    // If same priority, take the latest one
-    const bestByName: Record<string, LogHandleWithretried> = {};
-    for (const items of Object.values(logsByTaskId)) {
-      items.sort((a, b) => {
-        const as = simplifiedStatusForDeduplication(
-          logPreviews[a.name]?.status
-        );
-        const bs = simplifiedStatusForDeduplication(
-          logPreviews[b.name]?.status
-        );
-        const am = a.mtime ?? 0;
-        const bm = b.mtime ?? 0;
-
-        if (as === bs) return bm - am; // newest on top
-        if (as === "started") return -1;
-        if (bs === "started") return 1;
-        if (as === "success") return -1;
-        if (bs === "success") return 1;
-
-        console.warn(`Unexpected status combination: ${as}, ${bs}`, a, b);
-        return 0;
-      });
-      const { name } = items[0];
-      bestByName[name] = { ...items[0], retried: false };
-    }
-
-    // Rebuild logs maintaining order, marking duplicates as skippable
-    return logs.map(
-      (log) =>
-        bestByName[log.name] ?? {
-          ...log,
-          // task_id is optional for backward compatibility, only new logs files can be skippable
-          retried: log.task_id ? true : undefined,
-        }
-    );
-  }, [logs, logPreviews]);
-
-  return logsWithEvalSetRetry;
+  return useMemo(
+    () => computeLogsWithRetried(logs, logPreviews),
+    [logs, logPreviews]
+  );
 };
