@@ -15,14 +15,20 @@ interface MetadataProps {
   options?: {
     previewRefsOnHover?: boolean;
   };
+  /** Keys to omit from the rendered metadata dump (promoted + directly excluded). */
+  excludeKeys?: readonly string[];
 }
 
 export const Metadata: FC<MetadataProps> = ({
   metadata,
   references,
   options,
+  excludeKeys,
 }) => {
-  const entries = Object.entries(metadata);
+  const excluded = excludeKeys ? new Set(excludeKeys) : null;
+  const entries = Object.entries(metadata).filter(
+    ([key]) => !excluded?.has(key)
+  );
   if (entries.length === 0) {
     return null;
   }
@@ -52,7 +58,7 @@ interface MetadataValueProps {
   };
 }
 
-const MetadataValue: FC<MetadataValueProps> = ({
+export const MetadataValue: FC<MetadataValueProps> = ({
   id,
   value,
   references,
