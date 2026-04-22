@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { ReactNode, useCallback } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
@@ -65,12 +65,14 @@ export function findEventForMessage(
 
 export function buildScoreMarkdownRefs(
   metadata: Metadata,
-  makeUrl: (id: string, type: ScannerRefType) => string | undefined
+  makeUrl: (id: string, type: ScannerRefType) => string | undefined,
+  previewTable?: Record<string, () => ReactNode>
 ): MarkdownReference[] {
   return readScannerReferences(metadata).map((ref) => ({
     id: ref.id,
     cite: ref.cite,
     citeUrl: makeUrl(ref.id, ref.type),
+    citePreview: previewTable?.[ref.id],
   }));
 }
 

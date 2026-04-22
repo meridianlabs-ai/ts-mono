@@ -431,6 +431,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
               content: (
                 <SampleScansSidebar
                   scores={scores}
+                  events={events}
                   makeCiteUrl={makeCiteUrl}
                   selected={selectedScanner}
                   onSelectedChange={setSelectedScanner}
