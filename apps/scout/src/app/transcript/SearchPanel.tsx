@@ -329,7 +329,21 @@ export const SearchPanel = ({
           {!loading &&
             currentSearch !== null &&
             currentSearch.results.length > 0 && (
-              <div className={styles.sectionHeader}>Results</div>
+              <div className={styles.sectionHeader}>
+                <span>Results</span>
+                {(() => {
+                  const total = currentSearch.results.reduce(
+                    (sum, r) =>
+                      typeof r.value === "number" ? sum + r.value : sum,
+                    0
+                  );
+                  return total > 0 ? (
+                    <span className={styles.matchCount}>
+                      {total} {total === 1 ? "match" : "matches"}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
             )}
           {currentSearch?.results.map((result, index) => (
             <SearchResult
@@ -459,17 +473,9 @@ const SearchResult: FC<{
     return refs;
   }, [result.references, getFullMessageUrl, getFullEventUrl]);
 
-  const matchCount =
-    typeof result.value === "number" ? result.value : undefined;
-
   // TODO: could try ResultPanel, maybe doesn't fit our needs
   return (
     <div className={styles.resultCard}>
-      {matchCount !== undefined && (
-        <div className={styles.matchCount}>
-          {matchCount} {matchCount === 1 ? "match" : "matches"}
-        </div>
-      )}
       {result.explanation && (
         <MarkdownDivWithReferences
           markdown={result.explanation}
