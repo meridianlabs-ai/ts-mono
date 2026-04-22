@@ -15,7 +15,7 @@ import {
   SegmentedControl,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../components/icons";
+import { ApplicationIcons } from "../../icons";
 import { Result, SavedSearch } from "../../types/api-types";
 import { Chip } from "../components/Chip";
 import { ChipGroup } from "../components/ChipGroup";
