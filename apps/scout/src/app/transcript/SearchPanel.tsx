@@ -309,50 +309,14 @@ export const SearchPanel = ({
           </div>
         </form>
         <div className={styles.results}>
-          {loading && <div className={styles.emptyState}>Searching…</div>}
-          {!loading && createSearchMutation.isError && (
-            <div className={styles.emptyState}>Search failed. Try again.</div>
-          )}
-          {!loading &&
-            !createSearchMutation.isError &&
-            hasSearched &&
-            currentSearch === null && (
-              <div className={styles.emptyState}>No results found</div>
-            )}
-          {!loading &&
-            !createSearchMutation.isError &&
-            hasSearched &&
-            currentSearch !== null &&
-            currentSearch.results.length === 0 && (
-              <div className={styles.emptyState}>No results found</div>
-            )}
-          {!loading &&
-            currentSearch !== null &&
-            currentSearch.results.length > 0 && (
-              <div className={styles.sectionHeader}>
-                <span>Results</span>
-                {(() => {
-                  const total = currentSearch.results.reduce(
-                    (sum, r) =>
-                      typeof r.value === "number" ? sum + r.value : sum,
-                    0
-                  );
-                  return total > 0 ? (
-                    <span className={styles.matchCount}>
-                      {total} {total === 1 ? "match" : "matches"}
-                    </span>
-                  ) : null;
-                })()}
-              </div>
-            )}
-          {currentSearch?.results.map((result, index) => (
-            <SearchResult
-              key={result.uuid ?? index}
-              result={result}
-              getFullMessageUrl={getFullMessageUrl}
-              getFullEventUrl={getFullEventUrl}
-            />
-          ))}
+          <SearchResults
+            loading={loading}
+            isError={createSearchMutation.isError}
+            hasSearched={hasSearched}
+            currentSearch={currentSearch}
+            getFullMessageUrl={getFullMessageUrl}
+            getFullEventUrl={getFullEventUrl}
+          />
         </div>
       </div>
       <PopOver
@@ -444,6 +408,61 @@ const RecentSearches: FC<{
         </li>
       ))}
     </ul>
+  );
+};
+
+const SearchResults: FC<{
+  loading: boolean;
+  isError: boolean;
+  hasSearched: boolean;
+  currentSearch: SavedSearch | null;
+  getFullMessageUrl: (id: string) => string | undefined;
+  getFullEventUrl: (id: string) => string | undefined;
+}> = ({
+  loading,
+  isError,
+  hasSearched,
+  currentSearch,
+  getFullMessageUrl,
+  getFullEventUrl,
+}) => {
+  if (loading) {
+    return <div className={styles.emptyState}>Searching…</div>;
+  }
+  if (isError) {
+    return <div className={styles.emptyState}>Search failed. Try again.</div>;
+  }
+  if (!hasSearched) {
+    return null;
+  }
+  if (currentSearch === null || currentSearch.results.length === 0) {
+    return <div className={styles.emptyState}>No results found</div>;
+  }
+
+  const total = currentSearch.results.reduce(
+    (sum, r) => (typeof r.value === "number" ? sum + r.value : sum),
+    0
+  );
+
+  return (
+    <>
+      <div className={styles.sectionHeader}>
+        <span>Results</span>
+        {total > 0 && (
+          <span className={styles.matchCount}>
+            {total} {total === 1 ? "match" : "matches"}
+          </span>
+        )}
+      </div>
+      {currentSearch.results.map((result, index) => (
+        <SearchResult
+          key={result.uuid ?? index}
+          result={result}
+          getFullMessageUrl={getFullMessageUrl}
+          getFullEventUrl={getFullEventUrl}
+        />
+      ))}
+    </>
   );
 };
 
