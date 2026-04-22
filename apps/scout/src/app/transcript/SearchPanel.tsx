@@ -5,9 +5,12 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   MarkdownDivWithReferences,
@@ -17,8 +20,6 @@ import {
 
 import { ApplicationIcons } from "../../icons";
 import { Result, SavedSearch } from "../../types/api-types";
-import { Chip } from "../components/Chip";
-import { ChipGroup } from "../components/ChipGroup";
 import { useProjectConfig } from "../server/useProjectConfig";
 import { useCreateSearch, useSearches } from "../server/useSearches";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
@@ -32,12 +33,9 @@ import type {
   TranscriptSearchScope,
 } from "./searchRequest";
 
-type PanelView = "results" | "recent";
-
 type SearchPanelState = {
   query: string;
   searchType: SearchType;
-  panelView: PanelView;
   hasSearched: boolean;
   currentSearch: SavedSearch | null;
   grepOptions: GrepOptions;
@@ -47,7 +45,6 @@ type SearchPanelState = {
 const initialState: SearchPanelState = {
   query: "",
   searchType: "llm",
-  panelView: "results",
   hasSearched: false,
   currentSearch: null,
   grepOptions: {
@@ -90,15 +87,44 @@ export const SearchPanel = ({
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
   const [state, setState] = useState<SearchPanelState>(initialState);
-  const {
-    query,
-    searchType,
-    panelView,
-    hasSearched,
-    currentSearch,
-    grepOptions,
-    model,
-  } = state;
+  const { query, searchType, hasSearched, currentSearch, grepOptions, model } =
+    state;
+
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
+  const recentButtonRef = useRef<HTMLButtonElement>(null);
+  const recentPopupRef = useRef<HTMLDivElement>(null);
+  const [recentPosition, setRecentPosition] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isRecentOpen || !recentButtonRef.current) return;
+    const rect = recentButtonRef.current.getBoundingClientRect();
+    setRecentPosition({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [isRecentOpen]);
+
+  useEffect(() => {
+    if (!isRecentOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (recentButtonRef.current?.contains(target)) return;
+      if (recentPopupRef.current?.contains(target)) return;
+      setIsRecentOpen(false);
+    };
+    const handleKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setIsRecentOpen(false);
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isRecentOpen]);
 
   const loading = createSearchMutation.isPending;
 
@@ -111,7 +137,6 @@ export const SearchPanel = ({
       setState((prev) => ({
         ...prev,
         hasSearched: true,
-        panelView: "results",
         currentSearch: null,
       }));
       createSearchMutation.reset();
@@ -152,6 +177,7 @@ export const SearchPanel = ({
   const handleSelectRecent = useCallback(
     (search: SavedSearch) => {
       createSearchMutation.reset();
+      setIsRecentOpen(false);
       setState((prev) => {
         const next: SearchPanelState = {
           ...prev,
@@ -159,7 +185,6 @@ export const SearchPanel = ({
           hasSearched: true,
           query: search.query,
           searchType: search.type,
-          panelView: "results",
         };
         if (search.type === "llm") {
           next.model = search.model ?? "";
@@ -196,9 +221,6 @@ export const SearchPanel = ({
     setState((prev) => ({ ...prev, query: getInputValue(e) }));
   }, []);
 
-  const showResults = panelView === "results";
-  const showRecentSearches = panelView === "recent";
-
   return (
     <div className={styles.container}>
       <SidebarHeader
@@ -223,16 +245,16 @@ export const SearchPanel = ({
             </div>
             <div className={styles.topActions}>
               <button
+                ref={recentButtonRef}
                 type="button"
                 className={clsx(
                   styles.iconAction,
-                  showRecentSearches && styles.iconActionActive
+                  isRecentOpen && styles.iconActionActive
                 )}
-                onClick={() =>
-                  setState((prev) => ({ ...prev, panelView: "recent" }))
-                }
+                onClick={() => setIsRecentOpen((prev) => !prev)}
                 title="Recent searches"
                 aria-label="Recent searches"
+                aria-expanded={isRecentOpen}
               >
                 <i className={ApplicationIcons.history} aria-hidden="true" />
               </button>
@@ -321,52 +343,57 @@ export const SearchPanel = ({
           </div>
         </form>
         <div className={styles.results}>
-          {showResults && loading && (
-            <div className={styles.emptyState}>Searching…</div>
-          )}
-          {showResults && !loading && createSearchMutation.isError && (
+          {loading && <div className={styles.emptyState}>Searching…</div>}
+          {!loading && createSearchMutation.isError && (
             <div className={styles.emptyState}>Search failed. Try again.</div>
           )}
-          {showResults &&
-            !loading &&
+          {!loading &&
             !createSearchMutation.isError &&
             hasSearched &&
             currentSearch === null && (
               <div className={styles.emptyState}>No results found</div>
             )}
-          {showResults &&
-            !loading &&
+          {!loading &&
             !createSearchMutation.isError &&
             hasSearched &&
             currentSearch !== null &&
             currentSearch.results.length === 0 && (
               <div className={styles.emptyState}>No results found</div>
             )}
-          {showResults &&
-            !loading &&
+          {!loading &&
             currentSearch !== null &&
             currentSearch.results.length > 0 && (
               <div className={styles.sectionHeader}>Results</div>
             )}
-          {showResults &&
-            currentSearch?.results.map((result, index) => (
-              <SearchResult
-                key={result.uuid ?? index}
-                result={result}
-                getFullMessageUrl={getFullMessageUrl}
-                getFullEventUrl={getFullEventUrl}
-              />
-            ))}
-          {showRecentSearches && (
+          {currentSearch?.results.map((result, index) => (
+            <SearchResult
+              key={result.uuid ?? index}
+              result={result}
+              getFullMessageUrl={getFullMessageUrl}
+              getFullEventUrl={getFullEventUrl}
+            />
+          ))}
+        </div>
+      </div>
+      {isRecentOpen &&
+        recentPosition &&
+        createPortal(
+          <div
+            ref={recentPopupRef}
+            className={styles.recentPopup}
+            style={{ top: recentPosition.top, right: recentPosition.right }}
+            role="dialog"
+            aria-label="Recent searches"
+          >
             <RecentSearches
               transcriptDir={transcriptDir}
               transcriptId={transcriptId}
               searchType={searchType}
               onSelect={handleSelectRecent}
             />
-          )}
-        </div>
-      </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -397,12 +424,12 @@ const RecentSearches: FC<{
   const searches = useSearches({ transcriptDir, transcriptId });
 
   if (searches.loading) {
-    return <div className={styles.emptyState}>Loading recent searches…</div>;
+    return <div className={styles.recentEmpty}>Loading recent searches…</div>;
   }
 
   if (searches.error) {
     return (
-      <div className={styles.emptyState}>Unable to load recent searches.</div>
+      <div className={styles.recentEmpty}>Unable to load recent searches.</div>
     );
   }
 
@@ -411,42 +438,26 @@ const RecentSearches: FC<{
   );
 
   if (items.length === 0) {
-    return (
-      <div className={styles.emptyState}>
-        Recent searches will show up here.
-      </div>
-    );
+    return <div className={styles.recentEmpty}>No recent searches.</div>;
   }
 
   return (
-    <div className={styles.recentSearches}>
-      <div className={styles.sectionHeader}>Recent searches</div>
+    <ul className={styles.recentList} role="listbox">
       {items.map((search) => (
-        <button
+        <li
           key={search.search_id}
-          type="button"
+          role="option"
+          aria-selected={false}
           className={styles.recentItem}
-          onClick={() => onSelect(search)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onSelect(search);
+          }}
         >
-          <div className={styles.recentQuery}>{search.query}</div>
-          <ChipGroup className={styles.recentMeta}>
-            <Chip value={search.type === "llm" ? "LLM" : "Grep"} />
-            {search.type === "llm" && search.model ? (
-              <Chip label="Model" value={search.model} />
-            ) : undefined}
-            {search.type === "grep" && search.regex ? (
-              <Chip value="Regex" />
-            ) : undefined}
-            {search.type === "grep" && search.word_boundary ? (
-              <Chip value="Whole Word" />
-            ) : undefined}
-            {search.type === "grep" && search.ignore_case ? (
-              <Chip value="Ignore Case" />
-            ) : undefined}
-          </ChipGroup>
-        </button>
+          {search.query}
+        </li>
       ))}
-    </div>
+    </ul>
   );
 };
 
