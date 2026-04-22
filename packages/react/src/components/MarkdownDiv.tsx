@@ -12,7 +12,9 @@ import {
 import "./MarkdownDiv.css";
 
 import {
+  balanceBackticks,
   escapeHtmlCharacters,
+  escapeShellInterpolation,
   getMarkdownInstance,
   preRenderText,
   protectBackslashesInLatex,
@@ -81,8 +83,13 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
 
       // Process markdown asynchronously using the queue
       const { promise, cancel } = renderQueue.enqueue(() => {
+        // Fix unterminated backticks and shell ${VAR} patterns before
+        // markdown-it sees them (prevents false math rendering).
+        const balanced = balanceBackticks(markdown);
+        const shellEscaped = escapeShellInterpolation(balanced);
+
         // Protect backslashes in LaTeX expressions
-        const protectedContent = protectBackslashesInLatex(markdown);
+        const protectedContent = protectBackslashesInLatex(shellEscaped);
 
         // Escape all tags
         const escaped = escapeHtmlCharacters(protectedContent);

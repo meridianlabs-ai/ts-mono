@@ -169,6 +169,51 @@ const fixDotsNotation = (content: string): string => {
   }
 };
 
+/**
+ * Escape `$` in shell-like `${IDENTIFIER}` patterns so that
+ * markdown-it-mathjax3 does not treat them as inline math delimiters.
+ *
+ * Only matches simple variable names (letters, digits, underscores) —
+ * legitimate math like `${x \in S}$` contains spaces or backslashes
+ * and is left untouched.
+ */
+export const escapeShellInterpolation = (content: string): string => {
+  if (!content) return content;
+  return content.replace(/\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, "\\${$1}");
+};
+
+/**
+ * If the text has exactly one unmatched single backtick, append a closing
+ * backtick so markdown-it creates a proper `<code>` span instead of
+ * rendering the backtick as literal text (which exposes `$` to the math
+ * parser).
+ *
+ * Conservative: if there are multiple unmatched backticks the intent is
+ * ambiguous, so we leave the text as-is rather than risk corrupting valid
+ * markdown.
+ */
+export const balanceBackticks = (content: string): string => {
+  if (!content) return content;
+
+  // Strip already-balanced constructs so we only count truly unmatched
+  // single backticks.
+  const withoutFences = content
+    // Fenced code blocks: ```...``` or longer
+    .replace(/(`{3,})[^`]*?\1/gs, "")
+    // Double-backtick (or longer) inline code: ``...``
+    .replace(/(`{2,})([\s\S]*?)\1/g, "");
+
+  // Count remaining single backticks (not part of multi-backtick runs)
+  const remaining = withoutFences.replace(/`{2,}/g, "");
+  const singleCount = (remaining.match(/`/g) ?? []).length;
+
+  if (singleCount !== 1) {
+    return content; // 0 = nothing to do, >1 = ambiguous
+  }
+
+  return content + "`";
+};
+
 const kLetterListPattern = /^([a-zA-Z][).]\s.*?)$/gm;
 const kCommonmarkReferenceLinkPattern = /\[([^\]]*)\]: (?!http)(.*)/g;
 
