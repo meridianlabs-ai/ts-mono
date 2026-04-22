@@ -16,6 +16,10 @@ import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
 import type { ScanColumnKey } from "../app/scans/columns";
 import {
+  createInitialSearchPanelState,
+  SearchPanelState,
+} from "../app/transcript/searchPanelState";
+import {
   ErrorScope,
   ResultGroup,
   ScanResultSummary,
@@ -124,6 +128,7 @@ interface StoreState {
   // Transcript
   transcriptCollapsedEvents: Record<string, Record<string, boolean>>;
   transcriptOutlineId?: string;
+  searchPanelStates: Record<string, SearchPanelState>;
 
   // Transcript Detail properties (clear when switching transcripts)
   selectedTranscriptTab?: string;
@@ -216,6 +221,11 @@ interface StoreState {
   clearTranscriptOutlineId: () => void;
 
   setSelectedTranscriptTab: (tab: string) => void;
+  setSearchPanelState: (
+    key: string,
+    updater: SearchPanelState | ((prev: SearchPanelState) => SearchPanelState)
+  ) => void;
+  clearSearchPanelState: (key: string) => void;
 
   setTranscriptCollapsedEvent: (
     scope: string,
@@ -307,6 +317,7 @@ export const createStore = (api: ScoutApiV2) =>
           loading: 0,
           loadingData: 0,
           transcriptCollapsedEvents: {},
+          searchPanelStates: {},
           scopedErrors: {} as Record<ErrorScope, string>,
           visibleScannerResults: [],
           visibleScannerResultsCount: 0,
@@ -606,6 +617,20 @@ export const createStore = (api: ScoutApiV2) =>
           setSelectedTranscriptTab: (tab: string) => {
             set((state) => {
               state.selectedTranscriptTab = tab;
+            });
+          },
+          setSearchPanelState: (key, updater) => {
+            set((state) => {
+              const prev =
+                state.searchPanelStates[key] ?? createInitialSearchPanelState();
+              state.searchPanelStates[key] =
+                typeof updater === "function" ? updater(prev) : updater;
+            });
+          },
+          clearSearchPanelState: (key: string) => {
+            set((state) => {
+              const { [key]: _removed, ...remaining } = state.searchPanelStates;
+              state.searchPanelStates = remaining;
             });
           },
           setTranscriptCollapsedEvent: (
