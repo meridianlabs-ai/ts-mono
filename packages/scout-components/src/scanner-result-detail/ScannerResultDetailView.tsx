@@ -85,7 +85,7 @@ export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
     data.metadata !== undefined && Object.keys(data.metadata).length > 0;
 
   const [collapsedIds, setCollapsed] = useCollapsibleIds(kCollapseScope);
-  const isOpen = (id: SectionId) => !collapsedIds[id];
+  const isOpen = (id: SectionId) => !collapsedIds?.[id];
 
   return (
     <div className={clsx(styles.container, "text-size-small")}>
