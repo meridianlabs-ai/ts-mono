@@ -103,7 +103,9 @@ export const MarkdownDivWithReferences = forwardRef<
       [ref, markdown, postProcess, style, omitMedia, omitMath, handleLinkClick]
     );
 
-    // Attach event handlers to reference links after render
+    // Use event delegation so handlers work even when cite links are injected
+    // asynchronously (MarkdownDiv renders via an async queue, so the initial
+    // DOM has no cite links — a per-link attach would miss them entirely).
     useEffect(() => {
       const container = containerRef.current;
       if (!container) {
@@ -115,67 +117,52 @@ export const MarkdownDivWithReferences = forwardRef<
         return;
       }
 
-      // Find all cite links
-      const citeLinks = container.querySelectorAll<HTMLElement>(
-        `.${styles.cite}`
-      );
+      const citeSelector = `.${styles.cite}`;
 
-      const handleMouseEnter = (e: MouseEvent): void => {
-        // Identify the ref
-        const el = e.currentTarget as HTMLElement;
+      const findCiteLink = (target: EventTarget | null): HTMLElement | null => {
+        if (!(target instanceof Element)) return null;
+        return target.closest<HTMLElement>(citeSelector);
+      };
+
+      // mouseover bubbles (mouseenter doesn't) — we filter to transitions
+      // into the cite link by checking relatedTarget.
+      const handleMouseOver = (e: MouseEvent): void => {
+        const el = findCiteLink(e.target);
+        if (!el) return;
+        const related = e.relatedTarget;
+        if (related instanceof Node && el.contains(related)) return;
+
         const id = el.getAttribute("data-ref-id");
-        if (!id) {
-          return;
-        }
+        if (!id) return;
         const r = refMap.get(id);
-        if (!r) {
-          return;
-        }
+        if (!r || !r.citePreview) return;
 
-        if (!r.citePreview) {
-          return;
-        }
-
-        // Just set which cite we're tracking
-        // PopOver will handle all show/hide logic including hover delays
+        // PopOver handles show/hide logic including hover delays.
         setPositionEl(el);
         setCurrentRef(r);
         setVisibleKey(popoverKey(r));
       };
 
       const handleClick = (e: MouseEvent): void => {
-        // Cancel the popover if one is pending or showing
+        if (!findCiteLink(e.target)) return;
+
+        // Cancel the popover if one is pending or showing.
         clearVisibleKey();
         setCurrentRef(null);
         setPositionEl(null);
 
-        // Stop propagation to prevent parent Link components from handling the click
+        // Stop propagation to prevent parent Link components from handling.
         e.stopPropagation();
       };
 
-      // Mouse handling to activate the popover
-      const cleanup: Array<() => void> = [];
-      citeLinks.forEach((link) => {
-        link.addEventListener("mouseenter", handleMouseEnter);
-        link.addEventListener("click", handleClick);
+      container.addEventListener("mouseover", handleMouseOver);
+      container.addEventListener("click", handleClick);
 
-        cleanup.push(() => {
-          link.removeEventListener("mouseenter", handleMouseEnter);
-          link.removeEventListener("click", handleClick);
-        });
-      });
-
-      // Cleanup all handlers
       return () => {
-        cleanup.forEach((fn) => fn());
+        container.removeEventListener("mouseover", handleMouseOver);
+        container.removeEventListener("click", handleClick);
       };
-    }, [
-      markdown,
-      refMap,
-      options?.previewRefsOnHover,
-      setVisibleKey,
-      clearVisibleKey,
-    ]);
+    }, [refMap, options?.previewRefsOnHover, setVisibleKey, clearVisibleKey]);
 
     const key = currentRef
       ? popoverKey(currentRef)
@@ -197,8 +184,9 @@ export const MarkdownDivWithReferences = forwardRef<
               }
             }}
             placement="auto"
-            hoverDelay={400}
+            hoverDelay={1000}
             showArrow={true}
+            styles={{ maxHeight: "70vh", overflowY: "auto" }}
           >
             {(currentRef.citePreview && currentRef.citePreview()) || (
               <NoContentsPanel text="No preview available." />

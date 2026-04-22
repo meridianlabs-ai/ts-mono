@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type { Score } from "@tsmono/inspect-common/types";
+import type { Event, Score } from "@tsmono/inspect-common/types";
 import {
   inferValueType,
   ScannerResultDetailView,
@@ -16,10 +16,12 @@ import { useEvalSpec } from "../../../state/hooks";
 
 import { SampleScannerPicker } from "./SampleScannerPicker";
 import styles from "./SampleScansSidebar.module.css";
+import { buildScanReferencePreviews } from "./scanReferencePreviews";
 import { buildScoreMarkdownRefs, MakeCiteUrl } from "./scanReferences";
 
 interface SampleScansSidebarProps {
   scores: Record<string, Score>;
+  events?: readonly Event[] | null;
   makeCiteUrl: MakeCiteUrl;
   selected: string;
   onSelectedChange: (scanner: string) => void;
@@ -27,6 +29,7 @@ interface SampleScansSidebarProps {
 
 export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
   scores,
+  events,
   makeCiteUrl,
   selected,
   onSelectedChange,
@@ -34,9 +37,19 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
   const scanners = Object.keys(scores);
   const score: Score | undefined = selected ? scores[selected] : undefined;
 
+  const previewTable = useMemo(
+    () => buildScanReferencePreviews(events ?? undefined),
+    [events]
+  );
+
   const references = useMemo(
-    () => buildScoreMarkdownRefs(score?.metadata ?? null, makeCiteUrl),
-    [score?.metadata, makeCiteUrl]
+    () =>
+      buildScoreMarkdownRefs(
+        score?.metadata ?? null,
+        makeCiteUrl,
+        previewTable
+      ),
+    [score?.metadata, makeCiteUrl, previewTable]
   );
 
   const viewer = useEvalSpec()?.viewer;
@@ -74,7 +87,6 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
       <ScannerResultDetailView
         data={data}
         references={references}
-        options={{ previewRefsOnHover: false }}
         config={config}
       />
     </div>
