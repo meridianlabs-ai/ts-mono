@@ -5,16 +5,15 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
+  PopOver,
   SegmentedControl,
 } from "@tsmono/react/components";
 
@@ -92,39 +91,6 @@ export const SearchPanel = ({
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const recentButtonRef = useRef<HTMLButtonElement>(null);
-  const recentPopupRef = useRef<HTMLDivElement>(null);
-  const [recentPosition, setRecentPosition] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!isRecentOpen || !recentButtonRef.current) return;
-    const rect = recentButtonRef.current.getBoundingClientRect();
-    setRecentPosition({
-      top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
-    });
-  }, [isRecentOpen]);
-
-  useEffect(() => {
-    if (!isRecentOpen) return;
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (recentButtonRef.current?.contains(target)) return;
-      if (recentPopupRef.current?.contains(target)) return;
-      setIsRecentOpen(false);
-    };
-    const handleKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") setIsRecentOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isRecentOpen]);
 
   const loading = createSearchMutation.isPending;
 
@@ -375,25 +341,31 @@ export const SearchPanel = ({
           ))}
         </div>
       </div>
-      {isRecentOpen &&
-        recentPosition &&
-        createPortal(
-          <div
-            ref={recentPopupRef}
-            className={styles.recentPopup}
-            style={{ top: recentPosition.top, right: recentPosition.right }}
-            role="dialog"
-            aria-label="Recent searches"
-          >
-            <RecentSearches
-              transcriptDir={transcriptDir}
-              transcriptId={transcriptId}
-              searchType={searchType}
-              onSelect={handleSelectRecent}
-            />
-          </div>,
-          document.body
-        )}
+      <PopOver
+        id={`recent-searches-${transcriptId}`}
+        isOpen={isRecentOpen}
+        setIsOpen={setIsRecentOpen}
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        positionEl={recentButtonRef.current}
+        placement="bottom-end"
+        hoverDelay={-1}
+        closeOnMouseLeave={false}
+        showArrow={false}
+        styles={{
+          padding: 0,
+          width: "20rem",
+          maxWidth: "calc(100vw - 1rem)",
+          maxHeight: "60vh",
+          overflowY: "auto",
+        }}
+      >
+        <RecentSearches
+          transcriptDir={transcriptDir}
+          transcriptId={transcriptId}
+          searchType={searchType}
+          onSelect={handleSelectRecent}
+        />
+      </PopOver>
     </div>
   );
 };
