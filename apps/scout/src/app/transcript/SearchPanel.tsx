@@ -18,6 +18,7 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../icons";
+import { useStore } from "../../state/store";
 import { Result, SavedSearch } from "../../types/api-types";
 import { useProjectConfig } from "../server/useProjectConfig";
 import { useCreateSearch, useSearches } from "../server/useSearches";
@@ -25,34 +26,17 @@ import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./SearchPanel.module.css";
+import {
+  createInitialSearchPanelState,
+  getSearchPanelStateKey,
+  SearchPanelState,
+} from "./searchPanelState";
 import { buildSearchRequest } from "./searchRequest";
 import type {
   GrepOptions,
   SearchType,
   TranscriptSearchScope,
 } from "./searchRequest";
-
-type SearchPanelState = {
-  query: string;
-  searchType: SearchType;
-  hasSearched: boolean;
-  currentSearch: SavedSearch | null;
-  grepOptions: GrepOptions;
-  model: string;
-};
-
-const initialState: SearchPanelState = {
-  query: "",
-  searchType: "llm",
-  hasSearched: false,
-  currentSearch: null,
-  grepOptions: {
-    ignoreCase: true,
-    regex: false,
-    wordBoundary: false,
-  },
-  model: "",
-};
 
 type SearchPanelProps = {
   scope: TranscriptSearchScope;
@@ -82,10 +66,26 @@ export const SearchPanel = ({
 }: SearchPanelProps) => {
   const projectConfig = useProjectConfig();
   const { getFullMessageUrl, getFullEventUrl } = useTranscriptNavigation();
+  const searchPanelStateKey = useMemo(
+    () => getSearchPanelStateKey({ scope, transcriptDir, transcriptId }),
+    [scope, transcriptDir, transcriptId]
+  );
+  const storedState = useStore(
+    (state) => state.searchPanelStates[searchPanelStateKey]
+  );
+  const setSearchPanelState = useStore((state) => state.setSearchPanelState);
 
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
-  const [state, setState] = useState<SearchPanelState>(initialState);
+  const state = storedState ?? createInitialSearchPanelState();
+  const setState = useCallback(
+    (
+      updater: SearchPanelState | ((prev: SearchPanelState) => SearchPanelState)
+    ) => {
+      setSearchPanelState(searchPanelStateKey, updater);
+    },
+    [searchPanelStateKey, setSearchPanelState]
+  );
   const { query, searchType, hasSearched, currentSearch, grepOptions, model } =
     state;
 
@@ -130,6 +130,7 @@ export const SearchPanel = ({
       scope,
       projectConfig.data?.config.model,
       query,
+      setState,
     ]
   );
 
@@ -164,28 +165,37 @@ export const SearchPanel = ({
         return next;
       });
     },
-    [createSearchMutation]
+    [createSearchMutation, setState]
   );
 
   const handleNewSearch = useCallback(() => {
     createSearchMutation.reset();
-    setState(initialState);
-  }, [createSearchMutation]);
+    setState(createInitialSearchPanelState());
+  }, [createSearchMutation, setState]);
 
-  const toggleGrepOption = useCallback((key: keyof GrepOptions) => {
-    setState((prev) => ({
-      ...prev,
-      grepOptions: { ...prev.grepOptions, [key]: !prev.grepOptions[key] },
-    }));
-  }, []);
+  const toggleGrepOption = useCallback(
+    (key: keyof GrepOptions) => {
+      setState((prev) => ({
+        ...prev,
+        grepOptions: { ...prev.grepOptions, [key]: !prev.grepOptions[key] },
+      }));
+    },
+    [setState]
+  );
 
-  const handleSearchTypeChange = useCallback((type: SearchType) => {
-    setState((prev) => ({ ...prev, searchType: type }));
-  }, []);
+  const handleSearchTypeChange = useCallback(
+    (type: SearchType) => {
+      setState((prev) => ({ ...prev, searchType: type }));
+    },
+    [setState]
+  );
 
-  const handleQueryInput = useCallback((e: Event) => {
-    setState((prev) => ({ ...prev, query: getInputValue(e) }));
-  }, []);
+  const handleQueryInput = useCallback(
+    (e: Event) => {
+      setState((prev) => ({ ...prev, query: getInputValue(e) }));
+    },
+    [setState]
+  );
 
   return (
     <div className={styles.container}>
