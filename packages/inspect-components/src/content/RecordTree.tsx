@@ -1,5 +1,3 @@
-// TODO: lint @typescript-eslint/no-base-to-string
-/* eslint-disable @typescript-eslint/no-base-to-string */
 import clsx from "clsx";
 import {
   FC,
@@ -355,9 +353,16 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;
+  } else if (
+    typeof value === "function" ||
+    typeof value === "symbol" ||
+    typeof value === "bigint"
+  ) {
+    // Other types with a meaningful toString. Treated as leaf nodes.
+    displayValue = value.toString();
+    processChildren = false;
   } else {
-    // Other types like functions, symbols. These are treated as leaf nodes.
-    displayValue = String(value);
+    displayValue = null;
     processChildren = false;
   }
 
