@@ -10,6 +10,7 @@ import {
   ResolvedField,
   ResolvedScannerResultView,
 } from "../sentinels/viewerConfig";
+
 import { Explanation } from "./Explanation";
 import { Metadata, MetadataValue } from "./Metadata";
 import styles from "./ScannerResultDetailView.module.css";
