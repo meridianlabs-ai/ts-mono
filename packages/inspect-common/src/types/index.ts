@@ -106,6 +106,12 @@ export type ToolParams = S["ToolParams"];
 export type Score = S["Score"];
 export type ScoreEdit = S["ScoreEdit"];
 
+// Viewer config types
+export type ViewerConfig = S["ViewerConfig"];
+export type ScannerResultView = S["ScannerResultView"];
+export type ScannerResultField = S["ScannerResultField"];
+export type MetadataField = S["MetadataField"];
+
 // Timeline types
 export type Timeline = S["Timeline"];
 export type TimelineEvent = S["TimelineEvent"];

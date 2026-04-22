@@ -1555,6 +1555,7 @@ export interface components {
              * @default 0
              */
             task_version: number | string;
+            viewer?: components["schemas"]["ViewerConfig"] | null;
         };
         /**
          * EvalStats
@@ -1977,6 +1978,27 @@ export interface components {
             type: "metadata";
         };
         /**
+         * MetadataField
+         * @description A metadata key promoted out of metadata into a top level value.
+         */
+        MetadataField: {
+            /**
+             * Collapsed
+             * @default false
+             */
+            collapsed: boolean;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @default metadata
+             * @constant
+             */
+            kind: "metadata";
+            /** Label */
+            label?: string | null;
+        };
+        /**
          * ModelCall
          * @description Model call (raw request/response data).
          */
@@ -2352,6 +2374,40 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * ScannerResultField
+         * @description A built-in scanner-result section (e.g. `value`, `explanation`).
+         */
+        ScannerResultField: {
+            /**
+             * Collapsed
+             * @default false
+             */
+            collapsed: boolean;
+            /**
+             * Kind
+             * @default builtin
+             * @constant
+             */
+            kind: "builtin";
+            /** Label */
+            label?: string | null;
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "explanation" | "label" | "value" | "validation" | "answer" | "metadata";
+        };
+        /**
+         * ScannerResultView
+         * @description How the scann results should render the results.
+         */
+        ScannerResultView: {
+            /** Exclude Fields */
+            exclude_fields: (components["schemas"]["ScannerResultField"] | components["schemas"]["MetadataField"] | string)[];
+            /** Fields */
+            fields?: (components["schemas"]["ScannerResultField"] | components["schemas"]["MetadataField"] | string)[] | null;
         };
         /**
          * Score
@@ -3004,6 +3060,20 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ViewerConfig
+         * @description Top-level viewer configuration.
+         *
+         *     `scanner_result_view` keys are fnmatch-style glob patterns (`"*"`,
+         *     ``"audit_*"``, exact names). Pass a ScannerResultView to apply a single
+         *     configuration to every scanner.
+         */
+        ViewerConfig: {
+            /** Scanner Result View */
+            scanner_result_view: components["schemas"]["ScannerResultView"] | {
+                [key: string]: components["schemas"]["ScannerResultView"];
+            };
         };
     };
     responses: never;
