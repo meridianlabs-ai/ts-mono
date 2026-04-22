@@ -61,7 +61,11 @@ describe("viewer-config generated types", () => {
   });
 
   it("MetadataField.kind narrows the union", () => {
-    const m: MetadataField = { kind: "metadata", key: "summary", collapsed: false };
+    const m: MetadataField = {
+      kind: "metadata",
+      key: "summary",
+      collapsed: false,
+    };
     expect(m.kind).toBe("metadata");
   });
 });

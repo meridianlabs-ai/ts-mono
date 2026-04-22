@@ -680,6 +680,9 @@ importers:
 
   packages/scout-components:
     dependencies:
+      '@tsmono/inspect-common':
+        specifier: workspace:*
+        version: link:../inspect-common
       '@tsmono/inspect-components':
         specifier: workspace:*
         version: link:../inspect-components
@@ -692,6 +695,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      picomatch:
+        specifier: ^4.0.4
+        version: 4.0.4
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.1
@@ -708,6 +714,9 @@ importers:
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
+      '@types/picomatch':
+        specifier: ^4.0.2
+        version: 4.0.3
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.14
@@ -2125,6 +2134,9 @@ packages:
   '@types/node@25.6.0':
     resolution: {integrity: sha512-+qIYRKdNYJwY3vRCZMdJbPLJAtGjQBudzZzdzwQYkEPQd+PJGixUL5QfvCLDaULoLv+RhT3LDkwEfKaAkgSmNQ==}
 
+  '@types/picomatch@4.0.3':
+    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
+
   '@types/postcss-modules-local-by-default@4.0.2':
     resolution: {integrity: sha512-CtYCcD+L+trB3reJPny+bKWKMzPfxEyQpKIwit7kErnOexf5/faaGpkFy4I5AwbV4hp1sk7/aTg0tt0B67VkLQ==}
 
@@ -2607,9 +2619,6 @@ packages:
     resolution: {integrity: sha512-HP1SZDqaLDPwsNiqRqi5NcP0SSXciX2s9E+RyqJIIqGo+vJeN5AJVM98CXmW/Wux0nQ5L7jeWUdplCEf0Ee+tg==}
     peerDependencies:
       '@popperjs/core': ^2.11.8
-
-  brace-expansion@1.1.13:
-    resolution: {integrity: sha512-9ZLprWS6EENmhEOpjCYW2c8VkmOvckIJZfkr7rBW6dObmfgJ/L1GpSYW5Hpo9lDz4D1+n0Ckz8rU7FwHDQiG/w==}
 
   brace-expansion@1.1.14:
     resolution: {integrity: sha512-MWPGfDxnyzKU7rNOW9SP/c50vi3xrmrua/+6hfPbCS2ABNWfx24vPidzvC7krjU/RTo235sV776ymlsMtGKj8g==}
@@ -6198,6 +6207,8 @@ snapshots:
     dependencies:
       undici-types: 7.19.2
 
+  '@types/picomatch@4.0.3': {}
+
   '@types/postcss-modules-local-by-default@4.0.2':
     dependencies:
       postcss: 8.5.10
@@ -6717,11 +6728,6 @@ snapshots:
   bootstrap@5.3.8(@popperjs/core@2.11.8):
     dependencies:
       '@popperjs/core': 2.11.8
-
-  brace-expansion@1.1.13:
-    dependencies:
-      balanced-match: 1.0.2
-      concat-map: 0.0.1
 
   brace-expansion@1.1.14:
     dependencies:
@@ -8025,7 +8031,7 @@ snapshots:
 
   minimatch@10.2.3:
     dependencies:
-      brace-expansion: 1.1.13
+      brace-expansion: 1.1.14
 
   minimatch@10.2.5:
     dependencies:
@@ -8033,15 +8039,15 @@ snapshots:
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 1.1.13
+      brace-expansion: 1.1.14
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 1.1.13
+      brace-expansion: 1.1.14
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 1.1.13
+      brace-expansion: 1.1.14
 
   minimist@1.2.8: {}
 
