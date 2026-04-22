@@ -85,7 +85,7 @@ export const SearchPanel = ({
   onClose,
 }: SearchPanelProps) => {
   const projectConfig = useProjectConfig();
-  const { getFullMessageUrl } = useTranscriptNavigation();
+  const { getFullMessageUrl, getFullEventUrl } = useTranscriptNavigation();
 
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
@@ -354,6 +354,7 @@ export const SearchPanel = ({
                 key={result.uuid ?? index}
                 result={result}
                 getFullMessageUrl={getFullMessageUrl}
+                getFullEventUrl={getFullEventUrl}
               />
             ))}
           {showRecentSearches && (
@@ -452,7 +453,8 @@ const RecentSearches: FC<{
 const SearchResult: FC<{
   result: Result;
   getFullMessageUrl: (id: string) => string | undefined;
-}> = ({ result, getFullMessageUrl }) => {
+  getFullEventUrl: (id: string) => string | undefined;
+}> = ({ result, getFullMessageUrl, getFullEventUrl }) => {
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
@@ -463,12 +465,16 @@ const SearchResult: FC<{
           id: ref.id,
           cite: ref.cite,
           citeUrl:
-            ref.type === "message" ? getFullMessageUrl(ref.id) : undefined,
+            ref.type === "message"
+              ? getFullMessageUrl(ref.id)
+              : ref.type === "event"
+                ? getFullEventUrl(ref.id)
+                : undefined,
         });
       }
     }
     return refs;
-  }, [result.references, getFullMessageUrl]);
+  }, [result.references, getFullMessageUrl, getFullEventUrl]);
 
   const matchCount =
     typeof result.value === "number" ? result.value : undefined;
