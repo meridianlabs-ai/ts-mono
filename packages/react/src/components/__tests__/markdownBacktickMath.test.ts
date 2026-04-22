@@ -2,27 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   balanceBackticks,
-  escapeHtmlCharacters,
   escapeShellInterpolation,
-  getMarkdownInstance,
-  protectBackslashesInLatex,
-  restoreBackslashesForLatex,
+  renderMarkdown,
 } from "../markdownRendering";
-
-/**
- * Simulate the async rendering pipeline from MarkdownDiv,
- * including the new preprocessing steps.
- */
-function renderPipeline(markdown: string, omitMath = false): string {
-  const balanced = balanceBackticks(markdown);
-  const shellEscaped = escapeShellInterpolation(balanced);
-  const protectedContent = protectBackslashesInLatex(shellEscaped);
-  const escaped = escapeHtmlCharacters(protectedContent);
-  const preparedForMarkdown = restoreBackslashesForLatex(escaped);
-
-  const md = getMarkdownInstance(false, omitMath);
-  return md.render(preparedForMarkdown);
-}
 
 describe("escapeShellInterpolation", () => {
   it("should escape shell variable ${foo}", () => {
@@ -109,34 +91,34 @@ describe("balanceBackticks", () => {
 
 describe("pipeline: shell interpolation does not trigger math", () => {
   it("should not render ${sadsa}-${bar} as math", () => {
-    const result = renderPipeline("${sadsa}-${bar}");
+    const result = renderMarkdown("${sadsa}-${bar}");
     expect(result).not.toContain("<mjx-container");
     expect(result).not.toContain("math_inline");
   });
 
   it("should render unterminated backtick with shell vars as code", () => {
-    const result = renderPipeline('`foo="${x}-${y}"...');
+    const result = renderMarkdown('`foo="${x}-${y}"...');
     expect(result).toContain("<code>");
     expect(result).not.toContain("<mjx-container");
   });
 
   it("should still render $x^2$ as math", () => {
-    const result = renderPipeline("$x^2$");
+    const result = renderMarkdown("$x^2$");
     expect(result).toContain("<mjx-container");
   });
 
   it("should still render ${x \\in S}$ as math", () => {
-    const result = renderPipeline("${x \\in S}$");
+    const result = renderMarkdown("${x \\in S}$");
     expect(result).toContain("<mjx-container");
   });
 
   it("should still render $$\\sum x$$ as block math", () => {
-    const result = renderPipeline("$$\\sum x$$");
+    const result = renderMarkdown("$$\\sum x$$");
     expect(result).toContain("<mjx-container");
   });
 
   it("should still render balanced backtick code normally", () => {
-    const result = renderPipeline("`code`");
+    const result = renderMarkdown("`code`");
     expect(result).toContain("<code>");
     expect(result).not.toContain("<mjx-container");
   });

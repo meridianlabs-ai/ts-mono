@@ -257,6 +257,35 @@ export function unescapeSupHtmlEntities(str: string): string {
     .replace(/&lt;\/sup&gt;/g, "</sup>");
 }
 
+/** Full markdown rendering pipeline — the single source of truth used by
+ *  MarkdownDiv and tests. */
+export function renderMarkdown(
+  markdown: string,
+  options: { omitMedia?: boolean; omitMath?: boolean } = {}
+): string {
+  const balanced = balanceBackticks(markdown);
+  const shellEscaped = escapeShellInterpolation(balanced);
+  const protectedContent = protectBackslashesInLatex(shellEscaped);
+  const escaped = escapeHtmlCharacters(protectedContent);
+  const preRendered = preRenderText(escaped);
+  const protectedText = protectMarkdown(preRendered);
+  const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
+
+  let html = preparedForMarkdown;
+  try {
+    const md = getMarkdownInstance(options.omitMedia, options.omitMath);
+    html = md.render(preparedForMarkdown);
+  } catch (ex) {
+    console.log("Unable to markdown render content");
+    console.error(ex);
+  }
+
+  const unescaped = unprotectMarkdown(html);
+  const withCode = unescapeCodeHtmlEntities(unescaped);
+  const withSup = unescapeSupHtmlEntities(withCode);
+  return withSup;
+}
+
 export function unescapeCodeHtmlEntities(str: string): string {
   if (!str) return str;
 

@@ -1,36 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  escapeHtmlCharacters,
-  getMarkdownInstance,
   protectBackslashesInLatex,
+  renderMarkdown,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
 } from "../markdownRendering";
 
-/**
- * Simulate the async rendering pipeline from MarkdownDiv.
- * This mirrors the steps in the renderQueue.enqueue callback.
- */
-function renderPipeline(markdown: string, omitMath = false): string {
-  const protectedContent = protectBackslashesInLatex(markdown);
-  const escaped = escapeHtmlCharacters(protectedContent);
-  const preparedForMarkdown = restoreBackslashesForLatex(escaped);
-
-  const md = getMarkdownInstance(false, omitMath);
-  return md.render(preparedForMarkdown);
-}
-
 describe("MarkdownDiv XSS security", () => {
   describe("script injection in LaTeX blocks", () => {
     it("should not produce raw <script> tags from inline math", () => {
-      const result = renderPipeline("$<script>alert(1)</script>$");
+      const result = renderMarkdown("$<script>alert(1)</script>$");
       expect(result).not.toContain("<script>");
       expect(result).not.toContain("</script>");
     });
 
     it("should not produce raw <script> tags from block math", () => {
-      const result = renderPipeline("$$<script>alert(1)</script>$$");
+      const result = renderMarkdown("$$<script>alert(1)</script>$$");
       expect(result).not.toContain("<script>");
       expect(result).not.toContain("</script>");
     });
@@ -38,13 +24,13 @@ describe("MarkdownDiv XSS security", () => {
 
   describe("event handler injection in LaTeX blocks", () => {
     it("should not produce raw <img> with onerror from inline math", () => {
-      const result = renderPipeline('$<img src=x onerror="alert(1)">$');
+      const result = renderMarkdown('$<img src=x onerror="alert(1)">$');
       expect(result).not.toContain("<img");
       expect(result).not.toContain("onerror");
     });
 
     it("should not produce raw <img> with onerror from block math", () => {
-      const result = renderPipeline('$$<img src=x onerror="alert(1)">$$');
+      const result = renderMarkdown('$$<img src=x onerror="alert(1)">$$');
       expect(result).not.toContain("<img");
       expect(result).not.toContain("onerror");
     });
@@ -52,12 +38,12 @@ describe("MarkdownDiv XSS security", () => {
 
   describe("script injection outside LaTeX", () => {
     it("should escape <script> tags in plain text", () => {
-      const result = renderPipeline("<script>alert(1)</script>");
+      const result = renderMarkdown("<script>alert(1)</script>");
       expect(result).not.toContain("<script>");
     });
 
     it("should escape event handlers in plain text", () => {
-      const result = renderPipeline('<img src=x onerror="alert(1)">');
+      const result = renderMarkdown('<img src=x onerror="alert(1)">');
       // The text "onerror" may appear as escaped text, but no raw <img> tag
       expect(result).not.toContain("<img");
     });
@@ -65,14 +51,14 @@ describe("MarkdownDiv XSS security", () => {
 
   describe("legitimate LaTeX still renders", () => {
     it("should render inline math with backslashes", () => {
-      const result = renderPipeline("$\\frac{1}{2}$");
+      const result = renderMarkdown("$\\frac{1}{2}$");
       // MathJax should process this — output should contain mjx-container or similar
       // At minimum, the backslash commands should not be entity-encoded
       expect(result).not.toContain("___LATEX_BACKSLASH___");
     });
 
     it("should render block math with backslashes", () => {
-      const result = renderPipeline("$$\\sum_{i=0}^{n} x_i$$");
+      const result = renderMarkdown("$$\\sum_{i=0}^{n} x_i$$");
       expect(result).not.toContain("___LATEX_BACKSLASH___");
     });
 

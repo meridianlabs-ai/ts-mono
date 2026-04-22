@@ -11,19 +11,7 @@ import {
 
 import "./MarkdownDiv.css";
 
-import {
-  balanceBackticks,
-  escapeHtmlCharacters,
-  escapeShellInterpolation,
-  getMarkdownInstance,
-  preRenderText,
-  protectBackslashesInLatex,
-  protectMarkdown,
-  restoreBackslashesForLatex,
-  unescapeCodeHtmlEntities,
-  unescapeSupHtmlEntities,
-  unprotectMarkdown,
-} from "./markdownRendering";
+import { escapeHtmlCharacters, renderMarkdown } from "./markdownRendering";
 
 interface MarkdownDivProps {
   markdown: string;
@@ -82,46 +70,9 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       setRenderedHtml(sanitizeMarkdown(markdown));
 
       // Process markdown asynchronously using the queue
-      const { promise, cancel } = renderQueue.enqueue(() => {
-        // Fix unterminated backticks and shell ${VAR} patterns before
-        // markdown-it sees them (prevents false math rendering).
-        const balanced = balanceBackticks(markdown);
-        const shellEscaped = escapeShellInterpolation(balanced);
-
-        // Protect backslashes in LaTeX expressions
-        const protectedContent = protectBackslashesInLatex(shellEscaped);
-
-        // Escape all tags
-        const escaped = escapeHtmlCharacters(protectedContent);
-
-        // Pre-render any text that isn't handled by markdown
-        const preRendered = preRenderText(escaped);
-
-        const protectedText = protectMarkdown(preRendered);
-
-        // Restore backslashes for LaTeX processing
-        const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
-
-        let html = preparedForMarkdown;
-        try {
-          // Get appropriate markdown-it instance based on options
-          const md = getMarkdownInstance(omitMedia, omitMath);
-          html = md.render(preparedForMarkdown);
-        } catch (ex) {
-          console.log("Unable to markdown render content");
-          console.error(ex);
-        }
-
-        const unescaped = unprotectMarkdown(html);
-
-        // For `code` tags, reverse the escaping if we can
-        const withCode = unescapeCodeHtmlEntities(unescaped);
-
-        // For `sup` tags, reverse the escaping if we can
-        const withSup = unescapeSupHtmlEntities(withCode);
-
-        return withSup;
-      });
+      const { promise, cancel } = renderQueue.enqueue(() =>
+        renderMarkdown(markdown, { omitMedia, omitMath })
+      );
 
       // Update state when rendering completes
       promise
