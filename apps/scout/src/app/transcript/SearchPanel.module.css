@@ -207,6 +207,10 @@
 }
 
 .sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   font-size: var(--inspect-font-size-smallest);
   color: var(--bs-secondary-color);
   font-weight: 600;
@@ -215,9 +219,6 @@
 }
 
 .resultCard {
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
   background-color: var(--bs-body-bg);
   font-size: var(--inspect-font-size-small);
 }
@@ -226,7 +227,6 @@
   font-weight: 600;
   color: var(--bs-secondary-color);
   font-size: var(--inspect-font-size-smallest);
-  margin-bottom: 0.4rem;
 }
 
 .recentList {
