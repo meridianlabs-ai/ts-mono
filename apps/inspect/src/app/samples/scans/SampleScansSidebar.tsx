@@ -7,8 +7,12 @@ import {
   ScannerResultDetailView,
   ScanResultInput,
 } from "@tsmono/scout-components/scanner-result-detail";
-import { metadataWithoutScannerKeys } from "@tsmono/scout-components/sentinels";
+import {
+  metadataWithoutScannerKeys,
+  resolveScannerResultView,
+} from "@tsmono/scout-components/sentinels";
 
+import { useEvalSpec } from "../../../state/hooks";
 import { SampleScannerPicker } from "./SampleScannerPicker";
 import styles from "./SampleScansSidebar.module.css";
 import { buildScoreMarkdownRefs, MakeCiteUrl } from "./scanReferences";
@@ -32,6 +36,12 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
   const references = useMemo(
     () => buildScoreMarkdownRefs(score?.metadata ?? null, makeCiteUrl),
     [score?.metadata, makeCiteUrl]
+  );
+
+  const viewer = useEvalSpec()?.viewer;
+  const config = useMemo(
+    () => resolveScannerResultView(viewer, selected),
+    [viewer, selected]
   );
 
   if (!score) return null;
@@ -64,6 +74,7 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
         data={data}
         references={references}
         options={{ previewRefsOnHover: false }}
+        config={config}
       />
     </div>
   );

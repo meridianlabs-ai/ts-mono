@@ -70,12 +70,23 @@ export function resolveScannerResultView(
   const mostSpecific = matches[0];
   if (!mostSpecific) return kDefaultResolvedView;
 
-  // Most specific match supplies `fields`; if it has none, fall back to the
-  // built-in default (keeps "define only exclusions at the `*` level" working).
-  const baseFields: ResolvedField[] =
+  // `fields` pins a prefix: the user's list renders first (in the listed
+  // order), then any builtin sections the user didn't mention render in
+  // default order beneath. `exclude_fields` is the only way to hide a
+  // section. This matches the intuition that `fields` adds / reorders and
+  // `exclude_fields` removes.
+  const userFields =
     mostSpecific.view.fields === null || mostSpecific.view.fields === undefined
-      ? [...kDefaultFields]
+      ? []
       : coerceFields(mostSpecific.view.fields);
+  const mentionedBuiltins = new Set<ScannerResultField["name"]>();
+  for (const f of userFields) {
+    if (f.kind === "builtin") mentionedBuiltins.add(f.name);
+  }
+  const unlistedDefaults = kDefaultFields.filter(
+    (f) => f.kind === "builtin" && !mentionedBuiltins.has(f.name)
+  );
+  const baseFields: ResolvedField[] = [...userFields, ...unlistedDefaults];
 
   // Union exclude_fields across every matching pattern.
   const exclusions = matches.flatMap((m) =>
