@@ -7,7 +7,6 @@ import {
   MarkdownReference,
 } from "@tsmono/react/components";
 
-
 interface MetadataProps {
   metadata: Record<string, unknown>;
   references?: MarkdownReference[];
