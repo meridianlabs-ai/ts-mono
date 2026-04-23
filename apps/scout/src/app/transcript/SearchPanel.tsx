@@ -115,24 +115,24 @@ export const SearchPanel = ({
       }));
       createSearchMutation.reset();
 
+      const resolvedModel =
+        searchType === "llm"
+          ? model.trim() || projectConfig.data?.config.model?.trim() || ""
+          : "";
+
       const request = buildSearchRequest({
-        defaultModel: projectConfig.data?.config.model,
         grepOptions,
-        model,
+        model: resolvedModel,
         query: text,
         scope,
         searchType,
       });
-      const submittedModel =
-        searchType === "llm"
-          ? model.trim() || projectConfig.data?.config.model?.trim() || ""
-          : "";
 
       createSearchMutation.mutate(request, {
         onSuccess: (search) => {
           setState((prev) => ({ ...prev, currentSearch: search }));
           if (search.type === "llm") {
-            recordSearchModel(submittedModel);
+            recordSearchModel(resolvedModel);
           }
         },
       });

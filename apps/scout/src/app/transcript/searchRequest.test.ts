@@ -6,7 +6,6 @@ describe("buildSearchRequest", () => {
   it("scopes grep searches to messages on the messages tab", () => {
     expect(
       buildSearchRequest({
-        defaultModel: null,
         grepOptions: {
           ignoreCase: true,
           regex: false,
@@ -30,7 +29,6 @@ describe("buildSearchRequest", () => {
   it("scopes llm searches to events on the events tab", () => {
     expect(
       buildSearchRequest({
-        defaultModel: "gpt-5.4-mini",
         grepOptions: {
           ignoreCase: true,
           regex: false,
@@ -49,23 +47,22 @@ describe("buildSearchRequest", () => {
     });
   });
 
-  it("falls back to the project default model for llm searches", () => {
+  it("sends a null model when none is provided for llm searches", () => {
     expect(
       buildSearchRequest({
-        defaultModel: "gpt-5.4-mini",
         grepOptions: {
           ignoreCase: true,
           regex: false,
           wordBoundary: false,
         },
-        model: "   ",
+        model: "",
         query: "Summarize this transcript",
         scope: "messages",
         searchType: "llm",
       })
     ).toEqual({
       messages: "all",
-      model: "gpt-5.4-mini",
+      model: null,
       query: "Summarize this transcript",
       type: "llm",
     });

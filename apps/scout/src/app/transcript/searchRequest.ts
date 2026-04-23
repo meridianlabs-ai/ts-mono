@@ -10,7 +10,6 @@ export type GrepOptions = {
 };
 
 type BuildSearchRequestOptions = {
-  defaultModel: string | null | undefined;
   grepOptions: GrepOptions;
   model: string;
   query: string;
@@ -25,7 +24,6 @@ const getScopeFields = (scope: TranscriptSearchScope) => {
 };
 
 export const buildSearchRequest = ({
-  defaultModel,
   grepOptions,
   model,
   query,
@@ -47,7 +45,7 @@ export const buildSearchRequest = ({
 
   return {
     ...scopeFields,
-    model: model.trim() || defaultModel || null,
+    model: model || null,
     query,
     type: "llm",
   };
