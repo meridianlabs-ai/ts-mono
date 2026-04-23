@@ -53,45 +53,62 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   // For any user messages which immediately preceded this model call, including a
   // panel and display those user messages (exclude tool_call messages as they
   // are already shown in the tool call above)
-  const userMessages: ChatMessage[] = [];
+  const userMessages = useMemo<ChatMessage[]>(() => {
+    const result: ChatMessage[] = [];
 
-  // When agent tool results have been filtered from input (shown on AgentCard
-  // instead), the trailing assistant message is the previous model call's output
-  // — just show it without crawling backward through system/user messages.
-  const agentResultsFiltered = !!(event as Record<string, unknown>)
-    .agentResultsFiltered;
+    // When agent tool results have been filtered from input (shown on AgentCard
+    // instead), the trailing assistant message is the previous model call's output
+    // — just show it without crawling backward through system/user messages.
+    const agentResultsFiltered = !!(event as Record<string, unknown>)
+      .agentResultsFiltered;
 
-  if (!agentResultsFiltered) {
-    // if there is an assistant message immediately before then include this
-    // (as it could be an assistant compaction message)
-    let offset: number | undefined = undefined;
-    const lastMessage = event.input.at(-1);
-    if (lastMessage?.role === "assistant") {
-      userMessages.push(lastMessage);
-      offset = -1;
-    }
+    if (!agentResultsFiltered) {
+      // if there is an assistant message immediately before then include this
+      // (as it could be an assistant compaction message)
+      let offset: number | undefined = undefined;
+      const lastMessage = event.input.at(-1);
+      if (lastMessage?.role === "assistant") {
+        result.push(lastMessage);
+        offset = -1;
+      }
 
-    for (const msg of event.input.slice(offset).reverse()) {
-      if (
-        (msg.role === "user" && !msg.tool_call_id) ||
-        msg.role === "system" ||
-        // If the client doesn't support tool events, then tools messages are allowed to be displayed
-        // in this view, since no tool events will be shown.
-        (context?.hasToolEvents === false && msg.role === "tool")
-      ) {
-        userMessages.unshift(msg);
-      } else {
-        break;
+      for (const msg of event.input.slice(offset).reverse()) {
+        if (
+          (msg.role === "user" && !msg.tool_call_id) ||
+          msg.role === "system" ||
+          // If the client doesn't support tool events, then tools messages are allowed to be displayed
+          // in this view, since no tool events will be shown.
+          (context?.hasToolEvents === false && msg.role === "tool")
+        ) {
+          result.unshift(msg);
+        } else {
+          break;
+        }
       }
     }
-  }
+
+    return result;
+  }, [event, context?.hasToolEvents]);
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);
 
-  const summaryMessages = showAllMessages
-    ? [...event.input, ...(outputMessages || [])]
-    : [...userMessages, ...(outputMessages || [])];
+  const summaryMessages = useMemo(
+    () =>
+      showAllMessages
+        ? [...event.input, ...(outputMessages || [])]
+        : [...userMessages, ...(outputMessages || [])],
+    [showAllMessages, event.input, outputMessages, userMessages]
+  );
+
+  // Only enable labels for the Summary when at least one visible message has
+  // a matching entry — otherwise every row reserves an empty label column.
+  const summaryLabels = useMemo(() => {
+    const map = context?.messageLabels;
+    if (!map) return { show: false } as const;
+    const hasAny = summaryMessages.some((m) => !!m.id && !!map[m.id]);
+    return hasAny ? { messageLabels: map } : ({ show: false } as const);
+  }, [context?.messageLabels, summaryMessages]);
 
   const panelTitle = event.role
     ? `Model Call (${event.role}): ${event.model}`
@@ -142,11 +159,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             callStyle: showToolCalls ? "complete" : "omit",
             collapseToolMessages: context?.hasToolEvents !== false,
           }}
-          labels={
-            context?.messageLabels
-              ? { messageLabels: context.messageLabels }
-              : { show: false }
-          }
+          labels={summaryLabels}
         />
         {event.error ? (
           <EventSection title="Error">
