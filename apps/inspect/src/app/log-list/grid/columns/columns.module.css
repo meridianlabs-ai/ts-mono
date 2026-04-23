@@ -12,6 +12,13 @@
   flex: 1;
 }
 
+.modelCellPrimary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .scoreCell {
   display: flex;
   align-items: center;

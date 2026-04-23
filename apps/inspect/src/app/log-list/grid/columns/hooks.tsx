@@ -8,6 +8,7 @@ import { useEffect, useMemo } from "react";
 
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
+import { kModelNone } from "../../../../constants";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
@@ -26,6 +27,20 @@ import { LogListRow } from "./types";
 const styles = { ...sharedStyles, ...localStyles };
 
 const EmptyCell = () => <div>-</div>;
+
+const displayModelRoles = (
+  row: LogListRow | undefined,
+): [string, string][] => {
+  if (!row) return [];
+  if (row.model && row.model !== kModelNone) return [];
+  return row.modelRoles ? Object.entries(row.modelRoles) : [];
+};
+
+const primaryModelValue = (row: LogListRow | undefined): string | undefined => {
+  if (!row) return undefined;
+  if (row.model && row.model !== kModelNone) return row.model;
+  return displayModelRoles(row)[0]?.[1];
+};
 
 /**
  * Build a stable, unique column key for a (scorer, metric) pair. The reducer
@@ -217,7 +232,7 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "model",
+        colId: "model",
         headerName: "Model",
         initialWidth: 300,
         minWidth: 100,
@@ -225,12 +240,35 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
-        tooltipField: "model",
+        valueGetter: (params: ValueGetterParams<LogListRow>) =>
+          primaryModelValue(params.data),
+        tooltipValueGetter: (params) => {
+          const roles = displayModelRoles(params.data);
+          if (roles.length > 0) {
+            return roles.map(([role, model]) => `${role}: ${model}`).join("\n");
+          }
+          const model = params.data?.model;
+          return model && model !== kModelNone ? model : undefined;
+        },
+        tooltipComponent: PreformattedTooltip,
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item) return null;
-          if (item.model) {
+          if (item.model && item.model !== kModelNone) {
             return <div className={styles.modelCell}>{item.model}</div>;
+          }
+          const roles = displayModelRoles(item);
+          if (roles.length > 0) {
+            const [, primary] = roles[0];
+            const extras = roles.length - 1;
+            return (
+              <div className={styles.modelCell}>
+                <span className={styles.modelCellPrimary}>{primary}</span>
+                {extras > 0 && (
+                  <span className={styles.multiScorerBadge}>+{extras}</span>
+                )}
+              </div>
+            );
           }
           return <EmptyCell />;
         },

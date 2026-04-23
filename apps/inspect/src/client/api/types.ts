@@ -298,6 +298,7 @@ export interface LogPreview {
   error?: EvalError | null;
 
   model: EvalSpec["model"];
+  model_roles?: Record<string, string> | null;
 
   started_at?: EvalStats["started_at"];
   completed_at?: EvalStats["completed_at"];

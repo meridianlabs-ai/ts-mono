@@ -8,6 +8,7 @@ export interface LogListRow {
   url?: string;
   task?: string;
   model?: string;
+  modelRoles?: Record<string, string>;
   score?: number;
   status?: string;
   completedAt?: string;
