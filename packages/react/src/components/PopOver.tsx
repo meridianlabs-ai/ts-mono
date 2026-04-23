@@ -4,6 +4,7 @@ import React, {
   CSSProperties,
   ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -322,6 +323,27 @@ export const PopOver: React.FC<PopOverProps> = ({
     modifiers,
   });
 
+  // Per-open-cycle "has popper positioned this open?" flag. react-popper's
+  // internal useState (for styles/attributes) persists across open/close
+  // cycles, so on the first render of a reopen the last open's top/left are
+  // still in popperStyles — we'd paint at stale coordinates for one frame.
+  //
+  // useLayoutEffect (not useEffect) is critical here: in the same component,
+  // usePopper's internal useLayoutEffect runs first (declared earlier) and
+  // creates the popper instance + runs its first compute synchronously.
+  // Our layout effect then runs, setPositionedThisOpen(true) triggers a
+  // re-render, and all of this completes before the browser's first paint
+  // after the open. So the first paint lands with the popover at its final
+  // position — no offscreen frame, no flash.
+  const [positionedThisOpen, setPositionedThisOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setPositionedThisOpen(false);
+    } else if (update) {
+      setPositionedThisOpen(true);
+    }
+  }, [isOpen, update]);
+
   // Force update when needed refs change
   useEffect(() => {
     if (update && isOpen && shouldShowPopover) {
@@ -424,21 +446,29 @@ export const PopOver: React.FC<PopOverProps> = ({
     return null;
   }
 
-  // For position-aware rendering
-  const positionedStyle =
-    state && state.styles && state.styles.popper
-      ? {
-          ...popperStyles.popper,
-          opacity: 1,
-        }
-      : {
-          ...popperStyles.popper,
-          opacity: 0,
-          // Position offscreen initially to prevent flicker
-          position: "fixed" as const,
-          top: "-9999px",
-          left: "-9999px",
-        };
+  // For position-aware rendering. Use the per-open-cycle flag rather than
+  // react-popper state, which persists styles across open/close cycles and
+  // would otherwise cause paints at stale or placeholder coordinates on the
+  // first render of any open.
+  const popperReady = positionedThisOpen;
+  const positionedStyle = popperReady
+    ? {
+        ...popperStyles.popper,
+        opacity: 1,
+        visibility: "visible" as const,
+      }
+    : {
+        ...popperStyles.popper,
+        // visibility: hidden is bulletproof — no paint regardless of what
+        // position values are in popperStyles.popper (which may include
+        // stale coordinates from a prior open since react-popper's useState
+        // persists, or placeholder 0/0 on a brand-new instance).
+        visibility: "hidden" as const,
+        opacity: 0,
+        position: "fixed" as const,
+        top: "-9999px",
+        left: "-9999px",
+      };
 
   // Create the popper content with position-aware styles
   const popperContent = (
