@@ -305,10 +305,6 @@ export const SearchPanel = ({
                 </div>
               ) : (
                 <div className={styles.modelPill}>
-                  <i
-                    className={clsx(ApplicationIcons.model, styles.modelIcon)}
-                  />
-                  <span className={styles.modelLabel}>Model</span>
                   <div className={styles.modelInputShell}>
                     <AutocompleteInput
                       id={modelInputId}
