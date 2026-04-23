@@ -132,6 +132,11 @@
   letter-spacing: 0.04em;
 }
 
+.modelInputShell {
+  flex: 1;
+  min-width: 0;
+}
+
 .modelInput {
   flex: 1;
   min-width: 0;
