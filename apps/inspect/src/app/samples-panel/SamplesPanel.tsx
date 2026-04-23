@@ -256,18 +256,9 @@ export const SamplesPanel: FC = () => {
         <NavbarButton
           key="choose-columns"
           ref={columnButtonRef}
-          label={
-            <>
-              Choose Columns
-              <i
-                className={clsx(
-                  ApplicationIcons.chevron.down,
-                  styles.chooseColumnsChevron
-                )}
-              />
-            </>
-          }
+          label="Choose Columns"
           icon={ApplicationIcons.checkbox.checked}
+          dropdown
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);

@@ -2,3 +2,12 @@
   font-size: 0.6rem;
   padding: 1px 5px;
 }
+
+.dropdownChevron {
+  margin-left: 0.35rem;
+  /* Inherit the button's font-size so the chevron never creates a taller
+     line-box than the button's text. Hard-coding a smaller font-size token
+     can easily exceed the button's own 0.6rem and stretch button height. */
+  font-size: inherit;
+  line-height: 1;
+}
