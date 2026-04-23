@@ -197,7 +197,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
               ? item.model
               : undefined,
         modelRoles:
-          item.type === "file" ? (preview?.model_roles ?? undefined) : undefined,
+          item.type === "file"
+            ? (preview?.model_roles ?? undefined)
+            : undefined,
         score: preview?.primary_metric?.value,
         status: preview?.status,
         completedAt: preview?.completed_at,

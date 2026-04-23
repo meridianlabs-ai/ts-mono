@@ -7,7 +7,7 @@ import {
   MarkdownReference,
 } from "@tsmono/react/components";
 
-import styles from "./Metadata.module.css"
+import styles from "./Metadata.module.css";
 
 interface MetadataProps {
   metadata: Record<string, unknown>;

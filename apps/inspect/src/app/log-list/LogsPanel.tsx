@@ -26,10 +26,7 @@ import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
-import {
-  useLogListColumns,
-  type ScoresViewMode,
-} from "./grid/columns/hooks";
+import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
 import { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";

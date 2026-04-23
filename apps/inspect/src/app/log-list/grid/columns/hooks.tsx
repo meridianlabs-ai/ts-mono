@@ -28,9 +28,7 @@ const styles = { ...sharedStyles, ...localStyles };
 
 const EmptyCell = () => <div>-</div>;
 
-const displayModelRoles = (
-  row: LogListRow | undefined,
-): [string, string][] => {
+const displayModelRoles = (row: LogListRow | undefined): [string, string][] => {
   if (!row) return [];
   if (row.model && row.model !== kModelNone) return [];
   return row.modelRoles ? Object.entries(row.modelRoles) : [];
@@ -53,10 +51,8 @@ const scorerMetricKey = (scorerName: string, metricName: string): string =>
   `${scorerName}/${metricName}`;
 
 /** Human-readable header: "scorer / metric". */
-const scorerMetricHeader = (
-  scorerName: string,
-  metricName: string
-): string => `${scorerName} / ${metricName}`;
+const scorerMetricHeader = (scorerName: string, metricName: string): string =>
+  `${scorerName} / ${metricName}`;
 
 /**
  * Field key for the synthetic "by metric" column that aggregates across
@@ -155,9 +151,7 @@ export const useLogListColumns = (
       ...[...metricNames].map(byMetricField),
     ];
 
-    const needsUpdate = allFields.some(
-      (field) => !(field in columnVisibility)
-    );
+    const needsUpdate = allFields.some((field) => !(field in columnVisibility));
 
     if (needsUpdate) {
       const newVisibility = { ...columnVisibility };
@@ -630,7 +624,9 @@ export const useLogListColumns = (
 
     // Per-scorer columns: one per (scorer, metric) pair. Alphabetical key
     // order so the column sequence is stable regardless of log iteration.
-    const scorerKeys = Object.keys(scorerMap).sort((a, b) => a.localeCompare(b));
+    const scorerKeys = Object.keys(scorerMap).sort((a, b) =>
+      a.localeCompare(b)
+    );
     const perScorerColumns: ColDef<LogListRow>[] = scorerKeys.map((key) => {
       const { scorerName, metricName, valueType } = scorerMap[key];
       const scoreType = valueType;
@@ -661,9 +657,7 @@ export const useLogListColumns = (
             return <EmptyCell />;
           }
           return (
-            <div className={styles.scoreCell}>
-              {formatPrettyDecimal(value)}
-            </div>
+            <div className={styles.scoreCell}>{formatPrettyDecimal(value)}</div>
           );
         },
         comparator: createFolderFirstComparator<LogListRow>((valA, valB) => {
@@ -720,9 +714,7 @@ export const useLogListColumns = (
           initialWidth: 100,
           minWidth: 100,
           sortable: true,
-          filter: allNumeric
-            ? "agNumberColumnFilter"
-            : "agTextColumnFilter",
+          filter: allNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
           resizable: true,
           valueGetter: (params: ValueGetterParams<LogListRow>) => {
             const first = readContributors(params.data)[0];
@@ -782,11 +774,7 @@ export const useLogListColumns = (
     // is stable across view-mode toggles — switching just flips `hide` on
     // each column rather than swapping in an entirely new column array,
     // which keeps ag-grid from reflowing base-column widths.
-    const allCols = [
-      ...baseColumns,
-      ...perScorerColumns,
-      ...byMetricColumns,
-    ];
+    const allCols = [...baseColumns, ...perScorerColumns, ...byMetricColumns];
 
     if (mode === "tasks") {
       // Tasks view: remove the type icon column (no folders in flat view)

@@ -19,7 +19,7 @@ export function toLogOverview(header: EvalHeader): LogPreview {
         Object.entries(evalSpec.model_roles).map(([role, cfg]) => [
           role,
           cfg.model,
-        ]),
+        ])
       )
     : undefined;
 

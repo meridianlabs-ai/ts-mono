@@ -183,43 +183,41 @@ export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
     // Add score columns — alphabetical by name so ordering is stable and
     // predictable regardless of the sample iteration order.
     const scoreNames = Object.keys(scoreMap).sort((a, b) => a.localeCompare(b));
-    const scoreColumns: ColDef<SampleRow>[] = scoreNames.map(
-      (scoreName) => {
-        const scoreType = scoreMap[scoreName];
-        return {
-          field: `score_${scoreName}`,
-          headerName: scoreName,
-          initialWidth: 100,
-          minWidth: 100,
-          sortable: true,
-          filter:
-            scoreType === "number"
-              ? "agNumberColumnFilter"
-              : "agTextColumnFilter",
-          resizable: true,
-          valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
-            const value = params.value;
-            if (value === "" || value === null || value === undefined) {
-              return "";
-            }
-            if (Array.isArray(value)) {
-              return value.join(", ");
-            } else if (typeof value === "object") {
-              return JSON.stringify(value);
-            } else if (typeof value === "number") {
-              return value.toFixed(3);
-            }
-            return String(value);
-          },
-          comparator: (valA, valB) => {
-            if (typeof valA === "number" && typeof valB === "number") {
-              return valA - valB;
-            }
-            return String(valA || "").localeCompare(String(valB || ""));
-          },
-        };
-      }
-    );
+    const scoreColumns: ColDef<SampleRow>[] = scoreNames.map((scoreName) => {
+      const scoreType = scoreMap[scoreName];
+      return {
+        field: `score_${scoreName}`,
+        headerName: scoreName,
+        initialWidth: 100,
+        minWidth: 100,
+        sortable: true,
+        filter:
+          scoreType === "number"
+            ? "agNumberColumnFilter"
+            : "agTextColumnFilter",
+        resizable: true,
+        valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
+          const value = params.value;
+          if (value === "" || value === null || value === undefined) {
+            return "";
+          }
+          if (Array.isArray(value)) {
+            return value.join(", ");
+          } else if (typeof value === "object") {
+            return JSON.stringify(value);
+          } else if (typeof value === "number") {
+            return value.toFixed(3);
+          }
+          return String(value);
+        },
+        comparator: (valA, valB) => {
+          if (typeof valA === "number" && typeof valB === "number") {
+            return valA - valB;
+          }
+          return String(valA || "").localeCompare(String(valB || ""));
+        },
+      };
+    });
 
     // Add optional columns (all for selector, hide unselected in grid)
     const optionalColumns: ColDef<SampleRow>[] = [

@@ -130,8 +130,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
       const captureListener = (event: MouseEvent) => {
         const target = event.target as Node;
-        mouseDownInsidePopover =
-          popperRef.current?.contains(target) ?? false;
+        mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
         // then reopening in the trigger handler would net to no change.
@@ -256,9 +255,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     []
   );
 
-  const applyMaxSizeModifier = React.useMemo<
-    Modifier<"applyMaxSize", object>
-  >(
+  const applyMaxSizeModifier = React.useMemo<Modifier<"applyMaxSize", object>>(
     () => ({
       name: "applyMaxSize",
       enabled: true,
@@ -355,7 +352,6 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs -- arrowRef.current mutable read; see meridianlabs-ai/ts-mono#90
   }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
-
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover

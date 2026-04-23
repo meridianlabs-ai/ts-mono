@@ -183,7 +183,7 @@ export function viewServerApi(
           Object.entries(header.eval.model_roles).map(([role, cfg]) => [
             role,
             cfg.model,
-          ]),
+          ])
         )
       : undefined;
 
