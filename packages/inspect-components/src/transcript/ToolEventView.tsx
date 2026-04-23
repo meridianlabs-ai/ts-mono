@@ -10,6 +10,7 @@ import {
   ChatView,
   resolveToolInput,
   substituteToolCallContent,
+  ToolCallErrorView,
   ToolCallView,
 } from "@tsmono/inspect-components/chat";
 import { PulsingDots } from "@tsmono/react/components";
@@ -107,10 +108,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           input={input}
           description={description}
           contentType={contentType}
-          output={event.error?.message || event.result || ""}
+          output={event.error ? "" : event.result || ""}
           mode="compact"
           view={resolvedView}
         />
+
+        {event.error ? <ToolCallErrorView error={event.error} /> : null}
 
         {lastModelNode ? (
           <ChatView

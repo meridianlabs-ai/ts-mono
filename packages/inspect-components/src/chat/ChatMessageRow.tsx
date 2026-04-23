@@ -6,6 +6,7 @@ import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { Message, ResolvedMessage } from "./messages";
+import { ToolCallErrorView } from "./tools/ToolCallErrorView";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallView } from "./tools/ToolCallView";
 import {
@@ -97,6 +98,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     const toolMessages = resolvedMessage.toolMessages || [];
     let idx = 0;
     for (const tool_call of resolvedMessage.message.tool_calls) {
+      
       // Extract tool input
       const { name, input, description, functionCall, contentType } =
         resolveToolInput(tool_call.function, tool_call.arguments);
@@ -147,6 +149,21 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
           />
         );
       }
+
+      // If the tool call errored, render a dedicated error view as its own
+      // row (with an empty label) so it visually attaches to the tool call.
+      if (toolMessage?.error) {
+        if (useLabels) {
+          viewLabels.push(undefined);
+        }
+        views.push(
+          <ToolCallErrorView
+            key={`tool-call-${idx}-error`}
+            error={toolMessage.error}
+          />
+        );
+      }
+
       idx++;
     }
   }
@@ -217,14 +234,11 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 };
 
 const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
-  if (!toolMessage) {
+  if (!toolMessage || toolMessage.error) {
     return [];
   }
 
-  const content =
-    toolMessage.error !== null && toolMessage.error
-      ? toolMessage.error.message
-      : toolMessage.content;
+  const content = toolMessage.content;
   if (typeof content === "string") {
     return [
       {
