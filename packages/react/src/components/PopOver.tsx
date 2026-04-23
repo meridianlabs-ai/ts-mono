@@ -4,7 +4,6 @@ import React, {
   CSSProperties,
   ReactNode,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -320,26 +319,29 @@ export const PopOver: React.FC<PopOverProps> = ({
     modifiers,
   });
 
-  // Per-open-cycle "has popper positioned this open?" flag. react-popper's
+  // Per-open-cycle "has popper positioned this open?" signal. react-popper's
   // internal useState (for styles/attributes) persists across open/close
   // cycles, so on the first render of a reopen the last open's top/left are
   // still in popperStyles — we'd paint at stale coordinates for one frame.
   //
-  // useLayoutEffect (not useEffect) is critical here: in the same component,
-  // usePopper's internal useLayoutEffect runs first (declared earlier) and
-  // creates the popper instance + runs its first compute synchronously.
-  // Our layout effect then runs, setPositionedThisOpen(true) triggers a
-  // re-render, and all of this completes before the browser's first paint
-  // after the open. So the first paint lands with the popover at its final
-  // position — no offscreen frame, no flash.
-  const [positionedThisOpen, setPositionedThisOpen] = useState(false);
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setPositionedThisOpen(false);
-    } else if (update) {
-      setPositionedThisOpen(true);
+  // Derived (not stored) from popper's `state` identity: we snapshot `state`
+  // at the open transition via a ref and flip positionedThisOpen true once
+  // popper hands us a *different* state object for this cycle. The re-render
+  // that carries the fresh state is driven by react-popper's own setState
+  // inside its layout effect — that runs before the browser's first paint
+  // after open, so the first paint lands with the popover at its final
+  // position. No setState-in-effect, no offscreen frame, no flash.
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [openBaselineState, setOpenBaselineState] =
+    useState<typeof state>(state);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setOpenBaselineState(state);
     }
-  }, [isOpen, update]);
+  }
+  const positionedThisOpen =
+    isOpen && state !== null && state !== openBaselineState;
 
   // Force update when needed refs change
   useEffect(() => {
