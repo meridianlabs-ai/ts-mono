@@ -30,7 +30,10 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
   showReducer,
   className,
 }) => {
-  const { rowData, columnDefs } = useMemo(() => {
+  const kScorerColWidth = 280;
+  const kMetricColWidth = 120;
+
+  const { rowData, columnDefs, naturalWidth } = useMemo(() => {
     const metricNames: string[] = [];
     const metricNameSet = new Set<string>();
     for (const group of scoreGroups) {
@@ -61,14 +64,17 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
       }
     }
 
+    const lastIdx = metricNames.length - 1;
     const columns: ColDef<ScoreGridRow>[] = [
       {
         headerName: "Scorer",
         field: "scorer",
         sortable: true,
         resizable: true,
-        flex: 1,
-        minWidth: 100,
+        width: kScorerColWidth,
+        minWidth: 150,
+        cellClass: styles.firstCell,
+        headerClass: styles.firstHeader,
         cellRenderer: (params: { data: ScoreGridRow | undefined }) => {
           const data = params.data;
           if (!data) return null;
@@ -84,12 +90,14 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
         },
       },
       ...metricNames.map(
-        (name): ColDef<ScoreGridRow> => ({
+        (name, i): ColDef<ScoreGridRow> => ({
           headerName: name,
           field: `metric_${name}`,
           sortable: true,
           resizable: true,
-          width: 120,
+          width: kMetricColWidth,
+          cellClass: i === lastIdx ? styles.lastCell : undefined,
+          headerClass: i === lastIdx ? styles.lastHeader : undefined,
           valueFormatter: (params) => {
             if (params.value == null) return "";
             return formatPrettyDecimal(params.value as number);
@@ -99,11 +107,16 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
       ),
     ];
 
-    return { rowData: rows, columnDefs: columns };
+    const naturalWidth = kScorerColWidth + metricNames.length * kMetricColWidth;
+
+    return { rowData: rows, columnDefs: columns, naturalWidth };
   }, [scoreGroups, showReducer]);
 
   return (
-    <div className={clsx(className, styles.gridContainer)}>
+    <div
+      className={clsx(className, styles.gridContainer)}
+      style={{ width: naturalWidth }}
+    >
       <AgGridReact<ScoreGridRow>
         rowData={rowData}
         columnDefs={columnDefs}
