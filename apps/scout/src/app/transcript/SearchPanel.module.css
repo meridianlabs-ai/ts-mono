@@ -119,19 +119,6 @@
   border-color: var(--vscode-focusBorder);
 }
 
-.modelIcon,
-.modelLabel {
-  color: var(--bs-secondary-color);
-  flex-shrink: 0;
-}
-
-.modelLabel {
-  font-size: var(--inspect-font-size-smallest);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 .modelInputShell {
   flex: 1;
   min-width: 0;
