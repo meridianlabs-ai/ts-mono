@@ -7,6 +7,8 @@ import {
   MarkdownReference,
 } from "@tsmono/react/components";
 
+import styles from "./Metadata.module.css";
+
 interface MetadataProps {
   metadata: Record<string, unknown>;
   references?: MarkdownReference[];
@@ -34,7 +36,7 @@ export const Metadata: FC<MetadataProps> = ({
   return (
     <>
       {entries.map(([key, value]) => (
-        <LabeledValue key={key} label={key}>
+        <LabeledValue key={key} label={key} className={styles.entry}>
           <MetadataValue
             id={key}
             value={value}

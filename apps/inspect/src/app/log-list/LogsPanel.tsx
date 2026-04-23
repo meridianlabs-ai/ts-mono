@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ProgressBar } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useClientEvents } from "../../state/clientEvents";
@@ -25,7 +26,7 @@ import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
-import { useLogListColumns } from "./grid/columns/hooks";
+import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
 import { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
@@ -247,18 +248,52 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     showRetriedLogs,
   ]);
 
-  const { columns, setColumnVisibility } = useLogListColumns(mode);
+  // In the folder view, scope the Metrics list to logs under the current
+  // directory so descending into a subfolder shows only that folder's metrics.
+  // The flat tasks view shows columns across the whole set.
+  const scopePrefix = mode === "logs" ? currentDir : undefined;
 
-  // Wrapper that clears filters for columns that are being hidden
+  // Shared view-mode state for the scorer columns. The same useProperty
+  // scope/key is read by LogListGrid so the grid and popover stay in sync,
+  // and by persisting via useProperty the choice survives reloads.
+  const [scoresViewMode, setScoresViewMode] = useProperty<ScoresViewMode>(
+    "log-list-scores-view",
+    "mode",
+    { defaultValue: "by-metric" }
+  );
+
+  // LogsPanel uses `pickerColumns` for the popover so it only shows the
+  // active view mode's checkboxes; the grid (LogListGrid) reads `columns`
+  // from its own `useLogListColumns` call and gets both sets for stability.
+  const { pickerColumns, setColumnVisibility } = useLogListColumns(
+    mode,
+    scopePrefix,
+    scoresViewMode
+  );
+
+  const currentColumnVisibility = useStore(
+    (state) => state.logs.listing.columnVisibility
+  );
+
+  // Wrapper that clears filters for columns that are being hidden. Because
+  // the popover only sees `pickerColumns` (the active view mode), the
+  // visibility map it emits is scoped to those fields. Merge it into the
+  // full stored map so toggles in one view don't wipe the other view's
+  // entries.
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
+      const mergedVisibility = {
+        ...currentColumnVisibility,
+        ...newVisibility,
+      };
+
       if (gridRef.current?.api) {
         const currentFilterModel = gridRef.current.api.getFilterModel() || {};
         let filtersRemoved = false;
         const newFilterModel: Record<string, unknown> = {};
 
         for (const [field, filter] of Object.entries(currentFilterModel)) {
-          if (newVisibility[field] === false) {
+          if (mergedVisibility[field] === false) {
             filtersRemoved = true;
           } else {
             newFilterModel[field] = filter;
@@ -270,9 +305,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         }
       }
 
-      setColumnVisibility(newVisibility);
+      setColumnVisibility(mergedVisibility);
     },
-    [setColumnVisibility]
+    [currentColumnVisibility, setColumnVisibility]
   );
 
   const progress = useMemo(() => {
@@ -353,6 +388,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
           ref={columnButtonRef}
           label="Choose Columns"
           icon={ApplicationIcons.checkbox.checked}
+          dropdown
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);
@@ -368,10 +404,14 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       <ColumnSelectorPopover
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
-        columns={columns}
+        columns={pickerColumns}
         onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonRef.current}
         filteredFields={filteredFields}
+        scoresHeading="Metrics"
+        groupableScores
+        scoresViewMode={scoresViewMode}
+        onScoresViewModeChange={setScoresViewMode}
       />
 
       <>

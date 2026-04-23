@@ -178,6 +178,15 @@ export function viewServerApi(
     const evalMetrics = Object.values(metric || {});
     const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
 
+    const model_roles = header.eval.model_roles
+      ? Object.fromEntries(
+          Object.entries(header.eval.model_roles).map(([role, cfg]) => [
+            role,
+            cfg.model,
+          ])
+        )
+      : undefined;
+
     return {
       eval_id: header.eval.eval_id,
       run_id: header.eval.run_id,
@@ -191,6 +200,7 @@ export function viewServerApi(
       error: header.error,
 
       model: header.eval.model,
+      model_roles,
 
       started_at: header.stats?.started_at,
       completed_at: header.stats?.completed_at,

@@ -1,9 +1,14 @@
-import type { ColDef, ICellRendererParams } from "ag-grid-community";
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
 import clsx from "clsx";
 import { useEffect, useMemo } from "react";
 
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
+import { kModelNone } from "../../../../constants";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
@@ -23,12 +28,65 @@ const styles = { ...sharedStyles, ...localStyles };
 
 const EmptyCell = () => <div>-</div>;
 
+const displayModelRoles = (row: LogListRow | undefined): [string, string][] => {
+  if (!row) return [];
+  if (row.model && row.model !== kModelNone) return [];
+  return row.modelRoles ? Object.entries(row.modelRoles) : [];
+};
+
+const primaryModelValue = (row: LogListRow | undefined): string | undefined => {
+  if (!row) return undefined;
+  if (row.model && row.model !== kModelNone) return row.model;
+  return displayModelRoles(row)[0]?.[1];
+};
+
+/**
+ * Build a stable, unique column key for a (scorer, metric) pair. The reducer
+ * is intentionally omitted so the same logical metric is one column regardless
+ * of whether the log recorded `reducer=null` (default, silently mean) or
+ * `reducer="mean"` (explicit). "/" is used as separator because ag-grid treats
+ * "." in `field` as nested-object access.
+ */
+const scorerMetricKey = (scorerName: string, metricName: string): string =>
+  `${scorerName}/${metricName}`;
+
+/** Human-readable header: "scorer / metric". */
+const scorerMetricHeader = (scorerName: string, metricName: string): string =>
+  `${scorerName} / ${metricName}`;
+
+/**
+ * Field key for the synthetic "by metric" column that aggregates across
+ * scorers. Uses a `metric_` prefix (no slash) so it can never collide with
+ * the per-scorer `score_<scorer>/<metric>` field keys.
+ */
+const byMetricField = (metricName: string): string => `metric_${metricName}`;
+
 export type LogListMode = "logs" | "tasks";
+export type ScoresViewMode = "by-metric" | "per-scorer";
 
 export const useLogListColumns = (
-  mode: LogListMode = "logs"
+  mode: LogListMode = "logs",
+  /**
+   * When set, scorer columns are computed only from logs whose name starts
+   * with this prefix. Used by the folder view so descending into a subfolder
+   * recomputes the Metrics list to match the contents of that folder.
+   */
+  scopePrefix?: string,
+  /**
+   * View mode for scorer columns:
+   *   - "by-metric" (default): one synthetic column per unique metric name,
+   *     aggregating across scorers via valueGetter.
+   *   - "per-scorer": one column per (scorer, metric) pair, fully qualified.
+   */
+  viewMode: ScoresViewMode = "by-metric"
 ): {
+  /** Full column set for the grid. Both score-column modes are registered,
+   *  with inactive-mode columns marked hide:true so the grid's structure
+   *  (and base-column widths) stay stable when the mode is toggled. */
   columns: ColDef<LogListRow>[];
+  /** Subset passed to the ColumnSelectorPopover so the picker only lists
+   *  checkboxes for the currently active view mode. */
+  pickerColumns: ColDef<LogListRow>[];
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -39,42 +97,65 @@ export const useLogListColumns = (
   );
   const logDetails = useStore((state) => state.logs.logDetails);
 
-  // Detect all unique scorer names across all logs from their results
+  // Detect all unique (scorer, reducer, metric) combinations across all logs
+  // from their results. Previously this collapsed on metric name alone, which
+  // merged distinct scorers emitting the same metric (e.g. two "accuracy"s)
+  // into a single column.
   const scorerMap = useMemo(() => {
-    const scoreTypes: Record<string, string> = {};
+    const info: Record<
+      string,
+      { scorerName: string; metricName: string; valueType: string }
+    > = {};
 
-    for (const details of Object.values(logDetails)) {
+    for (const [logName, details] of Object.entries(logDetails)) {
+      if (scopePrefix && !logName.startsWith(scopePrefix)) {
+        continue;
+      }
       if (details.results?.scores) {
-        // scores is an array of EvalScore objects
         for (const evalScore of details.results.scores) {
-          // Each EvalScore has metrics which is a record of EvalMetric
           if (evalScore.metrics) {
             for (const [metricName, metric] of Object.entries(
               evalScore.metrics
             )) {
-              scoreTypes[metricName] = typeof metric.value;
+              const key = scorerMetricKey(evalScore.name, metricName);
+              info[key] = {
+                scorerName: evalScore.name,
+                metricName,
+                valueType: typeof metric.value,
+              };
             }
           }
         }
       }
     }
 
-    return scoreTypes;
-  }, [logDetails]);
+    return info;
+  }, [logDetails, scopePrefix]);
 
-  // Auto-hide scorer columns by default if not explicitly set
+  // Auto-hide scorer columns by default if not explicitly set. Seed defaults
+  // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
+  // synthetic by-metric fields (`metric_<metric>`) so switching view modes
+  // never produces an un-initialised column, and a user's toggles in each
+  // mode persist independently.
   useEffect(() => {
-    const scorerNames = Object.keys(scorerMap);
-    if (scorerNames.length === 0) return;
+    const scorerKeys = Object.keys(scorerMap);
+    if (scorerKeys.length === 0) return;
 
-    const needsUpdate = scorerNames.some(
-      (name) => !(`score_${name}` in columnVisibility)
-    );
+    const metricNames = new Set<string>();
+    for (const { metricName } of Object.values(scorerMap)) {
+      metricNames.add(metricName);
+    }
+
+    const allFields = [
+      ...scorerKeys.map((key) => `score_${key}`),
+      ...[...metricNames].map(byMetricField),
+    ];
+
+    const needsUpdate = allFields.some((field) => !(field in columnVisibility));
 
     if (needsUpdate) {
       const newVisibility = { ...columnVisibility };
-      for (const scorerName of scorerNames) {
-        const field = `score_${scorerName}`;
+      for (const field of allFields) {
         if (!(field in columnVisibility)) {
           newVisibility[field] = false;
         }
@@ -145,7 +226,7 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "model",
+        colId: "model",
         headerName: "Model",
         initialWidth: 300,
         minWidth: 100,
@@ -153,12 +234,35 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
-        tooltipField: "model",
+        valueGetter: (params: ValueGetterParams<LogListRow>) =>
+          primaryModelValue(params.data),
+        tooltipValueGetter: (params) => {
+          const roles = displayModelRoles(params.data);
+          if (roles.length > 0) {
+            return roles.map(([role, model]) => `${role}: ${model}`).join("\n");
+          }
+          const model = params.data?.model;
+          return model && model !== kModelNone ? model : undefined;
+        },
+        tooltipComponent: PreformattedTooltip,
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
           if (!item) return null;
-          if (item.model) {
+          if (item.model && item.model !== kModelNone) {
             return <div className={styles.modelCell}>{item.model}</div>;
+          }
+          const roles = displayModelRoles(item);
+          if (roles.length > 0) {
+            const [, primary] = roles[0];
+            const extras = roles.length - 1;
+            return (
+              <div className={styles.modelCell}>
+                <span className={styles.modelCellPrimary}>{primary}</span>
+                {extras > 0 && (
+                  <span className={styles.multiScorerBadge}>+{extras}</span>
+                )}
+              </div>
+            );
           }
           return <EmptyCell />;
         },
@@ -518,21 +622,104 @@ export const useLogListColumns = (
       },
     ];
 
-    // Add scorer columns (currently only showing when we detect them)
-    const scorerColumns: ColDef<LogListRow>[] = Object.keys(scorerMap).map(
-      (scorerName) => {
-        const scoreType = scorerMap[scorerName];
+    // Per-scorer columns: one per (scorer, metric) pair. Alphabetical key
+    // order so the column sequence is stable regardless of log iteration.
+    const scorerKeys = Object.keys(scorerMap).sort((a, b) =>
+      a.localeCompare(b)
+    );
+    const perScorerColumns: ColDef<LogListRow>[] = scorerKeys.map((key) => {
+      const { scorerName, metricName, valueType } = scorerMap[key];
+      const scoreType = valueType;
+      return {
+        field: `score_${key}`,
+        headerName: scorerMetricHeader(scorerName, metricName),
+        initialWidth: 100,
+        minWidth: 100,
+        sortable: true,
+        filter:
+          scoreType === "number"
+            ? "agNumberColumnFilter"
+            : "agTextColumnFilter",
+        resizable: true,
+        valueFormatter: (params) => {
+          const value = params.value;
+          if (value === "" || value === null || value === undefined) {
+            return "";
+          }
+          if (typeof value === "number") {
+            return formatPrettyDecimal(value);
+          }
+          return String(value);
+        },
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          const value = params.value;
+          if (value === undefined || value === null || value === "") {
+            return <EmptyCell />;
+          }
+          return (
+            <div className={styles.scoreCell}>{formatPrettyDecimal(value)}</div>
+          );
+        },
+        comparator: createFolderFirstComparator<LogListRow>((valA, valB) => {
+          if (typeof valA === "number" && typeof valB === "number") {
+            return valA - valB;
+          }
+          return String(valA || "").localeCompare(String(valB || ""));
+        }),
+      } as ColDef<LogListRow>;
+    });
+
+    // By-metric columns: one synthetic column per unique metric name across
+    // all scorers. Each column's valueGetter reads the row's per-scorer fields
+    // in alphabetical scorer order and returns the first non-empty value.
+    // The cellRenderer additionally renders a "+N" badge with a tooltip when
+    // more than one scorer on the same row produced the metric.
+    const metricGroups = new Map<
+      string,
+      { scorerName: string; valueType: string }[]
+    >();
+    for (const { scorerName, metricName, valueType } of Object.values(
+      scorerMap
+    )) {
+      const list = metricGroups.get(metricName) ?? [];
+      list.push({ scorerName, valueType });
+      metricGroups.set(metricName, list);
+    }
+
+    const byMetricColumns: ColDef<LogListRow>[] = [...metricGroups.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([metricName, entries]) => {
+        const scorerOrder = entries
+          .map((e) => e.scorerName)
+          .sort((a, b) => a.localeCompare(b));
+        const allNumeric = entries.every((e) => e.valueType === "number");
+
+        const readContributors = (
+          row: LogListRow | undefined
+        ): { scorer: string; value: unknown }[] => {
+          if (!row) return [];
+          const contributors: { scorer: string; value: unknown }[] = [];
+          for (const scorer of scorerOrder) {
+            const v = row[`score_${scorer}/${metricName}`];
+            if (v !== undefined && v !== null && v !== "") {
+              contributors.push({ scorer, value: v });
+            }
+          }
+          return contributors;
+        };
+
         return {
-          field: `score_${scorerName}`,
-          headerName: scorerName,
+          field: byMetricField(metricName),
+          headerName: metricName,
           initialWidth: 100,
           minWidth: 100,
           sortable: true,
-          filter:
-            scoreType === "number"
-              ? "agNumberColumnFilter"
-              : "agTextColumnFilter",
+          filter: allNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
           resizable: true,
+          valueGetter: (params: ValueGetterParams<LogListRow>) => {
+            const first = readContributors(params.data)[0];
+            return first?.value;
+          },
           valueFormatter: (params) => {
             const value = params.value;
             if (value === "" || value === null || value === undefined) {
@@ -544,13 +731,33 @@ export const useLogListColumns = (
             return String(value);
           },
           cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-            const value = params.value;
-            if (value === undefined || value === null || value === "") {
-              return <EmptyCell />;
-            }
+            const contributors = readContributors(params.data);
+            if (contributors.length === 0) return <EmptyCell />;
+            const primary = contributors[0].value;
+            const extras = contributors.slice(1);
+            const primaryText =
+              typeof primary === "number"
+                ? formatPrettyDecimal(primary)
+                : String(primary);
             return (
               <div className={styles.scoreCell}>
-                {formatPrettyDecimal(value)}
+                {primaryText}
+                {extras.length > 0 && (
+                  <span
+                    className={styles.multiScorerBadge}
+                    title={extras
+                      .map((c) => {
+                        const v =
+                          typeof c.value === "number"
+                            ? formatPrettyDecimal(c.value)
+                            : String(c.value);
+                        return `${c.scorer}: ${v}`;
+                      })
+                      .join("\n")}
+                  >
+                    +{extras.length}
+                  </span>
+                )}
               </div>
             );
           },
@@ -561,10 +768,13 @@ export const useLogListColumns = (
             return String(valA || "").localeCompare(String(valB || ""));
           }),
         } as ColDef<LogListRow>;
-      }
-    );
+      });
 
-    const allCols = [...baseColumns, ...scorerColumns];
+    // Always include BOTH score-column sets so the grid's column structure
+    // is stable across view-mode toggles — switching just flips `hide` on
+    // each column rather than swapping in an entirely new column array,
+    // which keeps ag-grid from reflowing base-column widths.
+    const allCols = [...baseColumns, ...perScorerColumns, ...byMetricColumns];
 
     if (mode === "tasks") {
       // Tasks view: remove the type icon column (no folders in flat view)
@@ -645,14 +855,27 @@ export const useLogListColumns = (
     return hidden;
   }, [mode]);
 
+  // Determine whether a column belongs to the active scores view mode. Base
+  // columns (neither prefix) always match. Per-scorer and by-metric columns
+  // only match when the corresponding mode is selected.
+  const matchesActiveMode = (field: string): boolean => {
+    if (field.startsWith("score_")) return viewMode === "per-scorer";
+    if (field.startsWith("metric_")) return viewMode === "by-metric";
+    return true;
+  };
+
   const columns = useMemo((): ColDef<LogListRow>[] => {
     const columnsWithVisibility = allColumns.map((col: ColDef<LogListRow>) => {
       const field = getFieldKey(col);
-      const isScoreColumn = field.startsWith("score_");
+      const isScoreColumn =
+        field.startsWith("score_") || field.startsWith("metric_");
       const defaultVisible = isScoreColumn
         ? false
         : !defaultHiddenFields.has(field);
       const isVisible = columnVisibility[field] ?? defaultVisible;
+      // Grid visibility is driven purely by the user's per-field toggle —
+      // switching view modes only affects which checkboxes the popover
+      // shows, never what's rendered in the grid.
       return {
         ...col,
         hide: !isVisible,
@@ -662,8 +885,17 @@ export const useLogListColumns = (
     return columnsWithVisibility;
   }, [allColumns, columnVisibility, defaultHiddenFields]);
 
+  // Columns to show in the ColumnSelectorPopover. The grid needs both score
+  // column sets registered for layout stability, but the picker should only
+  // list the checkboxes relevant to the current view mode.
+  const pickerColumns = useMemo((): ColDef<LogListRow>[] => {
+    return columns.filter((col) => matchesActiveMode(getFieldKey(col)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
+  }, [columns, viewMode]);
+
   return {
     columns,
+    pickerColumns,
     setColumnVisibility,
   };
 };

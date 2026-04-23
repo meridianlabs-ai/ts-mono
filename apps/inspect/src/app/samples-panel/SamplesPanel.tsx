@@ -258,6 +258,7 @@ export const SamplesPanel: FC = () => {
           ref={columnButtonRef}
           label="Choose Columns"
           icon={ApplicationIcons.checkbox.checked}
+          dropdown
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);

@@ -1,4 +1,4 @@
-import { Placement } from "@popperjs/core";
+import { Modifier, Placement } from "@popperjs/core";
 import clsx from "clsx";
 import React, {
   CSSProperties,
@@ -121,20 +121,25 @@ export const PopOver: React.FC<PopOverProps> = ({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- conditional sync of external prop, not cascading
       setShouldShowPopover(isOpen);
 
-      // Track whether mousedown originated inside popover content.
-      // We use capture phase to detect this BEFORE the event bubbles to portaled children.
+      // Track whether mousedown originated inside the popover or on the
+      // trigger element. We use capture phase to detect this BEFORE the
+      // event bubbles to portaled children.
       let mouseDownInsidePopover = false;
+      let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
-        mouseDownInsidePopover =
-          popperRef.current?.contains(event.target as Node) ?? false;
+        const target = event.target as Node;
+        mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
+        // A click on the trigger element should NOT close via this handler —
+        // the trigger's own onClick will toggle the popover. Closing here
+        // then reopening in the trigger handler would net to no change.
+        mouseDownOnTrigger = positionEl?.contains(target) ?? false;
       };
 
       const bubbleListener = () => {
-        // Only close if mousedown didn't start inside the popover
-        if (popperRef.current && !mouseDownInsidePopover) {
-          setIsOpenRef.current(false);
-        }
+        if (!popperRef.current) return;
+        if (mouseDownInsidePopover || mouseDownOnTrigger) return;
+        setIsOpenRef.current(false);
       };
 
       // Capture phase fires first, before any children (including portaled ones)
@@ -218,6 +223,58 @@ export const PopOver: React.FC<PopOverProps> = ({
     return undefined;
   }, [usePortal, isOpen, shouldShowPopover, id]);
 
+  // Popper modifier pair that caps the popover to the full viewport
+  // (minus padding), not to whatever the popover currently happens to be.
+  // Bounding the size up-front lets popper shift it freely to fit, avoiding
+  // the "text unwraps → popper chases a moving width" race while still
+  // giving the popover as much room as the viewport allows.
+  //
+  // The popper v2 community "maxSize" formula (width - overflow[side] - x)
+  // collapses to the popper's current width once preventOverflow has shifted
+  // it inside, so we derive the cap directly from the viewport — accurate
+  // for a body-portal popover and placement-agnostic.
+  const maxSizeModifier = React.useMemo<
+    Modifier<"maxSize", { padding: number }>
+  >(
+    () => ({
+      name: "maxSize",
+      enabled: true,
+      phase: "main",
+      requiresIfExists: ["offset", "preventOverflow", "flip"],
+      options: { padding: 8 },
+      fn({ state, name, options }) {
+        const padding =
+          typeof options?.padding === "number" ? options.padding : 8;
+        state.modifiersData[name] = {
+          width: Math.max(0, window.innerWidth - 2 * padding),
+          height: Math.max(0, window.innerHeight - 2 * padding),
+        };
+      },
+    }),
+    []
+  );
+
+  const applyMaxSizeModifier = React.useMemo<Modifier<"applyMaxSize", object>>(
+    () => ({
+      name: "applyMaxSize",
+      enabled: true,
+      phase: "beforeWrite",
+      requires: ["maxSize"],
+      fn({ state }) {
+        const data = state.modifiersData.maxSize as
+          | { width: number; height: number }
+          | undefined;
+        if (!data) return;
+        state.styles.popper = {
+          ...state.styles.popper,
+          maxWidth: `${data.width}px`,
+          maxHeight: `${data.height}px`,
+        };
+      },
+    }),
+    []
+  );
+
   // Configure modifiers for popper
   const modifiers = [
     { name: "offset", options: { offset } },
@@ -245,6 +302,8 @@ export const PopOver: React.FC<PopOverProps> = ({
         fallbackPlacements: ["top", "right", "bottom", "left"],
       },
     },
+    maxSizeModifier,
+    applyMaxSizeModifier,
   ];
 
   // Use popper hook with modifiers
@@ -259,6 +318,30 @@ export const PopOver: React.FC<PopOverProps> = ({
     strategy: "fixed",
     modifiers,
   });
+
+  // Per-open-cycle "has popper positioned this open?" signal. react-popper's
+  // internal useState (for styles/attributes) persists across open/close
+  // cycles, so on the first render of a reopen the last open's top/left are
+  // still in popperStyles — we'd paint at stale coordinates for one frame.
+  //
+  // Derived (not stored) from popper's `state` identity: we snapshot `state`
+  // at the open transition via a ref and flip positionedThisOpen true once
+  // popper hands us a *different* state object for this cycle. The re-render
+  // that carries the fresh state is driven by react-popper's own setState
+  // inside its layout effect — that runs before the browser's first paint
+  // after open, so the first paint lands with the popover at its final
+  // position. No setState-in-effect, no offscreen frame, no flash.
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [openBaselineState, setOpenBaselineState] =
+    useState<typeof state>(state);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setOpenBaselineState(state);
+    }
+  }
+  const positionedThisOpen =
+    isOpen && state !== null && state !== openBaselineState;
 
   // Force update when needed refs change
   useEffect(() => {
@@ -361,21 +444,29 @@ export const PopOver: React.FC<PopOverProps> = ({
     return null;
   }
 
-  // For position-aware rendering
-  const positionedStyle =
-    state && state.styles && state.styles.popper
-      ? {
-          ...popperStyles.popper,
-          opacity: 1,
-        }
-      : {
-          ...popperStyles.popper,
-          opacity: 0,
-          // Position offscreen initially to prevent flicker
-          position: "fixed" as const,
-          top: "-9999px",
-          left: "-9999px",
-        };
+  // For position-aware rendering. Use the per-open-cycle flag rather than
+  // react-popper state, which persists styles across open/close cycles and
+  // would otherwise cause paints at stale or placeholder coordinates on the
+  // first render of any open.
+  const popperReady = positionedThisOpen;
+  const positionedStyle = popperReady
+    ? {
+        ...popperStyles.popper,
+        opacity: 1,
+        visibility: "visible" as const,
+      }
+    : {
+        ...popperStyles.popper,
+        // visibility: hidden is bulletproof — no paint regardless of what
+        // position values are in popperStyles.popper (which may include
+        // stale coordinates from a prior open since react-popper's useState
+        // persists, or placeholder 0/0 on a brand-new instance).
+        visibility: "hidden" as const,
+        opacity: 0,
+        position: "fixed" as const,
+        top: "-9999px",
+        left: "-9999px",
+      };
 
   // Create the popper content with position-aware styles
   const popperContent = (

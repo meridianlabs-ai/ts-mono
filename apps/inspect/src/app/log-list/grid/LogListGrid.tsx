@@ -22,6 +22,8 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useProperty } from "@tsmono/react/hooks";
+
 import { FindBandUI } from "../../../components/FindBandUI";
 import { useLogs, useLogsListing } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
@@ -33,7 +35,11 @@ import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
-import { useLogListColumns, type LogListMode } from "./columns/hooks";
+import {
+  useLogListColumns,
+  type LogListMode,
+  type ScoresViewMode,
+} from "./columns/hooks";
 import { LogListRow } from "./columns/types";
 
 interface LogListGridProps {
@@ -92,7 +98,16 @@ export const LogListGrid: FC<LogListGridProps> = ({
       .filter((file) => file !== undefined);
   }, [items]);
 
-  const { columns } = useLogListColumns(mode);
+  // Scope the column list to the current folder's logs in folder (logs) mode.
+  const scopePrefix = mode === "logs" ? currentPath : undefined;
+  // Read the same shared view-mode property LogsPanel writes to, so the
+  // grid's column set always matches the picker's current selection.
+  const [scoresViewMode] = useProperty<ScoresViewMode>(
+    "log-list-scores-view",
+    "mode",
+    { defaultValue: "by-metric" }
+  );
+  const { columns } = useLogListColumns(mode, scopePrefix, scoresViewMode);
 
   const initialGridState = useMemo(() => {
     if (previousLogPath !== undefined && previousLogPath !== currentPath) {
@@ -181,6 +196,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
             : item.type === "pending-task"
               ? item.model
               : undefined,
+        modelRoles:
+          item.type === "file"
+            ? (preview?.model_roles ?? undefined)
+            : undefined,
         score: preview?.primary_metric?.value,
         status: preview?.status,
         completedAt: preview?.completed_at,
@@ -201,14 +220,18 @@ export const LogListGrid: FC<LogListGridProps> = ({
         errorMessage: details?.error?.message,
       };
 
-      // Add individual scorer columns from results
+      // Add individual scorer columns from results. Key by (scorer, metric)
+      // so distinct scorers emitting the same metric name each get their own
+      // column. Reducer is omitted from the key: `reducer=null` (default,
+      // silently mean) and `reducer="mean"` (explicit) should land in the
+      // same column since the underlying computation is identical.
       if (details?.results?.scores) {
         for (const evalScore of details.results.scores) {
           if (evalScore.metrics) {
             for (const [metricName, metric] of Object.entries(
               evalScore.metrics
             )) {
-              row[`score_${metricName}`] = metric.value;
+              row[`score_${evalScore.name}/${metricName}`] = metric.value;
             }
           }
         }

@@ -14,6 +14,15 @@ export function toLogOverview(header: EvalHeader): LogPreview {
     }
   }
 
+  const model_roles = evalSpec.model_roles
+    ? Object.fromEntries(
+        Object.entries(evalSpec.model_roles).map(([role, cfg]) => [
+          role,
+          cfg.model,
+        ])
+      )
+    : undefined;
+
   return {
     eval_id: evalSpec.eval_id,
     run_id: evalSpec.run_id,
@@ -24,6 +33,7 @@ export function toLogOverview(header: EvalHeader): LogPreview {
     status,
     error,
     model: evalSpec.model,
+    model_roles,
     started_at: evalSpec.created,
     completed_at: stats?.completed_at,
     primary_metric,
