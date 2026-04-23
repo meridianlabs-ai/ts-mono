@@ -38,9 +38,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   className,
   display,
   labels,
+  maxLabelLength,
   linking,
   tools,
-  maxLabelLength,
 }) => {
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
@@ -67,14 +67,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     hasToolCalls && !hasVisibleContent(resolvedMessage.message);
 
   const rowLabel = useLabels
-    ? (() => {
-        const number = index + 1;
-        const maxlabelLen = maxLabelLength ?? 3;
-        return labelValues && resolvedMessage.message.id
-          ? labelValues[resolvedMessage.message.id] ||
-              "\u00A0".repeat(maxlabelLen * 2)
-          : String(number) || undefined;
-      })()
+    ? labelValues && resolvedMessage.message.id
+      ? labelValues[resolvedMessage.message.id]
+      : String(index + 1)
     : undefined;
 
   if (!skipChatMessage) {
@@ -171,6 +166,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
                     styles.number,
                     styles.label
                   )}
+                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
                 >
                   {label}
                 </div>
