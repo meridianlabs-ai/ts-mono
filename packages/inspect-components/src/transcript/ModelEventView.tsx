@@ -114,6 +114,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       icon={TranscriptIcons.model}
       turnLabel={turnLabel}
       eventCallbacks={eventCallbacks}
+      collapsibleContent
     >
       <div data-name="Summary" className={styles.container}>
         {context?.inlineExpansionUX &&
