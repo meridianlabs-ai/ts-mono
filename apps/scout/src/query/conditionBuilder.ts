@@ -6,7 +6,6 @@ import type {
   ConditionValue,
   LogicalOperatorModel,
   OperatorModel,
-  ScalarValue,
   SimpleCondition,
 } from "./types";
 import { isScalarArray, isTuple } from "./types";
@@ -98,6 +97,6 @@ export class ConditionBuilder implements ConditionBase {
     if (value === null) return null;
     if (isScalarArray(value)) return value;
     if (isTuple(value)) return value;
-    return value as ScalarValue;
+    return value;
   }
 }

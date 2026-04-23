@@ -5,7 +5,7 @@ import { useComponentStateHooks } from "../state/ComponentStateContext";
 export const useCollapsibleIds = (
   key: string
 ): [
-  Record<string, boolean>,
+  Record<string, boolean> | undefined,
   (id: string, value: boolean) => void,
   () => void,
 ] => {
@@ -27,6 +27,10 @@ export const useCollapsibleIds = (
   }, [removeAllFn, key]);
 
   return useMemo(() => {
-    return [(entries || {}) as Record<string, boolean>, collapseId, clearIds];
+    return [
+      entries as Record<string, boolean> | undefined,
+      collapseId,
+      clearIds,
+    ];
   }, [entries, collapseId, clearIds]);
 };

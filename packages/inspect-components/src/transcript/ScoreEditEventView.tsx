@@ -34,7 +34,6 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
       title={"Edit Score"}
       className={clsx(className, "text-size-small")}
       subTitle={subtitle}
-      collapsibleContent={true}
       icon={TranscriptIcons.edit}
     >
       <div data-name="Summary">

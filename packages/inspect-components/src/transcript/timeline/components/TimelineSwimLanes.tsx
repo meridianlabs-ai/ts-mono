@@ -217,7 +217,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   // also default to collapsed since their branches aren't visible yet.
   const isRowCollapsed = useCallback(
     (rowKey: string): boolean => {
-      const explicit = stableCollapsedBucket[rowKey];
+      const explicit = stableCollapsedBucket?.[rowKey];
       if (explicit !== undefined) return explicit;
       const layout = layouts.find((l) => l.key === rowKey);
       if (!layout) return false;

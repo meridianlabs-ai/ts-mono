@@ -73,6 +73,8 @@ export const EditableText: FC<EditableTextProps> = ({
 
   // Update showMruPopover based on whether we have filtered items and focus state
   useEffect(() => {
+    // TODO: derive during render instead of mirroring into state via effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowMruPopover(filteredMru.length > 0 && isFocused);
   }, [filteredMru, isFocused]);
 

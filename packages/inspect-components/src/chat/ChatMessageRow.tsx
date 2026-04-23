@@ -5,7 +5,7 @@ import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
-import { ResolvedMessage } from "./messages";
+import { Message, ResolvedMessage } from "./messages";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallView } from "./tools/ToolCallView";
 import {
@@ -53,27 +53,44 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   const viewLabels: Array<string | undefined> = [];
   const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
 
-  if (useLabels) {
-    // The chat message and label
-    const number = index + 1;
-    const maxlabelLen = maxLabelLength ?? 3;
-    const chatMessageLabel =
-      labelValues && resolvedMessage.message.id
-        ? labelValues[resolvedMessage.message.id] ||
-          "\u00A0".repeat(maxlabelLen * 2)
-        : String(number) || undefined;
-    viewLabels.push(chatMessageLabel);
-  }
+  const hasToolCalls =
+    toolCallStyle !== "omit" &&
+    resolvedMessage.message.role === "assistant" &&
+    !!resolvedMessage.message.tool_calls &&
+    resolvedMessage.message.tool_calls.length > 0;
 
-  // The chat message
-  views.push(
-    <ChatMessage
-      id={`${parentName}-chat-messages-${index}`}
-      message={resolvedMessage.message}
-      display={display}
-      linking={linking}
-    />
-  );
+  // Skip the assistant chat message entirely when it has no visible text
+  // or reasoning content and the tool calls will be rendered as their own
+  // views below — otherwise it leaves an empty, padded block. The row label
+  // (if any) gets hoisted onto the first tool call below.
+  const skipChatMessage =
+    hasToolCalls && !hasVisibleContent(resolvedMessage.message);
+
+  const rowLabel = useLabels
+    ? (() => {
+        const number = index + 1;
+        const maxlabelLen = maxLabelLength ?? 3;
+        return labelValues && resolvedMessage.message.id
+          ? labelValues[resolvedMessage.message.id] ||
+              "\u00A0".repeat(maxlabelLen * 2)
+          : String(number) || undefined;
+      })()
+    : undefined;
+
+  if (!skipChatMessage) {
+    if (useLabels) {
+      viewLabels.push(rowLabel);
+    }
+
+    views.push(
+      <ChatMessage
+        id={`${parentName}-chat-messages-${index}`}
+        message={resolvedMessage.message}
+        display={display}
+        linking={linking}
+      />
+    );
+  }
 
   // The tool messages associated with this chat message
   if (
@@ -98,8 +115,12 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         toolMessage = toolMessages[idx];
       }
 
-      // The label (if any)
-      const toolLabel = labelValues?.[toolMessage?.id || ""] || undefined;
+      // The label (if any). When we've skipped the assistant chat message,
+      // hoist its numeric/row label onto the first tool call so the row
+      // isn't left unlabeled.
+      const toolLabel =
+        labelValues?.[toolMessage?.id || ""] ||
+        (skipChatMessage && idx === 0 ? rowLabel : undefined);
 
       // Resolve the tool output
       const resolvedToolOutput = resolveToolMessage(toolMessage);
@@ -124,10 +145,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             output={resolvedToolOutput}
             view={
               tool_call.view
-                ? substituteToolCallContent(
-                    tool_call.view,
-                    tool_call.arguments as Record<string, unknown>
-                  )
+                ? substituteToolCallContent(tool_call.view, tool_call.arguments)
                 : undefined
             }
             getCustomToolView={getCustomToolView}
@@ -241,17 +259,43 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
                 citations: null,
               },
             ],
-          } as ContentTool;
+          } satisfies ContentTool;
         } else if (con.type !== "tool_use") {
           return {
             content: [con],
             type: "tool",
-          } as ContentTool;
+          } satisfies ContentTool;
         }
       })
       .filter((con) => con !== undefined);
     return result;
   }
+};
+
+const hasVisibleContent = (message: Message): boolean => {
+  const content = message.content;
+  if (typeof content === "string") {
+    return content.trim().length > 0;
+  }
+  if (!Array.isArray(content)) {
+    return false;
+  }
+  return content.some((c) => {
+    if (c.type === "tool_use") {
+      return false;
+    }
+    if (c.type === "text") {
+      const hasText = c.text.trim().length > 0;
+      const hasCitations = !!c.citations && c.citations.length > 0;
+      return hasText || hasCitations;
+    }
+    if (c.type === "reasoning") {
+      const hasReasoning = c.reasoning.trim().length > 0;
+      const hasSummary = (c.summary?.trim().length ?? 0) > 0;
+      return hasReasoning || hasSummary || !!c.redacted;
+    }
+    return true;
+  });
 };
 
 const ToolCallViewCompact: FC<{

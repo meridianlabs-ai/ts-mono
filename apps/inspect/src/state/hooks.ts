@@ -586,10 +586,8 @@ export const computeLogsWithRetried = (
     items.sort((a, b) => {
       const as = simplifiedStatusForDeduplication(logPreviews[a.name]?.status);
       const bs = simplifiedStatusForDeduplication(logPreviews[b.name]?.status);
-      const am = a.mtime ?? 0;
-      const bm = b.mtime ?? 0;
-
-      if (as === bs) return bm - am; // newest on top
+      if (as === bs) return b.name.localeCompare(a.name);
+      if (as === "started") return -1;
       if (as === "started") return -1;
       if (bs === "started") return 1;
       if (as === "success") return -1;

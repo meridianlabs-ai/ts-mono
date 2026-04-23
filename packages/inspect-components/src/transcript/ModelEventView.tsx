@@ -141,7 +141,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             callStyle: showToolCalls ? "complete" : "omit",
             collapseToolMessages: context?.hasToolEvents !== false,
           }}
-          labels={{ show: false }}
+          labels={
+            context?.messageLabels
+              ? { messageLabels: context.messageLabels }
+              : { show: false }
+          }
         />
         {event.error ? (
           <EventSection title="Error">

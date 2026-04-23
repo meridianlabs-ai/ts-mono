@@ -1,5 +1,3 @@
-// TODO: lint react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string
-/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-base-to-string */
 import clsx from "clsx";
 import {
   FC,
@@ -54,17 +52,10 @@ export const RecordTree: FC<RecordTreeProps> = ({
     `metadata-grid-${id}`
   );
 
-  // Collapse state
+  // Collapse state — persisted user choices only. Defaults are applied on
+  // the fly at render time by `isItemCollapsed`, so we never bootstrap
+  // defaults into persisted state.
   const [collapsedIds, setCollapsed, clearIds] = useCollapsibleIds(id);
-
-  const setCollapsedIds = useCallback(
-    (values: Record<string, boolean>) => {
-      Object.entries(values).forEach(([key, value]) => {
-        setCollapsed(key, value);
-      });
-    },
-    [setCollapsed]
-  );
 
   // Clear the collapsed ids when the component unmounts
   useEffect(() => {
@@ -73,43 +64,47 @@ export const RecordTree: FC<RecordTreeProps> = ({
     };
   }, [clearIds, id]);
 
-  // Tree-ify the record (creates a flat lsit of items with depth property)
+  // Merge persisted choice with the default-collapse rule.
+  // Rule: collapse items with children when they are deeper than
+  // `defaultExpandLevel`, or when they have more than 5 direct children.
+  const isItemCollapsed = useCallback(
+    (
+      itemId: string,
+      hasChildren: boolean,
+      depth: number,
+      childCount: number | undefined
+    ): boolean => {
+      const explicit = collapsedIds?.[itemId];
+      if (explicit !== undefined) return explicit;
+      if (!hasChildren) return false;
+      return (
+        depth >= defaultExpandLevel ||
+        (childCount !== undefined && childCount > 5)
+      );
+    },
+    [collapsedIds, defaultExpandLevel]
+  );
+
+  // Tree-ify the record (creates a flat list of items with depth property).
+  // Each item carries its effective `isCollapsed` state so render and
+  // recursion decisions share a single source of truth.
   const items = useMemo(() => {
-    const items = toTreeItems(
+    return toTreeItems(
       record,
-      collapsedIds || {},
+      isItemCollapsed,
       processStore ? [resolveStoreKeys] : []
     );
-    return items;
-  }, [record, collapsedIds, processStore]);
-
-  // If collapsedIds is not set, we need to set it to the default state
-  useEffect(() => {
-    if (collapsedIds) {
-      return;
-    }
-
-    const defaultCollapsedIds = items.reduce(
-      (prev, item) => {
-        if (item.depth >= defaultExpandLevel && item.hasChildren) {
-          prev[item.id] = true;
-        }
-        return prev;
-      },
-      {} as Record<string, true>
-    );
-    setCollapsedIds(defaultCollapsedIds);
-  }, [collapsedIds, items]);
+  }, [record, isItemCollapsed, processStore]);
 
   // Keyboard handling for tree
   const keyUpHandler = useCallback(
-    (itemId: string, index: number) => {
+    (item: MetadataItem, index: number) => {
       return (event: KeyboardEvent) => {
         switch (event.key) {
           case "Enter":
             event.preventDefault();
             event.stopPropagation();
-            setCollapsed(itemId, !collapsedIds?.[id]);
+            setCollapsed(item.id, !item.isCollapsed);
             break;
           case "ArrowDown": {
             event.preventDefault();
@@ -146,17 +141,17 @@ export const RecordTree: FC<RecordTreeProps> = ({
           case "ArrowRight":
             event.preventDefault();
             event.stopPropagation();
-            setCollapsed(itemId, false);
+            setCollapsed(item.id, false);
             break;
           case "ArrowLeft":
             event.preventDefault();
             event.stopPropagation();
-            setCollapsed(itemId, true);
+            setCollapsed(item.id, true);
             break;
         }
       };
     },
-    [collapsedIds, items]
+    [setCollapsed, items, id]
   );
 
   const renderRow = (index: number) => {
@@ -187,10 +182,10 @@ export const RecordTree: FC<RecordTreeProps> = ({
             "font-monospace",
             "text-style-secondary"
           )}
-          onKeyUp={keyUpHandler(item.id, index)}
+          onKeyUp={keyUpHandler(item, index)}
           tabIndex={0}
           onClick={() => {
-            setCollapsed(item.id, !collapsedIds?.[item.id]);
+            setCollapsed(item.id, !item.isCollapsed);
           }}
         >
           <div>
@@ -198,9 +193,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
               <pre className={clsx(styles.pre)}>
                 <i
                   className={clsx(
-                    collapsedIds && collapsedIds[item.id]
-                      ? icons.tree.closed
-                      : icons.tree.open,
+                    item.isCollapsed ? icons.tree.closed : icons.tree.open,
                     styles.treeIcon
                   )}
                 />
@@ -210,8 +203,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           <pre className={clsx(styles.pre)}>{item.key}:</pre>
         </div>
         <div>
-          {item.value !== null &&
-          (!item.hasChildren || collapsedIds?.[item.id]) ? (
+          {item.value !== null && (!item.hasChildren || item.isCollapsed) ? (
             <ExpandablePanel
               id={`${id}-collapse-${item.id}`}
               collapse={true}
@@ -233,11 +225,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
     );
   };
 
-  // Don't render until collapsedIds is initialized to avoid flash of all items
-  if (!collapsedIds) {
-    return null;
-  }
-
   if (!scrollRef) {
     // No virtualization - render directly
     return (
@@ -254,6 +241,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
   return (
     <Virtuoso
       ref={listHandle}
+      // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to state-backed element prop)
       customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}
@@ -280,11 +268,20 @@ interface MetadataItem {
   value: string | number | boolean | null;
   depth: number;
   hasChildren: boolean;
+  childCount?: number;
+  isCollapsed: boolean;
 }
+
+type IsCollapsedFn = (
+  itemId: string,
+  hasChildren: boolean,
+  depth: number,
+  childCount: number | undefined
+) => boolean;
 
 export const toTreeItems = (
   record: Record<string, unknown>,
-  collapsedIds: Record<string, boolean>,
+  isCollapsed: IsCollapsedFn,
   recordProcessors: RecordProcessor[] = [],
   currentDepth = 0,
   currentPath: string[] = []
@@ -311,7 +308,7 @@ export const toTreeItems = (
         currentDepth,
         currentPath,
         itemSegment,
-        collapsedIds
+        isCollapsed
       )
     );
   });
@@ -325,7 +322,7 @@ const processNodeRecursive = (
   depth: number,
   parentPath: string[],
   thisPath: string,
-  collapsedIds: Record<string, boolean>
+  isCollapsed: IsCollapsedFn
 ): MetadataItem[] => {
   const items: MetadataItem[] = [];
   const currentItemPath = [...parentPath, thisPath];
@@ -338,6 +335,7 @@ const processNodeRecursive = (
       value: value === undefined ? null : value,
       depth,
       hasChildren: false,
+      isCollapsed: false,
     });
     return items;
   }
@@ -345,24 +343,46 @@ const processNodeRecursive = (
   // For non-primitives (objects, arrays, functions, etc.)
   let displayValue: string | number | boolean | null = null;
   let processChildren = false;
+  let childCount: number | undefined;
 
   if (Array.isArray(value)) {
     processChildren = true;
+    childCount = value.length;
     displayValue = `Array(${value.length})`;
   } else if (typeof value === "object" && value !== null) {
     processChildren = true;
+    childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;
+  } else if (
+    typeof value === "function" ||
+    typeof value === "symbol" ||
+    typeof value === "bigint"
+  ) {
+    // Other types with a meaningful toString. Treated as leaf nodes.
+    displayValue = value.toString();
+    processChildren = false;
   } else {
-    // Other types like functions, symbols. These are treated as leaf nodes.
-    displayValue = String(value);
+    displayValue = null;
     processChildren = false;
   }
 
+  const collapsed = processChildren
+    ? isCollapsed(id, true, depth, childCount)
+    : false;
+
   // Add the item
-  items.push({ id, key, value: displayValue, depth, hasChildren: true });
+  items.push({
+    id,
+    key,
+    value: displayValue,
+    depth,
+    hasChildren: processChildren,
+    childCount,
+    isCollapsed: collapsed,
+  });
 
   // Process children
-  if (processChildren && !collapsedIds[id]) {
+  if (processChildren && !collapsed) {
     const childDepth = depth + 1;
     if (Array.isArray(value)) {
       if (value.length > 0) {
@@ -376,7 +396,7 @@ const processNodeRecursive = (
               childDepth,
               currentItemPath,
               elementIdentifier,
-              collapsedIds
+              isCollapsed
             )
           );
         });
@@ -393,7 +413,7 @@ const processNodeRecursive = (
               childDepth,
               currentItemPath,
               childIdentifier,
-              collapsedIds
+              isCollapsed
             )
           );
         }

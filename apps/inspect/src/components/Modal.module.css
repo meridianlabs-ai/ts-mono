@@ -52,3 +52,7 @@
 .overflowAuto {
   overflow: auto;
 }
+
+.noPadding {
+  padding: 0;
+}

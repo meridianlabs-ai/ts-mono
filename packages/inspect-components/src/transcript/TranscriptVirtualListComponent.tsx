@@ -81,6 +81,8 @@ export const TranscriptVirtualListComponent: FC<
 
   useEffect(() => {
     if (initialEventId === null || initialEventId === undefined) {
+      // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInitialEventIndex(undefined);
       return;
     }

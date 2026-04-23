@@ -14,7 +14,7 @@ export const ScannerResultsFilter: FC = () => {
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
-      const sel = e.target as HTMLSelectElement;
+      const sel = e.target;
       setSelectedFilter(sel.value);
     },
     [setSelectedFilter]

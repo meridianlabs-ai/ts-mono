@@ -1,14 +1,11 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../../icons";
-import { JsonValue } from "../../types/json-value";
-
 import styles from "./ValidationResult.module.css";
 
 interface ValidationResultProps {
   result: boolean | Record<string, boolean>;
-  target?: JsonValue;
+  target?: unknown;
   label?: string;
 }
 
@@ -17,7 +14,6 @@ export const ValidationResult: FC<ValidationResultProps> = ({
   target,
   label,
 }) => {
-  // TODO: stringify the target value properly
   if (typeof result === "boolean") {
     return (
       <Result
@@ -50,11 +46,7 @@ const Result: FC<{ value: boolean; targetValue?: string }> = ({
   return (
     <div>
       <div className={clsx(value ? styles.true : styles.false, styles.result)}>
-        {value ? (
-          <i className={clsx(ApplicationIcons.check)} />
-        ) : (
-          <i className={clsx(ApplicationIcons.x)} />
-        )}
+        <i className={clsx("bi", value ? "bi-check" : "bi-x")} />
       </div>
       <span
         className={clsx(
@@ -70,7 +62,7 @@ const Result: FC<{ value: boolean; targetValue?: string }> = ({
   );
 };
 
-const resolveTargetValue = (target?: JsonValue, key?: string): JsonValue => {
+const resolveTargetValue = (target: unknown, key?: string): unknown => {
   if (target === undefined) {
     return "";
   }
@@ -80,12 +72,12 @@ const resolveTargetValue = (target?: JsonValue, key?: string): JsonValue => {
   }
 
   if (target && typeof target === "object" && !Array.isArray(target)) {
-    return (target as Record<string, JsonValue>)[key] || false;
+    return (target as Record<string, unknown>)[key] ?? false;
   }
   return target;
 };
 
-const valueStr = (target?: JsonValue): string => {
+const valueStr = (target: unknown): string => {
   if (target === null) {
     return "null";
   } else if (typeof target === "string") {

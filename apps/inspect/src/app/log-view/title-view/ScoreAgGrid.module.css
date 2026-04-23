@@ -1,0 +1,20 @@
+.gridContainer {
+  max-width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Breathing room at the edges so values don't sit flush with the modal border
+   (and so the last column doesn't get overlapped by the vertical scroll bar).
+   The extra specificity via `:global(.ag-cell)` / `:global(.ag-header-cell)`
+   is needed to win against ag-grid's built-in theme padding. */
+:global(.ag-cell).firstCell,
+:global(.ag-header-cell).firstHeader {
+  padding-left: 1rem;
+}
+
+:global(.ag-cell).lastCell,
+:global(.ag-header-cell).lastHeader {
+  padding-right: 0.5rem;
+}

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { OperatorModel } from "../../../query";
 import type { ColumnFilter } from "../../../state/store";
 
 import type { AvailableColumn } from "./ColumnFilterEditor";
@@ -60,7 +59,7 @@ export function useAddFilterPopover({
   useEffect(() => {
     if (isOpen && !prevOpenRef.current) {
       // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setSelectedColumnId(null);
     }
     prevOpenRef.current = isOpen;
@@ -110,7 +109,7 @@ export function useAddFilterPopover({
     columns,
     filterType,
     operator,
-    setOperator: setOperator as (op: OperatorModel) => void,
+    setOperator: setOperator,
     operatorOptions,
     value,
     setValue,

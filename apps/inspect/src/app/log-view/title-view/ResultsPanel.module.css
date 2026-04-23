@@ -101,6 +101,14 @@
   margin-bottom: 0.35em;
 }
 
-.modalScores {
-  padding-bottom: 4em;
+.scoringDetailModal :global(.modal-dialog) {
+  max-width: min(1000px, 90vw);
+}
+
+/* Let the dialog shrink to the grid's natural width instead of always
+   stretching to the max-width. The grid container sizes itself from the
+   sum of column widths; modal-content honours that. */
+.scoringDetailModal :global(.modal-content) {
+  width: fit-content;
+  max-width: 100%;
 }

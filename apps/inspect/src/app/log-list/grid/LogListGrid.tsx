@@ -1,5 +1,6 @@
 import type {
   CellMouseDownEvent,
+  ColDef,
   GridColumnsChangedEvent,
   IRowNode,
   ModelUpdatedEvent,
@@ -150,6 +151,20 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
 
+      // Percent of samples completed
+      let percentCompleted: number | undefined;
+      const total = details?.results?.total_samples;
+      const completed = details?.results?.completed_samples;
+      if (total && total > 0 && completed !== undefined) {
+        percentCompleted = (completed / total) * 100;
+      }
+
+      // Count of sample errors
+      let sampleErrors: number | undefined;
+      if (details?.sampleSummaries) {
+        sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
+      }
+
       const row: LogListRow = {
         id: item.id,
         name: item.name,
@@ -180,6 +195,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
         taskFile: details?.eval?.task_file ?? undefined,
         taskArgs,
         taskArgsRaw: details?.eval?.task_args ?? undefined,
+        tags: details?.tags,
+        percentCompleted,
+        sampleErrors,
+        errorMessage: details?.error?.message,
       };
 
       // Add individual scorer columns from results
@@ -194,12 +213,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
           }
         }
       }
-
-      // Pre-compute searchable text for fast Cmd+F search
-      row.searchText = [row.name, row.task, row.model, row.id]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
 
       return row;
     });
@@ -316,7 +329,15 @@ export const LogListGrid: FC<LogListGridProps> = ({
     resizeGridColumns();
   }, [columns, resizeGridColumns]);
 
-  // Find functionality - uses pre-computed searchText for O(1) lookup per row
+  // Find functionality - searches across the currently visible columns.
+  // Formatted cell values are cached per (data, columns) so only keystrokes
+  // after a data/visibility change pay the formatter cost.
+  const searchCacheRef = useRef<{
+    data: LogListRow[] | null;
+    columns: ColDef<LogListRow>[] | null;
+    cache: Map<string, string>;
+  }>({ data: null, columns: null, cache: new Map() });
+
   const performSearch = useCallback(
     (term: string) => {
       const api = gridRef.current?.api;
@@ -325,13 +346,36 @@ export const LogListGrid: FC<LogListGridProps> = ({
         setCurrentMatchIndex(0);
         return;
       }
+
+      // Rebuild cache if data or visible columns changed since last search
+      const cached = searchCacheRef.current;
+      let cache = cached.cache;
+      if (cached.data !== data || cached.columns !== columns) {
+        cache = new Map();
+        const displayedColumns = api.getAllDisplayedColumns();
+        api.forEachNode((node) => {
+          if (!node.data) return;
+          const parts: string[] = [];
+          for (const col of displayedColumns) {
+            const value = api.getCellValue({
+              rowNode: node,
+              colKey: col,
+              useFormatter: true,
+            });
+            if (value) parts.push(String(value));
+          }
+          cache.set(node.data.id, parts.join(" ").toLowerCase());
+        });
+        searchCacheRef.current = { data, columns, cache };
+      }
+
       const lowerTerm = term.toLowerCase();
       const foundIds: string[] = [];
       api.forEachNode((node) => {
-        const rowData = node.data;
-        if (!rowData?.searchText) return;
-        if (rowData.searchText.includes(lowerTerm)) {
-          foundIds.push(rowData.id);
+        if (!node.data) return;
+        const text = cache.get(node.data.id);
+        if (text && text.includes(lowerTerm)) {
+          foundIds.push(node.data.id);
         }
       });
       setMatchIds(foundIds);
@@ -345,7 +389,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
     },
-    [gridRef]
+    [data, columns, gridRef]
   );
 
   const goToMatch = useCallback(

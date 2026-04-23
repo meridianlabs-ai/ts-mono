@@ -31,7 +31,7 @@ function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
     input_refs: null,
     tools: [],
     tool_choice: "auto",
-    config: {} as ModelEvent["config"],
+    config: {},
     output: {
       choices: uuid
         ? [

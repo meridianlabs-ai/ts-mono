@@ -15,6 +15,7 @@ export const messagesFromEvents = (runningEvents: Event[]): ChatMessage[] => {
 
   runningEvents
     .filter((e) => e.event === "model")
+    .filter((e) => !e.error)
     .forEach((e) => {
       for (const m of e.input) {
         const inputMessage = m as

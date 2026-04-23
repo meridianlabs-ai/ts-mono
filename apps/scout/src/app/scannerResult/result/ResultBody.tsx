@@ -126,15 +126,12 @@ const InputRenderer: FC<InputRendererProps> = ({
 }) => {
   if (isTranscriptInput(inputData)) {
     if (inputData.input.messages && inputData.input.messages.length > 0) {
-      const labels = resultData?.messageReferences.reduce(
-        (acc, ref) => {
-          if (ref.cite) {
-            acc[ref.id] = ref.cite;
-          }
-          return acc;
-        },
-        {} as Record<string, string>
-      );
+      const labels = resultData?.messageReferences.reduce((acc, ref) => {
+        if (ref.cite) {
+          acc[ref.id] = ref.cite;
+        }
+        return acc;
+      }, {});
 
       return (
         <ChatViewVirtualList

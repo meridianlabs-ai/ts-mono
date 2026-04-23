@@ -297,7 +297,7 @@ function convertServerEvent(
   lookup: Map<string, Event>
 ): TimelineEvent | null {
   // server.event is a UUID string referencing an event in the events array
-  const eventRef = server.event as unknown as string;
+  const eventRef = server.event;
   const event = lookup.get(eventRef);
   if (!event) {
     return null;
@@ -1003,7 +1003,7 @@ function findBranchEvent(
 ): { from_span: string; from_message: string } | null {
   for (const child of span.children) {
     if (!isSpanNode(child) && child.event === "branch") {
-      return child as unknown as { from_span: string; from_message: string };
+      return child;
     }
   }
   return null;

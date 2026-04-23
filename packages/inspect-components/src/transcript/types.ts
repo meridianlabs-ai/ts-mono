@@ -34,12 +34,16 @@ export interface StateManager {
 export const kTranscriptCollapseScope = "transcript-collapse";
 export const kTranscriptOutlineCollapseScope = "transcript-outline";
 
+/** Event types whose *children* can be collapsed (tree collapse). */
 export const kCollapsibleEventTypes = [
   STEP,
   SPAN_BEGIN,
   TYPE_TOOL,
   TYPE_SUBTASK,
 ];
+
+/** Event types whose *content* can be collapsed (panel-level collapse). */
+export const kContentCollapsibleEventTypes: string[] = ["state", "store"];
 
 export type EventType =
   | SampleInitEvent
@@ -162,4 +166,6 @@ export interface EventNodeContext {
   turnInfo?: { turnNumber: number; totalTurns: number };
   /** When true, event views should show inline expansion UX element. (e.g. ModelEventView shows a "Show all messages" toggle for expanding filtered input.) */
   inlineExpansionUX?: boolean;
+  /** Per-message labels rendered in the chat label gutter (e.g. scanner citation cites like "M1"). Keyed by `message.id`. */
+  messageLabels?: Record<string, string>;
 }
