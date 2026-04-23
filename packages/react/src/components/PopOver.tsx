@@ -1,4 +1,4 @@
-import { Placement } from "@popperjs/core";
+import { Modifier, Placement } from "@popperjs/core";
 import clsx from "clsx";
 import React, {
   CSSProperties,
@@ -218,6 +218,60 @@ export const PopOver: React.FC<PopOverProps> = ({
     return undefined;
   }, [usePortal, isOpen, shouldShowPopover, id]);
 
+  // Popper modifier pair that caps the popover to the full viewport
+  // (minus padding), not to whatever the popover currently happens to be.
+  // Bounding the size up-front lets popper shift it freely to fit, avoiding
+  // the "text unwraps → popper chases a moving width" race while still
+  // giving the popover as much room as the viewport allows.
+  //
+  // The popper v2 community "maxSize" formula (width - overflow[side] - x)
+  // collapses to the popper's current width once preventOverflow has shifted
+  // it inside, so we derive the cap directly from the viewport — accurate
+  // for a body-portal popover and placement-agnostic.
+  const maxSizeModifier = React.useMemo<
+    Modifier<"maxSize", { padding: number }>
+  >(
+    () => ({
+      name: "maxSize",
+      enabled: true,
+      phase: "main",
+      requiresIfExists: ["offset", "preventOverflow", "flip"],
+      options: { padding: 8 },
+      fn({ state, name, options }) {
+        const padding =
+          typeof options?.padding === "number" ? options.padding : 8;
+        state.modifiersData[name] = {
+          width: Math.max(0, window.innerWidth - 2 * padding),
+          height: Math.max(0, window.innerHeight - 2 * padding),
+        };
+      },
+    }),
+    []
+  );
+
+  const applyMaxSizeModifier = React.useMemo<
+    Modifier<"applyMaxSize", object>
+  >(
+    () => ({
+      name: "applyMaxSize",
+      enabled: true,
+      phase: "beforeWrite",
+      requires: ["maxSize"],
+      fn({ state }) {
+        const data = state.modifiersData.maxSize as
+          | { width: number; height: number }
+          | undefined;
+        if (!data) return;
+        state.styles.popper = {
+          ...state.styles.popper,
+          maxWidth: `${data.width}px`,
+          maxHeight: `${data.height}px`,
+        };
+      },
+    }),
+    []
+  );
+
   // Configure modifiers for popper
   const modifiers = [
     { name: "offset", options: { offset } },
@@ -245,6 +299,8 @@ export const PopOver: React.FC<PopOverProps> = ({
         fallbackPlacements: ["top", "right", "bottom", "left"],
       },
     },
+    maxSizeModifier,
+    applyMaxSizeModifier,
   ];
 
   // Use popper hook with modifiers
@@ -271,6 +327,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs -- arrowRef.current mutable read; see meridianlabs-ai/ts-mono#90
   }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
+
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover

@@ -19,6 +19,18 @@
   color: var(--bs-gray-600);
 }
 
+.multiScorerBadge {
+  margin-left: 0.35rem;
+  padding: 2px 0.45rem;
+  border-radius: 0.5rem;
+  background: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  font-size: var(--inspect-font-size-smallest);
+  line-height: 1;
+  cursor: help;
+  white-space: nowrap;
+}
+
 .error {
   color: var(--bs-danger);
 }

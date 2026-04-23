@@ -180,8 +180,10 @@ export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
       },
     ];
 
-    // Add score columns
-    const scoreColumns: ColDef<SampleRow>[] = Object.keys(scoreMap).map(
+    // Add score columns — alphabetical by name so ordering is stable and
+    // predictable regardless of the sample iteration order.
+    const scoreNames = Object.keys(scoreMap).sort((a, b) => a.localeCompare(b));
+    const scoreColumns: ColDef<SampleRow>[] = scoreNames.map(
       (scoreName) => {
         const scoreType = scoreMap[scoreName];
         return {

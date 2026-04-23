@@ -2,12 +2,14 @@ import { ColDef } from "ag-grid-community";
 import { clsx } from "clsx";
 import { FC, useMemo } from "react";
 
-import { PopOver } from "@tsmono/react/components";
+import { PopOver, SegmentedControl } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../appearance/icons";
 import { getFieldKey } from "../shared/gridUtils";
 
 import styles from "./ColumnSelectorPopover.module.css";
+
+export type ColumnScoresViewMode = "by-metric" | "per-scorer";
 
 interface ColumnSelectorPopoverProps<T> {
   showing: boolean;
@@ -16,7 +18,22 @@ interface ColumnSelectorPopoverProps<T> {
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   positionEl: HTMLElement | null;
   filteredFields?: string[];
+  scoresHeading?: string;
+  /**
+   * When true, renders a "By Metric" / "Per Scorer" segmented control in the
+   * scores section header. The caller controls which view is active and owns
+   * persistence; this component just dispatches the change.
+   */
+  groupableScores?: boolean;
+  scoresViewMode?: ColumnScoresViewMode;
+  onScoresViewModeChange?: (mode: ColumnScoresViewMode) => void;
 }
+
+// Fields that belong in the scores section. Covers both per-scorer
+// `score_<scorer>/<metric>` fields and the synthetic by-metric
+// `metric_<metricName>` fields emitted by useLogListColumns.
+const isScoreField = (field: string): boolean =>
+  field.startsWith("score_") || field.startsWith("metric_");
 
 export const ColumnSelectorPopover = <T,>({
   showing,
@@ -25,6 +42,10 @@ export const ColumnSelectorPopover = <T,>({
   onVisibilityChange,
   positionEl,
   filteredFields = [],
+  scoresHeading = "Scorers",
+  groupableScores = false,
+  scoresViewMode = "by-metric",
+  onScoresViewModeChange,
 }: ColumnSelectorPopoverProps<T>): ReturnType<FC> => {
   // Get current visibility directly from columns
   const currentVisibility = useMemo(
@@ -46,8 +67,8 @@ export const ColumnSelectorPopover = <T,>({
   // Group columns by category - merge optional into base for this dialog
   const columnGroups = useMemo(() => {
     return {
-      base: columns.filter((col) => !getFieldKey(col).startsWith("score_")),
-      scores: columns.filter((col) => getFieldKey(col).startsWith("score_")),
+      base: columns.filter((col) => !isScoreField(getFieldKey(col))),
+      scores: columns.filter((col) => isScoreField(getFieldKey(col))),
     };
   }, [columns]);
 
@@ -152,7 +173,24 @@ export const ColumnSelectorPopover = <T,>({
         {columnGroups.scores.length > 0 && (
           <div>
             <div className={styles.headerRow}>
-              <b>Scorers</b>
+              <div className={styles.scoresHeadingGroup}>
+                <b>{scoresHeading}</b>
+                {groupableScores && onScoresViewModeChange && (
+                  <div className={styles.scoresViewModeControl}>
+                    <SegmentedControl
+                      id="column-selector-scores-view-mode"
+                      segments={[
+                        { id: "by-metric", label: "By Metric" },
+                        { id: "per-scorer", label: "Per Scorer" },
+                      ]}
+                      selectedId={scoresViewMode}
+                      onSegmentChange={(id) =>
+                        onScoresViewModeChange(id as ColumnScoresViewMode)
+                      }
+                    />
+                  </div>
+                )}
+              </div>
               <div className={styles.buttonContainer}>
                 <a
                   className={clsx(styles.button)}
