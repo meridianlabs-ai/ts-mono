@@ -121,20 +121,26 @@ export const PopOver: React.FC<PopOverProps> = ({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- conditional sync of external prop, not cascading
       setShouldShowPopover(isOpen);
 
-      // Track whether mousedown originated inside popover content.
-      // We use capture phase to detect this BEFORE the event bubbles to portaled children.
+      // Track whether mousedown originated inside the popover or on the
+      // trigger element. We use capture phase to detect this BEFORE the
+      // event bubbles to portaled children.
       let mouseDownInsidePopover = false;
+      let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
+        const target = event.target as Node;
         mouseDownInsidePopover =
-          popperRef.current?.contains(event.target as Node) ?? false;
+          popperRef.current?.contains(target) ?? false;
+        // A click on the trigger element should NOT close via this handler —
+        // the trigger's own onClick will toggle the popover. Closing here
+        // then reopening in the trigger handler would net to no change.
+        mouseDownOnTrigger = positionEl?.contains(target) ?? false;
       };
 
       const bubbleListener = () => {
-        // Only close if mousedown didn't start inside the popover
-        if (popperRef.current && !mouseDownInsidePopover) {
-          setIsOpenRef.current(false);
-        }
+        if (!popperRef.current) return;
+        if (mouseDownInsidePopover || mouseDownOnTrigger) return;
+        setIsOpenRef.current(false);
       };
 
       // Capture phase fires first, before any children (including portaled ones)
