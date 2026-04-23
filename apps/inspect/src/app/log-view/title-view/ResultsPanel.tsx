@@ -150,6 +150,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
               title={"Scoring Detail"}
               overflow="hidden"
               padded={false}
+              className={styles.scoringDetailModal}
             >
               <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
             </Modal>
