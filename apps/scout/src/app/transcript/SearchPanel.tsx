@@ -5,12 +5,14 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
+  useId,
   useMemo,
   useRef,
   useState,
 } from "react";
 
 import {
+  AutocompleteInput,
   MarkdownDivWithReferences,
   MarkdownReference,
   PopOver,
@@ -19,6 +21,7 @@ import {
 
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
+import { useUserSettings } from "../../state/userSettings";
 import { Result, SavedSearch } from "../../types/api-types";
 import { useProjectConfig } from "../server/useProjectConfig";
 import { useCreateSearch, useSearches } from "../server/useSearches";
@@ -66,6 +69,7 @@ export const SearchPanel = ({
 }: SearchPanelProps) => {
   const projectConfig = useProjectConfig();
   const { getFullMessageUrl, getFullEventUrl } = useTranscriptNavigation();
+  const modelInputId = useId();
   const searchPanelStateKey = useMemo(
     () => getSearchPanelStateKey({ scope, transcriptDir, transcriptId }),
     [scope, transcriptDir, transcriptId]
@@ -74,6 +78,10 @@ export const SearchPanel = ({
     (state) => state.searchPanelStates[searchPanelStateKey]
   );
   const setSearchPanelState = useStore((state) => state.setSearchPanelState);
+  const searchModelHistory = useUserSettings(
+    (state) => state.searchModelHistory
+  );
+  const recordSearchModel = useUserSettings((state) => state.recordSearchModel);
 
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
 
@@ -115,10 +123,18 @@ export const SearchPanel = ({
         scope,
         searchType,
       });
+      const submittedModel =
+        searchType === "llm"
+          ? model.trim() || projectConfig.data?.config.model?.trim() || ""
+          : "";
 
       createSearchMutation.mutate(request, {
-        onSuccess: (search) =>
-          setState((prev) => ({ ...prev, currentSearch: search })),
+        onSuccess: (search) => {
+          setState((prev) => ({ ...prev, currentSearch: search }));
+          if (search.type === "llm") {
+            recordSearchModel(submittedModel);
+          }
+        },
       });
     },
     [
@@ -130,6 +146,7 @@ export const SearchPanel = ({
       scope,
       projectConfig.data?.config.model,
       query,
+      recordSearchModel,
       setState,
     ]
   );
@@ -292,20 +309,24 @@ export const SearchPanel = ({
                     className={clsx(ApplicationIcons.model, styles.modelIcon)}
                   />
                   <span className={styles.modelLabel}>Model</span>
-                  <input
-                    type="text"
-                    className={styles.modelInput}
-                    placeholder={
-                      projectConfig.data?.config.model || "Project default"
-                    }
-                    value={model}
-                    onChange={(e) =>
-                      setState((prev) => ({
-                        ...prev,
-                        model: e.target.value,
-                      }))
-                    }
-                  />
+                  <div className={styles.modelInputShell}>
+                    <AutocompleteInput
+                      id={modelInputId}
+                      className={styles.modelInput}
+                      placeholder={
+                        projectConfig.data?.config.model ?? undefined
+                      }
+                      value={model}
+                      onChange={(value) =>
+                        setState((prev) => ({
+                          ...prev,
+                          model: value,
+                        }))
+                      }
+                      suggestions={searchModelHistory}
+                      allowBrowse={searchModelHistory.length > 0}
+                    />
+                  </div>
                 </div>
               )}
             </div>
