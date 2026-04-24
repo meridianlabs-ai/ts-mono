@@ -69,12 +69,8 @@
   font-size: var(--inspect-font-size-smallest) !important;
 }
 
-.chatTab > * > * {
+.chatList {
   padding: 0.5rem;
-}
-
-.chatTab {
-  padding-bottom: 50px;
 }
 
 .metadata {
