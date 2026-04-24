@@ -14,10 +14,9 @@ import type {
   ContentVideo,
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
+import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isJson } from "@tsmono/util";
-
-import type { MarkdownReference } from "@tsmono/react/components";
 
 import { RenderedText } from "../content/RenderedText";
 

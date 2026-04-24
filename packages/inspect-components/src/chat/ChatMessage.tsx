@@ -148,7 +148,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               }
             />
           ) : (
-            <MessageContents key={`${id}-contents`} message={message} references={references} />
+            <MessageContents
+              key={`${id}-contents`}
+              message={message}
+              references={references}
+            />
           )}
         </ExpandablePanel>
 

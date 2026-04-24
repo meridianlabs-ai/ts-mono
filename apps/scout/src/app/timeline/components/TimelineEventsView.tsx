@@ -1,15 +1,4 @@
-import {
-  CSSProperties,
-  FC,
-  MouseEvent as ReactMouseEvent,
-  ReactNode,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import {
@@ -29,8 +18,6 @@ import type { ServerTimeline } from "../../../types/api-types";
 import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
 import type { TimelineOptions } from "../hooks/useTimeline";
 import { useTimelineSearchParams } from "../hooks/useTimeline";
-
-import styles from "./TimelineEventsView.module.css";
 
 // =============================================================================
 // Types
@@ -73,10 +60,6 @@ interface TimelineEventsViewProps {
   getEventUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
-  /** Optional sidebar rendered alongside the events view (e.g. a SearchPanel).
-   *  When provided, the content is laid out alongside a resizable sidebar
-   *  that stays pinned via position: sticky. */
-  sidebar?: ReactNode;
   className?: string;
 }
 
@@ -102,7 +85,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   onHeadroomResetAnchor,
   getEventUrl,
   linkingEnabled,
-  sidebar,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -216,7 +198,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // Render
   // ---------------------------------------------------------------------------
 
-  const layout = (
+  return (
     <TranscriptLayout
       events={events}
       scrollRef={scrollRef}
@@ -249,98 +231,5 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       }}
       className={className}
     />
-  );
-
-  if (!sidebar) {
-    return layout;
-  }
-
-  return (
-    <SidebarLayout offsetTop={offsetTop} sidebar={sidebar}>
-      {layout}
-    </SidebarLayout>
-  );
-};
-
-// =============================================================================
-// SidebarLayout
-// =============================================================================
-//
-// Lays out the transcript body alongside a sidebar, with a draggable handle
-// between them. The sidebar uses `position: sticky` so the outer scroll
-// container (the transcript container) drives scrolling for the main pane,
-// while the sidebar stays pinned below the tab bar. The handle tracks mouse
-// drag to resize the sidebar's column width.
-
-const kSidebarMinWidth = 280;
-const kSidebarMaxWidth = 800;
-const kSidebarDefaultWidth = 380;
-
-interface SidebarLayoutProps {
-  offsetTop: number;
-  sidebar: ReactNode;
-  children: ReactNode;
-}
-
-const SidebarLayout: FC<SidebarLayoutProps> = ({
-  offsetTop,
-  sidebar,
-  children,
-}) => {
-  const [width, setWidth] = useState(kSidebarDefaultWidth);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const draggingRef = useRef(false);
-
-  const onHandleMouseDown = useCallback((e: ReactMouseEvent) => {
-    e.preventDefault();
-    draggingRef.current = true;
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-  }, []);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!draggingRef.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const next = Math.max(
-        kSidebarMinWidth,
-        Math.min(kSidebarMaxWidth, rect.right - e.clientX)
-      );
-      setWidth(next);
-    };
-    const onUp = () => {
-      if (!draggingRef.current) return;
-      draggingRef.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={containerRef}
-      className={styles.sidebarLayout}
-      style={
-        {
-          "--sidebar-top": `${offsetTop}px`,
-          "--sidebar-width": `${width}px`,
-        } as CSSProperties
-      }
-    >
-      <div className={styles.sidebarMain}>{children}</div>
-      <div
-        className={styles.sidebarHandle}
-        role="separator"
-        aria-orientation="vertical"
-        onMouseDown={onHandleMouseDown}
-      />
-      <div className={styles.sidebar}>{sidebar}</div>
-    </div>
   );
 };
