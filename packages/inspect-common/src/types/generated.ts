@@ -1655,7 +1655,7 @@ export interface components {
             /** Presence Penalty */
             presence_penalty?: number | null;
             /** Prompt Logprobs */
-            prompt_logprobs: number | null;
+            prompt_logprobs?: number | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
@@ -2760,7 +2760,7 @@ export interface components {
             /** Scorer */
             scorer: string;
             /** Value */
-            value: number | null;
+            value?: number | null;
         };
         /**
          * Timeline
