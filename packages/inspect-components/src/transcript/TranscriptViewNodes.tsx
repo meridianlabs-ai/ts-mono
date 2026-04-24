@@ -16,6 +16,7 @@ import {
 } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { StickyScrollProvider } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
@@ -29,7 +30,6 @@ import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
 import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
-import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 
 // =============================================================================
 // Types
@@ -152,7 +152,10 @@ export const TranscriptViewNodes = forwardRef<
   }, [eventNodes]);
 
   const flattenedNodes = useMemo(() => {
-    const all = flatTree(eventNodes, collapsedTranscript || defaultCollapsedIds);
+    const all = flatTree(
+      eventNodes,
+      collapsedTranscript || defaultCollapsedIds
+    );
     return hiddenApprovalIds.size === 0
       ? all
       : all.filter((n) => !hiddenApprovalIds.has(n.id));
