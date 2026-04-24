@@ -188,9 +188,9 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         >
           <MessageContent contents={normalizedContent} context={context} />
         </ExpandablePanel>
-      ) : (
+      ) : hasContent ? (
         <MessageContent contents={normalizedContent} context={context} />
-      )}
+      ) : null}
     </div>
   );
 };

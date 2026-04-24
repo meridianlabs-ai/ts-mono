@@ -27,6 +27,7 @@ export {
 // Components
 export type { ToolCallViewProps } from "./tools/ToolCallView";
 export { ToolCallView } from "./tools/ToolCallView";
+export { ToolCallErrorView } from "./tools/ToolCallErrorView";
 export { ToolOutput } from "./tools/ToolOutput";
 export { MessageContent, isMessageContent } from "./MessageContent";
 export type { MessagesContext } from "./MessageContents";

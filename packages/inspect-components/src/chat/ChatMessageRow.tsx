@@ -7,6 +7,7 @@ import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { Message, ResolvedMessage } from "./messages";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
+import { ToolCallErrorView } from "./tools/ToolCallErrorView";
 import { ToolCallView } from "./tools/ToolCallView";
 import {
   ChatViewDisplayOptions,
@@ -38,9 +39,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   className,
   display,
   labels,
+  maxLabelLength,
   linking,
   tools,
-  maxLabelLength,
 }) => {
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
@@ -67,14 +68,9 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     hasToolCalls && !hasVisibleContent(resolvedMessage.message);
 
   const rowLabel = useLabels
-    ? (() => {
-        const number = index + 1;
-        const maxlabelLen = maxLabelLength ?? 3;
-        return labelValues && resolvedMessage.message.id
-          ? labelValues[resolvedMessage.message.id] ||
-              "\u00A0".repeat(maxlabelLen * 2)
-          : String(number) || undefined;
-      })()
+    ? labelValues && resolvedMessage.message.id
+      ? labelValues[resolvedMessage.message.id]
+      : String(index + 1)
     : undefined;
 
   if (!skipChatMessage) {
@@ -152,6 +148,21 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
           />
         );
       }
+
+      // If the tool call errored, render a dedicated error view as its own
+      // row (with an empty label) so it visually attaches to the tool call.
+      if (toolMessage?.error) {
+        if (useLabels) {
+          viewLabels.push(undefined);
+        }
+        views.push(
+          <ToolCallErrorView
+            key={`tool-call-${idx}-error`}
+            error={toolMessage.error}
+          />
+        );
+      }
+
       idx++;
     }
   }
@@ -171,6 +182,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
                     styles.number,
                     styles.label
                   )}
+                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
                 >
                   {label}
                 </div>
@@ -221,14 +233,11 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 };
 
 const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
-  if (!toolMessage) {
+  if (!toolMessage || toolMessage.error) {
     return [];
   }
 
-  const content =
-    toolMessage.error !== null && toolMessage.error
-      ? toolMessage.error.message
-      : toolMessage.content;
+  const content = toolMessage.content;
   if (typeof content === "string") {
     return [
       {

@@ -10,6 +10,7 @@ import {
   ChatView,
   resolveToolInput,
   substituteToolCallContent,
+  ToolCallErrorView,
   ToolCallView,
 } from "@tsmono/inspect-components/chat";
 import { PulsingDots } from "@tsmono/react/components";
@@ -77,7 +78,8 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.events]);
 
-  const title = `Tool: ${resolvedView?.title || name}`;
+  const displayName = resolvedView?.title || name;
+  const title = displayName ? `Tool: ${displayName}` : "Tool";
 
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
@@ -107,10 +109,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           input={input}
           description={description}
           contentType={contentType}
-          output={event.error?.message || event.result || ""}
+          output={event.error ? "" : event.result || ""}
           mode="compact"
           view={resolvedView}
         />
+
+        {event.error ? <ToolCallErrorView error={event.error} /> : null}
 
         {lastModelNode ? (
           <ChatView
