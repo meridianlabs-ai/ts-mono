@@ -863,6 +863,7 @@ export interface components {
         ChatCompletionChoice: {
             logprobs?: components["schemas"]["Logprobs"] | null;
             message: components["schemas"]["ChatMessageAssistant"];
+            prompt_logprobs?: components["schemas"]["Logprobs"] | null;
             /**
              * Stop Reason
              * @default unknown
@@ -1398,6 +1399,8 @@ export interface components {
             parallel_tool_calls?: boolean | null;
             /** Presence Penalty */
             presence_penalty?: number | null;
+            /** Prompt Logprobs */
+            prompt_logprobs?: number | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
@@ -1477,6 +1480,8 @@ export interface components {
             parallel_tool_calls?: boolean | null;
             /** Presence Penalty */
             presence_penalty?: number | null;
+            /** Prompt Logprobs */
+            prompt_logprobs?: number | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
@@ -2896,7 +2901,7 @@ export interface components {
              * @default 0
              */
             tokens: number;
-            validation: components["schemas"]["ValidationResults"] | null;
+            validation?: components["schemas"]["ValidationResults"] | null;
         };
         /**
          * ScannersResponse
@@ -3720,7 +3725,7 @@ export interface components {
             /** Id */
             id: string | string[];
             /** Labels */
-            labels: {
+            labels?: {
                 [key: string]: boolean;
             } | null;
             /** Predicate */
@@ -3849,7 +3854,7 @@ export interface components {
              * Predicate
              * @default eq
              */
-            predicate: ("gt" | "gte" | "lt" | "lte" | "eq" | "ne" | "contains" | "startswith" | "endswith" | "icontains" | "iequals") | null;
+            predicate?: ("gt" | "gte" | "lt" | "lte" | "eq" | "ne" | "contains" | "startswith" | "endswith" | "icontains" | "iequals") | null;
             /** Split */
             split?: string | string[] | null;
         };
@@ -3861,7 +3866,7 @@ export interface components {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
             /** Predicate */
-            predicate: string | null;
+            predicate?: string | null;
             /** Split */
             split?: string | string[] | null;
         };
