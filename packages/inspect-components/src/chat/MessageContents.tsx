@@ -30,12 +30,19 @@ export const defaultContext = (): MessagesContext => {
   };
 };
 
-export const MessageContents: FC<MessageContentsProps> = ({ message, references }) => {
+export const MessageContents: FC<MessageContentsProps> = ({
+  message,
+  references,
+}) => {
   const context: MessagesContext = defaultContext();
   return (
     <>
       {message.content && (
-        <MessageContent contents={message.content} context={context} references={references} />
+        <MessageContent
+          contents={message.content}
+          context={context}
+          references={references}
+        />
       )}
     </>
   );

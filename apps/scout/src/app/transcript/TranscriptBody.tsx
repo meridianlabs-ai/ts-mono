@@ -70,6 +70,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // in a separate scrollable div (splitStart). The virtualizer and other scroll
   // listeners need the *actual* scroll container, not the outer transcriptContainer.
   const splitStartRef = useRef<HTMLDivElement | null>(null);
+  // When the search sidebar is open, a VscodeSplitLayout inside the active
+  // TabPanel gives the main content its own scroll container. That pane's ref
+  // takes over as the scrollRef for the virtual list.
+  const searchSplitStartRef = useRef<HTMLDivElement | null>(null);
 
   // Measure tab bar height so downstream sticky offsets align exactly
   // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
@@ -201,7 +205,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // scroll container (not the outer transcriptContainer), so we swap the ref.
   const activeSidebar = getSidebarParam(searchParams);
   const activeScrollRef =
-    activeSidebar === "validation" ? splitStartRef : scrollRef;
+    activeSidebar === "validation"
+      ? splitStartRef
+      : activeSidebar === "search"
+        ? searchSplitStartRef
+        : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
@@ -332,11 +340,56 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     />
   );
 
+  const searchActive = activeSidebar === "search";
+  const searchSplitEnabled =
+    searchActive && searchScope !== undefined && resolvedTranscriptsDir;
+
+  const renderWithSearchSplit = (
+    content: ReactNode,
+    scope: "messages" | "events"
+  ) =>
+    searchSplitEnabled ? (
+      <VscodeSplitLayout
+        className={styles.searchSplitLayout}
+        fixedPane="end"
+        initialHandlePosition="70%"
+        minEnd="280px"
+        minStart="200px"
+      >
+        <div
+          slot="start"
+          ref={searchSplitStartRef}
+          className={styles.searchSplitStart}
+        >
+          {content}
+        </div>
+        <div slot="end" className={styles.searchSidebar}>
+          <SearchPanel
+            scope={scope}
+            transcriptDir={resolvedTranscriptsDir}
+            transcriptId={transcript.transcript_id}
+            onClose={toggleSearchSidebar}
+          />
+        </div>
+      </VscodeSplitLayout>
+    ) : (
+      content
+    );
+
+  // When the search split is active, the outer scroll container is no longer
+  // transcriptContainer but the split's start pane. Sticky headers inside the
+  // virtual list should offset against the top of that pane (no tab bar
+  // inside), not the tab bar above.
+  const contentOffsetTop = searchSplitEnabled ? 0 : tabBarHeight;
+
   const messagesPanel = (
     <TabPanel
       key={kTranscriptMessagesTabId}
       id={kTranscriptMessagesTabId}
-      className={clsx(styles.chatTab)}
+      className={clsx(
+        styles.chatTab,
+        searchSplitEnabled && styles.tabWithSearchSplit
+      )}
       title="Messages"
       onSelected={() => {
         handleTabChange(kTranscriptMessagesTabId);
@@ -344,21 +397,24 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       selected={resolvedSelectedTranscriptTab === kTranscriptMessagesTabId}
       scrollable={false}
     >
-      <ChatViewVirtualList
-        id={"transcript-id"}
-        messages={transcript.messages || []}
-        initialMessageId={messageParam}
-        className={styles.chatList}
-        scrollRef={activeScrollRef}
-        display={{
-          unlabeledRoles: ["assistant"],
-          formatDateTime,
-        }}
-        linking={{
-          enabled: isHostedEnvironment(),
-          getMessageUrl: getFullMessageUrl,
-        }}
-      />
+      {renderWithSearchSplit(
+        <ChatViewVirtualList
+          id={"transcript-id"}
+          messages={transcript.messages || []}
+          initialMessageId={messageParam}
+          className={styles.chatList}
+          scrollRef={activeScrollRef}
+          display={{
+            unlabeledRoles: ["assistant"],
+            formatDateTime,
+          }}
+          linking={{
+            enabled: isHostedEnvironment(),
+            getMessageUrl: getFullMessageUrl,
+          }}
+        />,
+        "messages"
+      )}
     </TabPanel>
   );
 
@@ -366,7 +422,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <TabPanel
       key="transcript-events"
       id={kTranscriptEventsTabId}
-      className={clsx(styles.eventsTab)}
+      className={clsx(
+        styles.eventsTab,
+        searchSplitEnabled && styles.tabWithSearchSplit
+      )}
       title="Events"
       onSelected={() => {
         handleTabChange(kTranscriptEventsTabId);
@@ -374,38 +433,31 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       selected={resolvedSelectedTranscriptTab === kTranscriptEventsTabId}
       scrollable={false}
     >
-      <TimelineEventsView
-        events={filteredEvents}
-        scrollRef={activeScrollRef}
-        offsetTop={tabBarHeight}
-        initialEventId={eventParam}
-        initialMessageId={messageParam}
-        defaultOutlineExpanded={true}
-        id="transcript-events-list"
-        bulkCollapse={
-          eventsCollapsed === undefined
-            ? undefined
-            : eventsCollapsed
-              ? "collapse"
-              : "expand"
-        }
-        onMarkerNavigate={handleMarkerNavigate}
-        timelines={transcript.timelines}
-        headroomHidden={headroomHidden}
-        onHeadroomResetAnchor={onHeadroomResetAnchor}
-        getEventUrl={getFullEventUrl}
-        linkingEnabled={isHostedEnvironment()}
-        sidebar={
-          activeSidebar === "search" && resolvedTranscriptsDir ? (
-            <SearchPanel
-              scope="events"
-              transcriptDir={resolvedTranscriptsDir}
-              transcriptId={transcript.transcript_id}
-              onClose={toggleSearchSidebar}
-            />
-          ) : undefined
-        }
-      />
+      {renderWithSearchSplit(
+        <TimelineEventsView
+          events={filteredEvents}
+          scrollRef={activeScrollRef}
+          offsetTop={contentOffsetTop}
+          initialEventId={eventParam}
+          initialMessageId={messageParam}
+          defaultOutlineExpanded={true}
+          id="transcript-events-list"
+          bulkCollapse={
+            eventsCollapsed === undefined
+              ? undefined
+              : eventsCollapsed
+                ? "collapse"
+                : "expand"
+          }
+          onMarkerNavigate={handleMarkerNavigate}
+          timelines={transcript.timelines}
+          headroomHidden={headroomHidden}
+          onHeadroomResetAnchor={onHeadroomResetAnchor}
+          getEventUrl={getFullEventUrl}
+          linkingEnabled={isHostedEnvironment()}
+        />,
+        "events"
+      )}
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}
@@ -465,7 +517,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     </TabPanel>
   );
 
-  const tabSetContent = (
+  const tabSet = (
     <TabSet
       id={"transcript-body"}
       type="pills"
@@ -477,6 +529,14 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     >
       {tabPanels}
     </TabSet>
+  );
+
+  // When the search split is active, the tab bar and its content area need
+  // bounded heights so the inner VscodeSplitLayout can size correctly.
+  const tabSetContent = searchSplitEnabled ? (
+    <div className={styles.tabContainer}>{tabSet}</div>
+  ) : (
+    tabSet
   );
 
   return (
