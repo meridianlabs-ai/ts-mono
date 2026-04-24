@@ -540,6 +540,7 @@ export interface components {
         ChatCompletionChoice: {
             logprobs?: components["schemas"]["Logprobs"] | null;
             message: components["schemas"]["ChatMessageAssistant"];
+            prompt_logprobs?: components["schemas"]["Logprobs"] | null;
             /**
              * Stop Reason
              * @default unknown
@@ -1653,6 +1654,8 @@ export interface components {
             parallel_tool_calls?: boolean | null;
             /** Presence Penalty */
             presence_penalty?: number | null;
+            /** Prompt Logprobs */
+            prompt_logprobs: number | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
