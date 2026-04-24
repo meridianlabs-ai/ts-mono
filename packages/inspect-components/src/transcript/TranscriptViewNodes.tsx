@@ -29,6 +29,7 @@ import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
 import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
+import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 
 // =============================================================================
 // Types
@@ -112,9 +113,55 @@ export const TranscriptViewNodes = forwardRef<
     [onCollapseTranscript, getCollapsed, getEventUrl, linkingEnabled]
   );
 
+  // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
+  // can render the approval inline without nesting it in the tree (which
+  // would give the tool panel a bogus expand chevron).
+  const { toolApprovals, hiddenApprovalIds } = useMemo(() => {
+    const toolIds = new Set<string>();
+    const walkTools = (nodes: EventNode[]) => {
+      for (const n of nodes) {
+        if (n.event.event === "tool") toolIds.add(n.event.id);
+        if (n.children.length) walkTools(n.children);
+      }
+    };
+    walkTools(eventNodes);
+
+    const approvals = new Map<string, EventNode<ApprovalEvent>>();
+    const hidden = new Set<string>();
+    const walkApprovals = (nodes: EventNode[]) => {
+      for (const n of nodes) {
+        if (n.event.event === "approval") {
+          // Auto-approved calls add no information — hide them entirely
+          // (don't pair, don't surface as flat rows). Non-approve auto
+          // decisions (reject/terminate/…) stay visible.
+          const isAutoApprove =
+            n.event.approver === "auto" && n.event.decision === "approve";
+          if (isAutoApprove) {
+            hidden.add(n.id);
+          } else if (toolIds.has(n.event.call.id)) {
+            approvals.set(n.event.call.id, n as EventNode<ApprovalEvent>);
+            hidden.add(n.id);
+          }
+        }
+        if (n.children.length) walkApprovals(n.children);
+      }
+    };
+    walkApprovals(eventNodes);
+
+    return { toolApprovals: approvals, hiddenApprovalIds: hidden };
+  }, [eventNodes]);
+
   const flattenedNodes = useMemo(() => {
-    return flatTree(eventNodes, collapsedTranscript || defaultCollapsedIds);
-  }, [eventNodes, collapsedTranscript, defaultCollapsedIds]);
+    const all = flatTree(eventNodes, collapsedTranscript || defaultCollapsedIds);
+    return hiddenApprovalIds.size === 0
+      ? all
+      : all.filter((n) => !hiddenApprovalIds.has(n.id));
+  }, [eventNodes, collapsedTranscript, defaultCollapsedIds, hiddenApprovalIds]);
+
+  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
+    () => ({ ...eventNodeContext, toolApprovals }),
+    [eventNodeContext, toolApprovals]
+  );
 
   // Auto-compute turnMap when not provided by the parent
   const computedTurnMap = useMemo(() => {
@@ -206,7 +253,7 @@ export const TranscriptViewNodes = forwardRef<
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
-          eventNodeContext={eventNodeContext}
+          eventNodeContext={mergedEventNodeContext}
         />
       </div>
     </StickyScrollProvider>

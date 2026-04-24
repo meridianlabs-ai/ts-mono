@@ -1,11 +1,7 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type {
-  ApprovalEvent,
-  ModelEvent,
-  ToolEvent,
-} from "@tsmono/inspect-common/types";
+import type { ModelEvent, ToolEvent } from "@tsmono/inspect-common/types";
 import {
   ChatView,
   resolveToolInput,
@@ -62,19 +58,13 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [event.view, event.arguments]
   );
 
-  const { approvalNode, lastModelNode } = useMemo(() => {
-    const approval = childNodes.find((e) => {
-      return e.event.event === "approval";
-    });
+  const approvalNode = context?.toolApprovals?.get(event.id);
 
+  const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => {
       return e.event.event === "model";
     });
-
-    return {
-      approvalNode: approval as EventNode<ApprovalEvent> | undefined,
-      lastModelNode: lastModel as EventNode<ModelEvent> | undefined,
-    };
+    return lastModel as EventNode<ModelEvent> | undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.events]);
 
@@ -125,10 +115,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         ) : undefined}
 
         {approvalNode ? (
-          <ApprovalEventView
-            eventNode={approvalNode}
-            className={styles.approval}
-          />
+          <div className={styles.approvalWrap}>
+            <ApprovalEventView
+              eventNode={approvalNode}
+              className={styles.approval}
+            />
+          </div>
         ) : (
           ""
         )}
