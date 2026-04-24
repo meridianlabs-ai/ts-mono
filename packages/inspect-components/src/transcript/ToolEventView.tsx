@@ -78,7 +78,8 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.events]);
 
-  const title = `Tool: ${resolvedView?.title || name}`;
+  const displayName = resolvedView?.title || name;
+  const title = displayName ? `Tool: ${displayName}` : "Tool";
 
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`

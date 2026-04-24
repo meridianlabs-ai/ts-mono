@@ -5,6 +5,7 @@
 
 .toolTitle {
   color: unset !important;
+  overflow-wrap: anywhere;
 }
 
 .description {

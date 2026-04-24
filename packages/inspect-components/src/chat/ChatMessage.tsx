@@ -84,7 +84,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
         >
           <div>
             {message.role}
-            {message.role === "tool" ? `: ${message.function}` : ""}
+            {message.role === "tool"
+              ? message.function
+                ? `: ${message.function}`
+                : ""
+              : ""}
             {linkingEnabled && messageUrl ? (
               <CopyButton
                 icon={linkIcon}
