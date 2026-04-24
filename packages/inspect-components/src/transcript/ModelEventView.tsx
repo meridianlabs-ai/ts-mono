@@ -11,7 +11,11 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import { ExpandablePanel, MarkdownDiv, PulsingDots } from "@tsmono/react/components";
+import {
+  ExpandablePanel,
+  MarkdownDiv,
+  PulsingDots,
+} from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { EventPanel } from "./event/EventPanel";
@@ -294,7 +298,7 @@ const ToolsConfig: FC<ToolConfigProps> = ({ tools, toolChoice }) => {
           {tool.name}
         </div>
         <ExpandablePanel id={`config-${tool.name}-${idx}`} collapse={true}>
-        <MarkdownDiv markdown={tool.description}/>
+          <MarkdownDiv markdown={tool.description} />
         </ExpandablePanel>
       </Fragment>
     );
