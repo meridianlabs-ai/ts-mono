@@ -16,6 +16,8 @@ import { useCreateSearch, useSearches } from "./useSearches";
 const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
 
+const emptyResult = { value: 0, references: [] };
+
 const initialSearches: SavedSearchListResponse = {
   items: [
     {
@@ -23,7 +25,7 @@ const initialSearches: SavedSearchListResponse = {
       ignore_case: true,
       query: "existing grep",
       regex: false,
-      results: [],
+      result: emptyResult,
       search_id: "grep-1",
       type: "grep",
       word_boundary: false,
@@ -32,7 +34,7 @@ const initialSearches: SavedSearchListResponse = {
       created_at: "2026-04-10T12:05:00Z",
       model: "gpt-5.4-mini",
       query: "existing llm",
-      results: [],
+      result: emptyResult,
       search_id: "llm-1",
       type: "llm",
     },
@@ -77,7 +79,7 @@ describe("useCreateSearch", () => {
       ignore_case: false,
       query: "updated grep",
       regex: true,
-      results: [],
+      result: emptyResult,
       search_id: "grep-1",
       type: "grep",
       word_boundary: true,
