@@ -10,6 +10,7 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -228,6 +229,30 @@ export const TranscriptViewNodes = forwardRef<
     scrollToEvent,
     scrollToIndex,
   ]);
+
+  // Runtime URL→event navigation. The mount-time anchor lives in
+  // TranscriptVirtualListComponent (frozen at first render); after mount,
+  // any change to `initialEventId` (e.g. user clicks an outline link or a
+  // scan-citation link) flows through here and scrolls imperatively. Dedup
+  // via lastScrolledIdRef so re-renders driven by `flattenedNodes` changes
+  // (filter/collapse) don't re-fire a scroll for an already-handled id.
+  const lastScrolledIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialEventId) {
+      lastScrolledIdRef.current = null;
+      return;
+    }
+    if (lastScrolledIdRef.current === initialEventId) return;
+    const idx = flattenedNodes.findIndex((n) => n.id === initialEventId);
+    if (idx === -1) return;
+    lastScrolledIdRef.current = initialEventId;
+    listHandle.current?.scrollToIndex({
+      index: idx,
+      align: "start",
+      behavior: "auto",
+      offset: offsetTop ? -offsetTop : undefined,
+    });
+  }, [initialEventId, flattenedNodes, offsetTop]);
 
   useListKeyboardNavigation({
     listHandle,

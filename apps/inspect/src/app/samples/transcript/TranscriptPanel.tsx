@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import type {
   Score,
@@ -20,6 +20,7 @@ import {
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   type TranscriptCollapseState,
+  type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
 import {
@@ -116,7 +117,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const timelineSelected = useStore((state) => state.sample.timelineSelected);
-  const setTimelineSelected = useStore(
+  const setTimelineSelectedStore = useStore(
     (state) => state.sampleActions.setTimelineSelected
   );
   const activeTimelineIndex = useStore(
@@ -124,6 +125,27 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
   const setActiveTimelineIndex = useStore(
     (state) => state.sampleActions.setActiveTimelineIndex
+  );
+
+  // Timeline selection is store-backed, but a stale URL `?event=` (or
+  // `?message=`) would otherwise win over branchScrollTarget when the user
+  // selects a different swimlane row. Clear those on selection change so
+  // the row's resolved scroll target takes effect.
+  const [, setSearchParams] = useSearchParams();
+  const setTimelineSelected = useCallback(
+    (key: string | null) => {
+      setTimelineSelectedStore(key);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("event");
+          next.delete("message");
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setTimelineSelectedStore, setSearchParams]
   );
 
   const timelineSelection = useMemo(
@@ -356,8 +378,14 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
+  // Outline link clicks are in-view navigation (jumping to an event in the
+  // same transcript), so use `replace` to keep the back button clean.
   const renderLink = useCallback(
-    (url: string, children: ReactNode) => <Link to={url}>{children}</Link>,
+    (url: string, children: ReactNode) => (
+      <Link to={url} replace>
+        {children}
+      </Link>
+    ),
     []
   );
 
@@ -374,10 +402,20 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      void navigate(url);
+      void navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );
+
+  // Outline navigation. Imperative scroll on every click — including
+  // re-clicks of the already-selected item — so users can scroll away
+  // and click the same outline row to jump back. The URL→scroll effect
+  // in TranscriptViewNodes only fires when `event` actually changes,
+  // so it can't handle a re-click of the same id by itself.
+  const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
+  const onOutlineNavigate = useCallback((eventId: string) => {
+    eventsListRef.current?.scrollToEvent(eventId);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -403,6 +441,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
+      eventsListRef={eventsListRef}
       outlineScrollRef={outlineScrollRef}
       rightPaneScrollRef={rightPaneScrollRef}
       outline={{
@@ -413,6 +452,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           ? "Show transcript outline"
           : "Hide transcript outline",
         renderLink,
+        onNavigateToEvent: onOutlineNavigate,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
       }}

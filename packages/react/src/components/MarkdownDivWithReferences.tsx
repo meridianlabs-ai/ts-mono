@@ -68,11 +68,12 @@ export const MarkdownDivWithReferences = forwardRef<
         if (anchor) {
           const href = anchor.getAttribute("href");
           // If this is a hash link, forward on to react-router
-          // so it can see this navigate
+          // so it can see this navigate. Cite links are in-view navigation
+          // (jumping to a referenced event/message in the same transcript),
+          // so use replace to avoid filling history with each click.
           if (href?.startsWith("#/")) {
             e.preventDefault();
-            // Remove '#' and navigate
-            void navigate(href.slice(1));
+            void navigate(href.slice(1), { replace: true });
           }
         }
       },

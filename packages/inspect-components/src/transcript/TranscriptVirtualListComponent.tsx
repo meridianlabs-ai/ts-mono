@@ -72,30 +72,15 @@ export const TranscriptVirtualListComponent: FC<
     onNativeFindChanged?.(!useVirtualization);
   }, [onNativeFindChanged, useVirtualization]);
 
-  // Resolve the deep-link event ID to an index only when the ID itself
-  // changes, not when eventNodes changes due to filtering. This prevents
-  // filter changes from re-triggering scroll-to-index in LiveVirtualList.
-  const [initialEventIndex, setInitialEventIndex] = useState<
-    number | undefined
-  >(() => {
+  // Mount-time anchor for Virtuoso's layout. Captured once and frozen —
+  // runtime URL→event navigation is handled imperatively in
+  // TranscriptViewNodes, so this state never updates after the first render.
+  const [initialEventIndex] = useState<number | undefined>(() => {
     if (initialEventId === null || initialEventId === undefined)
       return undefined;
     const idx = eventNodes.findIndex((e) => e.id === initialEventId);
     return idx === -1 ? undefined : idx;
   });
-
-  useEffect(() => {
-    if (initialEventId === null || initialEventId === undefined) {
-      // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInitialEventIndex(undefined);
-      return;
-    }
-    const idx = eventNodes.findIndex((e) => e.id === initialEventId);
-    setInitialEventIndex(idx === -1 ? undefined : idx);
-    // Only re-resolve when the deep-link ID changes, not on data changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialEventId]);
 
   const hasToolEventsAtCurrentDepth = useCallback(
     (startIndex: number) => {
