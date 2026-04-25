@@ -18,6 +18,12 @@
   border-top-right-radius: 0;
 }
 
+.depthRoot {
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
 .last {
   padding-bottom: 0.8rem;
 }
