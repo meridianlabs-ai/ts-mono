@@ -1,8 +1,7 @@
 .title {
-  margin-left: 0.5em;
   display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr);
-  column-gap: 0.5em;
+  column-gap: 0.3em;
 }
 
 .contents {
@@ -10,4 +9,8 @@
   margin-bottom: 0;
   border: solid 1px var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
+}
+
+.below {
+  margin-top: 0.4em;
 }

@@ -3,6 +3,10 @@
   width: 100%;
 }
 
+.approvalWrap {
+  margin-top: 0.5rem;
+}
+
 .approval {
   border: none;
   padding: 0;

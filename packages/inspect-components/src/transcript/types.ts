@@ -168,4 +168,6 @@ export interface EventNodeContext {
   inlineExpansionUX?: boolean;
   /** Per-message labels rendered in the chat label gutter (e.g. scanner citation cites like "M1"). Keyed by `message.id`. */
   messageLabels?: Record<string, string>;
+  /** Approval events paired to their tool event via `call.id == ToolEvent.id`. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
+  toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
 }
