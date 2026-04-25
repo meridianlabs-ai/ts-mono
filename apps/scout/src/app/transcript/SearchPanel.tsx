@@ -462,33 +462,36 @@ const SearchResults: FC<{
   if (!hasSearched) {
     return null;
   }
-  if (currentSearch === null || currentSearch.results.length === 0) {
+  if (currentSearch === null) {
     return <div className={styles.emptyState}>No results found</div>;
   }
 
-  const total = currentSearch.results.reduce(
-    (sum, r) => (typeof r.value === "number" ? sum + r.value : sum),
-    0
-  );
+  const { result } = currentSearch;
+  const numericValue = typeof result.value === "number" ? result.value : null;
+  const isEmpty =
+    numericValue === 0 &&
+    !result.explanation &&
+    typeof result.value !== "string";
+
+  if (isEmpty) {
+    return <div className={styles.emptyState}>No results found</div>;
+  }
 
   return (
     <>
       <div className={styles.sectionHeader}>
         <span>Results</span>
-        {total > 0 && (
+        {numericValue !== null && numericValue > 0 && (
           <span className={styles.matchCount}>
-            {total} {total === 1 ? "match" : "matches"}
+            {numericValue} {numericValue === 1 ? "match" : "matches"}
           </span>
         )}
       </div>
-      {currentSearch.results.map((result, index) => (
-        <SearchResult
-          key={result.uuid ?? index}
-          result={result}
-          getFullMessageUrl={getFullMessageUrl}
-          getFullEventUrl={getFullEventUrl}
-        />
-      ))}
+      <SearchResult
+        result={result}
+        getFullMessageUrl={getFullMessageUrl}
+        getFullEventUrl={getFullEventUrl}
+      />
     </>
   );
 };
