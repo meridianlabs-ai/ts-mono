@@ -159,6 +159,7 @@ export const TranscriptVirtualListComponent: FC<
       const attachedParentClass = attachedParent
         ? styles.attachedParent
         : undefined;
+      const depthRootClass = item.depth === 0 ? styles.depthRoot : undefined;
 
       const context = contextMap.get(item.id);
       const isLast = index === eventNodes.length - 1;
@@ -182,7 +183,11 @@ export const TranscriptVirtualListComponent: FC<
           <RenderedEventNode
             node={item}
             next={next}
-            className={clsx(attachedParentClass, attachedChildClass)}
+            className={clsx(
+              attachedParentClass,
+              attachedChildClass,
+              depthRootClass
+            )}
             context={context}
             onAutoCollapse={onAutoCollapse}
             renderAgentCard={renderAgentCard}
