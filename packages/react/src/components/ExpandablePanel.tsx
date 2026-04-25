@@ -36,36 +36,65 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     const [collapsed, setCollapsed] = useCollapsedState(id, collapse);
 
     const [showToggle, setShowToggle] = useState(false);
-    const baseFontSizeRef = useRef<number>(0);
+    const rootFontSizeRef = useRef<number>(0);
 
     const checkOverflow = useCallback(
       (entry: ResizeObserverEntry) => {
         const element = entry.target as HTMLDivElement;
 
-        // Calculate line height if we haven't yet
-        if (baseFontSizeRef.current === 0) {
-          const computedStyle = window.getComputedStyle(element);
-          const rootFontSize = parseFloat(computedStyle.fontSize);
-          baseFontSizeRef.current = rootFontSize;
+        // `maxHeight` is set in `rem` below, which resolves against the root
+        // font-size — not the element's. Measuring against the element's own
+        // font-size produced a too-small threshold whenever a caller shrunk
+        // the font (e.g. via text-size-smaller), showing a toggle that did
+        // not actually reveal any hidden content.
+        if (rootFontSizeRef.current === 0) {
+          const rootStyle = window.getComputedStyle(document.documentElement);
+          rootFontSizeRef.current = parseFloat(rootStyle.fontSize);
         }
-        const maxCollapsedHeight = baseFontSizeRef.current * lines;
+        const maxCollapsedHeight = rootFontSizeRef.current * lines;
         const contentHeight = element.scrollHeight;
 
-        setShowToggle(contentHeight > maxCollapsedHeight);
+        // 1px tolerance guards against sub-pixel rounding.
+        setShowToggle(contentHeight - maxCollapsedHeight > 1);
       },
       [lines]
     );
     const contentRef = useResizeObserver(checkOverflow);
 
-    const baseStyles = {
-      overflow: "hidden",
-      ...(collapsed && {
-        maxHeight: `${lines}rem`,
-      }),
-    };
+    // `overflow: hidden` is only needed when collapsed (to clip to maxHeight).
+    // Leaving it on when expanded would make the panel a "scroll container"
+    // for CSS sticky purposes, trapping the sticky toggle inside the panel
+    // instead of letting it follow the outer viewport/scroll container.
+    const baseStyles: CSSProperties = collapsed
+      ? { overflow: "hidden", maxHeight: `${lines}rem` }
+      : {};
+
+    const handleToggle = useCallback(() => {
+      const wasExpanded = !collapsed;
+      // Capture pre-collapse geometry: only an expanded panel that was
+      // taller than the viewport can strand the user — otherwise nothing
+      // about the user's view changes when collapsing.
+      const tallerThanViewport =
+        wasExpanded &&
+        !!contentRef.current &&
+        contentRef.current.getBoundingClientRect().height > window.innerHeight;
+      setCollapsed(!collapsed);
+      if (tallerThanViewport) {
+        // Wait for the next frame so the DOM reflects the collapsed
+        // height, then align the panel's bottom with the viewport bottom.
+        // `nearest` would be a no-op here: with the sticky toggle, part of
+        // the panel was visible at click time, which short-circuits it.
+        requestAnimationFrame(() => {
+          contentRef.current?.scrollIntoView({
+            block: "end",
+            behavior: "smooth",
+          });
+        });
+      }
+    }, [collapsed, setCollapsed, contentRef]);
 
     return (
-      <div className={clsx(className)}>
+      <div className={clsx(styles.outer, className)}>
         <div
           style={baseStyles}
           ref={contentRef}
@@ -74,31 +103,30 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             styles.expandablePanel,
             collapsed ? styles.expandableCollapsed : undefined,
             border ? styles.expandableBordered : undefined,
-            showToggle ? styles.padBottom : undefined,
             className
           )}
         >
           {children}
           {showToggle && layout === "inline-right" && (
-            <>
-              <MoreToggle
-                collapsed={collapsed}
-                setCollapsed={setCollapsed}
-                border={!border}
-                position="inline-right"
-              />
-            </>
+            <div className={styles.inlineToggleHolder}>
+              <div className={styles.inlineToggleSticky}>
+                <MoreToggle
+                  collapsed={collapsed}
+                  onToggle={handleToggle}
+                  border={!border}
+                  position="inline-right"
+                />
+              </div>
+            </div>
           )}
         </div>
         {showToggle && layout === "block-left" && (
-          <>
-            <MoreToggle
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              border={!border}
-              position="block-left"
-            />
-          </>
+          <MoreToggle
+            collapsed={collapsed}
+            onToggle={handleToggle}
+            border={!border}
+            position="block-left"
+          />
         )}
 
         {showToggle && layout === "inline-right" && (
@@ -112,7 +140,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
 interface MoreToggleProps {
   collapsed: boolean;
   border: boolean;
-  setCollapsed: (collapsed: boolean) => void;
+  onToggle: () => void;
   style?: CSSProperties;
   position: "inline-right" | "block-left";
 }
@@ -120,27 +148,23 @@ interface MoreToggleProps {
 const MoreToggle: FC<MoreToggleProps> = ({
   collapsed,
   border,
-  setCollapsed,
+  onToggle,
   style,
   position,
 }) => {
   const text = collapsed ? "more" : "less";
-  const handleClick = useCallback(() => {
-    setCollapsed(!collapsed);
-  }, [setCollapsed, collapsed]);
-
   return (
     <div
       className={clsx(
         styles.moreToggle,
         border ? styles.bordered : undefined,
-        position === "inline-right" ? styles.inlineRight : styles.blockLeft
+        position === "block-left" ? styles.blockLeft : undefined
       )}
       style={style}
     >
       <button
         className={clsx("btn", styles.moreToggleButton, "text-size-smallest")}
-        onClick={handleClick}
+        onClick={onToggle}
       >
         {text}...
       </button>
