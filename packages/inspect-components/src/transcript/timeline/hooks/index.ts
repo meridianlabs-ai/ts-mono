@@ -13,6 +13,7 @@ export {
 } from "./useTimeline";
 export {
   useTimelineConfig,
+  type UseTimelineConfigOptions,
   type UseTimelineConfigResult,
 } from "./useTimelineConfig";
 export {

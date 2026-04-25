@@ -15,7 +15,12 @@ import type {
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
-import { convertServerTimeline, TimelineEvent, TimelineSpan } from "./core";
+import {
+  convertServerTimeline,
+  spanHasBranches,
+  TimelineEvent,
+  TimelineSpan,
+} from "./core";
 
 // =============================================================================
 // Helpers
@@ -408,6 +413,62 @@ describe("convertServerTimeline", () => {
       const result = convertServerTimeline(server, events);
 
       expect(result.root.totalTokens()).toBe(300);
+    });
+  });
+
+  describe("spanHasBranches", () => {
+    it("returns false for a span with no branches anywhere", () => {
+      const span = new TimelineSpan({
+        id: "root",
+        name: "root",
+        spanType: null,
+        content: [
+          new TimelineSpan({ id: "child", name: "child", spanType: null }),
+        ],
+      });
+      expect(spanHasBranches(span)).toBe(false);
+    });
+
+    it("returns true when the root has direct branches", () => {
+      const span = new TimelineSpan({
+        id: "root",
+        name: "root",
+        spanType: null,
+        branches: [
+          new TimelineSpan({ id: "b", name: "branch", spanType: "branch" }),
+        ],
+      });
+      expect(spanHasBranches(span)).toBe(true);
+    });
+
+    it("returns true when a descendant span has branches", () => {
+      const span = new TimelineSpan({
+        id: "root",
+        name: "root",
+        spanType: null,
+        content: [
+          new TimelineSpan({
+            id: "mid",
+            name: "mid",
+            spanType: null,
+            content: [
+              new TimelineSpan({
+                id: "leaf",
+                name: "leaf",
+                spanType: null,
+                branches: [
+                  new TimelineSpan({
+                    id: "b",
+                    name: "branch",
+                    spanType: "branch",
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      expect(spanHasBranches(span)).toBe(true);
     });
   });
 

@@ -39,10 +39,11 @@ import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import { resolveMessageToEvent } from "./resolveMessageToEvent";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { type TimelineSpan } from "./timeline/core";
+import { spanHasBranches, type TimelineSpan } from "./timeline/core";
 import {
   useEventNodes,
   useTimelineConfig,
+  useTimelinesArray,
   useTranscriptTimeline,
   type TimelineOptions,
   type UseActiveTimelineProps,
@@ -235,7 +236,20 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Timeline config (persistent user preferences)
   // ---------------------------------------------------------------------------
 
-  const timelineConfig = useTimelineConfig();
+  // Detect whether any timeline in this sample contains branches so the
+  // config hook can default `showBranches` on (when the user has not
+  // explicitly toggled it). `useTimelinesArray` is memoized, so the redundant
+  // call inside `useTranscriptTimeline` below reuses the same result.
+  const timelinesForBranchDetection = useTimelinesArray(
+    events,
+    serverTimelines
+  );
+  const branchesPresent = useMemo(
+    () => timelinesForBranchDetection.some((tl) => spanHasBranches(tl.root)),
+    [timelinesForBranchDetection]
+  );
+
+  const timelineConfig = useTimelineConfig({ branchesPresent });
   const resolvedMarkerConfig =
     markerConfigOverride ?? timelineConfig.markerConfig;
   const resolvedAgentConfig = agentConfigOverride ?? timelineConfig.agentConfig;

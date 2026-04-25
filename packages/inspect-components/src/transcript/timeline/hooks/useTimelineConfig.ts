@@ -5,6 +5,11 @@
  * so values persist in the store across unmounts. Settings are intentionally
  * global — they apply to all samples/timelines as shared user preferences
  * rather than per-sample state.
+ *
+ * `branchesPresent` shifts the *unset* default for `showBranches`: when the
+ * user has never explicitly toggled it and the current sample contains
+ * branches, branches are shown by default. An explicit user toggle (stored
+ * value) always wins.
  */
 
 import { useCallback, useMemo } from "react";
@@ -58,42 +63,42 @@ const kDefaultIncludeUtility = false;
 const kDefaultShowBranches = false;
 const kDefaultForkRelative = false;
 
-function arraysEqual<T>(a: T[], b: T[]): boolean {
-  if (a.length !== b.length) return false;
-  const set = new Set(a);
-  return b.every((v) => set.has(v));
-}
-
 // =============================================================================
 // Hook
 // =============================================================================
 
-export function useTimelineConfig(): UseTimelineConfigResult {
-  const [storedKinds, setStoredKinds] = useProperty<MarkerKind[]>(
-    "timeline",
-    "markerKinds"
-  );
-  const [storedDepth, setStoredDepth] = useProperty<MarkerDepth>(
-    "timeline",
-    "markerDepth"
-  );
-  const [storedUtility, setStoredUtility] = useProperty<boolean>(
-    "timeline",
-    "includeUtility"
-  );
-  const [storedShowBranches, setStoredShowBranches] = useProperty<boolean>(
-    "timeline",
-    "showBranches"
-  );
-  const [storedForkRelative, setStoredForkRelative] = useProperty<boolean>(
-    "timeline",
-    "forkRelative"
-  );
+export interface UseTimelineConfigOptions {
+  /**
+   * Whether the current sample contains any branches. When true, `showBranches`
+   * defaults to true unless the user has an explicit stored preference.
+   */
+  branchesPresent?: boolean;
+}
+
+export function useTimelineConfig(
+  options: UseTimelineConfigOptions = {}
+): UseTimelineConfigResult {
+  const { branchesPresent = false } = options;
+
+  const [storedKinds, setStoredKinds, removeStoredKinds] = useProperty<
+    MarkerKind[]
+  >("timeline", "markerKinds");
+  const [storedDepth, setStoredDepth, removeStoredDepth] =
+    useProperty<MarkerDepth>("timeline", "markerDepth");
+  const [storedUtility, setStoredUtility, removeStoredUtility] =
+    useProperty<boolean>("timeline", "includeUtility");
+  const [storedShowBranches, setStoredShowBranches, removeStoredShowBranches] =
+    useProperty<boolean>("timeline", "showBranches");
+  const [storedForkRelative, setStoredForkRelative, removeStoredForkRelative] =
+    useProperty<boolean>("timeline", "forkRelative");
 
   const markerKinds = storedKinds ?? kDefaultMarkerKinds;
   const markerDepth = storedDepth ?? kDefaultMarkerDepth;
   const includeUtility = storedUtility ?? kDefaultIncludeUtility;
-  const showBranches = storedShowBranches ?? kDefaultShowBranches;
+  // When the user has not explicitly toggled showBranches, default it on for
+  // samples that contain branches; otherwise fall back to kDefaultShowBranches.
+  const showBranches =
+    storedShowBranches ?? (branchesPresent || kDefaultShowBranches);
   // Default fork-relative to on when branches are shown and the user hasn't
   // explicitly toggled it (storedForkRelative is undefined).
   const forkRelative =
@@ -109,12 +114,15 @@ export function useTimelineConfig(): UseTimelineConfigResult {
     [includeUtility, showBranches, forkRelative]
   );
 
+  // True when the user has not customized any setting (no stored overrides).
+  // Resolved values may still differ from kDefault* via auto-defaults
+  // (e.g. branchesPresent flipping showBranches on).
   const isDefault =
-    arraysEqual(markerKinds, kDefaultMarkerKinds) &&
-    markerDepth === kDefaultMarkerDepth &&
-    includeUtility === kDefaultIncludeUtility &&
-    showBranches === kDefaultShowBranches &&
-    forkRelative === kDefaultForkRelative;
+    storedKinds === undefined &&
+    storedDepth === undefined &&
+    storedUtility === undefined &&
+    storedShowBranches === undefined &&
+    storedForkRelative === undefined;
 
   const toggleMarkerKind = useCallback(
     (kind: MarkerKind) => {
@@ -128,17 +136,17 @@ export function useTimelineConfig(): UseTimelineConfigResult {
   );
 
   const resetToDefaults = useCallback(() => {
-    setStoredKinds(kDefaultMarkerKinds);
-    setStoredDepth(kDefaultMarkerDepth);
-    setStoredUtility(kDefaultIncludeUtility);
-    setStoredShowBranches(kDefaultShowBranches);
-    setStoredForkRelative(kDefaultForkRelative);
+    removeStoredKinds();
+    removeStoredDepth();
+    removeStoredUtility();
+    removeStoredShowBranches();
+    removeStoredForkRelative();
   }, [
-    setStoredKinds,
-    setStoredDepth,
-    setStoredUtility,
-    setStoredShowBranches,
-    setStoredForkRelative,
+    removeStoredKinds,
+    removeStoredDepth,
+    removeStoredUtility,
+    removeStoredShowBranches,
+    removeStoredForkRelative,
   ]);
 
   return {

@@ -187,6 +187,17 @@ export class TimelineSpan {
 }
 
 /**
+ * True if `span` (or any descendant span in its content tree) has branches.
+ */
+export function spanHasBranches(span: TimelineSpan): boolean {
+  if (span.branches.length > 0) return true;
+  for (const item of span.content) {
+    if (item.type === "span" && spanHasBranches(item)) return true;
+  }
+  return false;
+}
+
+/**
  * Creates a display-ready TimelineSpan from a branch span.
  *
  * If the branch has exactly one child span, returns that span directly.
