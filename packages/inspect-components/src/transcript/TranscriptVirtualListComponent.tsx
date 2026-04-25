@@ -60,8 +60,13 @@ export const TranscriptVirtualListComponent: FC<
   eventCallbacks,
   eventNodeContext,
 }) => {
-  const useVirtualization =
-    !disableVirtualization && (running || eventNodes.length > 100);
+  // Always virtualize when not explicitly disabled. The previous threshold
+  // (`running || eventNodes.length > 100`) skipped virtualization for short
+  // transcripts, which routed scroll-to-event through a plain-DOM
+  // `scrollIntoView` fallback that didn't reliably scroll the actual scroll
+  // container — making swimlane / outline navigation appear broken on small
+  // event lists. Virtuoso handles short lists fine.
+  const useVirtualization = !disableVirtualization;
 
   useEffect(() => {
     onNativeFindChanged?.(!useVirtualization);

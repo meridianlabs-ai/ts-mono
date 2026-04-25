@@ -400,8 +400,15 @@ export const LiveVirtualList = <T,>({
   }, [offsetTop]);
   useEffect(() => {
     if (initialTopMostItemIndex !== undefined && listHandle.current) {
-      // If there is an initial index, scroll to it after a short delay
-      const timer = setTimeout(() => {
+      // Two-pass scroll across rAFs:
+      //   1. First rAF: scroll to land near the target. This typically
+      //      activates any sticky offset (e.g. a sticky swimlane header
+      //      stuck to top of viewport).
+      //   2. Second rAF: re-scroll using the now-stable `offsetTopRef`
+      //      so the row clears the sticky region. Without the second
+      //      pass the row ends up partially behind the sticky bar
+      //      whenever this effect fires from a fresh mount.
+      const doScroll = () => {
         listHandle.current?.scrollToIndex({
           index: initialTopMostItemIndex,
           align: "start",
@@ -412,9 +419,18 @@ export const LiveVirtualList = <T,>({
               : "smooth",
           offset: offsetTopRef.current ? -offsetTopRef.current : undefined,
         });
-        hasScrolled.current = true;
-      }, 50);
-      return () => clearTimeout(timer);
+      };
+      let frame: number | null = requestAnimationFrame(() => {
+        doScroll();
+        frame = requestAnimationFrame(() => {
+          doScroll();
+          hasScrolled.current = true;
+          frame = null;
+        });
+      });
+      return () => {
+        if (frame !== null) cancelAnimationFrame(frame);
+      };
     }
   }, [initialTopMostItemIndex, listHandle, animation]);
 
