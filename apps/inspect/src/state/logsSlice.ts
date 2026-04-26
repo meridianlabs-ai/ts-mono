@@ -50,9 +50,8 @@ export interface LogsSlice {
     clearWatchedLogs: () => void;
     setSelectedRowIndex: (index: number | null) => void;
 
-    setLogsGridState: (gridState: GridState | undefined) => void;
-    clearLogsGridState: () => void;
-    setPreviousLogsPath: (path: string | undefined) => void;
+    setLogsGridState: (scope: string, gridState: GridState) => void;
+    clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
     setGridState: (gridState: GridState) => void;
@@ -73,6 +72,7 @@ const initialState: LogsState = {
   selectedLogFile: undefined as string | undefined,
   listing: {
     columnVisibility: {},
+    gridStateByScope: {},
   },
   pendingRequests: new Map<string, Promise<EvalHeader | null>>(),
   dbStats: {
@@ -102,8 +102,9 @@ export const createLogsSlice = (
           if (logDir !== state.logs.logDir) {
             state.logs.logDir = logDir;
             state.logs.samplesListState.gridState = undefined;
-            state.logs.listing.gridState = undefined;
-            state.logs.listing.previousLogPath = undefined;
+            // Persisted scopes referenced the old logDir's paths and are
+            // no longer meaningful; drop them so a new logDir starts fresh.
+            state.logs.listing.gridStateByScope = {};
           }
         });
       },
@@ -405,19 +406,18 @@ export const createLogsSlice = (
           state.logs.listing.selectedRowIndex = index;
         });
       },
-      setLogsGridState: (gridState: GridState | undefined) => {
+      setLogsGridState: (scope: string, gridState: GridState) => {
         set((state) => {
-          state.logs.listing.gridState = gridState;
+          state.logs.listing.gridStateByScope[scope] = gridState;
         });
       },
-      clearLogsGridState: () => {
+      clearLogsGridState: (scope?: string) => {
         set((state) => {
-          state.logs.listing.gridState = undefined;
-        });
-      },
-      setPreviousLogsPath: (path: string | undefined) => {
-        set((state) => {
-          state.logs.listing.previousLogPath = path;
+          if (scope === undefined) {
+            state.logs.listing.gridStateByScope = {};
+          } else {
+            delete state.logs.listing.gridStateByScope[scope];
+          }
         });
       },
       setLogsColumnVisibility: (visibility: Record<string, boolean>) => {

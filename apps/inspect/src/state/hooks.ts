@@ -487,26 +487,20 @@ export const useLogsListing = () => {
     (state) => state.logsActions.setFilteredCount
   );
 
-  const gridState = useStore((state) => state.logs.listing.gridState);
+  const gridStateByScope = useStore(
+    (state) => state.logs.listing.gridStateByScope
+  );
   const setGridState = useStore((state) => state.logsActions.setLogsGridState);
   const clearGridState = useStore(
     (state) => state.logsActions.clearLogsGridState
-  );
-  const previousLogPath = useStore(
-    (state) => state.logs.listing.previousLogPath
-  );
-  const setPreviousLogPath = useStore(
-    (state) => state.logsActions.setPreviousLogsPath
   );
 
   return {
     filteredCount,
     setFilteredCount,
-    gridState,
+    gridStateByScope,
     setGridState,
     clearGridState,
-    previousLogPath,
-    setPreviousLogPath,
   };
 };
 

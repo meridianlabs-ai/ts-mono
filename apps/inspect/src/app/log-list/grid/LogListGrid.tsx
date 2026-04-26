@@ -2,6 +2,7 @@ import type {
   CellMouseDownEvent,
   ColDef,
   GridColumnsChangedEvent,
+  GridReadyEvent,
   IRowNode,
   ModelUpdatedEvent,
   RowClickedEvent,
@@ -45,6 +46,11 @@ import { LogListRow } from "./columns/types";
 interface LogListGridProps {
   items: Array<FileLogItem | FolderLogItem | PendingTaskItem>;
   currentPath?: string;
+  // Identifies the data scope of the current view (mode + directory).
+  // Reset of filter+sort is keyed on this — same scope across renders
+  // means "preserve gridState"; a change means "fresh grid". `undefined`
+  // means logDir is still hydrating and we shouldn't compare yet.
+  scopeKey?: string;
   gridRef?: RefObject<AgGridReact<LogListRow> | null>;
   mode?: LogListMode;
 }
@@ -52,16 +58,13 @@ interface LogListGridProps {
 export const LogListGrid: FC<LogListGridProps> = ({
   items,
   currentPath,
+  scopeKey,
   gridRef: externalGridRef,
   mode = "logs",
 }) => {
-  const {
-    gridState,
-    setGridState,
-    setFilteredCount,
-    previousLogPath,
-    setPreviousLogPath,
-  } = useLogsListing();
+  const { gridStateByScope, setGridState, setFilteredCount } =
+    useLogsListing();
+  const gridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
 
   const { loadLogOverviews, loadAllLogOverviews } = useLogs();
 
@@ -109,20 +112,13 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
   const { columns } = useLogListColumns(mode, scopePrefix, scoresViewMode);
 
-  const initialGridState = useMemo(() => {
-    if (previousLogPath !== undefined && previousLogPath !== currentPath) {
-      const result = { ...gridState };
-      delete result.filter;
-      return result;
-    }
-    return gridState;
-  }, [currentPath, gridState, previousLogPath]);
-
-  useEffect(() => {
-    if (currentPath !== previousLogPath) {
-      setPreviousLogPath(currentPath);
-    }
-  }, [currentPath, previousLogPath, setPreviousLogPath]);
+  // Each scope (mode + dir) has its own gridState in the store, so the
+  // initial state is just the entry for the current scope. Switching to a
+  // different scope hits a different key — typically `undefined` if the
+  // scope hasn't been visited yet, which lets AG-Grid initialise with
+  // column defaults. The `key={scopeKey}` on AgGridReact remounts the
+  // grid on scope change so this initial state is actually re-applied.
+  const initialGridState = gridState;
 
   useEffect(() => {
     gridContainerRef.current?.focus();
@@ -326,6 +322,15 @@ export const LogListGrid: FC<LogListGridProps> = ({
     loadHeaders();
   }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
 
+  // Dev-only test hook: expose AG-Grid api so Playwright tests can drive
+  // filter/sort programmatically. Vite strips this branch in production.
+  const handleGridReady = useCallback((e: GridReadyEvent<LogListRow>) => {
+    if (import.meta.env.DEV) {
+      (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
+        e.api;
+    }
+  }, []);
+
   const handleSortChanged = useCallback(async () => {
     await loadAllLogOverviews();
     setWatchedLogs(logFiles);
@@ -490,6 +495,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
       )}
       <div ref={gridContainerRef} className={styles.gridContainer} tabIndex={0}>
         <AgGridReact<LogListRow>
+          // Remount on scope change so filter/sort/column state get a clean
+          // slate. AG-Grid's `initialState` is one-shot at mount, so a key
+          // change is the cleanest way to reset everything declaratively.
+          key={scopeKey ?? "pending"}
           ref={gridRef}
           rowData={data}
           animateRows={false}
@@ -519,8 +528,13 @@ export const LogListGrid: FC<LogListGridProps> = ({
           initialState={initialGridState}
           suppressCellFocus={true}
           onStateUpdated={(e: StateUpdatedEvent<LogListRow>) => {
-            setGridState(e.state);
+            // Don't write under an unhydrated scope — we'd lose track of
+            // which scope this state belongs to.
+            if (scopeKey !== undefined) {
+              setGridState(scopeKey, e.state);
+            }
           }}
+          onGridReady={handleGridReady}
           onRowClicked={handleRowClick}
           onCellMouseDown={handleCellMouseDown}
           onSortChanged={handleSortChanged}
