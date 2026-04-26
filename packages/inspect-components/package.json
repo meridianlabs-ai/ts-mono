@@ -15,10 +15,11 @@
     "./usage": "./src/usage/index.ts"
   },
   "scripts": {
+    "css-types": "tcm -p '**/*.module.css' src --silent",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tcm -p '**/*.module.css' src --silent && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
