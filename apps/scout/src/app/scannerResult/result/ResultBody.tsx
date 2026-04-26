@@ -104,13 +104,10 @@ interface InputRendererProps {
 const containerClass = (
   inputData: ScannerInput
 ): string | string[] | undefined => {
-  if (isTranscriptInput(inputData)) {
-    return styles.transcriptInputContainer;
-  } else if (isEventsInput(inputData)) {
-    return styles.eventsInputContainer;
-  } else {
-    return styles.chatInputContainer;
+  if (isTranscriptInput(inputData) || isEventsInput(inputData)) {
+    return undefined;
   }
+  return styles.chatInputContainer;
 };
 
 const InputRenderer: FC<InputRendererProps> = ({

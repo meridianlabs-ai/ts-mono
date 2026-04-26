@@ -110,9 +110,9 @@ const Tab: FC<{
           isActive && "active",
           type === "pills-small"
             ? moduleStyles.pillSmall
-            : type === "pills"
-              ? moduleStyles.pill
-              : moduleStyles.tab,
+            : type === "tabs"
+              ? moduleStyles.tab
+              : undefined,
           type === "pills-small" ? "text-size-smallest" : "text-size-small",
           "text-style-label"
         )}

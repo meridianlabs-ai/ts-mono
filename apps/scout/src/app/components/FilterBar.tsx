@@ -267,7 +267,7 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
       label="Copy"
       icon={icon}
       title="Copy Filter"
-      className={clsx(styles.actionButton, styles.chipButton, styles.right)}
+      className={clsx(styles.actionButton, styles.chipButton)}
       disabled={Object.keys(itemValues || []).length === 0}
       dropdownAlign="right"
       dropdownClassName={"text-size-smallest"}

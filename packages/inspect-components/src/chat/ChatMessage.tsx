@@ -68,7 +68,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
         "text-size-base",
         styles.message,
         message.role === "system" ? styles.systemRole : undefined,
-        message.role === "user" ? styles.userRole : undefined,
         mouseOver ? styles.hover : undefined
       )}
       onMouseEnter={() => setMouseOver(true)}

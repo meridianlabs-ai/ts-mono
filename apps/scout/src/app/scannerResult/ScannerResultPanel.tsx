@@ -335,7 +335,6 @@ export const ScannerResultPanel: FC = () => {
           id="scan-result-json-contents"
           data={resultData}
           simple={true}
-          className={styles.json}
         />
       </TabPanel>
     </TabSet>

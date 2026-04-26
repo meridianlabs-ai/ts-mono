@@ -69,7 +69,6 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
           <RecordTree
             id={`${eventNode.id}-score-metadata`}
             record={event.score.metadata}
-            className={styles.metadataTree}
             defaultExpandLevel={0}
           />
         </div>

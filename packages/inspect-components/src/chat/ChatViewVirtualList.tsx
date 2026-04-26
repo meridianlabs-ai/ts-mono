@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import {
   FC,
   memo,
@@ -17,7 +16,6 @@ import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { ChatView } from "./ChatView";
-import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
@@ -185,7 +183,6 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
     }: ItemProps<unknown> & ContextProp<unknown>) => {
       return (
         <div
-          className={clsx(styles.item)}
           data-index={props["data-index"]}
           data-item-group-index={props["data-item-group-index"]}
           data-item-index={props["data-item-index"]}

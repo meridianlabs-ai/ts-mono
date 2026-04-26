@@ -608,7 +608,7 @@ export const SidebarHeader: FC<SidebarHeaderProps> = ({
       {secondary && <div className={styles.headerSecondary}>{secondary}</div>}
 
       {(actions || onClose) && (
-        <div className={styles.headerActions}>
+        <div>
           {actions}
           {onClose && (
             <i
@@ -642,7 +642,7 @@ export const SecondaryDisplayValue: FC<{ label: string; value: string }> = ({
 
 const InfoBox: FC<{ children: ReactNode }> = ({ children }) => (
   <div className={clsx("text-size-smaller", styles.infoBox)}>
-    <i className={clsx(ApplicationIcons.info, styles.infoIcon)} />
+    <i className={ApplicationIcons.info} />
     <div>{children}</div>
   </div>
 );

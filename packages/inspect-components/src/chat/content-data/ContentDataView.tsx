@@ -33,12 +33,7 @@ export const ContentDataView: FC<ContentDataProps> = ({ id, contentData }) => {
     const { encrypted_content, ...record } = renderableData;
     return (
       <div className={clsx(styles.contentData)}>
-        <RecordTree
-          id={`${id}-tree`}
-          record={record}
-          className={clsx(styles.data)}
-          defaultExpandLevel={0}
-        />
+        <RecordTree id={`${id}-tree`} record={record} defaultExpandLevel={0} />
       </div>
     );
   }
@@ -106,11 +101,7 @@ const serverToolRenderer: ContentDataRenderer = {
         >
           Server Tool
         </div>
-        <RecordTree
-          id={`${id}-server-tool`}
-          record={data}
-          className={clsx(styles.data)}
-        />
+        <RecordTree id={`${id}-server-tool`} record={data} />
       </>
     );
   },

@@ -10,7 +10,7 @@
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { DtsCreator } = require("typed-css-modules");
+const DtsCreator = require("typed-css-modules").default;
 
 const CSS_MODULE_RE = /\.module\.css(?:\?.*)?$/;
 

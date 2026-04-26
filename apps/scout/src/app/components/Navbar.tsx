@@ -34,9 +34,7 @@ export const Navbar: FC<NavbarProps> = ({
         {leftButtons && <NavButtons buttons={leftButtons} />}
       </div>
       <div className={clsx(leftButtons ? styles.left : undefined)}>{left}</div>
-      <div
-        className={clsx(styles.right, right ? styles.hasChildren : undefined)}
-      >
+      <div className={clsx(right ? styles.hasChildren : undefined)}>
         {right}
       </div>
       <div className={clsx(rightButtons ? styles.rightButtons : undefined)}>

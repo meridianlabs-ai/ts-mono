@@ -208,7 +208,7 @@ export const EditableText: FC<EditableTextProps> = ({
       <div ref={containerRef} className={clsx(styles.container, className)}>
         <div className={clsx(styles.labelContainer)} title={title}>
           {icon && <i className={`${icon} ${styles.icon}`} />}
-          {label && <span className={styles.label}>{label}</span>}
+          {label && <span>{label}</span>}
         </div>
         <span
           ref={spanRef}
