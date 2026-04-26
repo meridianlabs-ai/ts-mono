@@ -392,9 +392,6 @@ importers:
       '@types/bootstrap':
         specifier: ^5.2.10
         version: 5.2.10
-      '@types/css-modules':
-        specifier: ^1.0.5
-        version: 1.0.5
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
@@ -523,9 +520,6 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
-      '@types/css-modules':
-        specifier: ^1.0.5
-        version: 1.0.5
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
@@ -556,6 +550,9 @@ importers:
       react-virtuoso:
         specifier: ^4.18.5
         version: 4.18.5(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      typed-css-modules:
+        specifier: ^0.9.1
+        version: 0.9.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -614,9 +611,6 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
-      '@types/css-modules':
-        specifier: ^1.0.5
-        version: 1.0.5
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
@@ -668,6 +662,9 @@ importers:
       storybook:
         specifier: ^10.3.5
         version: 10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      typed-css-modules:
+        specifier: ^0.9.1
+        version: 0.9.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -708,9 +705,6 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
-      '@types/css-modules':
-        specifier: ^1.0.5
-        version: 1.0.5
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
@@ -741,6 +735,9 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
+      typed-css-modules:
+        specifier: ^0.9.1
+        version: 0.9.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

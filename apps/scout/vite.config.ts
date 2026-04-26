@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
+import { cssModulesDts } from "../../tooling/css-modules-dts/index.js";
 import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
@@ -35,6 +36,7 @@ export default defineConfig(({ mode }) => {
       react({
         jsxRuntime: "automatic",
       }),
+      cssModulesDts(),
     ],
     define: {
       __DEV_WATCH__: JSON.stringify(process.env.DEV_LOGGING === "true"),
