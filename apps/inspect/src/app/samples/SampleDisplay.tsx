@@ -522,6 +522,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   timelines={sample?.timelines ?? undefined}
                   scans={sample?.scores ?? undefined}
                   initialEventId={sampleDetailNavigation.event}
+                  initialMessageId={sampleDetailNavigation.message}
                 />
               )}
             </TabPanel>

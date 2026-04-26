@@ -13,6 +13,7 @@ export {
   createBranchSpan,
   getSpanToolResult,
   getUtilityAgentLabel,
+  spanHasBranches,
   TimelineEvent,
   TimelineSpan,
   type Outline,
@@ -97,6 +98,7 @@ export {
 
 // Hooks (React-dependent)
 export {
+  clearDeepLinkParams,
   findBranchesByBranchedFrom,
   useActiveTimeline,
   useEventNodes,
@@ -105,11 +107,13 @@ export {
   useTimelinesArray,
   useTranscriptTimeline,
   type BranchLookupResult,
+  type SelectOptions,
   type TimelineOptions,
   type TimelineState,
   type TranscriptTimelineResult,
   type UseActiveTimelineProps,
   type UseActiveTimelineResult,
+  type UseTimelineConfigOptions,
   type UseTimelineConfigResult,
   type UseTimelineProps,
   type UseTranscriptTimelineOptions,

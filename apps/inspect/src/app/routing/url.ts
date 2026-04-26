@@ -498,14 +498,21 @@ export const useSampleEventUrl = (
   return eventUrl;
 };
 
+/**
+ * Deep link to a message ID. `tab` selects the destination tab — Messages
+ * (default) shows the message in the chat list; Transcript routes through
+ * the transcript's resolver, which picks the best matching event in the
+ * user's currently selected branch (and falls back to other branches).
+ */
 export const sampleMessageUrl = (
   builder: SampleUrlBuilder,
   messageId: string,
   logPath: string,
   sampleId?: string | number,
-  sampleEpoch?: string | number
+  sampleEpoch?: string | number,
+  tab: string = kSampleMessagesTabId
 ) => {
-  const baseUrl = builder(logPath, sampleId, sampleEpoch, kSampleMessagesTabId);
+  const baseUrl = builder(logPath, sampleId, sampleEpoch, tab);
   return `${baseUrl}?message=${messageId}`;
 };
 

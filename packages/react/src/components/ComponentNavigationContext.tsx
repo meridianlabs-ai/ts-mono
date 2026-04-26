@@ -12,7 +12,10 @@ import { createContext, FC, ReactNode, useContext } from "react";
  * `useNavigate()` requires router context.
  */
 export interface ComponentNavigation {
-  navigate: (path: string) => void | Promise<void>;
+  navigate: (
+    path: string,
+    options?: { replace?: boolean }
+  ) => void | Promise<void>;
 }
 
 const ComponentNavigationContext = createContext<ComponentNavigation | null>(

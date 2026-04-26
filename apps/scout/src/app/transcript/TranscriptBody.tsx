@@ -130,7 +130,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      void navigate(url);
+      void navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );

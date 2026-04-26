@@ -68,11 +68,12 @@ export const MarkdownDivWithReferences = forwardRef<
         if (anchor) {
           const href = anchor.getAttribute("href");
           // If this is a hash link, forward on to react-router
-          // so it can see this navigate
+          // so it can see this navigate. Cite links are in-view navigation
+          // (jumping to a referenced event/message in the same transcript),
+          // so use replace to avoid filling history with each click.
           if (href?.startsWith("#/")) {
             e.preventDefault();
-            // Remove '#' and navigate
-            void navigate(href.slice(1));
+            void navigate(href.slice(1), { replace: true });
           }
         }
       },
@@ -106,6 +107,13 @@ export const MarkdownDivWithReferences = forwardRef<
     // Use event delegation so handlers work even when cite links are injected
     // asynchronously (MarkdownDiv renders via an async queue, so the initial
     // DOM has no cite links — a per-link attach would miss them entirely).
+    //
+    // `suppressedIdRef` holds the ref-id of a just-clicked cite link.
+    // Re-render after click creates fresh DOM, which would otherwise fire a
+    // new mouseover and re-show the popover even though the user just
+    // dismissed it. Suppress shows for that ref-id until the mouse actually
+    // leaves the link (mouseout transition off the link element).
+    const suppressedIdRef = useRef<string | null>(null);
     useEffect(() => {
       const container = containerRef.current;
       if (!container) {
@@ -134,6 +142,7 @@ export const MarkdownDivWithReferences = forwardRef<
 
         const id = el.getAttribute("data-ref-id");
         if (!id) return;
+        if (suppressedIdRef.current === id) return;
         const r = refMap.get(id);
         if (!r || !r.citePreview) return;
 
@@ -143,23 +152,41 @@ export const MarkdownDivWithReferences = forwardRef<
         setVisibleKey(popoverKey(r));
       };
 
-      const handleClick = (e: MouseEvent): void => {
-        if (!findCiteLink(e.target)) return;
+      // mouseout bubbles too. Clear suppression once the mouse leaves the
+      // suppressed cite link entirely (i.e. relatedTarget isn't a descendant).
+      const handleMouseOut = (e: MouseEvent): void => {
+        const el = findCiteLink(e.target);
+        if (!el) return;
+        const id = el.getAttribute("data-ref-id");
+        if (!id || suppressedIdRef.current !== id) return;
+        const related = e.relatedTarget;
+        if (related instanceof Node && el.contains(related)) return;
+        suppressedIdRef.current = null;
+      };
 
-        // Cancel the popover if one is pending or showing.
+      const handleClick = (e: MouseEvent): void => {
+        const el = findCiteLink(e.target);
+        if (!el) return;
+
+        // Cancel the popover if one is pending or showing, and suppress it
+        // for this ref-id until the mouse leaves the link — re-render after
+        // click would otherwise fire a fresh mouseover and re-open it.
         clearVisibleKey();
         setCurrentRef(null);
         setPositionEl(null);
+        suppressedIdRef.current = el.getAttribute("data-ref-id");
 
         // Stop propagation to prevent parent Link components from handling.
         e.stopPropagation();
       };
 
       container.addEventListener("mouseover", handleMouseOver);
+      container.addEventListener("mouseout", handleMouseOut);
       container.addEventListener("click", handleClick);
 
       return () => {
         container.removeEventListener("mouseover", handleMouseOver);
+        container.removeEventListener("mouseout", handleMouseOut);
         container.removeEventListener("click", handleClick);
       };
     }, [refMap, options?.previewRefsOnHover, setVisibleKey, clearVisibleKey]);

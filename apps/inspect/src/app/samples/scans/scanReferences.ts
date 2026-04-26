@@ -1,67 +1,20 @@
 import { ReactNode, useCallback } from "react";
 
-import type { Event } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
 import {
   readScannerReferences,
   type ScannerRefType,
 } from "@tsmono/scout-components/sentinels";
 
+import { kSampleTranscriptTabId } from "../../../constants";
 import {
   sampleEventUrl,
+  sampleMessageUrl,
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
 
 type Metadata = Record<string, unknown> | null | undefined;
-
-/**
- * Walk a list of events to find the event that contains a given message id.
- *
- * Scanner message references can point to messages that live inside a
- * ModelEvent's input/output (sub-agent conversations) rather than in the
- * sample's top-level `messages` list. The transcript renders events, not the
- * flat message list, so every reference — message or event — ultimately
- * navigates to an event uuid.
- *
- * Priorities (mirror of inspect-components' resolveMessageToEvent):
- *   1. ModelEvent.output[*].message.id
- *   2. ToolEvent.message_id
- *   3. ModelEvent.input[*].id
- */
-export function findEventForMessage(
-  messageId: string,
-  events: readonly Event[] | null | undefined
-): string | undefined {
-  if (!events) return undefined;
-  let inputMatch: string | undefined;
-  let toolMatch: string | undefined;
-
-  for (const e of events) {
-    if (e.event === "model") {
-      if (!e.uuid) continue;
-      for (const choice of e.output?.choices ?? []) {
-        if (choice.message?.id === messageId) {
-          return e.uuid;
-        }
-      }
-      if (!inputMatch) {
-        for (const msg of e.input ?? []) {
-          if (msg.id === messageId) {
-            inputMatch = e.uuid;
-            break;
-          }
-        }
-      }
-    } else if (e.event === "tool") {
-      if (!toolMatch && e.uuid && e.message_id === messageId) {
-        toolMatch = e.uuid;
-      }
-    }
-  }
-
-  return toolMatch ?? inputMatch;
-}
 
 export function buildScoreMarkdownRefs(
   metadata: Metadata,
@@ -88,11 +41,10 @@ export type MakeCiteUrl = (
  * so the score-rendering components don't have to know about navigation.
  */
 export function useMakeCiteUrl(opts: {
-  events?: readonly Event[] | null;
   sampleId?: string | number;
   sampleEpoch?: number;
 }): MakeCiteUrl {
-  const { events, sampleId, sampleEpoch } = opts;
+  const { sampleId, sampleEpoch } = opts;
   const builder = useSampleUrlBuilder();
   const {
     logPath: urlLogPath,
@@ -105,22 +57,31 @@ export function useMakeCiteUrl(opts: {
       if (!urlLogPath) return undefined;
       const effectiveSampleId = sampleId ?? urlSampleId;
       const effectiveEpoch = sampleEpoch ?? urlEpoch;
-      // Both reference types ultimately resolve to an event uuid — the
-      // transcript renders events, not the flat message list, so "message"
-      // refs are mapped to the event that contains the message.
-      const eventId = type === "event" ? id : findEventForMessage(id, events);
-      if (!eventId) return undefined;
-      const path = sampleEventUrl(
-        builder,
-        eventId,
-        urlLogPath,
-        effectiveSampleId,
-        effectiveEpoch
-      );
+      // For message refs we keep the message ID in the URL — the transcript's
+      // resolver runs at click time, preferring the currently selected branch
+      // and falling back to other branches when needed. Event refs map
+      // directly to a specific event uuid.
+      const path =
+        type === "event"
+          ? sampleEventUrl(
+              builder,
+              id,
+              urlLogPath,
+              effectiveSampleId,
+              effectiveEpoch
+            )
+          : sampleMessageUrl(
+              builder,
+              id,
+              urlLogPath,
+              effectiveSampleId,
+              effectiveEpoch,
+              kSampleTranscriptTabId
+            );
       // MarkdownDivWithReferences only intercepts clicks whose href starts
       // with "#/"; plain paths would trigger a full browser navigation.
       return path ? `#${path}` : undefined;
     },
-    [events, sampleId, sampleEpoch, builder, urlLogPath, urlSampleId, urlEpoch]
+    [sampleId, sampleEpoch, builder, urlLogPath, urlSampleId, urlEpoch]
   );
 }

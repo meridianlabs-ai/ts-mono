@@ -205,4 +205,50 @@ describe("useTimelineConfig", () => {
       depth: "children",
     });
   });
+
+  it("branchesPresent flips showBranches default on", () => {
+    const { result } = renderHook(
+      () => useTimelineConfig({ branchesPresent: true }),
+      { wrapper: InMemoryStateWrapper }
+    );
+
+    expect(result.current.showBranches).toBe(true);
+    // forkRelative auto-follows when showBranches is on.
+    expect(result.current.forkRelative).toBe(true);
+    // No user override yet — config is still considered default.
+    expect(result.current.isDefault).toBe(true);
+  });
+
+  it("explicit user toggle wins over branchesPresent", () => {
+    const { result } = renderHook(
+      ({ branchesPresent }: { branchesPresent: boolean }) =>
+        useTimelineConfig({ branchesPresent }),
+      {
+        wrapper: InMemoryStateWrapper,
+        initialProps: { branchesPresent: true },
+      }
+    );
+
+    // Auto-default is on.
+    expect(result.current.showBranches).toBe(true);
+
+    // User explicitly turns branches off — sticks even though branchesPresent.
+    act(() => {
+      result.current.setShowBranches(false);
+    });
+
+    expect(result.current.showBranches).toBe(false);
+    expect(result.current.isDefault).toBe(false);
+  });
+
+  it("branchesPresent does not flip showBranches when sample has no branches", () => {
+    const { result } = renderHook(
+      () => useTimelineConfig({ branchesPresent: false }),
+      { wrapper: InMemoryStateWrapper }
+    );
+
+    expect(result.current.showBranches).toBe(false);
+    expect(result.current.forkRelative).toBe(false);
+    expect(result.current.isDefault).toBe(true);
+  });
 });

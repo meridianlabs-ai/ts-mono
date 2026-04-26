@@ -31,7 +31,10 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const componentNavigation = useMemo(
-    () => ({ navigate: (path: string) => navigate(path) }),
+    () => ({
+      navigate: (path: string, options?: { replace?: boolean }) =>
+        navigate(path, options),
+    }),
     [navigate]
   );
 

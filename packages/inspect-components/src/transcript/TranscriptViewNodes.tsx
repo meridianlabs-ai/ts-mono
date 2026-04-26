@@ -10,6 +10,7 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -43,6 +44,10 @@ export interface TranscriptViewNodesProps {
   running?: boolean;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
+  /** Optional message ID — after scrolling to the containing event, also
+   *  query the DOM for the message and adjust scroll so the message itself
+   *  lands at the top of the visible area. */
+  initialMessageId?: string | null;
   offsetTop?: number;
   className?: string;
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
@@ -67,6 +72,132 @@ export interface TranscriptViewNodesHandle {
 }
 
 // =============================================================================
+// Imperative scroll helpers
+// =============================================================================
+
+/** Pixels of breathing room below the sticky bar where the target lands. */
+const kPaddingBelowSticky = 20;
+
+/** Settle iteration budget — caps how long we keep adjusting scroll while
+ *  Virtuoso re-measures items after a mount. ~1.5s at 60fps. */
+const kSettleAttemptLimit = 90;
+
+/** Frames the computed scroll target must hold steady before we stop. */
+const kSettleStableFrames = 8;
+
+/** Sticky-bar candidates must span at least this fraction of the container's
+ *  width — filters out the (also-sticky) outline / right-pane side panels. */
+const kStickyMinWidthRatio = 0.4;
+
+const escapeAttr = (id: string): string =>
+  typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(id)
+    : id.replace(/"/g, '\\"');
+
+/** Worst-case bottom edge of the top-pinned sticky bar (relative to the
+ *  scroll container's top), based on each sticky element's CSS `top` +
+ *  measured height. Independent of current scroll state, so iterative
+ *  re-scrolling won't oscillate as sticky pins toggle on/off. */
+function measureStickyBottom(container: HTMLElement, fallback: number): number {
+  const containerRect = container.getBoundingClientRect();
+  const minWidth = containerRect.width * kStickyMinWidthRatio;
+  let bottom = fallback;
+  for (const el of container.querySelectorAll<HTMLElement>("*")) {
+    const style = getComputedStyle(el);
+    if (style.position !== "sticky") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < minWidth || rect.height === 0) continue;
+    const stuckBottom = (parseFloat(style.top) || 0) + rect.height;
+    if (stuckBottom > bottom) bottom = stuckBottom;
+  }
+  return bottom;
+}
+
+interface ScrollToEventTargetOptions {
+  listHandle: VirtuosoHandle | null;
+  index: number;
+  container: HTMLElement;
+  /** CSS selector for the DOM element that should land at the top — either
+   *  the message wrapper (when a message ID is set) or the event panel. */
+  targetSelector: string;
+  /** Returns the current static top-offset (tab bar etc.). Read each tick
+   *  so the swimlane height is picked up after it activates. */
+  getStickyOffset: () => number;
+  paddingBelowSticky: number;
+}
+
+/**
+ * Scrolls the given Virtuoso list so the element matching `targetSelector`
+ * lands `paddingBelowSticky` below the (worst-case) top sticky bar.
+ *
+ * Stage 1: two-pass `scrollToIndex` via rAF so the target's row mounts and
+ * the sticky swimlane activates with the row clearing it.
+ * Stage 2: re-scroll the container based on the target element's actual
+ * DOM position, retrying for several frames while Virtuoso re-measures
+ * items (markdown / code-block layout shifts the target around).
+ *
+ * Returns a cleanup that cancels any in-flight rAF.
+ */
+function scrollToEventTarget({
+  listHandle,
+  index,
+  container,
+  targetSelector,
+  getStickyOffset,
+  paddingBelowSticky,
+}: ScrollToEventTargetOptions): () => void {
+  const scrollListToIndex = () => {
+    const offset = getStickyOffset();
+    listHandle?.scrollToIndex({
+      index,
+      align: "start",
+      behavior: "auto",
+      offset: offset ? -offset : undefined,
+    });
+  };
+
+  let lastTarget: number | null = null;
+  let stableFrames = 0;
+  let attempt = 0;
+  const settle = () => {
+    attempt++;
+    const el = container.querySelector<HTMLElement>(targetSelector);
+    if (el) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const stickyBottom = measureStickyBottom(container, getStickyOffset());
+      const target =
+        container.scrollTop +
+        (elRect.top - containerRect.top) -
+        (stickyBottom + paddingBelowSticky);
+      if (target !== lastTarget) {
+        lastTarget = target;
+        stableFrames = 0;
+        container.scrollTo({ top: target, behavior: "auto" });
+      } else {
+        stableFrames++;
+      }
+    }
+    if (stableFrames < kSettleStableFrames && attempt < kSettleAttemptLimit) {
+      frame = requestAnimationFrame(settle);
+    } else {
+      frame = null;
+    }
+  };
+
+  let frame: number | null = requestAnimationFrame(() => {
+    scrollListToIndex();
+    frame = requestAnimationFrame(() => {
+      scrollListToIndex();
+      frame = requestAnimationFrame(settle);
+    });
+  });
+  return () => {
+    if (frame !== null) cancelAnimationFrame(frame);
+  };
+}
+
+// =============================================================================
 // Component
 // =============================================================================
 
@@ -81,6 +212,7 @@ export const TranscriptViewNodes = forwardRef<
     running,
     scrollRef,
     initialEventId,
+    initialMessageId,
     offsetTop = 10,
     className,
     renderAgentCard,
@@ -205,7 +337,9 @@ export const TranscriptViewNodes = forwardRef<
         });
       } else {
         // Non-virtual fallback: find the DOM element and scroll it into view
-        const el = scrollRef?.current?.querySelector(`[id="${eventId}"]`);
+        const el = scrollRef?.current?.querySelector(
+          `[id="${escapeAttr(eventId)}"]`
+        );
         el?.scrollIntoView({ block: "start", behavior: "auto" });
       }
     },
@@ -228,6 +362,44 @@ export const TranscriptViewNodes = forwardRef<
     scrollToEvent,
     scrollToIndex,
   ]);
+
+  // Runtime URL→event navigation. The mount-time anchor lives in
+  // TranscriptVirtualListComponent (frozen at first render); after mount,
+  // any change to `initialEventId` / `initialMessageId` (e.g. user clicks
+  // an outline link or scan-citation link) flows through here and scrolls
+  // imperatively. The combined key dedups so re-renders driven by
+  // `flattenedNodes` changes (filter/collapse) don't re-fire a scroll for
+  // an already-handled target — but two messages that resolve to the same
+  // event panel still re-fire when `initialMessageId` differs.
+  const lastScrolledKeyRef = useRef<string | null>(null);
+  const offsetTopRef = useRef(offsetTop);
+  useEffect(() => {
+    offsetTopRef.current = offsetTop;
+  }, [offsetTop]);
+  useEffect(() => {
+    if (!initialEventId) {
+      lastScrolledKeyRef.current = null;
+      return;
+    }
+    const targetKey = `${initialEventId}:${initialMessageId ?? ""}`;
+    if (lastScrolledKeyRef.current === targetKey) return;
+    const idx = flattenedNodes.findIndex((n) => n.id === initialEventId);
+    if (idx === -1) return;
+    const container = scrollRef?.current;
+    if (!container) return;
+    lastScrolledKeyRef.current = targetKey;
+    const targetSelector = initialMessageId
+      ? `[data-message-id="${escapeAttr(initialMessageId)}"]`
+      : `[id="${escapeAttr(initialEventId)}"]`;
+    return scrollToEventTarget({
+      listHandle: listHandle.current,
+      index: idx,
+      container,
+      targetSelector,
+      getStickyOffset: () => offsetTopRef.current ?? 0,
+      paddingBelowSticky: kPaddingBelowSticky,
+    });
+  }, [initialEventId, initialMessageId, flattenedNodes, scrollRef]);
 
   useListKeyboardNavigation({
     listHandle,

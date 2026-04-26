@@ -9,17 +9,20 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import type {
   Score,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
 import {
+  clearDeepLinkParams,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
+  type SelectOptions,
   type TranscriptCollapseState,
+  type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
 import {
@@ -56,6 +59,7 @@ interface TranscriptPanelProps {
   scans?: Record<string, Score> | null;
 
   initialEventId?: string | null;
+  initialMessageId?: string | null;
 }
 
 /**
@@ -69,6 +73,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     events,
     running,
     initialEventId,
+    initialMessageId,
     offsetTop,
     timelines: serverTimelines,
     scans: allScores,
@@ -92,7 +97,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
   // events / sample identifiers, so construct the URL fn here and hand it
   // down — SampleScansSidebar doesn't need to know about navigation.
-  const makeCiteUrl = useMakeCiteUrl({ events, sampleId, sampleEpoch });
+  const makeCiteUrl = useMakeCiteUrl({ sampleId, sampleEpoch });
 
   // ---------------------------------------------------------------------------
   // Event type filtering
@@ -116,7 +121,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const timelineSelected = useStore((state) => state.sample.timelineSelected);
-  const setTimelineSelected = useStore(
+  const setTimelineSelectedStore = useStore(
     (state) => state.sampleActions.setTimelineSelected
   );
   const activeTimelineIndex = useStore(
@@ -124,6 +129,27 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
   const setActiveTimelineIndex = useStore(
     (state) => state.sampleActions.setActiveTimelineIndex
+  );
+
+  // Timeline selection is store-backed, but on a user-initiated row click
+  // a stale URL `?event=` / `?message=` would otherwise win over the new
+  // row's `branchScrollTarget`. Clear those (and reset scroll to top so
+  // the post-mount imperative scroll has a clean origin) — but only when
+  // this is a user click. Message-resolution-driven selection changes pass
+  // `preserveDeepLink: true` because their imperative scroll still needs
+  // the deep-link target.
+  const [, setSearchParams] = useSearchParams();
+  const setTimelineSelected = useCallback(
+    (key: string | null, options?: SelectOptions) => {
+      setTimelineSelectedStore(key);
+      if (options?.preserveDeepLink) return;
+      scrollRef.current?.scrollTo({ top: 0 });
+      setSearchParams(
+        (prev) => clearDeepLinkParams(new URLSearchParams(prev)),
+        { replace: true }
+      );
+    },
+    [setTimelineSelectedStore, setSearchParams, scrollRef]
   );
 
   const timelineSelection = useMemo(
@@ -356,8 +382,14 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
+  // Outline link clicks are in-view navigation (jumping to an event in the
+  // same transcript), so use `replace` to keep the back button clean.
   const renderLink = useCallback(
-    (url: string, children: ReactNode) => <Link to={url}>{children}</Link>,
+    (url: string, children: ReactNode) => (
+      <Link to={url} replace>
+        {children}
+      </Link>
+    ),
     []
   );
 
@@ -374,10 +406,20 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      void navigate(url);
+      void navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );
+
+  // Outline navigation. Imperative scroll on every click — including
+  // re-clicks of the already-selected item — so users can scroll away
+  // and click the same outline row to jump back. The URL→scroll effect
+  // in TranscriptViewNodes only fires when `event` actually changes,
+  // so it can't handle a re-click of the same id by itself.
+  const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
+  const onOutlineNavigate = useCallback((eventId: string) => {
+    eventsListRef.current?.scrollToEvent(eventId);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -399,10 +441,12 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       eventNodeContext={eventNodeContext}
       listId={id}
       initialEventId={initialEventId}
+      initialMessageId={initialMessageId}
       getEventUrl={getEventUrl}
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
+      eventsListRef={eventsListRef}
       outlineScrollRef={outlineScrollRef}
       rightPaneScrollRef={rightPaneScrollRef}
       outline={{
@@ -413,6 +457,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           ? "Show transcript outline"
           : "Hide transcript outline",
         renderLink,
+        onNavigateToEvent: onOutlineNavigate,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
       }}

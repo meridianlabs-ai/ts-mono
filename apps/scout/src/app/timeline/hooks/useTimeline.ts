@@ -9,10 +9,12 @@ import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
+  clearDeepLinkParams,
   createBranchSpan,
   findBranchesByBranchedFrom,
   useTimeline as useTimelineShared,
   type BranchLookupResult,
+  type SelectOptions,
   type Timeline,
   type TimelineOptions,
   type TimelineState,
@@ -38,18 +40,25 @@ export function useTimelineSearchParams(): UseTimelineProps {
   const selected = searchParams.get(kSelectedParam) ?? null;
 
   const onSelect = useCallback(
-    (key: string | null) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        if (key) {
-          next.set(kSelectedParam, key);
-        } else {
-          next.delete(kSelectedParam);
-        }
-        next.delete("event");
-        next.delete("message");
-        return next;
-      });
+    (key: string | null, options?: SelectOptions) => {
+      // In-view navigation: replace so swimlane row clicks don't pollute
+      // the back-button stack. Row clicks also clear `?event=`/`?message=`
+      // so any stale deep-link target doesn't fight the new selection;
+      // message-resolution-driven selection changes pass `preserveDeepLink`
+      // because their imperative scroll still needs the deep-link target.
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (key) {
+            next.set(kSelectedParam, key);
+          } else {
+            next.delete(kSelectedParam);
+          }
+          if (!options?.preserveDeepLink) clearDeepLinkParams(next);
+          return next;
+        },
+        { replace: true }
+      );
     },
     [setSearchParams]
   );

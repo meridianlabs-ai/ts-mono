@@ -25,8 +25,10 @@ export interface TimelineState {
   rows: SwimlaneRow[];
   /** Currently selected row key, or null. */
   selected: string | null;
-  /** Select a row by key, or null to clear. */
-  select: (key: string | null) => void;
+  /** Select a row by key, or null to clear. Pass `{ preserveDeepLink: true }`
+   *  for message-resolution-driven selection changes so the URL `?event=` /
+   *  `?message=` params survive for the in-flight imperative scroll. */
+  select: (key: string | null, options?: SelectOptions) => void;
   /** Clear the selection (returns to default root selection). */
   clearSelection: () => void;
 }
@@ -86,11 +88,31 @@ export interface TimelineOptions {
   forkRelative?: boolean;
 }
 
+export interface SelectOptions {
+  /** When true, leave the URL `?event=` / `?message=` deep-link params
+   *  intact. Used by message-resolution selection changes so the in-flight
+   *  imperative scroll keeps its target — row-click selections (which
+   *  invalidate any prior deep link) clear them. */
+  preserveDeepLink?: boolean;
+}
+
+/** URL search-param keys used as transcript scroll-target deep links. */
+export const kDeepLinkParams = ["event", "message"] as const;
+
+/** Removes the deep-link search params (`?event=`, `?message=`) from the
+ *  given `URLSearchParams`. Hosts whose `onSelect` adapter writes to URL
+ *  state should call this when `preserveDeepLink` is not set, so any
+ *  stale deep-link target doesn't fight the new selection's scroll. */
+export function clearDeepLinkParams(params: URLSearchParams): URLSearchParams {
+  for (const key of kDeepLinkParams) params.delete(key);
+  return params;
+}
+
 export interface UseTimelineProps {
   /** Currently selected row key (externally managed). Null = root selection. */
   selected: string | null;
-  /** Called when the user selects a row. Null = clear selection. */
-  onSelect: (key: string | null) => void;
+  /** Called when a row is selected. Null = clear selection. */
+  onSelect: (key: string | null, options?: SelectOptions) => void;
 }
 
 /**
@@ -133,8 +155,8 @@ export function useTimeline(
   }, [selectedParam, rows]);
 
   const select = useCallback(
-    (key: string | null) => {
-      onSelect?.(key);
+    (key: string | null, selectOptions?: SelectOptions) => {
+      onSelect?.(key, selectOptions);
     },
     [onSelect]
   );
