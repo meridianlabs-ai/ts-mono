@@ -76,6 +76,15 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const currentDir = join(logPath || "", logDir);
 
+  // Identifies the current data scope for the log list. Each scope keeps
+  // its own filter/sort independently in the store: Tasks at the root and
+  // Folders at the root are distinct scopes, so toggling between them
+  // restores each side's state instead of clearing. Folder drill-down is
+  // a different scope (different dir), so each folder also remembers its
+  // own state. `undefined` until logDir hydrates so we never write under
+  // a half-initialized scope.
+  const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
+
   useFlowServerData(logPath || "");
   const flowData = useStore((state) => state.logs.flow);
 
@@ -419,6 +428,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
           <LogListGrid
             items={logItems}
             currentPath={currentDir}
+            scopeKey={scopeKey}
             gridRef={gridRef}
             mode={mode}
           />

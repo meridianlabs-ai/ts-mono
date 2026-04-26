@@ -16,5 +16,9 @@ export interface SampleRow {
   limit?: string;
   retries?: number;
   completed?: boolean;
+  // Total tokens across all model usages for this sample.
+  tokens?: number;
+  // Sample duration in seconds (total_time from the summary).
+  duration?: number;
   [key: string]: any; // For dynamic score columns
 }

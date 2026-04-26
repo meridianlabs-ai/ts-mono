@@ -106,8 +106,10 @@ export interface LogsListing {
   filteredCount?: number;
   watchedLogs?: LogHandle[];
   selectedRowIndex?: number | null;
-  gridState?: GridState;
-  previousLogPath?: string;
+  // AG-Grid state stored independently per scope (Tasks vs Folders, each
+  // folder, etc.). Switching between scopes loads that scope's own state;
+  // switching back restores it. Keyed by `${mode}::${currentDir}`.
+  gridStateByScope: Record<string, GridState>;
   columnVisibility: Record<string, boolean>;
 }
 
