@@ -45,15 +45,25 @@ export const defaultMarkerConfig: MarkerConfig = {
  * Returns true if the event is an error event.
  *
  * An event is an error if:
- * - It's a ToolEvent with `.error !== null`
- * - It's a ModelEvent with `.error !== null` or `.output.error !== null`
+ * - It's a ToolEvent with a non-null `.error`
+ * - It's a ModelEvent with a non-null `.error`
+ *
+ * Noneable fields are stripped during serialization (`exclude_none=True`), so
+ * `null`/missing both manifest as `undefined` at runtime — hence the `!= null`
+ * check. See packages/inspect-common/src/types/index.ts.
+ *
+ * Note: `ModelOutput.error` (a soft-refusal/content-filter channel populated
+ * by some providers without raising) is intentionally excluded — the
+ * transcript's ModelEventView only renders `event.error`, so flagging on
+ * `output.error` produces markers that navigate to a card with no visible
+ * error.
  */
 export function isErrorEvent(event: Event): boolean {
   if (event.event === "tool") {
-    return event.error !== null;
+    return event.error != null;
   }
   if (event.event === "model") {
-    return event.error !== null || event.output.error !== null;
+    return event.error != null;
   }
   return false;
 }
@@ -75,9 +85,7 @@ function errorTooltip(event: Event): string {
   }
   if (event.event === "model") {
     const msg =
-      (typeof event.error === "string" ? event.error : null) ??
-      (typeof event.output.error === "string" ? event.output.error : null) ??
-      "Unknown error";
+      (typeof event.error === "string" ? event.error : null) ?? "Unknown error";
     return `Error (${event.model}): ${msg}`;
   }
   return "Error";
