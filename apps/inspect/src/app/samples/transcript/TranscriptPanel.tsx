@@ -16,9 +16,11 @@ import type {
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
 import {
+  clearDeepLinkParams,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
+  type SelectOptions,
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
@@ -57,6 +59,7 @@ interface TranscriptPanelProps {
   scans?: Record<string, Score> | null;
 
   initialEventId?: string | null;
+  initialMessageId?: string | null;
 }
 
 /**
@@ -70,6 +73,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     events,
     running,
     initialEventId,
+    initialMessageId,
     offsetTop,
     timelines: serverTimelines,
     scans: allScores,
@@ -93,7 +97,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
   // events / sample identifiers, so construct the URL fn here and hand it
   // down — SampleScansSidebar doesn't need to know about navigation.
-  const makeCiteUrl = useMakeCiteUrl({ events, sampleId, sampleEpoch });
+  const makeCiteUrl = useMakeCiteUrl({ sampleId, sampleEpoch });
 
   // ---------------------------------------------------------------------------
   // Event type filtering
@@ -127,25 +131,25 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     (state) => state.sampleActions.setActiveTimelineIndex
   );
 
-  // Timeline selection is store-backed, but a stale URL `?event=` (or
-  // `?message=`) would otherwise win over branchScrollTarget when the user
-  // selects a different swimlane row. Clear those on selection change so
-  // the row's resolved scroll target takes effect.
+  // Timeline selection is store-backed, but on a user-initiated row click
+  // a stale URL `?event=` / `?message=` would otherwise win over the new
+  // row's `branchScrollTarget`. Clear those (and reset scroll to top so
+  // the post-mount imperative scroll has a clean origin) — but only when
+  // this is a user click. Message-resolution-driven selection changes pass
+  // `preserveDeepLink: true` because their imperative scroll still needs
+  // the deep-link target.
   const [, setSearchParams] = useSearchParams();
   const setTimelineSelected = useCallback(
-    (key: string | null) => {
+    (key: string | null, options?: SelectOptions) => {
       setTimelineSelectedStore(key);
+      if (options?.preserveDeepLink) return;
+      scrollRef.current?.scrollTo({ top: 0 });
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("event");
-          next.delete("message");
-          return next;
-        },
+        (prev) => clearDeepLinkParams(new URLSearchParams(prev)),
         { replace: true }
       );
     },
-    [setTimelineSelectedStore, setSearchParams]
+    [setTimelineSelectedStore, setSearchParams, scrollRef]
   );
 
   const timelineSelection = useMemo(
@@ -437,6 +441,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       eventNodeContext={eventNodeContext}
       listId={id}
       initialEventId={initialEventId}
+      initialMessageId={initialMessageId}
       getEventUrl={getEventUrl}
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}

@@ -15,12 +15,15 @@ interface ListPositionManagerResult {
  * When `selected` changes (agent selection in swimlanes):
  * - Clears saved Virtuoso state for the target agent so it mounts fresh
  * - When navigating "up" (from a child to a parent), clears all child positions
- * - Scrolls the container to top
+ * - Scrolls the container to top (unless `hasScrollTarget` is true, in which
+ *   case the caller has a specific event to scroll to and we leave the
+ *   container alone so the imperative scroll wins)
  */
 export function useListPositionManager(
   baseListId: string,
   selected: string | null,
-  scrollRef: RefObject<HTMLDivElement | null>
+  scrollRef: RefObject<HTMLDivElement | null>,
+  hasScrollTarget: boolean = false
 ): ListPositionManagerResult {
   const { useRemoveValue, useRemoveByPrefix } = useComponentStateHooks();
   const removeValue = useRemoveValue();
@@ -59,8 +62,12 @@ export function useListPositionManager(
       );
     }
 
-    // Scroll to top for the new selection
-    scrollRef.current?.scrollTo({ top: 0 });
+    // Scroll to top for the new selection — unless the caller has a deep-link
+    // target queued (e.g. URL `?event=` from branch-resolution navigation), in
+    // which case we let the imperative scroll set the position.
+    if (!hasScrollTarget) {
+      scrollRef.current?.scrollTo({ top: 0 });
+    }
   }, [
     selected,
     effectiveListId,
@@ -68,6 +75,7 @@ export function useListPositionManager(
     scrollRef,
     removeValue,
     removeByPrefix,
+    hasScrollTarget,
   ]);
 
   /**

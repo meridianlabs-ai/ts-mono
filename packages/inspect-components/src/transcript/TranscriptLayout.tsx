@@ -37,7 +37,10 @@ import { useScrubberProgress } from "@tsmono/react/hooks";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
-import { resolveMessageToEvent } from "./resolveMessageToEvent";
+import {
+  resolveMessageInBranches,
+  resolveMessageToEvent,
+} from "./resolveMessageToEvent";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { spanHasBranches, type TimelineSpan } from "./timeline/core";
 import {
@@ -333,10 +336,21 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Per-agent list position management
   // ---------------------------------------------------------------------------
 
+  // Suppress the scroll-to-top on selection change when an active deep-link
+  // target is in URL. The URL-driven case is sync (the URL update lands
+  // before the row-click effects fire, so a top reset would clobber the
+  // about-to-fire imperative scroll). For pure swimlane row clicks (URL
+  // bare, only `branchScrollTarget` set), keeping the top reset is
+  // desirable — it clears the previous branch's deep scroll position
+  // before the imperative scroll lands on the new branch separator.
+  // The imperative scroll runs in rAF and re-scrolls to its target after
+  // the sync top reset.
+  const hasScrollTarget = !!(initialEventId || initialMessageId);
   const { effectiveListId } = useListPositionManager(
     listId,
     timelineState.selected,
-    scrollRef
+    scrollRef,
+    hasScrollTarget
   );
 
   // ---------------------------------------------------------------------------
@@ -431,30 +445,57 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const resolvedRoot = useMemo(() => {
     if (initialEventId || !initialMessageId || resolvedLocal) return undefined;
-    return resolveMessageToEvent(initialMessageId, timelineData.root);
+    // First try the main content tree (existing behavior).
+    const main = resolveMessageToEvent(initialMessageId, timelineData.root);
+    if (main) return main;
+    // Fall back to branches: walk every branch in the tree and return the
+    // first match in swimlane row order (latest fork first).
+    return resolveMessageInBranches(initialMessageId, timelineData.root);
   }, [initialEventId, initialMessageId, resolvedLocal, timelineData.root]);
 
   const resolved = resolvedLocal ?? resolvedRoot;
 
-  // Side-effect: navigate to the correct swimlane when resolution came from root
+  // Side-effect: switch swimlane selection when resolution comes from root
+  // (i.e. requires moving the user to a different row to see the resolved
+  // event). Calls `timelineState.select` with `{ preserveDeepLink: true }`
+  // so hosts know to keep the URL `?message=` / `?event=` params intact
+  // rather than clearing them as they would for a user row click — the
+  // imperative scroll about to fire still needs the deep-link target.
+  //
+  // Gated on `initialMessageId` actually changing — selection-only changes
+  // (user clicked a swimlane row) cause `resolvedRoot` to recompute against
+  // the still-stale URL message during the intermediate render before URL
+  // clearing is applied; firing the side effect there would override the
+  // user's just-expressed selection intent.
+  const prevMessageIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    if (prevMessageIdRef.current === initialMessageId) return;
+    prevMessageIdRef.current = initialMessageId;
     if (!resolvedRoot) return;
-    if (resolvedRoot.agentSpanId) {
-      selectBySpanId(resolvedRoot.agentSpanId);
-    } else if (timelineState.selected) {
-      timelineState.clearSelection();
+    let targetKey: string | null = null;
+    if (resolvedRoot.branchRowKey) {
+      targetKey = resolvedRoot.branchRowKey;
+    } else if (resolvedRoot.agentSpanId) {
+      targetKey = spanSelectKeys.get(resolvedRoot.agentSpanId)?.key ?? null;
     }
-  }, [resolvedRoot, selectBySpanId, timelineState]);
+    if (timelineState.selected === targetKey) return;
+    timelineState.select(targetKey, { preserveDeepLink: true });
+  }, [initialMessageId, resolvedRoot, spanSelectKeys, timelineState]);
 
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
 
-  // Suppress headroom collapse when a branch click triggers a programmatic scroll
+  // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
+  // — fires for any change to the effective scroll target (URL `?event=`,
+  // resolved message, branch switch). The reset-anchor uses a debounced
+  // lock that stays active while the imperative scroll's retry loop keeps
+  // emitting scroll events, so the swimlane doesn't flicker open/closed
+  // during the multi-pass settling.
   useEffect(() => {
-    if (branchScrollTarget) {
+    if (effectiveInitialEventId) {
       onHeadroomResetAnchor?.(true);
     }
-  }, [branchScrollTarget, onHeadroomResetAnchor]);
+  }, [effectiveInitialEventId, onHeadroomResetAnchor]);
 
   // ---------------------------------------------------------------------------
   // Bulk collapse/expand
@@ -854,6 +895,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               defaultCollapsedIds={defaultCollapsedIds}
               running={running}
               initialEventId={effectiveInitialEventId}
+              initialMessageId={initialMessageId}
               offsetTop={effectiveOffsetTop}
               className={styles.eventsList}
               scrollRef={scrollRef}

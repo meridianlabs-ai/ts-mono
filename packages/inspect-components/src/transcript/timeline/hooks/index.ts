@@ -4,9 +4,11 @@ export {
   type UseActiveTimelineResult,
 } from "./useActiveTimeline";
 export {
+  clearDeepLinkParams,
   useTimeline,
   findBranchesByBranchedFrom,
   type BranchLookupResult,
+  type SelectOptions,
   type TimelineOptions,
   type TimelineState,
   type UseTimelineProps,

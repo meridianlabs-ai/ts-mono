@@ -98,6 +98,7 @@ export {
 
 // Hooks (React-dependent)
 export {
+  clearDeepLinkParams,
   findBranchesByBranchedFrom,
   useActiveTimeline,
   useEventNodes,
@@ -106,6 +107,7 @@ export {
   useTimelinesArray,
   useTranscriptTimeline,
   type BranchLookupResult,
+  type SelectOptions,
   type TimelineOptions,
   type TimelineState,
   type TranscriptTimelineResult,

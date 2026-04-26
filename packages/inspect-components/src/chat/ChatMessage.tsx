@@ -63,6 +63,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   return (
     <div
+      data-message-id={message.id || undefined}
       className={clsx(
         message.role,
         "text-size-base",

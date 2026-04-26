@@ -7,6 +7,7 @@
  */
 
 import type { TimelineEvent, TimelineSpan } from "./timeline/core";
+import { computeFlatSwimlaneRows, isSingleSpan } from "./timeline/swimlaneRows";
 
 // =============================================================================
 // Public API
@@ -21,6 +22,14 @@ export interface ResolvedMessageEvent {
    * event list), then scrolls to `eventId` within it.
    */
   agentSpanId: string | null;
+  /**
+   * If set, the swimlane row key of the branch that contains the match.
+   * The UI selects this branch row (which forces showBranches on and
+   * changes the visible event list) before scrolling to `eventId`.
+   * Mutually exclusive with `agentSpanId` in practice — branch resolution
+   * only runs as a fallback after main content / agent walking fails.
+   */
+  branchRowKey?: string;
 }
 
 /**
@@ -37,6 +46,45 @@ export function resolveMessageToEvent(
   const best = walkContent(messageId, root.content, null);
   if (!best) return undefined;
   return { eventId: best.eventId, agentSpanId: best.agentSpanId };
+}
+
+/**
+ * Walks branches across the timeline tree to find a message. Returns the
+ * first branch hit (in swimlane row order — latest fork first) along with
+ * the branch's swimlane row key so the caller can select that row.
+ *
+ * Use this as a fallback when `resolveMessageToEvent` returns undefined
+ * for the main content tree.
+ */
+export function resolveMessageInBranches(
+  messageId: string,
+  root: TimelineSpan
+): ResolvedMessageEvent | undefined {
+  // Force branches + utility on so we get every possible branch row key.
+  // The row keys are constructed by computeFlatSwimlaneRows; reusing it
+  // here keeps key generation in one place.
+  const rows = computeFlatSwimlaneRows(root, {
+    includeUtility: true,
+    showBranches: true,
+  });
+
+  for (const row of rows) {
+    if (!row.branch) continue;
+    for (const rowSpan of row.spans) {
+      const agents = isSingleSpan(rowSpan) ? [rowSpan.agent] : rowSpan.agents;
+      for (const agent of agents) {
+        const match = walkContent(messageId, agent.content, null);
+        if (match) {
+          return {
+            eventId: match.eventId,
+            agentSpanId: match.agentSpanId,
+            branchRowKey: row.key,
+          };
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 // =============================================================================
