@@ -18,8 +18,8 @@
  * Tests drive AG-Grid via column-header sort clicks and via setFilterModel
  * through a dev-only window hook on LogListGrid (`__inspectGridApi`).
  */
-import { http, HttpResponse } from "msw";
 import type { Page } from "@playwright/test";
+import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 import {
@@ -87,9 +87,7 @@ function setupHandlers(
   network: Parameters<Parameters<typeof test>[2]>[0]["network"]
 ) {
   network.use(
-    http.get("*/api/log-dir", () =>
-      HttpResponse.json({ log_dir: LOG_DIR })
-    ),
+    http.get("*/api/log-dir", () => HttpResponse.json({ log_dir: LOG_DIR })),
     http.get("*/api/logs", () =>
       HttpResponse.json({ log_dir: LOG_DIR, files: LOG_FILES })
     ),

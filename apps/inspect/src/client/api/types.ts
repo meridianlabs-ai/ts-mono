@@ -23,6 +23,7 @@ import type {
   LogUpdate,
   MessagePoolData,
   ModelEvent,
+  ModelUsage,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -109,6 +110,13 @@ export interface SampleSummary {
   metadata?: Record<string, any>;
   completed?: boolean;
   retries?: number;
+  // Per-sample timing and token usage; populated by Inspect's Python
+  // EvalSampleSummary.summary() and serialized into summaries.json.
+  model_usage?: Record<string, ModelUsage>;
+  started_at?: string | null;
+  completed_at?: string | null;
+  total_time?: number | null;
+  working_time?: number | null;
 }
 
 // Hand-coded — generated EventData.event is JsonValue, losing the

@@ -62,8 +62,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   gridRef: externalGridRef,
   mode = "logs",
 }) => {
-  const { gridStateByScope, setGridState, setFilteredCount } =
-    useLogsListing();
+  const { gridStateByScope, setGridState, setFilteredCount } = useLogsListing();
   const gridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
 
   const { loadLogOverviews, loadAllLogOverviews } = useLogs();

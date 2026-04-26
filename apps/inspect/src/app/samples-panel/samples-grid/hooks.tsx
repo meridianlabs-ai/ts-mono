@@ -6,16 +6,18 @@ import {
 } from "ag-grid-community";
 import { useEffect, useMemo } from "react";
 
-import { filename } from "@tsmono/util";
+import { filename, formatNumber } from "@tsmono/util";
 
 import { LogDetails } from "../../../client/api/types";
 import { useStore } from "../../../state/store";
-import { formatDateTime } from "../../../utils/format";
+import { formatDateTime, formatTime } from "../../../utils/format";
 import styles from "../../shared/gridCells.module.css";
 import { comparators } from "../../shared/gridComparators";
 import { getFieldKey } from "../../shared/gridUtils";
 
 import { SampleRow } from "./types";
+
+const EmptyCell = () => <div>-</div>;
 
 export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
   const optionalColumnsHaveAnyData: Record<string, boolean> = useMemo(() => {
@@ -177,6 +179,48 @@ export const useSampleColumns = (logDetails: Record<string, LogDetails>) => {
         filter: true,
         resizable: true,
         cellStyle: { overflow: "hidden", textOverflow: "ellipsis" },
+      },
+      {
+        field: "tokens",
+        headerName: "Tokens",
+        initialWidth: 100,
+        minWidth: 60,
+        maxWidth: 140,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<SampleRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatNumber(params.value)}</div>;
+        },
+      },
+      {
+        field: "duration",
+        headerName: "Duration",
+        initialWidth: 120,
+        minWidth: 70,
+        maxWidth: 160,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        resizable: true,
+        valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
+          if (params.value === undefined || params.value === null) return "";
+          return formatTime(params.value);
+        },
+        cellRenderer: (params: ICellRendererParams<SampleRow>) => {
+          if (params.value === undefined || params.value === null) {
+            return <EmptyCell />;
+          }
+          return <div>{formatTime(params.value)}</div>;
+        },
+        tooltipValueGetter: (params) => {
+          if (params.value === undefined || params.value === null) {
+            return undefined;
+          }
+          return formatTime(params.value);
+        },
       },
     ];
 

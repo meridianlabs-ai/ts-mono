@@ -175,6 +175,17 @@ export const SamplesPanel: FC = () => {
 
     Object.entries(logDetailsInPath).forEach(([logFile, logDetail]) => {
       logDetail.sampleSummaries.forEach((sampleSummary) => {
+        let tokens: number | undefined;
+        if (sampleSummary.model_usage) {
+          const usages = Object.values(sampleSummary.model_usage);
+          if (usages.length > 0) {
+            tokens = 0;
+            for (const usage of usages) {
+              tokens += usage.total_tokens ?? 0;
+            }
+          }
+        }
+
         const row: SampleRow = {
           logFile,
           created: logDetail.eval.created,
@@ -191,6 +202,8 @@ export const SamplesPanel: FC = () => {
           limit: sampleSummary.limit,
           retries: sampleSummary.retries,
           completed: sampleSummary.completed || false,
+          tokens,
+          duration: sampleSummary.total_time ?? undefined,
           displayIndex: displayIndex++,
         };
 
