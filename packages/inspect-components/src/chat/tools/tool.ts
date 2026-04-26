@@ -103,10 +103,21 @@ const extractInputMetadata = (
       inputArg: "plan",
       contentType: kToolTodoContentType,
     };
+  } else if (toolName == "todo_write") {
+    return {
+      inputArg: "todos",
+      contentType: kToolTodoContentType,
+    };
   } else if (toolName === "Task") {
     return {
       inputArg: "prompt",
       descriptionArg: "description",
+      contentType: "markdown",
+    };
+  } else if (toolName === "task") {
+    return {
+      inputArg: "prompt",
+      descriptionArg: "task_description",
       contentType: "markdown",
     };
   } else {
