@@ -40,7 +40,10 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   const [mouseOver, setMouseOver] = useState(false);
 
-  const isNonTaskTool = message.role === "tool" && message.function !== "Task";
+  const isNonTaskTool =
+    message.role === "tool" &&
+    message.function !== "Task" &&
+    message.function !== "task";
   const collapse = message.role === "system" || message.role === "user";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
