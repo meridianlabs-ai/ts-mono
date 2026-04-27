@@ -4,6 +4,7 @@ import {
   MarkdownDivWithReferences,
   MarkdownReference,
   Preformatted,
+  type MarkdownRenderer,
 } from "@tsmono/react/components";
 
 import { useDisplayMode } from "./DisplayModeContext";
@@ -14,8 +15,7 @@ interface RenderedTextProps {
   style?: CSSProperties;
   className?: string | string[];
   forceRender?: boolean;
-  omitMedia?: boolean;
-  omitMath?: boolean;
+  renderer?: MarkdownRenderer;
   options?: {
     previewRefsOnHover?: boolean;
   };
@@ -26,16 +26,7 @@ export const RenderedText = forwardRef<
   RenderedTextProps
 >(
   (
-    {
-      markdown,
-      references,
-      style,
-      className,
-      forceRender,
-      omitMedia,
-      omitMath,
-      options,
-    },
+    { markdown, references, style, className, forceRender, renderer, options },
     ref
   ) => {
     const displayMode = useDisplayMode();
@@ -48,8 +39,7 @@ export const RenderedText = forwardRef<
           options={options}
           style={style}
           className={className}
-          omitMedia={omitMedia}
-          omitMath={omitMath}
+          renderer={renderer}
         />
       );
     } else {
