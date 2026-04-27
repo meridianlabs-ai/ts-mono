@@ -20,7 +20,7 @@ import { SampleErrorView } from "./error/SampleErrorView";
 import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
-const kMaxCellTextLength = 256;
+const kMaxCellTextLength = 128;
 interface SampleSummaryViewProps {
   parent_id: string;
   sample: SampleSummary | EvalSample;
@@ -130,6 +130,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       />
     ),
     size: `minmax(auto, 5fr)`,
+    clamp: true
   });
 
   if (fields.target) {

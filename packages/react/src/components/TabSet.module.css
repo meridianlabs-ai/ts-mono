@@ -40,14 +40,20 @@
   margin-right: 0.5em;
 }
 
+.tabSpacer {
+  flex: 1 1 0;
+  min-width: 0;
+  list-style: none;
+}
+
 .tabTools {
   flex-basis: auto;
-  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: end;
   flex-wrap: wrap;
   row-gap: 0.3rem;
+  column-gap: 0.5rem;
 }
 
 .tabStyle {
@@ -57,7 +63,6 @@
 
 .tabTools > * {
   flex: 0 1 auto;
-  margin-left: 0.5rem;
 }
 
 .tabTools input {

@@ -82,7 +82,12 @@ export const TabSet: FC<TabSetProps> = ({
             className={clsx(tabControlsClassName)}
           />
         ))}
-        {tools && <TabTools tools={tools} />}
+        {tools && (
+          <Fragment>
+            <li className={moduleStyles.tabSpacer} aria-hidden="true" />
+            <TabTools tools={tools} />
+          </Fragment>
+        )}
       </ul>
       <TabPanels id={id} tabs={validTabs} className={tabPanelsClassName} />
     </Fragment>
