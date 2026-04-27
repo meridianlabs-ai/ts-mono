@@ -1,4 +1,4 @@
-import { SearchRequest } from "../../types/api-types";
+import type { SearchRequest } from "../../types/api-types";
 
 export type SearchType = "grep" | "llm";
 export type TranscriptSearchScope = "events" | "messages";
@@ -17,10 +17,15 @@ type BuildSearchRequestOptions = {
   searchType: SearchType;
 };
 
-const getScopeFields = (scope: TranscriptSearchScope) => {
-  return scope === "messages"
-    ? { messages: "all" as const }
-    : { events: "all" as const };
+export type SearchScopeFields = {
+  events?: "all";
+  messages?: "all";
+};
+
+export const buildSearchScope = (
+  scope: TranscriptSearchScope
+): SearchScopeFields => {
+  return scope === "messages" ? { messages: "all" } : { events: "all" };
 };
 
 export const buildSearchRequest = ({
@@ -30,7 +35,7 @@ export const buildSearchRequest = ({
   scope,
   searchType,
 }: BuildSearchRequestOptions): SearchRequest => {
-  const scopeFields = getScopeFields(scope);
+  const scopeFields = buildSearchScope(scope);
 
   if (searchType === "grep") {
     return {

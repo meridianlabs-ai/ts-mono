@@ -50,8 +50,8 @@ export type Result = components["schemas"]["Result"];
 export type GrepSearchRequest = components["schemas"]["GrepSearchRequest"];
 export type LlmSearchRequest = components["schemas"]["LlmSearchRequest"];
 export type SearchRequest = GrepSearchRequest | LlmSearchRequest;
-export type GrepSavedSearch = components["schemas"]["GrepSavedSearch"];
-export type LlmSavedSearch = components["schemas"]["LlmSavedSearch"];
-export type SavedSearch = components["schemas"]["SavedSearch"];
-export type SavedSearchListResponse =
-  components["schemas"]["SavedSearchListResponse"];
+export type GrepSearchInput = components["schemas"]["GrepSearchInput"];
+export type LlmSearchInput = components["schemas"]["LlmSearchInput"];
+export type SearchInput = components["schemas"]["SearchInput"];
+export type SearchInputListResponse =
+  components["schemas"]["SearchInputListResponse"];

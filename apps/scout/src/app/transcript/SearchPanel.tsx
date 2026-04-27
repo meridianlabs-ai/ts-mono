@@ -22,9 +22,13 @@ import {
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import { Result, SavedSearch } from "../../types/api-types";
+import type { Result, SearchInput } from "../../types/api-types";
 import { useProjectConfig } from "../server/useProjectConfig";
-import { useCreateSearch, useSearches } from "../server/useSearches";
+import {
+  useCachedSearchResult,
+  useCreateSearch,
+  useSearches,
+} from "../server/useSearches";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -34,7 +38,7 @@ import {
   getSearchPanelStateKey,
   SearchPanelState,
 } from "./searchPanelState";
-import { buildSearchRequest } from "./searchRequest";
+import { buildSearchRequest, buildSearchScope } from "./searchRequest";
 import type {
   GrepOptions,
   SearchType,
@@ -48,8 +52,16 @@ type SearchPanelProps = {
   onClose: () => void;
 };
 
+function hasStringValue(target: EventTarget | null): target is EventTarget & {
+  value: string;
+} {
+  return (
+    target !== null && "value" in target && typeof target.value === "string"
+  );
+}
+
 function getInputValue(e: Event): string {
-  return (e.target as HTMLTextAreaElement).value;
+  return hasStringValue(e.target) ? e.target.value : "";
 }
 
 function configureSearchTextarea(el: HTMLElement | null) {
@@ -59,6 +71,10 @@ function configureSearchTextarea(el: HTMLElement | null) {
   if (shadowTextarea instanceof HTMLTextAreaElement) {
     shadowTextarea.setAttribute("spellcheck", "false");
   }
+}
+
+function isSearchType(value: string): value is SearchType {
+  return value === "llm" || value === "grep";
 }
 
 export const SearchPanel = ({
@@ -84,6 +100,10 @@ export const SearchPanel = ({
   const recordSearchModel = useUserSettings((state) => state.recordSearchModel);
 
   const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
+  const cachedSearchMutation = useCachedSearchResult({
+    transcriptDir,
+    transcriptId,
+  });
 
   const state = storedState ?? createInitialSearchPanelState();
   const setState = useCallback(
@@ -99,8 +119,10 @@ export const SearchPanel = ({
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const recentButtonRef = useRef<HTMLButtonElement>(null);
+  const recentLookupSearchIdRef = useRef<string | null>(null);
 
-  const loading = createSearchMutation.isPending;
+  const loading =
+    createSearchMutation.isPending || cachedSearchMutation.isPending;
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -114,6 +136,8 @@ export const SearchPanel = ({
         currentSearch: null,
       }));
       createSearchMutation.reset();
+      cachedSearchMutation.reset();
+      recentLookupSearchIdRef.current = null;
 
       const resolvedModel =
         searchType === "llm"
@@ -129,15 +153,16 @@ export const SearchPanel = ({
       });
 
       createSearchMutation.mutate(request, {
-        onSuccess: (search) => {
-          setState((prev) => ({ ...prev, currentSearch: search }));
-          if (search.type === "llm") {
+        onSuccess: (result) => {
+          setState((prev) => ({ ...prev, currentSearch: result }));
+          if (searchType === "llm") {
             recordSearchModel(resolvedModel);
           }
         },
       });
     },
     [
+      cachedSearchMutation,
       createSearchMutation,
       grepOptions,
       searchType,
@@ -159,14 +184,16 @@ export const SearchPanel = ({
   }, []);
 
   const handleSelectRecent = useCallback(
-    (search: SavedSearch) => {
+    (search: SearchInput) => {
       createSearchMutation.reset();
+      cachedSearchMutation.reset();
+      recentLookupSearchIdRef.current = search.search_id;
       setIsRecentOpen(false);
       setState((prev) => {
         const next: SearchPanelState = {
           ...prev,
-          currentSearch: search,
-          hasSearched: true,
+          currentSearch: null,
+          hasSearched: false,
           query: search.query,
           searchType: search.type,
         };
@@ -181,14 +208,36 @@ export const SearchPanel = ({
         }
         return next;
       });
+      cachedSearchMutation.mutate(
+        {
+          scope: buildSearchScope(scope),
+          searchId: search.search_id,
+        },
+        {
+          onSuccess: (searchResult) => {
+            if (
+              searchResult &&
+              recentLookupSearchIdRef.current === search.search_id
+            ) {
+              setState((prev) => ({
+                ...prev,
+                currentSearch: searchResult,
+                hasSearched: true,
+              }));
+            }
+          },
+        }
+      );
     },
-    [createSearchMutation, setState]
+    [cachedSearchMutation, createSearchMutation, scope, setState]
   );
 
   const handleNewSearch = useCallback(() => {
     createSearchMutation.reset();
+    cachedSearchMutation.reset();
+    recentLookupSearchIdRef.current = null;
     setState(createInitialSearchPanelState());
-  }, [createSearchMutation, setState]);
+  }, [cachedSearchMutation, createSearchMutation, setState]);
 
   const toggleGrepOption = useCallback(
     (key: keyof GrepOptions) => {
@@ -231,9 +280,11 @@ export const SearchPanel = ({
                   { id: "llm", label: "LLM" },
                   { id: "grep", label: "Grep" },
                 ]}
-                onSegmentChange={(segmentId) =>
-                  handleSearchTypeChange(segmentId as SearchType)
-                }
+                onSegmentChange={(segmentId) => {
+                  if (isSearchType(segmentId)) {
+                    handleSearchTypeChange(segmentId);
+                  }
+                }}
               />
             </div>
             <div className={styles.topActions}>
@@ -338,7 +389,9 @@ export const SearchPanel = ({
         <div className={styles.results}>
           <SearchResults
             loading={loading}
-            isError={createSearchMutation.isError}
+            isError={
+              createSearchMutation.isError || cachedSearchMutation.isError
+            }
             hasSearched={hasSearched}
             currentSearch={currentSearch}
             getFullMessageUrl={getFullMessageUrl}
@@ -364,12 +417,7 @@ export const SearchPanel = ({
           overflowY: "auto",
         }}
       >
-        <RecentSearches
-          transcriptDir={transcriptDir}
-          transcriptId={transcriptId}
-          searchType={searchType}
-          onSelect={handleSelectRecent}
-        />
+        <RecentSearches searchType={searchType} onSelect={handleSelectRecent} />
       </PopOver>
     </div>
   );
@@ -393,12 +441,10 @@ const ModeToggle: FC<{
 );
 
 const RecentSearches: FC<{
-  transcriptDir: string;
-  transcriptId: string;
   searchType: SearchType;
-  onSelect: (search: SavedSearch) => void;
-}> = ({ transcriptDir, transcriptId, searchType, onSelect }) => {
-  const searches = useSearches({ transcriptDir, transcriptId });
+  onSelect: (search: SearchInput) => void;
+}> = ({ searchType, onSelect }) => {
+  const searches = useSearches({ searchType });
 
   if (searches.loading) {
     return <div className={styles.recentEmpty}>Loading recent searches…</div>;
@@ -410,9 +456,7 @@ const RecentSearches: FC<{
     );
   }
 
-  const items = searches.data.items.filter(
-    (search) => search.type === searchType
-  );
+  const items = searches.data.items;
 
   if (items.length === 0) {
     return <div className={styles.recentEmpty}>No recent searches.</div>;
@@ -442,7 +486,7 @@ const SearchResults: FC<{
   loading: boolean;
   isError: boolean;
   hasSearched: boolean;
-  currentSearch: SavedSearch | null;
+  currentSearch: Result | null;
   getFullMessageUrl: (id: string) => string | undefined;
   getFullEventUrl: (id: string) => string | undefined;
 }> = ({
@@ -466,7 +510,7 @@ const SearchResults: FC<{
     return <div className={styles.emptyState}>No results found</div>;
   }
 
-  const { result } = currentSearch;
+  const result = currentSearch;
   const numericValue = typeof result.value === "number" ? result.value : null;
   const isEmpty =
     numericValue === 0 &&
