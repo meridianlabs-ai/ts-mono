@@ -67,6 +67,7 @@ function makeServerSpan(
     branched_from: null,
     description: null,
     utility: false,
+    tool_invoked: false,
     agent_result: null,
     outline: null,
     ...overrides,
