@@ -44,7 +44,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "tool" &&
     message.function !== "Task" &&
     message.function !== "task";
-  const collapse = message.role === "system" || message.role === "user";
+  const collapse =
+    message.role === "system" ||
+    message.role === "user" ||
+    message.role === "assistant" ||
+    message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
   // When the role header is hidden, skip rendering if there's no visible
@@ -119,7 +123,15 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
         <ExpandablePanel
           id={`${id}-message`}
           collapse={collapse}
-          lines={collapse ? 15 : 25}
+          lines={
+            message.role === "tool"
+              ? 30
+              : message.role === "assistant"
+                ? 25
+                : collapse
+                  ? 15
+                  : 25
+          }
         >
           {isNonTaskTool ? (
             <ToolOutput
