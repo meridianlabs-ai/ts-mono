@@ -41,10 +41,11 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const event = eventNode.event;
 
   // Extract tool input
-  const { name, input, description, functionCall, contentType } = useMemo(
-    () => resolveToolInput(event.function, event.arguments),
-    [event.function, event.arguments]
-  );
+  const { name, input, description, functionCall, contentType, title } =
+    useMemo(
+      () => resolveToolInput(event.function, event.arguments),
+      [event.function, event.arguments]
+    );
 
   // Resolve {{placeholder}} substitutions in tool call view content
   const resolvedView = useMemo(
@@ -68,8 +69,8 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.events]);
 
-  const displayName = resolvedView?.title || name;
-  const title = displayName ? `Tool: ${displayName}` : "Tool";
+  const displayName = resolvedView?.title || title || name;
+  const panelTitle = displayName ? `Tool: ${displayName}` : "Tool";
 
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
@@ -78,7 +79,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   return (
     <EventPanel
       eventNodeId={eventNode.id}
-      title={formatTitle(title, undefined, event.working_time)}
+      title={formatTitle(panelTitle, undefined, event.working_time)}
       className={className}
       subTitle={
         event.timestamp

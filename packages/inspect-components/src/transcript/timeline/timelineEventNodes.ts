@@ -330,7 +330,8 @@ export function collectRawEvents(
       includeUtility,
       showBranches,
       span.branches.length > 0 ? span.branches : undefined,
-      branchPrefix
+      branchPrefix,
+      false
     );
   } else {
     // Multiple spans: wrap each in span_begin/span_end so the event tree
@@ -400,15 +401,20 @@ function collectFromContent(
   includeUtility: boolean = false,
   showBranches: boolean = false,
   branches?: ReadonlyArray<TimelineSpan>,
-  branchPrefix: string = ""
+  branchPrefix: string = "",
+  isRoot: boolean = true
 ): void {
-  // When there's exactly one agent span in this content, inline its events
-  // instead of emitting an empty agent card. This avoids a redundant wrapper
-  // when the root view has a single agent plus scoring.
-  const agentSpans = content.filter(
-    (item): item is TimelineSpan =>
-      item.type === "span" && item.spanType === "agent"
-  );
+  // When there's exactly one agent span at the root of the selected view,
+  // inline its events instead of emitting an empty agent card. This avoids
+  // a redundant wrapper when the root view has a single agent plus scoring.
+  // Only applies at the root — nested agents (e.g. a subagent spawned by a
+  // task tool) should still render as navigable cards.
+  const agentSpans = isRoot
+    ? content.filter(
+        (item): item is TimelineSpan =>
+          item.type === "span" && item.spanType === "agent"
+      )
+    : [];
   const inlineAgentId = agentSpans.length === 1 ? agentSpans[0]?.id : undefined;
 
   // Track agent tool_call_ids whose results are shown on the AgentCard,
@@ -536,7 +542,9 @@ function collectFromContent(
           undefined,
           includeUtility,
           showBranches,
-          item.branches.length > 0 ? item.branches : undefined
+          item.branches.length > 0 ? item.branches : undefined,
+          "",
+          false
         );
       }
 

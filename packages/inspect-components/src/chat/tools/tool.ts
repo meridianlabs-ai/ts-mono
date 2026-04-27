@@ -5,6 +5,8 @@ export const kToolTodoContentType = "agent/todo-list";
 export interface ToolCallResult {
   name: string;
   functionCall: string;
+  /** Optional descriptive title (e.g. "task: general") for use in panel headers. */
+  title?: string;
   input?: unknown;
   description?: string;
   contentType?: string;
@@ -33,6 +35,7 @@ export const resolveToolInput = (
     return {
       name: fn,
       functionCall: `Task: ${subagentType}`,
+      title: `${fn}: ${subagentType}`,
       input,
       description,
       contentType: "markdown",
