@@ -2,7 +2,7 @@ import { decompress as decompressZstd } from "fzstd";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
-import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
+import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import type { Condition, OrderByModel } from "../query";
 import {
@@ -14,12 +14,12 @@ import {
   ProjectConfig,
   ProjectConfigInput,
   RawEncoding,
-  SavedSearch,
-  SavedSearchListResponse,
+  Result,
   ScanJobConfig,
   ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
+  SearchInputListResponse,
   SearchRequest,
   Status,
   Transcript,
@@ -34,6 +34,7 @@ import {
   ScalarValue,
   ScanResultDetail,
   ScoutApiV2,
+  SearchResultScope,
   TopicVersions,
 } from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
@@ -289,8 +290,8 @@ export const apiScoutServer = (
       transcriptDir: string,
       transcriptId: string,
       request: SearchRequest
-    ): Promise<SavedSearch> =>
-      asyncJsonParse<SavedSearch>(
+    ): Promise<Result> =>
+      asyncJsonParse<Result>(
         (
           await requestApi.fetchString(
             "POST",
@@ -301,17 +302,45 @@ export const apiScoutServer = (
         ).raw
       ),
     getSearches: async (
-      transcriptDir: string,
-      transcriptId: string
-    ): Promise<SavedSearchListResponse> =>
-      asyncJsonParse<SavedSearchListResponse>(
+      searchType: SearchRequest["type"],
+      count: number
+    ): Promise<SearchInputListResponse> =>
+      asyncJsonParse<SearchInputListResponse>(
         (
           await requestApi.fetchString(
             "GET",
-            `/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}/searches`
+            `/searches?type=${encodeURIComponent(searchType)}&count=${count}`
           )
         ).raw
       ),
+    getSearchResult: async (
+      transcriptDir: string,
+      transcriptId: string,
+      searchId: string,
+      scope: SearchResultScope
+    ): Promise<Result | null> => {
+      const params = new URLSearchParams();
+      if (scope.messages) {
+        params.set("messages", scope.messages);
+      }
+      if (scope.events) {
+        params.set("events", scope.events);
+      }
+      const query = params.toString();
+      const path =
+        `/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}` +
+        `/searches/${encodeURIComponent(searchId)}${query ? `?${query}` : ""}`;
+      try {
+        return await asyncJsonParse<Result>(
+          (await requestApi.fetchString("GET", path)).raw
+        );
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
     postCode: async (condition: Condition): Promise<Record<string, string>> =>
       asyncJsonParse<Record<string, string>>(
         (

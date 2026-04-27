@@ -11,12 +11,12 @@ import {
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
-  SavedSearch,
-  SavedSearchListResponse,
+  Result,
   ScanJobConfig,
   ScannerInput,
   ScannersResponse,
   ScansResponse,
+  SearchInputListResponse,
   SearchRequest,
   Status,
   Transcript,
@@ -32,6 +32,11 @@ export type ScalarValue = string | number | boolean | null;
 export interface ScanResultDetail {
   input: ScannerInput;
   scanEvents: Event[];
+}
+
+export interface SearchResultScope {
+  messages?: "all";
+  events?: "all";
 }
 
 /** Topic versions: maps topic name to timestamp. */
@@ -107,11 +112,17 @@ export interface ScoutApiV2 {
     transcriptDir: string,
     transcriptId: string,
     request: SearchRequest
-  ): Promise<SavedSearch>;
+  ): Promise<Result>;
   getSearches(
+    searchType: SearchRequest["type"],
+    count: number
+  ): Promise<SearchInputListResponse>;
+  getSearchResult(
     transcriptDir: string,
-    transcriptId: string
-  ): Promise<SavedSearchListResponse>;
+    transcriptId: string,
+    searchId: string,
+    scope: SearchResultScope
+  ): Promise<Result | null>;
 
   downloadScan?(scansDir: string, scanPath: string): Promise<Blob>;
 

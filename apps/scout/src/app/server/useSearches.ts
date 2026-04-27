@@ -3,10 +3,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
+import type { SearchResultScope } from "../../api/api";
 import { useApi } from "../../state/store";
 import {
-  SavedSearch,
-  SavedSearchListResponse,
+  Result,
+  SearchInputListResponse,
   SearchRequest,
 } from "../../types/api-types";
 
@@ -15,19 +16,38 @@ type SearchParams = {
   transcriptId: string;
 };
 
+type SearchInputParams = {
+  searchType: SearchRequest["type"];
+  count?: number;
+};
+
+type CachedSearchResultRequest = {
+  searchId: string;
+  scope: SearchResultScope;
+};
+
+export const DEFAULT_RECENT_SEARCH_COUNT = 20;
+
 export const searchQueryKeys = {
-  searches: ({ transcriptDir, transcriptId }: SearchParams) =>
-    ["searches", transcriptDir, transcriptId] as const,
+  searches: ({
+    searchType,
+    count = DEFAULT_RECENT_SEARCH_COUNT,
+  }: SearchInputParams): readonly [
+    "searches",
+    SearchRequest["type"],
+    number,
+  ] => ["searches", searchType, count],
 };
 
 export const useSearches = (
-  params: SearchParams
-): AsyncData<SavedSearchListResponse> => {
+  params: SearchInputParams
+): AsyncData<SearchInputListResponse> => {
   const api = useApi();
+  const count = params.count ?? DEFAULT_RECENT_SEARCH_COUNT;
 
   return useAsyncDataFromQuery({
-    queryKey: searchQueryKeys.searches(params),
-    queryFn: () => api.getSearches(params.transcriptDir, params.transcriptId),
+    queryKey: searchQueryKeys.searches({ ...params, count }),
+    queryFn: () => api.getSearches(params.searchType, count),
     staleTime: 60 * 1000,
   });
 };
@@ -36,23 +56,27 @@ export const useCreateSearch = (params: SearchParams) => {
   const api = useApi();
   const queryClient = useQueryClient();
 
-  return useMutation<SavedSearch, Error, SearchRequest>({
+  return useMutation<Result, Error, SearchRequest>({
     mutationFn: (request) =>
       api.postSearch(params.transcriptDir, params.transcriptId, request),
-    onSuccess: (savedSearch) => {
-      queryClient.setQueryData<SavedSearchListResponse>(
-        searchQueryKeys.searches(params),
-        (current) => {
-          const items = [
-            savedSearch,
-            ...(current?.items ?? []).filter(
-              (search) => search.search_id !== savedSearch.search_id
-            ),
-          ];
-
-          return current ? { ...current, items } : { items };
-        }
-      );
+    onSuccess: (_result, request) => {
+      void queryClient.invalidateQueries({
+        queryKey: searchQueryKeys.searches({ searchType: request.type }),
+      });
     },
+  });
+};
+
+export const useCachedSearchResult = (params: SearchParams) => {
+  const api = useApi();
+
+  return useMutation<Result | null, Error, CachedSearchResultRequest>({
+    mutationFn: (request) =>
+      api.getSearchResult(
+        params.transcriptDir,
+        params.transcriptId,
+        request.searchId,
+        request.scope
+      ),
   });
 };

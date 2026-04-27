@@ -1,4 +1,4 @@
-import { SavedSearch } from "../../types/api-types";
+import type { Result } from "../../types/api-types";
 
 import type {
   GrepOptions,
@@ -10,7 +10,7 @@ export type SearchPanelState = {
   query: string;
   searchType: SearchType;
   hasSearched: boolean;
-  currentSearch: SavedSearch | null;
+  currentSearch: Result | null;
   grepOptions: GrepOptions;
   model: string;
 };
