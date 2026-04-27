@@ -130,7 +130,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       />
     ),
     size: `minmax(auto, 5fr)`,
-    clamp: true
+    clamp: true,
   });
 
   if (fields.target) {

@@ -194,11 +194,7 @@ export function createSamplePolling(
       if (
         shouldFinalizeStreamingSample(
           sampleDataResponse,
-          hasCompletedLogSummary(
-            store.getState(),
-            summary.id,
-            summary.epoch
-          )
+          hasCompletedLogSummary(store.getState(), summary.id, summary.epoch)
         )
       ) {
         return await loadCompletedSample(
