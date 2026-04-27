@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { ApiError } from "@tsmono/util";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -76,6 +77,10 @@ describe("useStartScan", () => {
       expect(result.current.isError).toBe(true);
     });
 
-    expect(result.current.error?.message).toContain("400");
+    const { error } = result.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(400);
+    }
   });
 });

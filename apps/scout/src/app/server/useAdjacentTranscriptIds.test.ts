@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { encodeBase64Url } from "@tsmono/util";
+import { ApiError, encodeBase64Url } from "@tsmono/util";
 
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
@@ -196,8 +196,11 @@ describe("useAdjacentTranscriptIds", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBeDefined();
-    expect(result.current.error?.message).toContain("500");
+    const { error } = result.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(500);
+    }
   });
 
   it("returns loading when location is null", async () => {
