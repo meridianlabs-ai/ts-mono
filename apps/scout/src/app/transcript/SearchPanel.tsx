@@ -36,6 +36,7 @@ import styles from "./SearchPanel.module.css";
 import {
   createInitialSearchPanelState,
   getSearchPanelStateKey,
+  normalizeSearchPanelState,
   SearchPanelState,
 } from "./searchPanelState";
 import { buildSearchRequest, buildSearchScope } from "./searchRequest";
@@ -105,7 +106,7 @@ export const SearchPanel = ({
     transcriptId,
   });
 
-  const state = storedState ?? createInitialSearchPanelState();
+  const state = normalizeSearchPanelState(storedState);
   const setState = useCallback(
     (
       updater: SearchPanelState | ((prev: SearchPanelState) => SearchPanelState)
@@ -114,8 +115,11 @@ export const SearchPanel = ({
     },
     [searchPanelStateKey, setSearchPanelState]
   );
-  const { query, searchType, hasSearched, currentSearch, grepOptions, model } =
-    state;
+  const { searchType } = state;
+  const activeState = state.searches[searchType];
+  const { query, hasSearched, currentSearch } = activeState;
+  const grepOptions = state.searches.grep.grepOptions;
+  const model = state.searches.llm.model;
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const recentButtonRef = useRef<HTMLButtonElement>(null);
@@ -132,8 +136,14 @@ export const SearchPanel = ({
 
       setState((prev) => ({
         ...prev,
-        hasSearched: true,
-        currentSearch: null,
+        searches: {
+          ...prev.searches,
+          [searchType]: {
+            ...prev.searches[searchType],
+            hasSearched: true,
+            currentSearch: null,
+          },
+        },
       }));
       createSearchMutation.reset();
       cachedSearchMutation.reset();
@@ -154,7 +164,16 @@ export const SearchPanel = ({
 
       createSearchMutation.mutate(request, {
         onSuccess: (result) => {
-          setState((prev) => ({ ...prev, currentSearch: result }));
+          setState((prev) => ({
+            ...prev,
+            searches: {
+              ...prev.searches,
+              [searchType]: {
+                ...prev.searches[searchType],
+                currentSearch: result,
+              },
+            },
+          }));
           if (searchType === "llm") {
             recordSearchModel(resolvedModel);
           }
@@ -190,23 +209,41 @@ export const SearchPanel = ({
       recentLookupSearchIdRef.current = search.search_id;
       setIsRecentOpen(false);
       setState((prev) => {
-        const next: SearchPanelState = {
-          ...prev,
-          currentSearch: null,
-          hasSearched: false,
-          query: search.query,
-          searchType: search.type,
-        };
         if (search.type === "llm") {
-          next.model = search.model ?? "";
+          return {
+            ...prev,
+            searchType: search.type,
+            searches: {
+              ...prev.searches,
+              llm: {
+                ...prev.searches.llm,
+                currentSearch: null,
+                hasSearched: false,
+                model: search.model ?? "",
+                query: search.query,
+              },
+            },
+          };
         } else {
-          next.grepOptions = {
-            ignoreCase: search.ignore_case,
-            regex: search.regex,
-            wordBoundary: search.word_boundary,
+          return {
+            ...prev,
+            searchType: search.type,
+            searches: {
+              ...prev.searches,
+              grep: {
+                ...prev.searches.grep,
+                currentSearch: null,
+                grepOptions: {
+                  ignoreCase: search.ignore_case,
+                  regex: search.regex,
+                  wordBoundary: search.word_boundary,
+                },
+                hasSearched: false,
+                query: search.query,
+              },
+            },
           };
         }
-        return next;
       });
       cachedSearchMutation.mutate(
         {
@@ -221,8 +258,14 @@ export const SearchPanel = ({
             ) {
               setState((prev) => ({
                 ...prev,
-                currentSearch: searchResult,
-                hasSearched: true,
+                searches: {
+                  ...prev.searches,
+                  [search.type]: {
+                    ...prev.searches[search.type],
+                    currentSearch: searchResult,
+                    hasSearched: true,
+                  },
+                },
               }));
             }
           },
@@ -243,7 +286,16 @@ export const SearchPanel = ({
     (key: keyof GrepOptions) => {
       setState((prev) => ({
         ...prev,
-        grepOptions: { ...prev.grepOptions, [key]: !prev.grepOptions[key] },
+        searches: {
+          ...prev.searches,
+          grep: {
+            ...prev.searches.grep,
+            grepOptions: {
+              ...prev.searches.grep.grepOptions,
+              [key]: !prev.searches.grep.grepOptions[key],
+            },
+          },
+        },
       }));
     },
     [setState]
@@ -258,7 +310,17 @@ export const SearchPanel = ({
 
   const handleQueryInput = useCallback(
     (e: Event) => {
-      setState((prev) => ({ ...prev, query: getInputValue(e) }));
+      const value = getInputValue(e);
+      setState((prev) => ({
+        ...prev,
+        searches: {
+          ...prev.searches,
+          [prev.searchType]: {
+            ...prev.searches[prev.searchType],
+            query: value,
+          },
+        },
+      }));
     },
     [setState]
   );
@@ -367,7 +429,13 @@ export const SearchPanel = ({
                       onChange={(value) =>
                         setState((prev) => ({
                           ...prev,
-                          model: value,
+                          searches: {
+                            ...prev.searches,
+                            llm: {
+                              ...prev.searches.llm,
+                              model: value,
+                            },
+                          },
                         }))
                       }
                       suggestions={searchModelHistory}
