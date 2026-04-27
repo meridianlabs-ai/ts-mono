@@ -80,10 +80,12 @@ export function createSamplePolling(
       return;
     }
 
-    // Stop any existing polling first
+    // Stop any existing polling first (this also aborts the previous
+    // controller so any in-flight callback for the prior session bails
+    // out instead of mutating state for the new session).
     if (currentPolling) {
       log.debug(`Resetting existing polling`);
-      currentPolling.stop();
+      stopPolling();
 
       // Clear any current running events
       store.getState().sampleActions.setRunningEvents([]);
@@ -91,7 +93,11 @@ export function createSamplePolling(
 
     // Always reset the polling state when starting new polling
     resetPollingState(pollingState);
-    abortController = new AbortController();
+    // Capture the controller in a local so this callback always checks
+    // its own session's signal — even if `abortController` is later
+    // reassigned by a subsequent startPolling call.
+    const localAbort = new AbortController();
+    abortController = localAbort;
 
     // Create the polling callback
     log.debug(`Polling sample: ${summary.id}-${summary.epoch}`);
@@ -109,7 +115,7 @@ export function createSamplePolling(
         throw new Error("Required API get_log_sample_data is undefined.");
       }
 
-      if (abortController.signal.aborted) {
+      if (localAbort.signal.aborted) {
         return false;
       }
 
@@ -128,7 +134,7 @@ export function createSamplePolling(
         callPoolId !== kNoId ? callPoolId : undefined
       );
 
-      if (abortController.signal.aborted) {
+      if (localAbort.signal.aborted) {
         return false;
       }
 
@@ -154,6 +160,12 @@ export function createSamplePolling(
               summary.epoch
             );
 
+            // If the user navigated away while we were fetching, don't
+            // overwrite the new sample's state with this stale result.
+            if (localAbort.signal.aborted) {
+              return false;
+            }
+
             if (sample) {
               const migratedSample = resolveSample(sample);
 
@@ -169,12 +181,15 @@ export function createSamplePolling(
               sampleActions.setRunningEvents([]);
             }
           } catch (e) {
+            if (localAbort.signal.aborted) {
+              return false;
+            }
             sampleActions.setSampleError(e as Error);
             sampleActions.setSampleStatus("error");
             sampleActions.setRunningEvents([]);
           }
         } else {
-          if (state.sample.sampleStatus === "streaming") {
+          if (store.getState().sample.sampleStatus === "streaming") {
             sampleActions.setSampleStatus("ok");
           }
           sampleActions.setRunningEvents([]);
@@ -186,7 +201,7 @@ export function createSamplePolling(
         sampleDataResponse?.status === "OK" &&
         sampleDataResponse.sampleData
       ) {
-        if (abortController.signal.aborted) {
+        if (localAbort.signal.aborted) {
           return false;
         }
         sampleActions.setSampleStatus("streaming");
@@ -251,6 +266,12 @@ export function createSamplePolling(
 
   // Stop polling
   const stopPolling = () => {
+    // Abort the in-flight callback (if any) so it bails out at its
+    // next abort check instead of mutating state for a sample the
+    // user has navigated away from.
+    if (abortController) {
+      abortController.abort();
+    }
     if (currentPolling) {
       currentPolling.stop();
       currentPolling = null;
