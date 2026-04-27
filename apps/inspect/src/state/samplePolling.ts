@@ -8,11 +8,13 @@ import {
 } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { sampleIdsEqual } from "../app/shared/sample";
 import { Event } from "../app/types";
 import {
   ClientAPI,
   EventData,
   SampleData,
+  SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
 import { resolveAttachments } from "../utils/attachments";
@@ -52,7 +54,7 @@ export function createSamplePolling(
   let currentPolling: ReturnType<typeof createPolling> | null = null;
 
   // handle aborts
-  let abortController: AbortController;
+  let abortController: AbortController | undefined;
 
   // The inintial polling state
   const pollingState: PollingState = {
@@ -80,10 +82,15 @@ export function createSamplePolling(
       return;
     }
 
-    // Stop any existing polling first
-    if (currentPolling) {
-      log.debug(`Resetting existing polling`);
-      currentPolling.stop();
+    // Stop any existing or completing session first. A previous session may
+    // have already stopped its timer while still awaiting a terminal sample
+    // fetch, so we also key off the abort controller here.
+    if (
+      currentPolling ||
+      (abortController && !abortController.signal.aborted)
+    ) {
+      log.debug(`Resetting existing polling session`);
+      stopPolling();
 
       // Clear any current running events
       store.getState().sampleActions.setRunningEvents([]);
@@ -91,7 +98,11 @@ export function createSamplePolling(
 
     // Always reset the polling state when starting new polling
     resetPollingState(pollingState);
-    abortController = new AbortController();
+    // Capture the controller in a local so this callback always checks
+    // its own session's signal — even if `abortController` is later
+    // reassigned by a subsequent startPolling call.
+    const localAbort = new AbortController();
+    abortController = localAbort;
 
     // Create the polling callback
     log.debug(`Polling sample: ${summary.id}-${summary.epoch}`);
@@ -109,9 +120,54 @@ export function createSamplePolling(
         throw new Error("Required API get_log_sample_data is undefined.");
       }
 
-      if (abortController.signal.aborted) {
+      if (localAbort.signal.aborted) {
         return false;
       }
+
+      const loadCompletedSample = async (message: string) => {
+        // A 404 from the server means that this sample has been flushed to the
+        // main eval file. We also take the same path when the log summary says
+        // the sample is complete but the buffer only returns empty deltas.
+        stopPollingTimer();
+
+        try {
+          log.debug(message);
+          const sample = await api.get_log_sample(
+            logFile,
+            summary.id,
+            summary.epoch
+          );
+
+          // If the user navigated away while we were fetching, don't overwrite
+          // the new sample's state with this stale result.
+          if (localAbort.signal.aborted) {
+            return false;
+          }
+
+          if (sample) {
+            const migratedSample = resolveSample(sample);
+
+            sampleActions.setSelectedSample(migratedSample, logFile);
+            sampleActions.setSampleStatus("ok");
+            sampleActions.setRunningEvents([]);
+          } else {
+            sampleActions.setSampleStatus("error");
+            sampleActions.setSampleError(
+              new Error("Unable to load sample - an unknown error occurred")
+            );
+            sampleActions.setRunningEvents([]);
+          }
+        } catch (e) {
+          if (localAbort.signal.aborted) {
+            return false;
+          }
+          sampleActions.setSampleError(e as Error);
+          sampleActions.setSampleStatus("error");
+          sampleActions.setRunningEvents([]);
+        }
+
+        return false;
+      };
 
       // Fetch sample data
       const eventId = pollingState.eventId;
@@ -128,65 +184,32 @@ export function createSamplePolling(
         callPoolId !== kNoId ? callPoolId : undefined
       );
 
-      if (abortController.signal.aborted) {
+      if (localAbort.signal.aborted) {
         return false;
       }
 
       if (sampleDataResponse?.status === "NotFound") {
-        // A 404 from the server means that this sample
-        // has been flushed to the main eval file, no events
-        // are available and we should retrieve the data from the
-        // sample file itself.
+        return await loadCompletedSample(
+          `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`
+        );
+      }
 
-        // Stop polling since we now have the complete sample
-        stopPolling();
-
-        // Also fetch a fresh sample and clear the runnning Events
-        // (if there were ever running events)
-        if (state.sample.runningEvents.length > 0) {
-          try {
-            log.debug(
-              `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`
-            );
-            const sample = await api.get_log_sample(
-              logFile,
-              summary.id,
-              summary.epoch
-            );
-
-            if (sample) {
-              const migratedSample = resolveSample(sample);
-
-              // Update the store with the completed sample
-              sampleActions.setSelectedSample(migratedSample, logFile);
-              sampleActions.setSampleStatus("ok");
-              sampleActions.setRunningEvents([]);
-            } else {
-              sampleActions.setSampleStatus("error");
-              sampleActions.setSampleError(
-                new Error("Unable to load sample - an unknown error occurred")
-              );
-              sampleActions.setRunningEvents([]);
-            }
-          } catch (e) {
-            sampleActions.setSampleError(e as Error);
-            sampleActions.setSampleStatus("error");
-            sampleActions.setRunningEvents([]);
-          }
-        } else {
-          if (state.sample.sampleStatus === "streaming") {
-            sampleActions.setSampleStatus("ok");
-          }
-          sampleActions.setRunningEvents([]);
-        }
-        return false;
+      if (
+        shouldFinalizeStreamingSample(
+          sampleDataResponse,
+          hasCompletedLogSummary(store.getState(), summary.id, summary.epoch)
+        )
+      ) {
+        return await loadCompletedSample(
+          `LOADING COMPLETED SAMPLE AFTER SUMMARY UPDATE: ${summary.id}-${summary.epoch}`
+        );
       }
 
       if (
         sampleDataResponse?.status === "OK" &&
         sampleDataResponse.sampleData
       ) {
-        if (abortController.signal.aborted) {
+        if (localAbort.signal.aborted) {
           return false;
         }
         sampleActions.setSampleStatus("streaming");
@@ -251,6 +274,16 @@ export function createSamplePolling(
 
   // Stop polling
   const stopPolling = () => {
+    // Abort the in-flight callback (if any) so it bails out at its
+    // next abort check instead of mutating state for a sample the
+    // user has navigated away from.
+    if (abortController) {
+      abortController.abort();
+    }
+    stopPollingTimer();
+  };
+
+  const stopPollingTimer = () => {
     if (currentPolling) {
       currentPolling.stop();
       currentPolling = null;
@@ -271,6 +304,47 @@ export function createSamplePolling(
     cleanup,
   };
 }
+
+const hasCompletedLogSummary = (
+  state: StoreState,
+  sampleId: string | number,
+  sampleEpoch: number
+) => {
+  return state.log.selectedLogDetails?.sampleSummaries.some(
+    (sampleSummary) =>
+      sampleIdsEqual(sampleSummary.id, sampleId) &&
+      sampleSummary.epoch === sampleEpoch &&
+      sampleSummary.completed !== false
+  );
+};
+
+export const hasSampleDataUpdates = (sampleData?: SampleData) => {
+  if (!sampleData) {
+    return false;
+  }
+
+  return (
+    sampleData.events.length > 0 ||
+    sampleData.attachments.length > 0 ||
+    sampleData.message_pool.length > 0 ||
+    sampleData.call_pool.length > 0
+  );
+};
+
+export const shouldFinalizeStreamingSample = (
+  sampleDataResponse: SampleDataResponse | undefined,
+  completedInLog: boolean | undefined
+) => {
+  if (!completedInLog || !sampleDataResponse) {
+    return false;
+  }
+
+  return (
+    sampleDataResponse.status === "NotModified" ||
+    (sampleDataResponse.status === "OK" &&
+      !hasSampleDataUpdates(sampleDataResponse.sampleData))
+  );
+};
 
 const resetPollingState = (state: PollingState) => {
   state.eventId = kNoId;

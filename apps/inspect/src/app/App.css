@@ -22,7 +22,6 @@ li > ul {
 .tab-tools > * {
   flex: 0 1 auto;
   height: 1.5rem;
-  margin-left: 0.5rem;
 }
 
 .tab-tools > input {

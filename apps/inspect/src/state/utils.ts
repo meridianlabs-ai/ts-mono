@@ -14,11 +14,10 @@ export const mergeSampleSummaries = (
   const uniquePendingSamples = pendingSamples
     .filter((sample) => !existingSampleIds.has(`${sample.id}-${sample.epoch}`))
     .map((sample) => {
-      // Pass through the server's completed status. Samples start with
-      // completed=false and transition to completed=true when they finish.
-      // This allows the UI to detect completion (e.g. stop showing progress
-      // indicators) even while the sample is still in the pending buffer.
-      return { ...sample, completed: sample.completed ?? false };
+      // Pending-buffer samples are not necessarily in the .eval ZIP yet,
+      // even if their work has completed. Keep them on the streaming path
+      // until they appear in the log summaries.
+      return { ...sample, completed: false };
     });
 
   // Combine and return all samples
