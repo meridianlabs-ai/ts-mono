@@ -178,6 +178,7 @@ export function createTimelineSpan(
   return {
     type: "span",
     utility: false,
+    tool_invoked: false,
     content: [],
     branches: [],
     ...overrides,
