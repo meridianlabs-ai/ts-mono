@@ -3336,6 +3336,11 @@ export interface components {
             /** Span Type */
             span_type?: string | null;
             /**
+             * Tool Invoked
+             * @default false
+             */
+            tool_invoked: boolean;
+            /**
              * Type
              * @default span
              * @constant
