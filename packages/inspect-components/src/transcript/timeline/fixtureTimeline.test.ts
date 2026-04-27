@@ -17,7 +17,12 @@ import { describe, expect, it } from "vitest";
 
 import type { Event } from "@tsmono/inspect-common/types";
 
-import { buildTimeline, type Timeline, TimelineEvent, TimelineSpan } from "./core";
+import {
+  buildTimeline,
+  TimelineEvent,
+  TimelineSpan,
+  type Timeline,
+} from "./core";
 
 // =============================================================================
 // Fixture Types
@@ -118,7 +123,7 @@ interface FixtureData {
 
 const FIXTURES_DIR = join(
   __dirname,
-  "../../../../../../../../../tests/transcript/nodes/fixtures/events",
+  "../../../../../../../../../tests/transcript/nodes/fixtures/events"
 );
 
 const FIXTURES_AVAILABLE = existsSync(FIXTURES_DIR);
@@ -132,7 +137,9 @@ function loadFixture(name: string): FixtureData {
 function getFixtureNames(): string[] {
   if (!FIXTURES_AVAILABLE) return [];
   const files = readdirSync(FIXTURES_DIR);
-  return files.filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", ""));
+  return files
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(".json", ""));
 }
 
 // =============================================================================
@@ -275,7 +282,9 @@ function createEvent(data: JsonEvent): Event | null {
 }
 
 function eventsFromJson(data: FixtureData): Event[] {
-  return data.events.map((e) => createEvent(e)).filter((e): e is Event => e !== null);
+  return data.events
+    .map((e) => createEvent(e))
+    .filter((e): e is Event => e !== null);
 }
 
 // =============================================================================
@@ -309,7 +318,7 @@ function getAllEventUuids(node: TimelineSpan): string[] {
 
 function assertBranchMatches(
   actual: TimelineSpan,
-  expected: ExpectedBranch,
+  expected: ExpectedBranch
 ): void {
   expect(actual.branchedFrom).toBe(expected.branched_from);
   if (expected.event_uuids !== undefined) {
@@ -333,10 +342,10 @@ function assertBranchMatches(
 
 function assertScoringSpanMatches(
   root: TimelineSpan,
-  expected: ExpectedSection | null,
+  expected: ExpectedSection | null
 ): void {
   const scorerSpans = root.content.filter(
-    (c): c is TimelineSpan => c.type === "span" && c.spanType === "scorers",
+    (c): c is TimelineSpan => c.type === "span" && c.spanType === "scorers"
   );
 
   if (expected === null) {
@@ -355,7 +364,7 @@ function assertScoringSpanMatches(
 
 function assertSpanMatches(
   actual: TimelineSpan | null,
-  expected: ExpectedAgent | null,
+  expected: ExpectedAgent | null
 ): void {
   if (expected === null) {
     expect(actual).toBeNull();
@@ -416,7 +425,7 @@ function assertSpanMatches(
         !(
           item.type === "span" &&
           (item.spanType === "scorers" || item.spanType === "init")
-        ),
+        )
     );
 
     expect(contentToCheck.length).toBe(expected.content_structure.length);
@@ -428,11 +437,14 @@ function assertSpanMatches(
         continue;
       }
 
-      const expectedType = expectedItem.type === "agent" ? "span" : expectedItem.type;
+      const expectedType =
+        expectedItem.type === "agent" ? "span" : expectedItem.type;
       expect(actualItem.type).toBe(expectedType);
 
       if (expectedItem.type === "event" && expectedItem.uuid) {
-        expect((actualItem as TimelineEvent).event.uuid).toBe(expectedItem.uuid);
+        expect((actualItem as TimelineEvent).event.uuid).toBe(
+          expectedItem.uuid
+        );
       }
 
       if (expectedItem.type === "agent") {
@@ -463,7 +475,10 @@ function assertSpanMatches(
   }
 }
 
-function assertTimelineMatches(actual: Timeline, expected: ExpectedNodes): void {
+function assertTimelineMatches(
+  actual: Timeline,
+  expected: ExpectedNodes
+): void {
   const root = actual.root;
 
   // Check init: init events are in a TimelineSpan with spanType="init"
@@ -520,7 +535,7 @@ function assertTimelineMatches(actual: Timeline, expected: ExpectedNodes): void 
     if (expected.agent.children !== undefined) {
       const childSpans = root.content.filter(
         (c): c is TimelineSpan =>
-          c.type === "span" && c.spanType !== "scorers" && c.spanType !== "init",
+          c.type === "span" && c.spanType !== "scorers" && c.spanType !== "init"
       );
       expect(childSpans.length).toBe(expected.agent.children.length);
       for (let i = 0; i < expected.agent.children.length; i++) {
@@ -536,10 +551,12 @@ function assertTimelineMatches(actual: Timeline, expected: ExpectedNodes): void 
           !(
             item.type === "span" &&
             (item.spanType === "scorers" || item.spanType === "init")
-          ),
+          )
       );
 
-      expect(contentToCheck.length).toBe(expected.agent.content_structure.length);
+      expect(contentToCheck.length).toBe(
+        expected.agent.content_structure.length
+      );
       for (let i = 0; i < expected.agent.content_structure.length; i++) {
         const actualItem = contentToCheck[i];
         const expectedItem = expected.agent.content_structure[i];
@@ -548,11 +565,14 @@ function assertTimelineMatches(actual: Timeline, expected: ExpectedNodes): void 
           continue;
         }
 
-        const expectedType = expectedItem.type === "agent" ? "span" : expectedItem.type;
+        const expectedType =
+          expectedItem.type === "agent" ? "span" : expectedItem.type;
         expect(actualItem.type).toBe(expectedType);
 
         if (expectedItem.type === "event" && expectedItem.uuid) {
-          expect((actualItem as TimelineEvent).event.uuid).toBe(expectedItem.uuid);
+          expect((actualItem as TimelineEvent).event.uuid).toBe(
+            expectedItem.uuid
+          );
         }
 
         if (expectedItem.type === "agent") {
@@ -616,7 +636,7 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
     expect(result.root.startTime()).toBeDefined();
     expect(result.root.endTime()).toBeDefined();
     expect(result.root.startTime().getTime()).toBeLessThanOrEqual(
-      result.root.endTime().getTime(),
+      result.root.endTime().getTime()
     );
   });
 });
