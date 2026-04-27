@@ -641,12 +641,14 @@ const SearchResult: FC<{
         <MarkdownDivWithReferences
           markdown={result.explanation}
           references={markdownRefs}
+          renderer="simple"
         />
       )}
       {typeof result.value === "string" && (
         <MarkdownDivWithReferences
           markdown={result.value}
           references={markdownRefs}
+          renderer="simple"
         />
       )}
     </div>

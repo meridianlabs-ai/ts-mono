@@ -12,21 +12,17 @@ import {
 import "./MarkdownDiv.css";
 
 import {
+  defaultMarkdownRenderer,
   escapeHtmlCharacters,
-  getMarkdownInstance,
-  preRenderText,
-  protectBackslashesInLatex,
-  protectMarkdown,
-  restoreBackslashesForLatex,
-  unescapeCodeHtmlEntities,
-  unescapeSupHtmlEntities,
-  unprotectMarkdown,
+  renderMarkdown,
+  type MarkdownRenderer,
 } from "./markdownRendering";
+
+export type { MarkdownRenderer } from "./markdownRendering";
 
 interface MarkdownDivProps {
   markdown: string;
-  omitMedia?: boolean;
-  omitMath?: boolean;
+  renderer?: MarkdownRenderer;
   style?: CSSProperties;
   className?: string | string[];
   postProcess?: (html: string) => string;
@@ -38,13 +34,11 @@ const sanitizeMarkdown = (md: string): string => {
 };
 
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
-  (
-    { markdown, omitMedia, omitMath, style, className, postProcess, onClick },
-    ref
-  ) => {
+  ({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
+    const rendererName = renderer ?? defaultMarkdownRenderer;
+
     // Check cache for rendered content (before post-processing)
-    const optionsKey = `${omitMedia ? "1" : "0"}:${omitMath ? "1" : "0"}`;
-    const cacheKey = `${markdown}:${optionsKey}`;
+    const cacheKey = `${rendererName}:${markdown}`;
     const cachedHtml = renderCache.get(cacheKey);
 
     // Apply post-processing to get final HTML
@@ -80,41 +74,9 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       setRenderedHtml(sanitizeMarkdown(markdown));
 
       // Process markdown asynchronously using the queue
-      const { promise, cancel } = renderQueue.enqueue(() => {
-        // Protect backslashes in LaTeX expressions
-        const protectedContent = protectBackslashesInLatex(markdown);
-
-        // Escape all tags
-        const escaped = escapeHtmlCharacters(protectedContent);
-
-        // Pre-render any text that isn't handled by markdown
-        const preRendered = preRenderText(escaped);
-
-        const protectedText = protectMarkdown(preRendered);
-
-        // Restore backslashes for LaTeX processing
-        const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
-
-        let html = preparedForMarkdown;
-        try {
-          // Get appropriate markdown-it instance based on options
-          const md = getMarkdownInstance(omitMedia, omitMath);
-          html = md.render(preparedForMarkdown);
-        } catch (ex) {
-          console.log("Unable to markdown render content");
-          console.error(ex);
-        }
-
-        const unescaped = unprotectMarkdown(html);
-
-        // For `code` tags, reverse the escaping if we can
-        const withCode = unescapeCodeHtmlEntities(unescaped);
-
-        // For `sup` tags, reverse the escaping if we can
-        const withSup = unescapeSupHtmlEntities(withCode);
-
-        return withSup;
-      });
+      const { promise, cancel } = renderQueue.enqueue(() =>
+        renderMarkdown(markdown, rendererName)
+      );
 
       // Update state when rendering completes
       promise
@@ -147,8 +109,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       };
     }, [
       markdown,
-      omitMedia,
-      omitMath,
+      rendererName,
       cachedHtml,
       renderedHtml,
       cacheKey,

@@ -9,8 +9,9 @@ import markdownitMathjax3 from "markdown-it-mathjax3";
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
 
-const getOptionsKey = (omitMedia?: boolean, omitMath?: boolean): string =>
-  `${omitMedia ? "1" : "0"}:${omitMath ? "1" : "0"}`;
+export type MarkdownRenderer = "full" | "compact" | "simple";
+
+export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
 /** Unescape HTML entities within math token content before MathJax processing.
  *  This is safe because MathJax renders TeX to SVG/MathML, not raw HTML. */
@@ -23,19 +24,23 @@ export const unescapeHtmlForMath = (content: string): string => {
     .replace(/&quot;/g, '"');
 };
 
-export const getMarkdownInstance = (
-  omitMedia?: boolean,
-  omitMath?: boolean
-): MarkdownIt => {
-  const key = getOptionsKey(omitMedia, omitMath);
-
-  const cached = mdInstanceCache[key];
+export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
+  const cached = mdInstanceCache[renderer];
   if (cached) {
     return cached;
   }
 
+  if (renderer === "simple") {
+    const md = new MarkdownIt("zero", { breaks: true, html: false }).enable([
+      "emphasis",
+      "newline",
+    ]);
+    mdInstanceCache[renderer] = md;
+    return md;
+  }
+
   const md = new MarkdownIt({ breaks: true, html: true });
-  if (!omitMath) {
+  if (renderer === "full" || renderer === "compact") {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
     md.use(markdownitMathjax3);
 
@@ -66,10 +71,10 @@ export const getMarkdownInstance = (
       };
     }
   }
-  if (omitMedia) {
+  if (renderer === "compact") {
     md.disable(["image"]);
   }
-  mdInstanceCache[key] = md;
+  mdInstanceCache[renderer] = md;
 
   return md;
 };
@@ -242,3 +247,64 @@ export function unescapeCodeHtmlEntities(str: string): string {
     }
   );
 }
+
+type MarkdownRenderFunction = (markdown: string) => string;
+
+const renderFullPipelineMarkdown = (
+  markdown: string,
+  renderer: "full" | "compact"
+): string => {
+  // Protect backslashes in LaTeX expressions
+  const protectedContent = protectBackslashesInLatex(markdown);
+
+  // Escape all tags
+  const escaped = escapeHtmlCharacters(protectedContent);
+
+  // Pre-render any text that isn't handled by markdown
+  const preRendered = preRenderText(escaped);
+
+  const protectedText = protectMarkdown(preRendered);
+
+  // Restore backslashes for LaTeX processing
+  const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
+
+  let html = preparedForMarkdown;
+  try {
+    const md = getMarkdownInstance(renderer);
+    html = md.render(preparedForMarkdown);
+  } catch (ex) {
+    console.log("Unable to markdown render content");
+    console.error(ex);
+  }
+
+  const unescaped = unprotectMarkdown(html);
+
+  // For `code` tags, reverse the escaping if we can
+  const withCode = unescapeCodeHtmlEntities(unescaped);
+
+  // For `sup` tags, reverse the escaping if we can
+  const withSup = unescapeSupHtmlEntities(withCode);
+
+  return withSup;
+};
+
+const renderSimpleMarkdown = (markdown: string): string => {
+  try {
+    return getMarkdownInstance("simple").render(markdown);
+  } catch (ex) {
+    console.log("Unable to markdown render content");
+    console.error(ex);
+    return escapeHtmlCharacters(markdown).replace(/\n/g, "<br/>");
+  }
+};
+
+const markdownRenderers: Record<MarkdownRenderer, MarkdownRenderFunction> = {
+  full: (markdown) => renderFullPipelineMarkdown(markdown, "full"),
+  compact: (markdown) => renderFullPipelineMarkdown(markdown, "compact"),
+  simple: renderSimpleMarkdown,
+};
+
+export const renderMarkdown = (
+  markdown: string,
+  renderer: MarkdownRenderer = defaultMarkdownRenderer
+): string => markdownRenderers[renderer](markdown);

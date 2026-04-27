@@ -1,24 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  escapeHtmlCharacters,
-  getMarkdownInstance,
   protectBackslashesInLatex,
+  renderMarkdown,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
+  type MarkdownRenderer,
 } from "./markdownRendering";
 
 /**
  * Simulate the async rendering pipeline from MarkdownDiv.
  * This mirrors the steps in the renderQueue.enqueue callback.
  */
-function renderPipeline(markdown: string, omitMath = false): string {
-  const protectedContent = protectBackslashesInLatex(markdown);
-  const escaped = escapeHtmlCharacters(protectedContent);
-  const preparedForMarkdown = restoreBackslashesForLatex(escaped);
-
-  const md = getMarkdownInstance(false, omitMath);
-  return md.render(preparedForMarkdown);
+function renderPipeline(
+  markdown: string,
+  renderer: MarkdownRenderer = "full"
+): string {
+  return renderMarkdown(markdown, renderer);
 }
 
 describe("MarkdownDiv XSS security", () => {
@@ -126,6 +124,29 @@ describe("MarkdownDiv XSS security", () => {
       const input = "&lt;script&gt;";
       const result = restoreBackslashesForLatex(input);
       expect(result).toBe("&lt;script&gt;");
+    });
+  });
+
+  describe("renderer scenarios", () => {
+    it("compact renderer omits markdown images", () => {
+      const result = renderPipeline(
+        "![alt](https://example.com/image.png)",
+        "compact"
+      );
+      expect(result).not.toContain("<img");
+      expect(result).toContain("alt");
+    });
+
+    it("simple renderer supports emphasis and newlines only", () => {
+      const result = renderPipeline(
+        "hello *world*\n![alt](https://example.com/image.png)\n[link](https://example.com)",
+        "simple"
+      );
+
+      expect(result).toContain("<em>world</em>");
+      expect(result).toContain("<br>");
+      expect(result).not.toContain("<img");
+      expect(result).not.toContain("<a ");
     });
   });
 });
