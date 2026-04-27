@@ -230,7 +230,7 @@ function createEvent(data: JsonEvent): Event | null {
         source: data.source ?? "unknown",
         data: {},
         span_id: data.span_id ?? null,
-      } as Event;
+      };
     }
 
     case "span_begin": {
@@ -242,7 +242,7 @@ function createEvent(data: JsonEvent): Event | null {
         type: data.type ?? null,
         parent_id: data.parent_id ?? null,
         span_id: data.span_id ?? null,
-      } as Event;
+      };
     }
 
     case "span_end": {
@@ -251,19 +251,19 @@ function createEvent(data: JsonEvent): Event | null {
         event: "span_end",
         id: data.id ?? "",
         span_id: data.span_id ?? null,
-      } as Event;
+      };
     }
 
     case "compaction": {
       return {
         ...baseFields,
         event: "compaction",
-        type: data.type ?? "summary",
+        type: (data.type as "summary" | "edit" | "trim") ?? "summary",
         span_id: data.span_id ?? null,
         source: null,
         tokens_before: null,
         tokens_after: null,
-      } as Event;
+      };
     }
 
     case "branch": {
@@ -273,7 +273,7 @@ function createEvent(data: JsonEvent): Event | null {
         span_id: data.span_id ?? null,
         from_span: data.from_span ?? "",
         from_message: data.from_message ?? "",
-      } as Event;
+      };
     }
 
     default:
