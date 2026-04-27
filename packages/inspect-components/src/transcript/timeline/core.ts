@@ -616,6 +616,23 @@ function containsModelEvents(span: SpanNode): boolean {
   return false;
 }
 
+/**
+ * Check if a span has any descendant span with type="agent".
+ *
+ * Used to suppress tool→agent classification when the tool already
+ * wraps an explicit agent span (which will represent the agent itself).
+ */
+function containsAgentSpan(span: SpanNode): boolean {
+  for (const child of span.children) {
+    if (isSpanNode(child)) {
+      if (child.type === "agent" || containsAgentSpan(child)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // =============================================================================
 // Node Building from Tree
 // =============================================================================
@@ -668,7 +685,11 @@ function isAgentSpan(span: SpanNode): boolean {
   if (span.type === "agent" || span.type === "solver") {
     return true;
   }
-  if (span.type === "tool" && containsModelEvents(span)) {
+  if (
+    span.type === "tool" &&
+    containsModelEvents(span) &&
+    !containsAgentSpan(span)
+  ) {
     return true;
   }
   return false;
@@ -751,9 +772,15 @@ function buildSpanFromGenericSpan(span: SpanNode): TimelineSpan | null {
     return null;
   }
 
-  // Determine the spanType based on span type and content
+  // Determine the spanType based on span type and content. A tool span that
+  // recursively contains model events is treated as a tool-spawned agent
+  // (e.g. bridge-style tools like Claude Code that emit raw model events).
+  // But if the tool already wraps an explicit agent span, leave the
+  // classification alone — the inner agent span represents the agent.
   const spanType: string | null =
-    span.type === "tool" && containsModelEvents(span)
+    span.type === "tool" &&
+    containsModelEvents(span) &&
+    !containsAgentSpan(span)
       ? "agent"
       : (span.type ?? null);
 
