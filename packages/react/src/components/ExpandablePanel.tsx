@@ -61,11 +61,15 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     );
     const contentRef = useResizeObserver(checkOverflow);
 
-    // `overflow: hidden` is only needed when collapsed (to clip to maxHeight).
-    // Leaving it on when expanded would make the panel a "scroll container"
-    // for CSS sticky purposes, trapping the sticky toggle inside the panel
-    // instead of letting it follow the outer viewport/scroll container.
-    const baseStyles: CSSProperties = collapsed
+    // `overflow: hidden` + `maxHeight` live on the inner content wrapper, not
+    // the outer panel. Two reasons:
+    //   1. Keeping it off the panel when expanded prevents the panel from
+    //      becoming a "scroll container" that would trap the sticky toggle.
+    //   2. Putting them on the wrapper means the wrapper's box matches the
+    //      visible (clipped) area, so a `mask-image` gradient on the wrapper
+    //      fades the bottom of the *visible* region — not the bottom of the
+    //      natural-height content (which would sit off-screen).
+    const contentStyles: CSSProperties = collapsed
       ? { overflow: "hidden", maxHeight: `${lines}rem` }
       : {};
 
@@ -96,17 +100,23 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     return (
       <div className={clsx(styles.outer, className)}>
         <div
-          style={baseStyles}
-          ref={contentRef}
           data-expandable-panel="true"
           className={clsx(
             styles.expandablePanel,
-            collapsed ? styles.expandableCollapsed : undefined,
             border ? styles.expandableBordered : undefined,
             className
           )}
         >
-          {children}
+          <div
+            ref={contentRef}
+            style={contentStyles}
+            className={clsx(
+              styles.expandableContentWrap,
+              collapsed && showToggle ? styles.expandableTruncated : undefined
+            )}
+          >
+            {children}
+          </div>
           {showToggle && layout === "inline-right" && (
             <div className={styles.inlineToggleHolder}>
               <div className={styles.inlineToggleSticky}>
