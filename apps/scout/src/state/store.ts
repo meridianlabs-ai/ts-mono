@@ -17,6 +17,7 @@ import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
 import type { ScanColumnKey } from "../app/scans/columns";
 import {
   createInitialSearchPanelState,
+  normalizeSearchPanelState,
   SearchPanelState,
 } from "../app/transcript/searchPanelState";
 import {
@@ -621,8 +622,9 @@ export const createStore = (api: ScoutApiV2) =>
           },
           setSearchPanelState: (key, updater) => {
             set((state) => {
-              const prev =
-                state.searchPanelStates[key] ?? createInitialSearchPanelState();
+              const prev = normalizeSearchPanelState(
+                state.searchPanelStates[key] ?? createInitialSearchPanelState()
+              );
               state.searchPanelStates[key] =
                 typeof updater === "function" ? updater(prev) : updater;
             });
