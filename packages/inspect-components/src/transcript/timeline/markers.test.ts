@@ -183,9 +183,12 @@ describe("isErrorEvent", () => {
     expect(isErrorEvent(node.event)).toBe(true);
   });
 
-  it("returns true for ModelEvent with output.error", () => {
+  it("returns false for ModelEvent with only output.error", () => {
+    // output.error is a soft-refusal/content-filter channel that the
+    // transcript's ModelEventView does not render, so it must not produce
+    // an error marker on its own.
     const node = makeModelEventNode(0, { outputError: "API error" });
-    expect(isErrorEvent(node.event)).toBe(true);
+    expect(isErrorEvent(node.event)).toBe(false);
   });
 
   it("returns false for ModelEvent without error", () => {
