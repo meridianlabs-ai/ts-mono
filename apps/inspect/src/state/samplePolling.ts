@@ -54,7 +54,7 @@ export function createSamplePolling(
   let currentPolling: ReturnType<typeof createPolling> | null = null;
 
   // handle aborts
-  let abortController: AbortController;
+  let abortController: AbortController | undefined;
 
   // The inintial polling state
   const pollingState: PollingState = {
@@ -82,11 +82,14 @@ export function createSamplePolling(
       return;
     }
 
-    // Stop any existing polling first (this also aborts the previous
-    // controller so any in-flight callback for the prior session bails
-    // out instead of mutating state for the new session).
-    if (currentPolling) {
-      log.debug(`Resetting existing polling`);
+    // Stop any existing or completing session first. A previous session may
+    // have already stopped its timer while still awaiting a terminal sample
+    // fetch, so we also key off the abort controller here.
+    if (
+      currentPolling ||
+      (abortController && !abortController.signal.aborted)
+    ) {
+      log.debug(`Resetting existing polling session`);
       stopPolling();
 
       // Clear any current running events
