@@ -3,6 +3,9 @@ dist/
 lib/
 .turbo/
 *.tsbuildinfo
+
+# Generated CSS Module type declarations (typed-css-modules)
+*.module.css.d.ts
 .env
 .env.*
 !.env.example

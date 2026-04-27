@@ -51,7 +51,6 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
               "text-size-smallest",
               "text-style-label",
               "text-style-secondary",
-              styles.label,
               col.className
             )}
           >

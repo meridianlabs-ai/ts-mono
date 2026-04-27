@@ -24,16 +24,21 @@ Turbo only runs a task's `dependsOn` chain for workspaces that have the task def
 
 ```
 turbo run check
-├── lint          (all workspaces, in parallel)
-├── typecheck     (all workspaces, in parallel)
+├── css-types     (workspaces with generated CSS module declarations)
+├── lint          (all workspaces, in parallel; depends on css-types)
+├── typecheck     (all workspaces, in parallel; depends on css-types)
 ├── format:check  (workspaces that have it, in parallel)
 └── check         (no-op, runs after all above complete)
 ```
 
-`lint` and `typecheck` both `dependsOn: ["^build"]`, meaning upstream packages are built first.
+`lint` and `typecheck` depend on same-workspace `css-types` where that task
+exists, so a clean checkout has generated CSS module declarations before
+type-aware ESLint or TypeScript runs.
+
+`build` has `dependsOn: ["^build"]`, meaning upstream packages are built first.
 
 ## Adding a new workspace
 
-1. Define leaf scripts: `lint`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config)
+1. Define leaf scripts: `lint`, `typecheck`, `test` (and `css-types` / `format:check` if the package needs them)
 2. Add `"check": "true"` so Turbo includes it in `turbo run check`
 3. Do **not** add orchestration logic to the workspace's scripts — that's Turbo's job

@@ -1,7 +1,6 @@
 {
   "extends": "@tsmono/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["css-modules"],
     "noImplicitAny": false,
     "noImplicitThis": false
   },

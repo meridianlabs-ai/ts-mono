@@ -5,8 +5,15 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "lib/**"]
     },
-    "lint": {},
-    "typecheck": {},
+    "css-types": {
+      "outputs": ["src/**/*.module.css.d.ts"]
+    },
+    "lint": {
+      "dependsOn": ["css-types"]
+    },
+    "typecheck": {
+      "dependsOn": ["css-types"]
+    },
     "format": {},
     "format:check": {},
     "check": {

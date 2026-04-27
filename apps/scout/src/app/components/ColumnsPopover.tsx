@@ -91,30 +91,21 @@ export const ColumnsPopover: FC<ColumnsPopoverProps> = ({
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
         <a
-          className={clsx(
-            styles.link,
-            isDefaultSelection ? styles.selected : undefined
-          )}
+          className={clsx(isDefaultSelection ? styles.selected : undefined)}
           onClick={() => setDefaultSelection()}
         >
           Default
         </a>
         |
         <a
-          className={clsx(
-            styles.link,
-            isAllSelection ? styles.selected : undefined
-          )}
+          className={clsx(isAllSelection ? styles.selected : undefined)}
           onClick={() => setAllSelection()}
         >
           All
         </a>
         |
         <a
-          className={clsx(
-            styles.link,
-            isNoneSelection ? styles.selected : undefined
-          )}
+          className={clsx(isNoneSelection ? styles.selected : undefined)}
           onClick={() => setNoneSelection()}
         >
           None

@@ -104,7 +104,7 @@ export const ANSIDisplay: FC<ANSIDisplayProps> = ({
             // eslint-disable-next-line react-hooks/immutability
             firstOutput = firstOutput || !!line.outputRuns.length;
             return (
-              <div key={index} className={clsx(styles.ansiDisplayLine)}>
+              <div key={index}>
                 {!line.outputRuns.length ? (
                   firstOutput ? (
                     <br />

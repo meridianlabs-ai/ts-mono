@@ -128,8 +128,6 @@ export const TranscriptVirtualListComponent: FC<
 
   const renderRow = useCallback(
     (index: number, item: EventNode, style?: CSSProperties) => {
-      const paddingClass = index === 0 ? styles.first : undefined;
-
       const previousIndex = index - 1;
       const nextIndex = index + 1;
       const previous =
@@ -160,7 +158,6 @@ export const TranscriptVirtualListComponent: FC<
           key={item.id}
           className={clsx(
             styles.node,
-            paddingClass,
             isLast ? styles.last : undefined,
             attachedClass
           )}

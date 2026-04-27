@@ -81,7 +81,6 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
                 return (
                   <MetaDataGrid
                     id={id}
-                    className={clsx(styles.nested)}
                     entries={obj}
                     options={options}
                     references={references}

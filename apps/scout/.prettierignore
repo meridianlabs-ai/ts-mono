@@ -4,3 +4,4 @@ src/types/generated.ts
 playwright-report/
 test-results/
 *.md
+*.module.css.d.ts

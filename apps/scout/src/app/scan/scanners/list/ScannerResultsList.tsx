@@ -420,7 +420,6 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           listHandle={listHandle}
           data={rows}
           renderRow={renderRow}
-          className={clsx(styles.list)}
           animation={false}
         />
       )}

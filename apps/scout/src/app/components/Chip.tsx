@@ -47,9 +47,7 @@ export const Chip = forwardRef<HTMLDivElement, ChipProps>(
             {label}
           </span>
         ) : undefined}
-        <span
-          className={clsx(styles.value, onClick ? styles.clickable : undefined)}
-        >
+        <span className={clsx(onClick ? styles.clickable : undefined)}>
           {value}
         </span>
         {onClose ? (

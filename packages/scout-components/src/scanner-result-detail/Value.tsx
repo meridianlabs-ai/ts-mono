@@ -124,7 +124,7 @@ const ValueList: FC<{
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
+        style === "inline" ? styles.inline : undefined
       )}
     >
       {itemsToDisplay.map((item, index) => {
@@ -182,7 +182,7 @@ const ValueTable: FC<{
     <div
       className={clsx(
         styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
+        style === "inline" ? styles.inline : undefined
       )}
     >
       {keysToDisplay.map((key, index) => {

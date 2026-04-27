@@ -12,13 +12,7 @@ export const ScannerResultsGroup: FC<ScannerResultsGroupProps> = ({
 }) => {
   return (
     <div className={clsx(styles.row)}>
-      <div
-        className={clsx(
-          styles.label,
-          "text-style-secondary",
-          "text-size-smallest"
-        )}
-      >
+      <div className={clsx("text-style-secondary", "text-size-smallest")}>
         {group}
       </div>
     </div>
