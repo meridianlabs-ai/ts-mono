@@ -267,7 +267,7 @@ export const SearchPanel = ({
     <div className={styles.container}>
       <SidebarHeader
         icon={ApplicationIcons.search}
-        title="Search"
+        title={`Search: ${scope}`}
         onClose={onClose}
       />
       <div className={styles.body}>
