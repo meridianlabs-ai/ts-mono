@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { skipToken } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
+import { ApiError } from "@tsmono/util";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -77,8 +78,11 @@ describe("useCode", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBeDefined();
-    expect(result.current.error?.message).toContain("400");
+    const { error } = result.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(400);
+    }
   });
 
   it("does not make request when skipToken is passed", async () => {
