@@ -85,7 +85,8 @@ export const SearchPanel = ({
   onClose,
 }: SearchPanelProps) => {
   const projectConfig = useProjectConfig();
-  const { getFullMessageUrl, getFullEventUrl } = useTranscriptNavigation();
+  const { getFullMessageUrl, getFullEventUrl, getFullEventMessageUrl } =
+    useTranscriptNavigation();
   const modelInputId = useId();
   const searchPanelStateKey = useMemo(
     () => getSearchPanelStateKey({ scope, transcriptDir, transcriptId }),
@@ -462,8 +463,10 @@ export const SearchPanel = ({
             }
             hasSearched={hasSearched}
             currentSearch={currentSearch}
+            scope={scope}
             getFullMessageUrl={getFullMessageUrl}
             getFullEventUrl={getFullEventUrl}
+            getFullEventMessageUrl={getFullEventMessageUrl}
           />
         </div>
       </div>
@@ -555,15 +558,19 @@ const SearchResults: FC<{
   isError: boolean;
   hasSearched: boolean;
   currentSearch: Result | null;
+  scope: TranscriptSearchScope;
   getFullMessageUrl: (id: string) => string | undefined;
   getFullEventUrl: (id: string) => string | undefined;
+  getFullEventMessageUrl: (id: string) => string | undefined;
 }> = ({
   loading,
   isError,
   hasSearched,
   currentSearch,
+  scope,
   getFullMessageUrl,
   getFullEventUrl,
+  getFullEventMessageUrl,
 }) => {
   if (loading) {
     return <div className={styles.emptyState}>Searching…</div>;
@@ -601,8 +608,10 @@ const SearchResults: FC<{
       </div>
       <SearchResult
         result={result}
+        scope={scope}
         getFullMessageUrl={getFullMessageUrl}
         getFullEventUrl={getFullEventUrl}
+        getFullEventMessageUrl={getFullEventMessageUrl}
       />
     </>
   );
@@ -610,9 +619,17 @@ const SearchResults: FC<{
 
 const SearchResult: FC<{
   result: Result;
+  scope: TranscriptSearchScope;
   getFullMessageUrl: (id: string) => string | undefined;
   getFullEventUrl: (id: string) => string | undefined;
-}> = ({ result, getFullMessageUrl, getFullEventUrl }) => {
+  getFullEventMessageUrl: (id: string) => string | undefined;
+}> = ({
+  result,
+  scope,
+  getFullMessageUrl,
+  getFullEventUrl,
+  getFullEventMessageUrl,
+}) => {
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
@@ -624,7 +641,9 @@ const SearchResult: FC<{
           cite: ref.cite,
           citeUrl:
             ref.type === "message"
-              ? getFullMessageUrl(ref.id)
+              ? scope === "events"
+                ? getFullEventMessageUrl(ref.id)
+                : getFullMessageUrl(ref.id)
               : ref.type === "event"
                 ? getFullEventUrl(ref.id)
                 : undefined,
@@ -632,7 +651,13 @@ const SearchResult: FC<{
       }
     }
     return refs;
-  }, [result.references, getFullMessageUrl, getFullEventUrl]);
+  }, [
+    result.references,
+    scope,
+    getFullMessageUrl,
+    getFullEventUrl,
+    getFullEventMessageUrl,
+  ]);
 
   // TODO: could try ResultPanel, maybe doesn't fit our needs
   return (

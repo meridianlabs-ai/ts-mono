@@ -48,6 +48,19 @@ export const useTranscriptNavigation = () => {
     [transcriptsDir, transcriptId, searchParams]
   );
 
+  const getEventMessageUrl = useCallback(
+    (messageId: string): string | undefined => {
+      if (!transcriptsDir || !transcriptId) return undefined;
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("tab", "transcript-events");
+      newParams.set("message", messageId);
+      newParams.delete("event");
+      newParams.delete("selected");
+      return transcriptRoute(transcriptsDir, transcriptId, newParams);
+    },
+    [transcriptsDir, transcriptId, searchParams]
+  );
+
   const getFullEventUrl = useCallback(
     (eventId: string): string | undefined => {
       const route = getEventUrl(eventId);
@@ -64,5 +77,20 @@ export const useTranscriptNavigation = () => {
     [getMessageUrl]
   );
 
-  return { getEventUrl, getMessageUrl, getFullEventUrl, getFullMessageUrl };
+  const getFullEventMessageUrl = useCallback(
+    (messageId: string): string | undefined => {
+      const route = getEventMessageUrl(messageId);
+      return route ? toFullUrl(route) : undefined;
+    },
+    [getEventMessageUrl]
+  );
+
+  return {
+    getEventUrl,
+    getMessageUrl,
+    getEventMessageUrl,
+    getFullEventUrl,
+    getFullMessageUrl,
+    getFullEventMessageUrl,
+  };
 };
