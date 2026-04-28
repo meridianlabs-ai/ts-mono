@@ -1,30 +1,18 @@
-import type {
-  CellMouseDownEvent,
-  ColDef,
-  GridApi,
-  GridColumnsChangedEvent,
-  IRowNode,
-  RowClickedEvent,
-  StateUpdatedEvent,
-} from "ag-grid-community";
-import { themeBalham } from "ag-grid-community";
+import type { ColDef, GridApi, GridState } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { FC, RefObject, useCallback, useEffect, useMemo } from "react";
 
 import { useClientEvents } from "../../../state/clientEvents";
 import { useStore } from "../../../state/store";
 import { useSamplesGridNavigation } from "../../routing/sampleNavigation";
+import {
+  SamplesGrid as SharedSamplesGrid,
+  type SamplesGridViewMode,
+} from "../../shared/samples-grid/SamplesGrid";
 import { DisplayedSample } from "../../types";
-
-import "../../shared/agGrid";
-
-import styles from "../../shared/gridCells.module.css";
-import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
-import { createGridColumnResizer } from "../../shared/gridUtils";
 
 import { SampleRow } from "./types";
 
-// Sample Grid Props
 interface SamplesGridProps {
   items: SampleRow[];
   samplesPath?: string;
@@ -32,11 +20,31 @@ interface SamplesGridProps {
   columns: ColDef<SampleRow>[];
 }
 
-// Sample Grid
+const sampleRowId = (logFile: string, sampleId: string | number, epoch: number) =>
+  `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
+
+const gridDisplayedSamples = (api: GridApi<SampleRow>): DisplayedSample[] => {
+  const out: DisplayedSample[] = [];
+  const count = api.getDisplayedRowCount();
+  for (let i = 0; i < count; i++) {
+    const node = api.getDisplayedRowAtIndex(i);
+    if (node?.data) {
+      out.push({
+        logFile: node.data.logFile,
+        sampleId: node.data.sampleId,
+        epoch: node.data.epoch,
+      });
+    }
+  }
+  return out;
+};
+
+const kViewMode: SamplesGridViewMode = "grid";
+
 export const SamplesGrid: FC<SamplesGridProps> = ({
   items,
   samplesPath,
-  gridRef: externalGridRef,
+  gridRef,
   columns,
 }) => {
   const gridState = useStore((state) => state.logs.samplesListState.gridState);
@@ -68,11 +76,7 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
     (state) => state.log.selectedSampleHandle
   );
 
-  const internalGridRef = useRef<AgGridReact<SampleRow>>(null);
-  const gridRef = externalGridRef ?? internalGridRef;
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-
-  // Polling for updated log files
+  // Polling for updated log files.
   const { startPolling, stopPolling } = useClientEvents();
   useEffect(() => {
     startPolling([]);
@@ -81,239 +85,97 @@ export const SamplesGrid: FC<SamplesGridProps> = ({
     };
   }, [startPolling, stopPolling]);
 
-  // Clear grid state when samplesPath changes to a different path
-  // Use store-persisted previousSamplesPath to survive component remounts
-  const initialGridState = useMemo(() => {
+  // Drop the persisted filter when samplesPath changes; surviving columns
+  // /sort settings are still useful, but filters scoped to the prior
+  // directory aren't.
+  const initialState = useMemo<GridState | undefined>(() => {
     if (
       previousSamplesPath !== undefined &&
       previousSamplesPath !== samplesPath
     ) {
-      // Clear displayed samples when path changes to a different path
       clearDisplayedSamples();
       const result = { ...gridState };
       delete result?.filter;
       return result;
-    } else {
-      return gridState;
     }
+    return gridState;
   }, [previousSamplesPath, samplesPath, clearDisplayedSamples, gridState]);
 
-  // Update the previous samples path in the store after render
   useEffect(() => {
     if (samplesPath !== previousSamplesPath) {
       setPreviousSamplesPath(samplesPath);
     }
   }, [samplesPath, previousSamplesPath, setPreviousSamplesPath]);
 
-  useEffect(() => {
-    gridContainerRef.current?.focus();
-  }, []);
-
-  const handleRowClick = useCallback(
-    (e: RowClickedEvent<SampleRow>) => {
-      if (e.data && e.node && gridRef.current?.api) {
-        // select the clicked row
-        gridRef.current.api.deselectAll();
-        e.node.setSelected(true);
-
-        // Compute whether the click should open in a new window
-        const mouseEvent = e.event as MouseEvent | undefined;
-        const openInNewWindow =
-          mouseEvent?.metaKey ||
-          mouseEvent?.ctrlKey ||
-          mouseEvent?.shiftKey ||
-          mouseEvent?.button === 1;
-
-        const logFile = e.data.logFile;
-        const sampleId = e.data.sampleId;
-        const epoch = e.data.epoch;
-        setTimeout(() => {
-          navigateToSampleDetail(logFile, sampleId, epoch, openInNewWindow);
-        }, 10);
-      }
-    },
-    [navigateToSampleDetail, gridRef]
-  );
-
-  const handleOpenRow = useCallback(
-    (rowNode: IRowNode<SampleRow>, e: KeyboardEvent) => {
-      const openInNewWindow = e.metaKey || e.ctrlKey || e.shiftKey;
-      if (rowNode.data) {
-        navigateToSampleDetail(
-          rowNode.data.logFile,
-          rowNode.data.sampleId,
-          rowNode.data.epoch,
-          openInNewWindow
-        );
-      }
+  const handleRowOpen = useCallback(
+    (row: SampleRow, opts: { newWindow: boolean }) => {
+      navigateToSampleDetail(row.logFile, row.sampleId, row.epoch, opts.newWindow);
     },
     [navigateToSampleDetail]
   );
 
-  const handleKeyDown = useMemo(
-    () =>
-      createGridKeyboardHandler<SampleRow>({
-        gridRef,
-        onOpenRow: handleOpenRow,
-      }),
-    [gridRef, handleOpenRow]
-  );
-
-  useEffect(() => {
-    const gridElement = gridContainerRef.current;
-    if (!gridElement) return;
-
-    gridElement.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      gridElement.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleKeyDown]);
-
-  const handleCellMouseDown = useCallback(
-    (e: CellMouseDownEvent<SampleRow>) => {
-      const mouseEvent = e.event as MouseEvent | undefined;
-      if (mouseEvent?.button === 1 && e.data) {
-        mouseEvent.preventDefault();
-        navigateToSampleDetail(
-          e.data.logFile,
-          e.data.sampleId,
-          e.data.epoch,
-          true
-        );
-      }
+  const handleStateUpdated = useCallback(
+    (state: GridState) => {
+      setGridState(state);
     },
-    [navigateToSampleDetail]
+    [setGridState]
   );
 
-  const sampleRowId = (
-    logFile: string,
-    sampleId: string | number,
-    epoch: number
-  ) => {
-    return `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
-  };
+  const updateDisplayedFromApi = useCallback(
+    (api: GridApi<SampleRow>) => {
+      const displayed = gridDisplayedSamples(api);
+      setFilteredSampleCount(displayed.length);
+      setDisplayedSamples(displayed);
+    },
+    [setFilteredSampleCount, setDisplayedSamples]
+  );
 
-  // Helper function to select the current sample in the grid
-  const selectCurrentSample = useCallback(() => {
-    if (!gridRef.current?.api || !selectedSampleHandle || !selectedLogFile) {
-      return;
-    }
+  const handleFirstDataRendered = useCallback(
+    (api: GridApi<SampleRow>) => {
+      updateDisplayedFromApi(api);
+      clearSelectedSample();
+    },
+    [updateDisplayedFromApi, clearSelectedSample]
+  );
 
-    const rowId = sampleRowId(
-      selectedLogFile,
-      selectedSampleHandle.id,
-      selectedSampleHandle.epoch
-    );
-    const node = gridRef.current.api.getRowNode(rowId);
+  const getRowId = useCallback(
+    (params: { data: SampleRow }) =>
+      sampleRowId(params.data.logFile, params.data.sampleId, params.data.epoch),
+    []
+  );
 
-    if (node) {
-      // Select the row
-      gridRef.current.api.deselectAll();
-      node.setSelected(true);
-      // Ensure it's visible
-      gridRef.current.api.ensureNodeVisible(node, "middle");
-    }
-  }, [gridRef, selectedSampleHandle, selectedLogFile]);
+  const selectedRowId =
+    selectedSampleHandle && selectedLogFile
+      ? sampleRowId(
+          selectedLogFile,
+          selectedSampleHandle.id,
+          selectedSampleHandle.epoch
+        )
+      : undefined;
 
-  // Select the row when the sample handle changes
-  useEffect(() => {
-    selectCurrentSample();
-  }, [selectedSampleHandle, selectedLogFile, selectCurrentSample]);
-
-  // Keep track of the max column count to avoid redundant resizing
-  const maxColCount = useRef(0);
-
-  const resizeGridColumns = useRef(createGridColumnResizer(gridRef)).current;
-
-  // Resize grid columns when columns prop changes (e.g., when columns are hidden/unhidden)
-  useEffect(() => {
-    resizeGridColumns();
-  }, [columns, resizeGridColumns]);
+  const isEmptyAndLoading = items.length === 0 && (loading > 0 || syncing);
 
   return (
-    <div className={styles.gridWrapper}>
-      <div ref={gridContainerRef} className={styles.gridContainer} tabIndex={0}>
-        <AgGridReact<SampleRow>
-          ref={gridRef}
-          rowData={items}
-          animateRows={false}
-          columnDefs={columns}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-          }}
-          tooltipShowDelay={300}
-          autoSizeStrategy={{ type: "fitGridWidth" }}
-          headerHeight={25}
-          rowSelection={{ mode: "singleRow", checkboxes: false }}
-          getRowId={(params) =>
-            sampleRowId(
-              params.data.logFile,
-              params.data.sampleId,
-              params.data.epoch
-            )
-          }
-          onGridColumnsChanged={(e: GridColumnsChangedEvent<SampleRow>) => {
-            const cols = e.api.getColumnDefs();
-            if (cols && cols?.length > maxColCount.current) {
-              maxColCount.current = cols.length;
-              resizeGridColumns();
-            }
-          }}
-          onGridSizeChanged={resizeGridColumns}
-          theme={themeBalham}
-          enableCellTextSelection={true}
-          initialState={initialGridState}
-          suppressCellFocus={true}
-          onStateUpdated={(e: StateUpdatedEvent<SampleRow>) => {
-            setGridState(e.state);
-            if (gridRef.current?.api) {
-              const gridCurrentSamples = gridDisplayedSamples(
-                gridRef.current.api
-              );
-              setFilteredSampleCount(gridCurrentSamples.length);
-              setDisplayedSamples(gridCurrentSamples);
-            }
-          }}
-          onRowClicked={handleRowClick}
-          onCellMouseDown={handleCellMouseDown}
-          onFilterChanged={() => {
-            if (gridRef.current?.api) {
-              const newDisplayedSamples = gridDisplayedSamples(
-                gridRef.current.api
-              );
-              setFilteredSampleCount(newDisplayedSamples.length);
-              setDisplayedSamples(newDisplayedSamples);
-            }
-          }}
-          onFirstDataRendered={() => {
-            // Select the current sample when the grid first renders data
-            selectCurrentSample();
-            clearSelectedSample();
-          }}
-          loading={items.length === 0 && (loading > 0 || syncing)}
-        />
-      </div>
-    </div>
+    <SharedSamplesGrid<SampleRow>
+      rowData={items}
+      columnDefs={columns}
+      defaultColDef={{
+        sortable: true,
+        filter: true,
+        resizable: true,
+      }}
+      viewMode={kViewMode}
+      gridRef={gridRef}
+      getRowId={getRowId}
+      selectedRowId={selectedRowId}
+      onRowOpen={handleRowOpen}
+      initialState={initialState}
+      onStateUpdated={handleStateUpdated}
+      onFilterChanged={updateDisplayedFromApi}
+      onFirstDataRendered={handleFirstDataRendered}
+      autoSizeStrategy={{ type: "fitGridWidth" }}
+      refitOnSizeChange
+      loading={isEmptyAndLoading}
+    />
   );
-};
-
-const gridDisplayedSamples = (
-  gridApi: GridApi<SampleRow>
-): DisplayedSample[] => {
-  const displayedSamples: DisplayedSample[] = [];
-  const displayedRowCount = gridApi.getDisplayedRowCount();
-  for (let i = 0; i < displayedRowCount; i++) {
-    const node = gridApi.getDisplayedRowAtIndex(i);
-    if (node?.data) {
-      displayedSamples.push({
-        logFile: node.data.logFile,
-        sampleId: node.data.sampleId,
-        epoch: node.data.epoch,
-      });
-    }
-  }
-  return displayedSamples;
 };

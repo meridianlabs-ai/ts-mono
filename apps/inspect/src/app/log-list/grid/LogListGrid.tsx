@@ -34,6 +34,7 @@ import "../../shared/agGrid";
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
+import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
@@ -492,7 +493,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
           matchIndex={findTerm ? currentMatchIndex : undefined}
         />
       )}
-      <div ref={gridContainerRef} className={styles.gridContainer} tabIndex={0}>
+      <div
+        ref={gridContainerRef}
+        className={clsx(styles.gridContainer, gridChromeStyles.gridChrome)}
+        tabIndex={0}
+      >
         <AgGridReact<LogListRow>
           // Remount on scope change so filter/sort/column state get a clean
           // slate. AG-Grid's `initialState` is one-shot at mount, so a key
