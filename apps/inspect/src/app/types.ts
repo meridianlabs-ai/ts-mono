@@ -92,9 +92,18 @@ export interface LogsState {
     detailsCount: number;
   };
   samplesListState: {
-    gridState?: GridState;
+    /** Per-scope persisted state. Keys are `SampleGridScope`
+     *  ("samplesPanel" | "logViewSamples"); kept independent so each
+     *  screen has its own column-visibility and grid state. */
+    byScope: Record<
+      "samplesPanel" | "logViewSamples",
+      {
+        columnVisibility: Record<string, boolean>;
+        gridState?: GridState;
+      }
+    >;
+    /** SamplesPanel-only ephemeral state. */
     displayedSamples?: Array<DisplayedSample>;
-    columnVisibility: Record<string, boolean>;
     previousSamplesPath?: string;
   };
   flow?: string;

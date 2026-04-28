@@ -1,6 +1,17 @@
-import type { AgGridReact } from "ag-grid-react";
-import { FC, Fragment, RefObject, useEffect, useMemo, useRef } from "react";
+import type { ColDef } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import {
+  FC,
+  Fragment,
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import { inputString } from "@tsmono/inspect-common/utils";
 import { NoContentsPanel, ToolButton } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
@@ -14,13 +25,25 @@ import { kLogViewSamplesTabId } from "../../../constants.ts";
 import {
   useFilteredSamples,
   useSampleDescriptor,
+  useScores,
+  useSelectedScores,
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
+import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
+import { getFieldKey } from "../../shared/gridUtils.ts";
+import { buildSampleColumns } from "../../shared/samples-grid/columns.tsx";
+import { SampleRow } from "../../shared/samples-grid/types.ts";
+import { useSampleGridState } from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
-import { SampleListItem } from "./types.ts";
+
+interface SamplesTabExtraProps {
+  showColumnSelector: boolean;
+  setShowColumnSelector: (showing: boolean) => void;
+  columnButtonRef: RefObject<HTMLButtonElement | null>;
+}
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
@@ -37,7 +60,17 @@ export const useSamplesTabConfig = (
   // share this ref.
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Column-selector state lives here so the tools toolbar can host the
+  // trigger button while the popover is rendered inside SamplesTab.
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const columnButtonRef = useRef<HTMLButtonElement | null>(null);
+  const handleToggleColumnSelector = useCallback(() => {
+    setShowColumnSelector((p) => !p);
+  }, []);
+
   return useMemo(() => {
+    const samplesAvailable =
+      samplesDescriptor !== undefined && totalSampleCount > 1;
     return {
       id: kLogViewSamplesTabId,
       scrollable: false,
@@ -47,6 +80,9 @@ export const useSamplesTabConfig = (
       componentProps: {
         running: evalStatus === "started",
         scrollRef,
+        showColumnSelector,
+        setShowColumnSelector,
+        columnButtonRef,
       },
       tools: () =>
         !samplesDescriptor
@@ -63,6 +99,15 @@ export const useSamplesTabConfig = (
                     onClick={refreshLog}
                   />
                 ),
+                samplesAvailable && (
+                  <ToolButton
+                    key="choose-columns"
+                    ref={columnButtonRef}
+                    label="Columns"
+                    icon={ApplicationIcons.checkbox.checked}
+                    onClick={handleToggleColumnSelector}
+                  />
+                ),
               ],
     };
   }, [
@@ -71,22 +116,27 @@ export const useSamplesTabConfig = (
     samplesDescriptor,
     streamSamples,
     totalSampleCount,
+    showColumnSelector,
+    handleToggleColumnSelector,
   ]);
 };
 
-interface SamplesTabProps {
-  // Required props
+interface SamplesTabProps extends SamplesTabExtraProps {
   running: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
-export const SamplesTab: FC<SamplesTabProps> = ({ running, scrollRef }) => {
+export const SamplesTab: FC<SamplesTabProps> = ({
+  running,
+  scrollRef,
+  showColumnSelector,
+  setShowColumnSelector,
+  columnButtonRef,
+}) => {
   const sampleSummaries = useFilteredSamples();
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
-  // Compute the limit to apply to the sample count (this is so)
-  // we can provide a total expected sample count for this evaluation
   const evalSampleCount = useMemo(() => {
     const limit = selectedLogDetails?.eval.config.limit;
     const limitCount =
@@ -108,22 +158,98 @@ export const SamplesTab: FC<SamplesTabProps> = ({ running, scrollRef }) => {
   const totalSampleCount = useTotalSampleCount();
 
   const samplesDescriptor = useSampleDescriptor();
+  const selectedScores = useSelectedScores();
+  const scores = useScores();
+  const epochs = selectedLogDetails?.eval.config?.epochs || 1;
+
   const selectSample = useStore((state) => state.logActions.selectSample);
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
-  const sampleListHandle = useRef<AgGridReact<SampleListItem> | null>(null);
+  const sampleListHandle = useRef<AgGridReact<SampleRow> | null>(null);
 
-  const items: SampleListItem[] = useMemo(() => {
-    if (!samplesDescriptor) return [];
-    return sampleSummaries.map(
-      (sample): SampleListItem => ({
+  // Build the superset of available columns once.
+  const allColumns = useMemo(
+    () =>
+      buildSampleColumns({
+        viewMode: "list",
+        multiLog: false,
+        descriptor: samplesDescriptor,
+        selectedScores,
+        scores,
+        epochs,
+      }),
+    [samplesDescriptor, selectedScores, scores, epochs]
+  );
+
+  // Default visibility for a column the first time we see it. Mirrors the
+  // existing SampleList behavior of using `messageShape` to hide
+  // input/target/answer/limit/retries/error when the data wouldn't fill
+  // them.
+  const shape = samplesDescriptor?.messageShape;
+  const defaultsForUnseededColumns = useCallback(
+    (col: ColDef<SampleRow>) => {
+      if (!shape) return true;
+      const id = col.colId;
+      if (id === "input") return !!shape.inputSize;
+      if (id === "target") return !!shape.targetSize;
+      if (id === "answer") return !!shape.answerSize;
+      if (id === "limit") return !!shape.limitSize;
+      if (id === "retries") return !!shape.retriesSize;
+      if (id === "error") return !!shape.errorSize;
+      return true;
+    },
+    [shape]
+  );
+
+  const { columnVisibility, setColumnVisibility, gridState, setGridState } =
+    useSampleGridState<SampleRow>("logViewSamples", allColumns, {
+      defaultsForUnseededColumns,
+      gridRef: sampleListHandle,
+    });
+
+  // Apply visibility on top of the column defs.
+  const columns = useMemo<ColDef<SampleRow>[]>(
+    () =>
+      allColumns.map((col) => {
+        const key = getFieldKey(col);
+        const seeded = columnVisibility[key];
+        // If unseeded yet (first render), keep the def's own `hide`.
+        if (seeded === undefined) return col;
+        return { ...col, hide: !seeded };
+      }),
+    [allColumns, columnVisibility]
+  );
+
+  // Build SampleRow items from filtered sample summaries.
+  const items: SampleRow[] = useMemo(() => {
+    if (!samplesDescriptor || !selectedLogFile) return [];
+    return sampleSummaries.map((sample): SampleRow => {
+      const tokens = sample.model_usage
+        ? Object.values(sample.model_usage).reduce(
+            (sum, u) => sum + (u.total_tokens ?? 0),
+            0
+          )
+        : undefined;
+      return {
+        logFile: selectedLogFile,
+        sampleId: sample.id,
+        epoch: sample.epoch,
         data: sample,
         answer:
-          samplesDescriptor.selectedScorerDescriptor(sample)?.answer() || "",
-        completed: sample.completed !== undefined ? sample.completed : true,
-      })
-    );
-  }, [sampleSummaries, samplesDescriptor]);
+          samplesDescriptor.selectedScorerDescriptor(sample)?.answer() ?? "",
+        completed: sample.completed ?? true,
+        input: inputString(sample.input).join(" "),
+        target: Array.isArray(sample.target)
+          ? sample.target.join(", ")
+          : (sample.target as string | undefined),
+        error: sample.error,
+        limit: sample.limit,
+        retries: sample.retries,
+        tokens,
+        duration: sample.total_time ?? undefined,
+      };
+    });
+  }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
   useEffect(() => {
     if (sampleSummaries.length === 1 && selectedLogFile) {
@@ -132,34 +258,61 @@ export const SamplesTab: FC<SamplesTabProps> = ({ running, scrollRef }) => {
     }
   }, [sampleSummaries, selectSample, selectedLogFile]);
 
+  // Tracked here so the column selector can mark filtered columns.
+  // Updated via the grid's onFilterChanged callback.
+  const [filteredFields, setFilteredFields] = useState<string[]>([]);
+  const handleFilterChanged = useCallback(
+    (api: { getFilterModel: () => Record<string, unknown> | null }) => {
+      setFilteredFields(Object.keys(api.getFilterModel() ?? {}));
+    },
+    []
+  );
+
   if (totalSampleCount === 0) {
     if (running) {
       return <RunningNoSamples />;
     } else {
       return <NoContentsPanel text="No samples" />;
     }
-  } else {
-    return (
-      <Fragment>
-        {samplesDescriptor && totalSampleCount === 1 ? (
-          <InlineSampleDisplay
-            showActivity={
-              sampleStatus === "loading" || sampleStatus === "streaming"
-            }
-            scrollRef={scrollRef}
-          />
-        ) : undefined}
-        {samplesDescriptor && totalSampleCount > 1 ? (
-          <SampleList
-            listHandle={sampleListHandle}
-            items={items}
-            earlyStopping={selectedLogDetails?.results?.early_stopping}
-            totalItemCount={evalSampleCount}
-            running={running}
-            scrollRef={scrollRef}
-          />
-        ) : undefined}
-      </Fragment>
-    );
   }
+
+  const inlineDisplay = samplesDescriptor && totalSampleCount === 1;
+  const listDisplay = samplesDescriptor && totalSampleCount > 1;
+
+  return (
+    <Fragment>
+      {inlineDisplay ? (
+        <InlineSampleDisplay
+          showActivity={
+            sampleStatus === "loading" || sampleStatus === "streaming"
+          }
+          scrollRef={scrollRef}
+        />
+      ) : null}
+      {listDisplay ? (
+        <SampleList
+          listHandle={sampleListHandle}
+          items={items}
+          columns={columns}
+          earlyStopping={selectedLogDetails?.results?.early_stopping}
+          totalItemCount={evalSampleCount}
+          running={running}
+          scrollRef={scrollRef}
+          gridState={gridState}
+          onGridStateChange={setGridState}
+          onFilterChanged={handleFilterChanged}
+        />
+      ) : null}
+      {listDisplay ? (
+        <ColumnSelectorPopover
+          showing={showColumnSelector}
+          setShowing={setShowColumnSelector}
+          columns={allColumns}
+          onVisibilityChange={setColumnVisibility}
+          positionEl={columnButtonRef.current}
+          filteredFields={filteredFields}
+        />
+      ) : null}
+    </Fragment>
+  );
 };

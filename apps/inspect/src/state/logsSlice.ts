@@ -3,6 +3,7 @@ import { GridState } from "ag-grid-community";
 import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { SampleGridScope } from "../app/shared/samples-grid/types";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -54,11 +55,14 @@ export interface LogsSlice {
     clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
-    setGridState: (gridState: GridState) => void;
-    clearGridState: () => void;
+    setSamplesGridState: (scope: SampleGridScope, gridState: GridState) => void;
+    clearSamplesGridState: (scope: SampleGridScope) => void;
+    setSamplesColumnVisibility: (
+      scope: SampleGridScope,
+      visibility: Record<string, boolean>
+    ) => void;
     setDisplayedSamples: (samples: Array<DisplayedSample>) => void;
     clearDisplayedSamples: () => void;
-    setSamplesColumnVisibility: (visibility: Record<string, boolean>) => void;
     setPreviousSamplesPath: (path: string | undefined) => void;
     setShowRetriedLogs: (showRetriedLogs: boolean) => void;
   };
@@ -81,7 +85,10 @@ const initialState: LogsState = {
     detailsCount: 0,
   },
   samplesListState: {
-    columnVisibility: {},
+    byScope: {
+      samplesPanel: { columnVisibility: {} },
+      logViewSamples: { columnVisibility: {} },
+    },
   },
   showRetriedLogs: false,
 };
@@ -101,7 +108,10 @@ export const createLogsSlice = (
         set((state) => {
           if (logDir !== state.logs.logDir) {
             state.logs.logDir = logDir;
-            state.logs.samplesListState.gridState = undefined;
+            state.logs.samplesListState.byScope.samplesPanel.gridState =
+              undefined;
+            state.logs.samplesListState.byScope.logViewSamples.gridState =
+              undefined;
             // Persisted scopes referenced the old logDir's paths and are
             // no longer meaningful; drop them so a new logDir starts fresh.
             state.logs.listing.gridStateByScope = {};
@@ -145,14 +155,17 @@ export const createLogsSlice = (
             ...details,
           };
         }),
-      setGridState: (gridState: GridState | undefined) => {
+      setSamplesGridState: (
+        scope: SampleGridScope,
+        gridState: GridState | undefined
+      ) => {
         set((state) => {
-          state.logs.samplesListState.gridState = gridState;
+          state.logs.samplesListState.byScope[scope].gridState = gridState;
         });
       },
-      clearGridState: () => {
+      clearSamplesGridState: (scope: SampleGridScope) => {
         set((state) => {
-          state.logs.samplesListState.gridState = undefined;
+          state.logs.samplesListState.byScope[scope].gridState = undefined;
         });
       },
       setDisplayedSamples: (samples: Array<DisplayedSample>) => {
@@ -169,9 +182,13 @@ export const createLogsSlice = (
           state.logs.samplesListState.displayedSamples = undefined;
         });
       },
-      setSamplesColumnVisibility: (visibility: Record<string, boolean>) => {
+      setSamplesColumnVisibility: (
+        scope: SampleGridScope,
+        visibility: Record<string, boolean>
+      ) => {
         set((state) => {
-          state.logs.samplesListState.columnVisibility = visibility;
+          state.logs.samplesListState.byScope[scope].columnVisibility =
+            visibility;
         });
       },
       setPreviousSamplesPath: (path: string | undefined) => {

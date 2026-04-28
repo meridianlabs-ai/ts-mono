@@ -1,4 +1,9 @@
-import type { GetRowIdParams } from "ag-grid-community";
+import type {
+  ColDef,
+  GetRowIdParams,
+  GridApi,
+  GridState,
+} from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
 
@@ -6,32 +11,30 @@ import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import {
-  useDocumentTitle,
-  useSampleDescriptor,
-  useScores,
-  useSelectedScores,
-} from "../../../state/hooks";
+import { useDocumentTitle } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { SampleListItem } from "../../log-view/tabs/types";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
+import { SampleRow } from "../../shared/samples-grid/types";
 
-import { buildColumnDefs } from "./columns";
 import { SampleFooter } from "./SampleFooter";
 import styles from "./SampleList.module.css";
 
 interface SampleListProps {
-  items: SampleListItem[];
+  items: SampleRow[];
+  columns: ColDef<SampleRow>[];
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
   className?: string | string[];
-  listHandle: RefObject<AgGridReact<SampleListItem> | null>;
+  listHandle: RefObject<AgGridReact<SampleRow> | null>;
   /** Optional ref that receives the AgGrid `.ag-body-viewport` DOM element
    *  once the grid is ready, so callers can hook scroll listeners on the
    *  actual scrolling viewport. */
   scrollRef?: RefObject<HTMLDivElement | null>;
+  gridState?: GridState;
+  onGridStateChange?: (state: GridState) => void;
+  onFilterChanged?: (api: GridApi<SampleRow>) => void;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
@@ -40,12 +43,16 @@ const makeSampleRowId = (id: string | number, epoch: number) =>
 export const SampleList: FC<SampleListProps> = memo((props) => {
   const {
     items,
+    columns,
     earlyStopping,
     totalItemCount,
     running,
     className,
     listHandle,
     scrollRef,
+    gridState,
+    onGridStateChange,
+    onFilterChanged,
   } = props;
 
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -60,38 +67,26 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const evalSpec = selectedLogDetails?.eval;
-  const epochs = evalSpec?.config?.epochs || 1;
   const { setDocumentTitle } = useDocumentTitle();
   useEffect(() => {
     setDocumentTitle({ evalSpec });
   }, [setDocumentTitle, evalSpec]);
 
   const handleRowOpen = useCallback(
-    (
-      row: SampleListItem,
-      opts: { newWindow: boolean; via: "click" | "key" }
-    ) => {
+    (row: SampleRow, opts: { newWindow: boolean }) => {
       if (opts.newWindow) {
-        const url = sampleNavigation.getSampleUrl(row.data.id, row.data.epoch);
+        const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
         if (url) window.open(url, "_blank");
       } else {
-        sampleNavigation.showSample(row.data.id, row.data.epoch);
+        sampleNavigation.showSample(row.sampleId, row.epoch);
       }
     },
     [sampleNavigation]
   );
 
-  const selectedScores = useSelectedScores();
-  const scores = useScores();
-  const samplesDescriptor = useSampleDescriptor();
-  const columnDefs = useMemo(
-    () => buildColumnDefs(samplesDescriptor, selectedScores, scores, epochs),
-    [samplesDescriptor, selectedScores, scores, epochs]
-  );
-
   const getRowId = useCallback(
-    (params: GetRowIdParams<SampleListItem>) =>
-      makeSampleRowId(params.data.data.id, params.data.data.epoch),
+    (params: GetRowIdParams<SampleRow>) =>
+      makeSampleRowId(params.data.sampleId, params.data.epoch),
     []
   );
 
@@ -99,15 +94,29 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     ? makeSampleRowId(selectedSampleHandle.id, selectedSampleHandle.epoch)
     : undefined;
 
+  const handleStateUpdated = useCallback(
+    (state: GridState) => {
+      onGridStateChange?.(state);
+    },
+    [onGridStateChange]
+  );
+
+  const handleFilterChanged = useCallback(
+    (api: GridApi<SampleRow>) => {
+      onFilterChanged?.(api);
+    },
+    [onFilterChanged]
+  );
+
   const sampleCount = items.length;
 
   const warnings = useMemo(() => {
     const errorCount = items.reduce(
-      (prev, item) => (item.data.error ? prev + 1 : prev),
+      (prev, item) => (item.error || item.data?.error ? prev + 1 : prev),
       0
     );
     const limitCount = items.reduce(
-      (prev, item) => (item.data.limit ? prev + 1 : prev),
+      (prev, item) => (item.limit || item.data?.limit ? prev + 1 : prev),
       0
     );
     const percentError = sampleCount > 0 ? (errorCount / sampleCount) * 100 : 0;
@@ -145,11 +154,13 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
           key={`sample-warning-message-${index}`}
         />
       ))}
-      <SamplesGrid<SampleListItem>
+      <SamplesGrid<SampleRow>
         rowData={items}
-        columnDefs={columnDefs}
+        columnDefs={columns}
         defaultColDef={{
-          filter: false,
+          sortable: true,
+          filter: true,
+          resizable: true,
           headerTooltipValueGetter: (params) => params.colDef?.headerName,
         }}
         viewMode="list"
@@ -159,6 +170,9 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         onRowOpen={handleRowOpen}
         followOutput={running}
         scrollRef={scrollRef}
+        initialState={gridState}
+        onStateUpdated={onGridStateChange ? handleStateUpdated : undefined}
+        onFilterChanged={handleFilterChanged}
         className={typeof className === "string" ? className : undefined}
       />
       <SampleFooter
