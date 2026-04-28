@@ -160,6 +160,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const samplesDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
   const scores = useScores();
+  const setSelectedScores = useStore(
+    (state) => state.logActions.setSelectedScores
+  );
   const epochs = selectedLogDetails?.eval.config?.epochs || 1;
 
   const selectSample = useStore((state) => state.logActions.selectSample);
@@ -167,18 +170,19 @@ export const SamplesTab: FC<SamplesTabProps> = ({
 
   const sampleListHandle = useRef<AgGridReact<SampleRow> | null>(null);
 
-  // Build the superset of available columns once.
+  // Build the superset of available columns once. Score columns are
+  // emitted for every available score; visibility (which scorers are
+  // currently selected) is applied via the column-visibility map below.
   const allColumns = useMemo(
     () =>
       buildSampleColumns({
         viewMode: "list",
         multiLog: false,
         descriptor: samplesDescriptor,
-        selectedScores,
         scores,
         epochs,
       }),
-    [samplesDescriptor, selectedScores, scores, epochs]
+    [samplesDescriptor, scores, epochs]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -204,17 +208,75 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       gridRef: sampleListHandle,
     });
 
+  // Score column visibility comes from `selectedScores` (so toggling a
+  // scorer in the column popover stays consistent with the rest of the
+  // app that reads `selectedScores`). Non-score columns come from the
+  // persisted `columnVisibility` map.
+  const scoreFieldFor = useCallback(
+    (label: { scorer: string; name: string }) =>
+      `score__${label.scorer}__${label.name}`,
+    []
+  );
+  const selectedScoreFields = useMemo(
+    () => new Set(selectedScores.map(scoreFieldFor)),
+    [selectedScores, scoreFieldFor]
+  );
+
+  const effectiveVisibility = useMemo<Record<string, boolean>>(() => {
+    const v = { ...columnVisibility };
+    for (const label of scores) {
+      v[scoreFieldFor(label)] = selectedScoreFields.has(scoreFieldFor(label));
+    }
+    return v;
+  }, [columnVisibility, scores, scoreFieldFor, selectedScoreFields]);
+
   // Apply visibility on top of the column defs.
   const columns = useMemo<ColDef<SampleRow>[]>(
     () =>
       allColumns.map((col) => {
         const key = getFieldKey(col);
-        const seeded = columnVisibility[key];
-        // If unseeded yet (first render), keep the def's own `hide`.
+        const seeded = effectiveVisibility[key];
         if (seeded === undefined) return col;
         return { ...col, hide: !seeded };
       }),
-    [allColumns, columnVisibility]
+    [allColumns, effectiveVisibility]
+  );
+
+  const allScoreFields = useMemo(
+    () => new Set(scores.map(scoreFieldFor)),
+    [scores, scoreFieldFor]
+  );
+
+  // When the user toggles columns in the popover, split score-column
+  // changes back into `selectedScores` and persist the rest as normal
+  // column visibility.
+  const handleVisibilityChange = useCallback(
+    (next: Record<string, boolean>) => {
+      const newSelected = scores.filter(
+        (label) => next[scoreFieldFor(label)] !== false
+      );
+      const sameAsBefore =
+        newSelected.length === selectedScores.length &&
+        newSelected.every((s, i) => {
+          const cur = selectedScores[i];
+          return cur && cur.scorer === s.scorer && cur.name === s.name;
+        });
+      if (!sameAsBefore) setSelectedScores(newSelected);
+
+      const nonScoreVisibility: Record<string, boolean> = {};
+      for (const [key, value] of Object.entries(next)) {
+        if (!allScoreFields.has(key)) nonScoreVisibility[key] = value;
+      }
+      setColumnVisibility(nonScoreVisibility);
+    },
+    [
+      scores,
+      scoreFieldFor,
+      selectedScores,
+      setSelectedScores,
+      setColumnVisibility,
+      allScoreFields,
+    ]
   );
 
   // Build SampleRow items from filtered sample summaries.
@@ -304,8 +366,8 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         <ColumnSelectorPopover
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
-          columns={allColumns}
-          onVisibilityChange={setColumnVisibility}
+          columns={columns}
+          onVisibilityChange={handleVisibilityChange}
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}
           splitScores={false}

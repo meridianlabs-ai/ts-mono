@@ -1,5 +1,4 @@
 import { FC } from "react";
-import { Fragment } from "react/jsx-runtime";
 
 import { useScores, useSelectedScores } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -9,25 +8,10 @@ import { SelectScorer } from "./sample-tools/SelectScorer";
 
 interface SampleToolsProps {}
 
+// Multi-sample tools. Scorer selection is handled by the column-chooser
+// popover in `SamplesTab`, so only the DSL filter lives here.
 export const SampleTools: FC<SampleToolsProps> = () => {
-  const scores = useScores();
-  const selectedScores = useSelectedScores();
-  const setSelectedScores = useStore(
-    (state) => state.logActions.setSelectedScores
-  );
-
-  return (
-    <Fragment>
-      <SampleFilter />
-      {scores?.length > 1 ? (
-        <SelectScorer
-          scores={scores}
-          selectedScores={selectedScores}
-          setSelectedScores={setSelectedScores}
-        />
-      ) : undefined}
-    </Fragment>
-  );
+  return <SampleFilter />;
 };
 
 interface ScoreFilterToolsProps {}

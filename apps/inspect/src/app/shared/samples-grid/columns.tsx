@@ -34,9 +34,9 @@ export interface SampleGridContext {
   /** Single-log only — drives markdown rendering, score rendering, and
    *  initial visibility for `input`/`target`/`answer`. */
   descriptor?: SamplesDescriptor;
-  /** Single-log only — score columns are emitted per-scorer in this mode. */
-  selectedScores?: ScoreLabel[];
-  /** Single-log — if exactly one scorer, the score column is labeled "Score". */
+  /** Single-log only — score columns are emitted per-scorer in this
+   *  mode. Visibility (which scores are currently selected) is layered
+   *  on by the caller via the column-visibility map. */
   scores?: ScoreLabel[];
   epochs?: number;
   /** Cross-log only — used to discover all distinct score names. */
@@ -444,12 +444,14 @@ export function buildSampleColumns(ctx: SampleGridContext): ColDef<SampleRow>[] 
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
-  const { descriptor, selectedScores, scores, logDetails } = ctx;
+  const { descriptor, scores, logDetails } = ctx;
 
-  // Per-scorer mode (single-log with descriptor + selectedScores).
-  if (descriptor && selectedScores && selectedScores.length > 0) {
-    const useLabelHeader = !scores || scores.length !== 1;
-    return selectedScores.map((label, i) => {
+  // Per-scorer mode (single-log with descriptor). One column per
+  // *available* score; visibility is driven by `selectedScores` upstream
+  // so the unified column chooser can toggle scorers on and off.
+  if (descriptor && scores && scores.length > 0) {
+    const useLabelHeader = scores.length !== 1;
+    return scores.map((label) => {
       const colId = perScorerFieldKey(label);
       return {
         colId,
@@ -470,7 +472,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
           if (!row?.data) return null;
           const completed = row.completed ?? row.data.completed;
           const rendered = descriptor.evalDescriptor
-            .score(row.data, selectedScores[i])
+            .score(row.data, label)
             ?.render();
           if (completed && rendered !== undefined) {
             return <ScoreCellDiv>{rendered}</ScoreCellDiv>;
