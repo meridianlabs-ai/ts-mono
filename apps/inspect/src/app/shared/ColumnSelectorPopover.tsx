@@ -19,6 +19,10 @@ interface ColumnSelectorPopoverProps<T> {
   positionEl: HTMLElement | null;
   filteredFields?: string[];
   scoresHeading?: string;
+  /** Split columns into "Base" and a scores section. Default: `true`
+   *  (for the LogsPanel where the split is meaningful). Set `false` for
+   *  the sample lists, where a single unified column list is preferred. */
+  splitScores?: boolean;
   /**
    * When true, renders a "By Metric" / "Per Scorer" segmented control in the
    * scores section header. The caller controls which view is active and owns
@@ -43,6 +47,7 @@ export const ColumnSelectorPopover = <T,>({
   positionEl,
   filteredFields = [],
   scoresHeading = "Scorers",
+  splitScores = true,
   groupableScores = false,
   scoresViewMode = "by-metric",
   onScoresViewModeChange,
@@ -64,13 +69,15 @@ export const ColumnSelectorPopover = <T,>({
     });
   };
 
-  // Group columns by category - merge optional into base for this dialog
+  // Group columns by category - merge optional into base for this dialog.
+  // When `splitScores` is false, all columns are shown as a single list.
   const columnGroups = useMemo(() => {
+    if (!splitScores) return { base: columns, scores: [] as ColDef<T>[] };
     return {
       base: columns.filter((col) => !isScoreField(getFieldKey(col))),
       scores: columns.filter((col) => isScoreField(getFieldKey(col))),
     };
-  }, [columns]);
+  }, [columns, splitScores]);
 
   const handleSelectAllBase = () => {
     onVisibilityChange({
@@ -150,7 +157,7 @@ export const ColumnSelectorPopover = <T,>({
       <div className={clsx(styles.scrollableContainer, "text-size-small")}>
         <div className={clsx(styles.section)}>
           <div className={styles.headerRow}>
-            <b>Base</b>
+            {splitScores ? <b>Base</b> : <b>Columns</b>}
             <div className={clsx(styles.buttonContainer, "text-size-small")}>
               <a
                 className={clsx(styles.button, "text-size-small")}
@@ -172,7 +179,7 @@ export const ColumnSelectorPopover = <T,>({
           </div>
         </div>
 
-        {columnGroups.scores.length > 0 && (
+        {splitScores && columnGroups.scores.length > 0 && (
           <div>
             <div className={styles.headerRow}>
               <div className={styles.scoresHeadingGroup}>

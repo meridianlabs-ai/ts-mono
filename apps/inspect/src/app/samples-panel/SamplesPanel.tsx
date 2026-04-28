@@ -429,6 +429,7 @@ export const SamplesPanel: FC = () => {
         onVisibilityChange={setColumnVisibility}
         positionEl={columnButtonRef.current}
         filteredFields={filteredFields}
+        splitScores={false}
       />
 
       <ActivityBar animating={!!loading} />
@@ -446,8 +447,6 @@ export const SamplesPanel: FC = () => {
           onStateUpdated={setGridState}
           onFilterChanged={updateDisplayedFromApi}
           onFirstDataRendered={handleFirstDataRendered}
-          autoSizeStrategy={{ type: "fitGridWidth" }}
-          refitOnSizeChange
           loading={isEmptyAndLoading}
         />
       </div>

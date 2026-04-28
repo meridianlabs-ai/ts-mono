@@ -181,21 +181,18 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [samplesDescriptor, selectedScores, scores, epochs]
   );
 
-  // Default visibility for a column the first time we see it. Mirrors the
-  // existing SampleList behavior of using `messageShape` to hide
-  // input/target/answer/limit/retries/error when the data wouldn't fill
-  // them.
+  // Default visibility for unseeded columns. Core text columns
+  // (input/target/answer) are visible by default — the user can hide
+  // them if not useful. limit/retries/error default off and only
+  // auto-promote to visible when data is present, mirroring the
+  // SamplesPanel behavior.
   const shape = samplesDescriptor?.messageShape;
   const defaultsForUnseededColumns = useCallback(
     (col: ColDef<SampleRow>) => {
-      if (!shape) return true;
       const id = col.colId;
-      if (id === "input") return !!shape.inputSize;
-      if (id === "target") return !!shape.targetSize;
-      if (id === "answer") return !!shape.answerSize;
-      if (id === "limit") return !!shape.limitSize;
-      if (id === "retries") return !!shape.retriesSize;
-      if (id === "error") return !!shape.errorSize;
+      if (id === "limit") return !!shape?.limitSize;
+      if (id === "retries") return !!shape?.retriesSize;
+      if (id === "error") return !!shape?.errorSize;
       return true;
     },
     [shape]
@@ -311,6 +308,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           onVisibilityChange={setColumnVisibility}
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}
+          splitScores={false}
         />
       ) : null}
     </Fragment>
