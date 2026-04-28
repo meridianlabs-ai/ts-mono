@@ -81,8 +81,7 @@ export function useBatchConfig<T extends Record<string, unknown>>(
       const size =
         typeof configValue === "number"
           ? configValue
-          : // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- rule false positive: `existingConfig` collapses to `{}` on the else branch; assertion is load-bearing
-            (existingConfig as Record<string, unknown>).size;
+          : (existingConfig as Record<string, unknown>).size;
       updateParent({
         ...(size !== undefined ? { size } : {}),
         ...existingConfig,
