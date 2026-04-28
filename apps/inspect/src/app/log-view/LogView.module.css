@@ -15,7 +15,7 @@
   flex-wrap: nowrap;
   padding: 0.5rem 0.5rem 0.5rem 0.5rem;
   border-bottom: solid 1px var(--bs-border-color);
-  background: var(--bs-light);
+  background: var(--bs-light-bg-subtle);
 }
 
 .tabs {
