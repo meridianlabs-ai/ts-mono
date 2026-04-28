@@ -20,7 +20,6 @@ import {
   DisplayModeContext,
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
-import type { EventNodeContext } from "@tsmono/inspect-components/transcript";
 import {
   TabPanel,
   TabSet,
@@ -37,13 +36,10 @@ import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
+import { useSearchEventNodeContext } from "./hooks/useSearchEventNodeContext";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
-import {
-  getSearchPanelStateKey,
-  normalizeSearchPanelState,
-} from "./searchPanelState";
 import type { TranscriptSearchScope } from "./searchRequest";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
@@ -124,47 +120,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         ? "events"
         : undefined;
 
-  const eventsSearchPanelStateKey = useMemo(
-    () =>
-      resolvedTranscriptsDir
-        ? getSearchPanelStateKey({
-            scope: "events",
-            transcriptDir: resolvedTranscriptsDir,
-            transcriptId: transcript.transcript_id,
-          })
-        : null,
-    [resolvedTranscriptsDir, transcript.transcript_id]
-  );
-  const storedEventsSearchPanelState = useStore((state) =>
-    eventsSearchPanelStateKey
-      ? state.searchPanelStates[eventsSearchPanelStateKey]
-      : undefined
-  );
-  const eventsSearchPanelState = useMemo(
-    () => normalizeSearchPanelState(storedEventsSearchPanelState),
-    [storedEventsSearchPanelState]
-  );
-  const eventsSearchResult = useMemo(() => {
-    const activeSearch =
-      eventsSearchPanelState.searches[eventsSearchPanelState.searchType];
-    return activeSearch.hasSearched ? activeSearch.currentSearch : null;
-  }, [eventsSearchPanelState]);
-  const eventsMessageLabels = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const ref of eventsSearchResult?.references ?? []) {
-      if (ref.type === "message" && ref.cite) {
-        map[ref.id] = ref.cite;
-      }
-    }
-    return map;
-  }, [eventsSearchResult]);
-  const eventsEventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(
-    () =>
-      Object.keys(eventsMessageLabels).length > 0
-        ? { messageLabels: eventsMessageLabels }
-        : undefined,
-    [eventsMessageLabels]
-  );
+  const eventsEventNodeContext = useSearchEventNodeContext({
+    scope: "events",
+    transcriptDir: resolvedTranscriptsDir,
+    transcriptId: transcript.transcript_id,
+  });
   const searchAvailable = searchScope !== undefined;
 
   const handleTabChange = useCallback(
