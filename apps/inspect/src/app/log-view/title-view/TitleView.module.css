@@ -47,8 +47,57 @@
 
 .navbarWrapper {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: sticky;
+  overflow: hidden;
+  background-color: var(--bs-light-bg-subtle);
 }
 .navbarInnerWrapper {
   display: grid;
   grid-template-columns: 1fr auto;
+}
+
+/* Expanded / collapsed slot animation
+ *
+ * Both slots are rendered into a CSS grid with an animated row size:
+ * the active slot's container gets `grid-template-rows: 1fr` and the
+ * inactive slot collapses to `0fr`. Combined with `overflow: hidden`,
+ * this produces a smooth height transition.
+ */
+.expandedSlot,
+.collapsedSlot {
+  width: 100%;
+  display: grid;
+  overflow: hidden;
+  transition: opacity 120ms linear;
+}
+
+.expandedSlot {
+  grid-template-rows: 1fr;
+}
+
+.collapsedSlot {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.collapsed .expandedSlot {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.collapsed .collapsedSlot {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.expandedSlot > .expandedInner,
+.collapsedSlot > * {
+  min-height: 0;
+  overflow: hidden;
 }

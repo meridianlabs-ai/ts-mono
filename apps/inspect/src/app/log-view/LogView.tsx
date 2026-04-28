@@ -4,11 +4,14 @@ import {
   FC,
   Fragment,
   MouseEvent,
+  RefObject,
   useCallback,
+  useMemo,
   useRef,
 } from "react";
 
 import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
+import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { useEvalSpec, useRefreshLog } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -77,6 +80,20 @@ export const LogView: FC = () => {
     json: jsonTabConfig,
   };
 
+  const scrollRefs = useMemo(() => {
+    const refs: RefObject<HTMLElement | null>[] = [];
+    for (const key of Object.keys(tabs)) {
+      const ref = tabs[key].scrollRef;
+      if (ref) refs.push(ref as RefObject<HTMLElement | null>);
+    }
+    return refs;
+    // The set of tab refs is stable within a session — recompute only when
+    // the tab keys change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(tabs).join(",")]);
+
+  const { hidden: titleCollapsed } = useScrollDirection(scrollRefs);
+
   const selectedTab = useStore((state) => state.app.tabs.workspace);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
@@ -120,6 +137,7 @@ export const LogView: FC = () => {
           runningMetrics={runningMetrics}
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
+          collapsed={titleCollapsed}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>
           <div className={clsx("log-detail", styles.tabContainer)}>
@@ -141,7 +159,7 @@ export const LogView: FC = () => {
                     onSelected={onSelected}
                     selected={selectedTab === tab.id}
                     scrollable={!!tab.scrollable}
-                    scrollRef={tab.scrollRef}
+                    scrollRef={tab.scrollable ? tab.scrollRef : undefined}
                     className={clsx(tab.className)}
                     style={{ height: tab.scrollable ? "100%" : undefined }}
                   >

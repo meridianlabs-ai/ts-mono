@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useRef } from "react";
+import { FC, RefObject, useRef } from "react";
 
 import { ErrorPanel, StickyScrollProvider } from "@tsmono/react/components";
 import { useStatefulScrollPosition } from "@tsmono/react/hooks";
@@ -15,6 +15,9 @@ import { SampleDisplay } from "./SampleDisplay";
 interface InlineSampleDisplayProps {
   showActivity?: boolean;
   className?: string | string[];
+  /** Optional ref that receives the inner scroller element so callers can
+   *  hook scroll listeners on the actual scrolling viewport. */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -23,18 +26,24 @@ interface InlineSampleDisplayProps {
 export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   showActivity,
   className,
+  scrollRef,
 }) => {
   // Use shared hooks for loading and polling
   useLoadSample();
   usePollSample();
   return (
-    <InlineSampleComponent showActivity={showActivity} className={className} />
+    <InlineSampleComponent
+      showActivity={showActivity}
+      className={className}
+      scrollRef={scrollRef}
+    />
   );
 };
 
 export const InlineSampleComponent: FC<InlineSampleDisplayProps> = ({
   showActivity,
   className,
+  scrollRef: externalScrollRef,
 }) => {
   const sampleData = useSampleData();
 
@@ -45,8 +54,8 @@ export const InlineSampleComponent: FC<InlineSampleDisplayProps> = ({
       ? sampleData.downloadProgress.complete / sampleData.downloadProgress.total
       : undefined;
 
-  // Scroll ref — key by active tab so each tab restores independently
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const localScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = externalScrollRef ?? localScrollRef;
   const sampleTab = useStore((state) => state.app.tabs.sample);
   useStatefulScrollPosition(scrollRef, `inline-sample-scroller-${sampleTab}`);
 

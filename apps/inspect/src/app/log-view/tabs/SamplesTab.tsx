@@ -1,5 +1,5 @@
 import type { AgGridReact } from "ag-grid-react";
-import { FC, Fragment, useEffect, useMemo, useRef } from "react";
+import { FC, Fragment, RefObject, useEffect, useMemo, useRef } from "react";
 
 import { NoContentsPanel, ToolButton } from "@tsmono/react/components";
 
@@ -31,14 +31,22 @@ export const useSamplesTabConfig = (
   const samplesDescriptor = useSampleDescriptor();
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
 
+  // Single ref exposed to the parent so cross-tab UI (title-view
+  // collapse-on-scroll) can listen to scrolling inside this tab. Only one of
+  // `InlineSampleDisplay` or `SampleList` is mounted at a time, so they
+  // share this ref.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
   return useMemo(() => {
     return {
       id: kLogViewSamplesTabId,
       scrollable: false,
+      scrollRef,
       label: totalSampleCount > 1 ? "Samples" : "Sample",
       component: SamplesTab,
       componentProps: {
         running: evalStatus === "started",
+        scrollRef,
       },
       tools: () =>
         !samplesDescriptor
@@ -69,9 +77,10 @@ export const useSamplesTabConfig = (
 interface SamplesTabProps {
   // Required props
   running: boolean;
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
-export const SamplesTab: FC<SamplesTabProps> = ({ running }) => {
+export const SamplesTab: FC<SamplesTabProps> = ({ running, scrollRef }) => {
   const sampleSummaries = useFilteredSamples();
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -137,6 +146,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({ running }) => {
             showActivity={
               sampleStatus === "loading" || sampleStatus === "streaming"
             }
+            scrollRef={scrollRef}
           />
         ) : undefined}
         {samplesDescriptor && totalSampleCount > 1 ? (
@@ -146,6 +156,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({ running }) => {
             earlyStopping={selectedLogDetails?.results?.early_stopping}
             totalItemCount={evalSampleCount}
             running={running}
+            scrollRef={scrollRef}
           />
         ) : undefined}
       </Fragment>
