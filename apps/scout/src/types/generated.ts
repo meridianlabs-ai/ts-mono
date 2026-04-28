@@ -334,6 +334,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent search inputs
+         * @description List recent global search inputs, newest first.
+         */
+        get: operations["list_search_inputs_searches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/startscan": {
         parameters: {
             query?: never;
@@ -500,26 +520,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/transcripts/{dir}/{id}/searches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List saved searches for a transcript
-         * @description List all saved searches for a transcript, newest first.
-         */
-        get: operations["list_searches_transcripts__dir___id__searches_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/transcripts/{dir}/{id}/searches/{search_id}": {
         parameters: {
             query?: never;
@@ -528,17 +528,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get a saved search
-         * @description Get a single saved search by ID.
+         * Get a saved search result
+         * @description Get a cached search result by search input ID and transcript scope.
          */
         get: operations["get_search_transcripts__dir___id__searches__search_id__get"];
         put?: never;
         post?: never;
-        /**
-         * Delete a saved search
-         * @description Delete a saved search by ID.
-         */
-        delete: operations["delete_search_transcripts__dir___id__searches__search_id__delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1511,10 +1507,10 @@ export interface components {
             verbosity?: ("low" | "medium" | "high") | null;
         };
         /**
-         * GrepSavedSearch
-         * @description A persisted grep search result.
+         * GrepSearchInput
+         * @description A persisted grep search input.
          */
-        GrepSavedSearch: {
+        GrepSearchInput: {
             /** Created At */
             created_at: string;
             /** Ignore Case */
@@ -1523,8 +1519,6 @@ export interface components {
             query: string;
             /** Regex */
             regex: boolean;
-            /** Results */
-            results: components["schemas"]["Result"][];
             /** Search Id */
             search_id: string;
             /**
@@ -1748,27 +1742,6 @@ export interface components {
         };
         JsonValue: JsonValue;
         /**
-         * LlmSavedSearch
-         * @description A persisted LLM search result.
-         */
-        LlmSavedSearch: {
-            /** Created At */
-            created_at: string;
-            /** Model */
-            model?: string | null;
-            /** Query */
-            query: string;
-            /** Results */
-            results: components["schemas"]["Result"][];
-            /** Search Id */
-            search_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "llm";
-        };
-        /**
          * LlmScannerParams
          * @description Parameters for llm_scanner.
          */
@@ -1781,6 +1754,25 @@ export interface components {
             preprocessor?: components["schemas"]["MessageFormatOptions"] | null;
             /** Question */
             question: string;
+        };
+        /**
+         * LlmSearchInput
+         * @description A persisted LLM search input.
+         */
+        LlmSearchInput: {
+            /** Created At */
+            created_at: string;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
         };
         /**
          * LlmSearchRequest
@@ -2505,15 +2497,6 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
-        SavedSearch: components["schemas"]["GrepSavedSearch"] | components["schemas"]["LlmSavedSearch"];
-        /**
-         * SavedSearchListResponse
-         * @description Response from the list searches endpoint.
-         */
-        SavedSearchListResponse: {
-            /** Items */
-            items: components["schemas"]["SavedSearch"][];
-        };
         /**
          * ScanJobConfig
          * @description Scan job configuration.
@@ -3059,6 +3042,15 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        SearchInput: components["schemas"]["GrepSearchInput"] | components["schemas"]["LlmSearchInput"];
+        /**
+         * SearchInputListResponse
+         * @description Response from the list search inputs endpoint.
+         */
+        SearchInputListResponse: {
+            /** Items */
+            items: components["schemas"]["SearchInput"][];
         };
         /**
          * SpanBeginEvent
@@ -4333,6 +4325,31 @@ export interface operations {
             };
         };
     };
+    list_search_inputs_searches_get: {
+        parameters: {
+            query: {
+                /** @description Search input type to list */
+                type: "grep" | "llm";
+                /** @description Maximum number of recent search inputs to return */
+                count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchInputListResponse"];
+                };
+            };
+        };
+    };
     run_llm_scanner_startscan_post: {
         parameters: {
             query?: never;
@@ -4557,39 +4574,19 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SavedSearch"];
-                };
-            };
-        };
-    };
-    list_searches_transcripts__dir___id__searches_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Transcripts directory (base64url-encoded) */
-                dir: string;
-                /** @description Transcript ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavedSearchListResponse"];
+                    "application/json": components["schemas"]["Result"];
                 };
             };
         };
     };
     get_search_transcripts__dir___id__searches__search_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Message filter used for the cached search result */
+                messages?: string | null;
+                /** @description Event filter used for the cached search result */
+                events?: string | null;
+            };
             header?: never;
             path: {
                 /** @description Transcripts directory (base64url-encoded) */
@@ -4609,33 +4606,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SavedSearch"];
+                    "application/json": components["schemas"]["Result"];
                 };
-            };
-        };
-    };
-    delete_search_transcripts__dir___id__searches__search_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Transcripts directory (base64url-encoded) */
-                dir: string;
-                /** @description Transcript ID */
-                id: string;
-                /** @description Search ID */
-                search_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
