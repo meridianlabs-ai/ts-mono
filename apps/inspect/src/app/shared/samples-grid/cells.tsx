@@ -63,7 +63,11 @@ export const PlainTextCellDiv: FC<{
 }> = ({ semanticClass, children }) => (
   <div
     className={clsx(semanticClass, styles.cell)}
-    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+    style={{
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    }}
   >
     {children}
   </div>

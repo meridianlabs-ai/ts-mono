@@ -56,7 +56,9 @@ const rawScoreFieldKey = (name: string): string =>
 
 /** Build the superset of sample columns. Visibility is *not* applied here
  *  — the caller (via `useSampleGridState`) controls `hide`. */
-export function buildSampleColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
+export function buildSampleColumns(
+  ctx: SampleGridContext
+): ColDef<SampleRow>[] {
   const { viewMode, multiLog, descriptor, epochs } = ctx;
   const isList = viewMode === "list";
   const shape = descriptor?.messageShape;
@@ -497,8 +499,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   }
   const scoreNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
   return scoreNames.map((name) => {
-    const isUniformNumber =
-      types[name].size === 1 && types[name].has("number");
+    const isUniformNumber = types[name].size === 1 && types[name].has("number");
     return {
       colId: rawScoreFieldKey(name),
       field: rawScoreFieldKey(name),

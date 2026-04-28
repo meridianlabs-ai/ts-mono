@@ -8,9 +8,9 @@ import type {
   GridState,
   IRowNode,
   RowClickedEvent,
+  SizeColumnsToContentStrategy,
   SizeColumnsToFitGridStrategy,
   SizeColumnsToFitProvidedWidthStrategy,
-  SizeColumnsToContentStrategy,
   StateUpdatedEvent,
 } from "ag-grid-community";
 import { themeBalham } from "ag-grid-community";
@@ -239,11 +239,17 @@ export const SamplesGrid = <TRow,>(
   const manuallyResized = useRef(new Set<string>());
   const handleColumnResized = useCallback(
     (event: ColumnResizedEvent<TRow>) => {
-      if (!event.finished || event.source !== "uiColumnResized" || !event.column)
+      if (
+        !event.finished ||
+        event.source !== "uiColumnResized" ||
+        !event.column
+      )
         return;
       manuallyResized.current.add(event.column.getColId());
       const state = columnDefs
-        .filter((c) => c.colId && c.flex && !manuallyResized.current.has(c.colId))
+        .filter(
+          (c) => c.colId && c.flex && !manuallyResized.current.has(c.colId)
+        )
         .map((c) => ({ colId: c.colId!, flex: c.flex }));
       if (state.length > 0) {
         gridRef.current?.api?.applyColumnState({ state });

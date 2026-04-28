@@ -42,8 +42,11 @@ import { DisplayedSample } from "../types";
 
 import styles from "./SamplesPanel.module.css";
 
-const sampleRowId = (logFile: string, sampleId: string | number, epoch: number) =>
-  `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
+const sampleRowId = (
+  logFile: string,
+  sampleId: string | number,
+  epoch: number
+) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
 
 const gridDisplayedSamples = (api: GridApi<SampleRow>): DisplayedSample[] => {
   const out: DisplayedSample[] = [];
@@ -394,6 +397,7 @@ export const SamplesPanel: FC = () => {
                 : ApplicationIcons.toggle.off
             }
             latched={showRetriedLogs}
+            subtle
             onClick={() => {
               setShowRetriedLogs(!showRetriedLogs);
               setTimeout(() => {
@@ -409,9 +413,10 @@ export const SamplesPanel: FC = () => {
         <NavbarButton
           key="choose-columns"
           ref={columnButtonRef}
-          label="Choose Columns"
-          icon={ApplicationIcons.checkbox.checked}
+          label="Columns"
+          icon={ApplicationIcons.columns}
           dropdown
+          subtle
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);
@@ -429,7 +434,7 @@ export const SamplesPanel: FC = () => {
         onVisibilityChange={setColumnVisibility}
         positionEl={columnButtonRef.current}
         filteredFields={filteredFields}
-        splitScores={false}
+        scoresHeading="Scores"
       />
 
       <ActivityBar animating={!!loading} />

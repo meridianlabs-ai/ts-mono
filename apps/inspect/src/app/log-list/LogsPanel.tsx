@@ -388,6 +388,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
                 : ApplicationIcons.toggle.off
             }
             latched={showRetriedLogs}
+            subtle
             onClick={() => setShowRetriedLogs(!showRetriedLogs)}
           />
         )}
@@ -395,9 +396,10 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         <NavbarButton
           key="choose-columns"
           ref={columnButtonRef}
-          label="Choose Columns"
-          icon={ApplicationIcons.checkbox.checked}
+          label="Columns"
+          icon={ApplicationIcons.columns}
           dropdown
+          subtle
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);

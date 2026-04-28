@@ -31,6 +31,7 @@ import {
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
+import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { getFieldKey } from "../../shared/gridUtils.ts";
 import { buildSampleColumns } from "../../shared/samples-grid/columns.tsx";
@@ -100,11 +101,13 @@ export const useSamplesTabConfig = (
                   />
                 ),
                 samplesAvailable && (
-                  <ToolButton
+                  <NavbarButton
                     key="choose-columns"
                     ref={columnButtonRef}
                     label="Columns"
-                    icon={ApplicationIcons.checkbox.checked}
+                    icon={ApplicationIcons.columns}
+                    dropdown
+                    subtle
                     onClick={handleToggleColumnSelector}
                   />
                 ),
@@ -370,7 +373,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           onVisibilityChange={handleVisibilityChange}
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}
-          splitScores={false}
+          scoresHeading="Scores"
         />
       ) : null}
     </Fragment>

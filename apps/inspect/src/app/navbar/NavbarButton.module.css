@@ -1,5 +1,8 @@
 .navbarButton {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
+  /* Match the height of the navbar's `ViewSegmentedControl` outer
+   * container (20.8px): font 0.7rem * 1.5 = 16.8 line-height + 1px
+   * padding-y * 2 + 1px border * 2. */
   padding: 1px 5px;
 }
 

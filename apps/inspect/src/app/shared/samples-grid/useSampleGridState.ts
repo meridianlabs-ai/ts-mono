@@ -3,8 +3,8 @@ import type { AgGridReact } from "ag-grid-react";
 import { RefObject, useCallback, useEffect, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
-
 import { getFieldKey } from "../gridUtils";
+
 import { SampleGridScope } from "./types";
 
 interface UseSampleGridStateResult {
@@ -117,6 +117,12 @@ export function useSampleGridState<TRow>(
       setGridState,
       clearGridState,
     }),
-    [columnVisibility, setColumnVisibility, gridState, setGridState, clearGridState]
+    [
+      columnVisibility,
+      setColumnVisibility,
+      gridState,
+      setGridState,
+      clearGridState,
+    ]
   );
 }
