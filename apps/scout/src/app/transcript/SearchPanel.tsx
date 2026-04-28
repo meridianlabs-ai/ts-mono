@@ -13,6 +13,7 @@ import {
 
 import {
   AutocompleteInput,
+  LoadingBar,
   MarkdownDivWithReferences,
   MarkdownReference,
   PopOver,
@@ -455,6 +456,7 @@ export const SearchPanel = ({
             </button>
           </div>
         </form>
+        <LoadingBar loading={loading} />
         <div className={styles.results}>
           <SearchResults
             loading={loading}
