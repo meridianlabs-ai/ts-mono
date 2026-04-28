@@ -20,6 +20,7 @@ import {
   DisplayModeContext,
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
+import type { EventNodeContext } from "@tsmono/inspect-components/transcript";
 import {
   TabPanel,
   TabSet,
@@ -39,6 +40,10 @@ import { ValidationCaseEditor } from "../validation/components/ValidationCaseEdi
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
+import {
+  getSearchPanelStateKey,
+  normalizeSearchPanelState,
+} from "./searchPanelState";
 import type { TranscriptSearchScope } from "./searchRequest";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
@@ -118,6 +123,48 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       : resolvedSelectedTranscriptTab === kTranscriptEventsTabId
         ? "events"
         : undefined;
+
+  const eventsSearchPanelStateKey = useMemo(
+    () =>
+      resolvedTranscriptsDir
+        ? getSearchPanelStateKey({
+            scope: "events",
+            transcriptDir: resolvedTranscriptsDir,
+            transcriptId: transcript.transcript_id,
+          })
+        : null,
+    [resolvedTranscriptsDir, transcript.transcript_id]
+  );
+  const storedEventsSearchPanelState = useStore((state) =>
+    eventsSearchPanelStateKey
+      ? state.searchPanelStates[eventsSearchPanelStateKey]
+      : undefined
+  );
+  const eventsSearchPanelState = useMemo(
+    () => normalizeSearchPanelState(storedEventsSearchPanelState),
+    [storedEventsSearchPanelState]
+  );
+  const eventsSearchResult = useMemo(() => {
+    const activeSearch =
+      eventsSearchPanelState.searches[eventsSearchPanelState.searchType];
+    return activeSearch.hasSearched ? activeSearch.currentSearch : null;
+  }, [eventsSearchPanelState]);
+  const eventsMessageLabels = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const ref of eventsSearchResult?.references ?? []) {
+      if (ref.type === "message" && ref.cite) {
+        map[ref.id] = ref.cite;
+      }
+    }
+    return map;
+  }, [eventsSearchResult]);
+  const eventsEventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(
+    () =>
+      Object.keys(eventsMessageLabels).length > 0
+        ? { messageLabels: eventsMessageLabels }
+        : undefined,
+    [eventsMessageLabels]
+  );
   const searchAvailable = searchScope !== undefined;
 
   const handleTabChange = useCallback(
@@ -152,22 +199,25 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   // Auto-switch tab based on deep link params
   useEffect(() => {
-    if (
-      eventParam &&
-      resolvedSelectedTranscriptTab !== kTranscriptEventsTabId
-    ) {
-      handleTabChange(kTranscriptEventsTabId);
-    } else if (
-      messageParam &&
-      resolvedSelectedTranscriptTab !== kTranscriptMessagesTabId
-    ) {
-      handleTabChange(kTranscriptMessagesTabId);
-    }
+    const targetTab = eventParam
+      ? kTranscriptEventsTabId
+      : messageParam && !tabParam
+        ? kTranscriptMessagesTabId
+        : null;
+    if (!targetTab || resolvedSelectedTranscriptTab === targetTab) return;
+    setSelectedTranscriptTab(targetTab);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set("tab", targetTab);
+      return newParams;
+    });
   }, [
     eventParam,
     messageParam,
+    tabParam,
     resolvedSelectedTranscriptTab,
-    handleTabChange,
+    setSelectedTranscriptTab,
+    setSearchParams,
   ]);
 
   // Transcript Filtering
@@ -455,6 +505,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           onHeadroomResetAnchor={onHeadroomResetAnchor}
           getEventUrl={getFullEventUrl}
           linkingEnabled={isHostedEnvironment()}
+          eventNodeContext={eventsEventNodeContext}
         />,
         "events"
       )}
