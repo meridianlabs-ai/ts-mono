@@ -48,6 +48,10 @@ interface SampleListProps {
   running: boolean;
   className?: string | string[];
   listHandle: RefObject<AgGridReact<SampleListItem> | null>;
+  /** Optional ref that receives the AgGrid `.ag-body-viewport` DOM element
+   *  once the grid is ready, so callers can hook scroll listeners on the
+   *  actual scrolling viewport. */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
@@ -61,6 +65,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     running,
     className,
     listHandle,
+    scrollRef,
   } = props;
 
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -336,6 +341,14 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
           suppressCellFocus={true}
           domLayout="normal"
           onBodyScroll={handleBodyScroll}
+          onGridReady={() => {
+            if (scrollRef) {
+              const viewport = gridContainerRef.current?.querySelector(
+                ".ag-body-viewport"
+              ) as HTMLDivElement | null;
+              scrollRef.current = viewport ?? null;
+            }
+          }}
           onFirstDataRendered={() => {
             if (running && followOutputRef.current) {
               listHandle.current?.api?.ensureIndexVisible(

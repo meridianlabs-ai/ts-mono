@@ -12,6 +12,7 @@ import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { useTotalSampleCount } from "../../../state/hooks";
 
+import { CollapsedTitleBar } from "./CollapsedTitleBar";
 import { PrimaryBar } from "./PrimaryBar";
 import { SecondaryBar } from "./SecondaryBar";
 import styles from "./TitleView.module.css";
@@ -23,6 +24,7 @@ interface TitleViewProps {
   evalPlan?: EvalPlan;
   evalStats?: EvalStats;
   status?: EvalLogStatus;
+  collapsed?: boolean;
 }
 
 /**
@@ -35,26 +37,47 @@ export const TitleView: FC<TitleViewProps> = ({
   evalStats,
   status,
   runningMetrics,
+  collapsed,
 }) => {
   const totalSampleCount = useTotalSampleCount();
 
   return (
-    <nav className={clsx("navbar", "sticky-top", styles.navbarWrapper)}>
-      <PrimaryBar
-        evalSpec={evalSpec}
-        evalResults={evalResults}
-        status={status}
-        runningMetrics={runningMetrics}
-        sampleCount={totalSampleCount}
-      />
-      <SecondaryBar
-        evalSpec={evalSpec}
-        evalPlan={evalPlan}
-        evalResults={evalResults}
-        evalStats={evalStats}
-        status={status}
-        sampleCount={totalSampleCount}
-      />
+    <nav
+      className={clsx(
+        "navbar",
+        "sticky-top",
+        styles.navbarWrapper,
+        collapsed ? styles.collapsed : styles.expanded
+      )}
+    >
+      <div className={styles.expandedSlot} aria-hidden={collapsed}>
+        <div className={styles.expandedInner}>
+          <PrimaryBar
+            evalSpec={evalSpec}
+            evalResults={evalResults}
+            status={status}
+            runningMetrics={runningMetrics}
+            sampleCount={totalSampleCount}
+          />
+          <SecondaryBar
+            evalSpec={evalSpec}
+            evalPlan={evalPlan}
+            evalResults={evalResults}
+            evalStats={evalStats}
+            status={status}
+            sampleCount={totalSampleCount}
+          />
+        </div>
+      </div>
+      <div className={styles.collapsedSlot} aria-hidden={!collapsed}>
+        <CollapsedTitleBar
+          evalSpec={evalSpec}
+          evalResults={evalResults}
+          runningMetrics={runningMetrics}
+          status={status}
+          sampleCount={totalSampleCount}
+        />
+      </div>
     </nav>
   );
 };
