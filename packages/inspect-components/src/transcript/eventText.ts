@@ -3,6 +3,54 @@ import type { Content } from "@tsmono/inspect-common/types";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
+// `type` -> required payload key. The payload-key check avoids collapsing
+// user data that happens to share a discriminator value but isn't a Content*.
+const SANITIZED_CONTENT_KEYS: Record<string, string> = {
+  image: "image",
+  audio: "audio",
+  video: "video",
+  data: "data",
+  document: "document",
+};
+
+// Mirror how the viewer renders Content* values: ContentReasoning becomes the
+// readable text (matching MessageContent.tsx), other Content* become a
+// `<type />` placeholder (matching the UI's <img>/<audio>/etc. tags). Returns
+// undefined for anything else, so the caller preserves the original value.
+const sanitizeContent = (val: unknown): string | undefined => {
+  if (val === null || typeof val !== "object" || !("type" in val)) {
+    return undefined;
+  }
+  if (val.type === "reasoning" && "reasoning" in val) {
+    const r = val as {
+      reasoning?: string | null;
+      summary?: string | null;
+      redacted?: boolean;
+    };
+    return r.redacted ? (r.summary ?? "") : r.reasoning || r.summary || "";
+  }
+  if (typeof val.type === "string") {
+    const payloadKey = SANITIZED_CONTENT_KEYS[val.type];
+    if (payloadKey && payloadKey in val) {
+      return `<${val.type} />`;
+    }
+  }
+  return undefined;
+};
+
+const sanitizeStringify = (v: unknown): string => {
+  // Top-level Content* values: bypass JSON.stringify, which would wrap a
+  // reviver-returned string in literal JSON quotes.
+  const rootSanitized = sanitizeContent(v);
+  if (rootSanitized !== undefined) {
+    return rootSanitized;
+  }
+  return JSON.stringify(v, (_key, val: unknown) => {
+    const replacement = sanitizeContent(val);
+    return replacement !== undefined ? replacement : val;
+  });
+};
+
 /**
  * Extracts labeled fields from an event for search and text serialization.
  */
@@ -65,7 +113,7 @@ const extractEventFields = (event: EventType): [string, string][] => {
         if (typeof toolEvent.result === "string") {
           fields.push(["result", toolEvent.result]);
         } else {
-          fields.push(["result", JSON.stringify(toolEvent.result)]);
+          fields.push(["result", sanitizeStringify(toolEvent.result)]);
         }
       }
       // Tool error
@@ -108,7 +156,7 @@ const extractEventFields = (event: EventType): [string, string][] => {
         if (typeof infoEvent.data === "string") {
           fields.push(["data", infoEvent.data]);
         } else {
-          fields.push(["data", JSON.stringify(infoEvent.data)]);
+          fields.push(["data", sanitizeStringify(infoEvent.data)]);
         }
       }
       break;
@@ -126,12 +174,23 @@ const extractEventFields = (event: EventType): [string, string][] => {
     }
 
     case "compaction": {
+      // Mirror CompactionEventView: title (source if non-default) plus the
+      // tokens/metadata MetaDataGrid.
       const compactionEvent = event;
-      // Source shown in title
-      if (compactionEvent.source) {
+      if (compactionEvent.source && compactionEvent.source !== "inspect") {
         fields.push(["source", compactionEvent.source]);
       }
-      fields.push(["event", JSON.stringify(compactionEvent)]);
+      if (compactionEvent.tokens_before != null) {
+        fields.push(["tokens_before", String(compactionEvent.tokens_before)]);
+      }
+      if (compactionEvent.tokens_after != null) {
+        fields.push(["tokens_after", String(compactionEvent.tokens_after)]);
+      }
+      if (compactionEvent.metadata) {
+        for (const [k, v] of Object.entries(compactionEvent.metadata)) {
+          fields.push([k, typeof v === "string" ? v : sanitizeStringify(v)]);
+        }
+      }
       break;
     }
 
@@ -158,10 +217,10 @@ const extractEventFields = (event: EventType): [string, string][] => {
       }
       // Input/result shown in summary
       if (subtaskEvent.input) {
-        fields.push(["input", JSON.stringify(subtaskEvent.input)]);
+        fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       }
       if (subtaskEvent.result) {
-        fields.push(["result", JSON.stringify(subtaskEvent.result)]);
+        fields.push(["result", sanitizeStringify(subtaskEvent.result)]);
       }
       break;
     }
@@ -236,7 +295,7 @@ const extractEventFields = (event: EventType): [string, string][] => {
         }
       }
       if (sample.metadata && Object.keys(sample.metadata).length > 0) {
-        fields.push(["metadata", JSON.stringify(sample.metadata)]);
+        fields.push(["metadata", sanitizeStringify(sample.metadata)]);
       }
       break;
     }
@@ -301,7 +360,7 @@ const extractEventFields = (event: EventType): [string, string][] => {
             "value",
             typeof change.value === "string"
               ? change.value
-              : JSON.stringify(change.value),
+              : sanitizeStringify(change.value),
           ]);
         }
       }
@@ -351,11 +410,11 @@ const extractContentText = (content: string | Array<Content>): string[] => {
         texts.push(item.text);
         break;
       case "reasoning": {
-        const reasoning = item;
-        if (reasoning.reasoning) {
-          texts.push(reasoning.reasoning);
-        } else if (reasoning.summary) {
-          texts.push(reasoning.summary);
+        const text = item.redacted
+          ? item.summary
+          : item.reasoning || item.summary;
+        if (text) {
+          texts.push(text);
         }
         break;
       }
@@ -365,10 +424,27 @@ const extractContentText = (content: string | Array<Content>): string[] => {
           texts.push(toolUse.name);
         }
         if (toolUse.arguments) {
-          texts.push(JSON.stringify(toolUse.arguments));
+          texts.push(sanitizeStringify(toolUse.arguments));
+        }
+        if (toolUse.result) {
+          texts.push(
+            typeof toolUse.result === "string"
+              ? toolUse.result
+              : sanitizeStringify(toolUse.result)
+          );
+        }
+        if (toolUse.error) {
+          texts.push(toolUse.error);
         }
         break;
       }
+      case "image":
+      case "audio":
+      case "video":
+      case "data":
+      case "document":
+        texts.push(`<${item.type} />`);
+        break;
     }
   }
   return texts;
