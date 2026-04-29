@@ -351,11 +351,11 @@ const extractContentText = (content: string | Array<Content>): string[] => {
         texts.push(item.text);
         break;
       case "reasoning": {
-        const reasoning = item;
-        if (reasoning.reasoning) {
-          texts.push(reasoning.reasoning);
-        } else if (reasoning.summary) {
-          texts.push(reasoning.summary);
+        const text = item.redacted
+          ? item.summary
+          : item.reasoning || item.summary;
+        if (text) {
+          texts.push(text);
         }
         break;
       }

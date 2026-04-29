@@ -106,11 +106,13 @@ const textFromContent = (
       if (excludeReasoning) {
         return null;
       }
-      const reasoning = content.redacted ? content.summary : content.reasoning;
-      if (!reasoning) {
+      const text = content.redacted
+        ? content.summary
+        : content.reasoning || content.summary;
+      if (!text) {
         return null;
       }
-      return `\n<think>${reasoning}</think>`;
+      return `\n<think>${text}</think>`;
     }
 
     case "tool_use": {
