@@ -95,8 +95,8 @@ export function buildSampleColumns(
     field: "sampleStatus",
     headerName: isList ? "" : "Sample Status",
     headerTooltipValueGetter: () => "Sample Status",
-    initialWidth: isList ? 24 : 100,
-    minWidth: isList ? 24 : 80,
+    initialWidth: isList ? 28 : 100,
+    minWidth: isList ? 28 : 80,
     valueGetter: (params: ValueGetterParams<SampleRow>) => {
       const row = params.data;
       if (!row) return kDefaultSampleSortValue;
