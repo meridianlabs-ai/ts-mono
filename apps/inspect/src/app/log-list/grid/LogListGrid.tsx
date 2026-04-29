@@ -156,10 +156,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
 
-      // Format task args
+      // Format task args. Prefer `task_args_passed` (the args the user
+      // actually supplied at the call site) over `task_args` (which
+      // would also include defaulted values).
+      const taskArgsSource =
+        details?.eval?.task_args_passed ?? details?.eval?.task_args;
       let taskArgs: string | undefined;
-      if (details?.eval?.task_args) {
-        const entries = Object.entries(details.eval.task_args);
+      if (taskArgsSource) {
+        const entries = Object.entries(taskArgsSource);
         if (entries.length > 0) {
           taskArgs = entries
             .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
@@ -214,7 +218,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         duration,
         taskFile: details?.eval?.task_file ?? undefined,
         taskArgs,
-        taskArgsRaw: details?.eval?.task_args ?? undefined,
+        taskArgsRaw: taskArgsSource ?? undefined,
         tags: details?.tags,
         percentCompleted,
         sampleErrors,
