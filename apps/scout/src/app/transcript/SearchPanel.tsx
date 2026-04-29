@@ -452,7 +452,7 @@ export const SearchPanel = ({
               className={styles.runButton}
               disabled={loading || !query.trim()}
             >
-              {loading ? "Running..." : "Run"}
+              Run
             </button>
           </div>
         </form>
