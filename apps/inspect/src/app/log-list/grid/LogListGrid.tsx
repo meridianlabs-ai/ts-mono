@@ -33,7 +33,7 @@ import "../../shared/agGrid";
 
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
-import { createGridColumnResizer } from "../../shared/gridUtils";
+import { createGridColumnResizer, getFieldKey } from "../../shared/gridUtils";
 import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
@@ -326,14 +326,42 @@ export const LogListGrid: FC<LogListGridProps> = ({
     loadHeaders();
   }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
 
+  // Apply visibility via the ag-grid api so the column-def reference
+  // stays stable across visibility toggles. Re-passing columnDefs with
+  // `hide:` injected would reset user-driven width and reorder state.
+  //
+  // Wrapped in a callback so we can fire it both from the useEffect (when
+  // visibility changes) and from `onGridReady` (the first effect call
+  // happens before the api exists, so without that second hook a fresh
+  // mount would render with default visibility regardless of what the
+  // user previously hid).
+  const applyVisibility = useCallback(() => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const state = columns.map((c) => ({
+      colId: getFieldKey(c),
+      hide: visibility[getFieldKey(c)] === false,
+    }));
+    if (state.length > 0) api.applyColumnState({ state });
+  }, [visibility, columns, gridRef]);
+  useEffect(() => {
+    applyVisibility();
+  }, [applyVisibility]);
+
   // Dev-only test hook: expose AG-Grid api so Playwright tests can drive
   // filter/sort programmatically. Vite strips this branch in production.
-  const handleGridReady = useCallback((e: GridReadyEvent<LogListRow>) => {
-    if (import.meta.env.DEV) {
-      (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
-        e.api;
-    }
-  }, []);
+  const handleGridReady = useCallback(
+    (e: GridReadyEvent<LogListRow>) => {
+      if (import.meta.env.DEV) {
+        (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
+          e.api;
+      }
+      // The visibility effect above ran before the api was ready; apply
+      // now that it is.
+      applyVisibility();
+    },
+    [applyVisibility]
+  );
 
   const handleSortChanged = useCallback(async () => {
     await loadAllLogOverviews();
@@ -360,19 +388,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   useEffect(() => {
     resizeGridColumns();
   }, [columns, resizeGridColumns]);
-
-  // Apply visibility via the ag-grid api so the column-def reference stays
-  // stable across visibility toggles. Re-passing columnDefs with `hide:`
-  // injected would reset user-driven width and reorder state.
-  useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-    const state = columns
-      .map((c) => c.colId ?? c.field)
-      .filter((id): id is string => !!id)
-      .map((colId) => ({ colId, hide: visibility[colId] === false }));
-    if (state.length > 0) api.applyColumnState({ state });
-  }, [visibility, columns, gridRef]);
 
   // Find functionality - searches across the currently visible columns.
   // Formatted cell values are cached per (data, columns) so only keystrokes

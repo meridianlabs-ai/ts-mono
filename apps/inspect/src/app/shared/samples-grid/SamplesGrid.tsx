@@ -28,7 +28,7 @@ import {
 import "../agGrid";
 
 import { createGridKeyboardHandler } from "../gridKeyboardNavigation";
-import { createGridColumnResizer } from "../gridUtils";
+import { createGridColumnResizer, getFieldKey } from "../gridUtils";
 
 import styles from "./SamplesGrid.module.css";
 
@@ -242,15 +242,24 @@ export const SamplesGrid = <TRow,>(
   // Apply visibility via the api rather than the columnDef so that
   // toggling visibility doesn't force a `columnDefs` rebuild — which would
   // reset user-driven column width and order.
-  useEffect(() => {
+  //
+  // Wrapped in a callback so we can fire it both from the useEffect (when
+  // visibility changes) and from `onGridReady` (the first useEffect call
+  // happens before the api exists, so without that second hook a fresh
+  // mount would render with default visibility regardless of what the
+  // user previously hid).
+  const applyVisibility = useCallback(() => {
     const api = gridRef.current?.api;
     if (!api || !columnVisibility) return;
-    const state = columnDefs
-      .map((c) => c.colId)
-      .filter((id): id is string => !!id)
-      .map((colId) => ({ colId, hide: columnVisibility[colId] === false }));
+    const state = columnDefs.map((c) => ({
+      colId: getFieldKey(c),
+      hide: columnVisibility[getFieldKey(c)] === false,
+    }));
     if (state.length > 0) api.applyColumnState({ state });
   }, [columnVisibility, columnDefs, gridRef]);
+  useEffect(() => {
+    applyVisibility();
+  }, [applyVisibility]);
 
   // Track which columns the user manually resized; for non-resized flex
   // columns we keep re-applying their flex so they share remaining space.
@@ -318,7 +327,10 @@ export const SamplesGrid = <TRow,>(
       ) as HTMLDivElement | null;
       scrollRef.current = viewport ?? null;
     }
-  }, [scrollRef]);
+    // The visibility effect above ran before the api was ready; apply
+    // now that it is.
+    applyVisibility();
+  }, [scrollRef, applyVisibility]);
 
   const handleFirstDataRendered = useCallback(() => {
     if (followOutput && followingRef.current && gridRef.current?.api) {

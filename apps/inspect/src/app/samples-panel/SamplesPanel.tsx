@@ -240,25 +240,32 @@ export const SamplesPanel: FC = () => {
     return v;
   }, [allColumns, columnVisibility]);
 
-  // Drop the persisted filter when samplesPath changes.
+  // Drop the persisted filter when samplesPath changes — surviving
+  // column / sort settings are still useful, but a filter scoped to the
+  // prior directory isn't. Pure: state mutations live in the effects
+  // below.
   const initialState = useMemo<GridState | undefined>(() => {
     if (
       previousSamplesPath !== undefined &&
       previousSamplesPath !== samplesPath
     ) {
-      clearDisplayedSamples();
       const result = { ...gridState };
       delete result?.filter;
       return result;
     }
     return gridState;
-  }, [previousSamplesPath, samplesPath, clearDisplayedSamples, gridState]);
+  }, [previousSamplesPath, samplesPath, gridState]);
 
   useEffect(() => {
-    if (samplesPath !== previousSamplesPath) {
-      setPreviousSamplesPath(samplesPath);
-    }
-  }, [samplesPath, previousSamplesPath, setPreviousSamplesPath]);
+    if (samplesPath === previousSamplesPath) return;
+    if (previousSamplesPath !== undefined) clearDisplayedSamples();
+    setPreviousSamplesPath(samplesPath);
+  }, [
+    samplesPath,
+    previousSamplesPath,
+    clearDisplayedSamples,
+    setPreviousSamplesPath,
+  ]);
 
   // Transform logDetails into flat rows.
   const [sampleRows, hasRetriedLogs] = useMemo(() => {
@@ -335,11 +342,18 @@ export const SamplesPanel: FC = () => {
     [navigateToSampleDetail]
   );
 
+  // Tracked here (not read straight off `gridRef.current.api`) so the
+  // navbar's Reset Filters button and the column-selector's filter-icon
+  // re-render when filters actually change.
+  const [filteredFields, setFilteredFields] = useState<string[]>([]);
+  const hasFilter = filteredFields.length > 0;
+
   const updateDisplayedFromApi = useCallback(
     (api: GridApi<SampleRow>) => {
       const displayed = gridDisplayedSamples(api);
       setFilteredSampleCount(displayed.length);
       setDisplayedSamples(displayed);
+      setFilteredFields(Object.keys(api.getFilterModel() ?? {}));
     },
     [setFilteredSampleCount, setDisplayedSamples]
   );
@@ -368,10 +382,6 @@ export const SamplesPanel: FC = () => {
       : undefined;
 
   const isEmptyAndLoading = sampleRows.length === 0 && (loading > 0 || syncing);
-
-  const filterModel = gridRef.current?.api?.getFilterModel() || {};
-  const filteredFields = Object.keys(filterModel);
-  const hasFilter = filteredFields.length > 0;
 
   const handleResetFilters = () => {
     if (gridRef.current?.api) gridRef.current.api.setFilterModel(null);
