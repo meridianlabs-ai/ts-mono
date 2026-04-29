@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { findScrollableParent, scrollRangeToCenter } from "../../utils/dom";
+import { findScrollableParent, scrollRangeToCenter } from "./dom";
 
 describe("findScrollableParent", () => {
   let container: HTMLDivElement;

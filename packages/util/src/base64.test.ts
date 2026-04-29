@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { isBase64 } from "@tsmono/util";
+import { isBase64 } from "./base64";
 
 describe("isBase64", () => {
   test("identifies valid base64 strings", () => {
