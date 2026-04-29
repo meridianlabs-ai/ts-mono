@@ -33,8 +33,9 @@ import "../../shared/agGrid";
 
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
-import { createGridColumnResizer, getFieldKey } from "../../shared/gridUtils";
+import { createGridColumnResizer } from "../../shared/gridUtils";
 import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
+import { useApplyColumnVisibility } from "../../shared/useApplyColumnVisibility";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
@@ -326,27 +327,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
     loadHeaders();
   }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
 
-  // Apply visibility via the ag-grid api so the column-def reference
-  // stays stable across visibility toggles. Re-passing columnDefs with
-  // `hide:` injected would reset user-driven width and reorder state.
-  //
-  // Wrapped in a callback so we can fire it both from the useEffect (when
-  // visibility changes) and from `onGridReady` (the first effect call
-  // happens before the api exists, so without that second hook a fresh
-  // mount would render with default visibility regardless of what the
-  // user previously hid).
-  const applyVisibility = useCallback(() => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-    const state = columns.map((c) => ({
-      colId: getFieldKey(c),
-      hide: visibility[getFieldKey(c)] === false,
-    }));
-    if (state.length > 0) api.applyColumnState({ state });
-  }, [visibility, columns, gridRef]);
-  useEffect(() => {
-    applyVisibility();
-  }, [applyVisibility]);
+  const applyVisibility = useApplyColumnVisibility(
+    gridRef,
+    columns,
+    visibility
+  );
 
   // Dev-only test hook: expose AG-Grid api so Playwright tests can drive
   // filter/sort programmatically. Vite strips this branch in production.
@@ -388,6 +373,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
   useEffect(() => {
     resizeGridColumns();
   }, [columns, resizeGridColumns]);
+
+  const handleGridColumnsChanged = useCallback(
+    (e: GridColumnsChangedEvent<LogListRow>) => {
+      const cols = e.api.getColumnDefs();
+      if (cols && cols.length > maxColCount.current) {
+        maxColCount.current = cols.length;
+        resizeGridColumns();
+      }
+    },
+    [resizeGridColumns]
+  );
 
   // Find functionality - searches across the currently visible columns.
   // Formatted cell values are cached per (data, columns) so only keystrokes
@@ -552,13 +548,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           headerHeight={25}
           rowSelection={{ mode: "singleRow", checkboxes: false }}
           getRowId={(params) => params.data.id}
-          onGridColumnsChanged={(e: GridColumnsChangedEvent<LogListRow>) => {
-            const cols = e.api.getColumnDefs();
-            if (cols && cols?.length > maxColCount.current) {
-              maxColCount.current = cols.length;
-              resizeGridColumns();
-            }
-          }}
+          onGridColumnsChanged={handleGridColumnsChanged}
           onGridSizeChanged={resizeGridColumns}
           theme={themeBalham}
           enableCellTextSelection={true}

@@ -27,7 +27,7 @@ interface SampleListProps {
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
-  className?: string | string[];
+  className?: string;
   listHandle: RefObject<AgGridReact<SampleRow> | null>;
   /** Optional ref that receives the AgGrid `.ag-body-viewport` DOM element
    *  once the grid is ready, so callers can hook scroll listeners on the
@@ -176,7 +176,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         initialState={gridState}
         onStateUpdated={onGridStateChange ? handleStateUpdated : undefined}
         onFilterChanged={handleFilterChanged}
-        className={typeof className === "string" ? className : undefined}
+        className={className}
       />
       <SampleFooter
         sampleCount={sampleCount}

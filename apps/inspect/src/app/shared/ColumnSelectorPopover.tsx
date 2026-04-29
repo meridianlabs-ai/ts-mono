@@ -24,9 +24,9 @@ interface ColumnSelectorPopoverProps<T> {
   positionEl: HTMLElement | null;
   filteredFields?: string[];
   scoresHeading?: string;
-  /** Split columns into "Base" and a scores section. Default: `true`
-   *  (for the LogsPanel where the split is meaningful). Set `false` for
-   *  the sample lists, where a single unified column list is preferred. */
+  /** Split columns into "Base" and a separate scores section. Default
+   *  `true`. Set `false` for callers that don't need the split — both
+   *  sections render under a single unified list instead. */
   splitScores?: boolean;
   /**
    * When true, renders a "By Metric" / "Per Scorer" segmented control in the

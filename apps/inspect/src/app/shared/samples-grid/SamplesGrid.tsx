@@ -29,6 +29,7 @@ import "../agGrid";
 
 import { createGridKeyboardHandler } from "../gridKeyboardNavigation";
 import { createGridColumnResizer, getFieldKey } from "../gridUtils";
+import { useApplyColumnVisibility } from "../useApplyColumnVisibility";
 
 import styles from "./SamplesGrid.module.css";
 
@@ -239,31 +240,24 @@ export const SamplesGrid = <TRow,>(
     followingRef.current = v.bottom >= totalH - viewportH * 0.1;
   }, [followOutput, gridRef, effectiveRowHeight]);
 
-  // Apply visibility via the api rather than the columnDef so that
-  // toggling visibility doesn't force a `columnDefs` rebuild — which would
-  // reset user-driven column width and order.
-  //
-  // Wrapped in a callback so we can fire it both from the useEffect (when
-  // visibility changes) and from `onGridReady` (the first useEffect call
-  // happens before the api exists, so without that second hook a fresh
-  // mount would render with default visibility regardless of what the
-  // user previously hid).
-  const applyVisibility = useCallback(() => {
-    const api = gridRef.current?.api;
-    if (!api || !columnVisibility) return;
-    const state = columnDefs.map((c) => ({
-      colId: getFieldKey(c),
-      hide: columnVisibility[getFieldKey(c)] === false,
-    }));
-    if (state.length > 0) api.applyColumnState({ state });
-  }, [columnVisibility, columnDefs, gridRef]);
-  useEffect(() => {
-    applyVisibility();
-  }, [applyVisibility]);
+  const applyVisibility = useApplyColumnVisibility(
+    gridRef,
+    columnDefs,
+    columnVisibility
+  );
 
   // Track which columns the user manually resized; for non-resized flex
   // columns we keep re-applying their flex so they share remaining space.
+  // Stale colIds (e.g. removed score columns) are pruned when columnDefs
+  // changes so they can't accidentally lock a future same-id column out
+  // of the re-flex pass.
   const manuallyResized = useRef(new Set<string>());
+  useEffect(() => {
+    const live = new Set(columnDefs.map((c) => getFieldKey(c)));
+    for (const id of manuallyResized.current) {
+      if (!live.has(id)) manuallyResized.current.delete(id);
+    }
+  }, [columnDefs]);
   const handleColumnResized = useCallback(
     (event: ColumnResizedEvent<TRow>) => {
       if (

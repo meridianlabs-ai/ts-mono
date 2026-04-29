@@ -34,9 +34,15 @@ import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { getFieldKey } from "../../shared/gridUtils.ts";
-import { buildSampleColumns } from "../../shared/samples-grid/columns.tsx";
+import {
+  buildSampleColumns,
+  perScorerFieldKey,
+} from "../../shared/samples-grid/columns.tsx";
 import { SampleRow } from "../../shared/samples-grid/types.ts";
-import { useSampleGridState } from "../../shared/samples-grid/useSampleGridState.ts";
+import {
+  clearFiltersForHiddenColumns,
+  useSampleGridState,
+} from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 
@@ -113,6 +119,11 @@ export const useSamplesTabConfig = (
                 ),
               ],
     };
+    // `scrollRef`, `columnButtonRef`, and `setShowColumnSelector` are
+    // intentionally omitted — refs and React state setters have stable
+    // identity across renders, so including them only churns the memo
+    // without changing behavior. If `componentProps` ever gains a
+    // non-stable value, add it to the deps list.
   }, [
     evalStatus,
     refreshLog,
@@ -215,14 +226,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // scorer in the column popover stays consistent with the rest of the
   // app that reads `selectedScores`). Non-score columns come from the
   // persisted `columnVisibility` map.
-  const scoreFieldFor = useCallback(
-    (label: { scorer: string; name: string }) =>
-      `score__${label.scorer}__${label.name}`,
-    []
-  );
   const selectedScoreFields = useMemo(
-    () => new Set(selectedScores.map(scoreFieldFor)),
-    [selectedScores, scoreFieldFor]
+    () => new Set(selectedScores.map(perScorerFieldKey)),
+    [selectedScores]
   );
 
   // Visibility map applied via the grid's api so column defs stay
@@ -236,20 +242,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       v[key] = seeded === undefined ? !col.hide : seeded;
     }
     for (const label of scores) {
-      v[scoreFieldFor(label)] = selectedScoreFields.has(scoreFieldFor(label));
+      const id = perScorerFieldKey(label);
+      v[id] = selectedScoreFields.has(id);
     }
     return v;
-  }, [
-    allColumns,
-    columnVisibility,
-    scores,
-    scoreFieldFor,
-    selectedScoreFields,
-  ]);
+  }, [allColumns, columnVisibility, scores, selectedScoreFields]);
 
   const allScoreFields = useMemo(
-    () => new Set(scores.map(scoreFieldFor)),
-    [scores, scoreFieldFor]
+    () => new Set(scores.map(perScorerFieldKey)),
+    [scores]
   );
 
   // When the user toggles columns in the popover, split score-column
@@ -257,8 +258,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // column visibility.
   const handleVisibilityChange = useCallback(
     (next: Record<string, boolean>) => {
+      // Clear filters for ANY column being hidden — including score
+      // columns, whose visibility lives in `selectedScores` rather than
+      // the persisted columnVisibility map. (The setColumnVisibility
+      // wrapper below would otherwise only see the non-score subset.)
+      const api = sampleListHandle.current?.api;
+      if (api) clearFiltersForHiddenColumns(api, next);
+
       const newSelected = scores.filter(
-        (label) => next[scoreFieldFor(label)] !== false
+        (label) => next[perScorerFieldKey(label)] !== false
       );
       const sameAsBefore =
         newSelected.length === selectedScores.length &&
@@ -276,7 +284,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     },
     [
       scores,
-      scoreFieldFor,
       selectedScores,
       setSelectedScores,
       setColumnVisibility,

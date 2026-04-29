@@ -1,4 +1,4 @@
-import type { ColDef, GridState } from "ag-grid-community";
+import type { ColDef, GridApi, GridState } from "ag-grid-community";
 import type { AgGridReact } from "ag-grid-react";
 import { RefObject, useCallback, useEffect, useMemo } from "react";
 
@@ -6,6 +6,27 @@ import { useStore } from "../../../state/store";
 import { getFieldKey } from "../gridUtils";
 
 import { SampleGridScope } from "./types";
+
+/** Removes any active filter for a field whose visibility map says
+ *  hidden. Exported so callers (e.g. `SamplesTab`) that split visibility
+ *  across multiple stores can still trigger filter-clearing on the full
+ *  map. */
+export function clearFiltersForHiddenColumns<TRow>(
+  api: GridApi<TRow>,
+  visibility: Record<string, boolean>
+): void {
+  const current = api.getFilterModel() ?? {};
+  const next: Record<string, unknown> = {};
+  let removed = false;
+  for (const [field, filter] of Object.entries(current)) {
+    if (visibility[field] === false) {
+      removed = true;
+    } else {
+      next[field] = filter;
+    }
+  }
+  if (removed) api.setFilterModel(next);
+}
 
 interface UseSampleGridStateResult {
   columnVisibility: Record<string, boolean>;
@@ -77,22 +98,8 @@ export function useSampleGridState<TRow>(
 
   const setColumnVisibility = useCallback(
     (visibility: Record<string, boolean>) => {
-      // Clear filters for columns being hidden so invisible filter state
-      // doesn't persist out of view.
       const api = gridRef?.current?.api;
-      if (api) {
-        const current = api.getFilterModel() ?? {};
-        const next: Record<string, unknown> = {};
-        let removed = false;
-        for (const [field, filter] of Object.entries(current)) {
-          if (visibility[field] === false) {
-            removed = true;
-          } else {
-            next[field] = filter;
-          }
-        }
-        if (removed) api.setFilterModel(next);
-      }
+      if (api) clearFiltersForHiddenColumns(api, visibility);
       setSamplesColumnVisibility(scope, visibility);
     },
     [gridRef, scope, setSamplesColumnVisibility]

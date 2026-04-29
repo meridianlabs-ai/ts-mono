@@ -48,7 +48,7 @@ const EmptyCell = () => <div>-</div>;
 export const SCORE_FIELD_RAW_PREFIX = "score_";
 export const SCORE_FIELD_PER_SCORER_PREFIX = "score__";
 
-const perScorerFieldKey = (label: ScoreLabel): string =>
+export const perScorerFieldKey = (label: ScoreLabel): string =>
   `${SCORE_FIELD_PER_SCORER_PREFIX}${label.scorer}__${label.name}`;
 
 const rawScoreFieldKey = (name: string): string =>
