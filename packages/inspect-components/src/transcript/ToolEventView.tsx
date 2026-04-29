@@ -105,7 +105,9 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           view={resolvedView}
         />
 
-        {event.error ? <ToolCallErrorView error={event.error} /> : null}
+        {event.error && event.error.type !== "approval" ? (
+          <ToolCallErrorView error={event.error} />
+        ) : null}
 
         {lastModelNode ? (
           <ChatView

@@ -74,14 +74,12 @@ export function useBatchConfig<T extends Record<string, unknown>>(
 
   const updateConfig = useCallback(
     (updates: Partial<T>) => {
-      const existingConfig =
+      const existingConfig: Partial<T> =
         typeof configValue === "object" && configValue !== null
           ? filterNullValues(configValue)
           : {};
       const size =
-        typeof configValue === "number"
-          ? configValue
-          : (existingConfig as Record<string, unknown>).size;
+        typeof configValue === "number" ? configValue : existingConfig.size;
       updateParent({
         ...(size !== undefined ? { size } : {}),
         ...existingConfig,
