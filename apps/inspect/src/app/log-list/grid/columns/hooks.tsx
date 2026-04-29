@@ -80,10 +80,14 @@ export const useLogListColumns = (
    */
   viewMode: ScoresViewMode = "by-metric"
 ): {
-  /** Full column set for the grid. Both score-column modes are registered,
-   *  with inactive-mode columns marked hide:true so the grid's structure
-   *  (and base-column widths) stay stable when the mode is toggled. */
+  /** Full column set for the grid. Both score-column modes are registered;
+   *  visibility is applied by the caller via `applyColumnState` so the
+   *  column-def reference stays stable across visibility toggles (which
+   *  is what lets user-driven width and reorder persist). */
   columns: ColDef<LogListRow>[];
+  /** Visibility map keyed by `getFieldKey(col)` — pass to
+   *  `<SamplesGrid>` / apply via the grid api. */
+  visibility: Record<string, boolean>;
   /** Subset passed to the ColumnSelectorPopover so the picker only lists
    *  checkboxes for the currently active view mode. */
   pickerColumns: ColDef<LogListRow>[];
@@ -864,37 +868,33 @@ export const useLogListColumns = (
     return true;
   };
 
-  const columns = useMemo((): ColDef<LogListRow>[] => {
-    const columnsWithVisibility = allColumns.map((col: ColDef<LogListRow>) => {
+  // Visibility map keyed by field. Caller applies via api so column defs
+  // themselves stay stable.
+  const visibility = useMemo<Record<string, boolean>>(() => {
+    const v: Record<string, boolean> = {};
+    for (const col of allColumns) {
       const field = getFieldKey(col);
       const isScoreColumn =
         field.startsWith("score_") || field.startsWith("metric_");
       const defaultVisible = isScoreColumn
         ? false
         : !defaultHiddenFields.has(field);
-      const isVisible = columnVisibility[field] ?? defaultVisible;
-      // Grid visibility is driven purely by the user's per-field toggle —
-      // switching view modes only affects which checkboxes the popover
-      // shows, never what's rendered in the grid.
-      return {
-        ...col,
-        hide: !isVisible,
-      };
-    });
-
-    return columnsWithVisibility;
+      v[field] = columnVisibility[field] ?? defaultVisible;
+    }
+    return v;
   }, [allColumns, columnVisibility, defaultHiddenFields]);
 
   // Columns to show in the ColumnSelectorPopover. The grid needs both score
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
   const pickerColumns = useMemo((): ColDef<LogListRow>[] => {
-    return columns.filter((col) => matchesActiveMode(getFieldKey(col)));
+    return allColumns.filter((col) => matchesActiveMode(getFieldKey(col)));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
-  }, [columns, viewMode]);
+  }, [allColumns, viewMode]);
 
   return {
-    columns,
+    columns: allColumns,
+    visibility,
     pickerColumns,
     setColumnVisibility,
   };

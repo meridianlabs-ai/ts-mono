@@ -15,6 +15,7 @@ interface NavbarButtonProps extends Omit<
   className?: string | string[];
   icon?: string;
   latched?: boolean;
+  subtle?: boolean;
   /**
    * When true, renders a trailing chevron to indicate the button opens a
    * dropdown / popover. Use instead of inlining the chevron in `label` so
@@ -24,7 +25,7 @@ interface NavbarButtonProps extends Omit<
 }
 
 export const NavbarButton = forwardRef<HTMLButtonElement, NavbarButtonProps>(
-  ({ label, className, icon, latched, dropdown, ...rest }, ref) => {
+  ({ label, className, icon, latched, subtle, dropdown, ...rest }, ref) => {
     const resolvedLabel = dropdown ? (
       <>
         {label}
@@ -46,6 +47,7 @@ export const NavbarButton = forwardRef<HTMLButtonElement, NavbarButtonProps>(
         className={clsx(className, styles.navbarButton)}
         icon={icon}
         latched={latched}
+        subtle={subtle}
         {...rest}
       />
     );

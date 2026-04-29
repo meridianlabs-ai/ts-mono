@@ -15,10 +15,19 @@ interface ColumnSelectorPopoverProps<T> {
   showing: boolean;
   setShowing: (showing: boolean) => void;
   columns: ColDef<T>[];
+  /** Optional explicit visibility map. When provided, the popover reads
+   *  current state from here rather than from each column's `hide`. Use
+   *  this when the grid applies visibility via `applyColumnState`
+   *  rather than via the column def. */
+  visibility?: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   positionEl: HTMLElement | null;
   filteredFields?: string[];
   scoresHeading?: string;
+  /** Split columns into "Base" and a separate scores section. Default
+   *  `true`. Set `false` for callers that don't need the split — both
+   *  sections render under a single unified list instead. */
+  splitScores?: boolean;
   /**
    * When true, renders a "By Metric" / "Per Scorer" segmented control in the
    * scores section header. The caller controls which view is active and owns
@@ -43,18 +52,22 @@ export const ColumnSelectorPopover = <T,>({
   positionEl,
   filteredFields = [],
   scoresHeading = "Scorers",
+  splitScores = true,
+  visibility,
   groupableScores = false,
   scoresViewMode = "by-metric",
   onScoresViewModeChange,
 }: ColumnSelectorPopoverProps<T>): ReturnType<FC> => {
-  // Get current visibility directly from columns
+  // Read current visibility from the explicit prop when supplied,
+  // otherwise fall back to each column's `hide`.
   const currentVisibility = useMemo(
     () =>
-      columns.reduce<Record<string, boolean>>(
-        (acc, col) => ({ ...acc, [getFieldKey(col)]: !col.hide }),
-        {}
-      ),
-    [columns]
+      columns.reduce<Record<string, boolean>>((acc, col) => {
+        const key = getFieldKey(col);
+        const vis = visibility ? visibility[key] !== false : !col.hide;
+        return { ...acc, [key]: vis };
+      }, {}),
+    [columns, visibility]
   );
 
   const handleToggle = (field: string) => {
@@ -64,13 +77,15 @@ export const ColumnSelectorPopover = <T,>({
     });
   };
 
-  // Group columns by category - merge optional into base for this dialog
+  // Group columns by category - merge optional into base for this dialog.
+  // When `splitScores` is false, all columns are shown as a single list.
   const columnGroups = useMemo(() => {
+    if (!splitScores) return { base: columns, scores: [] as ColDef<T>[] };
     return {
       base: columns.filter((col) => !isScoreField(getFieldKey(col))),
       scores: columns.filter((col) => isScoreField(getFieldKey(col))),
     };
-  }, [columns]);
+  }, [columns, splitScores]);
 
   const handleSelectAllBase = () => {
     onVisibilityChange({
@@ -150,7 +165,7 @@ export const ColumnSelectorPopover = <T,>({
       <div className={clsx(styles.scrollableContainer, "text-size-small")}>
         <div className={clsx(styles.section)}>
           <div className={styles.headerRow}>
-            <b>Base</b>
+            {splitScores ? <b>Base</b> : <b>Columns</b>}
             <div className={clsx(styles.buttonContainer, "text-size-small")}>
               <a
                 className={clsx(styles.button, "text-size-small")}
@@ -172,7 +187,7 @@ export const ColumnSelectorPopover = <T,>({
           </div>
         </div>
 
-        {columnGroups.scores.length > 0 && (
+        {splitScores && columnGroups.scores.length > 0 && (
           <div>
             <div className={styles.headerRow}>
               <div className={styles.scoresHeadingGroup}>

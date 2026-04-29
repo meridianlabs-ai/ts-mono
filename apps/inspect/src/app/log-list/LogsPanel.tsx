@@ -274,7 +274,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // LogsPanel uses `pickerColumns` for the popover so it only shows the
   // active view mode's checkboxes; the grid (LogListGrid) reads `columns`
   // from its own `useLogListColumns` call and gets both sets for stability.
-  const { pickerColumns, setColumnVisibility } = useLogListColumns(
+  const { pickerColumns, visibility, setColumnVisibility } = useLogListColumns(
     mode,
     scopePrefix,
     scoresViewMode
@@ -388,6 +388,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
                 : ApplicationIcons.toggle.off
             }
             latched={showRetriedLogs}
+            subtle
             onClick={() => setShowRetriedLogs(!showRetriedLogs)}
           />
         )}
@@ -395,9 +396,10 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         <NavbarButton
           key="choose-columns"
           ref={columnButtonRef}
-          label="Choose Columns"
-          icon={ApplicationIcons.checkbox.checked}
+          label="Columns"
+          icon={ApplicationIcons.columns}
           dropdown
+          subtle
           onClick={(e) => {
             e.stopPropagation();
             setShowColumnSelector((prev) => !prev);
@@ -414,6 +416,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
         columns={pickerColumns}
+        visibility={visibility}
         onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonRef.current}
         filteredFields={filteredFields}

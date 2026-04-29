@@ -34,6 +34,8 @@ import "../../shared/agGrid";
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
+import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
+import { useApplyColumnVisibility } from "../../shared/useApplyColumnVisibility";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
@@ -109,7 +111,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns } = useLogListColumns(mode, scopePrefix, scoresViewMode);
+  const { columns, visibility } = useLogListColumns(
+    mode,
+    scopePrefix,
+    scoresViewMode
+  );
 
   // Each scope (mode + dir) has its own gridState in the store, so the
   // initial state is just the entry for the current scope. Switching to a
@@ -150,10 +156,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
 
-      // Format task args
+      // Format task args. Prefer `task_args_passed` (the args the user
+      // actually supplied at the call site) over `task_args` (which
+      // would also include defaulted values).
+      const taskArgsSource =
+        details?.eval?.task_args_passed ?? details?.eval?.task_args;
       let taskArgs: string | undefined;
-      if (details?.eval?.task_args) {
-        const entries = Object.entries(details.eval.task_args);
+      if (taskArgsSource) {
+        const entries = Object.entries(taskArgsSource);
         if (entries.length > 0) {
           taskArgs = entries
             .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
@@ -208,7 +218,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         duration,
         taskFile: details?.eval?.task_file ?? undefined,
         taskArgs,
-        taskArgsRaw: details?.eval?.task_args ?? undefined,
+        taskArgsRaw: taskArgsSource ?? undefined,
         tags: details?.tags,
         percentCompleted,
         sampleErrors,
@@ -321,14 +331,26 @@ export const LogListGrid: FC<LogListGridProps> = ({
     loadHeaders();
   }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
 
+  const applyVisibility = useApplyColumnVisibility(
+    gridRef,
+    columns,
+    visibility
+  );
+
   // Dev-only test hook: expose AG-Grid api so Playwright tests can drive
   // filter/sort programmatically. Vite strips this branch in production.
-  const handleGridReady = useCallback((e: GridReadyEvent<LogListRow>) => {
-    if (import.meta.env.DEV) {
-      (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
-        e.api;
-    }
-  }, []);
+  const handleGridReady = useCallback(
+    (e: GridReadyEvent<LogListRow>) => {
+      if (import.meta.env.DEV) {
+        (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
+          e.api;
+      }
+      // The visibility effect above ran before the api was ready; apply
+      // now that it is.
+      applyVisibility();
+    },
+    [applyVisibility]
+  );
 
   const handleSortChanged = useCallback(async () => {
     await loadAllLogOverviews();
@@ -355,6 +377,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
   useEffect(() => {
     resizeGridColumns();
   }, [columns, resizeGridColumns]);
+
+  const handleGridColumnsChanged = useCallback(
+    (e: GridColumnsChangedEvent<LogListRow>) => {
+      const cols = e.api.getColumnDefs();
+      if (cols && cols.length > maxColCount.current) {
+        maxColCount.current = cols.length;
+        resizeGridColumns();
+      }
+    },
+    [resizeGridColumns]
+  );
 
   // Find functionality - searches across the currently visible columns.
   // Formatted cell values are cached per (data, columns) so only keystrokes
@@ -492,7 +525,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
           matchIndex={findTerm ? currentMatchIndex : undefined}
         />
       )}
-      <div ref={gridContainerRef} className={styles.gridContainer} tabIndex={0}>
+      <div
+        ref={gridContainerRef}
+        className={clsx(styles.gridContainer, gridChromeStyles.gridChrome)}
+        tabIndex={0}
+      >
         <AgGridReact<LogListRow>
           // Remount on scope change so filter/sort/column state get a clean
           // slate. AG-Grid's `initialState` is one-shot at mount, so a key
@@ -502,6 +539,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           rowData={data}
           animateRows={false}
           columnDefs={columns}
+          maintainColumnOrder={true}
           defaultColDef={{
             sortable: true,
             filter: true,
@@ -514,13 +552,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           headerHeight={25}
           rowSelection={{ mode: "singleRow", checkboxes: false }}
           getRowId={(params) => params.data.id}
-          onGridColumnsChanged={(e: GridColumnsChangedEvent<LogListRow>) => {
-            const cols = e.api.getColumnDefs();
-            if (cols && cols?.length > maxColCount.current) {
-              maxColCount.current = cols.length;
-              resizeGridColumns();
-            }
-          }}
+          onGridColumnsChanged={handleGridColumnsChanged}
           onGridSizeChanged={resizeGridColumns}
           theme={themeBalham}
           enableCellTextSelection={true}
