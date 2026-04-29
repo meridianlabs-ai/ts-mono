@@ -110,7 +110,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns } = useLogListColumns(mode, scopePrefix, scoresViewMode);
+  const { columns, visibility } = useLogListColumns(
+    mode,
+    scopePrefix,
+    scoresViewMode
+  );
 
   // Each scope (mode + dir) has its own gridState in the store, so the
   // initial state is just the entry for the current scope. Switching to a
@@ -357,6 +361,19 @@ export const LogListGrid: FC<LogListGridProps> = ({
     resizeGridColumns();
   }, [columns, resizeGridColumns]);
 
+  // Apply visibility via the ag-grid api so the column-def reference stays
+  // stable across visibility toggles. Re-passing columnDefs with `hide:`
+  // injected would reset user-driven width and reorder state.
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const state = columns
+      .map((c) => c.colId ?? c.field)
+      .filter((id): id is string => !!id)
+      .map((colId) => ({ colId, hide: visibility[colId] === false }));
+    if (state.length > 0) api.applyColumnState({ state });
+  }, [visibility, columns, gridRef]);
+
   // Find functionality - searches across the currently visible columns.
   // Formatted cell values are cached per (data, columns) so only keystrokes
   // after a data/visibility change pay the formatter cost.
@@ -507,6 +524,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           rowData={data}
           animateRows={false}
           columnDefs={columns}
+          maintainColumnOrder={true}
           defaultColDef={{
             sortable: true,
             filter: true,

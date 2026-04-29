@@ -48,6 +48,10 @@ const rowHeightForMode = (mode: SamplesGridViewMode): number =>
 interface SamplesGridProps<TRow> {
   rowData: TRow[];
   columnDefs: ColDef<TRow>[];
+  /** Visibility applied via ag-grid api so changes don't rebuild
+   *  `columnDefs` (which would reset user-driven width/order state).
+   *  Keys are colIds; missing entries default to visible. */
+  columnVisibility?: Record<string, boolean>;
   defaultColDef?: ColDef<TRow>;
   viewMode: SamplesGridViewMode;
   rowHeight?: number;
@@ -108,6 +112,7 @@ export const SamplesGrid = <TRow,>(
   const {
     rowData,
     columnDefs,
+    columnVisibility,
     defaultColDef,
     viewMode,
     rowHeight,
@@ -234,6 +239,19 @@ export const SamplesGrid = <TRow,>(
     followingRef.current = v.bottom >= totalH - viewportH * 0.1;
   }, [followOutput, gridRef, effectiveRowHeight]);
 
+  // Apply visibility via the api rather than the columnDef so that
+  // toggling visibility doesn't force a `columnDefs` rebuild — which would
+  // reset user-driven column width and order.
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api || !columnVisibility) return;
+    const state = columnDefs
+      .map((c) => c.colId)
+      .filter((id): id is string => !!id)
+      .map((colId) => ({ colId, hide: columnVisibility[colId] === false }));
+    if (state.length > 0) api.applyColumnState({ state });
+  }, [columnVisibility, columnDefs, gridRef]);
+
   // Track which columns the user manually resized; for non-resized flex
   // columns we keep re-applying their flex so they share remaining space.
   const manuallyResized = useRef(new Set<string>());
@@ -332,6 +350,7 @@ export const SamplesGrid = <TRow,>(
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          maintainColumnOrder={true}
           theme={themeBalham}
           animateRows={false}
           tooltipShowDelay={300}

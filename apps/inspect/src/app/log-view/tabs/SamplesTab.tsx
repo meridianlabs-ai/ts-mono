@@ -225,25 +225,27 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [selectedScores, scoreFieldFor]
   );
 
-  const effectiveVisibility = useMemo<Record<string, boolean>>(() => {
-    const v = { ...columnVisibility };
+  // Visibility map applied via the grid's api so column defs stay
+  // stable across visibility/score-selection changes — necessary for
+  // user-driven width and reorder to persist.
+  const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
+    const v: Record<string, boolean> = {};
+    for (const col of allColumns) {
+      const key = getFieldKey(col);
+      const seeded = columnVisibility[key];
+      v[key] = seeded === undefined ? !col.hide : seeded;
+    }
     for (const label of scores) {
       v[scoreFieldFor(label)] = selectedScoreFields.has(scoreFieldFor(label));
     }
     return v;
-  }, [columnVisibility, scores, scoreFieldFor, selectedScoreFields]);
-
-  // Apply visibility on top of the column defs.
-  const columns = useMemo<ColDef<SampleRow>[]>(
-    () =>
-      allColumns.map((col) => {
-        const key = getFieldKey(col);
-        const seeded = effectiveVisibility[key];
-        if (seeded === undefined) return col;
-        return { ...col, hide: !seeded };
-      }),
-    [allColumns, effectiveVisibility]
-  );
+  }, [
+    allColumns,
+    columnVisibility,
+    scores,
+    scoreFieldFor,
+    selectedScoreFields,
+  ]);
 
   const allScoreFields = useMemo(
     () => new Set(scores.map(scoreFieldFor)),
@@ -355,7 +357,8 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         <SampleList
           listHandle={sampleListHandle}
           items={items}
-          columns={columns}
+          columns={allColumns}
+          columnVisibility={visibilityForGrid}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}
@@ -369,7 +372,8 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         <ColumnSelectorPopover
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
-          columns={columns}
+          columns={allColumns}
+          visibility={visibilityForGrid}
           onVisibilityChange={handleVisibilityChange}
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}

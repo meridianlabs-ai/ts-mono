@@ -227,16 +227,18 @@ export const SamplesPanel: FC = () => {
       gridRef,
     });
 
-  const columns = useMemo<ColDef<SampleRow>[]>(
-    () =>
-      allColumns.map((col) => {
-        const key = getFieldKey(col);
-        const seeded = columnVisibility[key];
-        if (seeded === undefined) return col;
-        return { ...col, hide: !seeded };
-      }),
-    [allColumns, columnVisibility]
-  );
+  // Visibility is applied inside `<SamplesGrid>` via the ag-grid api so
+  // the column defs themselves stay stable across visibility changes —
+  // necessary for user-driven width/reorder to persist.
+  const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
+    const v: Record<string, boolean> = {};
+    for (const col of allColumns) {
+      const key = getFieldKey(col);
+      const seeded = columnVisibility[key];
+      v[key] = seeded === undefined ? !col.hide : seeded;
+    }
+    return v;
+  }, [allColumns, columnVisibility]);
 
   // Drop the persisted filter when samplesPath changes.
   const initialState = useMemo<GridState | undefined>(() => {
@@ -431,6 +433,7 @@ export const SamplesPanel: FC = () => {
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
         columns={allColumns}
+        visibility={visibilityForGrid}
         onVisibilityChange={setColumnVisibility}
         positionEl={columnButtonRef.current}
         filteredFields={filteredFields}
@@ -441,7 +444,8 @@ export const SamplesPanel: FC = () => {
       <div className={clsx(styles.list, "text-size-smaller")}>
         <SamplesGrid<SampleRow>
           rowData={sampleRows}
-          columnDefs={columns}
+          columnDefs={allColumns}
+          columnVisibility={visibilityForGrid}
           defaultColDef={{ sortable: true, filter: true, resizable: true }}
           viewMode="grid"
           gridRef={gridRef}

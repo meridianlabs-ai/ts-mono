@@ -23,6 +23,7 @@ import styles from "./SampleList.module.css";
 interface SampleListProps {
   items: SampleRow[];
   columns: ColDef<SampleRow>[];
+  columnVisibility?: Record<string, boolean>;
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
@@ -44,6 +45,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   const {
     items,
     columns,
+    columnVisibility,
     earlyStopping,
     totalItemCount,
     running,
@@ -157,6 +159,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
       <SamplesGrid<SampleRow>
         rowData={items}
         columnDefs={columns}
+        columnVisibility={columnVisibility}
         defaultColDef={{
           sortable: true,
           filter: true,

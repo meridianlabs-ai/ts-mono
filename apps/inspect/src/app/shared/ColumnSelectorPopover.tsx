@@ -15,6 +15,11 @@ interface ColumnSelectorPopoverProps<T> {
   showing: boolean;
   setShowing: (showing: boolean) => void;
   columns: ColDef<T>[];
+  /** Optional explicit visibility map. When provided, the popover reads
+   *  current state from here rather than from each column's `hide`. Use
+   *  this when the grid applies visibility via `applyColumnState`
+   *  rather than via the column def. */
+  visibility?: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   positionEl: HTMLElement | null;
   filteredFields?: string[];
@@ -48,18 +53,21 @@ export const ColumnSelectorPopover = <T,>({
   filteredFields = [],
   scoresHeading = "Scorers",
   splitScores = true,
+  visibility,
   groupableScores = false,
   scoresViewMode = "by-metric",
   onScoresViewModeChange,
 }: ColumnSelectorPopoverProps<T>): ReturnType<FC> => {
-  // Get current visibility directly from columns
+  // Read current visibility from the explicit prop when supplied,
+  // otherwise fall back to each column's `hide`.
   const currentVisibility = useMemo(
     () =>
-      columns.reduce<Record<string, boolean>>(
-        (acc, col) => ({ ...acc, [getFieldKey(col)]: !col.hide }),
-        {}
-      ),
-    [columns]
+      columns.reduce<Record<string, boolean>>((acc, col) => {
+        const key = getFieldKey(col);
+        const vis = visibility ? visibility[key] !== false : !col.hide;
+        return { ...acc, [key]: vis };
+      }, {}),
+    [columns, visibility]
   );
 
   const handleToggle = (field: string) => {
