@@ -371,7 +371,7 @@ describe("eventSearchText", () => {
     expect(texts).toContain("init");
   });
 
-  test("compaction: includes source and serialized event", () => {
+  test("compaction: emits tokens and omits default 'inspect' source", () => {
     const texts = eventSearchText(
       makeNode({
         event: "compaction",
@@ -381,7 +381,22 @@ describe("eventSearchText", () => {
         timestamp: "2024-01-01T00:00:00Z",
       })
     );
-    expect(texts).toContain("inspect");
+    expect(texts).toContain("1000");
+    expect(texts).toContain("500");
+    expect(texts).not.toContain("inspect");
+  });
+
+  test("compaction: includes non-default source", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "compaction",
+        source: "agent",
+        tokens_before: 1000,
+        tokens_after: 500,
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("agent");
   });
 
   test("unknown event: returns empty array", () => {
