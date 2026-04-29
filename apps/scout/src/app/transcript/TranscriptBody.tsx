@@ -396,10 +396,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <TabPanel
       key={kTranscriptMessagesTabId}
       id={kTranscriptMessagesTabId}
-      className={clsx(
-        styles.chatTab,
-        searchSplitEnabled && styles.tabWithSearchSplit
-      )}
+      className={clsx(searchSplitEnabled && styles.tabWithSearchSplit)}
       title="Messages"
       onSelected={() => {
         handleTabChange(kTranscriptMessagesTabId);
