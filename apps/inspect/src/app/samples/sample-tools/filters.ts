@@ -281,7 +281,8 @@ export const filterExpression = (
         if (propertyName.startsWith(kSampleMetadataPrefix)) {
           return { matches: false, error: undefined };
         }
-        const regex = new RegExp(`\\b${propertyName}\\b`);
+        const escaped = propertyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\b${escaped}\\b`);
         const match = regex.exec(filterValue);
         if (match) {
           return {
