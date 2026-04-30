@@ -42,6 +42,8 @@ interface PollingState {
   attachments: Record<string, string>;
   messagePool: ChatMessage[];
   callPool: JsonValue[];
+  messagePoolEntryIds: Set<number>;
+  callPoolEntryIds: Set<number>;
 
   eventMapping: Record<string, number>;
   events: Event[];
@@ -67,6 +69,8 @@ export function createSamplePolling(
     attachments: {},
     messagePool: [],
     callPool: [],
+    messagePoolEntryIds: new Set(),
+    callPoolEntryIds: new Set(),
     events: [],
   };
 
@@ -355,6 +359,8 @@ const resetPollingState = (state: PollingState) => {
   state.attachments = {};
   state.messagePool = [];
   state.callPool = [];
+  state.messagePoolEntryIds.clear();
+  state.callPoolEntryIds.clear();
   state.events = [];
 };
 
@@ -374,16 +380,22 @@ function processMessagePool(
 ) {
   if (!sampleData.message_pool.length) return;
   for (const entry of sampleData.message_pool) {
-    pollingState.messagePool.push(JSON.parse(entry.data) as ChatMessage);
     pollingState.messagePoolId = Math.max(pollingState.messagePoolId, entry.id);
+    if (pollingState.messagePoolEntryIds.has(entry.id)) continue;
+
+    pollingState.messagePoolEntryIds.add(entry.id);
+    pollingState.messagePool.push(JSON.parse(entry.data) as ChatMessage);
   }
 }
 
 function processCallPool(sampleData: SampleData, pollingState: PollingState) {
   if (!sampleData.call_pool.length) return;
   for (const entry of sampleData.call_pool) {
-    pollingState.callPool.push(JSON.parse(entry.data) as JsonValue);
     pollingState.callPoolId = Math.max(pollingState.callPoolId, entry.id);
+    if (pollingState.callPoolEntryIds.has(entry.id)) continue;
+
+    pollingState.callPoolEntryIds.add(entry.id);
+    pollingState.callPool.push(JSON.parse(entry.data) as JsonValue);
   }
 }
 
