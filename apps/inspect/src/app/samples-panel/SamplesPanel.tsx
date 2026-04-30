@@ -469,8 +469,7 @@ export const SamplesPanel: FC = () => {
           onFirstDataRendered={handleFirstDataRendered}
           loading={isEmptyAndLoading}
           autoSizeStrategy={{
-            type: "fitCellContents",
-            scaleUpToFitGridWidth: true,
+            type: "fitGridWidth",
           }}
         />
       </div>

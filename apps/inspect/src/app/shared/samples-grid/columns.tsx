@@ -476,6 +476,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
         sortable: true,
         filter: "agNumberColumnFilter",
         resizable: true,
+        comparator: comparators.number,
         valueGetter: (params: ValueGetterParams<SampleRow>) => {
           const data = params.data?.data;
           if (!data) return undefined;
