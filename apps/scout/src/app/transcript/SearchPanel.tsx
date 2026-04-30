@@ -661,7 +661,6 @@ const SearchResult: FC<{
     getFullEventMessageUrl,
   ]);
 
-  // TODO: could try ResultPanel, maybe doesn't fit our needs
   return (
     <div className={styles.resultCard}>
       {result.explanation && (
