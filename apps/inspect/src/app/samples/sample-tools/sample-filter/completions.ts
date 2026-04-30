@@ -21,6 +21,7 @@ import {
   KEYWORDS,
   kSampleIdVariable,
   kSampleMetadataVariable,
+  kSampleUuidVariable,
   MATH_FUNCTIONS,
   SAMPLE_FUNCTIONS,
   SAMPLE_VARIABLES,
@@ -125,7 +126,7 @@ const makeSampleVariableCompletion = ([label, info]: [
   apply:
     label === kSampleMetadataVariable
       ? applyWithDot
-      : label === kSampleIdVariable
+      : label === kSampleIdVariable || label === kSampleUuidVariable
         ? applyWithSpace
         : undefined,
   boost: 10,
@@ -166,6 +167,14 @@ const getSampleIds = (samples: SampleSummary[]): Set<string | number> => {
     ids.add(sample.id);
   }
   return ids;
+};
+
+const getSampleUuids = (samples: SampleSummary[]): Set<string> => {
+  const uuids = new Set<string>();
+  for (const sample of samples) {
+    if (sample.uuid) uuids.add(sample.uuid);
+  }
+  return uuids;
 };
 
 const getMetadataPropertyValues = (
@@ -340,6 +349,13 @@ const makeSampleIdCompletion = (id: string | number): Completion => ({
   label: typeof id === "string" ? `"${id}"` : String(id),
   type: "text",
   info: `Sample ID: ${id}`,
+  boost: 25,
+});
+
+const makeSampleUuidCompletion = (uuid: string): Completion => ({
+  label: `"${uuid}"`,
+  type: "text",
+  info: `Sample UUID: ${uuid}`,
   boost: 25,
 });
 
@@ -615,6 +631,9 @@ export function getCompletions(
     if (varName === kSampleIdVariable) {
       return discreteRelationCompletions();
     }
+    if (varName === kSampleUuidVariable) {
+      return discreteRelationCompletions();
+    }
     if (varName === kSampleMetadataVariable) {
       return customRelationCompletions();
     }
@@ -699,6 +718,23 @@ export function getCompletions(
 
       const sampleIdCompletions = filteredIds.map(makeSampleIdCompletion);
       return makeCompletions(sampleIdCompletions, {
+        includeDefault: false,
+      });
+    }
+
+    // Sample UUID completions
+    if (varName === kSampleUuidVariable && samples) {
+      const sampleUuids = Array.from(getSampleUuids(samples));
+
+      const currentQuery = currentToken?.text || "";
+      const filteredUuids = currentQuery
+        ? sampleUuids.filter((uuid) =>
+            `"${uuid}"`.toLowerCase().startsWith(currentQuery.toLowerCase())
+          )
+        : sampleUuids;
+
+      const sampleUuidCompletions = filteredUuids.map(makeSampleUuidCompletion);
+      return makeCompletions(sampleUuidCompletions, {
         includeDefault: false,
       });
     }

@@ -1,7 +1,6 @@
 import type {
   CellMouseDownEvent,
   ColDef,
-  ColumnResizedEvent,
   GetRowIdParams,
   GridApi,
   GridColumnsChangedEvent,
@@ -28,7 +27,7 @@ import {
 import "../agGrid";
 
 import { createGridKeyboardHandler } from "../gridKeyboardNavigation";
-import { createGridColumnResizer, getFieldKey } from "../gridUtils";
+import { createGridColumnResizer } from "../gridUtils";
 import { useApplyColumnVisibility } from "../useApplyColumnVisibility";
 
 import styles from "./SamplesGrid.module.css";
@@ -246,39 +245,6 @@ export const SamplesGrid = <TRow,>(
     columnVisibility
   );
 
-  // Track which columns the user manually resized; for non-resized flex
-  // columns we keep re-applying their flex so they share remaining space.
-  // Stale colIds (e.g. removed score columns) are pruned when columnDefs
-  // changes so they can't accidentally lock a future same-id column out
-  // of the re-flex pass.
-  const manuallyResized = useRef(new Set<string>());
-  useEffect(() => {
-    const live = new Set(columnDefs.map((c) => getFieldKey(c)));
-    for (const id of manuallyResized.current) {
-      if (!live.has(id)) manuallyResized.current.delete(id);
-    }
-  }, [columnDefs]);
-  const handleColumnResized = useCallback(
-    (event: ColumnResizedEvent<TRow>) => {
-      if (
-        !event.finished ||
-        event.source !== "uiColumnResized" ||
-        !event.column
-      )
-        return;
-      manuallyResized.current.add(event.column.getColId());
-      const state = columnDefs
-        .filter(
-          (c) => c.colId && c.flex && !manuallyResized.current.has(c.colId)
-        )
-        .map((c) => ({ colId: c.colId!, flex: c.flex }));
-      if (state.length > 0) {
-        gridRef.current?.api?.applyColumnState({ state });
-      }
-    },
-    [columnDefs, gridRef]
-  );
-
   const handleStateUpdated = useCallback(
     (e: StateUpdatedEvent<TRow>) => {
       onStateUpdated?.(e.state);
@@ -370,7 +336,6 @@ export const SamplesGrid = <TRow,>(
           initialState={initialState}
           onRowClicked={handleRowClick}
           onCellMouseDown={handleCellMouseDown}
-          onColumnResized={handleColumnResized}
           onStateUpdated={handleStateUpdated}
           onFilterChanged={handleFilterChanged}
           onBodyScroll={handleBodyScroll}

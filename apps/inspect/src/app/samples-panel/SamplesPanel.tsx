@@ -216,6 +216,7 @@ export const SamplesPanel: FC = () => {
       if (id === "retries") return optionalHasData.retries;
       // `created` defaults off — many users won't care.
       if (id === "created") return false;
+      if (id === "sampleUuid") return false;
       return true;
     },
     [optionalHasData]
@@ -467,6 +468,10 @@ export const SamplesPanel: FC = () => {
           onFilterChanged={updateDisplayedFromApi}
           onFirstDataRendered={handleFirstDataRendered}
           loading={isEmptyAndLoading}
+          autoSizeStrategy={{
+            type: "fitCellContents",
+            scaleUpToFitGridWidth: true,
+          }}
         />
       </div>
 

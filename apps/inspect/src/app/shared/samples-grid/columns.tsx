@@ -139,7 +139,7 @@ export function buildSampleColumns(
         colId: "task",
         field: "task",
         headerName: "Task",
-        flex: 1,
+        initialFlex: 1,
         minWidth: 100,
         sortable: true,
         filter: true,
@@ -149,7 +149,7 @@ export function buildSampleColumns(
         colId: "model",
         field: "model",
         headerName: "Model",
-        flex: 1,
+        initialFlex: 1,
         minWidth: 100,
         sortable: true,
         filter: true,
@@ -159,7 +159,7 @@ export function buildSampleColumns(
         colId: "logFile",
         field: "logFile",
         headerName: "Log File",
-        flex: 1,
+        initialFlex: 1,
         minWidth: 150,
         sortable: true,
         filter: true,
@@ -184,6 +184,22 @@ export function buildSampleColumns(
       String(params.data?.sampleId ?? ""),
   });
 
+  // sample uuid — opt-in via column selector. Visibility is driven by
+  // the per-scope visibility map (defaulted off via
+  // `defaultsForUnseededColumns`); we don't set `hide: true` here so the
+  // column behaves like other optional columns (`created`, etc.).
+  cols.push({
+    colId: "sampleUuid",
+    headerName: "UUID",
+    initialWidth: 280,
+    minWidth: 80,
+    sortable: true,
+    filter: true,
+    resizable: true,
+    valueGetter: (params: ValueGetterParams<SampleRow>) =>
+      params.data?.data?.uuid ?? "",
+  });
+
   // epoch
   cols.push({
     colId: "epoch",
@@ -205,7 +221,7 @@ export function buildSampleColumns(
     colId: "input",
     field: "input",
     headerName: "Input",
-    flex: shape?.inputSize ? shape.inputSize : 3,
+    initialFlex: shape?.inputSize ? shape.inputSize : 3,
     minWidth: 80,
     sortable: true,
     filter: true,
@@ -237,7 +253,7 @@ export function buildSampleColumns(
     colId: "target",
     field: "target",
     headerName: "Target",
-    flex: shape?.targetSize ? shape.targetSize : 1,
+    initialFlex: shape?.targetSize ? shape.targetSize : 1,
     minWidth: 80,
     sortable: true,
     filter: true,
@@ -277,7 +293,7 @@ export function buildSampleColumns(
       colId: "answer",
       field: "answer",
       headerName: "Answer",
-      flex: shape?.answerSize ? shape.answerSize : 1,
+      initialFlex: shape?.answerSize ? shape.answerSize : 1,
       minWidth: 80,
       sortable: true,
       filter: true,
@@ -380,7 +396,7 @@ export function buildSampleColumns(
       colId: "error",
       field: "error",
       headerName: "Error",
-      flex: 1,
+      initialFlex: 1,
       minWidth: 100,
       sortable: true,
       filter: true,

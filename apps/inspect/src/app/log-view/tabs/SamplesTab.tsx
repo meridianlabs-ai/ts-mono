@@ -211,6 +211,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
       if (id === "error") return !!shape?.errorSize;
+      if (id === "sampleUuid") return false;
       return true;
     },
     [shape]

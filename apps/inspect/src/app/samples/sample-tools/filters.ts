@@ -123,6 +123,7 @@ const sampleVariables = (sample: SampleSummary): Record<string, unknown> => {
     has_error: !!sample.error,
     has_retries: sample.retries !== undefined && sample.retries > 0,
     id: sample.id,
+    uuid: sample.uuid ?? null,
     metadata: sample.metadata,
   };
 };
