@@ -468,7 +468,10 @@ export const SamplesPanel: FC = () => {
           onFilterChanged={updateDisplayedFromApi}
           onFirstDataRendered={handleFirstDataRendered}
           loading={isEmptyAndLoading}
-          autoSizeStrategy={{type: "fitCellContents", scaleUpToFitGridWidth: true}}
+          autoSizeStrategy={{
+            type: "fitCellContents",
+            scaleUpToFitGridWidth: true,
+          }}
         />
       </div>
 
