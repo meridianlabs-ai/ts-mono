@@ -13,25 +13,24 @@
         const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
         const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const resolveTheme = () => {
-          if (explicitTheme === "dark" || explicitTheme === "vscode-dark") {
-            return "dark";
-          }
-          if (explicitTheme === "light" || explicitTheme === "vscode-light") {
-            return "light";
-          }
+        const resolvedTheme = () => {
+          if (explicitTheme) return explicitTheme;
           return systemTheme.matches ? "dark" : "light";
+        };
+
+        const isDarkTheme = (theme) => {
+          return theme === "dark" || theme === "vscode-dark";
         };
 
         const applyTheme = () => {
           if (isVscodeWebview && !explicitTheme) return;
 
-          const theme = resolveTheme();
+          const theme = resolvedTheme();
           document.documentElement.setAttribute("data-text-highlight", theme);
           document.documentElement.setAttribute("data-bs-theme", theme);
 
           if (!isVscodeWebview) {
-            document.body?.classList.toggle("vscode-dark", theme === "dark");
+            document.body?.classList.toggle("vscode-dark", isDarkTheme(theme));
           }
         };
 
