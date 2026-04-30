@@ -7,19 +7,75 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <script>
-      // Forward the theme (dark or light) onto the root html element
-      // this parameter will tend to appear when the view is hosted within
-      // an iframe (e.g. in vscode)
-      const urlParams = new URLSearchParams(window.location.search);
-      const theme = urlParams.get("inspectViewThemeCategory");
-      if (theme) {
-        document.documentElement.setAttribute("data-text-highlight", theme);
-        document.documentElement.setAttribute("data-bs-theme", theme);
-      }
+      (() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const explicitTheme = urlParams.get("inspectViewThemeCategory");
+        const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+        const normalizeTheme = (theme) => {
+          if (theme === "dark" || theme === "vscode-dark") return "dark";
+          if (theme === "light" || theme === "vscode-light") return "light";
+          return systemTheme.matches ? "dark" : "light";
+        };
+
+        const currentTheme = () => {
+          if (explicitTheme || !isVscodeWebview) {
+            return normalizeTheme(explicitTheme);
+          }
+          return (
+            document.documentElement.getAttribute("data-bs-theme") || "light"
+          );
+        };
+
+        const applyRootTheme = (theme) => {
+          document.documentElement.setAttribute("data-text-highlight", theme);
+          document.documentElement.setAttribute("data-bs-theme", theme);
+        };
+
+        const applyBrowserBodyTheme = (theme) => {
+          if (!document.body) return;
+
+          const scoutManaged = document.body.hasAttribute(
+            "data-scout-browser-theme"
+          );
+          const vscodeManaged =
+            document.body.classList.contains("vscode-light") ||
+            document.body.classList.contains("vscode-dark") ||
+            document.body.classList.contains("vscode-high-contrast") ||
+            document.body.hasAttribute("data-vscode-theme-kind");
+
+          if (vscodeManaged && !scoutManaged) return;
+
+          document.body.setAttribute("data-scout-browser-theme", theme);
+          document.body.classList.toggle("vscode-dark", theme === "dark");
+        };
+
+        window.__SCOUT_APPLY_BROWSER_THEME__ = () => {
+          const theme = currentTheme();
+          if (explicitTheme || !isVscodeWebview) {
+            applyRootTheme(theme);
+          }
+          if (!isVscodeWebview) {
+            applyBrowserBodyTheme(theme);
+          }
+        };
+
+        window.__SCOUT_APPLY_BROWSER_THEME__();
+
+        if (!explicitTheme && !isVscodeWebview) {
+          systemTheme.addEventListener("change", () => {
+            window.__SCOUT_APPLY_BROWSER_THEME__();
+          });
+        }
+      })();
     </script>
   </head>
 
   <body style="min-width: 450px">
+    <script>
+      window.__SCOUT_APPLY_BROWSER_THEME__?.();
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
