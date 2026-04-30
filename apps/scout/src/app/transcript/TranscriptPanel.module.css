@@ -2,8 +2,7 @@
   display: grid;
   grid-template-rows: max-content max-content max-content 1fr;
   /* 
-  TODO: this is a hack to compensate for ProjectBar. It has a `min-height: 2em`.
-  May need to adjust layout to approach this better, not sure yet.
+  This is a hack to compensate for ProjectBar. It has a `min-height: 2em`.
   */
   height: calc(100vh - 2em);
 }
