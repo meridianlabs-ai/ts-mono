@@ -228,10 +228,14 @@ export const filterExpression = (
       return !!sample.error?.match(new RegExp(regex, "i"));
     };
 
+    const isNan = (value: unknown): boolean =>
+      typeof value === "number" && Number.isNaN(value);
+
     const extraFunctions = {
       input_contains: inputContains,
       target_contains: targetContains,
       error_contains: errorContains,
+      is_nan: isNan,
     };
     const mySampleVariables = sampleVariables(sample);
     const vars = {
@@ -277,7 +281,8 @@ export const filterExpression = (
         if (propertyName.startsWith(kSampleMetadataPrefix)) {
           return { matches: false, error: undefined };
         }
-        const regex = new RegExp(`\\b${propertyName}\\b`);
+        const escaped = propertyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\b${escaped}\\b`);
         const match = regex.exec(filterValue);
         if (match) {
           return {

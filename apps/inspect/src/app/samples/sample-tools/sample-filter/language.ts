@@ -31,4 +31,5 @@ export const SAMPLE_FUNCTIONS: [string, string][] = [
   ["input_contains", "Checks if input contains a regular expression"],
   ["target_contains", "Checks if target contains a regular expression"],
   ["error_contains", "Checks if error contains a regular expression"],
+  ["is_nan", "Checks if a numeric value is NaN (e.g. is_nan(score))"],
 ];
