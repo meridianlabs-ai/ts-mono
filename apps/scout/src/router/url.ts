@@ -19,9 +19,11 @@ export const kScanIdPattern = /scan_id=[a-zA-Z0-9_.-]{22}$/;
 
 // Query parameter constants
 export const kScannerQueryParam = "scanner";
-export const kSidebarQueryParam = "sidebar";
+export const kValidationQueryParam = "validation";
+export const kSearchQueryParam = "search";
 export const kValidationSetQueryParam = "validationSet";
 export const kDataframeColumnsQueryParam = "cols";
+const kLegacySidebarQueryParam = "sidebar";
 
 // Helper functions to generate routes
 export const scanRoute = (
@@ -88,7 +90,8 @@ export const transcriptRoute = (
   let params = searchParams ? new URLSearchParams(searchParams) : undefined;
   if (validationSetUri) {
     params = params ?? new URLSearchParams();
-    params.set(kSidebarQueryParam, "validation");
+    params.delete(kLegacySidebarQueryParam);
+    params.set(kValidationQueryParam, "1");
     params.set(kValidationSetQueryParam, encodeBase64Url(validationSetUri));
   }
 
@@ -218,29 +221,17 @@ export const getScannerParam = (
   return searchParams.get(kScannerQueryParam) || undefined;
 };
 
-export type SidebarValue = "validation" | "search";
-
-// Retrieves the active sidebar from URL search params.
-export const getSidebarParam = (
-  searchParams: URLSearchParams
-): SidebarValue | undefined => {
-  const value = searchParams.get(kSidebarQueryParam);
-  if (value === "validation" || value === "search") {
-    return value;
-  }
-  return undefined;
-};
-
-// Updates the sidebar parameter in URL search params.
-export const updateSidebarParam = (
+const updateBooleanParam = (
   searchParams: URLSearchParams,
-  value: SidebarValue | undefined
+  key: string,
+  isOpen: boolean
 ): URLSearchParams => {
   const newParams = new URLSearchParams(searchParams);
-  if (value) {
-    newParams.set(kSidebarQueryParam, value);
+  newParams.delete(kLegacySidebarQueryParam);
+  if (isOpen) {
+    newParams.set(key, "1");
   } else {
-    newParams.delete(kSidebarQueryParam);
+    newParams.delete(key);
   }
   return newParams;
 };
@@ -250,12 +241,25 @@ export const updateValidationParam = (
   searchParams: URLSearchParams,
   isOpen: boolean
 ): URLSearchParams => {
-  return updateSidebarParam(searchParams, isOpen ? "validation" : undefined);
+  return updateBooleanParam(searchParams, kValidationQueryParam, isOpen);
 };
 
 // Retrieves the validation sidebar parameter from URL search params.
 export const getValidationParam = (searchParams: URLSearchParams): boolean => {
-  return getSidebarParam(searchParams) === "validation";
+  return searchParams.get(kValidationQueryParam) === "1";
+};
+
+// Updates the search sidebar parameter in URL search params.
+export const updateSearchParam = (
+  searchParams: URLSearchParams,
+  isOpen: boolean
+): URLSearchParams => {
+  return updateBooleanParam(searchParams, kSearchQueryParam, isOpen);
+};
+
+// Retrieves the search sidebar parameter from URL search params.
+export const getSearchParam = (searchParams: URLSearchParams): boolean => {
+  return searchParams.get(kSearchQueryParam) === "1";
 };
 
 // Retrieves the validation set URI from URL search params.

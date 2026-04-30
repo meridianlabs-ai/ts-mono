@@ -29,7 +29,12 @@ import {
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
-import { getSidebarParam, updateSidebarParam } from "../../router/url";
+import {
+  getSearchParam,
+  getValidationParam,
+  updateSearchParam,
+  updateValidationParam,
+} from "../../router/url";
 import { useStore } from "../../state/store";
 import { Transcript } from "../../types/api-types";
 import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
@@ -210,34 +215,30 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     [setTranscriptState]
   );
 
-  // Sidebar - URL is the source of truth. Only one sidebar can be open at a time.
-  // When a sidebar is open, the split layout's start pane becomes the actual
-  // scroll container (not the outer transcriptContainer), so we swap the ref.
-  const activeSidebar = getSidebarParam(searchParams);
-  const activeScrollRef =
-    activeSidebar === "validation"
+  // Sidebars - URL is the source of truth. When a split layout is open, its
+  // start pane becomes the actual scroll container (not the outer
+  // transcriptContainer), so we swap the ref.
+  const validationSidebarOpen = getValidationParam(searchParams);
+  const searchSidebarOpen = getSearchParam(searchParams);
+  const searchSplitEnabled =
+    searchSidebarOpen && searchScope !== undefined && resolvedTranscriptsDir;
+  const activeScrollRef = searchSplitEnabled
+    ? searchSplitStartRef
+    : validationSidebarOpen
       ? splitStartRef
-      : activeSidebar === "search"
-        ? searchSplitStartRef
-        : scrollRef;
+      : scrollRef;
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
-      const current = getSidebarParam(prevParams);
-      return updateSidebarParam(
-        prevParams,
-        current === "validation" ? undefined : "validation"
-      );
+      const isCurrentlyOpen = getValidationParam(prevParams);
+      return updateValidationParam(prevParams, !isCurrentlyOpen);
     });
   }, [setSearchParams]);
 
   const toggleSearchSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
-      const current = getSidebarParam(prevParams);
-      return updateSidebarParam(
-        prevParams,
-        current === "search" ? undefined : "search"
-      );
+      const isCurrentlyOpen = getSearchParam(prevParams);
+      return updateSearchParam(prevParams, !isCurrentlyOpen);
     });
   }, [setSearchParams]);
 
@@ -329,7 +330,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         onClick={toggleSearchSidebar}
         className={styles.tabTool}
         subtle={true}
-        title={activeSidebar === "search" ? "Hide search" : "Show search"}
+        title={searchSidebarOpen ? "Hide search" : "Show search"}
       />
     );
   }
@@ -343,16 +344,12 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       className={styles.tabTool}
       subtle={true}
       title={
-        activeSidebar === "validation"
+        validationSidebarOpen
           ? "Hide validation editor"
           : "Show validation editor"
       }
     />
   );
-
-  const searchActive = activeSidebar === "search";
-  const searchSplitEnabled =
-    searchActive && searchScope !== undefined && resolvedTranscriptsDir;
 
   const renderWithSearchSplit = (
     content: ReactNode,
@@ -549,7 +546,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   return (
     <DisplayModeContext.Provider value={displayModeContextValue}>
-      {activeSidebar === "validation" ? (
+      {validationSidebarOpen ? (
         <VscodeSplitLayout
           className={styles.splitLayout}
           fixedPane="end"
