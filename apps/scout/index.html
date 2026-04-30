@@ -13,60 +13,33 @@
         const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
         const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const normalizeTheme = (theme) => {
-          if (theme === "dark" || theme === "vscode-dark") return "dark";
-          if (theme === "light" || theme === "vscode-light") return "light";
+        const resolveTheme = () => {
+          if (explicitTheme === "dark" || explicitTheme === "vscode-dark") {
+            return "dark";
+          }
+          if (explicitTheme === "light" || explicitTheme === "vscode-light") {
+            return "light";
+          }
           return systemTheme.matches ? "dark" : "light";
         };
 
-        const currentTheme = () => {
-          if (explicitTheme || !isVscodeWebview) {
-            return normalizeTheme(explicitTheme);
-          }
-          return (
-            document.documentElement.getAttribute("data-bs-theme") || "light"
-          );
-        };
+        const applyTheme = () => {
+          if (isVscodeWebview && !explicitTheme) return;
 
-        const applyRootTheme = (theme) => {
+          const theme = resolveTheme();
           document.documentElement.setAttribute("data-text-highlight", theme);
           document.documentElement.setAttribute("data-bs-theme", theme);
-        };
 
-        const applyBrowserBodyTheme = (theme) => {
-          if (!document.body) return;
-
-          const scoutManaged = document.body.hasAttribute(
-            "data-scout-browser-theme"
-          );
-          const vscodeManaged =
-            document.body.classList.contains("vscode-light") ||
-            document.body.classList.contains("vscode-dark") ||
-            document.body.classList.contains("vscode-high-contrast") ||
-            document.body.hasAttribute("data-vscode-theme-kind");
-
-          if (vscodeManaged && !scoutManaged) return;
-
-          document.body.setAttribute("data-scout-browser-theme", theme);
-          document.body.classList.toggle("vscode-dark", theme === "dark");
-        };
-
-        window.__SCOUT_APPLY_BROWSER_THEME__ = () => {
-          const theme = currentTheme();
-          if (explicitTheme || !isVscodeWebview) {
-            applyRootTheme(theme);
-          }
           if (!isVscodeWebview) {
-            applyBrowserBodyTheme(theme);
+            document.body?.classList.toggle("vscode-dark", theme === "dark");
           }
         };
 
+        window.__SCOUT_APPLY_BROWSER_THEME__ = applyTheme;
         window.__SCOUT_APPLY_BROWSER_THEME__();
 
         if (!explicitTheme && !isVscodeWebview) {
-          systemTheme.addEventListener("change", () => {
-            window.__SCOUT_APPLY_BROWSER_THEME__();
-          });
+          systemTheme.addEventListener("change", applyTheme);
         }
       })();
     </script>
