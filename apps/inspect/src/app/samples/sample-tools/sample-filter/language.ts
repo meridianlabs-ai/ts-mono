@@ -1,4 +1,5 @@
 export const kSampleIdVariable = "id";
+export const kSampleUuidVariable = "uuid";
 export const kSampleMetadataVariable = "metadata";
 export const kSampleMetadataPrefix = kSampleMetadataVariable + ".";
 
@@ -22,6 +23,7 @@ export const SAMPLE_VARIABLES: [string, string][] = [
   ["has_error", "Checks if the sample has an error"],
   ["has_retries", "Checks if the sample has been retried"],
   [kSampleIdVariable, "The unique identifier of the sample"],
+  [kSampleUuidVariable, "The globally unique identifier of the sample run"],
   [kSampleMetadataVariable, "Metadata associated with the sample"],
 ];
 

@@ -184,6 +184,22 @@ export function buildSampleColumns(
       String(params.data?.sampleId ?? ""),
   });
 
+  // sample uuid — opt-in via column selector. Visibility is driven by
+  // the per-scope visibility map (defaulted off via
+  // `defaultsForUnseededColumns`); we don't set `hide: true` here so the
+  // column behaves like other optional columns (`created`, etc.).
+  cols.push({
+    colId: "sampleUuid",
+    headerName: "UUID",
+    initialWidth: 280,
+    minWidth: 80,
+    sortable: true,
+    filter: true,
+    resizable: true,
+    valueGetter: (params: ValueGetterParams<SampleRow>) =>
+      params.data?.data?.uuid ?? "",
+  });
+
   // epoch
   cols.push({
     colId: "epoch",
