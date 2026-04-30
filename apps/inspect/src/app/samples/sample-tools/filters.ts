@@ -228,10 +228,14 @@ export const filterExpression = (
       return !!sample.error?.match(new RegExp(regex, "i"));
     };
 
+    const isNan = (value: unknown): boolean =>
+      typeof value === "number" && Number.isNaN(value);
+
     const extraFunctions = {
       input_contains: inputContains,
       target_contains: targetContains,
       error_contains: errorContains,
+      is_nan: isNan,
     };
     const mySampleVariables = sampleVariables(sample);
     const vars = {
