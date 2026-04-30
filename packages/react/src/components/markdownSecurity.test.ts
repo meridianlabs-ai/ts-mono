@@ -6,7 +6,7 @@ import {
   protectBackslashesInLatex,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
-} from "../markdownRendering";
+} from "./markdownRendering";
 
 /**
  * Simulate the async rendering pipeline from MarkdownDiv.

@@ -5,7 +5,7 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
     exclude: ["e2e/**"],
-    setupFiles: ["src/tests/setupTests.ts"],
+    setupFiles: ["src/setupTests.ts"],
     css: {
       modules: {
         classNameStrategy: "non-scoped",

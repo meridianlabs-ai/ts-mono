@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { formatDuration, formatTime } from "../../utils/format";
+import { formatDuration, formatTime } from "./format";
 
 describe("formatTime", () => {
   test("formats seconds when less than a minute", () => {

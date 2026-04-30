@@ -71,7 +71,7 @@ export default defineConfig(({ mode }) => {
         ...baseConfig.plugins,
         dts({
           insertTypesEntry: true,
-          exclude: ["**/*.test.ts", "**/*.test.tsx", "src/tests/**/*"],
+          exclude: ["**/*.test.ts", "**/*.test.tsx", "src/setupTests.ts"],
         }),
       ],
       build: {

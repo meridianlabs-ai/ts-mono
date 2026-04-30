@@ -3,13 +3,14 @@ import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
-import { SampleDataResponse } from "../../client/api/types";
+import { SampleDataResponse } from "../client/api/types";
+
 import {
   createSamplePolling,
   hasSampleDataUpdates,
   shouldFinalizeStreamingSample,
-} from "../../state/samplePolling";
-import { StoreState } from "../../state/store";
+} from "./samplePolling";
+import { StoreState } from "./store";
 
 describe("samplePolling helpers", () => {
   it("treats empty sample-data payloads as no-op updates", () => {

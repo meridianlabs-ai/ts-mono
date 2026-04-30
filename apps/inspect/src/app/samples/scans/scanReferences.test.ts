@@ -6,7 +6,7 @@ import {
   readScannerReferences,
 } from "@tsmono/scout-components/sentinels";
 
-import { buildScoreMarkdownRefs } from "../../app/samples/scans/scanReferences";
+import { buildScoreMarkdownRefs } from "./scanReferences";
 
 describe("isScannerScore", () => {
   test("true when scanner_references key is present (including empty list)", () => {

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { EvalLogStatus } from "../../@types/extraInspect";
-import { computeLogsWithRetried } from "../../state/hooks";
+import { EvalLogStatus } from "../@types/extraInspect";
+
+import { computeLogsWithRetried } from "./hooks";
 
 const log = (
   overrides: Partial<LogHandle> & Pick<LogHandle, "name">

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import { SampleSummary } from "../../client/api/types";
-import { mergeSampleSummaries } from "../../state/utils";
+import { SampleSummary } from "../client/api/types";
+
+import { mergeSampleSummaries } from "./utils";
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
