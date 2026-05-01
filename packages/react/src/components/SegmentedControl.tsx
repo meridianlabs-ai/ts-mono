@@ -15,6 +15,13 @@ export interface SegmentedControlProps {
   segments: Segment[];
   selectedId: string;
   onSegmentChange: (segmentId: string, index: number) => void;
+  /**
+   * Render icon-only segments. The label still flows to `aria-label` /
+   * `title` so screen readers and tooltips work, but the visible
+   * `<span>` is suppressed and per-segment padding is tightened. Each
+   * segment must supply an `icon` when this is on.
+   */
+  compact?: boolean;
 }
 
 export const SegmentedControl: FC<SegmentedControlProps> = ({
@@ -22,6 +29,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
   segments,
   onSegmentChange,
   selectedId: selectedIdProp,
+  compact = false,
 }) => {
   const handleSegmentClick = useCallback(
     (segmentId: string, index: number) => {
@@ -40,14 +48,17 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
           className={clsx(
             styles.segment,
             selectedId === segment.id && styles.selected,
+            compact && styles.compact,
             "text-size-smallest",
             selectedId === segment.id ? undefined : "text-style-secondary"
           )}
           onClick={() => handleSegmentClick(segment.id, index)}
           aria-pressed={selectedId === segment.id}
+          aria-label={compact ? segment.label : undefined}
+          title={compact ? segment.label : undefined}
         >
           {segment.icon && <i className={segment.icon} />}
-          <span>{segment.label}</span>
+          {!compact && <span>{segment.label}</span>}
         </button>
       ))}
     </div>
