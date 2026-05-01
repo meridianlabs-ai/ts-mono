@@ -538,6 +538,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           ref={gridRef}
           rowData={data}
           animateRows={false}
+          suppressColumnMoveAnimation={true}
           columnDefs={columns}
           maintainColumnOrder={true}
           defaultColDef={{
