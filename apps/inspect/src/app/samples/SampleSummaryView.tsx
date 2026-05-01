@@ -201,19 +201,30 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     });
   }
 
-  if (selectedScores && selectedScores.length > 0) {
-    const scoreColumns = selectedScores
-      .map((scoreLabel) => ({
+  // Score entries are rendered inline alongside the body columns up to
+  // 3 scores; once we have 4+ scorers they go in a dedicated wrapping
+  // band below so the body columns don't get squeezed off-screen.
+  const scoreEntries =
+    selectedScores
+      ?.map((scoreLabel) => ({
         label: selectedScores.length === 1 ? "Score" : scoreLabel.name,
         value:
           sampleDescriptor?.evalDescriptor
             .score(sample, scoreLabel)
             ?.render() || "",
+      }))
+      .filter((entry) => entry.value !== "") ?? [];
+
+  const useScoresBand = scoreEntries.length >= 4;
+  if (!useScoresBand) {
+    for (const entry of scoreEntries) {
+      columns.push({
+        label: entry.label,
+        value: entry.value,
         size: "fit-content(15em)",
         center: true,
-      }))
-      .filter((col) => col.value !== "");
-    columns.push(...scoreColumns);
+      });
+    }
   }
 
   if (fields.error) {
@@ -286,6 +297,20 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
           );
         })}
       </div>
+      {useScoresBand && (
+        <div className={styles.scoresBand}>
+          {scoreEntries.map((entry, idx) => (
+            <div key={`sample-summ-score-${idx}`} className={styles.scoreCell}>
+              <div className={styles.scoreLabel} data-unsearchable={true}>
+                {entry.label}
+              </div>
+              <div className={styles.scoreValue} data-unsearchable={true}>
+                {entry.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

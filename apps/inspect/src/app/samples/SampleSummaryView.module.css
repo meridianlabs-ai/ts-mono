@@ -36,6 +36,40 @@
   padding-top: 0.1em;
 }
 
+.scoresBand {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7em, 1fr));
+  column-gap: 1em;
+  row-gap: 0.5em;
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-bottom: solid var(--bs-border-color) 1px;
+  /* Cap on samples with extreme scorer counts; the grid wraps so this
+     only kicks in past a few rows. */
+  max-height: 9em;
+  overflow-y: auto;
+}
+
+.scoreCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.scoreLabel {
+  font-size: var(--font-size-smallest, 0.7rem);
+  color: var(--text-secondary, inherit);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.scoreValue {
+  padding-top: 0.1em;
+}
+
 /* Invalidation banner styles */
 .invalidationBanner {
   display: flex;
