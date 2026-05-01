@@ -1,0 +1,49 @@
+.root {
+  display: inline-flex;
+  flex-direction: column;
+  width: 8px;
+  height: 10px;
+  margin-left: 4px;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.up,
+.down {
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+}
+
+.up {
+  margin-bottom: 1px;
+}
+
+.activeArrow {
+  /* The triangle's "fill" comes from its border color. */
+}
+
+.dimArrow {
+  opacity: 0.5;
+}
+
+.faded {
+  opacity: 0.25;
+}
+
+.up.activeArrow {
+  border-bottom: 3px solid var(--bs-body-color);
+}
+
+.up.dimArrow {
+  border-bottom: 3px solid var(--bs-secondary);
+}
+
+.down.activeArrow {
+  border-top: 3px solid var(--bs-body-color);
+}
+
+.down.dimArrow {
+  border-top: 3px solid var(--bs-secondary);
+}

@@ -19,6 +19,7 @@ import { truncateMarkdown } from "../../utils/markdown";
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
 import { ScoreCompact } from "./header-v2/ScoreCompact";
+import { ScorePanel } from "./header-v2/ScorePanel";
 import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
@@ -248,22 +249,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 evalDescriptor={sampleDescriptor.evalDescriptor}
               />
             ) : (
-              <div className={styles.scoreList}>
-                {visibleScores.map((scoreLabel) => {
-                  const rendered = sampleDescriptor.evalDescriptor
-                    .score(sample, scoreLabel)
-                    ?.render();
-                  return (
-                    <div
-                      key={`${scoreLabel.scorer}-${scoreLabel.name}`}
-                      className={styles.scoreItem}
-                    >
-                      <FieldLabel>{scoreLabel.name}</FieldLabel>
-                      <div className={styles.scoreItemValue}>{rendered}</div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ScorePanel
+                scores={visibleScores}
+                sample={sample}
+                evalDescriptor={sampleDescriptor.evalDescriptor}
+              />
             )}
           </div>
         ) : null}

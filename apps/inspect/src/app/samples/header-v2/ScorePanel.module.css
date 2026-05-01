@@ -1,0 +1,164 @@
+.panel {
+  background: var(--bs-secondary-bg-subtle);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 4px 14px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.panel.tight .panelHeader {
+  padding: 6px 10px 3px 12px;
+}
+
+.scoresHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.scoresCount {
+  font-size: var(--inspect-font-size-smallest, 0.7rem);
+  color: var(--bs-tertiary-color, var(--bs-secondary));
+  font-variant-numeric: tabular-nums;
+}
+
+.columnLabel {
+  font-size: var(--inspect-font-size-smallest, 0.7rem);
+  font-weight: 600;
+  color: var(--bs-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: var(--bs-body-color);
+}
+
+.panelBody {
+  min-height: 0;
+}
+
+.bodyGrid {
+  padding: 2px 14px 6px;
+}
+
+.panel.tight .bodyGrid {
+  padding: 1px 14px 4px;
+}
+
+.bodyChips {
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel.tight .bodyChips {
+  padding: 6px 12px;
+}
+
+.denseGrid {
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.denseChips {
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+/* ── Grid rows ─────────────────────────────────────────────────────── */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 3px 0 3px 8px;
+  border-left: 2px solid transparent;
+  margin-left: -8px;
+  border-bottom: 1px dashed var(--bs-border-color);
+  min-width: 0;
+}
+
+.rowTight {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.rowFail {
+  border-left-color: var(--bs-danger);
+}
+
+.rowWarn {
+  border-left-color: var(--bs-orange);
+}
+
+.rowName {
+  font-size: var(--inspect-font-size-small, 0.8rem);
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 5px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  font-size: var(--inspect-font-size-small, 0.8rem);
+  line-height: 1.3;
+  max-width: 220px;
+  min-width: 0;
+}
+
+.chipAttention {
+  /* Attention chips inherit from chipFail / chipWarn for the actual
+     border color; this class is present so future attention-only style
+     hooks (e.g. background tint) have a place to land. */
+}
+
+.chipFail {
+  border-color: var(--bs-danger);
+}
+
+.chipWarn {
+  border-color: var(--bs-orange);
+}
+
+.chipName {
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
