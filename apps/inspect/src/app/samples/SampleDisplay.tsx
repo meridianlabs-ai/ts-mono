@@ -65,7 +65,10 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
-import { messagesFromEvents } from "./messagesFromEvents";
+import {
+  messagesFromEvents,
+  type MessagesFromEventsState,
+} from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -140,12 +143,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Consolidate the events and messages into the proper list
   // whether running or not
   const sampleEvents = sample?.events || runningSampleData;
+  // Cache messagesFromEvents work across polls. The polling pipeline
+  // only ever appends to the running events array (or replaces a tail
+  // event during streaming updates), so a pure-extension call only
+  // processes the new tail. Diverging events trigger a rebuild.
+  const messagesRef = useRef<MessagesFromEventsState | null>(null);
   const sampleMessages = useMemo(() => {
     if (sample?.messages) {
+      messagesRef.current = null;
       return sample.messages;
     } else if (runningSampleData) {
-      return messagesFromEvents(runningSampleData);
+      return messagesFromEvents(runningSampleData, messagesRef);
     } else {
+      messagesRef.current = null;
       return [];
     }
   }, [sample?.messages, runningSampleData]);
