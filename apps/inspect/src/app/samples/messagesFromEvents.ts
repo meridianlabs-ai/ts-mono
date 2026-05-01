@@ -26,7 +26,7 @@ const createState = (): MessagesFromEventsState => ({
 const insertAt = (
   state: MessagesFromEventsState,
   index: number,
-  m: ChatMessage,
+  m: ChatMessage
 ): void => {
   state.messages.splice(index, 0, m);
   // Reindex everything from `index` onward; the splice shifted all
@@ -37,10 +37,7 @@ const insertAt = (
   }
 };
 
-const processEvent = (
-  state: MessagesFromEventsState,
-  e: ModelEvent,
-): void => {
+const processEvent = (state: MessagesFromEventsState, e: ModelEvent): void => {
   // Build the conversation list by merging each model event's `input`
   // (the model's view at that call) in order. Per event: reset a cursor
   // to the last index in the list, then walk its input. Known ids
@@ -85,7 +82,7 @@ const processEvent = (
  */
 export const messagesFromEvents = (
   events: Event[],
-  stateRef?: { current: MessagesFromEventsState | null },
+  stateRef?: { current: MessagesFromEventsState | null }
 ): ChatMessage[] => {
   const prior = stateRef?.current ?? null;
 
