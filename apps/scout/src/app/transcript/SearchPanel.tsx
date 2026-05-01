@@ -609,7 +609,13 @@ const SearchResults: FC<{
   getFullEventMessageUrl,
 }) => {
   if (loading) {
-    return <div className={styles.emptyState}>Searching…</div>;
+    return (
+      <div className={styles.emptyState}>
+        <p>
+          <i className={ApplicationIcons.search} /> Searching…
+        </p>
+      </div>
+    );
   }
   if (error) {
     return (
