@@ -29,11 +29,13 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
+  StickyScroll,
   TabPanel,
   TabSet,
   ToolButton,
   ToolDropdownButton,
 } from "@tsmono/react/components";
+import { useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
@@ -459,98 +461,77 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [displayMode]
   );
 
-  // Collapse the sample header to its meta band once the user has
-  // scrolled past it, so the id / task / epoch info stays on screen
-  // while the rest of the page scrolls. Looks up the heading element
-  // by id (set inside SampleSummaryView) and walks to the nearest
-  // scrolling ancestor — we deliberately avoid wrapping the header in
-  // an extra div, since that wrapper would become the sticky element's
-  // containing block and clip it.
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const [collapsedBandHeight, setCollapsedBandHeight] = useState(0);
-  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!selectedSampleSummary) return;
-    const header = document.getElementById(`sample-heading-${id}`);
-    if (!header) return;
-    let scroller: HTMLElement | null = header.parentElement;
-    while (scroller) {
-      const o = getComputedStyle(scroller).overflowY;
-      if (o === "auto" || o === "scroll") break;
-      scroller = scroller.parentElement;
-    }
-    if (!scroller) return;
-    const baseHeight = header.offsetHeight;
-    const onScroll = () => {
-      // Trigger once the user has scrolled past most of the header so
-      // the collapsed band slides in just as the full header leaves.
-      const triggerAt = Math.max(0, baseHeight - 30);
-      setHeaderCollapsed(scroller!.scrollTop >= triggerAt);
-    };
-    onScroll();
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller!.removeEventListener("scroll", onScroll);
-  }, [selectedSampleSummary, id]);
+  // Headroom-style collapse: the sample header is wrapped in a
+  // `StickyScroll`, so the *same* SampleSummaryView renders both in
+  // flow at the top and pinned at the top while scrolled. The
+  // component's `collapsed` prop drives compact (meta-line-only) vs
+  // full mode and is true only while sticky AND scrolling down past
+  // the headroom threshold. When the user scrolls back up, the full
+  // header expands while still sticky; when they reach the very top
+  // the StickyScroll transitions to in-flow without re-rendering, so
+  // the user never sees the header re-animate or "re-appear".
+  const { hidden: headroomHidden } = useScrollDirection(scrollRef, {
+    threshold: 80,
+  });
+  const [isHeaderSticky, setIsHeaderSticky] = useState(false);
+  const handleHeaderStickyChange = useCallback((sticky: boolean) => {
+    setIsHeaderSticky(sticky);
+  }, []);
+  const headerCollapsed = isHeaderSticky && headroomHidden;
 
-  // After the collapsed band mounts, measure its height and publish it
-  // as `--inspect-collapsed-band-height` on the tabs container so the
-  // sticky tab controls offset by exactly that amount — otherwise a
-  // gap appears between the band and the tabs and scroll content
-  // bleeds through. Watches resize so font / theme changes flow
-  // through. The same height feeds the inner StickyScroll offsets
-  // so the timeline / scoring stickies sit beneath the band too.
+  // Track the header's current height (it changes between full / compact)
+  // and publish it as `--inspect-sample-header-height` on the tabs
+  // container so the sticky tab controls pin just beneath whatever
+  // height the header currently is. The tabs slide up automatically
+  // when the header collapses and back down when it expands. The same
+  // height feeds the inner StickyScroll offsets (timeline, scoring
+  // stickies) below.
+  const headerWrapperRef = useRef<HTMLDivElement | null>(null);
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
-    if (!headerCollapsed) {
-      setCollapsedBandHeight(0);
-      return;
-    }
+    const wrapper = headerWrapperRef.current;
     const container = tabsContainerRef.current;
-    if (!container) return;
-    const band = container.querySelector<HTMLElement>(
-      `[id="sample-heading-${id}-collapsed"]`
-    );
-    if (!band) return;
+    if (!wrapper || !container) return;
     const apply = () => {
-      const h = band.offsetHeight;
-      container.style.setProperty("--inspect-collapsed-band-height", `${h}px`);
-      setCollapsedBandHeight(h);
+      const h = wrapper.getBoundingClientRect().height;
+      setHeaderHeight(h);
+      container.style.setProperty("--inspect-sample-header-height", `${h}px`);
     };
     apply();
     const ro = new ResizeObserver(apply);
-    ro.observe(band);
+    ro.observe(wrapper);
     return () => ro.disconnect();
-  }, [headerCollapsed, id]);
+  }, [selectedSampleSummary]);
 
   // Effective offset for sticky elements inside the tabs (e.g. the
-  // transcript timeline). Tabs are offset by the band, so any sticky
-  // child that pins under the tabs needs both heights.
-  const stickyOffsetTop = tabsHeight + collapsedBandHeight;
+  // transcript timeline). They sit beneath both the (dynamic-height)
+  // header and the tab controls.
+  const stickyOffsetTop = tabsHeight + headerHeight;
 
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>
         {selectedSampleSummary ? (
-          <SampleSummaryView parent_id={id} sample={selectedSampleSummary} />
+          <StickyScroll
+            scrollRef={scrollRef}
+            offsetTop={0}
+            zIndex={1002}
+            onStickyChange={handleHeaderStickyChange}
+          >
+            <div ref={headerWrapperRef}>
+              <SampleSummaryView
+                parent_id={id}
+                sample={selectedSampleSummary}
+                collapsed={headerCollapsed}
+              />
+            </div>
+          </StickyScroll>
         ) : undefined}
         <ActivityBar animating={showActivity} progress={progress} />
 
         {hasSampleData && (
-          <div
-            ref={tabsContainerRef}
-            className={clsx(
-              styles.tabsContainer,
-              headerCollapsed && styles.tabsContainerWithBand
-            )}
-          >
-            {selectedSampleSummary && headerCollapsed ? (
-              <div className={styles.stickyBand}>
-                <SampleSummaryView
-                  parent_id={`${id}-collapsed`}
-                  sample={selectedSampleSummary}
-                  collapsed
-                />
-              </div>
-            ) : null}
+          <div ref={tabsContainerRef} className={styles.tabsContainer}>
             <TabSet
               id={tabsetId}
               tabsRef={tabsRef}

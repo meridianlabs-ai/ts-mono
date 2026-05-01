@@ -1,29 +1,16 @@
+/* The tabs sticky-pin beneath the (dynamic-height) sample header.
+ * The header itself uses `<StickyScroll>` and changes height between
+ * full and compact (headroom collapse), publishing its current
+ * height as `--inspect-sample-header-height` on the tabs container.
+ * The tabs slide up automatically when the header collapses and
+ * back down when it expands. */
 .tabControls {
   position: sticky;
   z-index: 1001;
-  top: 0;
+  top: var(--inspect-sample-header-height, 0);
   padding: 0.25rem 0.5rem;
   border-bottom: solid 1px var(--bs-border-color);
   background-color: var(--bs-body-bg);
-}
-
-/* Wraps both the optional collapsed-band overlay and the TabSet so
- * the band shares the tabset's sticky chrome. When the band is
- * showing (`tabsContainerWithBand`), the tab controls slide down to
- * sit beneath it. */
-.tabsContainerWithBand .tabControls {
-  top: var(--inspect-collapsed-band-height, 32px);
-}
-
-/* Sticky band — sibling of the tab controls inside the same container
- * so they stack vertically rather than fighting for top: 0. The
- * border-bottom comes from the SampleSummaryView root inside, so
- * don't add another here. */
-.stickyBand {
-  position: sticky;
-  top: 0;
-  z-index: 1002;
-  background-color: var(--bs-light);
 }
 
 .fullWidth {
