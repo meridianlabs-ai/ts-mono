@@ -7,7 +7,8 @@
 /* Outer two-column layout. The right column gets a clamped range so
  * its width adapts to viewport but stays in a band that yields
  * roughly 2–3 chips per row regardless of chip set. The body fields
- * (1fr) keep the rest. */
+ * (1fr) keep the rest. The 1-2 score case uses `noRight` instead and
+ * inlines the score cells into the field grid. */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
@@ -17,10 +18,18 @@
   grid-template-columns: minmax(0, 1fr) minmax(220px, 340px);
 }
 
+.layout.noRight {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .left {
   padding: 8px 14px;
   border-right: 1px solid var(--bs-border-color);
   min-width: 0;
+}
+
+.layout.noRight .left {
+  border-right: none;
 }
 
 .right {
@@ -88,6 +97,21 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Score "field" cell — used in compact (1-2 scores) mode when scores
+ * are inlined into the same fields grid as Input/Target/Answer. The
+ * label gets the same FieldLabel chrome; the value sits directly
+ * beneath it, vertically aligned with the body field values. */
+.scoreField {
+  max-width: 140px;
+}
+
+.scoreFieldValue {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .errorBlock {

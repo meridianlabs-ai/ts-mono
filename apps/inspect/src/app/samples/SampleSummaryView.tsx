@@ -19,8 +19,8 @@ import { truncateMarkdown } from "../../utils/markdown";
 
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
-import { ScoreCompact } from "./header-v2/ScoreCompact";
 import { ScorePanel } from "./header-v2/ScorePanel";
+import { ScoreValueDisplay } from "./header-v2/ScoreValueDisplay";
 import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
@@ -225,16 +225,31 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   }
 
   // Only emit grid tracks for fields that actually render so a sample
-  // with no target/answer doesn't reserve empty columns.
+  // with no target/answer doesn't reserve empty columns. When 1–2
+  // scores are present we fold them into this grid as additional
+  // peer columns instead of a separate right column — the compact
+  // case visually reads like "extra fields" rather than a panel.
   const fieldTracks: string[] = ["minmax(0, 1fr)"]; // Input always
   if (fields.target) fieldTracks.push("minmax(60px, auto)");
   if (fields.answer) fieldTracks.push("minmax(0, 1fr)");
+  if (compactScores) {
+    for (let i = 0; i < scoreCount; i++) fieldTracks.push("auto");
+  }
   const gridTemplateColumns = fieldTracks.join(" ");
+
+  // Right column is only used by the panel layout (3+ scores).
+  const showRight = scoreCount > 0 && !compactScores;
 
   return (
     <div id={`sample-heading-${parent_id}`} className={styles.root}>
       {invalidation && <InvalidationBanner invalidation={invalidation} />}
-      <div className={clsx(styles.layout, wideRight && styles.wideRight)}>
+      <div
+        className={clsx(
+          styles.layout,
+          wideRight && styles.wideRight,
+          !showRight && styles.noRight
+        )}
+      >
         <div className={styles.left}>
           <MetaLine items={metaItems} />
           <div className={styles.fields} style={{ gridTemplateColumns }}>
@@ -277,23 +292,43 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 </div>
               </div>
             ) : null}
+            {compactScores
+              ? visibleScores.map((scoreLabel) => {
+                  const selected = sampleDescriptor.evalDescriptor.score(
+                    sample,
+                    scoreLabel
+                  );
+                  const desc =
+                    sampleDescriptor.evalDescriptor.scoreDescriptor(scoreLabel);
+                  const label =
+                    visibleScores.length === 1 ? "Score" : scoreLabel.name;
+                  return (
+                    <div
+                      key={`${scoreLabel.scorer}-${scoreLabel.name}`}
+                      className={clsx(styles.field, styles.scoreField)}
+                      title={scoreLabel.name}
+                    >
+                      <FieldLabel>{label}</FieldLabel>
+                      <div className={styles.scoreFieldValue}>
+                        <ScoreValueDisplay
+                          value={selected?.value}
+                          scoreType={desc.scoreType}
+                          size={22}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              : null}
           </div>
         </div>
-        {scoreCount > 0 ? (
+        {showRight ? (
           <div className={styles.right}>
-            {compactScores ? (
-              <ScoreCompact
-                scores={visibleScores}
-                sample={sample}
-                evalDescriptor={sampleDescriptor.evalDescriptor}
-              />
-            ) : (
-              <ScorePanel
-                scores={visibleScores}
-                sample={sample}
-                evalDescriptor={sampleDescriptor.evalDescriptor}
-              />
-            )}
+            <ScorePanel
+              scores={visibleScores}
+              sample={sample}
+              evalDescriptor={sampleDescriptor.evalDescriptor}
+            />
           </div>
         ) : null}
       </div>
