@@ -4,25 +4,26 @@
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Outer two-column layout. The right column widens once we have a real
- * panel to fill it (3+ scores), narrows otherwise. */
+/* Outer two-column layout. The right column sizes to its content
+ * naturally but caps via `fit-content(N)` so chips wrap once they
+ * reach the ceiling instead of running the column off to the right. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(160px, 0.45fr);
+  grid-template-columns: minmax(0, 1fr) fit-content(280px);
 }
 
 .layout.wideRight {
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1fr) fit-content(440px);
 }
 
 .left {
-  padding: 10px 18px;
+  padding: 8px 14px;
   border-right: 1px solid var(--bs-border-color);
   min-width: 0;
 }
 
 .right {
-  padding: 10px 14px;
+  padding: 0;
   background: var(--bs-body-bg);
   min-width: 0;
   display: flex;
@@ -67,9 +68,9 @@
 
 .fieldLabel {
   font-size: var(--inspect-font-size-smallest, 0.7rem);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--bs-secondary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -93,16 +94,21 @@
   border-top: 1px dashed var(--bs-border-color);
 }
 
-/* Collapsed state — meta line only. The parent flips this when
- * something external (scroll, UI toggle) wants to keep just the
- * sample-id strip on screen. */
-.collapsed {
-  /* No layout grid; the meta padding mirrors the expanded left column
-   * so the strip aligns vertically with the rest of the layout. */
+/* Collapsed state — meta line only. Used both as a standalone band
+ * inside SampleSummaryView and (more usefully) as the content of the
+ * sticky overlay rendered by `SampleDisplay` when the user has
+ * scrolled past the full header. Positioning lives at the call-site
+ * because the parent owns the scroll context. */
+.collapsedMeta {
+  padding: 2px 14px;
+  display: flex;
+  align-items: center;
 }
 
-.collapsedMeta {
-  padding: 8px 18px;
+/* In the collapsed band there's no fields row beneath the meta line,
+ * so suppress the bottom margin that the expanded layout uses. */
+.collapsedMeta .metaLine {
+  margin-bottom: 0;
 }
 
 /* Invalidation banner styles */

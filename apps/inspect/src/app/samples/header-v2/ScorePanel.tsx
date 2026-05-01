@@ -1,5 +1,7 @@
 import clsx from "clsx";
-import { FC, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FC, useEffect, useMemo, useState } from "react";
+
+import { ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
@@ -9,7 +11,6 @@ import { EvalDescriptor } from "../descriptor/types";
 import styles from "./ScorePanel.module.css";
 import { scoreTone, Tone } from "./scoreTone";
 import { ScoreChipValueDisplay, ScoreValueDisplay } from "./ScoreValueDisplay";
-import { SortDir, SortIcon } from "./SortIcon";
 import { ScoreView, ViewToggle } from "./ViewToggle";
 
 interface ScorePanelProps {
@@ -24,6 +25,10 @@ interface RenderedScore {
   value: ScoreValue | undefined;
   scoreType: string;
   tone: Tone;
+  /** 0–1, only set for numeric values. Drives the chip's blue
+   *  heatmap border so the highest displayed value reads darkest and
+   *  the lowest reads lightest. */
+  numericIntensity?: number;
 }
 
 type SortColumn = "name" | "value" | null;
@@ -43,9 +48,9 @@ const TONE_RANK: Record<Tone, number> = {
 /**
  * Score panel for the V2 sample header — the right column when there
  * are 3+ scores. Defaults to chips for ≤ 6 scores, grid for 7+; the
- * user can toggle between modes via the icon-only segmented control
- * in the panel header. In grid mode, click "Score" or "Value" to
- * cycle the sort direction (asc → desc → unsorted).
+ * user can flip via the icon-only segmented control. The panel header
+ * also carries a sort dropdown that re-orders the scores in either
+ * view (so chips and grid share the same sort UX).
  */
 export const ScorePanel: FC<ScorePanelProps> = ({
   scores,
@@ -53,7 +58,7 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   evalDescriptor,
 }) => {
   const renderedScores = useMemo<RenderedScore[]>(() => {
-    return scores.map((label) => {
+    const initial = scores.map((label) => {
       const selected = evalDescriptor.score(sample, label);
       const descriptor = evalDescriptor.scoreDescriptor(label);
       return {
@@ -64,11 +69,29 @@ export const ScorePanel: FC<ScorePanelProps> = ({
         tone: scoreTone(selected?.value, descriptor.scoreType),
       };
     });
+
+    // Heatmap intensity for numeric chips. Range comes from the actual
+    // displayed numeric values so e.g. red-team flag scores (most are 1,
+    // a few are 4-5) get visible contrast within the panel.
+    const numbers = initial
+      .map((s) => (typeof s.value === "number" ? s.value : null))
+      .filter((v): v is number => v !== null);
+    const min = numbers.length ? Math.min(...numbers) : 0;
+    const max = numbers.length ? Math.max(...numbers) : 0;
+    const range = max - min;
+    return initial.map((s) => {
+      if (typeof s.value !== "number") return s;
+      const intensity =
+        numbers.length <= 1 || range === 0 ? 1 : (s.value - min) / range;
+      return { ...s, numericIntensity: intensity };
+    });
   }, [scores, sample, evalDescriptor]);
 
   const count = renderedScores.length;
   const tight = count <= 6;
-  const dense = count > 12;
+  // Cap the body at ~6 rows so the panel can't dominate the header.
+  // Anything more scrolls inside the panel.
+  const dense = count > 6;
   const defaultView: ScoreView = count <= 6 ? "chips" : "grid";
   const [view, setView] = useState<ScoreView>(defaultView);
   // Reset to the default if the count crosses the threshold (e.g. when
@@ -88,51 +111,51 @@ export const ScorePanel: FC<ScorePanelProps> = ({
     return out;
   }, [renderedScores, sort.column, sort.dir]);
 
-  const onSort = (col: "name" | "value") => {
-    setSort((cur) => {
-      if (cur.column !== col) return { column: col, dir: "asc" };
-      if (cur.dir === "asc") return { column: col, dir: "desc" };
-      return { column: null, dir: "asc" };
-    });
+  const sortItems: Record<string, () => void> = {
+    Default: () => setSort({ column: null, dir: "asc" }),
+    "Score asc": () => setSort({ column: "value", dir: "asc" }),
+    "Score desc": () => setSort({ column: "value", dir: "desc" }),
+    "Scorer asc": () => setSort({ column: "name", dir: "asc" }),
+    "Scorer desc": () => setSort({ column: "name", dir: "desc" }),
   };
-  const dirFor = (col: "name" | "value"): SortDir =>
-    sort.column === col ? sort.dir : "none";
+  // Reflect the active sort direction in the trigger icon so users can
+  // see at a glance whether the panel is currently sorted, and which
+  // way. `arrow-down-up` for unsorted; up/down for asc/desc.
+  const sortIcon = !sort.column
+    ? "bi bi-arrow-down-up"
+    : sort.dir === "asc"
+      ? "bi bi-sort-up"
+      : "bi bi-sort-down";
 
   return (
     <div className={clsx(styles.panel, tight && styles.tight)}>
       <div className={styles.panelHeader}>
-        {view === "grid" ? (
-          <>
-            <button
-              type="button"
-              className={clsx(styles.columnLabel, styles.sortable)}
-              onClick={() => onSort("name")}
-            >
-              <span>Score</span>
-              <SortIcon dir={dirFor("name")} />
-            </button>
-            <button
-              type="button"
-              className={clsx(styles.columnLabel, styles.sortable)}
-              onClick={() => onSort("value")}
-            >
-              <span>Value</span>
-              <SortIcon dir={dirFor("value")} />
-            </button>
-          </>
-        ) : (
-          <div className={styles.scoresHeader}>
-            <span className={styles.columnLabel}>Scores</span>
-            <span className={styles.scoresCount}>{count}</span>
+        <div className={styles.scoresHeader}>
+          <span className={styles.columnLabel}>Scores</span>
+          <span className={styles.scoresCount}>{count}</span>
+        </div>
+        <div className={styles.headerControls}>
+          <div className={styles.sortWrapper}>
+            <ToolDropdownButton
+              label=""
+              icon={sortIcon}
+              subtle
+              className={styles.sortButton}
+              dropdownAlign="right"
+              dropdownClassName="text-size-smallest"
+              items={sortItems}
+              aria-label="Sort scores"
+              title="Sort scores"
+            />
           </div>
-        )}
-        <ViewToggle view={view} setView={setView} />
+          <ViewToggle view={view} setView={setView} />
+        </div>
       </div>
       <div
         className={clsx(
           styles.panelBody,
           view === "grid" ? styles.bodyGrid : styles.bodyChips,
-          dense && (view === "grid" ? styles.denseGrid : styles.denseChips)
+          dense && styles.dense
         )}
       >
         {view === "grid"
@@ -153,12 +176,7 @@ interface ScoreRowProps {
 const ScoreRow: FC<ScoreRowProps> = ({ score, tight }) => {
   return (
     <div
-      className={clsx(
-        styles.row,
-        tight && styles.rowTight,
-        score.tone === "fail" && styles.rowFail,
-        score.tone === "warn" && styles.rowWarn
-      )}
+      className={clsx(styles.row, tight && styles.rowTight)}
       title={score.label.name}
     >
       <span className={styles.rowName}>{score.label.name}</span>
@@ -176,15 +194,23 @@ interface ScoreChipProps {
 }
 
 const ScoreChip: FC<ScoreChipProps> = ({ score }) => {
-  const attention = score.tone === "fail" || score.tone === "warn";
+  // Numeric chips with no semantic tone pick up a blue border whose
+  // darkness scales with the chip's value relative to the other
+  // numeric values in the panel. tone-attention chips (fail/warn)
+  // keep their semantic color regardless.
+  let style: CSSProperties | undefined;
+  if (score.tone === "neutral" && score.numericIntensity !== undefined) {
+    const opacity = (0.25 + 0.75 * score.numericIntensity).toFixed(2);
+    style = { borderColor: `rgba(var(--bs-primary-rgb), ${opacity})` };
+  }
   return (
     <span
       className={clsx(
         styles.chip,
-        attention && styles.chipAttention,
         score.tone === "fail" && styles.chipFail,
         score.tone === "warn" && styles.chipWarn
       )}
+      style={style}
       title={score.label.name}
     >
       <ScoreChipValueDisplay

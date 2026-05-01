@@ -7,6 +7,25 @@
   background-color: var(--bs-body-bg);
 }
 
+/* Wraps both the optional collapsed-band overlay and the TabSet so
+ * the band shares the tabset's sticky chrome. When the band is
+ * showing (`tabsContainerWithBand`), the tab controls slide down to
+ * sit beneath it. */
+.tabsContainerWithBand .tabControls {
+  top: var(--inspect-collapsed-band-height, 32px);
+}
+
+/* Sticky band — sibling of the tab controls inside the same container
+ * so they stack vertically rather than fighting for top: 0. The
+ * border-bottom comes from the SampleSummaryView root inside, so
+ * don't add another here. */
+.stickyBand {
+  position: sticky;
+  top: 0;
+  z-index: 1002;
+  background-color: var(--bs-body-bg);
+}
+
 .fullWidth {
   width: 100%;
 }

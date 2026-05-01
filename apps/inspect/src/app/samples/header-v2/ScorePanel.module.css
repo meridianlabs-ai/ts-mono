@@ -1,11 +1,9 @@
 .panel {
-  background: var(--bs-secondary-bg-subtle);
+  background: transparent;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  border-radius: var(--bs-border-radius);
-  overflow: hidden;
 }
 
 .panelHeader {
@@ -13,12 +11,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 10px 4px 14px;
+  padding: 6px 12px 5px;
   border-bottom: 1px solid var(--bs-border-color);
-}
-
-.panel.tight .panelHeader {
-  padding: 6px 10px 3px 12px;
 }
 
 .scoresHeader {
@@ -37,24 +31,49 @@
 
 .columnLabel {
   font-size: var(--inspect-font-size-smallest, 0.7rem);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--bs-secondary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: transparent;
-  border: none;
-  padding: 0;
+}
+
+.headerControls {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
 
-.sortable {
-  cursor: pointer;
-  user-select: none;
+/* Wrap the sort dropdown in the same outer chrome as the
+ * SegmentedControl so its border / body-bg / border-radius match the
+ * segments next to it. The inner ToolDropdownButton is then stripped
+ * back to a flat, transparent trigger. */
+.sortWrapper {
+  display: inline-flex;
+  background-color: var(--bs-body-bg);
+  border-radius: var(--bs-border-radius);
+  border: solid 1px var(--bs-border-color);
 }
 
-.sortable:hover {
+:global(.btn).sortButton {
+  background: transparent;
+  border: none;
+  border-radius: var(--bs-border-radius);
+  color: var(--bs-secondary);
+  margin: 1px;
+  padding: 0 5px;
+  height: calc(100% - 2px);
+  line-height: 1.5;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--inspect-font-size-smallest, 0.7rem);
+}
+
+:global(.btn).sortButton:hover {
   color: var(--bs-body-color);
+}
+
+:global(.btn).sortButton i {
+  margin-right: 0;
 }
 
 .panelBody {
@@ -62,58 +81,46 @@
 }
 
 .bodyGrid {
-  padding: 2px 14px 6px;
+  padding: 4px 12px;
 }
 
 .panel.tight .bodyGrid {
-  padding: 1px 14px 4px;
+  padding: 3px 12px;
 }
 
 .bodyChips {
-  padding: 8px 12px;
+  padding: 6px 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .panel.tight .bodyChips {
-  padding: 6px 12px;
+  padding: 5px 12px;
 }
 
-.denseGrid {
-  max-height: 170px;
-  overflow-y: auto;
-}
-
-.denseChips {
-  max-height: 130px;
+/* Cap the body at ~6 grid rows. Anything larger scrolls inside the
+ * panel so the rest of the header layout stays put. The cap is
+ * shared across grid and chips so the panel can't suddenly grow
+ * vertically when the user toggles views. */
+.dense {
+  max-height: 150px;
   overflow-y: auto;
 }
 
 /* ── Grid rows ─────────────────────────────────────────────────────── */
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(60px, 1fr) auto;
   align-items: center;
   column-gap: 12px;
-  padding: 3px 0 3px 8px;
-  border-left: 2px solid transparent;
-  margin-left: -8px;
-  border-bottom: 1px dashed var(--bs-border-color);
+  padding: 2px 0;
   min-width: 0;
 }
 
 .rowTight {
-  padding-top: 2px;
-  padding-bottom: 2px;
-}
-
-.rowFail {
-  border-left-color: var(--bs-danger);
-}
-
-.rowWarn {
-  border-left-color: var(--bs-orange);
+  padding-top: 1px;
+  padding-bottom: 1px;
 }
 
 .rowName {
@@ -131,7 +138,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px 2px 5px;
+  padding: 2px 8px 2px 4px;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 999px;
@@ -139,12 +146,6 @@
   line-height: 1.3;
   max-width: 220px;
   min-width: 0;
-}
-
-.chipAttention {
-  /* Attention chips inherit from chipFail / chipWarn for the actual
-     border color; this class is present so future attention-only style
-     hooks (e.g. background tint) have a place to land. */
 }
 
 .chipFail {

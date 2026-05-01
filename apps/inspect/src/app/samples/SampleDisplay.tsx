@@ -459,6 +459,73 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [displayMode]
   );
 
+  // Collapse the sample header to its meta band once the user has
+  // scrolled past it, so the id / task / epoch info stays on screen
+  // while the rest of the page scrolls. Looks up the heading element
+  // by id (set inside SampleSummaryView) and walks to the nearest
+  // scrolling ancestor — we deliberately avoid wrapping the header in
+  // an extra div, since that wrapper would become the sticky element's
+  // containing block and clip it.
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [collapsedBandHeight, setCollapsedBandHeight] = useState(0);
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!selectedSampleSummary) return;
+    const header = document.getElementById(`sample-heading-${id}`);
+    if (!header) return;
+    let scroller: HTMLElement | null = header.parentElement;
+    while (scroller) {
+      const o = getComputedStyle(scroller).overflowY;
+      if (o === "auto" || o === "scroll") break;
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return;
+    const baseHeight = header.offsetHeight;
+    const onScroll = () => {
+      // Trigger once the user has scrolled past most of the header so
+      // the collapsed band slides in just as the full header leaves.
+      const triggerAt = Math.max(0, baseHeight - 30);
+      setHeaderCollapsed(scroller!.scrollTop >= triggerAt);
+    };
+    onScroll();
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller!.removeEventListener("scroll", onScroll);
+  }, [selectedSampleSummary, id]);
+
+  // After the collapsed band mounts, measure its height and publish it
+  // as `--inspect-collapsed-band-height` on the tabs container so the
+  // sticky tab controls offset by exactly that amount — otherwise a
+  // gap appears between the band and the tabs and scroll content
+  // bleeds through. Watches resize so font / theme changes flow
+  // through. The same height feeds the inner StickyScroll offsets
+  // so the timeline / scoring stickies sit beneath the band too.
+  useEffect(() => {
+    if (!headerCollapsed) {
+      setCollapsedBandHeight(0);
+      return;
+    }
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    const band = container.querySelector<HTMLElement>(
+      `[id="sample-heading-${id}-collapsed"]`
+    );
+    if (!band) return;
+    const apply = () => {
+      const h = band.offsetHeight;
+      container.style.setProperty("--inspect-collapsed-band-height", `${h}px`);
+      setCollapsedBandHeight(h);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(band);
+    return () => ro.disconnect();
+  }, [headerCollapsed, id]);
+
+  // Effective offset for sticky elements inside the tabs (e.g. the
+  // transcript timeline). Tabs are offset by the band, so any sticky
+  // child that pins under the tabs needs both heights.
+  const stickyOffsetTop = tabsHeight + collapsedBandHeight;
+
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>
@@ -468,200 +535,217 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         <ActivityBar animating={showActivity} progress={progress} />
 
         {hasSampleData && (
-          <TabSet
-            id={tabsetId}
-            tabsRef={tabsRef}
-            className={clsx(styles.tabControls)}
-            tabControlsClassName={clsx("text-size-base")}
-            tabPanelsClassName={clsx(styles.tabPanel)}
-            tools={tools}
-            type="pills-small"
-          >
-            <TabPanel
-              key={kSampleTranscriptTabId}
-              id={kSampleTranscriptTabId}
-              className={clsx(
-                "sample-tab",
-                styles.transcriptContainer,
-                styles.overflowVisible
-              )}
-              title="Transcript"
-              onSelected={onSelectedTab}
-              selected={
-                effectiveSelectedTab === kSampleTranscriptTabId ||
-                effectiveSelectedTab === undefined
-              }
-              scrollable={false}
-            >
-              <TranscriptFilterPopover
-                showing={isShowing}
-                setShowing={setShowing}
-                positionEl={filterRef.current}
-              />
-
-              {!sampleEvents || sampleEvents.length === 0 ? (
-                sampleData.status === "loading" ? null : (
-                  <NoContentsPanel
-                    text={
-                      eventsCleared
-                        ? "Transcript events were removed because this sample exceeds the browser's size limit. Use the Messages tab to view the conversation."
-                        : "No events to display."
-                    }
-                  />
-                )
-              ) : (
-                <TranscriptPanel
-                  id={`${baseId}-transcript-display-${id}`}
-                  key={`${baseId}-transcript-display-${id}`}
-                  scrollRef={scrollRef}
-                  offsetTop={tabsHeight}
-                  sampleId={sample?.id ?? undefined}
-                  sampleEpoch={sample?.epoch ?? undefined}
-                  running={running}
-                  events={sampleEvents}
-                  timelines={sample?.timelines ?? undefined}
-                  scans={sample?.scores ?? undefined}
-                  initialEventId={sampleDetailNavigation.event}
-                  initialMessageId={sampleDetailNavigation.message}
-                />
-              )}
-            </TabPanel>
-            <TabPanel
-              key={kSampleMessagesTabId}
-              id={kSampleMessagesTabId}
-              className={clsx(
-                "sample-tab",
-                styles.fullWidth,
-                styles.chat,
-                styles.overflowVisible
-              )}
-              title="Messages"
-              onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleMessagesTabId}
-              scrollable={false}
-            >
-              <ChatViewVirtualList
-                key={`${baseId}-chat-${id}`}
-                id={`${baseId}-chat-${id}`}
-                messages={sampleMessages}
-                initialMessageId={sampleDetailNavigation.message}
-                offsetTop={tabsHeight}
-                display={{
-                  indented: true,
-                  unlabeledRoles: ["assistant"],
-                  formatDateTime,
-                }}
-                linking={{
-                  enabled: isHostedEnvironment(),
-                  getMessageUrl: getMessageUrl,
-                }}
-                onNativeFindChanged={setNativeFind}
-                scrollRef={scrollRef}
-                tools={{ callStyle: "complete" }}
-                running={running}
-                className={styles.fullWidth}
-              />
-            </TabPanel>
-            <TabPanel
-              key={kSampleScoringTabId}
-              id={kSampleScoringTabId}
-              className="sample-tab"
-              title="Scoring"
-              onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleScoringTabId}
-            >
-              <SampleScoresView
-                sample={sample}
-                className={styles.padded}
-                scrollRef={scrollRef}
-              />
-            </TabPanel>
-            <TabPanel
-              id={kSampleMetdataTabId}
-              className={clsx("sample-tab")}
-              title="Metadata"
-              onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleMetdataTabId}
-            >
-              {sampleMetadatas.length > 0 ? (
-                <div
-                  className={clsx(
-                    styles.padded,
-                    styles.fullWidth,
-                    styles.metadataPanel
-                  )}
-                >
-                  {sampleMetadatas}
-                </div>
-              ) : (
-                <NoContentsPanel text="No sample metadata available" />
-              )}
-            </TabPanel>
-            {sample?.error && (
-              <TabPanel
-                id={kSampleErrorTabId}
-                className="sample-tab"
-                title="Error"
-                onSelected={onSelectedTab}
-                selected={effectiveSelectedTab === kSampleErrorTabId}
-              >
-                <div className={clsx(styles.error)}>
-                  {sample?.error ? (
-                    <Card key={`sample-error}`}>
-                      <CardHeader label={`Sample Error`} />
-                      <CardBody>
-                        <ANSIDisplay
-                          output={sample.error.traceback_ansi}
-                          className={clsx("text-size-small", styles.ansi)}
-                          style={{
-                            fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
-                            margin: "0.5em 0",
-                          }}
-                        />
-                      </CardBody>
-                    </Card>
-                  ) : undefined}
-                </div>
-              </TabPanel>
+          <div
+            ref={tabsContainerRef}
+            className={clsx(
+              styles.tabsContainer,
+              headerCollapsed && styles.tabsContainerWithBand
             )}
-
-            {sample?.error_retries && sample.error_retries.length > 0 ? (
-              <TabPanel
-                id={kSampleRetriesTabId}
-                className="sample-tab"
-                title="Retries"
-                onSelected={onSelectedTab}
-                selected={effectiveSelectedTab === kSampleRetriesTabId}
-              >
-                <div className={styles.retriedErrors}>
-                  <SampleRetriedErrors
-                    id={sample.uuid || String(sample.id)}
-                    retries={sample.error_retries}
-                    scrollRef={scrollRef}
-                  />
-                </div>
-              </TabPanel>
+          >
+            {selectedSampleSummary && headerCollapsed ? (
+              <div className={styles.stickyBand}>
+                <SampleSummaryView
+                  parent_id={`${id}-collapsed`}
+                  sample={selectedSampleSummary}
+                  collapsed
+                />
+              </div>
             ) : null}
-
-            <TabPanel
-              id={kSampleJsonTabId}
-              className={"sample-tab"}
-              title="JSON"
-              onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleJsonTabId}
+            <TabSet
+              id={tabsetId}
+              tabsRef={tabsRef}
+              className={clsx(styles.tabControls)}
+              tabControlsClassName={clsx("text-size-base")}
+              tabPanelsClassName={clsx(styles.tabPanel)}
+              tools={tools}
+              type="pills-small"
             >
-              {!sample ? (
-                <NoContentsPanel text="JSON not available" />
-              ) : (
-                <div className={clsx(styles.padded, styles.fullWidth)}>
-                  <SampleJSONView
-                    sample={sample}
-                    className={clsx("text-size-small")}
+              <TabPanel
+                key={kSampleTranscriptTabId}
+                id={kSampleTranscriptTabId}
+                className={clsx(
+                  "sample-tab",
+                  styles.transcriptContainer,
+                  styles.overflowVisible
+                )}
+                title="Transcript"
+                onSelected={onSelectedTab}
+                selected={
+                  effectiveSelectedTab === kSampleTranscriptTabId ||
+                  effectiveSelectedTab === undefined
+                }
+                scrollable={false}
+              >
+                <TranscriptFilterPopover
+                  showing={isShowing}
+                  setShowing={setShowing}
+                  positionEl={filterRef.current}
+                />
+
+                {!sampleEvents || sampleEvents.length === 0 ? (
+                  sampleData.status === "loading" ? null : (
+                    <NoContentsPanel
+                      text={
+                        eventsCleared
+                          ? "Transcript events were removed because this sample exceeds the browser's size limit. Use the Messages tab to view the conversation."
+                          : "No events to display."
+                      }
+                    />
+                  )
+                ) : (
+                  <TranscriptPanel
+                    id={`${baseId}-transcript-display-${id}`}
+                    key={`${baseId}-transcript-display-${id}`}
+                    scrollRef={scrollRef}
+                    offsetTop={stickyOffsetTop}
+                    sampleId={sample?.id ?? undefined}
+                    sampleEpoch={sample?.epoch ?? undefined}
+                    running={running}
+                    events={sampleEvents}
+                    timelines={sample?.timelines ?? undefined}
+                    scans={sample?.scores ?? undefined}
+                    initialEventId={sampleDetailNavigation.event}
+                    initialMessageId={sampleDetailNavigation.message}
                   />
-                </div>
+                )}
+              </TabPanel>
+              <TabPanel
+                key={kSampleMessagesTabId}
+                id={kSampleMessagesTabId}
+                className={clsx(
+                  "sample-tab",
+                  styles.fullWidth,
+                  styles.chat,
+                  styles.overflowVisible
+                )}
+                title="Messages"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleMessagesTabId}
+                scrollable={false}
+              >
+                <ChatViewVirtualList
+                  key={`${baseId}-chat-${id}`}
+                  id={`${baseId}-chat-${id}`}
+                  messages={sampleMessages}
+                  initialMessageId={sampleDetailNavigation.message}
+                  offsetTop={stickyOffsetTop}
+                  display={{
+                    indented: true,
+                    unlabeledRoles: ["assistant"],
+                    formatDateTime,
+                  }}
+                  linking={{
+                    enabled: isHostedEnvironment(),
+                    getMessageUrl: getMessageUrl,
+                  }}
+                  onNativeFindChanged={setNativeFind}
+                  scrollRef={scrollRef}
+                  tools={{ callStyle: "complete" }}
+                  running={running}
+                  className={styles.fullWidth}
+                />
+              </TabPanel>
+              <TabPanel
+                key={kSampleScoringTabId}
+                id={kSampleScoringTabId}
+                className="sample-tab"
+                title="Scoring"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleScoringTabId}
+              >
+                <SampleScoresView
+                  sample={sample}
+                  className={styles.padded}
+                  scrollRef={scrollRef}
+                />
+              </TabPanel>
+              <TabPanel
+                id={kSampleMetdataTabId}
+                className={clsx("sample-tab")}
+                title="Metadata"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleMetdataTabId}
+              >
+                {sampleMetadatas.length > 0 ? (
+                  <div
+                    className={clsx(
+                      styles.padded,
+                      styles.fullWidth,
+                      styles.metadataPanel
+                    )}
+                  >
+                    {sampleMetadatas}
+                  </div>
+                ) : (
+                  <NoContentsPanel text="No sample metadata available" />
+                )}
+              </TabPanel>
+              {sample?.error && (
+                <TabPanel
+                  id={kSampleErrorTabId}
+                  className="sample-tab"
+                  title="Error"
+                  onSelected={onSelectedTab}
+                  selected={effectiveSelectedTab === kSampleErrorTabId}
+                >
+                  <div className={clsx(styles.error)}>
+                    {sample?.error ? (
+                      <Card key={`sample-error}`}>
+                        <CardHeader label={`Sample Error`} />
+                        <CardBody>
+                          <ANSIDisplay
+                            output={sample.error.traceback_ansi}
+                            className={clsx("text-size-small", styles.ansi)}
+                            style={{
+                              fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
+                              margin: "0.5em 0",
+                            }}
+                          />
+                        </CardBody>
+                      </Card>
+                    ) : undefined}
+                  </div>
+                </TabPanel>
               )}
-            </TabPanel>
-          </TabSet>
+
+              {sample?.error_retries && sample.error_retries.length > 0 ? (
+                <TabPanel
+                  id={kSampleRetriesTabId}
+                  className="sample-tab"
+                  title="Retries"
+                  onSelected={onSelectedTab}
+                  selected={effectiveSelectedTab === kSampleRetriesTabId}
+                >
+                  <div className={styles.retriedErrors}>
+                    <SampleRetriedErrors
+                      id={sample.uuid || String(sample.id)}
+                      retries={sample.error_retries}
+                      scrollRef={scrollRef}
+                    />
+                  </div>
+                </TabPanel>
+              ) : null}
+
+              <TabPanel
+                id={kSampleJsonTabId}
+                className={"sample-tab"}
+                title="JSON"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleJsonTabId}
+              >
+                {!sample ? (
+                  <NoContentsPanel text="JSON not available" />
+                ) : (
+                  <div className={clsx(styles.padded, styles.fullWidth)}>
+                    <SampleJSONView
+                      sample={sample}
+                      className={clsx("text-size-small")}
+                    />
+                  </div>
+                )}
+              </TabPanel>
+            </TabSet>
+          </div>
         )}
       </Fragment>
     </DisplayModeContext.Provider>

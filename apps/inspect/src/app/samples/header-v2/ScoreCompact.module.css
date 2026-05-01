@@ -14,8 +14,8 @@
 
 .label {
   font-size: var(--inspect-font-size-smallest, 0.7rem);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 400;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;

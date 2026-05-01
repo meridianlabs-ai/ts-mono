@@ -21,7 +21,7 @@ interface ScoreValueDisplayProps {
  * independently for the header's compact / row / chip contexts.
  *
  * - passfail (C/A/B/I/F/P/N) → solid circle, white glyph
- * - boolean → solid circle with ✓ or ✕
+ * - boolean → solid circle with "T" or "F"
  * - everything else → tabular-nums text, tone-colored when explicit
  *
  * Colors come from theme tokens (--bs-success / --bs-danger /
@@ -37,11 +37,6 @@ export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
     width: size,
     height: size,
     fontSize: Math.round(size * 0.55),
-  };
-  const boolFontStyle: CSSProperties = {
-    width: size,
-    height: size,
-    fontSize: Math.round(size * 0.6),
   };
 
   if (scoreType === kScoreTypePassFail && value !== undefined) {
@@ -59,16 +54,18 @@ export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
     return (
       <span
         className={clsx(styles.circle, toneCircleClass(tone))}
-        style={boolFontStyle}
+        style={sizeStyle}
+        title={value ? "true" : "false"}
       >
-        {value ? "✓" : "✕"}
+        {value ? "T" : "F"}
       </span>
     );
   }
 
+  const formatted = formatPlainValue(value);
   return (
-    <span className={clsx(styles.text, toneTextClass(tone))}>
-      {formatPlainValue(value)}
+    <span className={clsx(styles.text, toneTextClass(tone))} title={formatted}>
+      {formatted}
     </span>
   );
 };
@@ -87,11 +84,6 @@ export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
     height: size,
     fontSize: Math.round(size * 0.55),
   };
-  const boolFontStyle: CSSProperties = {
-    width: size,
-    height: size,
-    fontSize: Math.round(size * 0.6),
-  };
 
   if (scoreType === kScoreTypePassFail && value !== undefined) {
     return (
@@ -108,16 +100,21 @@ export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
     return (
       <span
         className={clsx(styles.circle, toneCircleClass(tone))}
-        style={boolFontStyle}
+        style={sizeStyle}
+        title={value ? "true" : "false"}
       >
-        {value ? "✓" : "✕"}
+        {value ? "T" : "F"}
       </span>
     );
   }
 
+  const formatted = formatPlainValue(value);
   return (
-    <span className={clsx(styles.miniPill, toneMiniPillClass(tone))}>
-      {formatPlainValue(value)}
+    <span
+      className={clsx(styles.miniPill, toneMiniPillClass(tone))}
+      title={formatted}
+    >
+      {formatted}
     </span>
   );
 };
