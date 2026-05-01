@@ -23,7 +23,11 @@ import { ScorePanel } from "./header-v2/ScorePanel";
 import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
-const kMaxCellTextLength = 128;
+// Generous truncation for Input/Answer so the value can actually fill
+// the available width before the CSS line-clamp kicks in. Target stays
+// shorter — it's almost always one or two words anyway.
+const kBodyTruncate = 360;
+const kTargetTruncate = 160;
 
 interface SampleSummaryViewProps {
   parent_id: string;
@@ -226,7 +230,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 <RenderedText
                   markdown={truncateMarkdown(
                     fields.input.join(" "),
-                    kMaxCellTextLength
+                    kBodyTruncate
                   )}
                 />
               </div>
@@ -238,7 +242,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                   <RenderedText
                     markdown={truncateMarkdown(
                       arrayToString(fields.target || "none"),
-                      kMaxCellTextLength
+                      kTargetTruncate
                     )}
                     className={clsx("no-last-para-padding")}
                   />
@@ -252,7 +256,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                   <RenderedText
                     markdown={truncateMarkdown(
                       fields.answer || "",
-                      kMaxCellTextLength
+                      kBodyTruncate
                     )}
                     className={clsx("no-last-para-padding")}
                   />
