@@ -28,6 +28,12 @@ const kMaxCellTextLength = 128;
 interface SampleSummaryViewProps {
   parent_id: string;
   sample: SampleSummary | EvalSample;
+  /**
+   * Render only the meta line (id · task · epoch · …). The fields row,
+   * score panel, and error block are all hidden. The parent decides
+   * when to flip this — typically driven by scroll/UI state.
+   */
+  collapsed?: boolean;
 }
 
 interface SampleFields {
@@ -128,6 +134,7 @@ const FieldLabel: FC<{ children: ReactNode }> = ({ children }) => (
 export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   parent_id,
   sample,
+  collapsed = false,
 }) => {
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
@@ -191,6 +198,20 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   const invalidation: ProvenanceData | null | undefined = isEvalSample(sample)
     ? sample.invalidation
     : undefined;
+
+  if (collapsed) {
+    return (
+      <div
+        id={`sample-heading-${parent_id}`}
+        className={clsx(styles.root, styles.collapsed)}
+      >
+        {invalidation && <InvalidationBanner invalidation={invalidation} />}
+        <div className={styles.collapsedMeta}>
+          <MetaLine items={metaItems} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id={`sample-heading-${parent_id}`} className={styles.root}>
