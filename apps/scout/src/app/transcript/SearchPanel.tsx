@@ -19,7 +19,7 @@ import {
   PopOver,
   SegmentedControl,
 } from "@tsmono/react/components";
-import { compose, map } from "@tsmono/util";
+import { ApiError, compose, map } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
@@ -496,9 +496,7 @@ const SearchPanelWithData = ({
         <div className={styles.results}>
           <SearchResults
             loading={loading}
-            isError={
-              createSearchMutation.isError || cachedSearchMutation.isError
-            }
+            error={createSearchMutation.error || cachedSearchMutation.error}
             hasSearched={hasSearched}
             currentSearch={currentSearch}
             scope={scope}
@@ -593,7 +591,7 @@ const RecentSearches: FC<{
 
 const SearchResults: FC<{
   loading: boolean;
-  isError: boolean;
+  error: Error | null;
   hasSearched: boolean;
   currentSearch: Result | null;
   scope: TranscriptSearchScope;
@@ -602,7 +600,7 @@ const SearchResults: FC<{
   getFullEventMessageUrl: (id: string) => string | undefined;
 }> = ({
   loading,
-  isError,
+  error,
   hasSearched,
   currentSearch,
   scope,
@@ -613,8 +611,15 @@ const SearchResults: FC<{
   if (loading) {
     return <div className={styles.emptyState}>Searching…</div>;
   }
-  if (isError) {
-    return <div className={styles.emptyState}>Search failed. Try again.</div>;
+  if (error) {
+    return (
+      <div className={styles.emptyState}>
+        <p>
+          {error instanceof ApiError ? error.status : ""} Something went wrong
+        </p>
+        <p>{error.message}</p>
+      </div>
+    );
   }
   if (!hasSearched) {
     return null;
