@@ -23,7 +23,7 @@
 }
 
 .left {
-  padding: 8px 14px;
+  padding: 8px 0.5rem;
   border-right: 1px solid var(--bs-border-color);
   min-width: 0;
 }
@@ -57,6 +57,7 @@
 .metaId {
   font-family: var(--bs-font-monospace);
   color: var(--bs-body-color);
+  font-size: var(--inspect-font-size-base);
   font-weight: 500;
 }
 
@@ -125,7 +126,7 @@
  * scrolled past the full header. Positioning lives at the call-site
  * because the parent owns the scroll context. */
 .collapsedMeta {
-  padding: 2px 14px;
+  padding: 2px 0.5rem;
   display: flex;
   align-items: center;
 }
