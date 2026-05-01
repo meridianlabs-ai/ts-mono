@@ -1,73 +1,117 @@
-.target {
-  padding-left: 0;
+.root {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
-.answer {
-  padding-left: 0;
-}
-
-.grid {
+/* Outer two-column layout. The right column widens once we have a real
+ * panel to fill it (3+ scores), narrows otherwise. */
+.layout {
   display: grid;
-  grid-column-gap: 1em;
-  border-bottom: solid var(--bs-border-color) 1px;
-  padding: 0.5rem;
+  grid-template-columns: minmax(0, 1.7fr) minmax(160px, 0.45fr);
 }
 
-.centerLabel {
-  display: flex;
-  justify-content: center;
+.layout.wideRight {
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
 }
 
-.centerValue {
-  display: flex;
-  align-items: center;
-}
-
-.wrap {
-  word-wrap: anywhere;
-}
-
-.titled:hover {
-  cursor: pointer;
-}
-
-.value {
-  flex-direction: column;
-  padding-top: 0.1em;
-}
-
-.scoresBand {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7em, 1fr));
-  column-gap: 1em;
-  row-gap: 0.5em;
-  padding: 0.25rem 0.5rem 0.5rem;
-  border-bottom: solid var(--bs-border-color) 1px;
-  /* Cap on samples with extreme scorer counts; the grid wraps so this
-     only kicks in past a few rows. */
-  max-height: 9em;
-  overflow-y: auto;
-}
-
-.scoreCell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+.left {
+  padding: 10px 18px;
+  border-right: 1px solid var(--bs-border-color);
   min-width: 0;
 }
 
-.scoreLabel {
-  font-size: var(--font-size-smallest, 0.7rem);
-  color: var(--text-secondary, inherit);
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 100%;
+.right {
+  padding: 10px 14px;
+  background: var(--bs-body-bg);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.scoreValue {
-  padding-top: 0.1em;
+.metaLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
+  margin-bottom: 8px;
+  color: var(--bs-secondary);
+}
+
+.metaSep {
+  color: var(--bs-tertiary-color, var(--bs-secondary));
+}
+
+.metaId {
+  font-family: var(--bs-font-monospace);
+  color: var(--bs-body-color);
+  font-weight: 500;
+}
+
+/* Field row: Input | Target | Answer in a single row. Target gets a
+ * fixed-ish middle slot, Input and Answer flex. */
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, auto) minmax(0, 1fr);
+  gap: 8px 24px;
+}
+
+.field {
+  min-width: 0;
+}
+
+.fieldTarget {
+  max-width: 200px;
+}
+
+.fieldLabel {
+  font-size: var(--inspect-font-size-smallest, 0.7rem);
+  font-weight: 600;
+  color: var(--bs-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fieldValue {
+  font-size: var(--inspect-font-size-base, 0.9rem);
+  color: var(--bs-body-color);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Right column placeholder list — replaced by ScorePanel in a later
+ * commit. Kept simple here so the V2 shell ships standalone. */
+.scoreList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scoreItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scoreItemValue {
+  font-size: var(--inspect-font-size-base, 0.9rem);
+  color: var(--bs-body-color);
+}
+
+.errorBlock {
+  padding: 10px 18px;
+  border-top: 1px dashed var(--bs-border-color);
 }
 
 /* Invalidation banner styles */
@@ -76,9 +120,9 @@
   align-items: flex-start;
   gap: 0.75em;
   padding: 0.75em 1em;
-  background-color: var(--bs-warning-bg-subtle, #fff3cd);
-  border-bottom: 1px solid var(--bs-warning-border-subtle, #ffecb5);
-  color: var(--bs-warning-text-emphasis, #664d03);
+  background-color: var(--bs-warning-bg-subtle);
+  border-bottom: 1px solid var(--bs-warning-border-subtle);
+  color: var(--bs-warning-text-emphasis);
 }
 
 .invalidationIcon {

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, Fragment, ReactNode } from "react";
 
 import { EvalSample, ProvenanceData } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
@@ -12,6 +12,7 @@ import {
 } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
+import { useStore } from "../../state/store";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
 
@@ -21,22 +22,15 @@ import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
 const kMaxCellTextLength = 128;
+
 interface SampleSummaryViewProps {
   parent_id: string;
   sample: SampleSummary | EvalSample;
 }
 
-interface SummaryColumn {
-  label: string;
-  value: string | ReactNode;
-  size: string;
-  center?: boolean;
-  clamp?: boolean;
-  title?: string;
-}
-
 interface SampleFields {
   id: string | number;
+  epoch: number;
   input: string[];
   target: EvalSampleTarget;
   answer?: string;
@@ -84,6 +78,7 @@ const resolveSample = (
 
   return {
     id: sample.id,
+    epoch: sample.epoch,
     input,
     target,
     answer,
@@ -96,8 +91,37 @@ const resolveSample = (
   };
 };
 
+interface MetaItem {
+  key: string;
+  content: ReactNode;
+  title?: string;
+}
+
+const MetaLine: FC<{ items: MetaItem[] }> = ({ items }) => (
+  <div className={clsx(styles.metaLine, "text-size-smaller")}>
+    {items.map((item, idx) => (
+      <Fragment key={item.key}>
+        {idx > 0 && <span className={styles.metaSep}>·</span>}
+        <span title={item.title}>{item.content}</span>
+      </Fragment>
+    ))}
+  </div>
+);
+
+const FieldLabel: FC<{ children: ReactNode }> = ({ children }) => (
+  <div className={clsx(styles.fieldLabel)} data-unsearchable={true}>
+    {children}
+  </div>
+);
+
 /**
- * Component to display a sample with relevant context and visibility control.
+ * The single-sample header that sits above the transcript / messages /
+ * scores tabs. Renders sample id and meta on a single row, with
+ * Input / Target / Answer beneath, and a right-hand score panel.
+ *
+ * The score panel is currently a simple stack of label-over-value
+ * pairs; the next stage of the V2 redesign replaces this with a
+ * dedicated `ScorePanel` (chips / sortable grid + view toggle).
  */
 export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   parent_id,
@@ -105,143 +129,58 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 }) => {
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
+  const taskName = useStore((state) => state.log.selectedLogDetails?.eval.task);
   if (!sampleDescriptor) {
     return undefined;
   }
   const fields = resolveSample(sample, sampleDescriptor);
-  const shape = sampleDescriptor?.messageShape;
-  const limitSize = shape?.limitSize ?? 0;
-  const retrySize = shape?.retriesSize ?? 0;
-  const idSize = shape?.idSize ?? 2;
 
-  // The columns for the sample
-  const columns: SummaryColumn[] = [];
-  columns.push({
-    label: "Id",
-    value: fields.id,
-    size: `${idSize}em`,
-  });
-
-  columns.push({
-    label: "Input",
-    value: (
-      <RenderedText
-        markdown={truncateMarkdown(fields.input.join(" "), kMaxCellTextLength)}
-      />
-    ),
-    size: `minmax(auto, 5fr)`,
-    clamp: true,
-  });
-
-  if (fields.target) {
-    columns.push({
-      label: "Target",
-      value: (
-        <RenderedText
-          markdown={truncateMarkdown(
-            arrayToString(fields?.target || "none"),
-            kMaxCellTextLength
-          )}
-          className={clsx("no-last-para-padding", styles.target)}
-        />
-      ),
-      size: `minmax(auto, 3fr)`,
-      clamp: true,
-    });
-  }
-
-  if (fields.answer) {
-    columns.push({
-      label: "Answer",
-      value: sample ? (
-        <RenderedText
-          markdown={truncateMarkdown(fields.answer || "", kMaxCellTextLength)}
-          className={clsx("no-last-para-padding", styles.answer)}
-        />
-      ) : (
-        ""
-      ),
-      size: `minmax(auto, 5fr)`,
-      clamp: true,
-    });
-  }
-
-  const toolTip = (working_time?: EvalSampleWorkingTime) => {
-    if (working_time === undefined || working_time === null) {
-      return undefined;
-    }
-    return `Working time: ${formatTime(working_time)}`;
-  };
-
-  if (fields.total_time) {
-    columns.push({
-      label: "Time",
-      value: formatTime(fields.total_time),
-      size: `fit-content(10rem)`,
-      center: true,
-      title: toolTip(fields.working_time),
-    });
-  }
-
-  if (fields?.limit && limitSize > 0) {
-    columns.push({
-      label: "Limit",
-      value: fields.limit,
-      size: `${limitSize}em`,
-      center: true,
-    });
-  }
-
-  if (fields?.retries && retrySize > 0) {
-    columns.push({
-      label: "Retries",
-      value: fields.retries,
-      size: `${retrySize}em`,
-      center: true,
-    });
-  }
-
-  // Score entries are rendered inline alongside the body columns up to
-  // 3 scores; once we have 4+ scorers they go in a dedicated wrapping
-  // band below so the body columns don't get squeezed off-screen.
   const scoreEntries =
     selectedScores
       ?.map((scoreLabel) => ({
         label: selectedScores.length === 1 ? "Score" : scoreLabel.name,
         value:
-          sampleDescriptor?.evalDescriptor
-            .score(sample, scoreLabel)
-            ?.render() || "",
+          sampleDescriptor.evalDescriptor.score(sample, scoreLabel)?.render() ??
+          "",
       }))
       .filter((entry) => entry.value !== "") ?? [];
 
-  const useScoresBand = scoreEntries.length >= 4;
-  if (!useScoresBand) {
-    for (const entry of scoreEntries) {
-      columns.push({
-        label: entry.label,
-        value: entry.value,
-        size: "fit-content(15em)",
-        center: true,
-      });
-    }
-  }
+  // Two-column grid widens the right side once the score panel needs
+  // room (3+ scores).
+  const wideRight = scoreEntries.length >= 3;
 
-  if (fields.error) {
-    columns.push({
-      label: "Error",
-      value: <SampleErrorView message={fields.error} />,
-      size: `${shape?.errorSize ?? 1}em`,
-      center: true,
+  const metaItems: MetaItem[] = [
+    {
+      key: "id",
+      content: <span className={styles.metaId}>{String(fields.id)}</span>,
+    },
+  ];
+  if (taskName) {
+    metaItems.push({ key: "task", content: taskName });
+  }
+  metaItems.push({ key: "epoch", content: `Epoch ${fields.epoch}` });
+  if (fields.total_time) {
+    metaItems.push({
+      key: "time",
+      content: formatTime(fields.total_time),
+      title:
+        fields.working_time !== undefined && fields.working_time !== null
+          ? `Working time: ${formatTime(fields.working_time)}`
+          : undefined,
     });
   }
-
+  if (fields.limit) {
+    metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
+  }
+  if (
+    fields.retries !== undefined &&
+    fields.retries !== null &&
+    fields.retries > 0
+  ) {
+    metaItems.push({ key: "retries", content: `Retries: ${fields.retries}` });
+  }
   if (fields.cancelled) {
-    columns.push({
-      label: "Status",
-      value: "Cancelled",
-      size: `10em`,
-    });
+    metaItems.push({ key: "cancelled", content: "Cancelled" });
   }
 
   // Check if sample is invalidated (only available on full EvalSample)
@@ -250,67 +189,71 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     : undefined;
 
   return (
-    <div id={`sample-heading-${parent_id}`}>
+    <div id={`sample-heading-${parent_id}`} className={styles.root}>
       {invalidation && <InvalidationBanner invalidation={invalidation} />}
-      <div
-        className={clsx(styles.grid, "text-size-base")}
-        style={{
-          gridTemplateColumns: `${columns
-            .map((col) => {
-              return col.size;
-            })
-            .join(" ")}`,
-        }}
-      >
-        {columns.map((col, idx) => {
-          return (
-            <div
-              key={`sample-summ-lbl-${idx}`}
-              className={clsx(
-                "text-style-label",
-                "text-style-secondary",
-                "text-size-smallest",
-                col.title ? styles.titled : undefined,
-                col.center ? styles.centerLabel : undefined
-              )}
-              title={col.title}
-              data-unsearchable={true}
-            >
-              {col.label}
-            </div>
-          );
-        })}
-        {columns.map((col, idx) => {
-          return (
-            <div
-              key={`sample-summ-val-${idx}`}
-              className={clsx(
-                styles.value,
-                styles.wrap,
-                col.clamp ? "three-line-clamp" : undefined,
-                col.center ? styles.centerValue : undefined
-              )}
-              data-unsearchable={true}
-            >
-              {col.value}
-            </div>
-          );
-        })}
-      </div>
-      {useScoresBand && (
-        <div className={styles.scoresBand}>
-          {scoreEntries.map((entry, idx) => (
-            <div key={`sample-summ-score-${idx}`} className={styles.scoreCell}>
-              <div className={styles.scoreLabel} data-unsearchable={true}>
-                {entry.label}
-              </div>
-              <div className={styles.scoreValue} data-unsearchable={true}>
-                {entry.value}
+      <div className={clsx(styles.layout, wideRight && styles.wideRight)}>
+        <div className={styles.left}>
+          <MetaLine items={metaItems} />
+          <div className={styles.fields}>
+            <div className={styles.field}>
+              <FieldLabel>Input</FieldLabel>
+              <div className={clsx(styles.fieldValue, styles.clamp)}>
+                <RenderedText
+                  markdown={truncateMarkdown(
+                    fields.input.join(" "),
+                    kMaxCellTextLength
+                  )}
+                />
               </div>
             </div>
-          ))}
+            {fields.target ? (
+              <div className={clsx(styles.field, styles.fieldTarget)}>
+                <FieldLabel>Target</FieldLabel>
+                <div className={clsx(styles.fieldValue, styles.clamp)}>
+                  <RenderedText
+                    markdown={truncateMarkdown(
+                      arrayToString(fields.target || "none"),
+                      kMaxCellTextLength
+                    )}
+                    className={clsx("no-last-para-padding")}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {fields.answer ? (
+              <div className={styles.field}>
+                <FieldLabel>Answer</FieldLabel>
+                <div className={clsx(styles.fieldValue, styles.clamp)}>
+                  <RenderedText
+                    markdown={truncateMarkdown(
+                      fields.answer || "",
+                      kMaxCellTextLength
+                    )}
+                    className={clsx("no-last-para-padding")}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
-      )}
+        {scoreEntries.length > 0 ? (
+          <div className={styles.right}>
+            <div className={styles.scoreList}>
+              {scoreEntries.map((entry, idx) => (
+                <div key={`score-${idx}`} className={styles.scoreItem}>
+                  <FieldLabel>{entry.label}</FieldLabel>
+                  <div className={styles.scoreItemValue}>{entry.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {fields.error ? (
+        <div className={styles.errorBlock}>
+          <SampleErrorView message={fields.error} />
+        </div>
+      ) : null}
     </div>
   );
 };
