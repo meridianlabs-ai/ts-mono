@@ -13,6 +13,7 @@ import {
 import { SampleSummary } from "../../client/api/types";
 import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
 
@@ -143,6 +144,9 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
   const taskName = useStore((state) => state.log.selectedLogDetails?.eval.task);
+  const modelText = useStore((state) =>
+    formatModelText(state.log.selectedLogDetails?.eval)
+  );
   if (!sampleDescriptor) {
     return undefined;
   }
@@ -169,11 +173,14 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       key: "id",
       content: <span className={styles.metaId}>{String(fields.id)}</span>,
     },
+    { key: "epoch", content: `Epoch ${fields.epoch}` },
   ];
   if (taskName) {
     metaItems.push({ key: "task", content: taskName });
   }
-  metaItems.push({ key: "epoch", content: `Epoch ${fields.epoch}` });
+  if (modelText) {
+    metaItems.push({ key: "model", content: modelText });
+  }
   if (fields.total_time) {
     metaItems.push({
       key: "time",

@@ -9,13 +9,13 @@ import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
 import { Modal } from "../../../components/Modal";
-import { kModelNone } from "../../../constants";
 import {
   expandGroupedMetrics,
   metricDisplayName,
   toDisplayScorers,
 } from "../../../scoring/metrics";
 import { groupScorers } from "../../../scoring/scores";
+import { formatModelText } from "../../../utils/evalModel";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./CollapsedTitleBar.module.css";
@@ -101,20 +101,6 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
       </div>
     </div>
   );
-};
-
-const formatModelText = (evalSpec?: EvalSpec): string | undefined => {
-  if (!evalSpec) return undefined;
-  const roles = evalSpec.model_roles;
-  if (roles && Object.keys(roles).length > 0) {
-    return Object.entries(roles)
-      .map(([role, data]) => `${role}: ${data.model}`)
-      .join(", ");
-  }
-  if (evalSpec.model && evalSpec.model !== kModelNone) {
-    return evalSpec.model;
-  }
-  return undefined;
 };
 
 interface InlineMetricsProps {
