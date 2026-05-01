@@ -4,16 +4,17 @@
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Outer two-column layout. The right column sizes to its content
- * naturally but caps via `fit-content(N)` so chips wrap once they
- * reach the ceiling instead of running the column off to the right. */
+/* Outer two-column layout. The right column gets a clamped range so
+ * its width adapts to viewport but stays in a band that yields
+ * roughly 2–3 chips per row regardless of chip set. The body fields
+ * (1fr) keep the rest. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) fit-content(280px);
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
 }
 
 .layout.wideRight {
-  grid-template-columns: minmax(0, 1fr) fit-content(440px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 340px);
 }
 
 .left {
