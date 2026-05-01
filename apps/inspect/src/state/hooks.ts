@@ -13,7 +13,7 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
-import { getAvailableScorers, getDefaultScorer } from "./scoring";
+import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
@@ -79,14 +79,9 @@ export const useSelectedScores = () => {
   return useMemo(() => {
     if (selected !== undefined) {
       return selected;
-    } else if (selectedLogDetails) {
-      const defaultScorer = getDefaultScorer(
-        selectedLogDetails,
-        sampleSummaries
-      );
-      if (defaultScorer) {
-        return [defaultScorer];
-      }
+    }
+    if (selectedLogDetails) {
+      return getAvailableScorers(selectedLogDetails, sampleSummaries) ?? [];
     }
     return [];
   }, [selectedLogDetails, sampleSummaries, selected]);

@@ -58,23 +58,3 @@ export const getAvailableScorers = (
   }
   return undefined;
 };
-
-/**
- * Gets the default scorer to use, preferring the first scorer from results
- * or falling back to the first scorer from samples
- */
-export const getDefaultScorer = (
-  log: LogDetails,
-  sampleSummaries: SampleSummary[]
-): ScoreLabel | undefined => {
-  if (sampleSummaries.length === 0) {
-    return undefined;
-  }
-
-  const allScorers = getAvailableScorers(log, sampleSummaries);
-  if (allScorers) {
-    return allScorers[0];
-  } else {
-    return undefined;
-  }
-};
