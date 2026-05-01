@@ -128,19 +128,19 @@ describe("MarkdownDiv XSS security", () => {
   });
 
   describe("renderer scenarios", () => {
-    it("compact renderer omits markdown images", () => {
+    it("fragment renderer omits markdown images", () => {
       const result = renderPipeline(
         "![alt](https://example.com/image.png)",
-        "compact"
+        "fragment"
       );
       expect(result).not.toContain("<img");
       expect(result).toContain("alt");
     });
 
-    it("simple renderer supports emphasis and newlines only", () => {
+    it("textOnly renderer supports emphasis and newlines only", () => {
       const result = renderPipeline(
         "hello *world*\n![alt](https://example.com/image.png)\n[link](https://example.com)",
-        "simple"
+        "textOnly"
       );
 
       expect(result).toContain("<em>world</em>");

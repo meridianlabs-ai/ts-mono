@@ -41,7 +41,7 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
             : undefined
         }
         forceRender={true}
-        renderer="compact"
+        renderer="fragment"
       />
     </div>
   );

@@ -9,7 +9,7 @@ import markdownitMathjax3 from "markdown-it-mathjax3";
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
 
-export type MarkdownRenderer = "full" | "compact" | "simple";
+export type MarkdownRenderer = "full" | "textOnly" | "fragment";
 
 export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
@@ -30,7 +30,7 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
     return cached;
   }
 
-  if (renderer === "simple") {
+  if (renderer === "textOnly") {
     const md = new MarkdownIt("zero", { breaks: true, html: false }).enable([
       "emphasis",
       "newline",
@@ -40,7 +40,7 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
   }
 
   const md = new MarkdownIt({ breaks: true, html: true });
-  if (renderer === "full" || renderer === "compact") {
+  if (renderer === "full" || renderer === "fragment") {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
     md.use(markdownitMathjax3);
 
@@ -71,7 +71,7 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
       };
     }
   }
-  if (renderer === "compact") {
+  if (renderer === "fragment") {
     md.disable(["image"]);
   }
   mdInstanceCache[renderer] = md;
@@ -252,7 +252,7 @@ type MarkdownRenderFunction = (markdown: string) => string;
 
 const renderFullPipelineMarkdown = (
   markdown: string,
-  renderer: "full" | "compact"
+  renderer: "full" | "fragment"
 ): string => {
   // Protect backslashes in LaTeX expressions
   const protectedContent = protectBackslashesInLatex(markdown);
@@ -288,9 +288,9 @@ const renderFullPipelineMarkdown = (
   return withSup;
 };
 
-const renderSimpleMarkdown = (markdown: string): string => {
+const renderTextOnlyMarkdown = (markdown: string): string => {
   try {
-    return getMarkdownInstance("simple").render(markdown);
+    return getMarkdownInstance("textOnly").render(markdown);
   } catch (ex) {
     console.log("Unable to markdown render content");
     console.error(ex);
@@ -300,8 +300,8 @@ const renderSimpleMarkdown = (markdown: string): string => {
 
 const markdownRenderers: Record<MarkdownRenderer, MarkdownRenderFunction> = {
   full: (markdown) => renderFullPipelineMarkdown(markdown, "full"),
-  compact: (markdown) => renderFullPipelineMarkdown(markdown, "compact"),
-  simple: renderSimpleMarkdown,
+  fragment: (markdown) => renderFullPipelineMarkdown(markdown, "fragment"),
+  textOnly: renderTextOnlyMarkdown,
 };
 
 export const renderMarkdown = (
