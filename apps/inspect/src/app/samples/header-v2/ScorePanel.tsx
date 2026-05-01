@@ -7,7 +7,10 @@ import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
 import {
+  resolveScorePanelSort,
   resolveScorePanelView,
+  useEvalScorePanelSort,
+  useEvalScorePanelView,
   useScorePanelSort,
   useScorePanelView,
 } from "../../../state/hooks";
@@ -90,10 +93,13 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   // Cap the body at ~6 rows so the panel can't dominate the header.
   // Anything more scrolls inside the panel.
   const dense = count > 6;
+  const evalView = useEvalScorePanelView();
+  const evalSort = useEvalScorePanelSort();
   const [storedView, setView] = useScorePanelView();
-  const view = resolveScorePanelView(storedView, count);
+  const view = resolveScorePanelView(storedView, evalView, count);
 
-  const [sort, setSort] = useScorePanelSort();
+  const [storedSort, setSort] = useScorePanelSort();
+  const sort = resolveScorePanelSort(storedSort, evalSort);
   const sortedScores = useMemo(() => {
     if (!sort.column) return renderedScores;
     const cmp = makeCompare(sort.column);

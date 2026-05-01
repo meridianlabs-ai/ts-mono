@@ -61,19 +61,24 @@ export const useScorePanelView = (): [
   return [stored, setView];
 };
 
-/** Resolve the stored / default view given the score count. */
+/**
+ * Resolve the stored / eval-supplied / default view given the score count.
+ * Priority: user override (stored) > eval default > built-in count rule.
+ */
 export const resolveScorePanelView = (
   stored: ScoreView | undefined,
+  evalDefault: ScoreView | undefined,
   count: number
-): ScoreView => stored ?? (count <= 6 ? "chips" : "grid");
+): ScoreView => stored ?? evalDefault ?? (count <= 6 ? "chips" : "grid");
 
 /**
  * Read / write the user's V2 score panel sort. Persisted globally via
  * the app property bag (mirrors `useScorePanelView`) so the sort
- * carries across samples in the same session.
+ * carries across samples in the same session. Returns the *stored*
+ * value; callers resolve their own default via `resolveScorePanelSort`.
  */
 export const useScorePanelSort = (): [
-  ScorePanelSortState,
+  ScorePanelSortState | undefined,
   (sort: ScorePanelSortState) => void,
 ] => {
   const stored = useStore(
@@ -91,7 +96,48 @@ export const useScorePanelSort = (): [
     },
     [setPropertyValue]
   );
-  return [stored ?? kDefaultScorePanelSort, setSort];
+  return [stored, setSort];
+};
+
+/**
+ * Resolve the stored / eval-supplied / default sort.
+ * Priority: user override (stored) > eval default > unsorted.
+ */
+export const resolveScorePanelSort = (
+  stored: ScorePanelSortState | undefined,
+  evalDefault: ScorePanelSortState | undefined
+): ScorePanelSortState => stored ?? evalDefault ?? kDefaultScorePanelSort;
+
+/**
+ * Read the eval-author-declared default score-panel view from
+ * `Task(viewer=ViewerConfig(score_panel_view=ScorePanelView(view=...)))`.
+ * Returns a primitive so Zustand's reference equality is stable.
+ */
+export const useEvalScorePanelView = (): ScoreView | undefined =>
+  useStore(
+    (state) =>
+      (state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.view ??
+        undefined) as ScoreView | undefined
+  );
+
+/**
+ * Read the eval-author-declared default score-panel sort. The raw
+ * stored object reference is stable across renders (it lives on
+ * `selectedLogDetails`); we normalize the nullable fields inside a
+ * `useMemo` keyed on that reference to avoid feeding a fresh object
+ * back into Zustand on every render.
+ */
+export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
+  const stored = useStore(
+    (state) => state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.sort
+  );
+  return useMemo(() => {
+    if (!stored) return undefined;
+    return {
+      column: stored.column ?? null,
+      dir: stored.dir ?? "asc",
+    };
+  }, [stored]);
 };
 
 const log = createLogger("hooks");

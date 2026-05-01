@@ -13,6 +13,7 @@ import {
 import { SampleSummary } from "../../client/api/types";
 import {
   resolveScorePanelView,
+  useEvalScorePanelView,
   useSampleDescriptor,
   useScorePanelView,
   useSelectedScores,
@@ -153,6 +154,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     formatModelText(state.log.selectedLogDetails?.eval)
   );
   const [storedScoreView] = useScorePanelView();
+  const evalScoreView = useEvalScorePanelView();
   if (!sampleDescriptor) {
     return undefined;
   }
@@ -251,7 +253,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   //   so Input still gets breathable room.
   // - Grid view: rows are name + value, so a narrower column is
   //   plenty. Use a fixed 320px max regardless of score count.
-  const scorePanelView = resolveScorePanelView(storedScoreView, scoreCount);
+  const scorePanelView = resolveScorePanelView(
+    storedScoreView,
+    evalScoreView,
+    scoreCount
+  );
   const dynamicRightMax = showRight
     ? scorePanelView === "grid"
       ? 320

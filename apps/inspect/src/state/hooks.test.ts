@@ -3,8 +3,14 @@ import { describe, expect, it } from "vitest";
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { EvalLogStatus } from "../@types/extraInspect";
+import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 
-import { computeLogsWithRetried } from "./hooks";
+import {
+  computeLogsWithRetried,
+  resolveScorePanelSort,
+  resolveScorePanelView,
+  ScorePanelSortState,
+} from "./hooks";
 
 const log = (
   overrides: Partial<LogHandle> & Pick<LogHandle, "name">
@@ -158,5 +164,84 @@ describe("computeLogsWithRetried", () => {
     ];
     const result = computeLogsWithRetried(logs, {});
     expect(result.map((r) => r.name)).toEqual(logs.map((l) => l.name));
+  });
+});
+
+// =============================================================================
+// resolveScorePanelView
+//
+// Priority: user override (stored) > eval default > built-in count rule.
+// =============================================================================
+
+describe("resolveScorePanelView", () => {
+  it("prefers stored over everything", () => {
+    expect(resolveScorePanelView("grid", "chips", 2)).toBe("grid");
+    expect(resolveScorePanelView("chips", "grid", 100)).toBe("chips");
+  });
+
+  it("falls back to eval default when no user override", () => {
+    expect(resolveScorePanelView(undefined, "grid", 2)).toBe("grid");
+    expect(resolveScorePanelView(undefined, "chips", 100)).toBe("chips");
+  });
+
+  it("falls back to count-based default when neither is set", () => {
+    expect(resolveScorePanelView(undefined, undefined, 1)).toBe("chips");
+    expect(resolveScorePanelView(undefined, undefined, 6)).toBe("chips");
+    expect(resolveScorePanelView(undefined, undefined, 7)).toBe("grid");
+    expect(resolveScorePanelView(undefined, undefined, 50)).toBe("grid");
+  });
+
+  it("treats undefined as 'unset' for stored, including empty count", () => {
+    // Sanity: 0 scores still resolves to chips via the count rule.
+    expect(resolveScorePanelView(undefined, undefined, 0)).toBe("chips");
+  });
+
+  it("works with all four combinations of (stored, evalDefault)", () => {
+    const cases: Array<
+      [ScoreView | undefined, ScoreView | undefined, number, ScoreView]
+    > = [
+      ["grid", "chips", 4, "grid"], // stored wins
+      [undefined, "grid", 4, "grid"], // eval default wins
+      ["chips", undefined, 100, "chips"], // stored wins, no eval default
+      [undefined, undefined, 100, "grid"], // count rule
+    ];
+    for (const [stored, evalDefault, count, expected] of cases) {
+      expect(resolveScorePanelView(stored, evalDefault, count)).toBe(expected);
+    }
+  });
+});
+
+// =============================================================================
+// resolveScorePanelSort
+//
+// Priority: user override (stored) > eval default > unsorted.
+// =============================================================================
+
+describe("resolveScorePanelSort", () => {
+  const stored: ScorePanelSortState = { column: "value", dir: "desc" };
+  const evalDefault: ScorePanelSortState = { column: "name", dir: "asc" };
+
+  it("prefers stored over eval default", () => {
+    expect(resolveScorePanelSort(stored, evalDefault)).toEqual(stored);
+  });
+
+  it("falls back to eval default when no user override", () => {
+    expect(resolveScorePanelSort(undefined, evalDefault)).toEqual(evalDefault);
+  });
+
+  it("falls back to unsorted when neither is set", () => {
+    expect(resolveScorePanelSort(undefined, undefined)).toEqual({
+      column: null,
+      dir: "asc",
+    });
+  });
+
+  it("respects an explicit unsorted user override (column: null) over eval default", () => {
+    // The user explicitly chose "Default" sort — that should beat the
+    // eval-supplied default, not be confused with "user has no preference".
+    const userUnsorted: ScorePanelSortState = { column: null, dir: "asc" };
+    expect(resolveScorePanelSort(userUnsorted, evalDefault)).toEqual(
+      userUnsorted
+    );
   });
 });
