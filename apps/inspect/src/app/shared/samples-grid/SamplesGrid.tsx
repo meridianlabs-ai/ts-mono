@@ -340,6 +340,7 @@ export const SamplesGrid = <TRow,>(
           maintainColumnOrder={true}
           theme={themeBalham}
           animateRows={false}
+          suppressColumnMoveAnimation={true}
           tooltipShowDelay={300}
           headerHeight={25}
           rowHeight={effectiveRowHeight}
