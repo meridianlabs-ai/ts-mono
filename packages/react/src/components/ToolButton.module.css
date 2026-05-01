@@ -23,5 +23,5 @@
 }
 
 :global(.btn).toolButton.subtle {
-  background-color: var(--bs-body-bg);
+  background-color: var(--bs-light);
 }

@@ -321,6 +321,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       key="sample-copy"
       label="Copy"
       icon={icon}
+      subtle
       dropdownClassName="text-size-smallest"
       items={{
         UUID: () => {
@@ -361,6 +362,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         key="sample-download"
         label="Download"
         icon={ApplicationIcons.downloadLog}
+        subtle
         dropdownClassName="text-size-smallest"
         items={{
           "Sample JSON": () => {
@@ -406,6 +408,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon={ApplicationIcons.filter}
         onClick={toggleFilter}
         ref={filterRef}
+        subtle
       />
     );
 
@@ -419,6 +422,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             : ApplicationIcons.collapse.all
         }
         onClick={toggleCollapsedMode}
+        subtle
       />
     );
   }
@@ -431,6 +435,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       onClick={toggleDisplayMode}
       ref={optionsRef}
       latched={displayMode === "raw"}
+      subtle
     />
   );
 
@@ -441,6 +446,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label="Print"
         icon={ApplicationIcons.copy}
         onClick={handlePrintClick}
+        subtle
       />
     );
   }

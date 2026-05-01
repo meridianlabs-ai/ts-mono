@@ -3,7 +3,7 @@
 }
 
 :global(.btn).toolButton.bodyColor {
-  background-color: var(--bs-body-bg);
+  background-color: var(--bs-light);
 }
 
 .toolButton {
