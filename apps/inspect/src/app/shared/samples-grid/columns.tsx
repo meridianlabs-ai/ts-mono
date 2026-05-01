@@ -222,7 +222,7 @@ export function buildSampleColumns(
     field: "input",
     headerName: "Input",
     initialFlex: shape?.inputSize ? shape.inputSize : 3,
-    minWidth: 80,
+    minWidth: 240,
     sortable: true,
     filter: true,
     resizable: true,
@@ -254,7 +254,7 @@ export function buildSampleColumns(
     field: "target",
     headerName: "Target",
     initialFlex: shape?.targetSize ? shape.targetSize : 1,
-    minWidth: 80,
+    minWidth: 120,
     sortable: true,
     filter: true,
     resizable: true,
@@ -294,7 +294,7 @@ export function buildSampleColumns(
       field: "answer",
       headerName: "Answer",
       initialFlex: shape?.answerSize ? shape.answerSize : 1,
-      minWidth: 80,
+      minWidth: 120,
       sortable: true,
       filter: true,
       resizable: true,
@@ -467,12 +467,21 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     const useLabelHeader = scores.length !== 1;
     return scores.map((label) => {
       const colId = perScorerFieldKey(label);
+      const headerName = useLabelHeader ? label.name : "Score";
+      // Score values are typically 1 char or a short number, so the
+      // header is the binding constraint. 6.2px/char + 24px covers the
+      // sort icon, padding, and header gutter under the Balham theme.
+      const initialWidth = Math.max(
+        54,
+        Math.round(headerName.length * 6.2) + 24
+      );
       return {
         colId,
         field: colId,
-        headerName: useLabelHeader ? label.name : "Score",
-        initialWidth: 80,
-        minWidth: 28,
+        headerName,
+        initialWidth,
+        minWidth: 44,
+        maxWidth: 120,
         sortable: true,
         filter: "agNumberColumnFilter",
         resizable: true,
