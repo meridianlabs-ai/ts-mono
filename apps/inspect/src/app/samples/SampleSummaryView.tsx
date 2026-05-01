@@ -217,13 +217,20 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     );
   }
 
+  // Only emit grid tracks for fields that actually render so a sample
+  // with no target/answer doesn't reserve empty columns.
+  const fieldTracks: string[] = ["minmax(0, 1fr)"]; // Input always
+  if (fields.target) fieldTracks.push("minmax(60px, auto)");
+  if (fields.answer) fieldTracks.push("minmax(0, 1fr)");
+  const gridTemplateColumns = fieldTracks.join(" ");
+
   return (
     <div id={`sample-heading-${parent_id}`} className={styles.root}>
       {invalidation && <InvalidationBanner invalidation={invalidation} />}
       <div className={clsx(styles.layout, wideRight && styles.wideRight)}>
         <div className={styles.left}>
           <MetaLine items={metaItems} />
-          <div className={styles.fields}>
+          <div className={styles.fields} style={{ gridTemplateColumns }}>
             <div className={styles.field}>
               <FieldLabel>Input</FieldLabel>
               <div className={clsx(styles.fieldValue, styles.clamp)}>

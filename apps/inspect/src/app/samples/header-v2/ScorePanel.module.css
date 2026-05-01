@@ -11,8 +11,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 12px 5px;
-  border-bottom: 1px solid var(--bs-border-color);
+  /* Match body left/right padding so the label/controls align with
+   * the rows/chips below. */
+  padding: 2px 12px;
 }
 
 .scoresHeader {
@@ -99,12 +100,12 @@
   padding: 5px 12px;
 }
 
-/* Cap the body at ~6 grid rows. Anything larger scrolls inside the
+/* Cap the body at ~5 grid rows. Anything larger scrolls inside the
  * panel so the rest of the header layout stays put. The cap is
  * shared across grid and chips so the panel can't suddenly grow
  * vertically when the user toggles views. */
 .dense {
-  max-height: 150px;
+  max-height: 125px;
   overflow-y: auto;
 }
 
