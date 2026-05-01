@@ -1029,6 +1029,8 @@ export interface components {
             sandbox_cleanup?: boolean | null;
             /** Score Display */
             score_display?: boolean | null;
+            /** Score On Error */
+            score_on_error?: boolean | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
