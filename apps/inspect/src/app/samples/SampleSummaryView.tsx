@@ -11,7 +11,12 @@ import {
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
-import { useSampleDescriptor, useSelectedScores } from "../../state/hooks";
+import {
+  resolveScorePanelView,
+  useSampleDescriptor,
+  useScorePanelView,
+  useSelectedScores,
+} from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
@@ -147,6 +152,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   const modelText = useStore((state) =>
     formatModelText(state.log.selectedLogDetails?.eval)
   );
+  const [storedScoreView] = useScorePanelView();
   if (!sampleDescriptor) {
     return undefined;
   }
@@ -240,6 +246,28 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   // Right column is only used by the panel layout (3+ scores).
   const showRight = scoreCount > 0 && !compactScores;
 
+  // Right column max width depends on the active score-panel view.
+  // - Chips view: aim for ~3 chips per row by sizing to the actual
+  //   scorer-name lengths. Chip ≈ chrome (padding + border + value
+  //   glyph + gap, ~41px) + name text (~6.5px/char at 0.8rem). Cap
+  //   per-chip at the CSS `max-width: 220px`; cap the column at 560px
+  //   so Input still gets breathable room.
+  // - Grid view: rows are name + value, so a narrower column is
+  //   plenty. Use a fixed 320px max regardless of score count.
+  const scorePanelView = resolveScorePanelView(storedScoreView, scoreCount);
+  const dynamicRightMax = showRight
+    ? scorePanelView === "grid"
+      ? 320
+      : (() => {
+          const avgNameLen =
+            visibleScores.reduce((acc, s) => acc + s.name.length, 0) /
+            scoreCount;
+          const cappedChipPx = Math.min(220, 41 + avgNameLen * 6.5);
+          const target = Math.round(3 * cappedChipPx + 2 * 4 + 24);
+          return Math.max(220, Math.min(560, target));
+        })()
+    : null;
+
   return (
     <div id={`sample-heading-${parent_id}`} className={styles.root}>
       {invalidation && <InvalidationBanner invalidation={invalidation} />}
@@ -249,6 +277,13 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
           wideRight && styles.wideRight,
           !showRight && styles.noRight
         )}
+        style={
+          dynamicRightMax !== null
+            ? {
+                gridTemplateColumns: `minmax(0, 1fr) minmax(220px, ${dynamicRightMax}px)`,
+              }
+            : undefined
+        }
       >
         <div className={styles.left}>
           <MetaLine items={metaItems} />

@@ -1,17 +1,18 @@
 import clsx from "clsx";
-import { CSSProperties, FC, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FC, useMemo, useState } from "react";
 
 import { ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
+import { resolveScorePanelView, useScorePanelView } from "../../../state/hooks";
 import { EvalDescriptor } from "../descriptor/types";
 
 import styles from "./ScorePanel.module.css";
 import { scoreTone, Tone } from "./scoreTone";
 import { ScoreChipValueDisplay, ScoreValueDisplay } from "./ScoreValueDisplay";
-import { ScoreView, ViewToggle } from "./ViewToggle";
+import { ViewToggle } from "./ViewToggle";
 
 interface ScorePanelProps {
   scores: ScoreLabel[];
@@ -92,15 +93,8 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   // Cap the body at ~6 rows so the panel can't dominate the header.
   // Anything more scrolls inside the panel.
   const dense = count > 6;
-  const defaultView: ScoreView = count <= 6 ? "chips" : "grid";
-  const [view, setView] = useState<ScoreView>(defaultView);
-  // Reset to the default if the count crosses the threshold (e.g. when
-  // selectedScores changes). Without this, e.g. switching from a 5-score
-  // sample to a 20-score sample would leave us in chips mode where grid
-  // would be the better default.
-  useEffect(() => {
-    setView(defaultView);
-  }, [defaultView]);
+  const [storedView, setView] = useScorePanelView();
+  const view = resolveScorePanelView(storedView, count);
 
   const [sort, setSort] = useState<SortState>({ column: null, dir: "asc" });
   const sortedScores = useMemo(() => {

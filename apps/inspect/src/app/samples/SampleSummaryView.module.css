@@ -15,7 +15,7 @@
 }
 
 .layout.wideRight {
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 340px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 440px);
 }
 
 .layout.noRight {

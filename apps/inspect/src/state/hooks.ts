@@ -8,6 +8,7 @@ import {
   createEvalDescriptor,
   createSamplesDescriptor,
 } from "../app/samples/descriptor/samplesDescriptor";
+import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
@@ -16,6 +17,43 @@ import { prettyDirUri } from "../utils/uri";
 import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
+
+const kScorePanelViewBag = "score-panel-view";
+const kScorePanelViewKey = "view";
+
+/**
+ * Read / write the user's preferred V2 score panel view (chips vs grid).
+ * Persisted globally via the app property bag so the choice carries
+ * across samples. Returns the *stored* value; callers resolve their
+ * own default (typically `chips` for ≤ 6 scores, `grid` for 7+).
+ */
+export const useScorePanelView = (): [
+  ScoreView | undefined,
+  (view: ScoreView) => void,
+] => {
+  const stored = useStore(
+    (state) =>
+      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
+        | ScoreView
+        | undefined
+  );
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const setView = useCallback(
+    (view: ScoreView) => {
+      setPropertyValue(kScorePanelViewBag, kScorePanelViewKey, view);
+    },
+    [setPropertyValue]
+  );
+  return [stored, setView];
+};
+
+/** Resolve the stored / default view given the score count. */
+export const resolveScorePanelView = (
+  stored: ScoreView | undefined,
+  count: number
+): ScoreView => stored ?? (count <= 6 ? "chips" : "grid");
 
 const log = createLogger("hooks");
 
