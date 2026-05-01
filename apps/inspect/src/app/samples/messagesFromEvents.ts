@@ -32,7 +32,7 @@ const insertAt = (
   // Reindex everything from `index` onward; the splice shifted all
   // following messages right by one slot.
   for (let i = index; i < state.messages.length; i++) {
-    const id = state.messages[i]!.id;
+    const id = state.messages[i].id;
     if (id) state.positions.set(id, i);
   }
 };
@@ -79,6 +79,12 @@ const processEvent = (state: MessagesFromEventsState, e: ModelEvent): void => {
  * the prior snapshot (events[i] === prior.events[i] for all prior
  * indices), only the new tail is processed; otherwise we recompute
  * from scratch. The cache is updated in place via `stateRef.current`.
+ *
+ * Note: the polling pipeline replaces the trailing event in place when
+ * a streaming model call produces successive output chunks. That shows
+ * up as divergence at the last index and forces a rebuild every poll
+ * for the active turn, so the cache mainly earns its keep between
+ * turns and on idle polls, not while a single model call is streaming.
  */
 export const messagesFromEvents = (
   events: Event[],
@@ -114,17 +120,19 @@ export const messagesFromEvents = (
     startFrom = 0;
   }
 
-  let dirty = !canReuse;
+  // Track length to decide whether to refresh `lastResult`. processEvent
+  // only ever grows `state.messages`, so an unchanged length means no
+  // user-visible change and the prior cached array stays valid.
+  const priorLen = state.messages.length;
   for (let i = startFrom; i < events.length; i++) {
-    const e = events[i]!;
-    if (isSuccessfulModelEvent(e)) {
-      processEvent(state, e);
-      dirty = true;
-    }
+    const e = events[i];
+    if (isSuccessfulModelEvent(e)) processEvent(state, e);
   }
 
   state.events = events;
-  if (dirty) state.lastResult = state.messages.slice();
+  if (!canReuse || state.messages.length !== priorLen) {
+    state.lastResult = state.messages.slice();
+  }
 
   if (stateRef) stateRef.current = state;
   return state.lastResult;

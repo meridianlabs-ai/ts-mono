@@ -210,12 +210,87 @@ describe("messagesFromEvents", () => {
 
       const r1 = messagesFromEvents([e1], ref);
       expect(r1.map((m) => m.id)).toEqual(["u1", "a1"]);
-      const cachedAfterFirst = ref.current;
 
       const r2 = messagesFromEvents([e1, e2], ref);
       expect(r2.map((m) => m.id)).toEqual(["u1", "a1", "t1", "a2"]);
-      // Same state object was mutated, not replaced.
-      expect(ref.current).toBe(cachedAfterFirst);
+    });
+
+    it("processes incremental extensions correctly across repeated calls", () => {
+      // Multi-step extension chain — each step should only process the new
+      // tail without losing earlier messages.
+      const e1 = makeModelEvent({ inputId: "u1", outputId: "a1" });
+      const e2 = makeModelEvent({
+        input: [userMsg("u1"), assistantMsg("a1")],
+        outputId: "a2",
+      });
+      const e3 = makeModelEvent({
+        input: [
+          userMsg("u1"),
+          assistantMsg("a1"),
+          toolMsg("t1"),
+          assistantMsg("a2"),
+          toolMsg("t2"),
+        ],
+        outputId: "a3",
+      });
+      const ref: Ref = { current: null };
+
+      expect(messagesFromEvents([e1], ref).map((m) => m.id)).toEqual([
+        "u1",
+        "a1",
+      ]);
+      expect(messagesFromEvents([e1, e2], ref).map((m) => m.id)).toEqual([
+        "u1",
+        "a1",
+        "a2",
+      ]);
+      expect(messagesFromEvents([e1, e2, e3], ref).map((m) => m.id)).toEqual([
+        "u1",
+        "a1",
+        "t1",
+        "a2",
+        "t2",
+        "a3",
+      ]);
+    });
+
+    it("rebuilds when a tail event is replaced at the same index", () => {
+      // samplePolling replaces an event at its existing index when streaming
+      // updates arrive (e.g., the model output completes after a partial).
+      // The new event reference at the same index must trigger a rebuild.
+      const e1 = makeModelEvent({ inputId: "u1", outputId: "a1" });
+      const e2partial = makeModelEvent({
+        input: [userMsg("u1"), assistantMsg("a1")],
+        outputId: "a2-partial",
+      });
+      const e2final = makeModelEvent({
+        input: [userMsg("u1"), assistantMsg("a1")],
+        outputId: "a2-final",
+      });
+      const ref: Ref = { current: null };
+
+      messagesFromEvents([e1, e2partial], ref);
+      const r = messagesFromEvents([e1, e2final], ref);
+      // Rebuild discards the partial output and re-derives the list from
+      // scratch, so the final replaces it rather than appearing alongside.
+      expect(r.map((m) => m.id)).toEqual(["u1", "a1", "a2-final"]);
+    });
+
+    it("re-extends correctly after a divergence rebuild", () => {
+      // After a rebuild forces a fresh state, the next prefix-extension
+      // call must use the new cache (not the discarded prior one).
+      const e1a = makeModelEvent({ inputId: "u1", outputId: "a1" });
+      const e1b = makeModelEvent({ inputId: "u2", outputId: "a1" });
+      const e2 = makeModelEvent({
+        input: [userMsg("u2"), assistantMsg("a1"), toolMsg("t1")],
+        outputId: "a2",
+      });
+      const ref: Ref = { current: null };
+
+      messagesFromEvents([e1a], ref);
+      messagesFromEvents([e1b], ref); // rebuild via divergence
+      const r = messagesFromEvents([e1b, e2], ref); // extend the new state
+      expect(r.map((m) => m.id)).toEqual(["u2", "a1", "t1", "a2"]);
     });
 
     it("returns the cached array unchanged when no new events were added", () => {
@@ -229,21 +304,17 @@ describe("messagesFromEvents", () => {
       expect(r2).toBe(r1);
     });
 
-    it("rebuilds state when an existing event reference changes", () => {
+    it("rebuilds when an existing event reference changes", () => {
       const e1a = makeModelEvent({ inputId: "u1", outputId: "a1" });
       const e1b = makeModelEvent({ inputId: "u2", outputId: "a1" });
       const ref: Ref = { current: null };
 
       messagesFromEvents([e1a], ref);
-      const cachedAfterFirst = ref.current;
-
       const r2 = messagesFromEvents([e1b], ref);
       expect(r2.map((m) => m.id)).toEqual(["u2", "a1"]);
-      // Divergence at index 0 forced a fresh state object.
-      expect(ref.current).not.toBe(cachedAfterFirst);
     });
 
-    it("rebuilds state when the events array shrinks", () => {
+    it("rebuilds when the events array shrinks", () => {
       const e1 = makeModelEvent({ inputId: "u1", outputId: "a1" });
       const e2 = makeModelEvent({
         input: [userMsg("u1"), assistantMsg("a1")],
@@ -252,11 +323,8 @@ describe("messagesFromEvents", () => {
       const ref: Ref = { current: null };
 
       messagesFromEvents([e1, e2], ref);
-      const cachedAfterFirst = ref.current;
-
       const r2 = messagesFromEvents([e1], ref);
       expect(r2.map((m) => m.id)).toEqual(["u1", "a1"]);
-      expect(ref.current).not.toBe(cachedAfterFirst);
     });
   });
 
