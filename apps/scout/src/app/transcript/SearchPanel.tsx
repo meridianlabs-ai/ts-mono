@@ -19,17 +19,22 @@ import {
   PopOver,
   SegmentedControl,
 } from "@tsmono/react/components";
+import { compose, map } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import type { Result, SearchInput } from "../../types/api-types";
-import { useProjectConfig } from "../server/useProjectConfig";
+import type { Result, SearchInput, Transcript } from "../../types/api-types";
+import {
+  ProjectConfigWithEtag,
+  useProjectConfig,
+} from "../server/useProjectConfig";
 import {
   useCachedSearchResult,
   useCreateSearch,
   useSearches,
 } from "../server/useSearches";
+import { useTranscript } from "../server/useTranscript";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -79,13 +84,41 @@ function isSearchType(value: string): value is SearchType {
   return value === "llm" || value === "grep";
 }
 
-export const SearchPanel = ({
+export const SearchPanel = (props: SearchPanelProps) => {
+  const transcriptResult = useTranscript({
+    location: props.transcriptDir,
+    id: props.transcriptId,
+  });
+  const result = compose({
+    model: map(transcriptResult, (transcript) => transcript.model ?? undefined),
+    projectConfig: useProjectConfig(),
+  });
+
+  if (result.loading) return <div className={styles.container}>Loading...</div>;
+  if (result.error)
+    return <div className={styles.container}>Error loading data</div>;
+
+  return (
+    <SearchPanelWithData
+      {...props}
+      transcriptModel={result.data.model}
+      projectConfig={result.data.projectConfig}
+    />
+  );
+};
+
+type SearchPanelWithDataProps = SearchPanelProps & {
+  transcriptModel: string | undefined;
+  projectConfig: ProjectConfigWithEtag;
+};
+const SearchPanelWithData = ({
   scope,
   transcriptDir,
   transcriptId,
   onClose,
-}: SearchPanelProps) => {
-  const projectConfig = useProjectConfig();
+  transcriptModel,
+  projectConfig,
+}: SearchPanelWithDataProps) => {
   const { getFullMessageUrl, getFullEventUrl, getFullEventMessageUrl } =
     useTranscriptNavigation();
   const modelInputId = useId();
@@ -153,7 +186,10 @@ export const SearchPanel = ({
 
       const resolvedModel =
         searchType === "llm"
-          ? model.trim() || projectConfig.data?.config.model?.trim() || ""
+          ? ((model.trim() ||
+              projectConfig.config.model?.trim() ||
+              transcriptModel) ??
+            "")
           : "";
 
       const request = buildSearchRequest({
@@ -190,7 +226,7 @@ export const SearchPanel = ({
       loading,
       model,
       scope,
-      projectConfig.data?.config.model,
+      projectConfig.config.model,
       query,
       recordSearchModel,
       setState,
@@ -425,7 +461,7 @@ export const SearchPanel = ({
                       id={modelInputId}
                       className={styles.modelInput}
                       placeholder={
-                        projectConfig.data?.config.model ?? undefined
+                        projectConfig.config.model ?? transcriptModel ?? "Model"
                       }
                       value={model}
                       onChange={(value) =>

@@ -90,6 +90,17 @@ export function compose<Mapping>(
   return { loading: false, data: result };
 }
 
+export function map<T, U>(
+  asyncData: AsyncData<T>,
+  fn: (data: T) => U
+): AsyncData<U> {
+  if (asyncData.loading || asyncData.error) {
+    return asyncData;
+  } else {
+    return data(fn(asyncData.data));
+  }
+}
+
 /**
  * The `data` function wraps the provided data in an `AsyncData` object, indicating
  * that the data is not loading and there is no error.
