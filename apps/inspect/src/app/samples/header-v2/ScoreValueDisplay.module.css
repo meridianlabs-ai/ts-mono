@@ -68,7 +68,7 @@
   padding: 0 6px;
   box-sizing: border-box;
   border-radius: 999px;
-  font-size: 0.65rem;
+  font-size: var(--inspect-font-size-smallestest, 0.6rem);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;

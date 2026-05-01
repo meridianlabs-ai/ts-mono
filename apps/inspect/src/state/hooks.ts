@@ -20,6 +20,18 @@ import { mergeSampleSummaries } from "./utils";
 
 const kScorePanelViewBag = "score-panel-view";
 const kScorePanelViewKey = "view";
+const kScorePanelSortBag = "score-panel-sort";
+const kScorePanelSortKey = "sort";
+
+export type ScorePanelSortColumn = "name" | "value" | null;
+export interface ScorePanelSortState {
+  column: ScorePanelSortColumn;
+  dir: "asc" | "desc";
+}
+const kDefaultScorePanelSort: ScorePanelSortState = {
+  column: null,
+  dir: "asc",
+};
 
 /**
  * Read / write the user's preferred V2 score panel view (chips vs grid).
@@ -54,6 +66,33 @@ export const resolveScorePanelView = (
   stored: ScoreView | undefined,
   count: number
 ): ScoreView => stored ?? (count <= 6 ? "chips" : "grid");
+
+/**
+ * Read / write the user's V2 score panel sort. Persisted globally via
+ * the app property bag (mirrors `useScorePanelView`) so the sort
+ * carries across samples in the same session.
+ */
+export const useScorePanelSort = (): [
+  ScorePanelSortState,
+  (sort: ScorePanelSortState) => void,
+] => {
+  const stored = useStore(
+    (state) =>
+      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
+        | ScorePanelSortState
+        | undefined
+  );
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const setSort = useCallback(
+    (sort: ScorePanelSortState) => {
+      setPropertyValue(kScorePanelSortBag, kScorePanelSortKey, sort);
+    },
+    [setPropertyValue]
+  );
+  return [stored ?? kDefaultScorePanelSort, setSort];
+};
 
 const log = createLogger("hooks");
 

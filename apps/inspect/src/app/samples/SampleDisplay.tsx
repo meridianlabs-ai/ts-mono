@@ -120,21 +120,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Navigation hook for URL updates
   const navigate = useNavigate();
 
-  // Ref for samples tabs (used to measure for offset)
+  // Ref for the sample tab control bar (the sticky `<ul>`). Its
+  // current height feeds `stickyOffsetTop` for inner stickies (the
+  // transcript timeline, the message list scroll-track, etc.) so they
+  // pin just beneath it. ResizeObserver is the only reliable trigger:
+  // the bar's height can change for non-resize reasons (font load,
+  // text wrapping, tools added/removed).
   const tabsRef: RefObject<HTMLUListElement | null> = useRef(null);
   const [tabsHeight, setTabsHeight] = useState(-1);
 
   useEffect(() => {
-    const updateHeight = () => {
-      if (tabsRef.current) {
-        const height = tabsRef.current.getBoundingClientRect().height;
-        setTabsHeight(height);
-      }
-    };
-    updateHeight();
-
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
+    const el = tabsRef.current;
+    if (!el) return;
+    const apply = () => setTabsHeight(el.getBoundingClientRect().height);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   const selectedSampleSummary = useSelectedSampleSummary();
@@ -537,13 +539,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         <ActivityBar animating={showActivity} progress={progress} />
 
         {hasSampleData && (
-          <div ref={tabsContainerRef} className={styles.tabsContainer}>
+          <div ref={tabsContainerRef}>
             <TabSet
               id={tabsetId}
               tabsRef={tabsRef}
               className={clsx(styles.tabControls)}
               tabControlsClassName={clsx("text-size-base")}
-              tabPanelsClassName={clsx(styles.tabPanel)}
               tools={tools}
               type="pills-small"
             >

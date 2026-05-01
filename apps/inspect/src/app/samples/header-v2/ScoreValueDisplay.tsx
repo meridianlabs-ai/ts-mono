@@ -27,7 +27,12 @@ interface ScoreValueDisplayProps {
  * Colors come from theme tokens (--bs-success / --bs-danger /
  * --bs-orange) so dark/light handle automatically.
  */
-export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
+/**
+ * Shared circle renderer for passfail / boolean scores. Returns null
+ * for any other score type so callers can fall through to their own
+ * non-circle branch (plain text vs mini-pill).
+ */
+const CircleValue: FC<ScoreValueDisplayProps> = ({
   value,
   scoreType,
   size = 18,
@@ -62,6 +67,22 @@ export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
     );
   }
 
+  return null;
+};
+
+const isCircleScoreType = (scoreType: string, value: ScoreValue | undefined) =>
+  (scoreType === kScoreTypePassFail && value !== undefined) ||
+  scoreType === kScoreTypeBoolean;
+
+export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
+  value,
+  scoreType,
+  size = 18,
+}) => {
+  if (isCircleScoreType(scoreType, value)) {
+    return <CircleValue value={value} scoreType={scoreType} size={size} />;
+  }
+  const tone = scoreTone(value, scoreType);
   const formatted = formatPlainValue(value);
   return (
     <span className={clsx(styles.text, toneTextClass(tone))} title={formatted}>
@@ -78,36 +99,10 @@ export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
   scoreType,
   size = 16,
 }) => {
+  if (isCircleScoreType(scoreType, value)) {
+    return <CircleValue value={value} scoreType={scoreType} size={size} />;
+  }
   const tone = scoreTone(value, scoreType);
-  const sizeStyle: CSSProperties = {
-    width: size,
-    height: size,
-    fontSize: Math.round(size * 0.55),
-  };
-
-  if (scoreType === kScoreTypePassFail && value !== undefined) {
-    return (
-      <span
-        className={clsx(styles.circle, toneCircleClass(tone))}
-        style={sizeStyle}
-      >
-        {String(value)}
-      </span>
-    );
-  }
-
-  if (scoreType === kScoreTypeBoolean) {
-    return (
-      <span
-        className={clsx(styles.circle, toneCircleClass(tone))}
-        style={sizeStyle}
-        title={value ? "true" : "false"}
-      >
-        {value ? "T" : "F"}
-      </span>
-    );
-  }
-
   const formatted = formatPlainValue(value);
   return (
     <span

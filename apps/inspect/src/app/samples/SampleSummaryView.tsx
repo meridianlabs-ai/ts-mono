@@ -218,10 +218,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   if (collapsed) {
     return (
-      <div
-        id={`sample-heading-${parent_id}`}
-        className={clsx(styles.root, styles.collapsed)}
-      >
+      <div id={`sample-heading-${parent_id}`} className={styles.root}>
         {invalidation && <InvalidationBanner invalidation={invalidation} />}
         <div className={styles.collapsedMeta}>
           <MetaLine items={metaItems} />

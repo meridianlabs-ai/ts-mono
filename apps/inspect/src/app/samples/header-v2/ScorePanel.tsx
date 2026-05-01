@@ -1,12 +1,16 @@
 import clsx from "clsx";
-import { CSSProperties, FC, useMemo, useState } from "react";
+import { CSSProperties, FC, useMemo } from "react";
 
 import { ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
-import { resolveScorePanelView, useScorePanelView } from "../../../state/hooks";
+import {
+  resolveScorePanelView,
+  useScorePanelSort,
+  useScorePanelView,
+} from "../../../state/hooks";
 import { EvalDescriptor } from "../descriptor/types";
 
 import styles from "./ScorePanel.module.css";
@@ -30,13 +34,6 @@ interface RenderedScore {
    *  heatmap border so the highest displayed value reads darkest and
    *  the lowest reads lightest. */
   numericIntensity?: number;
-}
-
-type SortColumn = "name" | "value" | null;
-
-interface SortState {
-  column: SortColumn;
-  dir: "asc" | "desc";
 }
 
 const TONE_RANK: Record<Tone, number> = {
@@ -96,7 +93,7 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   const [storedView, setView] = useScorePanelView();
   const view = resolveScorePanelView(storedView, count);
 
-  const [sort, setSort] = useState<SortState>({ column: null, dir: "asc" });
+  const [sort, setSort] = useScorePanelSort();
   const sortedScores = useMemo(() => {
     if (!sort.column) return renderedScores;
     const cmp = makeCompare(sort.column);
