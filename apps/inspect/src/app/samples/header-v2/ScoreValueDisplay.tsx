@@ -1,0 +1,151 @@
+import clsx from "clsx";
+import { CSSProperties, FC } from "react";
+
+import { ScoreValue } from "../../../@types/extraInspect";
+import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
+
+import { scoreTone, Tone } from "./scoreTone";
+import styles from "./ScoreValueDisplay.module.css";
+
+interface ScoreValueDisplayProps {
+  value: ScoreValue | undefined;
+  scoreType: string;
+  /** Pixel diameter for grade / bool circles. Plain text scales with
+   *  the surrounding font size and ignores this. */
+  size?: number;
+}
+
+/**
+ * Standalone V2 renderer for a single score value. Bypasses the
+ * existing per-descriptor `render()` so we can size grade/bool circles
+ * independently for the header's compact / row / chip contexts.
+ *
+ * - passfail (C/A/B/I/F/P/N) → solid circle, white glyph
+ * - boolean → solid circle with ✓ or ✕
+ * - everything else → tabular-nums text, tone-colored when explicit
+ *
+ * Colors come from theme tokens (--bs-success / --bs-danger /
+ * --bs-orange) so dark/light handle automatically.
+ */
+export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({
+  value,
+  scoreType,
+  size = 18,
+}) => {
+  const tone = scoreTone(value, scoreType);
+  const sizeStyle: CSSProperties = {
+    width: size,
+    height: size,
+    fontSize: Math.round(size * 0.55),
+  };
+  const boolFontStyle: CSSProperties = {
+    width: size,
+    height: size,
+    fontSize: Math.round(size * 0.6),
+  };
+
+  if (scoreType === kScoreTypePassFail && value !== undefined) {
+    return (
+      <span
+        className={clsx(styles.circle, toneCircleClass(tone))}
+        style={sizeStyle}
+      >
+        {String(value)}
+      </span>
+    );
+  }
+
+  if (scoreType === kScoreTypeBoolean) {
+    return (
+      <span
+        className={clsx(styles.circle, toneCircleClass(tone))}
+        style={boolFontStyle}
+      >
+        {value ? "✓" : "✕"}
+      </span>
+    );
+  }
+
+  return (
+    <span className={clsx(styles.text, toneTextClass(tone))}>
+      {formatPlainValue(value)}
+    </span>
+  );
+};
+
+/** Smaller variant used inside chip pills — numbers/strings render as
+ *  a colored mini-pill instead of plain text so the tone reads at
+ *  small sizes. */
+export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
+  value,
+  scoreType,
+  size = 16,
+}) => {
+  const tone = scoreTone(value, scoreType);
+  const sizeStyle: CSSProperties = {
+    width: size,
+    height: size,
+    fontSize: Math.round(size * 0.55),
+  };
+  const boolFontStyle: CSSProperties = {
+    width: size,
+    height: size,
+    fontSize: Math.round(size * 0.6),
+  };
+
+  if (scoreType === kScoreTypePassFail && value !== undefined) {
+    return (
+      <span
+        className={clsx(styles.circle, toneCircleClass(tone))}
+        style={sizeStyle}
+      >
+        {String(value)}
+      </span>
+    );
+  }
+
+  if (scoreType === kScoreTypeBoolean) {
+    return (
+      <span
+        className={clsx(styles.circle, toneCircleClass(tone))}
+        style={boolFontStyle}
+      >
+        {value ? "✓" : "✕"}
+      </span>
+    );
+  }
+
+  return (
+    <span className={clsx(styles.miniPill, toneMiniPillClass(tone))}>
+      {formatPlainValue(value)}
+    </span>
+  );
+};
+
+function toneCircleClass(tone: Tone): string {
+  if (tone === "pass") return styles.circlePass;
+  if (tone === "fail") return styles.circleFail;
+  if (tone === "warn") return styles.circleWarn;
+  return styles.circleNeutral;
+}
+
+function toneTextClass(tone: Tone): string {
+  if (tone === "pass") return styles.textPass;
+  if (tone === "fail") return styles.textFail;
+  if (tone === "warn") return styles.textWarn;
+  return styles.textNeutral;
+}
+
+function toneMiniPillClass(tone: Tone): string {
+  if (tone === "pass") return styles.miniPillPass;
+  if (tone === "fail") return styles.miniPillFail;
+  if (tone === "warn") return styles.miniPillWarn;
+  return styles.miniPillNeutral;
+}
+
+function formatPlainValue(v: ScoreValue | undefined): string {
+  if (v === undefined || v === null) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}

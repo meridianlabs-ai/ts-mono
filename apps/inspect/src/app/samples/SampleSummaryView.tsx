@@ -18,6 +18,7 @@ import { truncateMarkdown } from "../../utils/markdown";
 
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
+import { ScoreCompact } from "./header-v2/ScoreCompact";
 import styles from "./SampleSummaryView.module.css";
 import { isCancelled } from "./status/sampleStatus";
 
@@ -135,19 +136,21 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   }
   const fields = resolveSample(sample, sampleDescriptor);
 
-  const scoreEntries =
-    selectedScores
-      ?.map((scoreLabel) => ({
-        label: selectedScores.length === 1 ? "Score" : scoreLabel.name,
-        value:
-          sampleDescriptor.evalDescriptor.score(sample, scoreLabel)?.render() ??
-          "",
-      }))
-      .filter((entry) => entry.value !== "") ?? [];
+  // Filter out scores whose descriptor renders empty — they shouldn't
+  // contribute to the count or layout decisions.
+  const visibleScores =
+    selectedScores?.filter((scoreLabel) => {
+      const rendered = sampleDescriptor.evalDescriptor
+        .score(sample, scoreLabel)
+        ?.render();
+      return rendered !== undefined && rendered !== "";
+    }) ?? [];
+  const scoreCount = visibleScores.length;
 
   // Two-column grid widens the right side once the score panel needs
   // room (3+ scores).
-  const wideRight = scoreEntries.length >= 3;
+  const wideRight = scoreCount >= 3;
+  const compactScores = scoreCount > 0 && scoreCount <= 2;
 
   const metaItems: MetaItem[] = [
     {
@@ -236,16 +239,32 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
             ) : null}
           </div>
         </div>
-        {scoreEntries.length > 0 ? (
+        {scoreCount > 0 ? (
           <div className={styles.right}>
-            <div className={styles.scoreList}>
-              {scoreEntries.map((entry, idx) => (
-                <div key={`score-${idx}`} className={styles.scoreItem}>
-                  <FieldLabel>{entry.label}</FieldLabel>
-                  <div className={styles.scoreItemValue}>{entry.value}</div>
-                </div>
-              ))}
-            </div>
+            {compactScores ? (
+              <ScoreCompact
+                scores={visibleScores}
+                sample={sample}
+                evalDescriptor={sampleDescriptor.evalDescriptor}
+              />
+            ) : (
+              <div className={styles.scoreList}>
+                {visibleScores.map((scoreLabel) => {
+                  const rendered = sampleDescriptor.evalDescriptor
+                    .score(sample, scoreLabel)
+                    ?.render();
+                  return (
+                    <div
+                      key={`${scoreLabel.scorer}-${scoreLabel.name}`}
+                      className={styles.scoreItem}
+                    >
+                      <FieldLabel>{scoreLabel.name}</FieldLabel>
+                      <div className={styles.scoreItemValue}>{rendered}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : null}
       </div>
