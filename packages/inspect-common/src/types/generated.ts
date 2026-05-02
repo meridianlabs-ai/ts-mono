@@ -2613,7 +2613,7 @@ export interface components {
         };
         /**
          * ScorePanelSort
-         * @description Default sort applied to the V2 sample-header score panel.
+         * @description Default sort applied to the sample-header score panel.
          */
         ScorePanelSort: {
             /** Column */
@@ -2627,7 +2627,7 @@ export interface components {
         };
         /**
          * ScorePanelView
-         * @description How the V2 sample-header score panel should render.
+         * @description How the sample-header score panel should render when there are 3 or more scores.
          */
         ScorePanelView: {
             sort?: components["schemas"]["ScorePanelSort"] | null;
