@@ -48,6 +48,7 @@ export function createEvalStats(overrides?: Partial<EvalStats>): EvalStats {
     completed_at: "2025-01-15T10:05:00Z",
     model_usage: {},
     role_usage: {},
+    connection_limit_history: [],
     ...overrides,
   };
 }
