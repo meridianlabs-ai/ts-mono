@@ -195,6 +195,7 @@ export const clientApi = (
       }
 
       function handleError(error: unknown) {
+        if (error instanceof SampleNotFoundError) return undefined;
         if (error instanceof FileSizeLimitError) {
           throw new SampleSizeLimitedExceededError(id, epoch, error.maxBytes);
         }
@@ -210,10 +211,10 @@ export const clientApi = (
             // Retry without cache
             return await fetchSample(false);
           } catch (retryError) {
-            handleError(retryError);
+            return handleError(retryError);
           }
         } else {
-          handleError(error);
+          return handleError(error);
         }
       }
     } else {

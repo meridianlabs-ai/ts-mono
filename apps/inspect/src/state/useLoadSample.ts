@@ -1,10 +1,16 @@
 import { useCallback, useEffect } from "react";
 
+import { EvalSample } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
+
+import { SampleSummary } from "../client/api/types";
 
 import { useLogSelection, usePrevious, useSampleData } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
-import { resolveSample } from "./sampleUtils";
+import {
+  resolveSample,
+  synthesizeErroredSampleFromSummary,
+} from "./sampleUtils";
 import { useStore } from "./store";
 
 // List of virtuoso list keys that should be cleared when sample changes
@@ -53,7 +59,8 @@ export function useLoadSample() {
       logFile: string,
       id: number | string,
       epoch: number,
-      completed?: boolean
+      completed: boolean | undefined,
+      summary: SampleSummary | undefined
     ) => {
       // Skip if already loading this exact sample
       const currentId = sampleData.selectedSampleIdentifier;
@@ -95,13 +102,11 @@ export function useLoadSample() {
             });
           };
 
-          // Fetch the sample from the API
-          const sample = await api?.get_log_sample(
-            logFile,
-            id,
-            epoch,
-            onProgress
-          );
+          const sample: EvalSample | undefined =
+            (await api?.get_log_sample(logFile, id, epoch, onProgress)) ??
+            (summary?.error
+              ? synthesizeErroredSampleFromSummary(summary)
+              : undefined);
           sampleActions.setDownloadProgress(undefined);
           log.debug(`LOADED COMPLETED SAMPLE: ${id}-${epoch}`);
 
@@ -200,12 +205,14 @@ export function useLoadSample() {
           logSelection.logFile,
           sampleId,
           sampleEpoch,
-          sampleCompleted
+          sampleCompleted,
+          logSelection.sample
         );
       }
     }
   }, [
     logSelection.logFile,
+    logSelection.sample,
     sampleId,
     sampleEpoch,
     sampleCompleted,
