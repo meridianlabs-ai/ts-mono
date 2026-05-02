@@ -825,15 +825,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         </span>
                       </div>
                     )}
-                    <button
-                      type="button"
-                      className={styles.sidebarHeaderClose}
-                      onClick={() => outline.onCollapsedChange(true)}
-                      aria-label="Hide outline"
-                      title={outline.toggleTitle ?? "Hide outline"}
-                    >
-                      <i className="bi bi-x" />
-                    </button>
+                    <div className={styles.sidebarHeaderCloseAnchor}>
+                      <button
+                        type="button"
+                        className={styles.sidebarHeaderClose}
+                        onClick={() => outline.onCollapsedChange(true)}
+                        aria-label="Hide outline"
+                        title={outline.toggleTitle ?? "Hide outline"}
+                      >
+                        <i className="bi bi-x" />
+                      </button>
+                    </div>
                     <TranscriptOutline
                       eventNodes={eventNodes}
                       defaultCollapsedIds={defaultCollapsedIds}
@@ -945,18 +947,20 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         </span>
                       </div>
                     )}
-                    <button
-                      type="button"
-                      className={styles.sidebarHeaderClose}
-                      onClick={() => rightPane.onCollapsedChange(true)}
-                      aria-label={`Hide ${rightPane.label ?? "pane"}`}
-                      title={
-                        rightPane.toggleTitle ??
-                        `Hide ${rightPane.label ?? "pane"}`
-                      }
-                    >
-                      <i className="bi bi-x" />
-                    </button>
+                    <div className={styles.sidebarHeaderCloseAnchor}>
+                      <button
+                        type="button"
+                        className={styles.sidebarHeaderClose}
+                        onClick={() => rightPane.onCollapsedChange(true)}
+                        aria-label={`Hide ${rightPane.label ?? "pane"}`}
+                        title={
+                          rightPane.toggleTitle ??
+                          `Hide ${rightPane.label ?? "pane"}`
+                        }
+                      >
+                        <i className="bi bi-x" />
+                      </button>
+                    </div>
                     {rightPane.content}
                   </>
                 ) : (

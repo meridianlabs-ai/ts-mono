@@ -208,13 +208,17 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const defaultsForUnseededColumns = useCallback(
     (col: ColDef<SampleRow>) => {
       const id = col.colId;
+      // Mirror the col.hide for epoch so the seeded visibility matches
+      // and we don't get a flash of "visible → hidden" once seeding
+      // persists `epoch: true` into the store.
+      if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
       if (id === "error") return !!shape?.errorSize;
       if (id === "sampleUuid") return false;
       return true;
     },
-    [shape]
+    [shape, epochs]
   );
 
   const { columnVisibility, setColumnVisibility, gridState, setGridState } =

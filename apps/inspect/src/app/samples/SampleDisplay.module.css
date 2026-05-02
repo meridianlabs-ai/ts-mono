@@ -1,7 +1,13 @@
+/* The tabs sticky-pin beneath the (dynamic-height) sample header.
+ * The header itself uses `<StickyScroll>` and changes height between
+ * full and compact (headroom collapse), publishing its current
+ * height as `--inspect-sample-header-height` on the tabs container.
+ * The tabs slide up automatically when the header collapses and
+ * back down when it expands. */
 .tabControls {
   position: sticky;
   z-index: 1001;
-  top: 0;
+  top: var(--inspect-sample-header-height, 0);
   padding: 0.25rem 0.5rem;
   border-bottom: solid 1px var(--bs-border-color);
   background-color: var(--bs-body-bg);

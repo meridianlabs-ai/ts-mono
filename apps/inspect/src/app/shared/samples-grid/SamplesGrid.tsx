@@ -245,6 +245,21 @@ export const SamplesGrid = <TRow,>(
     columnVisibility
   );
 
+  // Bake column visibility into ag-grid's `initialState.columnVisibility`
+  // so it's applied synchronously on first render. Without this, the grid
+  // paints with all columns visible at their initial widths, then
+  // `applyColumnState` runs from `onGridReady` and the flex columns
+  // visibly redistribute — a "growing left-to-right" animation. Saved
+  // state from `initialState.columnVisibility` is preserved when our
+  // visibility map is absent.
+  const mergedInitialState = useMemo<GridState | undefined>(() => {
+    if (!columnVisibility) return initialState;
+    const hiddenColIds = Object.entries(columnVisibility)
+      .filter(([, visible]) => !visible)
+      .map(([id]) => id);
+    return { ...initialState, columnVisibility: { hiddenColIds } };
+  }, [initialState, columnVisibility]);
+
   const handleStateUpdated = useCallback(
     (e: StateUpdatedEvent<TRow>) => {
       onStateUpdated?.(e.state);
@@ -325,6 +340,7 @@ export const SamplesGrid = <TRow,>(
           maintainColumnOrder={true}
           theme={themeBalham}
           animateRows={false}
+          suppressColumnMoveAnimation={true}
           tooltipShowDelay={300}
           headerHeight={25}
           rowHeight={effectiveRowHeight}
@@ -333,7 +349,7 @@ export const SamplesGrid = <TRow,>(
           enableCellTextSelection={true}
           suppressCellFocus={true}
           domLayout="normal"
-          initialState={initialState}
+          initialState={mergedInitialState}
           onRowClicked={handleRowClick}
           onCellMouseDown={handleCellMouseDown}
           onStateUpdated={handleStateUpdated}

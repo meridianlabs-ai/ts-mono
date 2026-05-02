@@ -2606,6 +2606,29 @@ export interface components {
             working_start: number;
         };
         /**
+         * ScorePanelSort
+         * @description Default sort applied to the V2 sample-header score panel.
+         */
+        ScorePanelSort: {
+            /** Column */
+            column?: ("name" | "value") | null;
+            /**
+             * Dir
+             * @default asc
+             * @enum {string}
+             */
+            dir: "asc" | "desc";
+        };
+        /**
+         * ScorePanelView
+         * @description How the V2 sample-header score panel should render.
+         */
+        ScorePanelView: {
+            sort?: components["schemas"]["ScorePanelSort"] | null;
+            /** View */
+            view?: ("chips" | "grid") | null;
+        };
+        /**
          * SpanBeginEvent
          * @description Mark the beginning of a transcript span.
          */
@@ -3150,6 +3173,7 @@ export interface components {
             scanner_result_view: components["schemas"]["ScannerResultView"] | {
                 [key: string]: components["schemas"]["ScannerResultView"];
             };
+            score_panel_view?: components["schemas"]["ScorePanelView"] | null;
         };
     };
     responses: never;

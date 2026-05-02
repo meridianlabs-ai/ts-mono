@@ -8,14 +8,137 @@ import {
   createEvalDescriptor,
   createSamplesDescriptor,
 } from "../app/samples/descriptor/samplesDescriptor";
+import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
-import { getAvailableScorers, getDefaultScorer } from "./scoring";
+import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
+
+const kScorePanelViewBag = "score-panel-view";
+const kScorePanelViewKey = "view";
+const kScorePanelSortBag = "score-panel-sort";
+const kScorePanelSortKey = "sort";
+
+export type ScorePanelSortColumn = "name" | "value" | null;
+export interface ScorePanelSortState {
+  column: ScorePanelSortColumn;
+  dir: "asc" | "desc";
+}
+const kDefaultScorePanelSort: ScorePanelSortState = {
+  column: null,
+  dir: "asc",
+};
+
+/**
+ * Read / write the user's preferred V2 score panel view (chips vs grid).
+ * Persisted globally via the app property bag so the choice carries
+ * across samples. Returns the *stored* value; callers resolve their
+ * own default (typically `chips` for ≤ 6 scores, `grid` for 7+).
+ */
+export const useScorePanelView = (): [
+  ScoreView | undefined,
+  (view: ScoreView) => void,
+] => {
+  const stored = useStore(
+    (state) =>
+      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
+        | ScoreView
+        | undefined
+  );
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const setView = useCallback(
+    (view: ScoreView) => {
+      setPropertyValue(kScorePanelViewBag, kScorePanelViewKey, view);
+    },
+    [setPropertyValue]
+  );
+  return [stored, setView];
+};
+
+/**
+ * Resolve the stored / eval-supplied / default view given the score count.
+ * Priority: user override (stored) > eval default > built-in count rule.
+ */
+export const resolveScorePanelView = (
+  stored: ScoreView | undefined,
+  evalDefault: ScoreView | undefined,
+  count: number
+): ScoreView => stored ?? evalDefault ?? (count <= 6 ? "chips" : "grid");
+
+/**
+ * Read / write the user's V2 score panel sort. Persisted globally via
+ * the app property bag (mirrors `useScorePanelView`) so the sort
+ * carries across samples in the same session. Returns the *stored*
+ * value; callers resolve their own default via `resolveScorePanelSort`.
+ */
+export const useScorePanelSort = (): [
+  ScorePanelSortState | undefined,
+  (sort: ScorePanelSortState) => void,
+] => {
+  const stored = useStore(
+    (state) =>
+      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
+        | ScorePanelSortState
+        | undefined
+  );
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const setSort = useCallback(
+    (sort: ScorePanelSortState) => {
+      setPropertyValue(kScorePanelSortBag, kScorePanelSortKey, sort);
+    },
+    [setPropertyValue]
+  );
+  return [stored, setSort];
+};
+
+/**
+ * Resolve the stored / eval-supplied / default sort.
+ * Priority: user override (stored) > eval default > unsorted.
+ */
+export const resolveScorePanelSort = (
+  stored: ScorePanelSortState | undefined,
+  evalDefault: ScorePanelSortState | undefined
+): ScorePanelSortState => stored ?? evalDefault ?? kDefaultScorePanelSort;
+
+/**
+ * Read the eval-author-declared default score-panel view from
+ * `Task(viewer=ViewerConfig(score_panel_view=ScorePanelView(view=...)))`.
+ * Returns a primitive so Zustand's reference equality is stable.
+ */
+export const useEvalScorePanelView = (): ScoreView | undefined =>
+  useStore(
+    (state) =>
+      (state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.view ??
+        undefined) as ScoreView | undefined
+  );
+
+/**
+ * Read the eval-author-declared default score-panel sort. The raw
+ * stored object reference is stable across renders (it lives on
+ * `selectedLogDetails`); we normalize the nullable fields inside a
+ * `useMemo` keyed on that reference to avoid feeding a fresh object
+ * back into Zustand on every render.
+ */
+export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
+  const stored = useStore(
+    (state) => state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.sort
+  );
+  return useMemo(() => {
+    if (!stored) return undefined;
+    return {
+      column: stored.column ?? null,
+      dir: stored.dir ?? "asc",
+    };
+  }, [stored]);
+};
 
 const log = createLogger("hooks");
 
@@ -79,14 +202,9 @@ export const useSelectedScores = () => {
   return useMemo(() => {
     if (selected !== undefined) {
       return selected;
-    } else if (selectedLogDetails) {
-      const defaultScorer = getDefaultScorer(
-        selectedLogDetails,
-        sampleSummaries
-      );
-      if (defaultScorer) {
-        return [defaultScorer];
-      }
+    }
+    if (selectedLogDetails) {
+      return getAvailableScorers(selectedLogDetails, sampleSummaries) ?? [];
     }
     return [];
   }, [selectedLogDetails, sampleSummaries, selected]);

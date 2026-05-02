@@ -27,3 +27,12 @@ button.segment {
 .segment i {
   margin-right: 0.2em;
 }
+
+button.segment.compact {
+  padding-inline-start: 4px;
+  padding-inline-end: 4px;
+}
+
+button.segment.compact i {
+  margin-right: 0;
+}

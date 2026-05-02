@@ -163,15 +163,33 @@
   top: 1px;
 }
 
+/* 0-height sticky anchor that keeps the close button glued to the top of
+   the visible scroll area. The button itself is absolutely positioned
+   inside the anchor so it doesn't push surrounding content. z-index sits
+   above sibling sticky headers (e.g. SampleScansSidebar's scanner picker
+   at z-index: 2) so the close button paints on top. */
+.sidebarHeaderCloseAnchor {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 3;
+}
+
+/* In the right pane, extend the anchor into the parent's right padding so
+   the button lines up with the existing visual position. */
+.rightPane .sidebarHeaderCloseAnchor {
+  margin-right: -1.2rem;
+}
+
 .sidebarHeaderClose {
   all: unset;
   cursor: pointer;
   font-size: 0.9em;
-  padding: 0 0.2em;
+  padding: 0.2rem 0.4rem;
   position: absolute;
-  top: 0.2rem;
-  right: 0.1rem;
-  z-index: 1;
+  top: 0;
+  right: 0;
+  background-color: var(--bs-body-bg);
 }
 
 .sidebarHeaderClose:hover {
