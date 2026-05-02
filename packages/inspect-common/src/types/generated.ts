@@ -366,6 +366,49 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AdaptiveConcurrency
+         * @description Bounds and tuning for an adaptive concurrency controller.
+         *
+         *     Basic fields (`min`, `start`, `max`) bound the range the controller will
+         *     scale within. Advanced fields (`cooldown_seconds`, `decrease_factor`,
+         *     `scale_up_percent`) tune the response curve and have sensible defaults
+         *     for typical evaluation workloads — see the parallelism docs for guidance.
+         *     Accepts a string shorthand ("min-max" or "min-start-max") for use in CLI
+         *     flags and config files; advanced fields are Python-only.
+         */
+        AdaptiveConcurrency: {
+            /**
+             * Cooldown Seconds
+             * @default 15
+             */
+            cooldown_seconds: number;
+            /**
+             * Decrease Factor
+             * @default 0.8
+             */
+            decrease_factor: number;
+            /**
+             * Max
+             * @default 100
+             */
+            max: number;
+            /**
+             * Min
+             * @default 4
+             */
+            min: number;
+            /**
+             * Scale Up Percent
+             * @default 0.05
+             */
+            scale_up_percent: number;
+            /**
+             * Start
+             * @default 20
+             */
+            start: number;
+        };
+        /**
          * ApprovalEvent
          * @description Tool approval.
          */
@@ -688,6 +731,25 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * ConnectionLimitChange
+         * @description Record of an adaptive-connections controller scale change.
+         */
+        ConnectionLimitChange: {
+            /** Model */
+            model: string;
+            /** New Limit */
+            new_limit: number;
+            /** Old Limit */
+            old_limit: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "slow_start" | "steady_state_up" | "rate_limit";
+            /** Timestamp */
+            timestamp: number;
         };
         /** Content */
         Content: components["schemas"]["ContentText"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"];
@@ -1567,6 +1629,8 @@ export interface components {
         EvalStats: {
             /** Completed At */
             completed_at: string | "";
+            /** Connection Limit History */
+            connection_limit_history: components["schemas"]["ConnectionLimitChange"][];
             /** Model Usage */
             model_usage: {
                 [key: string]: components["schemas"]["ModelUsage"];
@@ -1610,6 +1674,8 @@ export interface components {
          * @description Model generation options.
          */
         GenerateConfig: {
+            /** Adaptive Connections */
+            adaptive_connections?: boolean | components["schemas"]["AdaptiveConcurrency"] | null;
             /** Attempt Timeout */
             attempt_timeout?: number | null;
             /** Batch */
