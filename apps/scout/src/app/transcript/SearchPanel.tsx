@@ -24,7 +24,7 @@ import { ApiError, compose, map } from "@tsmono/util";
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import type { Result, SearchInput, Transcript } from "../../types/api-types";
+import type { Result, SearchInput } from "../../types/api-types";
 import {
   ProjectConfigWithEtag,
   useProjectConfig,
@@ -230,6 +230,7 @@ const SearchPanelWithData = ({
       query,
       recordSearchModel,
       setState,
+      transcriptModel,
     ]
   );
 
