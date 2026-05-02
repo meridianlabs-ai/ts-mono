@@ -20,8 +20,12 @@ import {
 import { resolveAttachments } from "../utils/attachments";
 import { createPolling } from "../utils/polling";
 
-import { resolveSample } from "./sampleUtils";
+import {
+  resolveSample,
+  synthesizeErroredSampleFromSummary,
+} from "./sampleUtils";
 import { StoreState } from "./store";
+import { mergeSampleSummaries } from "./utils";
 
 const log = createLogger("samplePolling");
 
@@ -136,11 +140,20 @@ export function createSamplePolling(
 
         try {
           log.debug(message);
-          const sample = await api.get_log_sample(
-            logFile,
-            summary.id,
-            summary.epoch
-          );
+          // The closure-captured `summary` is the stub {id, epoch} from
+          // usePollSample, so re-resolve from the store to read its `error`.
+          const sample =
+            (await api.get_log_sample(logFile, summary.id, summary.epoch)) ??
+            (() => {
+              const liveSummary = findLiveSummary(
+                store.getState(),
+                summary.id,
+                summary.epoch
+              );
+              return liveSummary?.error
+                ? synthesizeErroredSampleFromSummary(liveSummary)
+                : undefined;
+            })();
 
           // If the user navigated away while we were fetching, don't overwrite
           // the new sample's state with this stale result.
@@ -319,6 +332,20 @@ const hasCompletedLogSummary = (
       sampleIdsEqual(sampleSummary.id, sampleId) &&
       sampleSummary.epoch === sampleEpoch &&
       sampleSummary.completed !== false
+  );
+};
+
+const findLiveSummary = (
+  state: StoreState,
+  sampleId: string | number,
+  sampleEpoch: number
+): SampleSummary | undefined => {
+  const merged = mergeSampleSummaries(
+    state.log.selectedLogDetails?.sampleSummaries ?? [],
+    state.log.pendingSampleSummaries?.samples ?? []
+  );
+  return merged.find(
+    (s) => sampleIdsEqual(s.id, sampleId) && s.epoch === sampleEpoch
   );
 };
 

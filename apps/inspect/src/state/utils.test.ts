@@ -29,6 +29,25 @@ describe("mergeSampleSummaries", () => {
       logSummary,
     ]);
   });
+
+  test("preserves completed:true for pending samples that errored before any work", () => {
+    const result = mergeSampleSummaries(
+      [],
+      [
+        createSampleSummary({
+          id: "errored-before-start",
+          completed: true,
+          error: "RuntimeError: server.py exited before becoming ready",
+        }),
+      ]
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].completed).toBe(true);
+    expect(result[0].error).toBe(
+      "RuntimeError: server.py exited before becoming ready"
+    );
+  });
 });
 
 const createSampleSummary = (
