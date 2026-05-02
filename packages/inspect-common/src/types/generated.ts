@@ -2594,6 +2594,12 @@ export interface components {
                 [key: string]: components["schemas"]["ModelUsage"];
             } | null;
             score: components["schemas"]["Score"];
+            /** Scorer */
+            scorer?: string | null;
+            /** Scorer Args */
+            scorer_args?: {
+                [key: string]: unknown;
+            } | null;
             /** Span Id */
             span_id?: string | null;
             /** Target */
