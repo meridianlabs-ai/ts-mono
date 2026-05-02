@@ -79,35 +79,32 @@ export class TimelineEvent {
   }
 
   /**
-   * Returns true if this event produced or carries the given message ID.
+   * Returns true if this event is the fork point for the given `branchedFrom`.
    *
-   * `branchedFrom` is a message ID (not an event UUID). It may match:
-   * 1. A model event's output message ID (`output.choices[0].message.id`)
-   * 2. A tool event's message ID (`message_id`)
-   * 3. A model event's input message ID (any message in `input` with matching `id`)
-   *
-   * This is used to locate the fork point for branches.
+   * `branchedFrom` is an anchor ID. The canonical match is an `AnchorEvent`
+   * with `anchor_id === id` — orchestrators that support rollback emit one at
+   * each rollback-able point. For timelines built without explicit anchors,
+   * falls back to matching the ID against model/tool message IDs.
    */
-  matchesMessageId(messageId: string): boolean {
+  matchesForkPoint(id: string): boolean {
     const e = this.event;
+    if (e.event === "anchor") return e.anchor_id === id;
     if (e.event === "model") {
       const outMsg = (e as Record<string, unknown>).output as
         | { choices?: Array<{ message?: { id?: string } }> }
         | undefined;
-      if (outMsg?.choices?.[0]?.message?.id === messageId) return true;
+      if (outMsg?.choices?.[0]?.message?.id === id) return true;
 
-      // Check input messages — branchedFrom may reference a message in the
-      // model call's input (e.g. the last user message before the fork).
       const input = (e as Record<string, unknown>).input as
         | Array<{ id?: string }>
         | undefined;
       if (input) {
         for (const msg of input) {
-          if (msg.id === messageId) return true;
+          if (msg.id === id) return true;
         }
       }
     } else if (e.event === "tool") {
-      if ((e as Record<string, unknown>).message_id === messageId) return true;
+      if ((e as Record<string, unknown>).message_id === id) return true;
     }
     return false;
   }
@@ -314,7 +311,7 @@ function convertServerSpan(
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
   const branches = (server.branches ?? [])
     .map((b) => convertServerSpan(b, lookup))
-    .filter((b) => b.content.length > 0);
+    .filter((b) => b.content.length > 0 || b.branches.length > 0);
 
   return new TimelineSpan({
     id: server.id,
@@ -951,7 +948,7 @@ function processChildren(
         }
       }
       if (branchContent.length === 0) continue;
-      const branchedFrom = branchEvent.from_message;
+      const branchedFrom = branchEvent.from_anchor;
       const branchSpan = createTimelineSpan(
         span.id,
         span.name || "branch",
@@ -1000,7 +997,7 @@ function processChildren(
  */
 function findBranchEvent(
   span: SpanNode
-): { from_span: string; from_message: string } | null {
+): { from_span: string; from_anchor: string } | null {
   for (const child of span.children) {
     if (!isSpanNode(child) && child.event === "branch") {
       return child;

@@ -366,6 +366,41 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AnchorEvent
+         * @description Marks a rollback-able point in a replayable trajectory.
+         *
+         *     Emitted by an orchestrator immediately after a step it can later roll
+         *     back to (a staged message, a model generate, etc.). Carries no content;
+         *     ``anchor_id`` is the addressable identifier that ``TimelineSpan.branched_from``
+         *     references. Hidden from the viewer transcript by default.
+         */
+        AnchorEvent: {
+            /** Anchor Id */
+            anchor_id: string;
+            /**
+             * Event
+             * @default anchor
+             * @constant
+             */
+            event: "anchor";
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Source */
+            source?: string | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
          * ApprovalEvent
          * @description Tool approval.
          */
@@ -472,7 +507,12 @@ export interface components {
         };
         /**
          * BranchEvent
-         * @description Branch in conversation history.
+         * @description Marks where a branched trajectory's unique content begins.
+         *
+         *     Emitted at the point where a branch transitions from replaying its
+         *     parent's prefix to live execution. Events before this in the trajectory's
+         *     span are replay-phase re-execution; events after are the branch's
+         *     genuine new content.
          */
         BranchEvent: {
             /**
@@ -481,8 +521,8 @@ export interface components {
              * @constant
              */
             event: "branch";
-            /** From Message */
-            from_message: string;
+            /** From Anchor */
+            from_anchor: string;
             /** From Span */
             from_span: string;
             /** Metadata */
@@ -540,6 +580,7 @@ export interface components {
         ChatCompletionChoice: {
             logprobs?: components["schemas"]["Logprobs"] | null;
             message: components["schemas"]["ChatMessageAssistant"];
+            prompt_logprobs?: components["schemas"]["Logprobs"] | null;
             /**
              * Stop Reason
              * @default unknown
@@ -1028,6 +1069,8 @@ export interface components {
             sandbox_cleanup?: boolean | null;
             /** Score Display */
             score_display?: boolean | null;
+            /** Score On Error */
+            score_on_error?: boolean | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -1196,7 +1239,7 @@ export interface components {
          */
         EvalRetryError: {
             /** Events */
-            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
             /** Message */
             message: string;
             /** Traceback */
@@ -1240,7 +1283,7 @@ export interface components {
             /** Error Retries */
             error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Files */
             files?: string[] | null;
@@ -1555,6 +1598,7 @@ export interface components {
              * @default 0
              */
             task_version: number | string;
+            viewer?: components["schemas"]["ViewerConfig"] | null;
         };
         /**
          * EvalStats
@@ -1575,7 +1619,7 @@ export interface components {
             started_at: string | "";
         };
         /** Event */
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /** EventData */
         EventData: {
             /** Epoch */
@@ -1652,6 +1696,8 @@ export interface components {
             parallel_tool_calls?: boolean | null;
             /** Presence Penalty */
             presence_penalty?: number | null;
+            /** Prompt Logprobs */
+            prompt_logprobs?: number | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
@@ -1975,6 +2021,27 @@ export interface components {
              * @enum {string}
              */
             type: "metadata";
+        };
+        /**
+         * MetadataField
+         * @description A metadata key promoted out of metadata into a top level value.
+         */
+        MetadataField: {
+            /**
+             * Collapsed
+             * @default false
+             */
+            collapsed: boolean;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @default metadata
+             * @constant
+             */
+            kind: "metadata";
+            /** Label */
+            label?: string | null;
         };
         /**
          * ModelCall
@@ -2354,6 +2421,40 @@ export interface components {
             working_start: number;
         };
         /**
+         * ScannerResultField
+         * @description A built-in scanner-result section (e.g. `value`, `explanation`).
+         */
+        ScannerResultField: {
+            /**
+             * Collapsed
+             * @default false
+             */
+            collapsed: boolean;
+            /**
+             * Kind
+             * @default builtin
+             * @constant
+             */
+            kind: "builtin";
+            /** Label */
+            label?: string | null;
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "explanation" | "label" | "value" | "validation" | "answer" | "metadata";
+        };
+        /**
+         * ScannerResultView
+         * @description How the scann results should render the results.
+         */
+        ScannerResultView: {
+            /** Exclude Fields */
+            exclude_fields: (components["schemas"]["ScannerResultField"] | components["schemas"]["MetadataField"] | string)[];
+            /** Fields */
+            fields?: (components["schemas"]["ScannerResultField"] | components["schemas"]["MetadataField"] | string)[] | null;
+        };
+        /**
          * Score
          * @description Score generated by a scorer.
          */
@@ -2701,7 +2802,7 @@ export interface components {
             /** Scorer */
             scorer: string;
             /** Value */
-            value: number | null;
+            value?: number | null;
         };
         /**
          * Timeline
@@ -2754,6 +2855,11 @@ export interface components {
             outline?: components["schemas"]["Outline"] | null;
             /** Span Type */
             span_type?: string | null;
+            /**
+             * Tool Invoked
+             * @default false
+             */
+            tool_invoked: boolean;
             /**
              * Type
              * @default span
@@ -3004,6 +3110,20 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ViewerConfig
+         * @description Top-level viewer configuration.
+         *
+         *     `scanner_result_view` keys are fnmatch-style glob patterns (`"*"`,
+         *     ``"audit_*"``, exact names). Pass a ScannerResultView to apply a single
+         *     configuration to every scanner.
+         */
+        ViewerConfig: {
+            /** Scanner Result View */
+            scanner_result_view: components["schemas"]["ScannerResultView"] | {
+                [key: string]: components["schemas"]["ScannerResultView"];
+            };
         };
     };
     responses: never;

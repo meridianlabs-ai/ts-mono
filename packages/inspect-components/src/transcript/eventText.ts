@@ -119,9 +119,15 @@ const extractEventFields = (event: EventType): [string, string][] => {
       if (branchEvent.from_span) {
         fields.push(["from_span", branchEvent.from_span]);
       }
-      if (branchEvent.from_message) {
-        fields.push(["from_message", branchEvent.from_message]);
+      if (branchEvent.from_anchor) {
+        fields.push(["from_anchor", branchEvent.from_anchor]);
       }
+      break;
+    }
+
+    case "anchor": {
+      fields.push(["anchor_id", event.anchor_id]);
+      if (event.source) fields.push(["source", event.source]);
       break;
     }
 
