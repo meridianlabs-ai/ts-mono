@@ -21,9 +21,6 @@ export const BranchEventView: FC<BranchEventViewProps> = ({
 }) => {
   const event = eventNode.event;
   const data: Record<string, unknown> = {};
-  if (event.from_span) {
-    data["from_span"] = event.from_span;
-  }
   if (event.from_anchor) {
     data["from_anchor"] = event.from_anchor;
   }

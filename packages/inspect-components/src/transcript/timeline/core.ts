@@ -986,19 +986,18 @@ function processChildren(
         }
       }
       if (branchContent.length === 0) continue;
-      const branchedFrom = branchEvent.from_anchor;
-      const branchSpan = createTimelineSpan(
-        span.id,
-        span.name || "branch",
-        "branch",
-        branchContent,
-        false,
-        [],
-        undefined,
-        branchedFrom
+      result.push(
+        createTimelineSpan(
+          span.id,
+          span.name || "branch",
+          "branch",
+          branchContent,
+          false,
+          [],
+          undefined,
+          branchEvent.from_anchor
+        )
       );
-      branchFromSpanMap.set(branchSpan.id, branchEvent.from_span);
-      result.push(branchSpan);
     }
     return result;
   }
@@ -1033,9 +1032,7 @@ function processChildren(
 /**
  * Find a BranchEvent in a span's direct children.
  */
-function findBranchEvent(
-  span: SpanNode
-): { from_span: string; from_anchor: string } | null {
+function findBranchEvent(span: SpanNode): { from_anchor: string } | null {
   for (const child of span.children) {
     if (!isSpanNode(child) && child.event === "branch") {
       return child;
@@ -1090,78 +1087,6 @@ function classifyBranches(span: TimelineSpan): void {
 // =============================================================================
 // Branch Relocation
 // =============================================================================
-
-/**
- * Maps branch span ID → fromSpan (the span ID the branch originated from).
- *
- * Populated during `processChildren` and consumed by `relocateBranches`.
- * This is build-time-only metadata that doesn't belong on the public
- * `TimelineSpan` type.
- */
-let branchFromSpanMap = new Map<string, string>();
-
-/**
- * Recursively collect all TimelineSpans into a span_id → span map.
- */
-function collectSpans(
-  span: TimelineSpan,
-  spanMap: Map<string, TimelineSpan>
-): void {
-  spanMap.set(span.id, span);
-  for (const item of span.content) {
-    if (item.type === "span") {
-      collectSpans(item, spanMap);
-    }
-  }
-  for (const branch of span.branches) {
-    collectSpans(branch, spanMap);
-  }
-}
-
-/**
- * Relocate branches to the span identified by fromSpan.
- *
- * After initial discovery, all branches from the same processChildren
- * call are flat siblings. If a branch's fromSpan points to a span
- * inside a sibling branch, move it there.
- */
-function relocateBranches(root: TimelineSpan): void {
-  const spanMap = new Map<string, TimelineSpan>();
-  collectSpans(root, spanMap);
-  doRelocate(root, spanMap);
-}
-
-/**
- * Recursively relocate branches in a span and its children.
- */
-function doRelocate(
-  span: TimelineSpan,
-  spanMap: Map<string, TimelineSpan>
-): void {
-  // Recurse into child spans first (depth-first)
-  for (const item of span.content) {
-    if (item.type === "span") {
-      doRelocate(item, spanMap);
-    }
-  }
-  for (const branch of span.branches) {
-    doRelocate(branch, spanMap);
-  }
-
-  // Now relocate: check each branch's fromSpan
-  const remaining: TimelineSpan[] = [];
-  for (const branch of span.branches) {
-    const fromSpan = branchFromSpanMap.get(branch.id);
-    const targetSpan = fromSpan ? spanMap.get(fromSpan) : undefined;
-    if (targetSpan !== undefined && targetSpan !== span) {
-      // Move branch to the target span
-      targetSpan.branches.push(branch);
-    } else {
-      remaining.push(branch);
-    }
-  }
-  span.branches = remaining;
-}
 
 // =============================================================================
 // Utility Event Wrapping (bridge-based agents)
@@ -1618,8 +1543,6 @@ export function getUtilityAgentLabel(span: TimelineSpan): string {
 }
 
 export function buildTimeline(events: Event[]): Timeline {
-  branchFromSpanMap = new Map<string, string>();
-
   if (events.length === 0) {
     const emptyRoot = new TimelineSpan({
       id: "root",
@@ -1699,7 +1622,6 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentNode);
       classifyUtilityAgents(agentNode);
       classifyBranches(agentNode);
-      relocateBranches(agentNode);
       extractAgentResults(agentNode);
 
       // Prepend init span to agent content
@@ -1739,7 +1661,6 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentRoot);
       classifyUtilityAgents(agentRoot);
       classifyBranches(agentRoot);
-      relocateBranches(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {

@@ -96,7 +96,7 @@ function label(ev: Event): string {
       return `compaction${ev.source ? ` source=${ev.source}` : ""}`;
 
     case "branch":
-      return `branch from_span=${ev.from_span} from_anchor=${ev.from_anchor}`;
+      return `branch from_anchor=${ev.from_anchor}`;
 
     case "anchor":
       return `anchor id=${ev.anchor_id}`;
