@@ -163,13 +163,15 @@ const extractEventFields = (event: EventType): [string, string][] => {
     }
 
     case "branch": {
-      const branchEvent = event;
-      if (branchEvent.from_span) {
-        fields.push(["from_span", branchEvent.from_span]);
+      if (event.from_anchor) {
+        fields.push(["from_anchor", event.from_anchor]);
       }
-      if (branchEvent.from_message) {
-        fields.push(["from_message", branchEvent.from_message]);
-      }
+      break;
+    }
+
+    case "anchor": {
+      fields.push(["anchor_id", event.anchor_id]);
+      if (event.source) fields.push(["source", event.source]);
       break;
     }
 

@@ -25,6 +25,7 @@ const eventTypes: Record<AllEventTypes, string> = {
   compaction: "Compaction",
   info: "Info",
   subtask: "Subtask",
+  anchor: "Anchor",
   branch: "Branch",
   step: "Step",
 } as const;

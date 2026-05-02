@@ -230,7 +230,7 @@ export function resolveForkTimestamp(
 ): Date {
   if (!branch.branchedFrom) return parent.startTime();
   for (const item of parent.content) {
-    if (item.type === "event" && item.matchesMessageId(branch.branchedFrom)) {
+    if (item.type === "event" && item.matchesForkPoint(branch.branchedFrom)) {
       return item.startTime();
     }
   }

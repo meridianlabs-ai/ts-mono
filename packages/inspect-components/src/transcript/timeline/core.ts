@@ -79,35 +79,32 @@ export class TimelineEvent {
   }
 
   /**
-   * Returns true if this event produced or carries the given message ID.
+   * Returns true if this event is the fork point for the given `branchedFrom`.
    *
-   * `branchedFrom` is a message ID (not an event UUID). It may match:
-   * 1. A model event's output message ID (`output.choices[0].message.id`)
-   * 2. A tool event's message ID (`message_id`)
-   * 3. A model event's input message ID (any message in `input` with matching `id`)
-   *
-   * This is used to locate the fork point for branches.
+   * `branchedFrom` is an anchor ID. The canonical match is an `AnchorEvent`
+   * with `anchor_id === id` — orchestrators that support rollback emit one at
+   * each rollback-able point. For timelines built without explicit anchors,
+   * falls back to matching the ID against model/tool message IDs.
    */
-  matchesMessageId(messageId: string): boolean {
+  matchesForkPoint(id: string): boolean {
     const e = this.event;
+    if (e.event === "anchor") return e.anchor_id === id;
     if (e.event === "model") {
       const outMsg = (e as Record<string, unknown>).output as
         | { choices?: Array<{ message?: { id?: string } }> }
         | undefined;
-      if (outMsg?.choices?.[0]?.message?.id === messageId) return true;
+      if (outMsg?.choices?.[0]?.message?.id === id) return true;
 
-      // Check input messages — branchedFrom may reference a message in the
-      // model call's input (e.g. the last user message before the fork).
       const input = (e as Record<string, unknown>).input as
         | Array<{ id?: string }>
         | undefined;
       if (input) {
         for (const msg of input) {
-          if (msg.id === messageId) return true;
+          if (msg.id === id) return true;
         }
       }
     } else if (e.event === "tool") {
-      if ((e as Record<string, unknown>).message_id === messageId) return true;
+      if ((e as Record<string, unknown>).message_id === id) return true;
     }
     return false;
   }
@@ -325,7 +322,7 @@ function convertServerSpan(
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
   const branches = (server.branches ?? [])
     .map((b) => convertServerSpan(b, lookup))
-    .filter((b) => b.content.length > 0);
+    .filter((b) => b.content.length > 0 || b.branches.length > 0);
 
   return new TimelineSpan({
     id: server.id,
@@ -989,19 +986,18 @@ function processChildren(
         }
       }
       if (branchContent.length === 0) continue;
-      const branchedFrom = branchEvent.from_message;
-      const branchSpan = createTimelineSpan(
-        span.id,
-        span.name || "branch",
-        "branch",
-        branchContent,
-        false,
-        [],
-        undefined,
-        branchedFrom
+      result.push(
+        createTimelineSpan(
+          span.id,
+          span.name || "branch",
+          "branch",
+          branchContent,
+          false,
+          [],
+          undefined,
+          branchEvent.from_anchor
+        )
       );
-      branchFromSpanMap.set(branchSpan.id, branchEvent.from_span);
-      result.push(branchSpan);
     }
     return result;
   }
@@ -1036,9 +1032,7 @@ function processChildren(
 /**
  * Find a BranchEvent in a span's direct children.
  */
-function findBranchEvent(
-  span: SpanNode
-): { from_span: string; from_message: string } | null {
+function findBranchEvent(span: SpanNode): { from_anchor: string } | null {
   for (const child of span.children) {
     if (!isSpanNode(child) && child.event === "branch") {
       return child;
@@ -1093,78 +1087,6 @@ function classifyBranches(span: TimelineSpan): void {
 // =============================================================================
 // Branch Relocation
 // =============================================================================
-
-/**
- * Maps branch span ID → fromSpan (the span ID the branch originated from).
- *
- * Populated during `processChildren` and consumed by `relocateBranches`.
- * This is build-time-only metadata that doesn't belong on the public
- * `TimelineSpan` type.
- */
-let branchFromSpanMap = new Map<string, string>();
-
-/**
- * Recursively collect all TimelineSpans into a span_id → span map.
- */
-function collectSpans(
-  span: TimelineSpan,
-  spanMap: Map<string, TimelineSpan>
-): void {
-  spanMap.set(span.id, span);
-  for (const item of span.content) {
-    if (item.type === "span") {
-      collectSpans(item, spanMap);
-    }
-  }
-  for (const branch of span.branches) {
-    collectSpans(branch, spanMap);
-  }
-}
-
-/**
- * Relocate branches to the span identified by fromSpan.
- *
- * After initial discovery, all branches from the same processChildren
- * call are flat siblings. If a branch's fromSpan points to a span
- * inside a sibling branch, move it there.
- */
-function relocateBranches(root: TimelineSpan): void {
-  const spanMap = new Map<string, TimelineSpan>();
-  collectSpans(root, spanMap);
-  doRelocate(root, spanMap);
-}
-
-/**
- * Recursively relocate branches in a span and its children.
- */
-function doRelocate(
-  span: TimelineSpan,
-  spanMap: Map<string, TimelineSpan>
-): void {
-  // Recurse into child spans first (depth-first)
-  for (const item of span.content) {
-    if (item.type === "span") {
-      doRelocate(item, spanMap);
-    }
-  }
-  for (const branch of span.branches) {
-    doRelocate(branch, spanMap);
-  }
-
-  // Now relocate: check each branch's fromSpan
-  const remaining: TimelineSpan[] = [];
-  for (const branch of span.branches) {
-    const fromSpan = branchFromSpanMap.get(branch.id);
-    const targetSpan = fromSpan ? spanMap.get(fromSpan) : undefined;
-    if (targetSpan !== undefined && targetSpan !== span) {
-      // Move branch to the target span
-      targetSpan.branches.push(branch);
-    } else {
-      remaining.push(branch);
-    }
-  }
-  span.branches = remaining;
-}
 
 // =============================================================================
 // Utility Event Wrapping (bridge-based agents)
@@ -1621,8 +1543,6 @@ export function getUtilityAgentLabel(span: TimelineSpan): string {
 }
 
 export function buildTimeline(events: Event[]): Timeline {
-  branchFromSpanMap = new Map<string, string>();
-
   if (events.length === 0) {
     const emptyRoot = new TimelineSpan({
       id: "root",
@@ -1702,7 +1622,6 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentNode);
       classifyUtilityAgents(agentNode);
       classifyBranches(agentNode);
-      relocateBranches(agentNode);
       extractAgentResults(agentNode);
 
       // Prepend init span to agent content
@@ -1742,7 +1661,6 @@ export function buildTimeline(events: Event[]): Timeline {
       wrapUtilityEvents(agentRoot);
       classifyUtilityAgents(agentRoot);
       classifyBranches(agentRoot);
-      relocateBranches(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {
