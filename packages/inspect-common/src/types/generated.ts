@@ -389,7 +389,7 @@ export interface components {
             decrease_factor: number;
             /**
              * Max
-             * @default 100
+             * @default 200
              */
             max: number;
             /**
