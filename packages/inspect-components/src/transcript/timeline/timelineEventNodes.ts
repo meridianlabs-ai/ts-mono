@@ -592,7 +592,7 @@ function emitInlineBranches(
   // this event produced or carries the matching message ID.
   for (const [messageId, forkedBranches] of branchByBranchedFrom) {
     if (emittedBranchedFroms.has(messageId)) continue;
-    if (!item.matchesMessageId(messageId)) continue;
+    if (!item.matchesForkPoint(messageId)) continue;
 
     // Use the fork event's span_id as the branch's parent so treeifyEvents
     // nests the branch inside the same span as the fork event.
@@ -691,7 +691,7 @@ function collectContentUpToFork(
   for (const item of content) {
     if (item.type === "event") {
       out.push(item.event);
-      if (item.matchesMessageId(forkMessageId)) {
+      if (item.matchesForkPoint(forkMessageId)) {
         return true;
       }
     } else if (!includeUtility && item.utility) {

@@ -24,8 +24,8 @@ export const BranchEventView: FC<BranchEventViewProps> = ({
   if (event.from_span) {
     data["from_span"] = event.from_span;
   }
-  if (event.from_message) {
-    data["from_message"] = event.from_message;
+  if (event.from_anchor) {
+    data["from_anchor"] = event.from_anchor;
   }
 
   return (

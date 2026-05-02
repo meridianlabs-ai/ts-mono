@@ -36,6 +36,14 @@ function findAncestorWith(startDir, markerFile) {
  *   if not running as a submodule.
  */
 export function findPythonRepoRoot(packageName) {
+  // Allow cross-repo dev without initializing the submodule in every consumer:
+  // TSMONO_PYTHON_ROOT_<PKG>=/path/to/python/repo
+  const envKey = `TSMONO_PYTHON_ROOT_${packageName.toUpperCase()}`;
+  const override = process.env[envKey];
+  if (override && existsSync(join(override, "pyproject.toml"))) {
+    return override;
+  }
+
   const thisDir = dirname(fileURLToPath(import.meta.url));
   const monoRoot = findAncestorWith(thisDir, "pnpm-workspace.yaml");
   if (!monoRoot) return null;

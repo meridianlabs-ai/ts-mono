@@ -495,8 +495,8 @@ function flattenChildren(
     for (const node of nodes) {
       // Build fork position index from parent content so we can sort
       // branches by where their fork event appears (latest first).
-      // branchedFrom is a message ID, so we resolve each branch's
-      // fork point by scanning content events for a message ID match.
+      // branchedFrom is an anchor ID, so we resolve each branch's
+      // fork point by scanning content events for the matching AnchorEvent.
       const forkPositions = new Map<string, number>();
       for (const branch of node.branches) {
         if (!branch.branchedFrom) continue;
@@ -504,7 +504,7 @@ function flattenChildren(
           const item = node.content[ci]!;
           if (
             item.type === "event" &&
-            item.matchesMessageId(branch.branchedFrom)
+            item.matchesForkPoint(branch.branchedFrom)
           ) {
             forkPositions.set(branch.branchedFrom, ci);
             break;

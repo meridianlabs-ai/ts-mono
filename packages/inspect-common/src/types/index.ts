@@ -41,6 +41,7 @@ export type EvalRetryError = S["EvalRetryError"];
 // Event types
 export type Event = S["Event"];
 export type EventsData = S["EventsData"];
+export type AnchorEvent = S["AnchorEvent"];
 export type ApprovalEvent = S["ApprovalEvent"];
 export type BranchEvent = S["BranchEvent"];
 export type CompactionEvent = S["CompactionEvent"];

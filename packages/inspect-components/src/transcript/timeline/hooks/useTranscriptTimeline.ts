@@ -287,7 +287,11 @@ export function useTranscriptTimeline(
 
   const hasTimeline =
     timeline.root.content.length > 0 &&
-    (timeline.root.content.some((item) => item.type === "span") ||
+    (timeline.root.content.some(
+      (item) =>
+        item.type === "span" ||
+        (item.type === "event" && item.event.event === "span_begin")
+    ) ||
       timeline.root.branches.length > 0);
 
   // Compute the agent name for the outline header.
