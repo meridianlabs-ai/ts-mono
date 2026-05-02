@@ -523,8 +523,6 @@ export interface components {
             event: "branch";
             /** From Anchor */
             from_anchor: string;
-            /** From Span */
-            from_span: string;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
