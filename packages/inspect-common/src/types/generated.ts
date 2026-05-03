@@ -2594,12 +2594,6 @@ export interface components {
                 [key: string]: components["schemas"]["ModelUsage"];
             } | null;
             score: components["schemas"]["Score"];
-            /** Scorer */
-            scorer?: string | null;
-            /** Scorer Args */
-            scorer_args?: {
-                [key: string]: unknown;
-            } | null;
             /** Span Id */
             span_id?: string | null;
             /** Target */
@@ -2610,29 +2604,6 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
-        };
-        /**
-         * ScorePanelSort
-         * @description Default sort applied to the sample-header score panel.
-         */
-        ScorePanelSort: {
-            /** Column */
-            column?: ("name" | "value") | null;
-            /**
-             * Dir
-             * @default asc
-             * @enum {string}
-             */
-            dir: "asc" | "desc";
-        };
-        /**
-         * ScorePanelView
-         * @description How the sample-header score panel should render when there are 3 or more scores.
-         */
-        ScorePanelView: {
-            sort?: components["schemas"]["ScorePanelSort"] | null;
-            /** View */
-            view?: ("chips" | "grid") | null;
         };
         /**
          * SpanBeginEvent
@@ -3179,7 +3150,6 @@ export interface components {
             scanner_result_view: components["schemas"]["ScannerResultView"] | {
                 [key: string]: components["schemas"]["ScannerResultView"];
             };
-            score_panel_view?: components["schemas"]["ScorePanelView"] | null;
         };
     };
     responses: never;
