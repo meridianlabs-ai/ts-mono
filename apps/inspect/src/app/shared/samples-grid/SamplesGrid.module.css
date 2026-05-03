@@ -36,7 +36,11 @@
 }
 
 .gridChrome :global(.ag-header-cell) {
-  padding: 0;
+  /* Right gutter gives the active-filter icon (sibling of the header
+   * label inside `.ag-cell-label-container`) breathing room from the
+   * column boundary. Left padding is handled via the `::before` flex
+   * item below so it shrinks on narrow cells. */
+  padding: 0 4px 0 0;
 }
 
 .gridChrome :global(.ag-header-cell-label::before) {
