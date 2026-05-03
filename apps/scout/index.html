@@ -7,19 +7,47 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <script>
-      // Forward the theme (dark or light) onto the root html element
-      // this parameter will tend to appear when the view is hosted within
-      // an iframe (e.g. in vscode)
-      const urlParams = new URLSearchParams(window.location.search);
-      const theme = urlParams.get("inspectViewThemeCategory");
-      if (theme) {
-        document.documentElement.setAttribute("data-text-highlight", theme);
-        document.documentElement.setAttribute("data-bs-theme", theme);
-      }
+      (() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const explicitTheme = urlParams.get("inspectViewThemeCategory");
+        const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+        const resolvedTheme = () => {
+          if (explicitTheme) return explicitTheme;
+          return systemTheme.matches ? "dark" : "light";
+        };
+
+        const isDarkTheme = (theme) => {
+          return theme === "dark" || theme === "vscode-dark";
+        };
+
+        const applyTheme = () => {
+          if (isVscodeWebview && !explicitTheme) return;
+
+          const theme = resolvedTheme();
+          document.documentElement.setAttribute("data-text-highlight", theme);
+          document.documentElement.setAttribute("data-bs-theme", theme);
+
+          if (!isVscodeWebview) {
+            document.body?.classList.toggle("vscode-dark", isDarkTheme(theme));
+          }
+        };
+
+        window.__SCOUT_APPLY_BROWSER_THEME__ = applyTheme;
+        window.__SCOUT_APPLY_BROWSER_THEME__();
+
+        if (!explicitTheme && !isVscodeWebview) {
+          systemTheme.addEventListener("change", applyTheme);
+        }
+      })();
     </script>
   </head>
 
   <body style="min-width: 450px">
+    <script>
+      window.__SCOUT_APPLY_BROWSER_THEME__?.();
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
