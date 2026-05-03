@@ -6,6 +6,7 @@ import {
   CopyButton,
   ExpandablePanel,
   LabeledValue,
+  type MarkdownReference,
 } from "@tsmono/react/components";
 
 import { RecordTree } from "../content/RecordTree";
@@ -21,6 +22,7 @@ interface ChatMessageProps {
   message: Message;
   display?: ChatViewDisplayOptions;
   linking?: ChatViewLinkingOptions;
+  references?: MarkdownReference[];
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
@@ -28,6 +30,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   message,
   display,
   linking,
+  references,
 }) {
   const indented = display?.indented ?? false;
   const unlabeledRoles = display?.unlabeledRoles;
@@ -145,7 +148,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               }
             />
           ) : (
-            <MessageContents key={`${id}-contents`} message={message} />
+            <MessageContents
+              key={`${id}-contents`}
+              message={message}
+              references={references}
+            />
           )}
         </ExpandablePanel>
 

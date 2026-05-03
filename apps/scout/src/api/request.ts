@@ -122,10 +122,7 @@ export function serverRequestApi(
       }
 
       const message = (await response.text()) || response.statusText;
-      throw new ApiError(
-        response.status,
-        `API Error ${response.status}: ${message}`
-      );
+      throw new ApiError(response.status, message);
     }
 
     const text = await response.text();
@@ -171,7 +168,7 @@ export function serverRequestApi(
     }
 
     const message = (await response.text()) || response.statusText;
-    throw new ApiError(response.status, `HTTP ${response.status}: ${message}`);
+    throw new ApiError(response.status, message);
   };
 
   /**
@@ -202,10 +199,7 @@ export function serverRequestApi(
 
     if (!response.ok) {
       const message = (await response.text()) || response.statusText;
-      throw new ApiError(
-        response.status,
-        `HTTP ${response.status}: ${message}`
-      );
+      throw new ApiError(response.status, message);
     }
   };
 
@@ -244,10 +238,7 @@ export function serverRequestApi(
 
     if (!response.ok) {
       const message = (await response.text()) || response.statusText;
-      throw new ApiError(
-        response.status,
-        `HTTP ${response.status}: ${message}`
-      );
+      throw new ApiError(response.status, message);
     }
 
     return {

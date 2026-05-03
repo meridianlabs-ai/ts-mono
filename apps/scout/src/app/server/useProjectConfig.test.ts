@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "@tsmono/util";
+
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { ProjectConfig } from "../../types/api-types";
@@ -213,6 +215,10 @@ describe("useUpdateProjectConfig", () => {
       expect(mutationResult.current.isError).toBe(true);
     });
 
-    expect(mutationResult.current.error?.message).toContain("412");
+    const { error } = mutationResult.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(412);
+    }
   });
 });

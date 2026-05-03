@@ -42,7 +42,7 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
             : undefined
         }
         forceRender={true}
-        omitMedia={true}
+        renderer="compact"
       />
     </div>
   );

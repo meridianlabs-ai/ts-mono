@@ -6,6 +6,7 @@ import {
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   useTimelinesArray,
+  type EventNodeContext,
   type MarkerConfig,
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
@@ -60,6 +61,8 @@ interface TimelineEventsViewProps {
   getEventUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
+  /** Extra context fields merged into every EventNodeContext entry. */
+  eventNodeContext?: Partial<EventNodeContext>;
   className?: string;
 }
 
@@ -85,6 +88,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   onHeadroomResetAnchor,
   getEventUrl,
   linkingEnabled,
+  eventNodeContext,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -219,6 +223,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}
+      eventNodeContext={eventNodeContext}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{

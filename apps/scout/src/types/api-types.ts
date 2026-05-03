@@ -44,3 +44,14 @@ export type ValidationMetrics = S["ValidationMetrics"];
 export type ValidationResults = S["ValidationResults"];
 
 export type ScannerInput = Omit<ScannerInputResponse, "input_data">;
+
+export type Reference = components["schemas"]["Reference"];
+export type Result = components["schemas"]["Result"];
+export type GrepSearchRequest = components["schemas"]["GrepSearchRequest"];
+export type LlmSearchRequest = components["schemas"]["LlmSearchRequest"];
+export type SearchRequest = GrepSearchRequest | LlmSearchRequest;
+export type GrepSearchInput = components["schemas"]["GrepSearchInput"];
+export type LlmSearchInput = components["schemas"]["LlmSearchInput"];
+export type SearchInput = components["schemas"]["SearchInput"];
+export type SearchInputListResponse =
+  components["schemas"]["SearchInputListResponse"];
