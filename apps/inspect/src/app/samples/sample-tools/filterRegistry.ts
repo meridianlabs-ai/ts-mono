@@ -1,3 +1,4 @@
+import { kScoreTypeNumeric } from "../../../constants";
 import { perScorerFieldKey } from "../../shared/samples-grid/columns";
 import { EvalDescriptor } from "../descriptor/types";
 
@@ -62,7 +63,16 @@ export const buildSampleFilterRegistry = (
       const colId = perScorerFieldKey({ name, scorer });
       const variable =
         name === scorer || !banned.has(name) ? name : `${scorer}.${name}`;
-      entries.push([colId, { variable, kind: "number" }]);
+      // Match the column's filter type: numeric scores use the number
+      // filter and round-trip as numbers; everything else (boolean,
+      // passfail, categorical, etc.) uses the text filter.
+      const scoreType = evalDescriptor.scoreDescriptor({
+        name,
+        scorer,
+      })?.scoreType;
+      const kind: FilterVarKind =
+        scoreType === kScoreTypeNumeric ? "number" : "string";
+      entries.push([colId, { variable, kind }]);
     }
   }
 

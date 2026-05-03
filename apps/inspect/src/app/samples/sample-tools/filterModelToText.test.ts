@@ -33,6 +33,24 @@ describe("filterModelToText — number columns", () => {
     ).toBe("(tokens >= 100 and tokens <= 500)");
   });
 
+  test("NaN / Infinity filter values are skipped (mid-type input)", () => {
+    expect(
+      filterModelToText({ tokens: { type: "equals", filter: NaN } }, registry)
+    ).toBeNull();
+    expect(
+      filterModelToText(
+        { tokens: { type: "equals", filter: Infinity } },
+        registry
+      )
+    ).toBeNull();
+    expect(
+      filterModelToText(
+        { tokens: { type: "inRange", filter: 1, filterTo: NaN } },
+        registry
+      )
+    ).toBeNull();
+  });
+
   test("blank/notBlank", () => {
     expect(filterModelToText({ tokens: { type: "blank" } }, registry)).toBe(
       "tokens == null"

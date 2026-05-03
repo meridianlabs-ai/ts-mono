@@ -11,6 +11,7 @@ import { arrayToString, filename, formatNumber } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { LogDetails } from "../../../client/api/types";
+import { kScoreTypeNumeric } from "../../../constants";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
@@ -469,23 +470,30 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? label.name : "Score";
       // Score values are typically 1 char or a short number, so the
-      // header is the binding constraint. 6.2px/char + 24px covers the
-      // sort icon, padding, and header gutter under the Balham theme.
+      // header is the binding constraint. 6.2px/char + 40px covers the
+      // sort icon, filter icon, padding, and header gutter under the
+      // Balham theme.
       const initialWidth = Math.max(
-        54,
-        Math.round(headerName.length * 6.2) + 24
+        70,
+        Math.round(headerName.length * 6.2) + 40
       );
+      const scoreType =
+        descriptor.evalDescriptor.scoreDescriptor(label)?.scoreType;
+      const isNumeric = scoreType === kScoreTypeNumeric;
       return {
         colId,
         field: colId,
         headerName,
         initialWidth,
-        minWidth: 44,
+        minWidth: 60,
         maxWidth: 120,
         sortable: true,
-        filter: "agNumberColumnFilter",
+        filter: isNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
         resizable: true,
-        comparator: comparators.number,
+        comparator: isNumeric
+          ? comparators.number
+          : (a: unknown, b: unknown) =>
+              String(a ?? "").localeCompare(String(b ?? "")),
         valueGetter: (params: ValueGetterParams<SampleRow>) => {
           const data = params.data?.data;
           if (!data) return undefined;

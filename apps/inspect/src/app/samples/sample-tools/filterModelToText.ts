@@ -57,7 +57,9 @@ const conditionToFiltrex = (
   // Number-style operators (also valid for string equals/notEqual).
   if (mapping.kind === "number") {
     const f = cond.filter;
-    if (typeof f !== "number") return null;
+    // Reject NaN / Infinity — ag-grid emits NaN when the user is mid-type
+    // (e.g. "I" parses as NaN), and `var == NaN` is invalid filtrex.
+    if (typeof f !== "number" || !Number.isFinite(f)) return null;
     switch (t) {
       case "equals":
         return `${v} == ${numberLiteral(f)}`;
@@ -73,7 +75,7 @@ const conditionToFiltrex = (
         return `${v} >= ${numberLiteral(f)}`;
       case "inRange": {
         const to = cond.filterTo;
-        if (typeof to !== "number") return null;
+        if (typeof to !== "number" || !Number.isFinite(to)) return null;
         return `(${v} >= ${numberLiteral(f)} and ${v} <= ${numberLiteral(to)})`;
       }
       default:
