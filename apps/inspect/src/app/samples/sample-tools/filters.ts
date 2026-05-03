@@ -6,6 +6,7 @@ import { EvalSampleScore } from "../../../@types/extraInspect";
 import { FilterError, ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
 import { kScoreTypeBoolean } from "../../../constants";
+import { SamplesDescriptor } from "../descriptor/samplesDescriptor";
 import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
 
 import { kSampleMetadataPrefix } from "./sample-filter/language";
@@ -117,13 +118,38 @@ const getNestedPropertyValue = (obj: any, path: string): any => {
   return current;
 };
 
-const sampleVariables = (sample: SampleSummary): Record<string, unknown> => {
+const totalTokens = (sample: SampleSummary): number | null => {
+  if (!sample.model_usage) return null;
+  return Object.values(sample.model_usage).reduce(
+    (sum, u) => sum + (u.total_tokens ?? 0),
+    0
+  );
+};
+
+const targetString = (target: SampleSummary["target"]): string =>
+  Array.isArray(target) ? target.join(", ") : ((target as string) ?? "");
+
+const sampleVariables = (
+  sample: SampleSummary,
+  samplesDescriptor: SamplesDescriptor | undefined
+): Record<string, unknown> => {
   return {
     epoch: sample.epoch,
     has_error: !!sample.error,
+    has_limit: !!sample.limit,
     has_retries: sample.retries !== undefined && sample.retries > 0,
+    completed: sample.completed ?? true,
     id: sample.id,
     uuid: sample.uuid ?? null,
+    input: inputString(sample.input).join(" "),
+    target: targetString(sample.target),
+    answer:
+      samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
+    error: sample.error ?? null,
+    limit: sample.limit ?? null,
+    retries: sample.retries ?? 0,
+    tokens: totalTokens(sample),
+    duration: sample.total_time ?? null,
     metadata: sample.metadata,
   };
 };
@@ -208,11 +234,12 @@ export const sampleFilterItems = (
 
 // TODO: Add case-insensitive string comparison.
 export const filterExpression = (
-  evalDescriptor: EvalDescriptor,
+  samplesDescriptor: SamplesDescriptor,
   sample: SampleSummary,
   filterValue: string
 ) => {
   try {
+    const evalDescriptor = samplesDescriptor.evalDescriptor;
     const inputContains = (regex: string): boolean => {
       return inputString(sample.input).some((msg) =>
         msg.match(new RegExp(regex, "i"))
@@ -227,6 +254,12 @@ export const filterExpression = (
     const errorContains = (regex: string): boolean => {
       return !!sample.error?.match(new RegExp(regex, "i"));
     };
+    const answerContains = (regex: string): boolean => {
+      const answer = samplesDescriptor
+        .selectedScorerDescriptor(sample)
+        ?.answer();
+      return !!answer?.match(new RegExp(regex, "i"));
+    };
 
     const isNan = (value: unknown): boolean =>
       typeof value === "number" && Number.isNaN(value);
@@ -235,9 +268,10 @@ export const filterExpression = (
       input_contains: inputContains,
       target_contains: targetContains,
       error_contains: errorContains,
+      answer_contains: answerContains,
       is_nan: isNan,
     };
-    const mySampleVariables = sampleVariables(sample);
+    const mySampleVariables = sampleVariables(sample, samplesDescriptor);
     const vars = {
       ...mySampleVariables,
       ...scoreVariables(evalDescriptor, sample.scores),
@@ -328,7 +362,7 @@ export const filterExpression = (
 };
 
 export const filterSamples = (
-  evalDescriptor: EvalDescriptor,
+  samplesDescriptor: SamplesDescriptor,
   samples: SampleSummary[],
   filterValue: string
 ): {
@@ -341,7 +375,7 @@ export const filterSamples = (
   const result = samples.filter((sample) => {
     if (filterValue) {
       const { matches, error: sampleError } = filterExpression(
-        evalDescriptor,
+        samplesDescriptor,
         sample,
         filterValue
       );

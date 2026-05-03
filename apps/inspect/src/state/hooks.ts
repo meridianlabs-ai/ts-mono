@@ -250,7 +250,7 @@ export const useSampleDescriptor = () => {
 
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
-  const evalDescriptor = useEvalDescriptor();
+  const samplesDescriptor = useSampleDescriptor();
   const sampleSummaries = useSampleSummaries();
   const filter = useStore((state) => state.log.filter);
   const setFilterError = useStore((state) => state.logActions.setFilterError);
@@ -261,8 +261,8 @@ export const useFilteredSamples = () => {
   return useMemo(() => {
     // Apply text filter
     const { result, error, allErrors } =
-      evalDescriptor && filter
-        ? filterSamples(evalDescriptor, sampleSummaries, filter)
+      samplesDescriptor && filter
+        ? filterSamples(samplesDescriptor, sampleSummaries, filter)
         : { result: sampleSummaries, error: undefined, allErrors: false };
 
     if (error && allErrors) {
@@ -290,7 +290,7 @@ export const useFilteredSamples = () => {
 
     return sorted;
   }, [
-    evalDescriptor,
+    samplesDescriptor,
     sampleSummaries,
     filter,
     setFilterError,
