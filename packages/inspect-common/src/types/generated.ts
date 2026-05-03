@@ -2378,6 +2378,29 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
+        /**
+         * SampleScoreView
+         * @description How the sample-header score panel should render when there are 3 or more scores.
+         */
+        SampleScoreView: {
+            sort?: components["schemas"]["SampleScoreViewSort"] | null;
+            /** View */
+            view?: ("chips" | "grid") | null;
+        };
+        /**
+         * SampleScoreViewSort
+         * @description Default sort applied to the sample-header score panel.
+         */
+        SampleScoreViewSort: {
+            /** Column */
+            column?: ("name" | "value") | null;
+            /**
+             * Dir
+             * @default asc
+             * @enum {string}
+             */
+            dir: "asc" | "desc";
+        };
         /** Samples */
         Samples: {
             /** Etag */
@@ -3146,6 +3169,7 @@ export interface components {
          *     configuration to every scanner.
          */
         ViewerConfig: {
+            sample_score_view?: components["schemas"]["SampleScoreView"] | null;
             /** Scanner Result View */
             scanner_result_view: components["schemas"]["ScannerResultView"] | {
                 [key: string]: components["schemas"]["ScannerResultView"];

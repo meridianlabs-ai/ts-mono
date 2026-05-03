@@ -110,13 +110,13 @@ export const resolveScorePanelSort = (
 
 /**
  * Read the eval-author-declared default score-panel view from
- * `Task(viewer=ViewerConfig(score_panel_view=ScorePanelView(view=...)))`.
+ * `Task(viewer=ViewerConfig(sample_score_view=ScorePanelView(view=...)))`.
  * Returns a primitive so Zustand's reference equality is stable.
  */
 export const useEvalScorePanelView = (): ScoreView | undefined =>
   useStore(
     (state) =>
-      (state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.view ??
+      (state.log.selectedLogDetails?.eval.viewer?.sample_score_view?.view ??
         undefined) as ScoreView | undefined
   );
 
@@ -129,7 +129,8 @@ export const useEvalScorePanelView = (): ScoreView | undefined =>
  */
 export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
   const stored = useStore(
-    (state) => state.log.selectedLogDetails?.eval.viewer?.score_panel_view?.sort
+    (state) =>
+      state.log.selectedLogDetails?.eval.viewer?.sample_score_view?.sort
   );
   return useMemo(() => {
     if (!stored) return undefined;
