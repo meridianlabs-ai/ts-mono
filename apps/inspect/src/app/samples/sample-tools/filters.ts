@@ -40,7 +40,7 @@ const isFilteringSupportedForValue = (value: unknown): boolean =>
  * filter expressions because they are not unique. This should be applied only to
  * the nested scores, not to the top-level scorer names.
  */
-const bannedShortScoreNames = (scores: ScoreLabel[]): Set<string> => {
+export const bannedShortScoreNames = (scores: ScoreLabel[]): Set<string> => {
   const used: Set<string> = new Set();
   const banned: Set<string> = new Set();
   for (const { scorer, name } of scores) {

@@ -1,4 +1,4 @@
-import type { ColDef } from "ag-grid-community";
+import type { ColDef, GridApi } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import {
   FC,
@@ -32,6 +32,8 @@ import {
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
+import { filterModelToText } from "../../samples/sample-tools/filterModelToText.ts";
+import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { getFieldKey } from "../../shared/gridUtils.ts";
 import {
@@ -337,11 +339,35 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Tracked here so the column selector can mark filtered columns.
   // Updated via the grid's onFilterChanged callback.
   const [filteredFields, setFilteredFields] = useState<string[]>([]);
+
+  // Column → text filter sync (phase 2b). When a column header filter
+  // changes, synthesize a filtrex expression and push it into the toolbar
+  // text filter so the two surfaces stay in sync.
+  const filterRegistry = useMemo(
+    () => buildSampleFilterRegistry(samplesDescriptor?.evalDescriptor),
+    [samplesDescriptor]
+  );
+  const setFilter = useStore((state) => state.logActions.setFilter);
+  const currentFilter = useStore((state) => state.log.filter);
+  const currentFilterRef = useRef(currentFilter);
+  currentFilterRef.current = currentFilter;
   const handleFilterChanged = useCallback(
-    (api: { getFilterModel: () => Record<string, unknown> | null }) => {
-      setFilteredFields(Object.keys(api.getFilterModel() ?? {}));
+    (api: GridApi<SampleRow>) => {
+      const model = api.getFilterModel() ?? {};
+      setFilteredFields(Object.keys(model));
+
+      const hasColumns = Object.keys(model).length > 0;
+      const synthesized = hasColumns
+        ? filterModelToText(model, filterRegistry)
+        : "";
+      // Skip when columns are filtered but none are representable —
+      // leave whatever the user typed alone.
+      if (synthesized === null) return;
+      if (synthesized !== currentFilterRef.current) {
+        setFilter(synthesized);
+      }
     },
-    []
+    [filterRegistry, setFilter]
   );
 
   if (totalSampleCount === 0) {
