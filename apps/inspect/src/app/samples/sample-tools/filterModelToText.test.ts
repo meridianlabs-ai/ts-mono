@@ -51,12 +51,12 @@ describe("filterModelToText — number columns", () => {
     ).toBeNull();
   });
 
-  test("blank/notBlank", () => {
+  test("blank/notBlank uses filtrex's None sentinel", () => {
     expect(filterModelToText({ tokens: { type: "blank" } }, registry)).toBe(
-      "tokens == null"
+      "tokens == None"
     );
     expect(filterModelToText({ tokens: { type: "notBlank" } }, registry)).toBe(
-      "tokens != null"
+      "tokens != None"
     );
   });
 });

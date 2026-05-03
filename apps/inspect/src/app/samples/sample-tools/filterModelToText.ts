@@ -1,30 +1,18 @@
 import { FilterVarMapping, SampleFilterRegistry } from "./filterRegistry";
 
-/** ag-grid filter operator names (subset we round-trip). */
-type SimpleType =
-  | "equals"
-  | "notEqual"
-  | "lessThan"
-  | "lessThanOrEqual"
-  | "greaterThan"
-  | "greaterThanOrEqual"
-  | "inRange"
-  | "blank"
-  | "notBlank"
-  | "contains"
-  | "notContains"
-  | "startsWith"
-  | "endsWith";
-
+/** ag-grid filter shape — kept loose because the same JSON travels
+ *  between this synthesizer, ag-grid's `setFilterModel`, and the
+ *  recognizer in `astToFilterModel.ts`. The conditional logic below
+ *  narrows by `type` at runtime. */
 interface SimpleCondition {
-  filterType?: "text" | "number" | "date";
-  type?: SimpleType;
+  filterType?: string;
+  type?: string;
   filter?: string | number | null;
   filterTo?: string | number | null;
 }
 
 interface CombinedCondition {
-  filterType?: "text" | "number" | "date";
+  filterType?: string;
   operator?: "AND" | "OR";
   conditions?: SimpleCondition[];
   // Legacy ag-grid shape:
@@ -51,8 +39,11 @@ const conditionToFiltrex = (
   const t = cond.type;
   if (!t) return null;
 
-  if (t === "blank") return `${v} == null`;
-  if (t === "notBlank") return `${v} != null`;
+  // `None` is filtrex's null sentinel (registered in
+  // `filterExpressionConstants` in filters.ts) — emitting `null` would
+  // resolve as an unbound identifier and error.
+  if (t === "blank") return `${v} == None`;
+  if (t === "notBlank") return `${v} != None`;
 
   // Number-style operators (also valid for string equals/notEqual).
   if (mapping.kind === "number") {
