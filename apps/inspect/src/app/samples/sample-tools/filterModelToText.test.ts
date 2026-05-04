@@ -71,13 +71,15 @@ describe("filterModelToText — string columns with contains-fn", () => {
     ).toBe('input_contains("foo")');
   });
 
-  test("regex metacharacters in the filter value are escaped", () => {
+  test("regex metacharacters in the filter value are escaped via [.] form", () => {
+    // Filtrex's string syntax doesn't recognize `\.` / `\+` escapes —
+    // we use single-element character classes instead.
     expect(
       filterModelToText(
         { input: { type: "contains", filter: "a.b+c" } },
         registry
       )
-    ).toBe('input_contains("a\\\\.b\\\\+c")');
+    ).toBe('input_contains("a[.]b[+]c")');
   });
 
   test("notContains negates the function call", () => {

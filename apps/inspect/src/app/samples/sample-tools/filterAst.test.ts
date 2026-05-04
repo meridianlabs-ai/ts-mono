@@ -18,6 +18,20 @@ describe("parseFilter — primitives", () => {
     expect(parse('"hello"')).toEqual({ kind: "str", value: "hello" });
   });
 
+  test("string with escaped quote", () => {
+    expect(parse('"he said \\"hi\\""')).toEqual({
+      kind: "str",
+      value: 'he said "hi"',
+    });
+  });
+
+  test("string with escaped backslash", () => {
+    expect(parse('"path\\\\to"')).toEqual({
+      kind: "str",
+      value: "path\\to",
+    });
+  });
+
   test("variable", () => {
     expect(parse("epoch")).toEqual({ kind: "var", name: "epoch" });
   });

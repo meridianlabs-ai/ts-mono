@@ -92,8 +92,9 @@ describe("astToFilterModel — string columns", () => {
   });
 
   test("regex-escaped contains argument unescapes round-trip", () => {
-    // What filterModelToText would emit for filter value "a.b+c".
-    expect(toModel('input_contains("a\\.b\\+c")')).toEqual({
+    // What filterModelToText emits for filter value "a.b+c" — character
+    // classes for metachars (filtrex's lexer rejects `\.` / `\+` etc.).
+    expect(toModel('input_contains("a[.]b[+]c")')).toEqual({
       input: { filterType: "text", type: "contains", filter: "a.b+c" },
     });
   });
@@ -185,6 +186,23 @@ describe("astToFilterModel — round-trip stability (text → model → text)", 
     expect(roundTrip("tokens > 50 and duration > 1")).toBe(
       "tokens > 50 and duration > 1"
     );
+  });
+
+  test("filter values with quotes and backslashes survive", () => {
+    // Synthesizer uses minimal `"` / `\` escaping, tokenizer recognizes
+    // them, parser unescapes. End-to-end identity through the cycle.
+    const fromModel = (filter: string) =>
+      filterModelToText(
+        { input: { filterType: "text", type: "equals", filter } },
+        registry
+      );
+    expect(fromModel('he said "hi"')).toBe('input == "he said \\"hi\\""');
+    const text = fromModel("path\\to");
+    expect(text).toBe('input == "path\\\\to"');
+    const { ast } = parseFilter(text!);
+    expect(astToFilterModel(ast!, registry)).toEqual({
+      input: { filterType: "text", type: "equals", filter: "path\\to" },
+    });
   });
 });
 

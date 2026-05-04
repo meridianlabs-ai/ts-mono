@@ -12,9 +12,16 @@ export interface Token {
 }
 
 // Constants
+//
+// STRING / UNTERMINATED_STRING mirror filtrex's actual lexer rules
+// (`/^"(?:\\"|\\\\|[^"\\])*"/`) so escaped quotes and backslashes inside
+// string literals tokenize correctly. The previous `[^"]*` form stopped
+// at the first inner `"` and prevented the synthesized text from
+// round-tripping through `parseFilter` whenever a filter value contained
+// a quote.
 const TOKEN_PATTERNS = {
-  STRING: /^"[^"]*"/,
-  UNTERMINATED_STRING: /^"[^"]*/,
+  STRING: /^"(?:\\"|\\\\|[^"\\])*"/,
+  UNTERMINATED_STRING: /^"(?:\\"|\\\\|[^"\\])*/,
   NUMBER: /^(-|\+)?\d+(\.\d+)?/,
   RELATION: /^(==|!=|<=|>=|<|>|~=)/,
   MISC_OPERATOR: /^(=|!|~)/,

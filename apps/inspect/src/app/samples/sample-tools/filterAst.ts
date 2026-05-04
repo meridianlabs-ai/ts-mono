@@ -197,9 +197,11 @@ class Parser {
     }
     if (t.type === "string") {
       this.eat();
-      // tokenizer matches /^"[^"]*"/ — strip surrounding quotes; filtrex
-      // strings are simple (no escapes recognized in the tokenizer).
-      return { kind: "str", value: t.text.slice(1, -1) };
+      // Strip surrounding quotes and reverse filtrex's two string
+      // escapes (`\"` → `"`, `\\` → `\`). Keeps round-trip stable for
+      // filter values that contain quotes or backslashes.
+      const raw = t.text.slice(1, -1);
+      return { kind: "str", value: raw.replace(/\\(["\\])/g, "$1") };
     }
     if (t.type === "unterminatedString") {
       throw this.error("Unterminated string literal");

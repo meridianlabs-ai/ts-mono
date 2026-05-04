@@ -28,6 +28,11 @@ interface PredicateResult {
 
 const REGEX_META = ".*+?^${}()|[]\\";
 
+// Match the synthesizer's style: regex metachars are wrapped as `[X]`,
+// literal backslash is written as `\\`. We don't accept bare `\X` for
+// metachars because filtrex's lexer rejects them anyway.
+const META_FOR_CLASS = ".*+?^${}()|[]";
+
 /** Walk top-level `and` nodes, collecting leaf predicates. */
 const collectAndPredicates = (ast: FilterAst): FilterAst[] => {
   if (ast.kind === "binary" && ast.op === "and") {
@@ -59,17 +64,29 @@ const parseRegexLiteral = (
   }
 
   let literal = "";
-  for (let i = 0; i < s.length; i++) {
+  let i = 0;
+  while (i < s.length) {
     const ch = s[i];
-    if (ch === "\\" && i + 1 < s.length && REGEX_META.includes(s[i + 1])) {
+    // `[X]` character-class shorthand for a literal regex metachar.
+    if (
+      ch === "[" &&
+      i + 2 < s.length &&
+      s[i + 2] === "]" &&
+      META_FOR_CLASS.includes(s[i + 1])
+    ) {
       literal += s[i + 1];
-      i++;
-    } else if (REGEX_META.includes(ch)) {
-      // Unescaped metachar — not a plain literal.
-      return null;
-    } else {
-      literal += ch;
+      i += 3;
+      continue;
     }
+    // `\\` for a literal backslash.
+    if (ch === "\\" && i + 1 < s.length && s[i + 1] === "\\") {
+      literal += "\\";
+      i += 2;
+      continue;
+    }
+    if (REGEX_META.includes(ch)) return null; // unescaped metachar
+    literal += ch;
+    i++;
   }
 
   if (anchorStart && anchorEnd) return { anchor: "both", literal };

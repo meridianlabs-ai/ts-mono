@@ -22,10 +22,20 @@ interface CombinedCondition {
 
 type AnyColumnFilter = SimpleCondition & CombinedCondition;
 
-const REGEX_META = /[.*+?^${}()|[\]\\]/g;
-const regexEscape = (s: string): string => s.replace(REGEX_META, "\\$&");
+// Filtrex's string syntax only recognizes two escapes (`\"` and `\\`),
+// so `\.` / `\+` / etc. are *invalid* and would be rejected by the
+// filtrex lexer. To match a literal regex metachar inside a filtrex
+// string, we emit a single-element character class (`[.]`, `[+]`, …).
+// Backslash is the exception — its regex form `\\` is always written as
+// two characters and survives filtrex's string escape rules cleanly.
+const regexEscape = (s: string): string =>
+  s.replace(/\\/g, "\\\\").replace(/[.*+?^${}()|[\]]/g, "[$&]");
 
-const stringLiteral = (s: string): string => JSON.stringify(s);
+// Filtrex's lexer recognizes only two string escapes: `\"` and `\\`.
+// JSON.stringify additionally encodes control chars (`\n`, `\t`, …) which
+// filtrex would reject, so we use a minimal escape that produces
+// strings the parser can round-trip.
+const stringLiteral = (s: string): string => `"${s.replace(/[\\"]/g, "\\$&")}"`;
 
 const numberLiteral = (n: number): string => String(n);
 
