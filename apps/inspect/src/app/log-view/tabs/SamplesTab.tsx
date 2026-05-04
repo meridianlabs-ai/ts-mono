@@ -39,6 +39,10 @@ import {
 import { parseFilter } from "../../samples/sample-tools/filterAst.ts";
 import { filterModelToText } from "../../samples/sample-tools/filterModelToText.ts";
 import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
+import {
+  useSamplesView,
+  useSamplesViewMultiline,
+} from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { getFieldKey } from "../../shared/gridUtils.ts";
 import {
@@ -46,10 +50,7 @@ import {
   perScorerFieldKey,
 } from "../../shared/samples-grid/columns.tsx";
 import { SampleRow } from "../../shared/samples-grid/types.ts";
-import {
-  clearFiltersForHiddenColumns,
-  useSampleGridState,
-} from "../../shared/samples-grid/useSampleGridState.ts";
+import { clearFiltersForHiddenColumns } from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 
@@ -194,16 +195,20 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
   // currently selected) is applied via the column-visibility map below.
+  // Multiline determines column rendering: list-style uses
+  // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
+  const multiline = useSamplesViewMultiline();
+
   const allColumns = useMemo(
     () =>
       buildSampleColumns({
-        viewMode: "list",
+        viewMode: multiline ? "list" : "grid",
         multiLog: false,
         descriptor: samplesDescriptor,
         scores,
         epochs,
       }),
-    [samplesDescriptor, scores, epochs]
+    [multiline, samplesDescriptor, scores, epochs]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -228,16 +233,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [shape, epochs]
   );
 
-  const { columnVisibility, setColumnVisibility, gridState, setGridState } =
-    useSampleGridState<SampleRow>("logViewSamples", allColumns, {
-      defaultsForUnseededColumns,
-      gridRef: sampleListHandle,
+  const { view, columnVisibility, gridState, setColumnVisibility, setGridState } =
+    useSamplesView<SampleRow>(allColumns, {
+      seedDefaultVisibility: defaultsForUnseededColumns,
     });
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
   // app that reads `selectedScores`). Non-score columns come from the
-  // persisted `columnVisibility` map.
+  // descriptor-projected `columnVisibility` map.
   const selectedScoreFields = useMemo(
     () => new Set(selectedScores.map(perScorerFieldKey)),
     [selectedScores]
@@ -475,6 +479,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           gridState={gridState}
           onGridStateChange={setGridState}
           onFilterChanged={handleFilterChanged}
+          multiline={view.multiline}
         />
       ) : null}
       {listDisplay ? (

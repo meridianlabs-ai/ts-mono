@@ -61,15 +61,21 @@
   margin-right: -10px;
 }
 
-/* List mode — multi-line wrapping cells with vertical padding. */
+/* List mode — multi-line wrapping cells, top-aligned. ag-grid Balham
+ * stretches line-height to match row-height (so single-line text
+ * visually centers in inline-block cells); reset to a normal
+ * line-height so all cells (plain text, MarkdownCellDiv, ScoreCellDiv)
+ * sit at the top together. */
 .listMode :global(.ag-cell) {
-  align-items: flex-start;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  line-height: var(--bs-body-line-height);
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
   white-space: normal;
 }
 
-/* Grid mode — vertically centered cells; column renderers handle ellipsis. */
+/* Grid mode — let ag-grid's default row-height line-height vertically
+ * center single-line plain text. Custom renderers (ScoreCellDiv) need
+ * explicit centering — see the `.gridMode .score` rule below. */
 .gridMode :global(.ag-cell) {
   align-items: center;
 }
@@ -92,6 +98,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Compact mode: fill the cell so the inner content centers vertically
+ * regardless of the cell's natural inline-block layout. `.ag-cell` is
+ * `position: absolute` in ag-grid's base CSS, so `inset: 0` resolves. */
+.gridMode .score {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .centered {

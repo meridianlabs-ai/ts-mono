@@ -1,6 +1,8 @@
 import { GridState } from "ag-grid-community";
 import { StateSnapshot } from "react-virtuoso";
 
+import type { SamplesViewState } from "./samples/list/samplesView";
+
 import {
   ApprovalEvent,
   AttachmentData,
@@ -92,17 +94,19 @@ export interface LogsState {
     detailsCount: number;
   };
   samplesListState: {
-    /** Per-scope persisted state. Keys are `SampleGridScope`
-     *  ("samplesPanel" | "logViewSamples"); kept independent so each
-     *  screen has its own column-visibility and grid state. */
-    byScope: Record<
-      "samplesPanel" | "logViewSamples",
-      {
+    // Asymmetric: samplesPanel keeps the pre-refactor shape; logViewSamples
+    // is now driven by the SamplesView descriptor. See design/samples-view.md.
+    byScope: {
+      samplesPanel: {
         columnVisibility: Record<string, boolean>;
         gridState?: GridState;
-      }
-    >;
-    /** SamplesPanel-only ephemeral state. */
+      };
+      logViewSamples: {
+        // undefined = no user override; useSamplesView falls through to
+        // the eval-author default and then the built-in default.
+        view?: SamplesViewState;
+      };
+    };
     displayedSamples?: Array<DisplayedSample>;
     previousSamplesPath?: string;
   };

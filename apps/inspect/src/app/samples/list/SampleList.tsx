@@ -36,6 +36,8 @@ interface SampleListProps {
   gridState?: GridState;
   onGridStateChange?: (state: GridState) => void;
   onFilterChanged?: (api: GridApi<SampleRow>) => void;
+  /** Row layout. `true` = list-style multi-line rows; `false` = compact. */
+  multiline?: boolean;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
@@ -55,6 +57,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     gridState,
     onGridStateChange,
     onFilterChanged,
+    multiline,
   } = props;
 
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -167,6 +170,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
           headerTooltipValueGetter: (params) => params.colDef?.headerName,
         }}
         viewMode="list"
+        multiline={multiline}
         gridRef={listHandle}
         getRowId={getRowId}
         selectedRowId={selectedRowId}

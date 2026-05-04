@@ -5,8 +5,6 @@ import { RefObject, useCallback, useEffect, useMemo } from "react";
 import { useStore } from "../../../state/store";
 import { getFieldKey } from "../gridUtils";
 
-import { SampleGridScope } from "./types";
-
 /** Removes any active filter for a field whose visibility map says
  *  hidden. Exported so callers (e.g. `SamplesTab`) that split visibility
  *  across multiple stores can still trigger filter-clearing on the full
@@ -39,15 +37,16 @@ interface UseSampleGridStateResult {
 }
 
 /**
- * Per-scope persistence for the shared samples grid. Each scope
- * (`samplesPanel` | `logViewSamples`) has its own column-visibility map
- * and ag-grid GridState. Defaults are seeded from the supplied
- * `defaultsForUnseededColumns` predicate the first time a column is
- * encountered with no entry in the visibility map; user toggles take
- * precedence after that.
+ * Persistence for the cross-log SamplesPanel grid. Owns its own
+ * column-visibility map and ag-grid GridState — defaults are seeded from
+ * `defaultsForUnseededColumns` the first time a column is encountered
+ * with no entry, after which user toggles win.
+ *
+ * The per-task SampleList scope (`logViewSamples`) flows through
+ * `useSamplesView` instead — see `apps/inspect/src/app/samples/list/`.
  */
 export function useSampleGridState<TRow>(
-  scope: SampleGridScope,
+  scope: "samplesPanel",
   allColumns: ColDef<TRow>[],
   options?: {
     defaultsForUnseededColumns?: (col: ColDef<TRow>) => boolean;

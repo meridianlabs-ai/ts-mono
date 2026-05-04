@@ -96,6 +96,7 @@ export const ApplicationIcons = {
     cost: "bi bi-currency-dollar",
   },
   link: "bi bi-link-45deg",
+  "list-wrap": "bi bi-text-wrap",
   loading: "bi bi-arrow-clockwise",
   logging: loggingIcons,
   menu: "bi bi-list",

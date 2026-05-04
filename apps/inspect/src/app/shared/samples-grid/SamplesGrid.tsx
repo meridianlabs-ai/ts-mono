@@ -39,7 +39,7 @@ type AutoSizeStrategy =
 
 export type SamplesGridViewMode = "list" | "grid";
 
-const kListModeRowHeight = 88;
+const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
 
 const rowHeightForMode = (mode: SamplesGridViewMode): number =>
@@ -55,10 +55,7 @@ interface SamplesGridProps<TRow> {
   defaultColDef?: ColDef<TRow>;
   viewMode: SamplesGridViewMode;
   rowHeight?: number;
-  /** Override row layout independently of `viewMode`: `true` =
-   *  list-style multi-line rows; `false` = compact single-line rows.
-   *  Falls through to `rowHeight` and then `viewMode` when unset, so
-   *  existing callers (e.g. `SamplesPanel`) keep their current heights. */
+  /** `true` = list-style 88px rows; `false` = compact 30px rows. */
   multiline?: boolean;
 
   getRowId: (params: GetRowIdParams<TRow>) => string;
@@ -340,7 +337,13 @@ export const SamplesGrid = <TRow,>(
         className={clsx(
           styles.gridContainer,
           styles.gridChrome,
-          viewMode === "list" ? styles.listMode : styles.gridMode
+          // `multiline` (when set) wins over `viewMode` for the cell
+          // layout class so a list-mode grid in compact mode gets
+          // centered, low-padding cells instead of the listMode
+          // top-aligned 0.5rem padding (which clips at 30px row height).
+          (multiline !== undefined ? multiline : viewMode === "list")
+            ? styles.listMode
+            : styles.gridMode
         )}
         tabIndex={0}
       >
