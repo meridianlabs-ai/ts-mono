@@ -111,6 +111,11 @@ export type ViewerConfig = S["ViewerConfig"];
 export type ScannerResultView = S["ScannerResultView"];
 export type ScannerResultField = S["ScannerResultField"];
 export type MetadataField = S["MetadataField"];
+export type SampleScoreView = S["SampleScoreView"];
+export type SampleScoreViewSort = S["SampleScoreViewSort"];
+export type SamplesView = S["SamplesView"];
+export type SamplesColumn = S["SamplesColumn"];
+export type SamplesSort = S["SamplesSort"];
 
 // Timeline types
 export type Timeline = S["Timeline"];

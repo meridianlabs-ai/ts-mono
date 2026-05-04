@@ -2413,6 +2413,58 @@ export interface components {
             samples: components["schemas"]["EvalSampleSummary"][];
         };
         /**
+         * SamplesColumn
+         * @description A column entry in the task's Sample List view.
+         */
+        SamplesColumn: {
+            /** Id */
+            id: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        };
+        /**
+         * SamplesSort
+         * @description A single sort entry for the task's Sample List grid.
+         */
+        SamplesSort: {
+            /** Column */
+            column: string;
+            /**
+             * Dir
+             * @default asc
+             * @enum {string}
+             */
+            dir: "asc" | "desc";
+        };
+        /**
+         * SamplesView
+         * @description Default configuration for the task's Sample List grid.
+         *
+         *     Configures the list of samples shown in a task's eval-log view —
+         *     distinct from `sample_score_view`, which configures the score panel
+         *     within an individual sample's detail view.
+         *
+         *     The viewer applies `SamplesView` only when the user has not
+         *     explicitly overridden the view in their browser. User overrides
+         *     shadow the eval-author default; the resolution priority is
+         *     `user > eval default > built-in`.
+         */
+        SamplesView: {
+            /** Columns */
+            columns?: components["schemas"]["SamplesColumn"][] | null;
+            /** Filter */
+            filter?: string | null;
+            /** Multiline */
+            multiline?: boolean | null;
+            /** Name */
+            name: string;
+            /** Sort */
+            sort?: components["schemas"]["SamplesSort"][] | null;
+        };
+        /**
          * SandboxEnvironmentSpec
          * @description Specification of a SandboxEnvironment.
          */
@@ -3180,6 +3232,8 @@ export interface components {
             scanner_result_view: components["schemas"]["ScannerResultView"] | {
                 [key: string]: components["schemas"]["ScannerResultView"];
             };
+            /** Task Samples View */
+            task_samples_view?: components["schemas"]["SamplesView"] | components["schemas"]["SamplesView"][] | null;
         };
     };
     responses: never;
