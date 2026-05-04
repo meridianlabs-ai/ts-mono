@@ -103,7 +103,7 @@ const SearchPanelWithData = ({
   onClose,
   projectConfig,
 }: SearchPanelWithDataProps) => {
-  const { getFullMessageUrl, getFullEventUrl, getFullEventMessageUrl } =
+  const { getMessageUrl, getEventUrl, getEventMessageUrl } =
     useTranscriptNavigation();
   const modelInputId = useId();
   const searchPanelStateKey = useMemo(
@@ -481,9 +481,9 @@ const SearchPanelWithData = ({
             hasSearched={hasSearched}
             currentSearch={currentSearch}
             scope={scope}
-            getFullMessageUrl={getFullMessageUrl}
-            getFullEventUrl={getFullEventUrl}
-            getFullEventMessageUrl={getFullEventMessageUrl}
+            getMessageUrl={getMessageUrl}
+            getEventUrl={getEventUrl}
+            getEventMessageUrl={getEventMessageUrl}
           />
         </div>
       </div>
@@ -577,18 +577,18 @@ const SearchResults: FC<{
   hasSearched: boolean;
   currentSearch: Result | null;
   scope: TranscriptSearchScope;
-  getFullMessageUrl: (id: string) => string | undefined;
-  getFullEventUrl: (id: string) => string | undefined;
-  getFullEventMessageUrl: (id: string) => string | undefined;
+  getMessageUrl: (id: string) => string | undefined;
+  getEventUrl: (id: string) => string | undefined;
+  getEventMessageUrl: (id: string) => string | undefined;
 }> = ({
   loading,
   error,
   hasSearched,
   currentSearch,
   scope,
-  getFullMessageUrl,
-  getFullEventUrl,
-  getFullEventMessageUrl,
+  getMessageUrl,
+  getEventUrl,
+  getEventMessageUrl,
 }) => {
   if (loading) {
     return (
@@ -640,9 +640,9 @@ const SearchResults: FC<{
       <SearchResult
         result={result}
         scope={scope}
-        getFullMessageUrl={getFullMessageUrl}
-        getFullEventUrl={getFullEventUrl}
-        getFullEventMessageUrl={getFullEventMessageUrl}
+        getMessageUrl={getMessageUrl}
+        getEventUrl={getEventUrl}
+        getEventMessageUrl={getEventMessageUrl}
       />
     </>
   );
@@ -651,33 +651,28 @@ const SearchResults: FC<{
 const SearchResult: FC<{
   result: Result;
   scope: TranscriptSearchScope;
-  getFullMessageUrl: (id: string) => string | undefined;
-  getFullEventUrl: (id: string) => string | undefined;
-  getFullEventMessageUrl: (id: string) => string | undefined;
-}> = ({
-  result,
-  scope,
-  getFullMessageUrl,
-  getFullEventUrl,
-  getFullEventMessageUrl,
-}) => {
+  getMessageUrl: (id: string) => string | undefined;
+  getEventUrl: (id: string) => string | undefined;
+  getEventMessageUrl: (id: string) => string | undefined;
+}> = ({ result, scope, getMessageUrl, getEventUrl, getEventMessageUrl }) => {
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
+        const route =
+          ref.type === "message"
+            ? scope === "events"
+              ? getEventMessageUrl(ref.id)
+              : getMessageUrl(ref.id)
+            : ref.type === "event"
+              ? getEventUrl(ref.id)
+              : undefined;
         refs.push({
           id: ref.id,
           cite: ref.cite,
-          citeUrl:
-            ref.type === "message"
-              ? scope === "events"
-                ? getFullEventMessageUrl(ref.id)
-                : getFullMessageUrl(ref.id)
-              : ref.type === "event"
-                ? getFullEventUrl(ref.id)
-                : undefined,
+          citeUrl: route ? `#${route}` : undefined,
         });
       }
     }
@@ -685,9 +680,9 @@ const SearchResult: FC<{
   }, [
     result.references,
     scope,
-    getFullMessageUrl,
-    getFullEventUrl,
-    getFullEventMessageUrl,
+    getMessageUrl,
+    getEventUrl,
+    getEventMessageUrl,
   ]);
 
   return (
