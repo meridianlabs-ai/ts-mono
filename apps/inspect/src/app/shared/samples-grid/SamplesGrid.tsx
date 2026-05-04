@@ -55,6 +55,11 @@ interface SamplesGridProps<TRow> {
   defaultColDef?: ColDef<TRow>;
   viewMode: SamplesGridViewMode;
   rowHeight?: number;
+  /** Override row layout independently of `viewMode`: `true` =
+   *  list-style multi-line rows; `false` = compact single-line rows.
+   *  Falls through to `rowHeight` and then `viewMode` when unset, so
+   *  existing callers (e.g. `SamplesPanel`) keep their current heights. */
+  multiline?: boolean;
 
   getRowId: (params: GetRowIdParams<TRow>) => string;
   /** Row id that should be selected and scrolled into view. */
@@ -116,6 +121,7 @@ export const SamplesGrid = <TRow,>(
     defaultColDef,
     viewMode,
     rowHeight,
+    multiline,
     getRowId,
     selectedRowId,
     onRowOpen,
@@ -228,7 +234,13 @@ export const SamplesGrid = <TRow,>(
     prevFollowRef.current = followOutput;
   }, [followOutput, gridRef]);
 
-  const effectiveRowHeight = rowHeight ?? rowHeightForMode(viewMode);
+  const effectiveRowHeight =
+    rowHeight ??
+    (multiline !== undefined
+      ? multiline
+        ? kListModeRowHeight
+        : kGridModeRowHeight
+      : rowHeightForMode(viewMode));
 
   const handleBodyScroll = useCallback(() => {
     if (!followOutput || !gridRef.current?.api) return;
