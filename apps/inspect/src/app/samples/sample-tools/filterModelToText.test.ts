@@ -143,7 +143,10 @@ describe("filterModelToText — combined per-column conditions", () => {
     ).toBe("(tokens > 100 and tokens < 500)");
   });
 
-  test("OR of two conditions", () => {
+  test("OR of two conditions is dropped (not currently round-trippable)", () => {
+    // The AST recognizer only accepts top-level AND, so emitting `or`
+    // text would be cleared by the text→model effect. We skip the
+    // column instead of producing text we can't parse back.
     expect(
       filterModelToText(
         {
@@ -157,7 +160,7 @@ describe("filterModelToText — combined per-column conditions", () => {
         },
         registry
       )
-    ).toBe("(epoch == 1 or epoch == 3)");
+    ).toBeNull();
   });
 
   test("legacy condition1/condition2 shape", () => {

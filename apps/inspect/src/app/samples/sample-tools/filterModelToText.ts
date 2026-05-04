@@ -115,13 +115,17 @@ const columnFilterToFiltrex = (
     );
 
   if (conditions.length > 0 && filter.operator) {
+    // OR isn't currently round-trippable through the AST recognizer
+    // (top-level conjunction only). Skip the column rather than emit
+    // text the recognizer would reject — that previously caused the
+    // text→model effect to clear the entire grid filter.
+    if (filter.operator === "OR") return null;
     const parts = conditions
       .map((c) => conditionToFiltrex(mapping, c))
       .filter((p): p is string => p !== null);
     if (parts.length === 0) return null;
     if (parts.length === 1) return parts[0];
-    const joiner = filter.operator === "OR" ? " or " : " and ";
-    return `(${parts.join(joiner)})`;
+    return `(${parts.join(" and ")})`;
   }
 
   return conditionToFiltrex(mapping, filter);
