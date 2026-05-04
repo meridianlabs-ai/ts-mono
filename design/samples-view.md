@@ -119,6 +119,12 @@ In Phase 2, navigating to a different log directory will keep `view.columns` and
 - **No `id` field on `SamplesView`** — only `name`. If multi-view selection lands later, identity can be added then; today there's just one active view per scope.
 - **Multi-view selection** is supported on the wire (`task_samples_view: SamplesView | list[SamplesView]`) but only the first entry is read in Phases 0–2. UI for switching/saving views is a follow-on.
 
+## Test coverage
+
+- **Python wire shape** (Pydantic round-trip + Task→EvalSpec persistence): [tests/view/test_viewer_config.py](../../../../tests/view/test_viewer_config.py), [tests/view/test_viewer_config_task.py](../../../../tests/view/test_viewer_config_task.py)
+- **TS converters** (lift / flatten / pickActiveView / resolveSamplesView / viewToGridState / gridStateToView / mergeColumnVisibility / partitionFilterModel / legacyToView): [apps/inspect/src/app/samples/list/samplesView.converters.test.ts](../apps/inspect/src/app/samples/list/samplesView.converters.test.ts), [apps/inspect/src/app/samples/list/samplesView.test.ts](../apps/inspect/src/app/samples/list/samplesView.test.ts)
+- **End-to-end (Python config → rendered grid)**: not yet covered by an automated playwright spec — the existing `e2e/fixtures/test-data.ts` doesn't currently produce an eval with the dataset / scorer wiring needed for `useSampleDescriptor` to resolve, which is a prerequisite for the SampleList to render. Visual verification was done manually via the dev server. Adding this e2e is a follow-on once the fixture helpers grow scorer support.
+
 ## File pointers
 
 - Python types: [`src/inspect_ai/viewer/_config.py`](../../../viewer/_config.py)
