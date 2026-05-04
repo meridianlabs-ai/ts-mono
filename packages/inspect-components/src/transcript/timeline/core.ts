@@ -1039,30 +1039,6 @@ function processSpanAsContent(
   }
 }
 
-/**
- * Recursively classify branches in the agent tree.
- *
- * Recurses into child spans in both content and branches.
- */
-function classifyBranches(span: TimelineSpan): void {
-  // Recurse into child spans in content
-  for (const item of span.content) {
-    if (item.type === "span") {
-      classifyBranches(item);
-    }
-  }
-
-  // Recurse into branches (and their child spans)
-  for (const branch of span.branches) {
-    classifyBranches(branch);
-    for (const item of branch.content) {
-      if (item.type === "span") {
-        classifyBranches(item);
-      }
-    }
-  }
-}
-
 // =============================================================================
 // Branch Relocation
 // =============================================================================
@@ -1600,7 +1576,6 @@ export function buildTimeline(events: Event[]): Timeline {
       agentNode.name = "main";
       wrapUtilityEvents(agentNode);
       classifyUtilityAgents(agentNode);
-      classifyBranches(agentNode);
       extractAgentResults(agentNode);
 
       // Prepend init span to agent content
@@ -1639,7 +1614,6 @@ export function buildTimeline(events: Event[]): Timeline {
     if (agentRoot) {
       wrapUtilityEvents(agentRoot);
       classifyUtilityAgents(agentRoot);
-      classifyBranches(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
     } else {
