@@ -109,6 +109,7 @@ export {
 export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 
 // Event view components
+export { AnchorEventView } from "./AnchorEventView";
 export { ApprovalEventView } from "./ApprovalEventView";
 export { BranchEventView } from "./BranchEventView";
 export { CompactionEventView } from "./CompactionEventView";

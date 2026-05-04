@@ -1,6 +1,7 @@
 import { FC, memo, ReactNode } from "react";
 
 import type {
+  AnchorEvent,
   ApprovalEvent,
   BranchEvent,
   CompactionEvent,
@@ -22,6 +23,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
+import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
 import { BranchEventView } from "./BranchEventView";
 import { CompactionEventView } from "./CompactionEventView";
@@ -97,6 +99,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <BranchEventView
           eventNode={node as EventNode<BranchEvent>}
+          className={className}
+        />
+      );
+
+    case "anchor":
+      return (
+        <AnchorEventView
+          eventNode={node as EventNode<AnchorEvent>}
           className={className}
         />
       );

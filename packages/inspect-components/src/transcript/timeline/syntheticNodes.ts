@@ -130,6 +130,20 @@ function makeModelEventNode(
   return new TimelineEvent(event);
 }
 
+function makeAnchorEventNode(anchorId: string, sec: number): TimelineEvent {
+  return new TimelineEvent({
+    event: "anchor",
+    anchor_id: anchorId,
+    source: null,
+    timestamp: ts(BASE, sec).toISOString(),
+    working_start: sec,
+    metadata: null,
+    pending: null,
+    span_id: null,
+    uuid: `anchor-${anchorId}`,
+  });
+}
+
 function makeToolEventNode(
   fn: string,
   args: Record<string, string>,
@@ -1526,6 +1540,7 @@ function branchesSingleFork(): TimelineScenario {
         "model-call-5",
         "model-call-5"
       ),
+      makeAnchorEventNode("model-call-5", 2),
       code,
       test,
       makeModelEventNode("Build complete. Best branch selected.", 40, 52, 5400),
@@ -1697,6 +1712,7 @@ function branchesMultipleForks(): TimelineScenario {
         "model-call-3",
         "model-call-3"
       ),
+      makeAnchorEventNode("model-call-3", 2),
       code,
       makeModelEventNode(
         "Evaluating approaches.",
@@ -1706,6 +1722,7 @@ function branchesMultipleForks(): TimelineScenario {
         "model-call-10",
         "model-call-10"
       ),
+      makeAnchorEventNode("model-call-10", 29),
       test,
       makeModelEventNode(
         "Build finalized after exploring alternatives.",

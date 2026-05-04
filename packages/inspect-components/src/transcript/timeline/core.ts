@@ -81,32 +81,11 @@ export class TimelineEvent {
   /**
    * Returns true if this event is the fork point for the given `branchedFrom`.
    *
-   * `branchedFrom` is an anchor ID. The canonical match is an `AnchorEvent`
-   * with `anchor_id === id` — orchestrators that support rollback emit one at
-   * each rollback-able point. For timelines built without explicit anchors,
-   * falls back to matching the ID against model/tool message IDs.
+   * `branchedFrom` is an anchor ID; producers emit an `AnchorEvent` at each
+   * fork-able point (`timeline_branch()` does this automatically).
    */
   matchesForkPoint(id: string): boolean {
-    const e = this.event;
-    if (e.event === "anchor") return e.anchor_id === id;
-    if (e.event === "model") {
-      const outMsg = (e as Record<string, unknown>).output as
-        | { choices?: Array<{ message?: { id?: string } }> }
-        | undefined;
-      if (outMsg?.choices?.[0]?.message?.id === id) return true;
-
-      const input = (e as Record<string, unknown>).input as
-        | Array<{ id?: string }>
-        | undefined;
-      if (input) {
-        for (const msg of input) {
-          if (msg.id === id) return true;
-        }
-      }
-    } else if (e.event === "tool") {
-      if ((e as Record<string, unknown>).message_id === id) return true;
-    }
-    return false;
+    return this.event.event === "anchor" && this.event.anchor_id === id;
   }
 }
 

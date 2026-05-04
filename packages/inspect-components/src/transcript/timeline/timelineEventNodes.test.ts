@@ -429,9 +429,9 @@ describe("collectBranchWithContext", () => {
       (e: Event) => e.event === "span_begin" && e.type === "branch"
     );
 
-    // The event just before the separator should be the fork event
+    // The event just before the separator should be the fork anchor
     const forkEvent = result.events[separatorIndex - 1];
-    expect(forkEvent).toBeDefined();
-    expect((forkEvent as { uuid: string | null }).uuid).toBe("model-call-5");
+    expect(forkEvent?.event).toBe("anchor");
+    expect((forkEvent as { anchor_id: string }).anchor_id).toBe("model-call-5");
   });
 });
