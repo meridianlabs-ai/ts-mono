@@ -2463,6 +2463,10 @@ export interface components {
             multiline?: boolean | null;
             /** Name */
             name: string;
+            /** Score Labels */
+            score_labels?: {
+                [key: string]: string;
+            } | null;
             /** Sort */
             sort?: components["schemas"]["SamplesSort"][] | null;
         };

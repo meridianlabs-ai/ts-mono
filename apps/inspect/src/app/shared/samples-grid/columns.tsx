@@ -46,6 +46,10 @@ export interface SampleGridContext {
   /** When true, score columns render compact: narrow widths with
    *  rotated 45° headers. Off by default. */
   compactScores?: boolean;
+  /** Per-metric display label overrides, e.g. `{ "ascii-art": "ASCII
+   *  Art" }`. Falls through to the raw metric name when a key isn't
+   *  present. Sourced from the eval-author's `task_samples_view`. */
+  scoreLabels?: Record<string, string>;
 }
 
 const EmptyCell = () => <div>-</div>;
@@ -488,7 +492,13 @@ export function buildSampleColumns(
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
-  const { descriptor, scores, logDetails, compactScores } = ctx;
+  const { descriptor, scores, logDetails, compactScores, scoreLabels } = ctx;
+
+  // Resolve a metric name through the eval-author's label overrides,
+  // falling back to the raw name. Used for the visible header text;
+  // colId / field are still keyed off the raw name so filter / sort
+  // / persistence stay stable across label changes.
+  const labelFor = (name: string): string => scoreLabels?.[name] ?? name;
 
   // Per-scorer mode (single-log with descriptor). One column per
   // *available* score; visibility is driven by `selectedScores` upstream
@@ -497,7 +507,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     const useLabelHeader = scores.length !== 1;
     return scores.map((label) => {
       const colId = perScorerFieldKey(label);
-      const headerName = useLabelHeader ? label.name : "Score";
+      const headerName = useLabelHeader ? labelFor(label.name) : "Score";
       const scoreType =
         descriptor.evalDescriptor.scoreDescriptor(label)?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
@@ -586,7 +596,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     return {
       colId: rawScoreFieldKey(name),
       field: rawScoreFieldKey(name),
-      headerName: name,
+      headerName: labelFor(name),
       ...headerCols,
       sortable: true,
       filter: isUniformNumber ? "agNumberColumnFilter" : "agTextColumnFilter",

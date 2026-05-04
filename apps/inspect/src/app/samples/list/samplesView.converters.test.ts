@@ -70,6 +70,21 @@ describe("liftEvalView", () => {
     const wire: SamplesView = { name: "Triage", compact_scores: true };
     expect(liftEvalView(wire).compactScores).toBe(true);
   });
+
+  test("score_labels stays on the wire side (not lifted into state)", () => {
+    // The runtime SamplesViewState is persisted in zustand and survives
+    // across evals; including score_labels there would let stale labels
+    // from a prior eval shadow the current one. Score labels are read
+    // straight from the wire by `useSamplesViewScoreLabels` instead, so
+    // the converter must not copy them into the runtime state.
+    const wire: SamplesView = {
+      name: "Triage",
+      score_labels: { audit_situational_awareness: "Situational Awareness" },
+    };
+    const lifted = liftEvalView(wire) as Record<string, unknown>;
+    expect("scoreLabels" in lifted).toBe(false);
+    expect("score_labels" in lifted).toBe(false);
+  });
 });
 
 describe("flattenToEvalView", () => {

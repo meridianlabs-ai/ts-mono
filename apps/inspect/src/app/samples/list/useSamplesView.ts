@@ -29,6 +29,21 @@ export function useSamplesViewMultiline(): boolean {
   }, [stored, evalDefaultField]);
 }
 
+/** Eval-author-supplied score-label overrides. Read straight from
+ *  the wire (no persistence) so a user's stored view from a prior
+ *  eval can't shadow the current eval's labels. Returns an empty
+ *  object when no overrides are present. */
+export function useSamplesViewScoreLabels(): Record<string, string> {
+  const evalDefaultField = useStore(
+    (state) =>
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
+  );
+  return useMemo(() => {
+    const evalDefault = pickActiveView(evalDefaultField);
+    return evalDefault?.score_labels ?? {};
+  }, [evalDefaultField]);
+}
+
 /** Resolved `compactScores` — same access pattern as the multiline
  *  companion above. Read in `SamplesTab` before columns are built so
  *  the flag can flow into `buildSampleColumns`. */

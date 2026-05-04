@@ -36,6 +36,7 @@ import {
   useSamplesView,
   useSamplesViewCompactScores,
   useSamplesViewMultiline,
+  useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import {
   astToFilterModel,
@@ -200,6 +201,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
   const compactScores = useSamplesViewCompactScores();
+  const scoreLabels = useSamplesViewScoreLabels();
 
   const allColumns = useMemo(
     () =>
@@ -210,8 +212,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         scores,
         epochs,
         compactScores,
+        scoreLabels,
       }),
-    [multiline, samplesDescriptor, scores, epochs, compactScores]
+    [multiline, samplesDescriptor, scores, epochs, compactScores, scoreLabels]
   );
 
   // Default visibility for unseeded columns. Core text columns
