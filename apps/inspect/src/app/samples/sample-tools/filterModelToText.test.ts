@@ -192,17 +192,18 @@ describe("filterModelToText — multi-column", () => {
     ).toBe("epoch == 1 and tokens > 100");
   });
 
-  test("unrepresentable columns are dropped", () => {
+  test("any unrepresentable entry forces null (partial = leave text alone)", () => {
+    // Mixing one rep + one unrep would round-trip to a strict subset
+    // and wipe sampleStatus from the grid. Refuse to synthesize.
     expect(
       filterModelToText(
         {
-          // sampleStatus has no registry entry — dropped.
           sampleStatus: { type: "equals", filter: "anything" },
           epoch: { type: "equals", filter: 1 },
         },
         registry
       )
-    ).toBe("epoch == 1");
+    ).toBeNull();
   });
 });
 

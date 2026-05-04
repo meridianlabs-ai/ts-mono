@@ -138,12 +138,15 @@ const columnFilterToFiltrex = (
  * Three return values, each with distinct semantics for the caller:
  *  - `""`     — the model is empty (no column filters); callers should
  *               clear the text.
- *  - `null`   — the model has entries but *none* are representable in the
- *               DSL; callers should leave the text alone.
- *  - string   — the synthesized filtrex expression.
+ *  - `null`   — the model has entries but at least one isn't representable
+ *               in the DSL (a partial conversion would lose information,
+ *               so callers leave the text alone).
+ *  - string   — every entry was representable; the synthesized expression.
  *
- * Columns that aren't in the registry or use unsupported operators are
- * skipped — the intent is best-effort surfacing of column filters.
+ * Returning `null` whenever *any* entry is unrepresentable (rather than
+ * only when all are) is critical for round-trip safety: a partial text
+ * would be projected back to a strict-subset model by the recognizer,
+ * wiping the columns the synthesizer dropped.
  */
 export const filterModelToText = (
   model: Record<string, AnyColumnFilter> | null | undefined,
@@ -153,11 +156,11 @@ export const filterModelToText = (
   const parts: string[] = [];
   for (const [colId, filter] of Object.entries(model)) {
     const mapping = registry.byColId.get(colId);
-    if (!mapping) continue;
+    if (!mapping) return null;
     const text = columnFilterToFiltrex(mapping, filter);
-    if (text !== null) parts.push(text);
+    if (text === null) return null;
+    parts.push(text);
   }
-  if (parts.length === 0) return null;
   if (parts.length === 1) return parts[0];
   return parts.join(" and ");
 };

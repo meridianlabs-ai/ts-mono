@@ -402,10 +402,22 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const api = sampleListHandle.current?.api;
     if (!api) return;
     const desired = filterModelFromText(currentFilter);
-    const current = api.getFilterModel() ?? {};
-    if (JSON.stringify(current) === JSON.stringify(desired)) return;
-    api.setFilterModel(desired);
-  }, [currentFilter, filterModelFromText]);
+    const current: FilterModel = (api.getFilterModel() ?? {}) as FilterModel;
+    // Preserve current model entries that the synthesizer would have
+    // skipped — they live only in the column UI and must not be wiped
+    // by a text-driven update. Entries the user can express in text
+    // (round-trippable ones) are governed by `desired`.
+    const merged: FilterModel = { ...desired };
+    for (const [colId, filter] of Object.entries(current)) {
+      const isRepresentable =
+        filterModelToText({ [colId]: filter }, filterRegistry) !== null;
+      if (!isRepresentable && !(colId in desired)) {
+        merged[colId] = filter;
+      }
+    }
+    if (JSON.stringify(current) === JSON.stringify(merged)) return;
+    api.setFilterModel(merged);
+  }, [currentFilter, filterModelFromText, filterRegistry]);
 
   // When the toolbar text is a non-round-trippable expression, hide the
   // column-header filter buttons. Using one would overwrite the typed
