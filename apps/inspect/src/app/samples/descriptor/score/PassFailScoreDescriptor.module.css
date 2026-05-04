@@ -1,12 +1,10 @@
 .circle {
-  font-family: "Consola Regular";
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   justify-content: center;
   align-items: center;
   border-radius: 50%;
-  padding-top: 1px;
 }
 
 .green {
