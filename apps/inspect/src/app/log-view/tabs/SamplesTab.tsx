@@ -33,17 +33,17 @@ import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
+  useSamplesView,
+  useSamplesViewCompactScores,
+  useSamplesViewMultiline,
+} from "../../samples/list/useSamplesView.ts";
+import {
   astToFilterModel,
   FilterModel,
 } from "../../samples/sample-tools/astToFilterModel.ts";
 import { parseFilter } from "../../samples/sample-tools/filterAst.ts";
 import { filterModelToText } from "../../samples/sample-tools/filterModelToText.ts";
 import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
-import {
-  useSamplesView,
-  useSamplesViewCompactScores,
-  useSamplesViewMultiline,
-} from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { getFieldKey } from "../../shared/gridUtils.ts";
 import {
@@ -236,10 +236,16 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [shape, epochs]
   );
 
-  const { view, columnVisibility, gridState, setColumnVisibility, setGridState } =
-    useSamplesView<SampleRow>(allColumns, {
-      seedDefaultVisibility: defaultsForUnseededColumns,
-    });
+  const {
+    view,
+    columnVisibility,
+    gridState,
+    setColumnVisibility,
+    setGridState,
+    resetColumns,
+  } = useSamplesView<SampleRow>(allColumns, {
+    seedDefaultVisibility: defaultsForUnseededColumns,
+  });
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
@@ -515,6 +521,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}
           scoresHeading="Scores"
+          onResetToDefault={resetColumns}
         />
       ) : null}
     </Fragment>

@@ -72,6 +72,15 @@
   --ag-header-column-border: transparent;
 }
 
+/* Compact-mode trailing spacer column — no header content, no
+ * separator. The spacer only exists to extend the scrollable extent
+ * so the rightmost rotated label has room past the last data column;
+ * a vertical divider on it would visually fence off that breathing
+ * room and look like a grid edge. */
+.gridChrome .spacerHeader {
+  --ag-header-column-border: transparent;
+}
+
 /* Each rotated label extends past its own cell into the next
  * column's space, so the next cell's content wrapper would
  * otherwise intercept clicks on the overflowing label tip. Make the
@@ -108,7 +117,6 @@
   height: 22px;
 }
 
-
 /* Hide ag-grid's default header-filter button (funnel) until the
  * user hovers the column header. Stays visible when the filter is
  * active so users always see *which* columns are filtering. Applies
@@ -118,8 +126,12 @@
   opacity: 0;
   transition: opacity 120ms ease;
 }
-.gridChrome :global(.ag-header-cell):hover :global(.ag-header-cell-filter-button),
-.gridChrome :global(.ag-header-cell.ag-header-cell-filtered) :global(.ag-header-cell-filter-button) {
+.gridChrome
+  :global(.ag-header-cell):hover
+  :global(.ag-header-cell-filter-button),
+.gridChrome
+  :global(.ag-header-cell.ag-header-cell-filtered)
+  :global(.ag-header-cell-filter-button) {
   opacity: 1;
 }
 

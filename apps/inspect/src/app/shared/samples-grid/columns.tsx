@@ -469,6 +469,7 @@ export function buildSampleColumns(
     cols.push({
       colId: "compactSpacer",
       headerName: "",
+      headerClass: styles.spacerHeader,
       width: 95,
       minWidth: 95,
       maxWidth: 95,
@@ -518,7 +519,10 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
             minWidth: compactWidth - 4,
           }
         : {
-            initialWidth: Math.max(70, Math.round(headerName.length * 6.2) + 40),
+            initialWidth: Math.max(
+              70,
+              Math.round(headerName.length * 6.2) + 40
+            ),
             minWidth: 60,
             maxWidth: 120,
           };

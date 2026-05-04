@@ -1,8 +1,6 @@
 import { GridState } from "ag-grid-community";
 import { StateSnapshot } from "react-virtuoso";
 
-import type { SamplesViewState } from "./samples/list/samplesView";
-
 import {
   ApprovalEvent,
   AttachmentData,
@@ -38,6 +36,8 @@ import {
   PendingSamples,
   SampleSummary,
 } from "../client/api/types";
+
+import type { SamplesViewState } from "./samples/list/samplesView";
 
 export interface AppState {
   status: AppStatus;

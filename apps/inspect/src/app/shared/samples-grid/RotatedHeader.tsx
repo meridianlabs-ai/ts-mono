@@ -28,7 +28,8 @@ export const RotatedHeader: FC<IHeaderParams> = (props) => {
   const [filterActive, setFilterActive] = useState(false);
 
   useEffect(() => {
-    const updateSort = () => setSort((props.column.getSort() ?? null) as SortDir);
+    const updateSort = () =>
+      setSort((props.column.getSort() ?? null) as SortDir);
     const updateFilter = () => setFilterActive(props.column.isFilterActive());
     props.column.addEventListener("sortChanged", updateSort);
     props.column.addEventListener("filterChanged", updateFilter);
@@ -90,7 +91,11 @@ export const RotatedHeader: FC<IHeaderParams> = (props) => {
       {/* Hidden, un-rotated anchor at the cell's bottom-right — used
        *  only to position the column-menu popup so it appears under
        *  the actual column rather than offset along the rotation. */}
-      <span ref={menuAnchorRef} className={styles.menuAnchor} aria-hidden="true" />
+      <span
+        ref={menuAnchorRef}
+        className={styles.menuAnchor}
+        aria-hidden="true"
+      />
     </Fragment>
   );
 };

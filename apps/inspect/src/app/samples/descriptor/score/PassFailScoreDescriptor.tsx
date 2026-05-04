@@ -50,7 +50,9 @@ export const passFailScoreDescriptor = (
         );
       } else if (score === "I") {
         return (
-          <span className={clsx("text-size-smallest", styles.circle, styles.red)}>
+          <span
+            className={clsx("text-size-smallest", styles.circle, styles.red)}
+          >
             I
           </span>
         );
@@ -64,7 +66,9 @@ export const passFailScoreDescriptor = (
         );
       } else if (score === "N") {
         return (
-          <span className={clsx("text-size-smallest", styles.circle, styles.red)}>
+          <span
+            className={clsx("text-size-smallest", styles.circle, styles.red)}
+          >
             N
           </span>
         );

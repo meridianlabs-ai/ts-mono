@@ -4,23 +4,24 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "../../../state/store";
 import { getFieldKey } from "../../shared/gridUtils";
 
+import { type SamplesViewState } from "./samplesView";
 import {
   gridStateToView,
+  liftEvalView,
   pickActiveView,
   resolveSamplesView,
   viewToGridState,
 } from "./samplesView.converters";
-import { type SamplesViewState } from "./samplesView";
 
 /** Just the resolved `multiline` — for callers that need it before
  *  computing `allColumns` (which the full hook requires). */
 export function useSamplesViewMultiline(): boolean {
   const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view,
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view
   );
   const evalDefaultField = useStore(
     (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null,
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
   );
   return useMemo(() => {
     const evalDefault = pickActiveView(evalDefaultField);
@@ -33,11 +34,11 @@ export function useSamplesViewMultiline(): boolean {
  *  the flag can flow into `buildSampleColumns`. */
 export function useSamplesViewCompactScores(): boolean {
   const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view,
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view
   );
   const evalDefaultField = useStore(
     (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null,
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
   );
   return useMemo(() => {
     const evalDefault = pickActiveView(evalDefaultField);
@@ -55,6 +56,11 @@ export interface UseSamplesViewResult {
   setGridState: (gs: GridState) => void;
   setMultiline: (multiline: boolean) => void;
   setCompactScores: (compactScores: boolean) => void;
+  /** Reset just the column list (order + visibility) to the
+   *  eval-author default (when present) or the built-in seeded
+   *  default. Sort, filter, multiline, and compactScores are left
+   *  alone. */
+  resetColumns: () => void;
 }
 
 /**
@@ -69,19 +75,19 @@ export function useSamplesView<TRow>(
   allColumns?: ColDef<TRow>[],
   options?: {
     seedDefaultVisibility?: (col: ColDef<TRow>) => boolean;
-  },
+  }
 ): UseSamplesViewResult {
   const { seedDefaultVisibility } = options ?? {};
 
   const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view,
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view
   );
   const evalDefaultField = useStore(
     (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null,
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
   );
   const setSampleListView = useStore(
-    (state) => state.logsActions.setSampleListView,
+    (state) => state.logsActions.setSampleListView
   );
 
   const availableColIds = useMemo(() => {
@@ -94,12 +100,12 @@ export function useSamplesView<TRow>(
 
   const evalDefault = useMemo(
     () => pickActiveView(evalDefaultField),
-    [evalDefaultField],
+    [evalDefaultField]
   );
 
   const view = useMemo(
     () => resolveSamplesView(stored, evalDefault),
-    [stored, evalDefault],
+    [stored, evalDefault]
   );
 
   const columnVisibility = useMemo<Record<string, boolean>>(() => {
@@ -110,7 +116,7 @@ export function useSamplesView<TRow>(
 
   const gridState = useMemo(
     () => (allColumns ? viewToGridState(view, availableColIds) : undefined),
-    [allColumns, view, availableColIds],
+    [allColumns, view, availableColIds]
   );
 
   // Seeding writes the resolved view (not just the diff) so eval-author
@@ -134,7 +140,7 @@ export function useSamplesView<TRow>(
     (partial: Partial<SamplesViewState>) => {
       setSampleListView({ ...view, ...partial });
     },
-    [view, setSampleListView],
+    [view, setSampleListView]
   );
 
   const setColumnVisibility = useCallback(
@@ -143,7 +149,7 @@ export function useSamplesView<TRow>(
       const nextColumns: SamplesViewState["columns"] = [];
       for (const c of view.columns) {
         nextColumns.push(
-          c.id in visibility ? { id: c.id, visible: visibility[c.id] } : c,
+          c.id in visibility ? { id: c.id, visible: visibility[c.id] } : c
         );
         seen.add(c.id);
       }
@@ -152,30 +158,50 @@ export function useSamplesView<TRow>(
       }
       patchView({ columns: nextColumns });
     },
-    [view.columns, patchView],
+    [view.columns, patchView]
   );
 
   const setGridState = useCallback(
     (gs: GridState) => {
       setSampleListView(gridStateToView(view, gs, availableColIds));
     },
-    [view, availableColIds, setSampleListView],
+    [view, availableColIds, setSampleListView]
   );
 
   const setMultiline = useCallback(
     (multiline: boolean) => patchView({ multiline }),
-    [patchView],
+    [patchView]
   );
 
   const setCompactScores = useCallback(
     (compactScores: boolean) => patchView({ compactScores }),
-    [patchView],
+    [patchView]
   );
 
   const setView = useCallback(
     (next: SamplesViewState) => setSampleListView(next),
-    [setSampleListView],
+    [setSampleListView]
   );
+
+  const resetColumns = useCallback(() => {
+    if (!allColumns) return;
+    // Resolve the eval-author default's column list (if any). Each
+    // entry is `{ id, visible }`. Anything in `allColumns` that
+    // isn't covered by the eval default falls through to the
+    // caller-supplied seed (the same predicate `useEffect` uses to
+    // initialize new columns).
+    const evalCols = liftEvalView(evalDefault).columns;
+    const evalMap = new Map(evalCols.map((c) => [c.id, c.visible]));
+    const nextColumns: SamplesViewState["columns"] = allColumns.map((col) => {
+      const id = getFieldKey(col);
+      if (evalMap.has(id)) return { id, visible: evalMap.get(id)! };
+      return {
+        id,
+        visible: seedDefaultVisibility ? seedDefaultVisibility(col) : true,
+      };
+    });
+    patchView({ columns: nextColumns });
+  }, [allColumns, evalDefault, seedDefaultVisibility, patchView]);
 
   return {
     view,
@@ -187,5 +213,6 @@ export function useSamplesView<TRow>(
     setGridState,
     setMultiline,
     setCompactScores,
+    resetColumns,
   };
 }
