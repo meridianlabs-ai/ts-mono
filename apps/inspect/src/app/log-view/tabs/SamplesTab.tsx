@@ -36,6 +36,7 @@ import {
   useSamplesView,
   useSamplesViewCompactScores,
   useSamplesViewMultiline,
+  useSamplesViewScoreColorScales,
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import {
@@ -202,6 +203,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const multiline = useSamplesViewMultiline();
   const compactScores = useSamplesViewCompactScores();
   const scoreLabels = useSamplesViewScoreLabels();
+  const scoreColorScales = useSamplesViewScoreColorScales();
 
   const allColumns = useMemo(
     () =>
@@ -213,8 +215,17 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         epochs,
         compactScores,
         scoreLabels,
+        scoreColorScales,
       }),
-    [multiline, samplesDescriptor, scores, epochs, compactScores, scoreLabels]
+    [
+      multiline,
+      samplesDescriptor,
+      scores,
+      epochs,
+      compactScores,
+      scoreLabels,
+      scoreColorScales,
+    ]
   );
 
   // Default visibility for unseeded columns. Core text columns

@@ -2,6 +2,7 @@ import type { ColDef, GridState } from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
+import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 import { getFieldKey } from "../../shared/gridUtils";
 
 import { type SamplesViewState } from "./samplesView";
@@ -41,6 +42,27 @@ export function useSamplesViewScoreLabels(): Record<string, string> {
   return useMemo(() => {
     const evalDefault = pickActiveView(evalDefaultField);
     return evalDefault?.score_labels ?? {};
+  }, [evalDefaultField]);
+}
+
+/** Eval-author-supplied score-cell colour scales. Same wire-only
+ *  access pattern as `useSamplesViewScoreLabels` — never lifted into
+ *  the persisted runtime state, so colour scales from a prior eval
+ *  can't bleed into the current one. */
+export function useSamplesViewScoreColorScales(): Record<
+  string,
+  WireScoreColorScale
+> {
+  const evalDefaultField = useStore(
+    (state) =>
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
+  );
+  return useMemo(() => {
+    const evalDefault = pickActiveView(evalDefaultField);
+    return (evalDefault?.score_color_scales ?? {}) as Record<
+      string,
+      WireScoreColorScale
+    >;
   }, [evalDefaultField]);
 }
 

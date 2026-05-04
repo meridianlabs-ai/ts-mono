@@ -81,9 +81,26 @@ describe("liftEvalView", () => {
       name: "Triage",
       score_labels: { audit_situational_awareness: "Situational Awareness" },
     };
-    const lifted = liftEvalView(wire) as Record<string, unknown>;
+    const lifted = liftEvalView(wire) as unknown as Record<string, unknown>;
     expect("scoreLabels" in lifted).toBe(false);
     expect("score_labels" in lifted).toBe(false);
+  });
+
+  test("score_color_scales stays on the wire side (not lifted into state)", () => {
+    // Same staleness defence as score_labels — colour scales are read
+    // straight from the eval wire each render; the converter must not
+    // copy them into the runtime state where they would survive across
+    // evals.
+    const wire: SamplesView = {
+      name: "Triage",
+      score_color_scales: {
+        accuracy: "good-high",
+        verdict: { yes: "bad", no: "good" },
+      },
+    };
+    const lifted = liftEvalView(wire) as unknown as Record<string, unknown>;
+    expect("scoreColorScales" in lifted).toBe(false);
+    expect("score_color_scales" in lifted).toBe(false);
   });
 });
 

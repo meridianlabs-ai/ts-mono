@@ -2463,6 +2463,12 @@ export interface components {
             multiline?: boolean | null;
             /** Name */
             name: string;
+            /** Score Color Scales */
+            score_color_scales?: {
+                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | {
+                    [key: string]: "good" | "bad" | "warn" | "info" | "muted";
+                };
+            } | null;
             /** Score Labels */
             score_labels?: {
                 [key: string]: string;

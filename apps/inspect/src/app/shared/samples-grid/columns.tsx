@@ -11,7 +11,11 @@ import { arrayToString, filename, formatNumber } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { LogDetails } from "../../../client/api/types";
-import { kScoreTypeNumeric } from "../../../constants";
+import {
+  kScoreTypeBoolean,
+  kScoreTypeNumeric,
+  kScoreTypePassFail,
+} from "../../../constants";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
@@ -24,6 +28,11 @@ import gridCellsStyles from "../gridCells.module.css";
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
+import {
+  colorForValue,
+  resolveScale,
+  type WireScoreColorScale,
+} from "./colorScale";
 import { RotatedHeader } from "./RotatedHeader";
 import styles from "./SamplesGrid.module.css";
 import { SampleRow } from "./types";
@@ -50,6 +59,13 @@ export interface SampleGridContext {
    *  Art" }`. Falls through to the raw metric name when a key isn't
    *  present. Sourced from the eval-author's `task_samples_view`. */
   scoreLabels?: Record<string, string>;
+  /** Per-metric background colour scales, e.g. `{ "accuracy":
+   *  "good-high", "verdict": { "yes": "bad" } }`. Numeric metrics use
+   *  named palettes (gradient anchored at descriptor min/max);
+   *  categorical metrics map values to semantic roles. Pass/fail and
+   *  boolean metrics ignore this — their pills already carry the
+   *  semantic. */
+  scoreColorScales?: Record<string, WireScoreColorScale>;
 }
 
 const EmptyCell = () => <div>-</div>;
@@ -492,13 +508,38 @@ export function buildSampleColumns(
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
-  const { descriptor, scores, logDetails, compactScores, scoreLabels } = ctx;
+  const {
+    descriptor,
+    scores,
+    logDetails,
+    compactScores,
+    scoreLabels,
+    scoreColorScales,
+  } = ctx;
 
   // Resolve a metric name through the eval-author's label overrides,
   // falling back to the raw name. Used for the visible header text;
   // colId / field are still keyed off the raw name so filter / sort
   // / persistence stay stable across label changes.
   const labelFor = (name: string): string => scoreLabels?.[name] ?? name;
+
+  // Build an ag-grid `cellStyle` callback for the score column whose
+  // metric is `name`, given its descriptor bounds. Returns undefined
+  // when no scale is configured (or it can't be resolved against the
+  // bounds), so the cell renders with no background.
+  const cellStyleFor = (
+    name: string,
+    bounds: { min?: number; max?: number },
+  ): ColDef<SampleRow>["cellStyle"] | undefined => {
+    const wire = scoreColorScales?.[name];
+    if (!wire) return undefined;
+    const resolved = resolveScale(wire, bounds);
+    if (!resolved) return undefined;
+    return (params) => {
+      const c = colorForValue(resolved, params.value);
+      return c ? { backgroundColor: c } : undefined;
+    };
+  };
 
   // Per-scorer mode (single-log with descriptor). One column per
   // *available* score; visibility is driven by `selectedScores` upstream
@@ -508,9 +549,21 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     return scores.map((label) => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
-      const scoreType =
-        descriptor.evalDescriptor.scoreDescriptor(label)?.scoreType;
+      const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
+      const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
+      // Pass/fail and boolean already render as semantically-coloured
+      // pills via the descriptor; painting a background under them
+      // would clash. Only opt the *other* score types into the
+      // configured colour scale.
+      const acceptsColorScale =
+        scoreType !== kScoreTypePassFail && scoreType !== kScoreTypeBoolean;
+      const cellStyle = acceptsColorScale
+        ? cellStyleFor(label.name, {
+            min: scoreDesc?.min,
+            max: scoreDesc?.max,
+          })
+        : undefined;
       // Compact mode collapses to ~40px (numeric) / ~55px (non-numeric)
       // and lets the rotated label fan up-right out of the cell.
       // Numeric scores render as a short formatted number; non-numeric
@@ -544,6 +597,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
         sortable: true,
         filter: isNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
         resizable: true,
+        cellStyle,
         comparator: isNumeric
           ? comparators.number
           : (a: unknown, b: unknown) =>
@@ -571,13 +625,24 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
 
   // Raw mode — discover score names across the supplied logDetails. Detect
   // type collisions so a name with mixed value types falls back to text.
+  // Also tally numeric min/max per column so colour-scale gradients
+  // have something to anchor against (no descriptor exists in raw mode).
   const types: Record<string, Set<string>> = {};
+  const ranges: Record<string, { min: number; max: number }> = {};
   for (const details of Object.values(logDetails ?? {})) {
     for (const sample of details.sampleSummaries) {
       if (!sample.scores) continue;
       for (const [name, score] of Object.entries(sample.scores)) {
         if (!types[name]) types[name] = new Set();
         types[name].add(typeof score.value);
+        if (typeof score.value === "number" && Number.isFinite(score.value)) {
+          const r = ranges[name];
+          if (!r) ranges[name] = { min: score.value, max: score.value };
+          else {
+            if (score.value < r.min) r.min = score.value;
+            if (score.value > r.max) r.max = score.value;
+          }
+        }
       }
     }
   }
@@ -585,6 +650,12 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   return scoreNames.map((name) => {
     const isUniformNumber = types[name].size === 1 && types[name].has("number");
     const compactWidth = isUniformNumber ? 40 : 55;
+    // Numeric raw scores can use a colour-scale gradient against the
+    // observed min/max; non-numeric raw scores accept categorical maps
+    // only. Boolean would already be a "boolean" typeof — passes through
+    // to categorical handling, where the resolver matches `"true"` /
+    // `"false"` keys.
+    const cellStyle = cellStyleFor(name, ranges[name] ?? {});
     const headerCols: Partial<ColDef<SampleRow>> = compactScores
       ? {
           headerComponent: RotatedHeader,
@@ -601,6 +672,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       sortable: true,
       filter: isUniformNumber ? "agNumberColumnFilter" : "agTextColumnFilter",
       resizable: true,
+      cellStyle,
       valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
         const v = params.value;
         if (v === "" || v === null || v === undefined) return "";
