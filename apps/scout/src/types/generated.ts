@@ -718,6 +718,41 @@ export interface components {
             start: number;
         };
         /**
+         * AnchorEvent
+         * @description Marks a rollback-able point in a replayable trajectory.
+         *
+         *     Emitted by an orchestrator immediately after a step it can later roll
+         *     back to (a staged message, a model generate, etc.). Carries no content;
+         *     ``anchor_id`` is the addressable identifier that ``TimelineSpan.branched_from``
+         *     references. Hidden from the viewer transcript by default.
+         */
+        AnchorEvent: {
+            /** Anchor Id */
+            anchor_id: string;
+            /**
+             * Event
+             * @default anchor
+             * @constant
+             */
+            event: "anchor";
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Source */
+            source?: string | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
          * AppConfig
          * @description Application configuration returned by GET /config.
          */
@@ -847,7 +882,12 @@ export interface components {
         };
         /**
          * BranchEvent
-         * @description Branch in conversation history.
+         * @description Marks where a branched trajectory's unique content begins.
+         *
+         *     Emitted at the point where a branch transitions from replaying its
+         *     parent's prefix to live execution. Events before this in the trajectory's
+         *     span are replay-phase re-execution; events after are the branch's
+         *     genuine new content.
          */
         BranchEvent: {
             /**
@@ -856,10 +896,8 @@ export interface components {
              * @constant
              */
             event: "branch";
-            /** From Message */
-            from_message: string;
-            /** From Span */
-            from_span: string;
+            /** From Anchor */
+            from_anchor: string;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -1961,7 +1999,7 @@ export interface components {
                 [key: string]: string;
             } | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
@@ -2851,7 +2889,7 @@ export interface components {
          */
         ScannerInputResponse: {
             /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
             input_data?: components["schemas"]["EventsData"] | null;
             /**
              * Input Type
@@ -3616,7 +3654,7 @@ export interface components {
             /** Error */
             error?: string | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             /** Limit */
             limit?: string | null;
             /** Message Count */

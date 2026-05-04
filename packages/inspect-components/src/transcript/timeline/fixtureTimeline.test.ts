@@ -45,8 +45,7 @@ interface JsonEvent {
   result?: string;
   source?: string;
   message_id?: string;
-  from_span?: string;
-  from_message?: string;
+  from_anchor?: string;
   input?: Array<{
     role: string;
     content: string;
@@ -271,8 +270,7 @@ function createEvent(data: JsonEvent): Event | null {
         ...baseFields,
         event: "branch",
         span_id: data.span_id ?? null,
-        from_span: data.from_span ?? "",
-        from_message: data.from_message ?? "",
+        from_anchor: data.from_anchor ?? "",
       };
     }
 
