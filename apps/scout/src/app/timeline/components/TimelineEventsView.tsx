@@ -61,8 +61,8 @@ interface TimelineEventsViewProps {
   getEventUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
-  /** Extra context fields merged into every EventNodeContext entry. */
-  eventNodeContext?: Partial<EventNodeContext>;
+  /** Per-message labels rendered in model-call message gutters. */
+  messageLabels?: Record<string, string>;
   className?: string;
 }
 
@@ -88,7 +88,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   onHeadroomResetAnchor,
   getEventUrl,
   linkingEnabled,
-  eventNodeContext,
+  messageLabels,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -197,6 +197,14 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [scrollRef]);
+
+  const eventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(
+    () =>
+      messageLabels && Object.keys(messageLabels).length > 0
+        ? { messageLabels }
+        : undefined,
+    [messageLabels]
+  );
 
   // ---------------------------------------------------------------------------
   // Render

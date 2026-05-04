@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 
-import type { EventNodeContext } from "@tsmono/inspect-components/transcript";
-
 import { useStore } from "../../../state/store";
 import {
   getSearchPanelStateKey,
@@ -9,17 +7,17 @@ import {
 } from "../searchPanelState";
 import type { TranscriptSearchScope } from "../searchRequest";
 
-type UseSearchEventNodeContextOptions = {
+type UseSearchMessageLabelsOptions = {
   scope: TranscriptSearchScope;
   transcriptDir: string | null | undefined;
   transcriptId: string;
 };
 
-export const useSearchEventNodeContext = ({
+export const useSearchMessageLabels = ({
   scope,
   transcriptDir,
   transcriptId,
-}: UseSearchEventNodeContextOptions): Partial<EventNodeContext> | undefined => {
+}: UseSearchMessageLabelsOptions): Record<string, string> | undefined => {
   const searchPanelStateKey = useMemo(
     () =>
       transcriptDir
@@ -59,8 +57,7 @@ export const useSearchEventNodeContext = ({
   }, [searchResult]);
 
   return useMemo(
-    () =>
-      Object.keys(messageLabels).length > 0 ? { messageLabels } : undefined,
+    () => (Object.keys(messageLabels).length > 0 ? messageLabels : undefined),
     [messageLabels]
   );
 };

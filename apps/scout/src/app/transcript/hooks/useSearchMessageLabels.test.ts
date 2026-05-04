@@ -6,7 +6,7 @@ import { createTestWrapperWithStore } from "../../../test/test-utils";
 import type { Reference, Result } from "../../../types/api-types";
 import { getSearchPanelStateKey } from "../searchPanelState";
 
-import { useSearchEventNodeContext } from "./useSearchEventNodeContext";
+import { useSearchMessageLabels } from "./useSearchMessageLabels";
 
 const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
@@ -42,7 +42,7 @@ const buildReferences = (refs: Reference[]): Result => ({
   references: refs,
 });
 
-describe("useSearchEventNodeContext", () => {
+describe("useSearchMessageLabels", () => {
   it("returns undefined when transcriptDir is missing (no key, no work)", () => {
     const { wrapper, store } = createTestWrapperWithStore();
     seedSearchResult(
@@ -52,7 +52,7 @@ describe("useSearchEventNodeContext", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "events",
           transcriptDir: undefined,
           transcriptId,
@@ -73,7 +73,7 @@ describe("useSearchEventNodeContext", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -84,7 +84,7 @@ describe("useSearchEventNodeContext", () => {
     expect(result.current).toBeUndefined();
   });
 
-  it("returns messageLabels for message references with a cite", () => {
+  it("returns labels for message references with a cite", () => {
     const { wrapper, store } = createTestWrapperWithStore();
     seedSearchResult(
       store,
@@ -96,7 +96,7 @@ describe("useSearchEventNodeContext", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -104,9 +104,7 @@ describe("useSearchEventNodeContext", () => {
       { wrapper }
     );
 
-    expect(result.current).toEqual({
-      messageLabels: { "msg-1": "[1]", "msg-2": "[2]" },
-    });
+    expect(result.current).toEqual({ "msg-1": "[1]", "msg-2": "[2]" });
   });
 
   it("filters out event references and refs missing a cite", () => {
@@ -122,7 +120,7 @@ describe("useSearchEventNodeContext", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -130,7 +128,7 @@ describe("useSearchEventNodeContext", () => {
       { wrapper }
     );
 
-    expect(result.current).toEqual({ messageLabels: { "msg-1": "[1]" } });
+    expect(result.current).toEqual({ "msg-1": "[1]" });
   });
 
   it("returns undefined when the result has no message references", () => {
@@ -142,7 +140,7 @@ describe("useSearchEventNodeContext", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -164,7 +162,7 @@ describe("useSearchEventNodeContext", () => {
     // The messages-scope hook reads a different key — should see no labels.
     const { result } = renderHook(
       () =>
-        useSearchEventNodeContext({
+        useSearchMessageLabels({
           scope: "messages",
           transcriptDir,
           transcriptId,
