@@ -41,6 +41,11 @@ export type SamplesGridViewMode = "list" | "grid";
 
 const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
+const kDefaultHeaderHeight = 25;
+// Tall enough to host a 110px-wide rotated label (≈ 78px tall at 45°)
+// plus padding and breathing room. See `.rotatedHeader` in
+// SamplesGrid.module.css.
+const kRotatedHeaderHeight = 115;
 
 const rowHeightForMode = (mode: SamplesGridViewMode): number =>
   mode === "list" ? kListModeRowHeight : kGridModeRowHeight;
@@ -254,6 +259,16 @@ export const SamplesGrid = <TRow,>(
     columnVisibility
   );
 
+  // Grow the header row when any column opts into rotated headers so
+  // labels aren't clipped by the .ag-header viewport's overflow:hidden.
+  const headerHeight = useMemo(
+    () =>
+      columnDefs.some((c) => c.headerClass === styles.rotatedHeader)
+        ? kRotatedHeaderHeight
+        : kDefaultHeaderHeight,
+    [columnDefs]
+  );
+
   // Bake column visibility into ag-grid's `initialState.columnVisibility`
   // so it's applied synchronously on first render. Without this, the grid
   // paints with all columns visible at their initial widths, then
@@ -357,7 +372,7 @@ export const SamplesGrid = <TRow,>(
           animateRows={false}
           suppressColumnMoveAnimation={true}
           tooltipShowDelay={300}
-          headerHeight={25}
+          headerHeight={headerHeight}
           rowHeight={effectiveRowHeight}
           getRowId={getRowId as (p: GetRowIdParams<TRow>) => string}
           rowSelection={{ mode: "singleRow", checkboxes: false }}

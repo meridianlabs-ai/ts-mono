@@ -41,6 +41,7 @@ export const liftEvalView = (
       : fallback.sort,
     filters: { dsl: wire.filter ?? "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,
+    compactScores: wire.compact_scores ?? fallback.compactScores,
   };
 };
 
@@ -55,6 +56,7 @@ export const flattenToEvalView = (state: SamplesViewState): SamplesView => ({
   sort: state.sort.map((s) => ({ column: s.colId, dir: s.dir })),
   filter: state.filters.dsl ? state.filters.dsl : null,
   multiline: state.multiline,
+  compact_scores: state.compactScores,
 });
 
 /**

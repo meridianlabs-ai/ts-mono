@@ -2455,6 +2455,8 @@ export interface components {
         SamplesView: {
             /** Columns */
             columns?: components["schemas"]["SamplesColumn"][] | null;
+            /** Compact Scores */
+            compact_scores?: boolean | null;
             /** Filter */
             filter?: string | null;
             /** Multiline */

@@ -24,6 +24,7 @@ import gridCellsStyles from "../gridCells.module.css";
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
+import { RotatedHeader } from "./RotatedHeader";
 import styles from "./SamplesGrid.module.css";
 import { SampleRow } from "./types";
 
@@ -42,6 +43,9 @@ export interface SampleGridContext {
   epochs?: number;
   /** Cross-log only — used to discover all distinct score names. */
   logDetails?: Record<string, LogDetails>;
+  /** When true, score columns render compact: narrow widths with
+   *  rotated 45° headers. Off by default. */
+  compactScores?: boolean;
 }
 
 const EmptyCell = () => <div>-</div>;
@@ -454,12 +458,36 @@ export function buildSampleColumns(
     }
   );
 
+  // Phantom spacer at the right end — only in compact mode. Compact
+  // mode's rotated labels extend ~92px past the rightmost score
+  // column. Without trailing room, max horizontal scroll leaves the
+  // last label clipped (or visually right at the viewport edge with
+  // no breathing room). A real ag-grid column is the cleanest way
+  // to extend the scrollable extent because the body, header, and
+  // bottom scrollbar all see it natively, so they stay in lock-step.
+  if (ctx.compactScores) {
+    cols.push({
+      colId: "compactSpacer",
+      headerName: "",
+      width: 95,
+      minWidth: 95,
+      maxWidth: 95,
+      sortable: false,
+      filter: false,
+      resizable: false,
+      suppressMovable: true,
+      suppressNavigable: true,
+      lockVisible: true,
+      lockPosition: "right",
+    });
+  }
+
   return cols;
 }
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
-  const { descriptor, scores, logDetails } = ctx;
+  const { descriptor, scores, logDetails, compactScores } = ctx;
 
   // Per-scorer mode (single-log with descriptor). One column per
   // *available* score; visibility is driven by `selectedScores` upstream
@@ -469,24 +497,36 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     return scores.map((label) => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? label.name : "Score";
-      // Score values are typically 1 char or a short number, so the
-      // header is the binding constraint. 6.2px/char + 40px covers the
-      // sort icon, filter icon, padding, and header gutter under the
-      // Balham theme.
-      const initialWidth = Math.max(
-        70,
-        Math.round(headerName.length * 6.2) + 40
-      );
       const scoreType =
         descriptor.evalDescriptor.scoreDescriptor(label)?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
+      // Compact mode collapses to ~40px (numeric) / ~55px (non-numeric)
+      // and lets the rotated label fan up-right out of the cell.
+      // Numeric scores render as a short formatted number; non-numeric
+      // scores render as one or two coloured "C/I"-style pills which
+      // need more room. Horizontal mode sizes to fit the header text:
+      // 6.2px/char + 40px covers sort icon, filter icon, padding,
+      // gutter under the Balham theme. `initialWidth` (not `width`) so
+      // user resize persists; SamplesTab forces a re-fit explicitly
+      // when `compactScores` toggles.
+      const compactWidth = isNumeric ? 40 : 55;
+      const headerCols: Partial<ColDef<SampleRow>> = compactScores
+        ? {
+            headerComponent: RotatedHeader,
+            headerClass: styles.rotatedHeader,
+            initialWidth: compactWidth,
+            minWidth: compactWidth - 4,
+          }
+        : {
+            initialWidth: Math.max(70, Math.round(headerName.length * 6.2) + 40),
+            minWidth: 60,
+            maxWidth: 120,
+          };
       return {
         colId,
         field: colId,
         headerName,
-        initialWidth,
-        minWidth: 60,
-        maxWidth: 120,
+        ...headerCols,
         sortable: true,
         filter: isNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
         resizable: true,
@@ -530,12 +570,20 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   const scoreNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
   return scoreNames.map((name) => {
     const isUniformNumber = types[name].size === 1 && types[name].has("number");
+    const compactWidth = isUniformNumber ? 40 : 55;
+    const headerCols: Partial<ColDef<SampleRow>> = compactScores
+      ? {
+          headerComponent: RotatedHeader,
+          headerClass: styles.rotatedHeader,
+          initialWidth: compactWidth,
+          minWidth: compactWidth - 4,
+        }
+      : { initialWidth: 100, minWidth: 60 };
     return {
       colId: rawScoreFieldKey(name),
       field: rawScoreFieldKey(name),
       headerName: name,
-      initialWidth: 100,
-      minWidth: 60,
+      ...headerCols,
       sortable: true,
       filter: isUniformNumber ? "agNumberColumnFilter" : "agTextColumnFilter",
       resizable: true,

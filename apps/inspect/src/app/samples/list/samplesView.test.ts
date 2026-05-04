@@ -10,6 +10,7 @@ describe("defaultSamplesView", () => {
       sort: [],
       filters: { dsl: "", extraColumnFilters: {} },
       multiline: true,
+      compactScores: false,
     });
   });
 

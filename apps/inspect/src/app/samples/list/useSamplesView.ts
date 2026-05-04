@@ -28,6 +28,23 @@ export function useSamplesViewMultiline(): boolean {
   }, [stored, evalDefaultField]);
 }
 
+/** Resolved `compactScores` — same access pattern as the multiline
+ *  companion above. Read in `SamplesTab` before columns are built so
+ *  the flag can flow into `buildSampleColumns`. */
+export function useSamplesViewCompactScores(): boolean {
+  const stored = useStore(
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view,
+  );
+  const evalDefaultField = useStore(
+    (state) =>
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null,
+  );
+  return useMemo(() => {
+    const evalDefault = pickActiveView(evalDefaultField);
+    return resolveSamplesView(stored, evalDefault).compactScores;
+  }, [stored, evalDefaultField]);
+}
+
 export interface UseSamplesViewResult {
   view: SamplesViewState;
   columnVisibility: Record<string, boolean>;
@@ -37,6 +54,7 @@ export interface UseSamplesViewResult {
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
   setGridState: (gs: GridState) => void;
   setMultiline: (multiline: boolean) => void;
+  setCompactScores: (compactScores: boolean) => void;
 }
 
 /**
@@ -149,6 +167,11 @@ export function useSamplesView<TRow>(
     [patchView],
   );
 
+  const setCompactScores = useCallback(
+    (compactScores: boolean) => patchView({ compactScores }),
+    [patchView],
+  );
+
   const setView = useCallback(
     (next: SamplesViewState) => setSampleListView(next),
     [setSampleListView],
@@ -163,5 +186,6 @@ export function useSamplesView<TRow>(
     setColumnVisibility,
     setGridState,
     setMultiline,
+    setCompactScores,
   };
 }

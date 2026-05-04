@@ -15,6 +15,7 @@
 /* Shared chrome — applied to all sample/log grids. Other ag-grids in the
  * app (e.g. the small score-summary table in title-view) intentionally opt
  * out by not adding this class. */
+
 .gridChrome :global(.ag-row) {
   cursor: pointer;
   border-bottom: 1px solid var(--bs-border-color);
@@ -53,6 +54,73 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 400;
+}
+
+/* Rotated header — opt-in via `headerClass: styles.rotatedHeader` +
+ * `headerComponent: RotatedHeader` in a ColDef. SamplesGrid auto-bumps
+ * `headerHeight` to kRotatedHeaderHeight when any column has this class
+ * so the rotated label has room to fan up-and-to-the-right without
+ * getting clipped by the header viewport. */
+.gridChrome .rotatedHeader {
+  /* Default ag-grid `.ag-header-cell` clips overflow; the rotated
+   * parallelogram pivots out of the cell box and would disappear
+   * without this. */
+  overflow: visible;
+  /* Suppress Balham's vertical column separator on rotated cells —
+   * a vertical line through a 45° label clashes. The angled divider
+   * inside `RotatedHeader` takes its place. */
+  --ag-header-column-border: transparent;
+}
+
+/* Each rotated label extends past its own cell into the next
+ * column's space, so the next cell's content wrapper would
+ * otherwise intercept clicks on the overflowing label tip. Make the
+ * wrapper transparent to pointer events; the label inside opts back
+ * in via `pointer-events: auto` (see RotatedHeader.module.css). */
+.gridChrome .rotatedHeader :global(.ag-header-cell-comp-wrapper) {
+  pointer-events: none;
+}
+
+/* When any column has a rotated header, the header row is tall
+ * enough that center-aligned labels look adrift. Bottom-align all
+ * header content so non-rotated labels line up visually with the
+ * rotated labels (which are anchored at the cell's bottom-left).
+ * The cell, label-container, and label are each independent flex
+ * boxes that all default to center alignment, so all three need
+ * the override for the text to actually drop to the bottom. */
+.gridChrome:has(.rotatedHeader) :global(.ag-header-cell),
+.gridChrome:has(.rotatedHeader) :global(.ag-cell-label-container),
+.gridChrome:has(.rotatedHeader) :global(.ag-header-cell-label) {
+  align-items: flex-end;
+}
+.gridChrome:has(.rotatedHeader) :global(.ag-header-cell-label) {
+  padding-bottom: 4px;
+}
+
+/* Bottom-anchor the vertical column separator on regular cells when
+ * the header row is tall (rotated-mode). Balham's `::after` separator
+ * defaults to vertically-centered and 50% height, which floats far
+ * above the bottom-aligned text and looks orphaned. Drop it down so
+ * it sits next to the text. */
+.gridChrome:has(.rotatedHeader) :global(.ag-header-cell)::after {
+  top: auto;
+  bottom: 0;
+  height: 22px;
+}
+
+
+/* Hide ag-grid's default header-filter button (funnel) until the
+ * user hovers the column header. Stays visible when the filter is
+ * active so users always see *which* columns are filtering. Applies
+ * to all sample/log grids — quieter at rest, full affordance on
+ * intent. */
+.gridChrome :global(.ag-header-cell-filter-button) {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.gridChrome :global(.ag-header-cell):hover :global(.ag-header-cell-filter-button),
+.gridChrome :global(.ag-header-cell.ag-header-cell-filtered) :global(.ag-header-cell-filter-button) {
+  opacity: 1;
 }
 
 .gridChrome :global(.ag-sort-order) {

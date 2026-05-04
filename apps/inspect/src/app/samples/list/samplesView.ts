@@ -51,6 +51,11 @@ export interface SamplesViewState {
    * `false` = compact single-line rows (30px).
    */
   multiline: boolean;
+  /**
+   * Score-column presentation. `true` = compact narrow columns with
+   * rotated 45° headers; `false` = standard-width horizontal headers.
+   */
+  compactScores: boolean;
 }
 
 /**
@@ -66,4 +71,5 @@ export const defaultSamplesView = (): SamplesViewState => ({
   sort: [],
   filters: { dsl: "", extraColumnFilters: {} },
   multiline: true,
+  compactScores: false,
 });

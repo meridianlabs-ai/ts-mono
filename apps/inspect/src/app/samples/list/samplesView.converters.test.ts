@@ -52,6 +52,7 @@ describe("liftEvalView", () => {
       sort: [{ colId: "tokens", dir: "desc" }],
       filters: { dsl: "has_error", extraColumnFilters: {} },
       multiline: false,
+      compactScores: false,
     });
   });
 
@@ -62,6 +63,12 @@ describe("liftEvalView", () => {
     expect(lifted.sort).toEqual([]);
     expect(lifted.filters).toEqual({ dsl: "", extraColumnFilters: {} });
     expect(lifted.multiline).toBe(true);
+    expect(lifted.compactScores).toBe(false);
+  });
+
+  test("compact_scores wire field maps to compactScores runtime field", () => {
+    const wire: SamplesView = { name: "Triage", compact_scores: true };
+    expect(liftEvalView(wire).compactScores).toBe(true);
   });
 });
 
@@ -83,6 +90,7 @@ describe("flattenToEvalView", () => {
       sort: [{ column: "tokens", dir: "asc" }],
       filter: "has_error",
       multiline: false,
+      compact_scores: false,
     });
   });
 

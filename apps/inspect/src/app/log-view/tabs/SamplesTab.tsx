@@ -41,6 +41,7 @@ import { filterModelToText } from "../../samples/sample-tools/filterModelToText.
 import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
 import {
   useSamplesView,
+  useSamplesViewCompactScores,
   useSamplesViewMultiline,
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
@@ -198,6 +199,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Multiline determines column rendering: list-style uses
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
+  const compactScores = useSamplesViewCompactScores();
 
   const allColumns = useMemo(
     () =>
@@ -207,8 +209,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         descriptor: samplesDescriptor,
         scores,
         epochs,
+        compactScores,
       }),
-    [multiline, samplesDescriptor, scores, epochs]
+    [multiline, samplesDescriptor, scores, epochs, compactScores]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -422,6 +425,26 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     if (JSON.stringify(current) === JSON.stringify(merged)) return;
     api.setFilterModel(merged);
   }, [currentFilter, filterModelFromText, filterRegistry]);
+
+  // Snap score columns to their target width when `compactScores`
+  // toggles. ag-grid ignores `initialWidth` once a column has been
+  // sized, so we apply `width = initialWidth` explicitly. Flex
+  // columns (input/target/answer) redistribute on their own as the
+  // score columns shrink/grow, so we leave them alone — that also
+  // preserves any user resize on those columns.
+  useEffect(() => {
+    const api = sampleListHandle.current?.api;
+    if (!api) return;
+    const cols = api.getColumns();
+    if (!cols) return;
+    const state = cols.flatMap((c) => {
+      const colId = c.getColId();
+      if (!colId.startsWith("score_")) return [];
+      const w = c.getColDef().initialWidth as number | undefined;
+      return w === undefined ? [] : [{ colId, width: w, flex: null }];
+    });
+    if (state.length > 0) api.applyColumnState({ state });
+  }, [compactScores]);
 
   // When the toolbar text is a non-round-trippable expression, hide the
   // column-header filter buttons. Using one would overwrite the typed
