@@ -111,16 +111,21 @@ describe("astToFilterModel — string columns", () => {
   });
 
   test("~= 'literal' → contains (no anchors)", () => {
-    // `id` is the filtrex variable for the sampleId column.
-    expect(toModel('id ~= "abc"')).toEqual({
-      sampleId: { filterType: "text", type: "contains", filter: "abc" },
+    // `uuid` is a registered string column without a contains-fn.
+    expect(toModel('uuid ~= "abc"')).toEqual({
+      sampleUuid: { filterType: "text", type: "contains", filter: "abc" },
     });
   });
 
   test("~= '^both$' → equals", () => {
-    expect(toModel('id ~= "^xyz$"')).toEqual({
-      sampleId: { filterType: "text", type: "equals", filter: "xyz" },
+    expect(toModel('uuid ~= "^xyz$"')).toEqual({
+      sampleUuid: { filterType: "text", type: "equals", filter: "xyz" },
     });
+  });
+
+  test("`id` is not synced (numeric/string ambiguity)", () => {
+    expect(toModel('id == "1"')).toBeNull();
+    expect(toModel("id == 1")).toBeNull();
   });
 
   test("blank / notBlank for string column", () => {

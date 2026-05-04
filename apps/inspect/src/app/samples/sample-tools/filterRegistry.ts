@@ -1,4 +1,8 @@
-import { kScoreTypeNumeric } from "../../../constants";
+import {
+  kScoreTypeCategorical,
+  kScoreTypeNumeric,
+  kScoreTypePassFail,
+} from "../../../constants";
 import { perScorerFieldKey } from "../../shared/samples-grid/columns";
 import { EvalDescriptor } from "../descriptor/types";
 
@@ -23,8 +27,13 @@ export interface SampleFilterRegistry {
   byVariable: Map<string, string>;
 }
 
+// `sampleId` is intentionally absent: `sample.id` can be either number
+// or string, but the column's `valueGetter` stringifies it for filtering
+// and filtrex's `==` is strict. A sync would emit `id == "1"`, which
+// won't match a numeric `id = 1`. The column UI and the text filter
+// each work on their own; they just don't round-trip through each
+// other for IDs.
 const STATIC_ENTRIES: Array<[string, FilterVarMapping]> = [
-  ["sampleId", { variable: "id", kind: "string" }],
   ["sampleUuid", { variable: "uuid", kind: "string" }],
   ["epoch", { variable: "epoch", kind: "number" }],
   [
@@ -63,15 +72,27 @@ export const buildSampleFilterRegistry = (
       const colId = perScorerFieldKey({ name, scorer });
       const variable =
         name === scorer || !banned.has(name) ? name : `${scorer}.${name}`;
-      // Match the column's filter type: numeric scores use the number
-      // filter and round-trip as numbers; everything else (boolean,
-      // passfail, categorical, etc.) uses the text filter.
       const scoreType = evalDescriptor.scoreDescriptor({
         name,
         scorer,
       })?.scoreType;
-      const kind: FilterVarKind =
-        scoreType === kScoreTypeNumeric ? "number" : "string";
+      // Only sync score column filters where the column's text/number
+      // filter operates on values that match the runtime filtrex
+      // variable type. Booleans (filtrex sees `true`/`false`, the
+      // column's text filter sees the string `"true"`) and complex
+      // types (object/list/other) would generate expressions that
+      // never match the underlying values.
+      let kind: FilterVarKind;
+      if (scoreType === kScoreTypeNumeric) {
+        kind = "number";
+      } else if (
+        scoreType === kScoreTypeCategorical ||
+        scoreType === kScoreTypePassFail
+      ) {
+        kind = "string";
+      } else {
+        continue;
+      }
       entries.push([colId, { variable, kind }]);
     }
   }

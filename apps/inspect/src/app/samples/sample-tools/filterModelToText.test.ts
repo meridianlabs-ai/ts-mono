@@ -116,12 +116,13 @@ describe("filterModelToText — string columns with contains-fn", () => {
 
 describe("filterModelToText — string columns without contains-fn", () => {
   test("contains falls back to filtrex regex match", () => {
+    // `sampleUuid` is a registered string column without a contains-fn.
     expect(
       filterModelToText(
-        { sampleId: { type: "contains", filter: "abc" } },
+        { sampleUuid: { type: "contains", filter: "abc" } },
         registry
       )
-    ).toBe('id ~= "abc"');
+    ).toBe('uuid ~= "abc"');
   });
 });
 
