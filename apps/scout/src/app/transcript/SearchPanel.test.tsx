@@ -230,6 +230,8 @@ describe("SearchPanel", () => {
       }),
     });
 
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Run" })).not.toBeNull());
+
     fireEvent.click(getRunButton());
 
     await waitFor(() => {
@@ -292,7 +294,7 @@ describe("SearchPanel", () => {
     });
   });
 
-  it("preserves separate query state across grep/llm toggle", () => {
+  it("preserves separate query state across grep/llm toggle", async () => {
     const { store } = renderSearchPanel({
       initialState: buildState({
         searchType: "grep",
@@ -309,6 +311,8 @@ describe("SearchPanel", () => {
       transcriptId,
     });
 
+    await waitFor(() => expect(screen.queryByRole("button", { name: "LLM" })).not.toBeNull());
+
     fireEvent.click(screen.getByRole("button", { name: "LLM" }));
     expect(store.getState().searchPanelStates[stateKey]?.searchType).toBe(
       "llm"
@@ -322,7 +326,7 @@ describe("SearchPanel", () => {
     expect(stored?.searches.llm.query).toBe("llm-question");
   });
 
-  it("resets state when New search is clicked", () => {
+  it("resets state when New search is clicked", async () => {
     const { store } = renderSearchPanel({
       initialState: buildState({
         searchType: "grep",
@@ -337,7 +341,7 @@ describe("SearchPanel", () => {
       }),
     });
 
-    expect(screen.queryByText("7 matches")).not.toBeNull();
+    await waitFor(() => expect(screen.queryByText("7 matches")).not.toBeNull());
 
     fireEvent.click(screen.getByRole("button", { name: "New search" }));
 
