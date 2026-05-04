@@ -19,7 +19,7 @@ import {
   PopOver,
   SegmentedControl,
 } from "@tsmono/react/components";
-import { ApiError, compose, map } from "@tsmono/util";
+import { ApiError } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
@@ -34,7 +34,6 @@ import {
   useCreateSearch,
   useSearches,
 } from "../server/useSearches";
-import { useTranscript } from "../server/useTranscript";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -85,30 +84,16 @@ function isSearchType(value: string): value is SearchType {
 }
 
 export const SearchPanel = (props: SearchPanelProps) => {
-  const transcriptResult = useTranscript({
-    location: props.transcriptDir,
-    id: props.transcriptId,
-  });
-  const result = compose({
-    model: map(transcriptResult, (transcript) => transcript.model ?? undefined),
-    projectConfig: useProjectConfig(),
-  });
+  const result = useProjectConfig();
 
   if (result.loading) return <div className={styles.container}>Loading...</div>;
   if (result.error)
     return <div className={styles.container}>Error loading data</div>;
 
-  return (
-    <SearchPanelWithData
-      {...props}
-      transcriptModel={result.data.model}
-      projectConfig={result.data.projectConfig}
-    />
-  );
+  return <SearchPanelWithData {...props} projectConfig={result.data} />;
 };
 
 type SearchPanelWithDataProps = SearchPanelProps & {
-  transcriptModel: string | undefined;
   projectConfig: ProjectConfigWithEtag;
 };
 const SearchPanelWithData = ({
@@ -116,7 +101,6 @@ const SearchPanelWithData = ({
   transcriptDir,
   transcriptId,
   onClose,
-  transcriptModel,
   projectConfig,
 }: SearchPanelWithDataProps) => {
   const { getFullMessageUrl, getFullEventUrl, getFullEventMessageUrl } =
@@ -186,10 +170,7 @@ const SearchPanelWithData = ({
 
       const resolvedModel =
         searchType === "llm"
-          ? ((model.trim() ||
-              projectConfig.config.model?.trim() ||
-              transcriptModel) ??
-            "")
+          ? ((model.trim() || projectConfig.config.model?.trim()) ?? "")
           : "";
 
       const request = buildSearchRequest({
@@ -230,7 +211,6 @@ const SearchPanelWithData = ({
       query,
       recordSearchModel,
       setState,
-      transcriptModel,
     ]
   );
 
@@ -462,7 +442,7 @@ const SearchPanelWithData = ({
                       id={modelInputId}
                       className={styles.modelInput}
                       placeholder={
-                        projectConfig.config.model ?? transcriptModel ?? "Model"
+                        projectConfig.config.model ?? "e.g., openai/gpt-5"
                       }
                       value={model}
                       onChange={(value) =>
