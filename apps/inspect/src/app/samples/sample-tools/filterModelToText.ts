@@ -131,16 +131,21 @@ const columnFilterToFiltrex = (
  * Convert an ag-grid `FilterModel` into a filtrex expression suitable for
  * the toolbar text filter.
  *
- * Returns `null` when the model contains *only* unrepresentable columns
- * (so callers can leave the text filter alone). Columns that exist but
- * aren't in the registry, or use unsupported operators, are skipped — the
- * intent is best-effort surfacing of column filters in the DSL.
+ * Three return values, each with distinct semantics for the caller:
+ *  - `""`     — the model is empty (no column filters); callers should
+ *               clear the text.
+ *  - `null`   — the model has entries but *none* are representable in the
+ *               DSL; callers should leave the text alone.
+ *  - string   — the synthesized filtrex expression.
+ *
+ * Columns that aren't in the registry or use unsupported operators are
+ * skipped — the intent is best-effort surfacing of column filters.
  */
 export const filterModelToText = (
   model: Record<string, AnyColumnFilter> | null | undefined,
   registry: SampleFilterRegistry
 ): string | null => {
-  if (!model) return null;
+  if (!model || Object.keys(model).length === 0) return "";
   const parts: string[] = [];
   for (const [colId, filter] of Object.entries(model)) {
     const mapping = registry.byColId.get(colId);

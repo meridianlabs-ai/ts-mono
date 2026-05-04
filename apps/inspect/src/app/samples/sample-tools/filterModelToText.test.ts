@@ -204,15 +204,15 @@ describe("filterModelToText — multi-column", () => {
 });
 
 describe("filterModelToText — empty / null cases", () => {
-  test("null model returns null", () => {
-    expect(filterModelToText(null, registry)).toBeNull();
+  test("null model returns empty string (no filtering)", () => {
+    expect(filterModelToText(null, registry)).toBe("");
   });
 
-  test("empty object returns null", () => {
-    expect(filterModelToText({}, registry)).toBeNull();
+  test("empty object returns empty string (no filtering)", () => {
+    expect(filterModelToText({}, registry)).toBe("");
   });
 
-  test("only-unrepresentable columns returns null", () => {
+  test("only-unrepresentable columns returns null (leave text alone)", () => {
     expect(
       filterModelToText(
         { sampleStatus: { type: "equals", filter: "x" } },
