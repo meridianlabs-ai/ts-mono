@@ -301,7 +301,13 @@ const hasVisibleContent = (message: Message): boolean => {
     if (c.type === "reasoning") {
       const hasReasoning = c.reasoning.trim().length > 0;
       const hasSummary = (c.summary?.trim().length ?? 0) > 0;
-      return hasReasoning || hasSummary || !!c.redacted;
+      // Empty redacted blocks (e.g. Google's position-only function_call
+      // anchors with no signature) are pure structural metadata and have
+      // nothing to display. Real encrypted-reasoning blocks (OpenAI
+      // encrypted_content, Anthropic redacted-thinking) carry the encrypted
+      // bytes in `reasoning` itself, so `hasReasoning` is true for them and
+      // they remain visible.
+      return hasReasoning || hasSummary;
     }
     return true;
   });
