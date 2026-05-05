@@ -27,6 +27,7 @@ import {
   type RowLayout,
 } from "../swimlaneLayout";
 import { isSingleSpan, type SwimlaneRow } from "../swimlaneRows";
+import { correctRetryTimestamps } from "../retryOrdering";
 import {
   collectPathWithNavigators,
   collectRawEvents,
@@ -114,13 +115,18 @@ export function useTranscriptTimeline(
   options: UseTranscriptTimelineOptions
 ): TranscriptTimelineResult {
   const {
-    events,
+    events: rawEvents,
     markerConfig = defaultMarkerConfig,
     timelineOptions,
     serverTimelines,
     timelineProps,
     activeTimelineProps,
   } = options;
+
+  const events = useMemo(
+    () => correctRetryTimestamps(rawEvents),
+    [rawEvents]
+  );
 
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;

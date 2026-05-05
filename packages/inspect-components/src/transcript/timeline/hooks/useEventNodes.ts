@@ -20,6 +20,7 @@ import { treeifyEvents } from "../../transform/treeify";
 import { EventNode, kCollapsibleEventTypes } from "../../types";
 import type { EventType } from "../../types";
 import type { TimelineSpan } from "../core";
+import { correctRetryTimestamps } from "../retryOrdering";
 import { attachSourceSpans } from "../timelineEventNodes";
 
 // =============================================================================
@@ -57,8 +58,12 @@ export const useEventNodes = (
     eventTree: EventNode[];
     defaultCollapsedIds: Record<string, true>;
   } => {
+    // Repair retry-inverted ModelEvent timestamps before any downstream
+    // sort sees them (treeifyEvents sorts span children by timestamp).
+    const orderedEvents = correctRetryTimestamps(events);
+
     // Apply fixups to the event stream
-    const resolvedEvents = fixupEventStream(events, !running);
+    const resolvedEvents = fixupEventStream(orderedEvents, !running);
 
     // Build the event tree
     const rawEventTree = treeifyEvents(resolvedEvents, 0);
