@@ -529,7 +529,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   // bounds), so the cell renders with no background.
   const cellStyleFor = (
     name: string,
-    bounds: { min?: number; max?: number },
+    bounds: { min?: number; max?: number }
   ): ColDef<SampleRow>["cellStyle"] | undefined => {
     const wire = scoreColorScales?.[name];
     if (!wire) return undefined;

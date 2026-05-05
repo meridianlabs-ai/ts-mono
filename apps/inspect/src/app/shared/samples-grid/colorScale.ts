@@ -106,9 +106,7 @@ const isPaletteName = (s: string): s is ScoreColorPalette =>
 // where we can return null rather than silently falling through to the
 // categorical branch and producing a nonsense `{ kind: "categorical",
 // colors: { palette: undefined } }` shape).
-const isScaleObject = (
-  s: WireScoreColorScale,
-): s is ScoreColorScaleObject =>
+const isScaleObject = (s: WireScoreColorScale): s is ScoreColorScaleObject =>
   typeof s === "object" && s !== null && "palette" in s;
 
 /**
@@ -126,7 +124,7 @@ const isScaleObject = (
  */
 export function resolveScale(
   scale: WireScoreColorScale,
-  bounds: { min?: number; max?: number },
+  bounds: { min?: number; max?: number }
 ): ResolvedScale | null {
   // String shorthand — palette name only, descriptor bounds.
   if (typeof scale === "string") {
@@ -141,7 +139,7 @@ export function resolveScale(
     return resolveGradient(
       scale.palette,
       scale.min ?? bounds.min,
-      scale.max ?? bounds.max,
+      scale.max ?? bounds.max
     );
   }
   // Categorical: prebake string keys; coerce booleans/numbers at lookup
@@ -156,7 +154,7 @@ export function resolveScale(
 function resolveGradient(
   palette: ScoreColorPalette,
   min: number | null | undefined,
-  max: number | null | undefined,
+  max: number | null | undefined
 ): ResolvedScale | null {
   if (!isPaletteName(palette)) return null;
   if (typeof min !== "number" || typeof max !== "number" || min === max) {
@@ -181,7 +179,7 @@ function resolveGradient(
  */
 export function colorForValue(
   scale: ResolvedScale,
-  value: unknown,
+  value: unknown
 ): string | undefined {
   if (scale.kind === "gradient") {
     if (typeof value !== "number" || !Number.isFinite(value)) return undefined;

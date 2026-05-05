@@ -46,10 +46,7 @@ describe("resolveScale", () => {
   });
 
   test("categorical map resolves regardless of bounds", () => {
-    const r = resolveScale(
-      { yes: "bad", no: "good", maybe: "warn" },
-      {},
-    );
+    const r = resolveScale({ yes: "bad", no: "good", maybe: "warn" }, {});
     expect(r).toEqual({
       kind: "categorical",
       colors: {
@@ -66,7 +63,7 @@ describe("resolveScale", () => {
     // anchored at 1..10 so a "5" lands at the midpoint, not at the top.
     const r = resolveScale(
       { palette: "good-low", min: 1, max: 10 },
-      { min: 1, max: 3 },
+      { min: 1, max: 3 }
     ) as Extract<ResolvedScale, { kind: "gradient" }>;
     expect(r.kind).toBe("gradient");
     expect(r.min).toBe(1);
@@ -77,16 +74,14 @@ describe("resolveScale", () => {
     // Author specifies only max; min comes from the descriptor.
     const r = resolveScale(
       { palette: "good-high", max: 10 },
-      { min: 0, max: 3 },
+      { min: 0, max: 3 }
     ) as Extract<ResolvedScale, { kind: "gradient" }>;
     expect(r.min).toBe(0);
     expect(r.max).toBe(10);
   });
 
   test("object form returns null when both bounds missing and descriptor empty", () => {
-    expect(
-      resolveScale({ palette: "good-high" }, {}),
-    ).toBeNull();
+    expect(resolveScale({ palette: "good-high" }, {})).toBeNull();
   });
 
   test("object form rejects unknown palette name", () => {
@@ -102,19 +97,19 @@ describe("colorForValue (gradient)", () => {
 
   test("min value emits 100% low (no mid mix)", () => {
     expect(colorForValue(scale, 0)).toBe(
-      "color-mix(in srgb, var(--bs-danger-bg-subtle) 100%, var(--bs-warning-bg-subtle))",
+      "color-mix(in srgb, var(--bs-danger-bg-subtle) 100%, var(--bs-warning-bg-subtle))"
     );
   });
 
   test("max value emits 100% high (no mid mix)", () => {
     expect(colorForValue(scale, 1)).toBe(
-      "color-mix(in srgb, var(--bs-success-bg-subtle) 100%, var(--bs-warning-bg-subtle))",
+      "color-mix(in srgb, var(--bs-success-bg-subtle) 100%, var(--bs-warning-bg-subtle))"
     );
   });
 
   test("midpoint emits 0% of either stop (pure mid)", () => {
     expect(colorForValue(scale, 0.5)).toBe(
-      "color-mix(in srgb, var(--bs-danger-bg-subtle) 0%, var(--bs-warning-bg-subtle))",
+      "color-mix(in srgb, var(--bs-danger-bg-subtle) 0%, var(--bs-warning-bg-subtle))"
     );
   });
 
@@ -133,8 +128,8 @@ describe("colorForValue (gradient)", () => {
 
 describe("colorForValue (categorical)", () => {
   const scale = resolveScale(
-    { yes: "bad", no: "good", "1": "good", "true": "good" },
-    {},
+    { yes: "bad", no: "good", "1": "good", true: "good" },
+    {}
   )!;
 
   test("string value looks up in map", () => {

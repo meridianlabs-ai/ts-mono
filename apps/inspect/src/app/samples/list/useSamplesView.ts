@@ -2,8 +2,8 @@ import type { ColDef, GridState } from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
-import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 import { getFieldKey } from "../../shared/gridUtils";
+import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 
 import { type SamplesViewState } from "./samplesView";
 import {
