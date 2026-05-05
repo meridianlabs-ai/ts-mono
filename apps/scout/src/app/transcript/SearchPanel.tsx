@@ -6,6 +6,7 @@ import {
   KeyboardEvent,
   useCallback,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -70,13 +71,34 @@ function getInputValue(e: Event): string {
   return hasStringValue(e.target) ? e.target.value : "";
 }
 
-function configureSearchTextarea(el: HTMLElement | null) {
-  if (!el) return;
-  el.setAttribute("spellcheck", "false");
-  const shadowTextarea = el.shadowRoot?.querySelector("textarea");
-  if (shadowTextarea instanceof HTMLTextAreaElement) {
-    shadowTextarea.setAttribute("spellcheck", "false");
-  }
+const SEARCH_TEXTAREA_MIN_ROWS = 2;
+const SEARCH_TEXTAREA_MAX_ROWS = 10;
+
+function getInnerTextarea(el: HTMLElement | null): HTMLTextAreaElement | null {
+  const inner = el?.shadowRoot?.querySelector("textarea");
+  return inner instanceof HTMLTextAreaElement ? inner : null;
+}
+
+function autosizeSearchTextarea(el: HTMLElement) {
+  const cs = getComputedStyle(el);
+  const fontSize = parseFloat(cs.fontSize);
+  const rawLineHeight = parseFloat(cs.lineHeight);
+  const lineHeight = Number.isFinite(rawLineHeight)
+    ? rawLineHeight
+    : fontSize * 1.4;
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const borderY =
+    parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+
+  // Assumes border-box so heights below include padding + border.
+  const minH = lineHeight * SEARCH_TEXTAREA_MIN_ROWS + padY + borderY;
+  const maxH = lineHeight * SEARCH_TEXTAREA_MAX_ROWS + padY + borderY;
+
+  el.style.height = "auto";
+  const desired = el.scrollHeight + borderY;
+  const next = Math.min(maxH, Math.max(minH, desired));
+  el.style.height = `${next}px`;
+  el.style.overflowY = desired > maxH ? "auto" : "hidden";
 }
 
 function isSearchType(value: string): value is SearchType {
@@ -327,6 +349,17 @@ const SearchPanelWithData = ({
     [setState]
   );
 
+  const searchTextareaRef = useRef<HTMLElement | null>(null);
+  const handleSearchTextareaRef = useCallback((el: HTMLElement | null) => {
+    searchTextareaRef.current = el;
+  }, []);
+  useLayoutEffect(() => {
+    const inner = getInnerTextarea(searchTextareaRef.current);
+    if (inner !== null) {
+      autosizeSearchTextarea(inner);
+    }
+  }, [query]);
+
   const handleQueryInput = useCallback(
     (e: Event) => {
       const value = getInputValue(e);
@@ -395,9 +428,8 @@ const SearchPanelWithData = ({
             </div>
           </div>
           <div className={styles.inputShell}>
-            {/* TODO: grow up to 10 lines tall and then scroll */}
             <VscodeTextarea
-              ref={configureSearchTextarea}
+              ref={handleSearchTextareaRef}
               className={styles.textarea}
               placeholder={
                 searchType === "grep"
@@ -405,7 +437,6 @@ const SearchPanelWithData = ({
                   : "Ask a question about this transcript..."
               }
               value={query}
-              rows={4}
               onInput={handleQueryInput}
               onKeyDown={handleKeyDown}
               spellCheck={false}
