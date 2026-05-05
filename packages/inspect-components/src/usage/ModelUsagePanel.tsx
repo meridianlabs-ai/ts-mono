@@ -1,7 +1,5 @@
-// TODO: lint @typescript-eslint/no-redundant-type-constituents
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import clsx from "clsx";
-import { FC, Fragment } from "react";
+import { FC } from "react";
 
 import { formatNumber } from "@tsmono/util";
 
@@ -21,113 +19,112 @@ interface ModelUsageProps {
   className?: string | string[];
 }
 
-interface ModelUsageRow {
-  label: string | "---";
-  value?: number | null;
-  secondary?: boolean;
-  bordered?: boolean;
-  padded?: boolean;
+type CategoryKey =
+  | "input"
+  | "cacheRead"
+  | "cacheWrite"
+  | "output"
+  | "reasoning";
+
+interface Category {
+  key: CategoryKey;
+  label: string;
+  value: number;
+  swatchClass: string;
 }
 
-/**
- * Renders the ModelUsagePanel component.
- */
+const CAT_ORDER: CategoryKey[] = [
+  "input",
+  "cacheRead",
+  "cacheWrite",
+  "output",
+  "reasoning",
+];
+
+const CAT_LABEL: Record<CategoryKey, string> = {
+  input: "input",
+  cacheRead: "cache read",
+  cacheWrite: "cache write",
+  output: "output",
+  reasoning: "reasoning",
+};
+
+const CAT_SWATCH: Record<CategoryKey, string> = {
+  input: styles.catInput!,
+  cacheRead: styles.catCacheRead!,
+  cacheWrite: styles.catCacheWrite!,
+  output: styles.catOutput!,
+  reasoning: styles.catReasoning!,
+};
+
+const buildCategories = (usage: ModelUsageData): Category[] => {
+  const values: Record<CategoryKey, number> = {
+    input: usage.input_tokens ?? 0,
+    cacheRead: usage.input_tokens_cache_read ?? 0,
+    cacheWrite: usage.input_tokens_cache_write ?? 0,
+    output: usage.output_tokens ?? 0,
+    reasoning: usage.reasoning_tokens ?? 0,
+  };
+  return CAT_ORDER.filter((k) => values[k] > 0).map((k) => ({
+    key: k,
+    label: CAT_LABEL[k],
+    value: values[k],
+    swatchClass: CAT_SWATCH[k],
+  }));
+};
+
 export const ModelUsagePanel: FC<ModelUsageProps> = ({ usage, className }) => {
   if (!usage) {
     return null;
   }
 
-  const rows: ModelUsageRow[] = [];
+  const categories = buildCategories(usage);
+  const compositionTotal = categories.reduce((a, c) => a + c.value, 0);
+  const total = usage.total_tokens || compositionTotal;
 
-  if (usage.reasoning_tokens) {
-    rows.push({
-      label: "Reasoning",
-      value: usage.reasoning_tokens,
-      secondary: false,
-      bordered: true,
-    });
-
-    rows.push({
-      label: "---",
-      value: undefined,
-      secondary: false,
-      padded: true,
-    });
-  }
-
-  rows.push({
-    label: "input",
-    value: usage.input_tokens,
-    secondary: false,
-  });
-
-  if (usage.input_tokens_cache_read) {
-    rows.push({
-      label: "cache_read",
-      value: usage.input_tokens_cache_read,
-      secondary: true,
-    });
-  }
-
-  if (usage.input_tokens_cache_write) {
-    rows.push({
-      label: "cache_write",
-      value: usage.input_tokens_cache_write,
-      secondary: true,
-    });
-  }
-
-  rows.push({
-    label: "Output",
-    value: usage.output_tokens,
-    secondary: false,
-    bordered: true,
-  });
-
-  rows.push({
-    label: "---",
-    value: undefined,
-    secondary: false,
-  });
-
-  rows.push({
-    label: "Total",
-    value: usage.total_tokens,
-    secondary: false,
-  });
+  const inputAll =
+    (usage.input_tokens ?? 0) +
+    (usage.input_tokens_cache_read ?? 0) +
+    (usage.input_tokens_cache_write ?? 0);
+  const outputAll =
+    (usage.output_tokens ?? 0) + (usage.reasoning_tokens ?? 0);
+  const denominator = inputAll + outputAll || total || 1;
+  const inputPct = Math.round((inputAll / denominator) * 100);
+  const outputPct = Math.max(0, 100 - inputPct);
 
   return (
-    <div className={clsx("text-size-small", styles.wrapper, className)}>
-      {rows.map((row, idx) => {
-        if (row.label === "---") {
-          return (
-            <div
-              key={`$usage-sep-${idx}`}
-              className={clsx(
-                styles.separator,
-                row.padded ? styles.padded : undefined
-              )}
-            ></div>
-          );
-        } else {
-          return (
-            <Fragment key={`$usage-row-${idx}`}>
-              <div
-                className={clsx(
-                  "text-style-label",
-                  "text-style-secondary",
-                  row.secondary ? styles.col2 : styles.col1_3
-                )}
-              >
-                {row.label}
-              </div>
-              <div className={styles.col3}>
-                {row.value ? formatNumber(row.value) : ""}
-              </div>
-            </Fragment>
-          );
-        }
-      })}
+    <div className={clsx(styles.strip, className)}>
+      <div className={styles.cell}>
+        <span className={styles.lab}>Total tokens</span>
+        <span className={styles.val}>{formatNumber(total)}</span>
+        {compositionTotal > 0 && (
+          <span className={styles.sub}>
+            {inputPct}% input · {outputPct}% output
+          </span>
+        )}
+      </div>
+      <div className={styles.cell}>
+        <span className={styles.lab}>Composition</span>
+        <div className={styles.barRow}>
+          <div className={styles.stack}>
+            {categories.map((c) => (
+              <span
+                key={c.key}
+                className={c.swatchClass}
+                style={{ width: `${(c.value / compositionTotal) * 100}%` }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className={styles.breakdown}>
+          {categories.map((c) => (
+            <span key={c.key}>
+              <span className={clsx(styles.swatch, c.swatchClass)} />
+              <b>{formatNumber(c.value)}</b> {c.label}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

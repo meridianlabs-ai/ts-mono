@@ -11,12 +11,17 @@ const kUsageCardBodyId = "usage-card-body";
 interface UsageCardProps {
   usage?: Record<string, ModelUsageData>;
   label?: string;
+  samples?: number;
 }
 
 /**
  * Renders a usage card displaying model token usage.
  */
-export const UsageCard: FC<UsageCardProps> = ({ usage, label = "Usage" }) => {
+export const UsageCard: FC<UsageCardProps> = ({
+  usage,
+  label = "Usage",
+  samples,
+}) => {
   if (!usage) {
     return null;
   }
@@ -26,9 +31,7 @@ export const UsageCard: FC<UsageCardProps> = ({ usage, label = "Usage" }) => {
       <CardHeader label={label} />
       <CardBody id={kUsageCardBodyId}>
         <div className={styles.wrapper}>
-          <div className={styles.col2}>
-            <ModelTokenTable model_usage={usage} />
-          </div>
+          <ModelTokenTable model_usage={usage} samples={samples} />
         </div>
       </CardBody>
     </Card>
