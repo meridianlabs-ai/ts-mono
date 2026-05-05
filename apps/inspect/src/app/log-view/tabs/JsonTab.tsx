@@ -40,6 +40,7 @@ export const useJsonTabConfig = (logDetails: LogDetails | undefined) => {
           icon={ApplicationIcons.copy}
           className={clsx("task-btn-json-copy", "clipboard-button")}
           data-clipboard-target="#task-json-contents"
+          subtle
           onClick={copyFeedback}
         />,
       ],

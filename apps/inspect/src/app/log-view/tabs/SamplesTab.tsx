@@ -115,6 +115,7 @@ export const useSamplesTabConfig = (
                     key="refresh"
                     label="Refresh"
                     icon={ApplicationIcons.refresh}
+                    subtle
                     onClick={refreshLog}
                   />
                 ),
