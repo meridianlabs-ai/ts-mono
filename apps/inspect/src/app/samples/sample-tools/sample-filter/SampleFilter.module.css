@@ -4,6 +4,12 @@
      `font-size: inherit`) matches the navbar's 0.7rem instead of
      picking up whatever the surrounding container computes to. */
   font-size: var(--inspect-font-size-smallest);
+  /* Claim leftover horizontal space (basis 0) but keep enough room for
+     the editor to be usable. min-width covers label + ~100px input +
+     help + their margins; below that the tab-tools row wraps. */
+  flex: 1 1 0;
+  min-width: 170px;
+  max-width: 500px;
 }
 
 .label {
@@ -13,7 +19,8 @@
 }
 
 .input {
-  width: 300px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .help {

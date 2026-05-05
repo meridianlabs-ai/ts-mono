@@ -47,7 +47,11 @@
 }
 
 .tabTools {
-  flex-basis: auto;
+  /* Grow alongside the spacer so flex children inside (e.g. a filter
+     input) can claim leftover horizontal space rather than being
+     content-sized. `justify-content: end` keeps non-growing tools
+     pinned to the right edge as before. */
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: end;
