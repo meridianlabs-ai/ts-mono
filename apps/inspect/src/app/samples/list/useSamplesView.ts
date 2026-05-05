@@ -1,6 +1,8 @@
 import type { ColDef, GridState } from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 
+import { type SamplesView } from "@tsmono/inspect-common/types";
+
 import { useStore } from "../../../state/store";
 import { getFieldKey } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
@@ -14,20 +16,34 @@ import {
   viewToGridState,
 } from "./samplesView.converters";
 
-/** Just the resolved `multiline` — for callers that need it before
- *  computing `allColumns` (which the full hook requires). */
-export function useSamplesViewMultiline(): boolean {
-  const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view
-  );
+/** Single subscription to the eval-author-supplied `task_samples_view`
+ *  descriptor (after picking an active variant from a multi-view list).
+ *  Backs every hook that reads from the wire side. */
+function useEvalDefaultSamplesView(): SamplesView | undefined {
   const evalDefaultField = useStore(
     (state) =>
       state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
   );
-  return useMemo(() => {
-    const evalDefault = pickActiveView(evalDefaultField);
-    return resolveSamplesView(stored, evalDefault).multiline;
-  }, [stored, evalDefaultField]);
+  return useMemo(() => pickActiveView(evalDefaultField), [evalDefaultField]);
+}
+
+/** Single subscription + resolution; backs every hook that needs a
+ *  field off the resolved view. */
+function useResolvedSamplesView(): SamplesViewState {
+  const stored = useStore(
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view
+  );
+  const evalDefault = useEvalDefaultSamplesView();
+  return useMemo(
+    () => resolveSamplesView(stored, evalDefault),
+    [stored, evalDefault]
+  );
+}
+
+/** Just the resolved `multiline` — for callers that need it before
+ *  computing `allColumns` (which the full hook requires). */
+export function useSamplesViewMultiline(): boolean {
+  return useResolvedSamplesView().multiline;
 }
 
 /** Eval-author-supplied score-label overrides. Read straight from
@@ -35,14 +51,7 @@ export function useSamplesViewMultiline(): boolean {
  *  eval can't shadow the current eval's labels. Returns an empty
  *  object when no overrides are present. */
 export function useSamplesViewScoreLabels(): Record<string, string> {
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
-  return useMemo(() => {
-    const evalDefault = pickActiveView(evalDefaultField);
-    return evalDefault?.score_labels ?? {};
-  }, [evalDefaultField]);
+  return useEvalDefaultSamplesView()?.score_labels ?? {};
 }
 
 /** Eval-author-supplied score-cell colour scales. Same wire-only
@@ -53,51 +62,25 @@ export function useSamplesViewScoreColorScales(): Record<
   string,
   WireScoreColorScale
 > {
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
-  return useMemo(() => {
-    const evalDefault = pickActiveView(evalDefaultField);
-    return (evalDefault?.score_color_scales ?? {}) as Record<
-      string,
-      WireScoreColorScale
-    >;
-  }, [evalDefaultField]);
+  const evalDefault = useEvalDefaultSamplesView();
+  return (evalDefault?.score_color_scales ?? {}) as Record<
+    string,
+    WireScoreColorScale
+  >;
 }
 
 /** Resolved `colorScalesEnabled` — same access pattern as the
  *  multiline companion above. Read in `SamplesTab` so the columns
  *  builder can decide whether to attach a `cellStyle` callback. */
 export function useSamplesViewColorScalesEnabled(): boolean {
-  const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view
-  );
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
-  return useMemo(() => {
-    const evalDefault = pickActiveView(evalDefaultField);
-    return resolveSamplesView(stored, evalDefault).colorScalesEnabled;
-  }, [stored, evalDefaultField]);
+  return useResolvedSamplesView().colorScalesEnabled;
 }
 
 /** Resolved `compactScores` — same access pattern as the multiline
  *  companion above. Read in `SamplesTab` before columns are built so
  *  the flag can flow into `buildSampleColumns`. */
 export function useSamplesViewCompactScores(): boolean {
-  const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view
-  );
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
-  return useMemo(() => {
-    const evalDefault = pickActiveView(evalDefaultField);
-    return resolveSamplesView(stored, evalDefault).compactScores;
-  }, [stored, evalDefaultField]);
+  return useResolvedSamplesView().compactScores;
 }
 
 export interface UseSamplesViewResult {
@@ -134,13 +117,8 @@ export function useSamplesView<TRow>(
 ): UseSamplesViewResult {
   const { seedDefaultVisibility } = options ?? {};
 
-  const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view
-  );
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
+  const evalDefault = useEvalDefaultSamplesView();
+  const view = useResolvedSamplesView();
   const setSampleListView = useStore(
     (state) => state.logsActions.setSampleListView
   );
@@ -152,16 +130,6 @@ export function useSamplesView<TRow>(
     }
     return ids;
   }, [allColumns]);
-
-  const evalDefault = useMemo(
-    () => pickActiveView(evalDefaultField),
-    [evalDefaultField]
-  );
-
-  const view = useMemo(
-    () => resolveSamplesView(stored, evalDefault),
-    [stored, evalDefault]
-  );
 
   const columnVisibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
