@@ -2602,7 +2602,7 @@ export interface components {
         };
         /**
          * ScannerResultView
-         * @description How the scann results should render the results.
+         * @description Customizes the rendering of scanner results.
          */
         ScannerResultView: {
             /** Exclude Fields */
@@ -2636,7 +2636,7 @@ export interface components {
          *
          *     By default the viewer anchors a named palette at the descriptor's
          *     auto-detected min/max, which is the *observed* range across the
-         *     log's samples. When the metric has a known *conceptual* range —
+         *     log's samples. When the score has a known *conceptual* range —
          *     e.g. an alignment-judge dimension that's always graded 1..10 —
          *     pin it via `min`/`max` so middling values don't get paint-clamped
          *     to the extremes when the observed data happens to cluster at one
