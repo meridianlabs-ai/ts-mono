@@ -81,7 +81,6 @@ export {
   attachSourceSpans,
   buildSelectionKey,
   buildSpanSelectKeys,
-  collectBranchWithContext,
   collectRawEvents,
   computeCompactionRegions,
   computeMinimapSelection,

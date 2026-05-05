@@ -54,6 +54,11 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
       [forwardedRef]
     );
     const [isSticky, setIsSticky] = useState(false);
+    // Mirror of `isSticky` for synchronous reads inside scroll/resize handlers
+    // (avoids stale closures and lets `checkSticky` bail out without a
+    // functional updater — side effects in updaters run during render and
+    // trigger cross-component setState warnings).
+    const isStickyRef = useRef(false);
     // Height captured just before entering sticky mode, used with preserveHeight
     // to keep the content area from collapsing when the sticky content shrinks.
     const [preStickHeight, setPreStickHeight] = useState(0);
@@ -79,17 +84,16 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
         // The element is sticky when it's at (or within 1px of) its sticky offset
         const nowSticky = contentTop <= containerTop + offsetTop + 1;
 
-        setIsSticky((prev) => {
-          if (prev === nowSticky) return prev;
+        if (isStickyRef.current === nowSticky) return;
+        isStickyRef.current = nowSticky;
 
-          // Capture height before entering sticky mode
-          if (nowSticky && preserveHeight && content) {
-            setPreStickHeight(content.getBoundingClientRect().height);
-          }
+        // Capture height before entering sticky mode
+        if (nowSticky && preserveHeight) {
+          setPreStickHeight(content.getBoundingClientRect().height);
+        }
 
-          onStickyChangeRef.current?.(nowSticky);
-          return nowSticky;
-        });
+        setIsSticky(nowSticky);
+        onStickyChangeRef.current?.(nowSticky);
       };
 
       // Check immediately in case we're already scrolled past the threshold
@@ -105,10 +109,6 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
     // resizes (e.g. the user collapsing the swimlane) update the preserved
     // height instead of leaving a whitespace gap.
     const childMeasureRef = useRef<HTMLDivElement>(null);
-    const isStickyRef = useRef(isSticky);
-    useEffect(() => {
-      isStickyRef.current = isSticky;
-    }, [isSticky]);
 
     useEffect(() => {
       if (!preserveHeight) return;
