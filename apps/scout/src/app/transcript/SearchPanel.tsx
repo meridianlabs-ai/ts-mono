@@ -35,6 +35,10 @@ import {
   useCreateSearch,
   useSearches,
 } from "../server/useSearches";
+import {
+  autosizeTextarea,
+  AutosizeTextareaConfig,
+} from "../utils/autosizeTextarea";
 import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
 
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -71,34 +75,14 @@ function getInputValue(e: Event): string {
   return hasStringValue(e.target) ? e.target.value : "";
 }
 
-const SEARCH_TEXTAREA_MIN_ROWS = 2;
-const SEARCH_TEXTAREA_MAX_ROWS = 10;
+const SEARCH_TEXTAREA_AUTOSIZE: AutosizeTextareaConfig = {
+  minRows: 2,
+  maxRows: 10,
+};
 
 function getInnerTextarea(el: HTMLElement | null): HTMLTextAreaElement | null {
   const inner = el?.shadowRoot?.querySelector("textarea");
   return inner instanceof HTMLTextAreaElement ? inner : null;
-}
-
-function autosizeSearchTextarea(el: HTMLElement) {
-  const cs = getComputedStyle(el);
-  const fontSize = parseFloat(cs.fontSize);
-  const rawLineHeight = parseFloat(cs.lineHeight);
-  const lineHeight = Number.isFinite(rawLineHeight)
-    ? rawLineHeight
-    : fontSize * 1.4;
-  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  const borderY =
-    parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-
-  // Assumes border-box so heights below include padding + border.
-  const minH = lineHeight * SEARCH_TEXTAREA_MIN_ROWS + padY + borderY;
-  const maxH = lineHeight * SEARCH_TEXTAREA_MAX_ROWS + padY + borderY;
-
-  el.style.height = "auto";
-  const desired = el.scrollHeight + borderY;
-  const next = Math.min(maxH, Math.max(minH, desired));
-  el.style.height = `${next}px`;
-  el.style.overflowY = desired > maxH ? "auto" : "hidden";
 }
 
 function isSearchType(value: string): value is SearchType {
@@ -356,7 +340,7 @@ const SearchPanelWithData = ({
   useLayoutEffect(() => {
     const inner = getInnerTextarea(searchTextareaRef.current);
     if (inner !== null) {
-      autosizeSearchTextarea(inner);
+      autosizeTextarea(inner, SEARCH_TEXTAREA_AUTOSIZE);
     }
   }, [query]);
 
