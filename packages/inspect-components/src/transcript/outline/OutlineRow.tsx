@@ -123,6 +123,9 @@ export const iconForNode = (node: EventNode): string | undefined => {
   if (node.sourceSpan?.spanType === "branch") {
     return TranscriptIcons.fork;
   }
+  if (node.event.event === "span_begin" && node.event.type === "fork_nav") {
+    return TranscriptIcons.fork;
+  }
 
   switch (node.event.event) {
     case "sample_limit":

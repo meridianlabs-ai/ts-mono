@@ -4,6 +4,7 @@ import { FC } from "react";
 import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
 
 import styles from "./ForkNavigatorView.module.css";
+import { TranscriptIcons } from "./icons";
 import type { ForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { EventNode } from "./types";
@@ -23,37 +24,29 @@ export const ForkNavigatorView: FC<ForkNavigatorViewProps> = ({
   if (!data || data.options.length < 2) return null;
 
   const { options, selectedIndex } = data;
-  const n = options.length;
-  const go = (delta: number, el: HTMLElement) => {
-    const next = (selectedIndex + delta + n) % n;
-    selectRow?.(
-      options[next]!.rowKey,
-      el.closest<HTMLElement>("[data-index]") ?? el
-    );
-  };
 
   return (
     <div className={clsx(styles.nav, className)}>
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={(e) => go(-1, e.currentTarget)}
-        aria-label="Previous continuation"
-      >
-        <i className="bi bi-chevron-left" />
-      </button>
-      <span className={styles.count}>
-        {selectedIndex + 1}/{n}
-      </span>
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={(e) => go(1, e.currentTarget)}
-        aria-label="Next continuation"
-      >
-        <i className="bi bi-chevron-right" />
-      </button>
-      <span className={styles.label}>{options[selectedIndex]!.label}</span>
+      <i className={clsx(TranscriptIcons.fork, styles.icon)} />
+      {options.map((opt, i) => (
+        <button
+          key={opt.rowKey}
+          type="button"
+          className={clsx(styles.pill, i === selectedIndex && styles.selected)}
+          onClick={(e) =>
+            i === selectedIndex
+              ? undefined
+              : selectRow?.(
+                  opt.rowKey,
+                  e.currentTarget.closest<HTMLElement>("[data-index]") ??
+                    e.currentTarget
+                )
+          }
+          aria-current={i === selectedIndex ? "true" : undefined}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 };

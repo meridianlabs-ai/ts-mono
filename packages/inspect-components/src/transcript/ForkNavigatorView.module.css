@@ -1,37 +1,43 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
   margin: 4px 0;
   font-size: var(--inspect-font-size-smallest);
   color: var(--vscode-descriptionForeground, #717171);
-  border-left: 2px solid var(--bs-border-color);
-  background: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.02));
 }
 
-.btn {
-  border: none;
+.icon {
+  font-size: 11px;
+  margin-right: 2px;
+  opacity: 0.7;
+}
+
+.pill {
+  border: 1px solid transparent;
   background: none;
-  padding: 2px 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: inherit;
+  color: var(--vscode-descriptionForeground, #717171);
   cursor: pointer;
-  color: inherit;
-  font-size: 10px;
-  border-radius: 3px;
 }
 
-.btn:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(0, 0, 0, 0.08));
+.pill:hover {
+  border-color: var(--bs-border-color);
   color: var(--vscode-foreground);
 }
 
-.count {
-  font-variant-numeric: tabular-nums;
-  min-width: 2.5em;
-  text-align: center;
-}
-
-.label {
+.selected {
+  border-color: var(--bs-border-color);
+  background: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.04));
+  color: var(--vscode-foreground);
   font-weight: 500;
-  color: var(--vscode-foreground);
+  cursor: default;
+}
+
+.selected:hover {
+  border-color: var(--bs-border-color);
 }

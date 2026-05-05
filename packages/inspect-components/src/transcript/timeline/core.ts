@@ -388,10 +388,12 @@ function ancestorChain(
   return path;
 }
 
-function stripSuffix(e: Event, suffix: string, trajId: string): Event {
+export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
   const update: Partial<Event> = {};
   if (e.span_id?.endsWith(suffix)) {
     update.span_id = e.span_id.slice(0, -suffix.length);
+  } else if (e.span_id === trajId) {
+    update.span_id = "";
   }
   if (e.event === "span_begin" || e.event === "span_end") {
     if (e.id.endsWith(suffix)) {
