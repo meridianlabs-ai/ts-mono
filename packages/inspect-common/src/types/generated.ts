@@ -2413,6 +2413,72 @@ export interface components {
             samples: components["schemas"]["EvalSampleSummary"][];
         };
         /**
+         * SamplesColumn
+         * @description A column entry in the task's Sample List view.
+         */
+        SamplesColumn: {
+            /** Id */
+            id: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        };
+        /**
+         * SamplesSort
+         * @description A single sort entry for the task's Sample List grid.
+         */
+        SamplesSort: {
+            /** Column */
+            column: string;
+            /**
+             * Dir
+             * @default asc
+             * @enum {string}
+             */
+            dir: "asc" | "desc";
+        };
+        /**
+         * SamplesView
+         * @description Default configuration for the task's Sample List grid.
+         *
+         *     Configures the list of samples shown in a task's eval-log view —
+         *     distinct from `sample_score_view`, which configures the score panel
+         *     within an individual sample's detail view.
+         *
+         *     The viewer applies `SamplesView` only when the user has not
+         *     explicitly overridden the view in their browser. User overrides
+         *     shadow the eval-author default; the resolution priority is
+         *     `user > eval default > built-in`.
+         */
+        SamplesView: {
+            /** Color Scales Enabled */
+            color_scales_enabled?: boolean | null;
+            /** Columns */
+            columns?: components["schemas"]["SamplesColumn"][] | null;
+            /** Compact Scores */
+            compact_scores?: boolean | null;
+            /** Filter */
+            filter?: string | null;
+            /** Multiline */
+            multiline?: boolean | null;
+            /** Name */
+            name: string;
+            /** Score Color Scales */
+            score_color_scales?: {
+                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | components["schemas"]["ScoreColorScale"] | {
+                    [key: string]: "good" | "bad" | "warn" | "info" | "muted";
+                };
+            } | null;
+            /** Score Labels */
+            score_labels?: {
+                [key: string]: string;
+            } | null;
+            /** Sort */
+            sort?: components["schemas"]["SamplesSort"][] | null;
+        };
+        /**
          * SandboxEnvironmentSpec
          * @description Specification of a SandboxEnvironment.
          */
@@ -2522,6 +2588,30 @@ export interface components {
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
             };
+        };
+        /**
+         * ScoreColorScale
+         * @description A numeric `score_color_scales` entry with an explicit value range.
+         *
+         *     By default the viewer anchors a named palette at the descriptor's
+         *     auto-detected min/max, which is the *observed* range across the
+         *     log's samples. When the metric has a known *conceptual* range —
+         *     e.g. an alignment-judge dimension that's always graded 1..10 —
+         *     pin it via `min`/`max` so middling values don't get paint-clamped
+         *     to the extremes when the observed data happens to cluster at one
+         *     end. Either bound can be omitted to fall back to the descriptor's
+         *     detection for that side.
+         */
+        ScoreColorScale: {
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+            /**
+             * Palette
+             * @enum {string}
+             */
+            palette: "good-high" | "good-low" | "neutral" | "diverging";
         };
         /**
          * ScoreEdit
@@ -3180,6 +3270,8 @@ export interface components {
             scanner_result_view: components["schemas"]["ScannerResultView"] | {
                 [key: string]: components["schemas"]["ScannerResultView"];
             };
+            /** Task Samples View */
+            task_samples_view?: components["schemas"]["SamplesView"] | components["schemas"]["SamplesView"][] | null;
         };
     };
     responses: never;

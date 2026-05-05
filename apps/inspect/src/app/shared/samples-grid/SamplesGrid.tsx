@@ -39,8 +39,13 @@ type AutoSizeStrategy =
 
 export type SamplesGridViewMode = "list" | "grid";
 
-const kListModeRowHeight = 88;
+const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
+const kDefaultHeaderHeight = 25;
+// Tall enough to host a 110px-wide rotated label (≈ 78px tall at 45°)
+// plus padding and breathing room. See `.rotatedHeader` in
+// SamplesGrid.module.css.
+const kRotatedHeaderHeight = 115;
 
 const rowHeightForMode = (mode: SamplesGridViewMode): number =>
   mode === "list" ? kListModeRowHeight : kGridModeRowHeight;
@@ -55,6 +60,8 @@ interface SamplesGridProps<TRow> {
   defaultColDef?: ColDef<TRow>;
   viewMode: SamplesGridViewMode;
   rowHeight?: number;
+  /** `true` = list-style 88px rows; `false` = compact 30px rows. */
+  multiline?: boolean;
 
   getRowId: (params: GetRowIdParams<TRow>) => string;
   /** Row id that should be selected and scrolled into view. */
@@ -116,6 +123,7 @@ export const SamplesGrid = <TRow,>(
     defaultColDef,
     viewMode,
     rowHeight,
+    multiline,
     getRowId,
     selectedRowId,
     onRowOpen,
@@ -228,7 +236,13 @@ export const SamplesGrid = <TRow,>(
     prevFollowRef.current = followOutput;
   }, [followOutput, gridRef]);
 
-  const effectiveRowHeight = rowHeight ?? rowHeightForMode(viewMode);
+  const effectiveRowHeight =
+    rowHeight ??
+    (multiline !== undefined
+      ? multiline
+        ? kListModeRowHeight
+        : kGridModeRowHeight
+      : rowHeightForMode(viewMode));
 
   const handleBodyScroll = useCallback(() => {
     if (!followOutput || !gridRef.current?.api) return;
@@ -243,6 +257,16 @@ export const SamplesGrid = <TRow,>(
     gridRef,
     columnDefs,
     columnVisibility
+  );
+
+  // Grow the header row when any column opts into rotated headers so
+  // labels aren't clipped by the .ag-header viewport's overflow:hidden.
+  const headerHeight = useMemo(
+    () =>
+      columnDefs.some((c) => c.headerClass === styles.rotatedHeader)
+        ? kRotatedHeaderHeight
+        : kDefaultHeaderHeight,
+    [columnDefs]
   );
 
   // Bake column visibility into ag-grid's `initialState.columnVisibility`
@@ -328,7 +352,13 @@ export const SamplesGrid = <TRow,>(
         className={clsx(
           styles.gridContainer,
           styles.gridChrome,
-          viewMode === "list" ? styles.listMode : styles.gridMode
+          // `multiline` (when set) wins over `viewMode` for the cell
+          // layout class so a list-mode grid in compact mode gets
+          // centered, low-padding cells instead of the listMode
+          // top-aligned 0.5rem padding (which clips at 30px row height).
+          (multiline !== undefined ? multiline : viewMode === "list")
+            ? styles.listMode
+            : styles.gridMode
         )}
         tabIndex={0}
       >
@@ -342,7 +372,7 @@ export const SamplesGrid = <TRow,>(
           animateRows={false}
           suppressColumnMoveAnimation={true}
           tooltipShowDelay={300}
-          headerHeight={25}
+          headerHeight={headerHeight}
           rowHeight={effectiveRowHeight}
           getRowId={getRowId as (p: GetRowIdParams<TRow>) => string}
           rowSelection={{ mode: "singleRow", checkboxes: false }}

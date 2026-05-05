@@ -3,7 +3,7 @@ import { GridState } from "ag-grid-community";
 import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { SampleGridScope } from "../app/shared/samples-grid/types";
+import type { SamplesViewState } from "../app/samples/list/samplesView";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -55,12 +55,16 @@ export interface LogsSlice {
     clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
-    setSamplesGridState: (scope: SampleGridScope, gridState: GridState) => void;
-    clearSamplesGridState: (scope: SampleGridScope) => void;
+    // SamplesPanel scope only; logViewSamples flows through setSampleListView.
+    setSamplesGridState: (scope: "samplesPanel", gridState: GridState) => void;
+    clearSamplesGridState: (scope: "samplesPanel") => void;
     setSamplesColumnVisibility: (
-      scope: SampleGridScope,
+      scope: "samplesPanel",
       visibility: Record<string, boolean>
     ) => void;
+
+    setSampleListView: (view: SamplesViewState) => void;
+
     setDisplayedSamples: (samples: Array<DisplayedSample>) => void;
     clearDisplayedSamples: () => void;
     setPreviousSamplesPath: (path: string | undefined) => void;
@@ -87,7 +91,7 @@ const initialState: LogsState = {
   samplesListState: {
     byScope: {
       samplesPanel: { columnVisibility: {} },
-      logViewSamples: { columnVisibility: {} },
+      logViewSamples: {},
     },
   },
   showRetriedLogs: false,
@@ -110,10 +114,15 @@ export const createLogsSlice = (
             state.logs.logDir = logDir;
             state.logs.samplesListState.byScope.samplesPanel.gridState =
               undefined;
-            state.logs.samplesListState.byScope.logViewSamples.gridState =
-              undefined;
-            // Persisted scopes referenced the old logDir's paths and are
-            // no longer meaningful; drop them so a new logDir starts fresh.
+            // SampleList: keep columns + multiline (general preferences);
+            // reset only filter + sort, which reference log-specific values.
+            const view =
+              state.logs.samplesListState.byScope.logViewSamples.view;
+            if (view) {
+              view.filters = { dsl: "", extraColumnFilters: {} };
+              view.sort = [];
+            }
+            // listing.gridStateByScope keys are old logDir paths.
             state.logs.listing.gridStateByScope = {};
           }
         });
@@ -156,16 +165,21 @@ export const createLogsSlice = (
           };
         }),
       setSamplesGridState: (
-        scope: SampleGridScope,
+        scope: "samplesPanel",
         gridState: GridState | undefined
       ) => {
         set((state) => {
           state.logs.samplesListState.byScope[scope].gridState = gridState;
         });
       },
-      clearSamplesGridState: (scope: SampleGridScope) => {
+      clearSamplesGridState: (scope: "samplesPanel") => {
         set((state) => {
           state.logs.samplesListState.byScope[scope].gridState = undefined;
+        });
+      },
+      setSampleListView: (view: SamplesViewState) => {
+        set((state) => {
+          state.logs.samplesListState.byScope.logViewSamples.view = view;
         });
       },
       setDisplayedSamples: (samples: Array<DisplayedSample>) => {
@@ -183,7 +197,7 @@ export const createLogsSlice = (
         });
       },
       setSamplesColumnVisibility: (
-        scope: SampleGridScope,
+        scope: "samplesPanel",
         visibility: Record<string, boolean>
       ) => {
         set((state) => {

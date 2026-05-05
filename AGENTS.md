@@ -13,3 +13,14 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
 - **`@tsmono/util`**: barrel export — import from the package, not individual files
 - **Tooling defaults are fully strict** — new packages get strictest rules;
   legacy code (apps/scout, packages/util) relaxes via local overrides
+
+## Code Style — Comments                                                       
+                                                                                
+  Add comments only for non-obvious decisions:                                  
+  - WHY a choice was made (not WHAT the code does)                              
+  - Hidden constraints, performance tradeoffs, or known gotchas                 
+  - Workarounds for specific bugs                        
+                                                                                
+  Skip comments that narrate the code. Good names already say what.             
+  No multi-line comment blocks; no "this function does X" headers — use         
+  docstrings only on public APIs.       

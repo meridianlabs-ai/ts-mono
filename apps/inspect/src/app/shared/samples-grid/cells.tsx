@@ -28,7 +28,6 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
     <div
       className={clsx(
         semanticClass,
-        "text-size-base",
         "three-line-clamp",
         styles.cell,
         styles.wrapAnywhere
@@ -50,9 +49,7 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
 
 /** Centered single-line cell for score values. */
 export const ScoreCellDiv: FC<{ children?: ReactNode }> = ({ children }) => (
-  <div className={clsx("text-size-small", styles.cell, styles.score)}>
-    {children}
-  </div>
+  <div className={clsx(styles.cell, styles.score)}>{children}</div>
 );
 
 /** Plain text cell with single-line ellipsis (grid-mode default for

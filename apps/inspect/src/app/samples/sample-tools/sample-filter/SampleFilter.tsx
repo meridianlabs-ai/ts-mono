@@ -266,7 +266,7 @@ export const SampleFilter: FC<SampleFilterProps> = () => {
   }, [filterError, makeLinter]);
 
   return (
-    <div style={{ display: "flex" }}>
+    <div className={styles.root}>
       <span
         className={clsx(
           "sample-filter-label",

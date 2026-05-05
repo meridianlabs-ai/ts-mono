@@ -193,6 +193,9 @@ body[class^="vscode-"] {
   --bs-card-border-color: var(--vscode-editorGroup-border);
   --bs-warning-bg-subtle: var(--vscode-inputValidation-warningBackground);
   --bs-warning-text-emphasis: var(--vscode-input-foreground);
+  --bs-success-bg-subtle: var(--vscode-diffEditor-insertedTextBackground);
+  --bs-danger-bg-subtle: var(--vscode-diffEditor-removedTextBackground);
+  --bs-info-bg-subtle: var(--vscode-inputValidation-infoBackground);
   --bs-breadcrumb-divider-color: var(--vscode-foreground);
   --inspect-find-background: var(--vscode-editorWidget-background);
   --inspect-find-foreground: var(--vscode-editorWidget-foreground);
