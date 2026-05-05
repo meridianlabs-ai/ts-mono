@@ -82,6 +82,12 @@
    * a vertical line through a 45° label clashes. The angled divider
    * inside `RotatedHeader` takes its place. */
   --ag-header-column-border: transparent;
+  /* Override the regular-cell right-gutter padding so the rotated
+   * label's `left: 100%` anchor lands on the actual cell boundary
+   * (matching the colour-scale background) instead of the inset
+   * content edge. The gutter exists for the default filter icon,
+   * which rotated cells don't render. */
+  padding-right: 0;
 }
 
 /* Compact-mode trailing spacer column — no header content, no
