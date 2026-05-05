@@ -261,12 +261,12 @@ function renderField(
       );
 
     case "metadata": {
-      if (
-        data.metadata === undefined ||
-        Object.keys(data.metadata).length === 0
-      ) {
-        return null;
-      }
+      if (data.metadata === undefined) return null;
+      const excluded = new Set(config.excludedMetadataKeys);
+      const remaining = Object.keys(data.metadata).filter(
+        (k) => !excluded.has(k)
+      );
+      if (remaining.length === 0) return null;
       return (
         <Section
           id={id}

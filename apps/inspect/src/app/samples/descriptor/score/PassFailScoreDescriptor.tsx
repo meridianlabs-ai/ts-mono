@@ -43,28 +43,32 @@ export const passFailScoreDescriptor = (
       if (score === "C") {
         return (
           <span
-            className={clsx("text-size-small", styles.circle, styles.green)}
+            className={clsx("text-size-smallest", styles.circle, styles.green)}
           >
             C
           </span>
         );
       } else if (score === "I") {
         return (
-          <span className={clsx("text-size-small", styles.circle, styles.red)}>
+          <span
+            className={clsx("text-size-smallest", styles.circle, styles.red)}
+          >
             I
           </span>
         );
       } else if (score === "P") {
         return (
           <span
-            className={clsx("text-size-small", styles.circle, styles.orange)}
+            className={clsx("text-size-smallest", styles.circle, styles.orange)}
           >
             P
           </span>
         );
       } else if (score === "N") {
         return (
-          <span className={clsx("text-size-small", styles.circle, styles.red)}>
+          <span
+            className={clsx("text-size-smallest", styles.circle, styles.red)}
+          >
             N
           </span>
         );

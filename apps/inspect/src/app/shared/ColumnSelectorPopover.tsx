@@ -36,6 +36,10 @@ interface ColumnSelectorPopoverProps<T> {
   groupableScores?: boolean;
   scoresViewMode?: ColumnScoresViewMode;
   onScoresViewModeChange?: (mode: ColumnScoresViewMode) => void;
+  /** When provided, renders a "Default" link next to All / None in the
+   *  Base section that resets the column list (order + visibility) to
+   *  the caller's notion of the default. */
+  onResetToDefault?: () => void;
 }
 
 // Fields that belong in the scores section. Covers both per-scorer
@@ -57,6 +61,7 @@ export const ColumnSelectorPopover = <T,>({
   groupableScores = false,
   scoresViewMode = "by-metric",
   onScoresViewModeChange,
+  onResetToDefault,
 }: ColumnSelectorPopoverProps<T>): ReturnType<FC> => {
   // Read current visibility from the explicit prop when supplied,
   // otherwise fall back to each column's `hide`.
@@ -180,6 +185,14 @@ export const ColumnSelectorPopover = <T,>({
               >
                 None
               </a>
+              {onResetToDefault && (
+                <>
+                  |
+                  <a className={clsx(styles.button)} onClick={onResetToDefault}>
+                    Default
+                  </a>
+                </>
+              )}
             </div>
           </div>
           <div className={styles.columnsLayout}>

@@ -1,0 +1,120 @@
+/* Rotated parallelogram label, anchored to the cell's bottom-left
+ * corner so the column can be much narrower than the label. The
+ * containing `.ag-header-cell` must allow overflow:visible — see the
+ * `.rotatedHeader` rule in SamplesGrid.module.css. */
+.label {
+  position: absolute;
+  bottom: 0;
+  /* Anchor flush with the column's right edge so the rotated label
+   * — and the diagonal divider drawn as its bottom border — sits
+   * exactly on the column boundary, acting as the column's right
+   * separator. */
+  left: 100%;
+  height: 18px;
+  /* Bottom border doubles as the column-divider line: after rotation
+   * it lies along the diagonal lower edge of the label parallelogram,
+   * forming a clean separator between adjacent rotated headers in the
+   * same `--ag-border-color` Balham uses for vertical separators. */
+  border-bottom: 1px solid var(--ag-border-color, var(--bs-border-color));
+  /* Fixed width so every rotated label has the same parallelogram
+   * length. The text inside stretches via `flex: 1` and ellipses if
+   * it overflows. */
+  width: 130px;
+  padding: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  /* Opt back into pointer events — parent wrapper sets
+   * pointer-events:none so adjacent rotated labels don't shadow ours. */
+  pointer-events: auto;
+  /* Rotate from the column's bottom-left corner so the label fans
+   * up-and-to-the-right. */
+  transform: rotate(-45deg);
+  transform-origin: bottom left;
+}
+
+.label:hover {
+  /* Subtle highlight on hover — and lift above neighboring rotated
+   * labels so the hovered text is fully readable. */
+  background: var(--bs-tertiary-bg);
+  z-index: 2;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--inspect-font-size-smallestest);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortIcon {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Filter button lives at the end of the rotated label (after the
+ * text + sort icon), so it sits at the upper-right tip of the
+ * parallelogram — the natural reading-order spot for an action.
+ * The column-menu popup is anchored to a separate hidden element
+ * (`.menuAnchor`) so it appears under the real column. */
+.filterBtn {
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  color: inherit;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+/* Show the filter button only when the user is over this rotated
+ * label specifically. Hovering the cell's narrow vertical strip is
+ * misleading because the rotated label (and the filter button at its
+ * end) is offset 3-ish columns up-and-right of that strip — keying
+ * off the label keeps the affordance under the cursor instead of
+ * flashing several columns away. */
+.label:hover .filterBtn {
+  opacity: 1;
+}
+
+.filterBtn.filterBtnActive {
+  opacity: 1;
+}
+
+/* Active-filter dot — small affordance at the upper-right of the
+ * funnel, matching ag-grid's convention of indicating active filters. */
+.filterBtn.filterBtnActive::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--bs-primary);
+}
+
+/* Invisible anchor for the column-menu popup. ag-grid positions the
+ * menu relative to whatever element you hand `showColumnMenu` — by
+ * pointing it at this un-rotated bottom-right anchor (rather than the
+ * visible filter button on the rotated parallelogram) the popup lands
+ * directly under the column instead of offset diagonally up-and-right. */
+.menuAnchor {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}

@@ -33,6 +33,14 @@ import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
+  useSamplesView,
+  useSamplesViewColorScalesEnabled,
+  useSamplesViewCompactScores,
+  useSamplesViewMultiline,
+  useSamplesViewScoreColorScales,
+  useSamplesViewScoreLabels,
+} from "../../samples/list/useSamplesView.ts";
+import {
   astToFilterModel,
   FilterModel,
 } from "../../samples/sample-tools/astToFilterModel.ts";
@@ -46,10 +54,7 @@ import {
   perScorerFieldKey,
 } from "../../shared/samples-grid/columns.tsx";
 import { SampleRow } from "../../shared/samples-grid/types.ts";
-import {
-  clearFiltersForHiddenColumns,
-  useSampleGridState,
-} from "../../shared/samples-grid/useSampleGridState.ts";
+import { clearFiltersForHiddenColumns } from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 
@@ -194,16 +199,39 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
   // currently selected) is applied via the column-visibility map below.
+  // Multiline determines column rendering: list-style uses
+  // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
+  const multiline = useSamplesViewMultiline();
+  const compactScores = useSamplesViewCompactScores();
+  const scoreLabels = useSamplesViewScoreLabels();
+  const wireScoreColorScales = useSamplesViewScoreColorScales();
+  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+  const scoreColorScales = useMemo(
+    () => (colorScalesEnabled ? wireScoreColorScales : {}),
+    [colorScalesEnabled, wireScoreColorScales]
+  );
+
   const allColumns = useMemo(
     () =>
       buildSampleColumns({
-        viewMode: "list",
+        viewMode: multiline ? "list" : "grid",
         multiLog: false,
         descriptor: samplesDescriptor,
         scores,
         epochs,
+        compactScores,
+        scoreLabels,
+        scoreColorScales,
       }),
-    [samplesDescriptor, scores, epochs]
+    [
+      multiline,
+      samplesDescriptor,
+      scores,
+      epochs,
+      compactScores,
+      scoreLabels,
+      scoreColorScales,
+    ]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -228,16 +256,21 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [shape, epochs]
   );
 
-  const { columnVisibility, setColumnVisibility, gridState, setGridState } =
-    useSampleGridState<SampleRow>("logViewSamples", allColumns, {
-      defaultsForUnseededColumns,
-      gridRef: sampleListHandle,
-    });
+  const {
+    view,
+    columnVisibility,
+    gridState,
+    setColumnVisibility,
+    setGridState,
+    resetColumns,
+  } = useSamplesView<SampleRow>(allColumns, {
+    seedDefaultVisibility: defaultsForUnseededColumns,
+  });
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
   // app that reads `selectedScores`). Non-score columns come from the
-  // persisted `columnVisibility` map.
+  // descriptor-projected `columnVisibility` map.
   const selectedScoreFields = useMemo(
     () => new Set(selectedScores.map(perScorerFieldKey)),
     [selectedScores]
@@ -419,6 +452,34 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     api.setFilterModel(merged);
   }, [currentFilter, filterModelFromText, filterRegistry]);
 
+  // Snap score columns to their target width when `compactScores`
+  // toggles. ag-grid ignores `initialWidth` once a column has been
+  // sized, so we apply `width = initialWidth` explicitly. Flex
+  // columns (input/target/answer) redistribute on their own as the
+  // score columns shrink/grow, so we leave them alone — that also
+  // preserves any user resize on those columns.
+  useEffect(() => {
+    const api = sampleListHandle.current?.api;
+    if (!api) return;
+    const cols = api.getColumns();
+    if (!cols) return;
+    const state = cols.flatMap((c) => {
+      const colId = c.getColId();
+      if (!colId.startsWith("score_")) return [];
+      const w = c.getColDef().initialWidth as number | undefined;
+      return w === undefined ? [] : [{ colId, width: w, flex: null }];
+    });
+    if (state.length > 0) api.applyColumnState({ state });
+  }, [compactScores]);
+
+  // ag-grid caches `cellStyle` output as inline styles; the new
+  // column def alone doesn't clear them. `redrawRows` does.
+  useEffect(() => {
+    const api = sampleListHandle.current?.api;
+    if (!api) return;
+    api.redrawRows();
+  }, [colorScalesEnabled, scoreColorScales]);
+
   // When the toolbar text is a non-round-trippable expression, hide the
   // column-header filter buttons. Using one would overwrite the typed
   // text with a much narrower synthesized version. Empty text and
@@ -475,6 +536,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           gridState={gridState}
           onGridStateChange={setGridState}
           onFilterChanged={handleFilterChanged}
+          multiline={view.multiline}
         />
       ) : null}
       {listDisplay ? (
@@ -487,6 +549,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           positionEl={columnButtonRef.current}
           filteredFields={filteredFields}
           scoresHeading="Scores"
+          onResetToDefault={resetColumns}
         />
       ) : null}
     </Fragment>

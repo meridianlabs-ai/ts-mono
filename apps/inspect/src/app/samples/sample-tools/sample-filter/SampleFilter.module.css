@@ -1,3 +1,11 @@
+.root {
+  display: flex;
+  /* Pin the inherited font-size so the CodeMirror editor (which uses
+     `font-size: inherit`) matches the navbar's 0.7rem instead of
+     picking up whatever the surrounding container computes to. */
+  font-size: var(--inspect-font-size-smallest);
+}
+
 .label {
   align-self: center;
   margin-right: 0.3em;
