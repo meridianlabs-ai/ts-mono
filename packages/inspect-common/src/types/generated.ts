@@ -2465,7 +2465,7 @@ export interface components {
             name: string;
             /** Score Color Scales */
             score_color_scales?: {
-                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | {
+                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | components["schemas"]["ScoreColorScale"] | {
                     [key: string]: "good" | "bad" | "warn" | "info" | "muted";
                 };
             } | null;
@@ -2586,6 +2586,30 @@ export interface components {
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
             };
+        };
+        /**
+         * ScoreColorScale
+         * @description A numeric `score_color_scales` entry with an explicit value range.
+         *
+         *     By default the viewer anchors a named palette at the descriptor's
+         *     auto-detected min/max, which is the *observed* range across the
+         *     log's samples. When the metric has a known *conceptual* range —
+         *     e.g. an alignment-judge dimension that's always graded 1..10 —
+         *     pin it via `min`/`max` so middling values don't get paint-clamped
+         *     to the extremes when the observed data happens to cluster at one
+         *     end. Either bound can be omitted to fall back to the descriptor's
+         *     detection for that side.
+         */
+        ScoreColorScale: {
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+            /**
+             * Palette
+             * @enum {string}
+             */
+            palette: "good-high" | "good-low" | "neutral" | "diverging";
         };
         /**
          * ScoreEdit

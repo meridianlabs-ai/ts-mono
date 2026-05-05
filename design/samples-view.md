@@ -4,14 +4,19 @@ Status: Phase 0 (types only — no runtime wiring yet).
 
 ## What this is
 
-A single descriptor — `SamplesView` — that captures the user's view of the inspect app's **SampleList** (the per-task list of samples shown in a single eval log). The descriptor covers four axes:
+A single descriptor — `SamplesView` — that captures the user's view of the inspect app's **SampleList** (the per-task list of samples shown in a single eval log). The descriptor covers seven axes:
 
 1. **Visible columns + their order**
 2. **Sort columns** (with asc/desc)
 3. **Filter** — a DSL expression string
 4. **Multiline mode** (true = list-style 88px rows; false = compact 30px rows)
+5. **Compact-score mode** (`compact_scores`) — narrow rotated 45° headers for score columns
+6. **Score labels** (`score_labels`) — display-name overrides per metric
+7. **Score colour scales** (`score_color_scales`) — per-metric cell-background heatmaps
 
 The descriptor can be set by the eval author via `Task(viewer=ViewerConfig(task_samples_view=...))`, and (later) edited via UI. User-stored overrides shadow the eval-author default; resolution priority is `user > eval default > built-in`.
+
+The first five axes are *editable user state* (persisted in the zustand store and survive across evals). The last two (`score_labels`, `score_color_scales`) are *eval-author-only metadata* — read fresh from the wire each render rather than lifted into the runtime state, so a user's stored view from a prior eval can't shadow the current eval's labels or scales. See "Wire-only fields" below.
 
 This is distinct from `sample_score_view` (also under `ViewerConfig`), which configures the score panel inside an individual sample's detail view. `task_samples_view` is the field name on `ViewerConfig` (it makes the hierarchy level explicit — "the task's samples list"); the type is `SamplesView`.
 
@@ -40,12 +45,36 @@ class SamplesColumn(BaseModel):
     visible: bool = True
 
 
+class ScoreColorScale(BaseModel):
+    """Numeric scale with optional explicit bounds (overrides the
+    descriptor's auto-detected min/max)."""
+    palette: Literal["good-high", "good-low", "neutral", "diverging"]
+    min: float | None = None
+    max: float | None = None
+
+
+# Per-metric scale value: name shorthand, full object form (with
+# bounds), or a categorical value→role map. Pydantic discriminates
+# on shape (str / dict-with-`palette` / plain dict).
+_ScoreColorRole = Literal["good", "bad", "warn", "info", "muted"]
+_ScoreColorScaleEntry = (
+    Literal["good-high", "good-low", "neutral", "diverging"]
+    | ScoreColorScale
+    | dict[str, _ScoreColorRole]
+)
+
+
 class SamplesView(BaseModel):
     name: str                                     # required
     columns: list[SamplesColumn] | None = None
     sort: list[SamplesSort] | None = None
     filter: str | None = None                     # raw DSL expression
     multiline: bool | None = None                 # True=wrap, False=compact
+    compact_scores: bool | None = None            # rotated 45° score headers
+    score_labels: dict[str, str] | None = None    # metric → display label
+    score_color_scales: (
+        dict[str, _ScoreColorScaleEntry] | None
+    ) = None
 
 
 # In ViewerConfig:
@@ -53,6 +82,14 @@ task_samples_view: SamplesView | list[SamplesView] | None = None
 ```
 
 `SamplesView.filter` is intentionally just a string — the DSL is designed to be written by hand (`"has_error or score < 0.5"`, `"input_contains(\"abc\")"`, etc.). There is no Python-side builder; authors compose filters directly as filtrex expressions.
+
+`score_color_scales` accepts three shapes per entry:
+
+- **String shorthand** for numeric metrics — `{"accuracy": "good-high"}` paints a gradient anchored at the descriptor's auto-detected min/max.
+- **`ScoreColorScale` object** for numeric metrics with a known *conceptual* range — `{"concerning": ScoreColorScale(palette="good-low", min=1, max=10)}` pins the gradient against a fixed range so middling values don't get paint-clamped to the extremes when the observed data clusters at one end.
+- **Categorical value→role map** — `{"verdict": {"yes": "bad", "no": "good"}}` for non-numeric metrics. Roles resolve to Bootstrap `*-bg-subtle` CSS variables so light/dark themes both render legibly.
+
+Pass/fail and boolean score types ignore color scales (their pre-coloured pills already encode the semantic). The resolver lives in [`apps/inspect/src/app/shared/samples-grid/colorScale.ts`](../apps/inspect/src/app/shared/samples-grid/colorScale.ts).
 
 ### Runtime / TS type
 
@@ -70,6 +107,9 @@ interface SamplesViewState {
     extraColumnFilters: FilterModel;
   };
   multiline: boolean;
+  compactScores: boolean;
+  // NOTE: `score_labels` and `score_color_scales` are intentionally
+  // *not* on `SamplesViewState`. See "Wire-only fields" below.
 }
 ```
 
@@ -77,6 +117,15 @@ Why a separate runtime type?
 
 1. **`extraColumnFilters`** carries column-header filter entries that the DSL parser can't represent (typed-set selectors, regex on raw string columns). It exists only in the browser; eval authors don't see it. Promoting it onto the wire would force every eval log to know ag-grid internals.
 2. **`null` resolution** — wire fields are nullable to mean "no eval-author default; viewer default applies." The runtime type has those resolved into concrete arrays/strings/booleans.
+
+### Wire-only fields
+
+`score_labels` and `score_color_scales` are deliberately **not** lifted into `SamplesViewState`. The runtime state is persisted across evals (via the zustand store's `persist` middleware), so including these fields would let a previous eval's labels / colour scales shadow the current eval's. They're read straight from the wire each render via dedicated hooks:
+
+- [`useSamplesViewScoreLabels`](../apps/inspect/src/app/samples/list/useSamplesView.ts)
+- [`useSamplesViewScoreColorScales`](../apps/inspect/src/app/samples/list/useSamplesView.ts)
+
+A converter test in [`samplesView.converters.test.ts`](../apps/inspect/src/app/samples/list/samplesView.converters.test.ts) pins this behaviour: `liftEvalView` must not copy either field into the runtime state.
 
 Phase 1 introduces pure converter functions for the boundary:
 

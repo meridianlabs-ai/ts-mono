@@ -27,9 +27,20 @@ export type ScoreColorPalette =
 
 export type ScoreColorRole = "good" | "bad" | "warn" | "info" | "muted";
 
+/** Numeric scale with optional explicit bounds. The author writes
+ *  this when the metric has a known *conceptual* range that may not
+ *  match the observed data range — e.g. a 1..10 rubric where this
+ *  log only saw values 1..3. */
+export interface ScoreColorScaleObject {
+  palette: ScoreColorPalette;
+  min?: number | null;
+  max?: number | null;
+}
+
 /** Wire shape — one entry of the `score_color_scales` map. */
 export type WireScoreColorScale =
   | ScoreColorPalette
+  | ScoreColorScaleObject
   | Record<string, ScoreColorRole>;
 
 /** Internal resolved form. The `kind` tag tells the renderer how to
@@ -90,12 +101,24 @@ const PALETTE_STOPS: Record<
 const isPaletteName = (s: string): s is ScoreColorPalette =>
   s === "good-high" || s === "good-low" || s === "neutral" || s === "diverging";
 
+// Treat anything with a `palette` key as the object form (even if the
+// palette name is invalid — that's better caught in `resolveGradient`
+// where we can return null rather than silently falling through to the
+// categorical branch and producing a nonsense `{ kind: "categorical",
+// colors: { palette: undefined } }` shape).
+const isScaleObject = (
+  s: WireScoreColorScale,
+): s is ScoreColorScaleObject =>
+  typeof s === "object" && s !== null && "palette" in s;
+
 /**
  * Lift a wire-shape scale into the internal `ResolvedScale` form.
  *
  * - Named palettes need numeric `bounds` to anchor the gradient.
- *   Without bounds (e.g. an empty grid, or a misconfigured non-numeric
- *   metric) we return null so the caller leaves the cell unpainted.
+ *   The wire form `{ palette, min, max }` lets the author override
+ *   either bound; missing bounds fall back to the descriptor's
+ *   auto-detection. Without any usable range we return null so the
+ *   caller leaves the cell unpainted.
  * - Categorical maps don't depend on bounds.
  *
  * Returns null when the scale can't be applied — the caller treats
@@ -105,17 +128,21 @@ export function resolveScale(
   scale: WireScoreColorScale,
   bounds: { min?: number; max?: number },
 ): ResolvedScale | null {
+  // String shorthand — palette name only, descriptor bounds.
   if (typeof scale === "string") {
     if (!isPaletteName(scale)) return null;
-    const { min, max } = bounds;
-    if (typeof min !== "number" || typeof max !== "number" || min === max) {
-      // Need a real range to interpolate against. Equal min/max would
-      // make every value land at the midpoint stop; better to render
-      // nothing than a misleading uniform colour.
-      return null;
-    }
-    const stops = PALETTE_STOPS[scale];
-    return { kind: "gradient", ...stops, min, max };
+    return resolveGradient(scale, bounds.min, bounds.max);
+  }
+  // Object form with explicit palette + optional bounds. Author-supplied
+  // bounds win over descriptor's auto-detection so a fixed conceptual
+  // range (e.g. 1..10 rubric) doesn't get re-anchored to whatever the
+  // observed data happens to be.
+  if (isScaleObject(scale)) {
+    return resolveGradient(
+      scale.palette,
+      scale.min ?? bounds.min,
+      scale.max ?? bounds.max,
+    );
   }
   // Categorical: prebake string keys; coerce booleans/numbers at lookup
   // time so authors can write either `{"yes": ...}` or `{"true": ...}`.
@@ -124,6 +151,22 @@ export function resolveScale(
     colors[value] = ROLE_TO_VAR[role];
   }
   return { kind: "categorical", colors };
+}
+
+function resolveGradient(
+  palette: ScoreColorPalette,
+  min: number | null | undefined,
+  max: number | null | undefined,
+): ResolvedScale | null {
+  if (!isPaletteName(palette)) return null;
+  if (typeof min !== "number" || typeof max !== "number" || min === max) {
+    // Need a real range to interpolate against. Equal min/max would
+    // make every value land at the midpoint stop; better to render
+    // nothing than a misleading uniform colour.
+    return null;
+  }
+  const stops = PALETTE_STOPS[palette];
+  return { kind: "gradient", ...stops, min, max };
 }
 
 /**

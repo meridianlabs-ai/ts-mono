@@ -59,6 +59,42 @@ describe("resolveScale", () => {
       },
     });
   });
+
+  test("object form with explicit bounds wins over descriptor bounds", () => {
+    // Eval-author pinned the conceptual range to 1..10. Descriptor's
+    // observed range is much narrower (1..3); we want the gradient
+    // anchored at 1..10 so a "5" lands at the midpoint, not at the top.
+    const r = resolveScale(
+      { palette: "good-low", min: 1, max: 10 },
+      { min: 1, max: 3 },
+    ) as Extract<ResolvedScale, { kind: "gradient" }>;
+    expect(r.kind).toBe("gradient");
+    expect(r.min).toBe(1);
+    expect(r.max).toBe(10);
+  });
+
+  test("object form falls back to descriptor bounds for omitted side", () => {
+    // Author specifies only max; min comes from the descriptor.
+    const r = resolveScale(
+      { palette: "good-high", max: 10 },
+      { min: 0, max: 3 },
+    ) as Extract<ResolvedScale, { kind: "gradient" }>;
+    expect(r.min).toBe(0);
+    expect(r.max).toBe(10);
+  });
+
+  test("object form returns null when both bounds missing and descriptor empty", () => {
+    expect(
+      resolveScale({ palette: "good-high" }, {}),
+    ).toBeNull();
+  });
+
+  test("object form rejects unknown palette name", () => {
+    const bogus = {
+      palette: "rainbow",
+    } as unknown as WireScoreColorScale;
+    expect(resolveScale(bogus, { min: 0, max: 1 })).toBeNull();
+  });
 });
 
 describe("colorForValue (gradient)", () => {
