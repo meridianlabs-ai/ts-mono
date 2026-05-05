@@ -251,7 +251,7 @@ export function createTimelineScenario(options?: {
     buildSpan.branches = [
       createTimelineSpan({
         id: "branch-1",
-        name: "Branch Attempt",
+        name: "branch",
         span_type: "branch",
         branched_from: "evt-build-1",
         content: [{ type: "event", event: "evt-branch-1" }],
