@@ -211,6 +211,33 @@ const collectAllCollapsibleIds = (
   return result;
 };
 
+const buildToolLabels = (
+  events: Event[],
+  messageLabels: Record<string, string> | undefined
+): Record<string, string> | undefined => {
+  if (!messageLabels) return undefined;
+
+  const toolLabels: Record<string, string> = {};
+  for (const event of events) {
+    if (event.event === "tool") {
+      const label = event.message_id
+        ? messageLabels[event.message_id]
+        : undefined;
+      if (label) toolLabels[event.id] = label;
+    } else if (event.event === "model") {
+      for (const message of event.input ?? []) {
+        if (message.role !== "tool" || !message.id) continue;
+        const label = messageLabels[message.id];
+        if (label && message.tool_call_id) {
+          toolLabels[message.tool_call_id] = label;
+        }
+      }
+    }
+  }
+
+  return Object.keys(toolLabels).length > 0 ? toolLabels : undefined;
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -358,10 +385,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     showSwimlanes ? sourceSpans : undefined
   );
 
-  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
-    () => ({ ...eventNodeContext, retryAttempts }),
-    [eventNodeContext, retryAttempts]
-  );
+  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
+    const toolLabels = buildToolLabels(
+      eventsForNodes,
+      eventNodeContext?.messageLabels
+    );
+    return {
+      ...eventNodeContext,
+      retryAttempts,
+      ...(toolLabels ? { toolLabels } : {}),
+    };
+  }, [eventsForNodes, eventNodeContext, retryAttempts]);
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 

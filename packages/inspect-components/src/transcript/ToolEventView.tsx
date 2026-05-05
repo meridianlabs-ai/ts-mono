@@ -8,8 +8,11 @@ import {
   substituteToolCallContent,
   ToolCallErrorView,
   ToolCallView,
+  type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
 import { PulsingDots } from "@tsmono/react/components";
+
+import { computeMaxLabelLength } from "../chat/labelLength";
 
 import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
@@ -76,6 +79,43 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
     : undefined;
 
+  const toolLabels = useMemo<ChatViewLabelOptions>(() => {
+    const messageLabels = context?.messageLabels;
+    if (!messageLabels) return { show: false };
+
+    const directLabel = event.message_id
+      ? messageLabels[event.message_id]
+      : undefined;
+    const label = directLabel ?? context?.toolLabels?.[event.id];
+    return { messageLabels: label ? { [event.id]: label } : {} };
+  }, [context?.messageLabels, context?.toolLabels, event.id, event.message_id]);
+
+  const maxLabelLength = useMemo(
+    () => computeMaxLabelLength(context?.messageLabels),
+    [context?.messageLabels]
+  );
+
+  const toolCallView = (
+    <ToolCallView
+      id={`${eventNode.id}-tool-call`}
+      tool={name}
+      functionCall={functionCall}
+      input={input}
+      description={description}
+      contentType={contentType}
+      output={event.error ? "" : event.result || ""}
+      mode="compact"
+      view={resolvedView}
+    />
+  );
+
+  const toolCallError =
+    event.error && event.error.type !== "approval" ? (
+      <ToolCallErrorView error={event.error} />
+    ) : null;
+
+  const toolLabel = toolLabels.messageLabels?.[event.id];
+
   return (
     <EventPanel
       eventNodeId={eventNode.id}
@@ -93,21 +133,29 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>
-        <ToolCallView
-          id={`${eventNode.id}-tool-call`}
-          tool={name}
-          functionCall={functionCall}
-          input={input}
-          description={description}
-          contentType={contentType}
-          output={event.error ? "" : event.result || ""}
-          mode="compact"
-          view={resolvedView}
-        />
-
-        {event.error && event.error.type !== "approval" ? (
-          <ToolCallErrorView error={event.error} />
-        ) : null}
+        {toolLabels.show === false ? (
+          <>
+            {toolCallView}
+            {toolCallError}
+          </>
+        ) : (
+          <div className={styles.labeledToolCall}>
+            <div
+              className={clsx(
+                "text-size-smaller",
+                "text-style-secondary",
+                styles.label
+              )}
+              style={{ minWidth: `${maxLabelLength}ch` }}
+            >
+              {toolLabel}
+            </div>
+            <div className={styles.labeledToolContent}>
+              {toolCallView}
+              {toolCallError}
+            </div>
+          </div>
+        )}
 
         {lastModelNode ? (
           <ChatView
