@@ -12,8 +12,9 @@ export interface TimelineIcons {
   threeDots: string;
   expand: { down: string };
   collapse: { up: string };
-  chevron: { down: string; right: string };
+  chevron: { down: string; left: string; right: string };
   solvers: { default: string };
+  punchDown: string;
 }
 
 const defaultIcons: TimelineIcons = {
@@ -24,8 +25,13 @@ const defaultIcons: TimelineIcons = {
   threeDots: "bi bi-three-dots",
   expand: { down: "bi bi-chevron-down" },
   collapse: { up: "bi bi-chevron-up" },
-  chevron: { down: "bi bi-chevron-down", right: "bi bi-chevron-right" },
+  chevron: {
+    down: "bi bi-chevron-down",
+    left: "bi bi-chevron-left",
+    right: "bi bi-chevron-right",
+  },
   solvers: { default: "bi bi-arrow-return-right" },
+  punchDown: "bi bi-arrows-angle-expand",
 };
 
 export const TimelineIconsContext = createContext<TimelineIcons>(defaultIcons);

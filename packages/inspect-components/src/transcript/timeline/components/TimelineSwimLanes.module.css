@@ -159,6 +159,45 @@
   flex-shrink: 0;
 }
 
+.punchDownBtn {
+  margin-left: auto;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  font-size: 9px;
+  cursor: pointer;
+  color: var(--vscode-descriptionForeground, #717171);
+  opacity: 0;
+}
+
+.label:hover .punchDownBtn,
+.labelSelected .punchDownBtn {
+  opacity: 1;
+}
+
+.punchDownBtn:hover {
+  color: var(--vscode-foreground);
+}
+
+.viewStackBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  background: transparent;
+  font-size: var(--inspect-font-size-smallest);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.viewStackBack:hover {
+  background: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.05));
+}
+
 /* Bar area */
 
 .barArea {

@@ -628,6 +628,216 @@ interface AncestorLink {
   forkMessageId: string;
 }
 
+// =============================================================================
+// Fork-navigator path collection
+// =============================================================================
+
+/** One selectable continuation at a fork point. */
+export interface ForkNavOption {
+  label: string;
+  rowKey: string;
+}
+
+export interface ForkNavData {
+  anchorId: string;
+  options: ForkNavOption[];
+  selectedIndex: number;
+}
+
+interface PathSegment {
+  span: TimelineSpan;
+  rowKey: string;
+  /** Anchor at which this segment hands off to the next; null for the leaf. */
+  cutAnchor: string | null;
+}
+
+function rowSpan(row: SwimlaneRow | undefined): TimelineSpan | null {
+  const s = row?.spans[0];
+  if (!s) return null;
+  return isSingleSpan(s) ? s.agent : (getAgents(s)[0] ?? null);
+}
+
+/** Build root→selected segment list, each carrying its row key and cut anchor. */
+function buildPath(rows: SwimlaneRow[], selectedKey: string): PathSegment[] {
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const keys: string[] = [selectedKey];
+  let k = selectedKey;
+  while (true) {
+    const parent = getParentKeyFromBranch(k);
+    if (!parent || !byKey.has(parent)) break;
+    keys.unshift(parent);
+    k = parent;
+  }
+  const segs: PathSegment[] = [];
+  for (let i = 0; i < keys.length; i++) {
+    const span = rowSpan(byKey.get(keys[i]!));
+    if (!span) return segs;
+    const next = rowSpan(byKey.get(keys[i + 1] ?? ""));
+    segs.push({
+      span,
+      rowKey: keys[i]!,
+      cutAnchor: next?.branchedFrom ?? null,
+    });
+  }
+  return segs;
+}
+
+/** Group a span's branches by the anchor they fork from, preserving `.branches` order. */
+function branchesByAnchor(
+  span: TimelineSpan,
+  parentRowKey: string
+): Map<string, ForkNavOption[]> {
+  const map = new Map<string, ForkNavOption[]>();
+  span.branches.forEach((b, i) => {
+    const anchor = b.branchedFrom ?? "";
+    const opt: ForkNavOption = {
+      label: b.name,
+      rowKey: `${parentRowKey}/branch-${b.branchedFrom}-${i + 1}`,
+    };
+    const arr = map.get(anchor);
+    if (arr) arr.push(opt);
+    else map.set(anchor, [opt]);
+  });
+  return map;
+}
+
+function emitForkNav(
+  events: Event[],
+  anchorId: string,
+  timestamp: string,
+  data: ForkNavData
+): void {
+  events.push({
+    event: "span_begin",
+    name: data.options[data.selectedIndex]?.label ?? "fork",
+    id: `forknav-${anchorId}`,
+    span_id: `forknav-${anchorId}`,
+    type: "fork_nav",
+    timestamp,
+    parent_id: null,
+    pending: false,
+    working_start: 0,
+    uuid: `forknav-${anchorId}`,
+    metadata: { fork_nav: data } as Record<string, unknown>,
+  } satisfies SpanBeginEvent);
+  events.push({
+    event: "span_end",
+    id: `forknav-${anchorId}`,
+    span_id: `forknav-${anchorId}`,
+    timestamp,
+    pending: false,
+    working_start: 0,
+    uuid: null,
+    metadata: null,
+  } satisfies SpanEndEvent);
+}
+
+/**
+ * Collect events for the root→selected path, emitting an inline fork navigator
+ * at every anchor where one or more branches fork off.
+ *
+ * The navigator's options are `[stay-on-segment, child₁, child₂, …]` for
+ * children sharing that anchor. `selectedIndex` is whichever option the
+ * current path follows next.
+ */
+export function collectPathWithNavigators(
+  rows: SwimlaneRow[],
+  selectedRowKey: string
+): CollectedEvents {
+  const events: Event[] = [];
+  const sourceSpans = new Map<string, TimelineSpan>();
+  const path = buildPath(rows, selectedRowKey);
+
+  for (const seg of path) {
+    const forks = branchesByAnchor(seg.span, seg.rowKey);
+    sourceSpans.set(seg.span.id, seg.span);
+    // Restart-style branches (branchedFrom === "") fork before any anchor.
+    const restartForks = forks.get("");
+    if (restartForks) {
+      const options: ForkNavOption[] = [
+        { label: seg.span.name, rowKey: seg.rowKey },
+        ...restartForks,
+      ];
+      const isCut = seg.cutAnchor === "";
+      const selectedIndex = isCut
+        ? options.findIndex(
+            (o) => o.rowKey === path[path.indexOf(seg) + 1]?.rowKey
+          )
+        : 0;
+      emitForkNav(
+        events,
+        `restart-${seg.span.id}`,
+        seg.span.startTime().toISOString(),
+        {
+          anchorId: "",
+          options,
+          selectedIndex: Math.max(0, selectedIndex),
+        }
+      );
+      if (isCut) continue;
+    }
+    for (const item of seg.span.content) {
+      if (item.type === "span") {
+        sourceSpans.set(item.id, item);
+        emitSpanEnvelope(item, events);
+        continue;
+      }
+      events.push(item.event);
+      if (item.event.event !== "anchor") continue;
+      const anchorId = item.event.anchor_id;
+      const children = forks.get(anchorId);
+      if (children && children.length > 0) {
+        const options: ForkNavOption[] = [
+          { label: seg.span.name, rowKey: seg.rowKey },
+          ...children,
+        ];
+        const isCut = anchorId === seg.cutAnchor;
+        const selectedIndex = isCut
+          ? options.findIndex(
+              (o) => o.rowKey === path[path.indexOf(seg) + 1]?.rowKey
+            )
+          : 0;
+        emitForkNav(events, anchorId, item.event.timestamp, {
+          anchorId,
+          options,
+          selectedIndex: Math.max(0, selectedIndex),
+        });
+        if (isCut) break;
+      } else if (anchorId === seg.cutAnchor) {
+        break;
+      }
+    }
+  }
+  return { events, sourceSpans };
+}
+
+/** Emit a span_begin/span_end pair so nested agent spans render as collapsed cards. */
+function emitSpanEnvelope(span: TimelineSpan, events: Event[]): void {
+  events.push({
+    event: "span_begin",
+    name: span.name,
+    id: span.id,
+    span_id: span.id,
+    type: span.spanType,
+    timestamp: span.startTime().toISOString(),
+    parent_id: null,
+    pending: false,
+    working_start: 0,
+    uuid: span.id,
+    metadata: null,
+  } satisfies SpanBeginEvent);
+  events.push({
+    event: "span_end",
+    id: span.id,
+    span_id: span.id,
+    timestamp: span.endTime().toISOString(),
+    pending: false,
+    working_start: 0,
+    uuid: null,
+    metadata: null,
+  } satisfies SpanEndEvent);
+}
+
 /**
  * Builds the ancestor chain from a branch row up to the outermost non-branch row.
  *
@@ -662,7 +872,7 @@ function buildAncestorChain(
     const childSpan = isSingleSpan(childFirstSpan)
       ? childFirstSpan.agent
       : getAgents(childFirstSpan)[0];
-    if (!childSpan?.branchedFrom) break;
+    if (childSpan?.branchedFrom == null) break;
 
     chain.unshift({ span: parentSpan, forkMessageId: childSpan.branchedFrom });
 
@@ -690,6 +900,11 @@ function collectContentUpToFork(
 ): boolean {
   for (const item of content) {
     if (item.type === "event") {
+      // Empty fork id (restart) ⇒ stop before the first anchor: only the
+      // pre-anchor preamble (e.g. seed-instructions info) is emitted.
+      if (forkMessageId === "" && item.event.event === "anchor") {
+        return true;
+      }
       out.push(item.event);
       if (item.matchesForkPoint(forkMessageId)) {
         return true;
@@ -793,8 +1008,14 @@ export function collectBranchWithContext(
 
   const ancestorChain = buildAncestorChain(rows, branchRowKey);
 
-  // Emit each ancestor's content up to its fork point
-  for (const ancestor of ancestorChain) {
+  // Emit each ancestor's prefix, with a branch separator before every
+  // non-root segment so the chain reads:
+  //   root … BRANCH 2 … b2 … BRANCH 3 … b3 … BRANCH leaf … leaf
+  for (let i = 0; i < ancestorChain.length; i++) {
+    const ancestor = ancestorChain[i]!;
+    if (i > 0) {
+      emitBranchSeparator(ancestor.span, events, sourceSpans);
+    }
     collectContentUpToFork(
       ancestor.span.content,
       ancestor.forkMessageId,
@@ -804,36 +1025,7 @@ export function collectBranchWithContext(
     );
   }
 
-  // Emit the branch separator (renders as AgentCardView).
-  // branchSpan is already a createBranchSpan result with the correct name,
-  // so emit directly rather than calling emitBranchSpan (which would
-  // double-apply createBranchSpan and produce "Branch Branch 1").
-  sourceSpans.set(branchSpan.id, branchSpan);
-  const branchBegin: SpanBeginEvent = {
-    event: "span_begin",
-    name: branchSpan.name,
-    id: branchSpan.id,
-    span_id: branchSpan.id,
-    type: branchSpan.spanType,
-    timestamp: branchSpan.startTime().toISOString(),
-    parent_id: null,
-    pending: false,
-    working_start: 0,
-    uuid: branchSpan.id,
-    metadata: null,
-  };
-  events.push(branchBegin);
-  const branchEnd: SpanEndEvent = {
-    event: "span_end",
-    id: `${branchSpan.id}-end`,
-    span_id: branchSpan.id,
-    timestamp: branchSpan.endTime().toISOString(),
-    pending: false,
-    working_start: 0,
-    uuid: null,
-    metadata: null,
-  };
-  events.push(branchEnd);
+  emitBranchSeparator(branchSpan, events, sourceSpans);
 
   // Emit the branch's own content
   collectFromContent(
@@ -848,6 +1040,38 @@ export function collectBranchWithContext(
   );
 
   return { events, sourceSpans };
+}
+
+/** Emit a synthetic span_begin/span_end pair that renders as a branch separator card. */
+function emitBranchSeparator(
+  span: TimelineSpan,
+  events: Event[],
+  sourceSpans: Map<string, TimelineSpan>
+): void {
+  sourceSpans.set(span.id, span);
+  events.push({
+    event: "span_begin",
+    name: span.name,
+    id: span.id,
+    span_id: span.id,
+    type: "branch",
+    timestamp: span.startTime().toISOString(),
+    parent_id: null,
+    pending: false,
+    working_start: 0,
+    uuid: span.id,
+    metadata: null,
+  } satisfies SpanBeginEvent);
+  events.push({
+    event: "span_end",
+    id: `${span.id}-end`,
+    span_id: span.id,
+    timestamp: span.endTime().toISOString(),
+    pending: false,
+    working_start: 0,
+    uuid: null,
+    metadata: null,
+  } satisfies SpanEndEvent);
 }
 
 // =============================================================================

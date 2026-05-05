@@ -8,14 +8,14 @@
  * agent card rendering) are populated for the selected row.
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
 
-import type { Timeline, TimelineSpan } from "../core";
+import { spliceToTimeline, type Timeline, type TimelineSpan } from "../core";
 import {
   defaultMarkerConfig,
   resolveForkTimestamp,
@@ -28,7 +28,7 @@ import {
 } from "../swimlaneLayout";
 import { isSingleSpan, type SwimlaneRow } from "../swimlaneRows";
 import {
-  collectBranchWithContext,
+  collectPathWithNavigators,
   collectRawEvents,
   computeMinimapSelection,
   getBranchPrefix,
@@ -37,11 +37,7 @@ import {
   parseSelection,
   type MinimapSelection,
 } from "../timelineEventNodes";
-import {
-  computeTimeMapping,
-  createShiftedMapping,
-  type TimeMapping,
-} from "../timeMapping";
+import { computeTimeMapping, type TimeMapping } from "../timeMapping";
 
 import {
   useActiveTimeline,
@@ -91,6 +87,12 @@ export interface TranscriptTimelineResult {
   highlightedKeys: ReadonlyMap<string, number>;
   /** Name of the currently selected swimlane row, or the root name when nothing is selected. */
   selectedRowName: string;
+  /** Punched-down view stack (each entry is a spliced standalone timeline). */
+  viewStack: ReadonlyArray<{ label: string; timeline: Timeline }>;
+  /** Drill into `branch` — splice it against the base timeline's root and push onto the view stack. */
+  pushView: (branch: TimelineSpan, label: string) => void;
+  /** Pop the top of the view stack (back to the previous view). */
+  popView: () => void;
 }
 
 export interface UseTranscriptTimelineOptions {
@@ -133,7 +135,40 @@ export function useTranscriptTimeline(
 
   // timelines is always non-empty here (built from events or serverTimelines),
   // so activeTimeline is guaranteed to be defined.
-  const timeline = activeTimeline!;
+  const baseTimeline = activeTimeline!;
+
+  // Punch-down: each entry is a spliced standalone view of a branch.
+  // `priorSelected` stashes the selection at push time so popView can restore it.
+  const [viewStack, setViewStack] = useState<
+    Array<{ label: string; timeline: Timeline; priorSelected: string | null }>
+  >([]);
+  const [stackBase, setStackBase] = useState(baseTimeline);
+  if (stackBase !== baseTimeline) {
+    setStackBase(baseTimeline);
+    setViewStack([]);
+  }
+  const timeline = viewStack.at(-1)?.timeline ?? baseTimeline;
+
+  const pushView = useCallback(
+    (branch: TimelineSpan, label: string) => {
+      setViewStack((s) => [
+        ...s,
+        {
+          label,
+          timeline: spliceToTimeline(baseTimeline.root, branch),
+          priorSelected: timelineProps?.selected ?? null,
+        },
+      ]);
+      timelineProps?.onSelect?.(null);
+    },
+    [baseTimeline.root, timelineProps]
+  );
+  const popView = useCallback(() => {
+    const top = viewStack.at(-1);
+    if (!top) return;
+    setViewStack((s) => s.slice(0, -1));
+    timelineProps?.onSelect?.(top.priorSelected);
+  }, [viewStack, timelineProps]);
 
   const state = useTimeline(timeline, timelineOptions, timelineProps);
 
@@ -189,25 +224,19 @@ export function useTranscriptTimeline(
       };
     }
 
-    // Detect branch row selection — show parent context up to fork point
+    // Branch-tree timelines: render the root→selected path with inline
+    // fork navigators at each fork-point anchor.
     const rowKey = parsed?.rowKey ?? "";
     const row = state.rows.find((r) => r.key === rowKey);
-    if (row?.branch && spans.length === 1) {
-      const branchSpan = spans[0]!;
-      const collected = collectBranchWithContext(
-        state.rows,
-        rowKey,
-        branchSpan,
-        {
-          includeUtility,
-          showBranches,
-          branchPrefix: getBranchPrefix(state.rows, state.selected),
-        }
-      );
+    if (
+      spans.length === 1 &&
+      (row?.branch || (spans[0]?.branches.length ?? 0) > 0)
+    ) {
+      const collected = collectPathWithNavigators(state.rows, rowKey);
       return {
         selectedEvents: collected.events,
         sourceSpans: collected.sourceSpans,
-        branchScrollTarget: branchSpan.id,
+        branchScrollTarget: null as string | null,
       };
     }
 
@@ -321,6 +350,9 @@ export function useTranscriptTimeline(
     branchScrollTarget,
     highlightedKeys,
     selectedRowName,
+    viewStack,
+    pushView,
+    popView,
   };
 }
 
@@ -330,55 +362,94 @@ export function useTranscriptTimeline(
 
 const kBranchKeyPattern = /\/branch-([^/]*)-(\d+)$/;
 
+/**
+ * Compute per-row time mappings for fork-relative layout.
+ *
+ * Each row is placed at its parent's fork position and extends by its own
+ * duration; the domain is the max logical extent across all rows. This fills
+ * the full width regardless of how root content and branch execution times
+ * relate in wall-clock terms.
+ */
 function computeBranchMappings(
   rows: ReadonlyArray<SwimlaneRow>,
   trunkMapping: TimeMapping
-): ReadonlyMap<string, TimeMapping> {
-  const mappings = new Map<string, TimeMapping>();
+): ReadonlyMap<string, TimeMapping> | undefined {
+  if (!rows.some((r) => r.branch)) return undefined;
 
   const rowByKey = new Map<string, SwimlaneRow>();
+  for (const row of rows) rowByKey.set(row.key, row);
+
+  const root = rows.find((r) => r.depth === 0);
+  const rootStart = root?.startTime.getTime() ?? 0;
+
+  const singleSpan = (row: SwimlaneRow | undefined) => {
+    const s = row?.spans[0];
+    return row?.spans.length === 1 && s && isSingleSpan(s) ? s.agent : null;
+  };
+
+  // Nearest ancestor row whose logical start has been computed.
+  const nearestAncestor = (key: string): SwimlaneRow | undefined => {
+    let k = key;
+    while (true) {
+      const i = k.lastIndexOf("/");
+      if (i < 0) return root;
+      k = k.slice(0, i);
+      if (logicalStart.has(k)) return rowByKey.get(k);
+    }
+  };
+
+  // Logical start of each row (ms from a virtual origin = root content start).
+  // Branch rows shift to their parent's fork position; non-branch rows inherit
+  // their nearest ancestor's logical start plus their wall-clock offset from it.
+  const logicalStart = new Map<string, number>();
   for (const row of rows) {
-    rowByKey.set(row.key, row);
+    if (!row.branch) {
+      const anc = nearestAncestor(row.key);
+      const ancLogical = anc ? (logicalStart.get(anc.key) ?? 0) : 0;
+      const ancStart = anc?.startTime.getTime() ?? rootStart;
+      logicalStart.set(
+        row.key,
+        ancLogical + (row.startTime.getTime() - ancStart)
+      );
+      continue;
+    }
+    const parentKey = row.key.replace(kBranchKeyPattern, "");
+    const parentSpan = singleSpan(rowByKey.get(parentKey));
+    const branchSpan = singleSpan(row);
+    if (!parentSpan || !branchSpan) continue;
+    const forkTs = resolveForkTimestamp(parentSpan, branchSpan).getTime();
+    const parentStart = parentSpan.startTime(false).getTime();
+    const parentLogical = logicalStart.get(parentKey) ?? 0;
+    logicalStart.set(row.key, parentLogical + (forkTs - parentStart));
   }
 
+  let maxEnd = 1;
   for (const row of rows) {
-    if (!row.branch) continue;
-
-    const parentKey = row.key.replace(kBranchKeyPattern, "");
-    const parentRow = rowByKey.get(parentKey);
-    if (!parentRow) continue;
-
-    const parentFirstSpan = parentRow.spans[0];
-    const parentSpan =
-      parentRow.spans.length === 1 &&
-      parentFirstSpan &&
-      isSingleSpan(parentFirstSpan)
-        ? parentFirstSpan.agent
-        : null;
-    if (!parentSpan) continue;
-
-    const branchFirstSpan = row.spans[0];
-    const branchSpan =
-      row.spans.length === 1 && branchFirstSpan && isSingleSpan(branchFirstSpan)
-        ? branchFirstSpan.agent
-        : null;
-    if (!branchSpan) continue;
-
-    const forkTimestamp = resolveForkTimestamp(parentSpan, branchSpan);
-
-    const parentMapping = mappings.get(parentKey) ?? trunkMapping;
-    const forkPercent = parentMapping.toPercent(forkTimestamp);
-
-    mappings.set(
-      row.key,
-      createShiftedMapping(
-        row.startTime,
-        row.endTime,
-        forkPercent,
-        trunkMapping
-      )
+    const ls = logicalStart.get(row.key);
+    if (ls === undefined) continue;
+    maxEnd = Math.max(
+      maxEnd,
+      ls + (row.endTime.getTime() - row.startTime.getTime())
     );
   }
 
+  const mappings = new Map<string, TimeMapping>();
+  for (const row of rows) {
+    const ls = logicalStart.get(row.key);
+    if (ls === undefined) {
+      mappings.set(row.key, trunkMapping);
+      continue;
+    }
+    const wallStart = row.startTime.getTime();
+    mappings.set(row.key, {
+      toPercent: (ts) =>
+        Math.max(
+          0,
+          Math.min(100, ((ls + (ts.getTime() - wallStart)) / maxEnd) * 100)
+        ),
+      hasCompression: false,
+      gaps: [],
+    });
+  }
   return mappings;
 }

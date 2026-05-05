@@ -200,7 +200,10 @@ export function createBranchSpan(
   });
 }
 
+const kGenericBranchNames = new Set(["", "branch", "trajectory"]);
+
 function deriveBranchLabel(branch: TimelineSpan, label: string): string {
+  if (!kGenericBranchNames.has(branch.name)) return branch.name;
   for (const item of branch.content) {
     if (item.type === "span") return item.name;
   }
@@ -315,6 +318,97 @@ function convertServerSpan(
     agentResult: server.agent_result ?? undefined,
     outline: server.outline ?? undefined,
   });
+}
+
+// =============================================================================
+// Splice — reconstruct a branch's full event stream
+// =============================================================================
+
+/**
+ * Reconstruct `target`'s full event stream by concatenating ancestor prefixes.
+ *
+ * For each ancestor, take events up to the `AnchorEvent` matching the next
+ * child's `branchedFrom`, strip the `:{span_id}` suffix from span IDs, and
+ * concatenate. The result is what a standalone unbranched run of `target`'s
+ * lineage would have produced.
+ */
+export function splice(root: TimelineSpan, target: TimelineSpan): Event[] {
+  const chain = ancestorChain(root, target);
+  const out: Event[] = [];
+  for (let i = 0; i < chain.length; i++) {
+    const node = chain[i]!;
+    let events = node.content
+      .filter((it): it is TimelineEvent => it.type === "event")
+      .map((it) => it.event);
+    if (i + 1 < chain.length) {
+      const anchor = chain[i + 1]!.branchedFrom;
+      if (!anchor) {
+        out.length = 0;
+        continue;
+      }
+      const cut = events.findIndex(
+        (e) => e.event === "anchor" && e.anchor_id === anchor
+      );
+      if (cut < 0) {
+        throw new Error(
+          `splice: anchor ${anchor} not found in ${node.name} (${node.id})`
+        );
+      }
+      events = events.slice(0, cut + 1);
+    }
+    const suffix = `:${node.id}`;
+    for (const e of events) out.push(stripSuffix(e, suffix, node.id));
+  }
+  return out;
+}
+
+/** Splice `target` and rebuild it as a standalone (unbranched) Timeline. */
+export function spliceToTimeline(
+  root: TimelineSpan,
+  target: TimelineSpan
+): Timeline {
+  return buildTimeline(splice(root, target));
+}
+
+function ancestorChain(
+  root: TimelineSpan,
+  target: TimelineSpan
+): TimelineSpan[] {
+  const path: TimelineSpan[] = [];
+  function walk(node: TimelineSpan): boolean {
+    path.push(node);
+    if (node === target || node.id === target.id) return true;
+    for (const child of node.branches) if (walk(child)) return true;
+    path.pop();
+    return false;
+  }
+  if (!walk(root)) {
+    throw new Error(`TimelineSpan ${target.id} not reachable from root`);
+  }
+  return path;
+}
+
+function stripSuffix(e: Event, suffix: string, trajId: string): Event {
+  const update: Partial<Event> = {};
+  if (e.span_id?.endsWith(suffix)) {
+    update.span_id = e.span_id.slice(0, -suffix.length);
+  }
+  if (e.event === "span_begin" || e.event === "span_end") {
+    if (e.id.endsWith(suffix)) {
+      (update as { id: string }).id = e.id.slice(0, -suffix.length);
+    }
+  }
+  if (e.event === "span_begin" && e.parent_id != null) {
+    if (e.parent_id.endsWith(suffix)) {
+      (update as { parent_id: string }).parent_id = e.parent_id.slice(
+        0,
+        -suffix.length
+      );
+    } else if (e.parent_id === trajId) {
+      (update as { parent_id: string }).parent_id = "";
+    }
+  }
+  return Object.keys(update).length > 0 ? ({ ...e, ...update } as Event) : e;
 }
 
 // =============================================================================

@@ -19,6 +19,12 @@ interface ListPositionManagerResult {
  *   case the caller has a specific event to scroll to and we leave the
  *   container alone so the imperative scroll wins)
  */
+/** Strip `/branch-…` segments so all selections within a branch tree share
+ *  one list id (in-place Virtuoso update, scroll preserved). */
+function listIdRoot(selected: string | null): string | null {
+  return selected?.replace(/\/branch-[^/]+/g, "") ?? null;
+}
+
 export function useListPositionManager(
   baseListId: string,
   selected: string | null,
@@ -29,9 +35,10 @@ export function useListPositionManager(
   const removeValue = useRemoveValue();
   const removeByPrefix = useRemoveByPrefix();
 
+  const idSelection = useMemo(() => listIdRoot(selected), [selected]);
   const effectiveListId = useMemo(
-    () => (selected ? `${baseListId}:${selected}` : baseListId),
-    [baseListId, selected]
+    () => (idSelection ? `${baseListId}:${idSelection}` : baseListId),
+    [baseListId, idSelection]
   );
 
   // Track previous selected value to detect navigate-up

@@ -79,6 +79,12 @@ export const useEventNodes = (
         }
         // Preserve nodes with a sourceSpan (e.g. agent cards)
         if (node.sourceSpan) return true;
+        if (
+          node.event.event === "span_begin" &&
+          node.event.type === "fork_nav"
+        ) {
+          return true;
+        }
         return (
           (node.event.event !== "span_begin" && node.event.event !== "step") ||
           (node.children && node.children.length > 0)

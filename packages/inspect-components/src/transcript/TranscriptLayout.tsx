@@ -57,7 +57,10 @@ import {
   buildSpanSelectKeys,
   getSelectedSpans,
 } from "./timeline/timelineEventNodes";
-import { TimelineSelectContext } from "./TimelineSelectContext";
+import {
+  TimelineRowSelectContext,
+  TimelineSelectContext,
+} from "./TimelineSelectContext";
 import styles from "./TranscriptLayout.module.css";
 import {
   TranscriptViewNodes,
@@ -113,6 +116,9 @@ export interface TranscriptLayoutRightPaneProps {
 export interface TranscriptLayoutProps {
   // --- Events ---
   events: Event[];
+  /** Event types to hide from the rendered card list. Applied after timeline
+   *  construction so structural events (anchor/branch) still resolve. */
+  hiddenEventTypes?: readonly string[];
   /** Whether events are still being streamed (enables running indicators). */
   running?: boolean;
 
@@ -206,6 +212,7 @@ const collectAllCollapsibleIds = (
 
 export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   events,
+  hiddenEventTypes,
   running = false,
   scrollRef,
   offsetTop = 0,
@@ -277,6 +284,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     branchScrollTarget,
     highlightedKeys,
     selectedRowName,
+    viewStack,
+    pushView,
+    popView,
   } = useTranscriptTimeline({
     events,
     markerConfig: resolvedMarkerConfig,
@@ -312,7 +322,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Event nodes
   // ---------------------------------------------------------------------------
 
-  const eventsForNodes = showSwimlanes ? selectedEvents : events;
+  const rawEventsForNodes = showSwimlanes ? selectedEvents : events;
+  const eventsForNodes = useMemo(
+    () =>
+      hiddenEventTypes && hiddenEventTypes.length > 0
+        ? rawEventsForNodes.filter((e) => !hiddenEventTypes.includes(e.event))
+        : rawEventsForNodes,
+    [rawEventsForNodes, hiddenEventTypes]
+  );
   const { eventNodes, defaultCollapsedIds } = useEventNodes(
     eventsForNodes,
     running,
@@ -345,7 +362,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // before the imperative scroll lands on the new branch separator.
   // The imperative scroll runs in rAF and re-scrolls to its target after
   // the sync top reset.
-  const hasScrollTarget = !!(initialEventId || initialMessageId);
+  // Scroll-anchor for inline fork-navigator clicks: the prefix above the
+  // clicked navigator is unchanged across the selection, so capturing and
+  // restoring scrollTop keeps the navigator at the same viewport position.
+  const [scrollAnchor, setScrollAnchor] = useState<{
+    scrollTop: number;
+  } | null>(null);
+  const hasScrollTarget = !!(
+    initialEventId ||
+    initialMessageId ||
+    scrollAnchor
+  );
   const { effectiveListId } = useListPositionManager(
     listId,
     timelineState.selected,
@@ -387,6 +414,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               onSelect: setActiveTimeline,
             }
           : undefined,
+      viewStack,
+      onPopView: popView,
     }),
     [
       timelineData.root,
@@ -399,7 +428,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       timelines,
       activeTimelineIndex,
       setActiveTimeline,
+      viewStack,
+      popView,
     ]
+  );
+
+  const handlePunchDown = useCallback(
+    (rowKey: string, label: string) => {
+      const row = timelineState.rows.find((r) => r.key === rowKey);
+      const span = row?.spans[0];
+      if (span && "agent" in span) pushView(span.agent, label);
+    },
+    [timelineState.rows, pushView]
   );
 
   // ---------------------------------------------------------------------------
@@ -418,6 +458,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       timelineState.select(key.key);
     },
     [spanSelectKeys, timelineState]
+  );
+
+  const selectByRowKey = useCallback(
+    (rowKey: string, anchorEl?: HTMLElement) => {
+      if (anchorEl && scrollRef.current) {
+        setScrollAnchor({ scrollTop: scrollRef.current.scrollTop });
+      }
+      timelineState.select(rowKey, { preserveScroll: true });
+    },
+    [timelineState, scrollRef]
   );
 
   // ---------------------------------------------------------------------------
@@ -484,6 +534,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
+
+  // Branch selections share one effectiveListId (no remount), so the prefix
+  // above the clicked navigator is laid out identically — restoring scrollTop
+  // keeps it at the same viewport position.
+  useEffect(() => {
+    if (!scrollAnchor) return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: scrollAnchor.scrollTop });
+    });
+  }, [scrollAnchor, scrollRef]);
 
   // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
   // — fires for any change to the effective scroll target (URL `?event=`,
@@ -760,228 +820,233 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   return (
     <TimelineSelectContext.Provider value={selectBySpanId}>
-      <div className={clsx(styles.root, className)}>
-        {showSwimlanes && (
-          <StickyScroll
-            scrollRef={scrollRef}
-            offsetTop={offsetTop}
-            zIndex={500}
-            preserveHeight={true}
-            onStickyChange={handleSwimLaneStickyChange}
-          >
-            <div ref={swimLaneStickyContentRef}>
-              <TimelineSwimLanes
-                layouts={timelineLayouts}
-                timeline={timelineState}
-                header={swimlaneHeader}
-                onMarkerNavigate={onMarkerNavigate}
-                isSticky={isSwimLaneSticky}
-                headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
-                onLayoutShift={handleLayoutShift}
-                defaultCollapsed={swimlanesDefaultCollapsed}
-                regionCounts={regionCounts}
-                highlightedKeys={highlightedKeys}
-              />
-            </div>
-          </StickyScroll>
-        )}
-        <div
-          className={clsx(
-            styles.container,
-            !outline && styles.noOutline,
-            outline && isOutlineCollapsed && styles.outlineCollapsed,
-            !rightPane && styles.noRightPane,
-            rightPane && rightPane.collapsed && styles.rightPaneCollapsed
+      <TimelineRowSelectContext.Provider value={selectByRowKey}>
+        <div className={clsx(styles.root, className)}>
+          {showSwimlanes && (
+            <StickyScroll
+              scrollRef={scrollRef}
+              offsetTop={offsetTop}
+              zIndex={500}
+              preserveHeight={true}
+              onStickyChange={handleSwimLaneStickyChange}
+            >
+              <div ref={swimLaneStickyContentRef}>
+                <TimelineSwimLanes
+                  layouts={timelineLayouts}
+                  timeline={timelineState}
+                  header={swimlaneHeader}
+                  onMarkerNavigate={onMarkerNavigate}
+                  isSticky={isSwimLaneSticky}
+                  headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
+                  onLayoutShift={handleLayoutShift}
+                  defaultCollapsed={swimlanesDefaultCollapsed}
+                  regionCounts={regionCounts}
+                  highlightedKeys={highlightedKeys}
+                  onPunchDown={handlePunchDown}
+                />
+              </div>
+            </StickyScroll>
           )}
-          style={
-            {
-              "--outline-top": `${effectiveOffsetTop}px`,
-              "--right-pane-width": `${rightPaneWidth}px`,
-              "--scroller-height": scrollerHeight
-                ? `${scrollerHeight}px`
-                : "100vh",
-            } as CSSProperties
-          }
-        >
-          {outline && (
-            <>
-              <StickyScroll
-                ref={outlineScrollRef}
-                scrollRef={scrollRef}
-                className={styles.outline}
-                offsetTop={effectiveOffsetTop}
-              >
-                {!isOutlineCollapsed ? (
-                  <>
-                    {outline.title && (
-                      <div className={styles.sidebarHeader}>
-                        <span
-                          className={clsx(
-                            styles.sidebarHeaderTitle,
-                            "text-size-smaller"
-                          )}
+          <div
+            className={clsx(
+              styles.container,
+              !outline && styles.noOutline,
+              outline && isOutlineCollapsed && styles.outlineCollapsed,
+              !rightPane && styles.noRightPane,
+              rightPane && rightPane.collapsed && styles.rightPaneCollapsed
+            )}
+            style={
+              {
+                "--outline-top": `${effectiveOffsetTop}px`,
+                "--right-pane-width": `${rightPaneWidth}px`,
+                "--scroller-height": scrollerHeight
+                  ? `${scrollerHeight}px`
+                  : "100vh",
+              } as CSSProperties
+            }
+          >
+            {outline && (
+              <>
+                <StickyScroll
+                  ref={outlineScrollRef}
+                  scrollRef={scrollRef}
+                  className={styles.outline}
+                  offsetTop={effectiveOffsetTop}
+                >
+                  {!isOutlineCollapsed ? (
+                    <>
+                      {outline.title && (
+                        <div className={styles.sidebarHeader}>
+                          <span
+                            className={clsx(
+                              styles.sidebarHeaderTitle,
+                              "text-size-smaller"
+                            )}
+                          >
+                            {outline.title}
+                          </span>
+                        </div>
+                      )}
+                      <div className={styles.sidebarHeaderCloseAnchor}>
+                        <button
+                          type="button"
+                          className={styles.sidebarHeaderClose}
+                          onClick={() => outline.onCollapsedChange(true)}
+                          aria-label="Hide outline"
+                          title={outline.toggleTitle ?? "Hide outline"}
                         >
-                          {outline.title}
-                        </span>
+                          <i className="bi bi-x" />
+                        </button>
                       </div>
-                    )}
-                    <div className={styles.sidebarHeaderCloseAnchor}>
-                      <button
-                        type="button"
-                        className={styles.sidebarHeaderClose}
-                        onClick={() => outline.onCollapsedChange(true)}
-                        aria-label="Hide outline"
-                        title={outline.toggleTitle ?? "Hide outline"}
-                      >
-                        <i className="bi bi-x" />
-                      </button>
-                    </div>
-                    <TranscriptOutline
-                      eventNodes={eventNodes}
-                      defaultCollapsedIds={defaultCollapsedIds}
-                      scrollRef={scrollRef}
-                      running={running}
-                      agentName={
-                        outline.name ??
-                        (showSwimlanes ? selectedRowName : undefined)
-                      }
-                      scrollTrackOffset={effectiveOffsetTop}
-                      getCollapsed={
-                        collapseState?.outline
-                          ? (nodeId: string) =>
-                              collapseState.outline?.[nodeId] === true
+                      <TranscriptOutline
+                        eventNodes={eventNodes}
+                        defaultCollapsedIds={defaultCollapsedIds}
+                        scrollRef={scrollRef}
+                        running={running}
+                        agentName={
+                          outline.name ??
+                          (showSwimlanes ? selectedRowName : undefined)
+                        }
+                        scrollTrackOffset={effectiveOffsetTop}
+                        getCollapsed={
+                          collapseState?.outline
+                            ? (nodeId: string) =>
+                                collapseState.outline?.[nodeId] === true
+                            : undefined
+                        }
+                        setCollapsed={collapseState?.onCollapseOutline}
+                        collapsedEvents={collapseState?.outline}
+                        setCollapsedEvents={
+                          collapseState?.onSetOutlineCollapsed
+                        }
+                        selectedOutlineId={outline.selectedId}
+                        setSelectedOutlineId={outline.setSelectedId}
+                        getEventUrl={getEventUrl}
+                        renderLink={outline.renderLink}
+                        onNavigateToEvent={outline.onNavigateToEvent}
+                        onHasNodesChange={handleOutlineHasNodesChange}
+                      />
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.outlineToggle}
+                      onClick={
+                        outlineHasNodes && !outline.toggleDisabled
+                          ? () => outline.onCollapsedChange(false)
                           : undefined
                       }
-                      setCollapsed={collapseState?.onCollapseOutline}
-                      collapsedEvents={collapseState?.outline}
-                      setCollapsedEvents={collapseState?.onSetOutlineCollapsed}
-                      selectedOutlineId={outline.selectedId}
-                      setSelectedOutlineId={outline.setSelectedId}
-                      getEventUrl={getEventUrl}
-                      renderLink={outline.renderLink}
-                      onNavigateToEvent={outline.onNavigateToEvent}
-                      onHasNodesChange={handleOutlineHasNodesChange}
-                    />
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.outlineToggle}
-                    onClick={
-                      outlineHasNodes && !outline.toggleDisabled
-                        ? () => outline.onCollapsedChange(false)
-                        : undefined
-                    }
-                    aria-disabled={outline.toggleDisabled || !outlineHasNodes}
-                    title={
-                      outline.toggleTitle ??
-                      (!outlineHasNodes
-                        ? "No outline available for the current filter"
-                        : undefined)
-                    }
-                    aria-label="Show outline"
-                  >
-                    <i className={outline.toggleIcon} />
-                  </button>
-                )}
-              </StickyScroll>
-              <div className={styles.separator} />
-            </>
-          )}
-          {hasMatchingEvents ? (
-            <TranscriptViewNodes
-              key={effectiveListId}
-              ref={eventsListRef}
-              id={effectiveListId}
-              eventNodes={eventNodes}
-              defaultCollapsedIds={defaultCollapsedIds}
-              running={running}
-              initialEventId={effectiveInitialEventId}
-              initialMessageId={initialMessageId}
-              offsetTop={effectiveOffsetTop}
-              className={styles.eventsList}
-              scrollRef={scrollRef}
-              renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-              getEventUrl={getEventUrl}
-              linkingEnabled={linkingEnabled}
-              collapsedTranscript={collapseState?.transcript}
-              collapsedOutline={collapseState?.outline}
-              onCollapseTranscript={onCollapseTranscript}
-              eventNodeContext={eventNodeContext}
-            />
-          ) : emptyText !== null ? (
-            <NoContentsPanel text={emptyText} />
-          ) : null}
-          {rightPane && (
-            <>
-              <div className={styles.rightSeparator} />
-              <StickyScroll
-                ref={rightPaneScrollRef}
-                scrollRef={scrollRef}
-                className={styles.rightPane}
+                      aria-disabled={outline.toggleDisabled || !outlineHasNodes}
+                      title={
+                        outline.toggleTitle ??
+                        (!outlineHasNodes
+                          ? "No outline available for the current filter"
+                          : undefined)
+                      }
+                      aria-label="Show outline"
+                    >
+                      <i className={outline.toggleIcon} />
+                    </button>
+                  )}
+                </StickyScroll>
+                <div className={styles.separator} />
+              </>
+            )}
+            {hasMatchingEvents ? (
+              <TranscriptViewNodes
+                key={effectiveListId}
+                ref={eventsListRef}
+                id={effectiveListId}
+                eventNodes={eventNodes}
+                defaultCollapsedIds={defaultCollapsedIds}
+                running={running}
+                initialEventId={effectiveInitialEventId}
+                initialMessageId={initialMessageId}
                 offsetTop={effectiveOffsetTop}
-              >
-                {!rightPane.collapsed ? (
-                  <>
-                    {rightPaneOnWidthChange && (
-                      <div
-                        className={styles.rightPaneResizer}
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label={`Resize ${rightPane.label ?? "pane"}`}
-                        onPointerDown={handleRightPanePointerDown}
-                        onPointerMove={handleRightPanePointerMove}
-                        onPointerUp={handleRightPanePointerUp}
-                        onPointerCancel={handleRightPanePointerUp}
-                      />
-                    )}
-                    {rightPane.title && (
-                      <div className={styles.sidebarHeader}>
-                        <span
-                          className={clsx(
-                            styles.sidebarHeaderTitle,
-                            "text-size-smaller"
-                          )}
+                className={styles.eventsList}
+                scrollRef={scrollRef}
+                renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
+                getEventUrl={getEventUrl}
+                linkingEnabled={linkingEnabled}
+                collapsedTranscript={collapseState?.transcript}
+                collapsedOutline={collapseState?.outline}
+                onCollapseTranscript={onCollapseTranscript}
+                eventNodeContext={eventNodeContext}
+              />
+            ) : emptyText !== null ? (
+              <NoContentsPanel text={emptyText} />
+            ) : null}
+            {rightPane && (
+              <>
+                <div className={styles.rightSeparator} />
+                <StickyScroll
+                  ref={rightPaneScrollRef}
+                  scrollRef={scrollRef}
+                  className={styles.rightPane}
+                  offsetTop={effectiveOffsetTop}
+                >
+                  {!rightPane.collapsed ? (
+                    <>
+                      {rightPaneOnWidthChange && (
+                        <div
+                          className={styles.rightPaneResizer}
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={`Resize ${rightPane.label ?? "pane"}`}
+                          onPointerDown={handleRightPanePointerDown}
+                          onPointerMove={handleRightPanePointerMove}
+                          onPointerUp={handleRightPanePointerUp}
+                          onPointerCancel={handleRightPanePointerUp}
+                        />
+                      )}
+                      {rightPane.title && (
+                        <div className={styles.sidebarHeader}>
+                          <span
+                            className={clsx(
+                              styles.sidebarHeaderTitle,
+                              "text-size-smaller"
+                            )}
+                          >
+                            {rightPane.title}
+                          </span>
+                        </div>
+                      )}
+                      <div className={styles.sidebarHeaderCloseAnchor}>
+                        <button
+                          type="button"
+                          className={styles.sidebarHeaderClose}
+                          onClick={() => rightPane.onCollapsedChange(true)}
+                          aria-label={`Hide ${rightPane.label ?? "pane"}`}
+                          title={
+                            rightPane.toggleTitle ??
+                            `Hide ${rightPane.label ?? "pane"}`
+                          }
                         >
-                          {rightPane.title}
-                        </span>
+                          <i className="bi bi-x" />
+                        </button>
                       </div>
-                    )}
-                    <div className={styles.sidebarHeaderCloseAnchor}>
-                      <button
-                        type="button"
-                        className={styles.sidebarHeaderClose}
-                        onClick={() => rightPane.onCollapsedChange(true)}
-                        aria-label={`Hide ${rightPane.label ?? "pane"}`}
-                        title={
-                          rightPane.toggleTitle ??
-                          `Hide ${rightPane.label ?? "pane"}`
-                        }
-                      >
-                        <i className="bi bi-x" />
-                      </button>
-                    </div>
-                    {rightPane.content}
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.rightPaneToggle}
-                    onClick={() => rightPane.onCollapsedChange(false)}
-                    title={
-                      rightPane.toggleTitle ??
-                      `Show ${rightPane.label ?? "pane"}`
-                    }
-                    aria-label={`Show ${rightPane.label ?? "pane"}`}
-                  >
-                    <i className={rightPane.toggleIcon} />
-                  </button>
-                )}
-              </StickyScroll>
-            </>
-          )}
+                      {rightPane.content}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.rightPaneToggle}
+                      onClick={() => rightPane.onCollapsedChange(false)}
+                      title={
+                        rightPane.toggleTitle ??
+                        `Show ${rightPane.label ?? "pane"}`
+                      }
+                      aria-label={`Show ${rightPane.label ?? "pane"}`}
+                    >
+                      <i className={rightPane.toggleIcon} />
+                    </button>
+                  )}
+                </StickyScroll>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </TimelineRowSelectContext.Provider>
     </TimelineSelectContext.Provider>
   );
 };

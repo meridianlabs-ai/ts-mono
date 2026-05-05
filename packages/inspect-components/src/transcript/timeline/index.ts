@@ -73,7 +73,6 @@ export {
   computeActiveTime,
   computeTimeMapping,
   createIdentityMapping,
-  createShiftedMapping,
   type GapRegion,
   type TimeMapping,
 } from "./timeMapping";

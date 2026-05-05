@@ -107,15 +107,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     (state) => state.sample.eventFilter.filteredTypes
   );
 
-  const filteredEvents = useMemo(() => {
-    if (filteredEventTypes.length === 0) {
-      return events;
-    }
-    return events.filter((event) => {
-      return !filteredEventTypes.includes(event.event);
-    });
-  }, [events, filteredEventTypes]);
-
   // ---------------------------------------------------------------------------
   // Store-backed timeline selection adapters
   // ---------------------------------------------------------------------------
@@ -143,7 +134,9 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     (key: string | null, options?: SelectOptions) => {
       setTimelineSelectedStore(key);
       if (options?.preserveDeepLink) return;
-      scrollRef.current?.scrollTo({ top: 0 });
+      if (!options?.preserveScroll) {
+        scrollRef.current?.scrollTo({ top: 0 });
+      }
       setSearchParams(
         (prev) => clearDeepLinkParams(new URLSearchParams(prev)),
         { replace: true }
@@ -427,7 +420,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   return (
     <TranscriptLayout
-      events={filteredEvents}
+      events={events}
+      hiddenEventTypes={filteredEventTypes}
       running={running}
       scrollRef={scrollRef}
       offsetTop={offsetTop}

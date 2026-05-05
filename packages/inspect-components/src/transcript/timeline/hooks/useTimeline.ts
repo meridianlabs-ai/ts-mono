@@ -94,6 +94,9 @@ export interface SelectOptions {
    *  imperative scroll keeps its target — row-click selections (which
    *  invalidate any prior deep link) clear them. */
   preserveDeepLink?: boolean;
+  /** When true, do not reset scroll position. Used by inline fork navigators
+   *  so the clicked widget stays where it was on screen. */
+  preserveScroll?: boolean;
 }
 
 /** URL search-param keys used as transcript scroll-target deep links. */

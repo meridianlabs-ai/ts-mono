@@ -131,6 +131,11 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
       // When preserveHeight is active and we're sticky, set a minimum height
       // so the sticky area doesn't shrink when the content collapses.
       minHeight: isSticky && preserveHeight ? preStickHeight : undefined,
+      // The ResizeObserver above tracks the child's animated height into
+      // minHeight; without this, Chrome's scroll anchoring adjusts scrollTop
+      // by that delta on every frame and feeds back into scroll-direction
+      // detection (header collapse/expand loop).
+      overflowAnchor: preserveHeight ? "none" : undefined,
     };
 
     const contentClassName =

@@ -213,12 +213,13 @@ function buildOrphanContent(
 }
 
 /**
- * Merge orphaned events into the first timeline's root, preserving time order.
+ * Merge orphaned events into a host timeline's root, preserving time order.
  *
  * When server-provided timelines don't reference every event (e.g. scorer
  * events), the unreferenced events are collected, wrapped in their minimal
- * parent span tree, and inserted into the first timeline's root content in
- * chronological order.
+ * parent span tree, and inserted into the host timeline's root content in
+ * chronological order. The host is the first timeline whose root is not a
+ * branch tree, falling back to the first timeline.
  */
 function attachOrphanedEvents(
   timelines: Timeline[],
@@ -259,30 +260,36 @@ function attachOrphanedEvents(
 
   if (orphanContent.length === 0) return timelines;
 
-  // Merge into the first timeline's root content, sorted by time
-  const first = timelines[0]!;
-  const mergedContent = [...first.root.content, ...orphanContent];
+  // Merge into the first timeline whose root isn't a branch tree (orphans
+  // have no natural position in a branch tree), falling back to the first.
+  const hostIndex = Math.max(
+    0,
+    timelines.findIndex((tl) => tl.root.branches.length === 0)
+  );
+  const host = timelines[hostIndex]!;
+  const mergedContent = [...host.root.content, ...orphanContent];
   mergedContent.sort(
     (a, b) => a.startTime().getTime() - b.startTime().getTime()
   );
 
   const newRoot = new TimelineSpan({
-    id: first.root.id,
-    name: first.root.name,
-    spanType: first.root.spanType,
+    id: host.root.id,
+    name: host.root.name,
+    spanType: host.root.spanType,
     content: mergedContent,
-    branches: first.root.branches,
-    branchedFrom: first.root.branchedFrom,
-    description: first.root.description,
-    utility: first.root.utility,
-    agentResult: first.root.agentResult,
-    outline: first.root.outline,
+    branches: host.root.branches,
+    branchedFrom: host.root.branchedFrom,
+    description: host.root.description,
+    utility: host.root.utility,
+    agentResult: host.root.agentResult,
+    outline: host.root.outline,
   });
 
-  return [
-    { name: first.name, description: first.description, root: newRoot },
-    ...timelines.slice(1),
-  ];
+  return timelines.map((tl, i) =>
+    i === hostIndex
+      ? { name: host.name, description: host.description, root: newRoot }
+      : tl
+  );
 }
 
 // =============================================================================

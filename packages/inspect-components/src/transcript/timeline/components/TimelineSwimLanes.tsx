@@ -93,6 +93,10 @@ export interface TimelineHeaderProps {
   timelineSelector?: TimelineSelectorProps;
   /** Called when the branches toggle is clicked (handles selection cleanup). */
   onToggleBranches?: () => void;
+  /** Punched-down view labels (root → current). Renders a back button + trail when non-empty. */
+  viewStack?: ReadonlyArray<{ label: string }>;
+  /** Pop the punched-down view stack. */
+  onPopView?: () => void;
 }
 
 export interface TimelineSwimLanesProps {
@@ -119,6 +123,8 @@ export interface TimelineSwimLanesProps {
   /** Row key → highlight clip percentage (0–100).
    *  The selected branch clips at 100; ancestors clip at the fork marker position. */
   highlightedKeys?: ReadonlyMap<string, number>;
+  /** Drill into a branch row as a standalone spliced timeline. */
+  onPunchDown?: (rowKey: string, label: string) => void;
 }
 
 // =============================================================================
@@ -136,6 +142,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   regionCounts,
   defaultCollapsed: defaultCollapsedProp,
   highlightedKeys,
+  onPunchDown,
 }) => {
   const icons = useTimelineIcons();
   const { selected, select: onSelect, clearSelection } = timeline;
@@ -221,6 +228,8 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
       if (explicit !== undefined) return explicit;
       const layout = layouts.find((l) => l.key === rowKey);
       if (!layout) return false;
+      // Branch rows default to expanded so the full fork tree is visible.
+      if (layout.branch) return false;
       // Rows with only branch-marker children (not in parentKeys) default
       // to collapsed — the branches aren't visible until showBranches is on.
       if (!parentKeys.has(rowKey) && expandableKeys.has(rowKey)) return true;
@@ -377,6 +386,11 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onBranchToggle={() => handleBranchMarkerClick(layout.key)}
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
+        onPunchDown={
+          layout.branch && onPunchDown
+            ? () => onPunchDown(layout.key, layout.name)
+            : undefined
+        }
       />
     );
   };
@@ -530,6 +544,8 @@ interface SwimlaneRowProps {
   highlightClip?: number;
   /** Connector line from parent's branch marker to this branch row. */
   connector?: BranchConnector;
+  /** Open this branch as a standalone spliced view. Only set on branch rows. */
+  onPunchDown?: () => void;
 }
 
 const SwimlaneRow: FC<SwimlaneRowProps> = ({
@@ -548,6 +564,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   onBranchToggle,
   onMarkerNavigate,
   connector,
+  onPunchDown,
 }) => {
   const icons = useTimelineIcons();
   const hasMultipleSpans = layout.spans.length > 1;
@@ -617,6 +634,19 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
           ) : (
             layout.name
           ))}
+        {onPunchDown && (
+          <button
+            type="button"
+            className={styles.punchDownBtn}
+            title="Open as standalone timeline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPunchDown();
+            }}
+          >
+            <i className={icons.punchDown} />
+          </button>
+        )}
       </div>
 
       {/* Bar area cell */}
@@ -732,6 +762,8 @@ const HeaderRow: FC<HeaderRowProps> = ({
   timelineConfig,
   timelineSelector,
   onToggleBranches,
+  viewStack,
+  onPopView,
 }) => {
   const icons = useTimelineIcons();
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
@@ -745,6 +777,19 @@ const HeaderRow: FC<HeaderRowProps> = ({
       {timelineSelector && (
         <>
           <TimelineSelector {...timelineSelector} />
+          <span className={styles.breadcrumbDivider}>/</span>
+        </>
+      )}
+      {viewStack && viewStack.length > 0 && (
+        <>
+          <button
+            className={styles.viewStackBack}
+            onClick={onPopView}
+            title="Back to branch overview"
+          >
+            <i className={icons.chevron.left} />
+            {viewStack.at(-1)!.label}
+          </button>
           <span className={styles.breadcrumbDivider}>/</span>
         </>
       )}
