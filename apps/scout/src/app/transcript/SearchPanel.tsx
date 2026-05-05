@@ -474,6 +474,7 @@ const SearchPanelWithData = ({
                       }
                       suggestions={searchModelHistory}
                       allowBrowse={searchModelHistory.length > 0}
+                      required
                     />
                   </div>
                 </div>

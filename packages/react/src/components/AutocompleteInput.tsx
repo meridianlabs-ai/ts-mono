@@ -30,6 +30,7 @@ export interface AutocompleteInputProps {
   className?: string;
   /** When true, shows a dropdown toggle icon to browse all options */
   allowBrowse?: boolean;
+  required?: boolean;
 }
 
 export const AutocompleteInput: FC<AutocompleteInputProps> = ({
@@ -47,6 +48,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   autoFocus,
   className,
   allowBrowse = false,
+  required = false,
 }) => {
   const icons = useComponentIcons();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -274,6 +276,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           className
         )}
         value={value}
+        required={required}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
