@@ -44,6 +44,7 @@ export const liftEvalView = (
     compactScores: wire.compact_scores ?? fallback.compactScores,
     colorScalesEnabled:
       wire.color_scales_enabled ?? fallback.colorScalesEnabled,
+    userOverrides: {},
   };
 };
 
@@ -78,15 +79,27 @@ export const pickActiveView = (
  * Resolution priority: stored (user-modified runtime state) > eval default
  * (lifted from `eval.viewer.task_samples_view`) > built-in default.
  *
- * Mirrors the precedence pattern used by `resolveScorePanelSort` in
- * `apps/inspect/src/state/hooks.ts`.
+ * Per-field exception for the toolbar toggles (`multiline`, `compactScores`,
+ * `colorScalesEnabled`): stored only wins if `userOverrides` records that
+ * the user has actually flipped that toggle. Otherwise the eval-author
+ * default takes precedence even when stored state already exists, so an
+ * eval that ships e.g. `color_scales_enabled: false` isn't shadowed by a
+ * stale `true` lifted from a previous eval.
  */
 export const resolveSamplesView = (
   stored: SamplesViewState | undefined,
   evalDefault: SamplesView | undefined | null
 ): SamplesViewState => {
-  if (stored) return stored;
-  return liftEvalView(evalDefault);
+  if (!stored) return liftEvalView(evalDefault);
+  const lifted = liftEvalView(evalDefault);
+  const overrides = stored.userOverrides ?? {};
+  return {
+    ...stored,
+    multiline: overrides.multiline ?? lifted.multiline,
+    compactScores: overrides.compactScores ?? lifted.compactScores,
+    colorScalesEnabled:
+      overrides.colorScalesEnabled ?? lifted.colorScalesEnabled,
+  };
 };
 
 // ---------------------------------------------------------------------------

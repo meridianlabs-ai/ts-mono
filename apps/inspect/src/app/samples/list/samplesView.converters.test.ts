@@ -54,6 +54,7 @@ describe("liftEvalView", () => {
       multiline: false,
       compactScores: false,
       colorScalesEnabled: true,
+      userOverrides: {},
     });
   });
 
@@ -164,10 +165,20 @@ describe("pickActiveView", () => {
 });
 
 describe("resolveSamplesView precedence", () => {
-  test("user-stored state wins outright", () => {
-    const stored = sampleState({ name: "User" });
-    const evalDefault: SamplesView = { name: "Eval" };
-    expect(resolveSamplesView(stored, evalDefault)).toBe(stored);
+  test("stored columns/sort/filter always win over eval default", () => {
+    const stored = sampleState({
+      name: "User",
+      columns: [{ id: "input", visible: true }],
+      sort: [{ colId: "tokens", dir: "desc" }],
+    });
+    const evalDefault: SamplesView = {
+      name: "Eval",
+      columns: [{ id: "score", visible: true }],
+    };
+    const resolved = resolveSamplesView(stored, evalDefault);
+    expect(resolved.columns).toEqual(stored.columns);
+    expect(resolved.sort).toEqual(stored.sort);
+    expect(resolved.name).toBe("User");
   });
 
   test("eval default applies when no stored state is present", () => {
@@ -181,6 +192,57 @@ describe("resolveSamplesView precedence", () => {
     expect(resolveSamplesView(undefined, undefined)).toEqual(
       defaultSamplesView()
     );
+  });
+
+  test("eval-default toggle wins over stale stored toggle when user has not overridden", () => {
+    // stored carries multiline=true (lifted from a prior eval) but
+    // userOverrides is empty — so the current eval's `multiline: false`
+    // should propagate through.
+    const stored = sampleState({ multiline: true, userOverrides: {} });
+    const evalDefault: SamplesView = { name: "Eval", multiline: false };
+    expect(resolveSamplesView(stored, evalDefault).multiline).toBe(false);
+  });
+
+  test("user override wins even when eval default disagrees", () => {
+    const stored = sampleState({
+      multiline: true,
+      userOverrides: { multiline: true },
+    });
+    const evalDefault: SamplesView = { name: "Eval", multiline: false };
+    expect(resolveSamplesView(stored, evalDefault).multiline).toBe(true);
+  });
+
+  test("user override of false beats an undefined eval default (?? not ||)", () => {
+    const stored = sampleState({
+      colorScalesEnabled: true,
+      userOverrides: { colorScalesEnabled: false },
+    });
+    expect(
+      resolveSamplesView(stored, { name: "Eval" }).colorScalesEnabled
+    ).toBe(false);
+  });
+
+  test("legacy stored without userOverrides treats every toggle as inheriting", () => {
+    // Persisted state from before the userOverrides field landed.
+    // resolveSamplesView should let eval defaults take over each toggle.
+    const legacy = {
+      ...sampleState({
+        multiline: true,
+        compactScores: false,
+        colorScalesEnabled: true,
+      }),
+    } as SamplesViewState;
+    delete (legacy as Partial<SamplesViewState>).userOverrides;
+    const evalDefault: SamplesView = {
+      name: "Eval",
+      multiline: false,
+      compact_scores: true,
+      color_scales_enabled: false,
+    };
+    const resolved = resolveSamplesView(legacy, evalDefault);
+    expect(resolved.multiline).toBe(false);
+    expect(resolved.compactScores).toBe(true);
+    expect(resolved.colorScalesEnabled).toBe(false);
   });
 });
 

@@ -62,6 +62,20 @@ export interface SamplesViewState {
    * `score_color_scales`; the toolbar hides its toggle otherwise.
    */
   colorScalesEnabled: boolean;
+  /**
+   * Sparse map of toggle fields the user has explicitly flipped.
+   * Per-field, presence here means "user override — eval-author defaults
+   * are ignored for this field"; absence means "fall through to the
+   * eval-author default if the current eval supplies one, else built-in".
+   * Without this distinction stored toggle values from a prior eval would
+   * silently shadow a different eval's `compact_scores` / `multiline` /
+   * `color_scales_enabled` defaults.
+   */
+  userOverrides: {
+    multiline?: boolean;
+    compactScores?: boolean;
+    colorScalesEnabled?: boolean;
+  };
 }
 
 /**
@@ -79,4 +93,5 @@ export const defaultSamplesView = (): SamplesViewState => ({
   multiline: true,
   compactScores: false,
   colorScalesEnabled: true,
+  userOverrides: {},
 });

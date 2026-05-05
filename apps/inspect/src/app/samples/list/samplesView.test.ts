@@ -12,6 +12,7 @@ describe("defaultSamplesView", () => {
       multiline: true,
       compactScores: false,
       colorScalesEnabled: true,
+      userOverrides: {},
     });
   });
 

@@ -223,19 +223,34 @@ export function useSamplesView<TRow>(
     [view, availableColIds, setSampleListView]
   );
 
+  // Toggle setters write the value into `userOverrides` so future renders
+  // know the user has explicitly flipped this field. Without that flag,
+  // `resolveSamplesView` lets eval-author defaults shadow the stored value.
   const setMultiline = useCallback(
-    (multiline: boolean) => patchView({ multiline }),
-    [patchView]
+    (multiline: boolean) =>
+      patchView({
+        multiline,
+        userOverrides: { ...view.userOverrides, multiline },
+      }),
+    [patchView, view.userOverrides]
   );
 
   const setCompactScores = useCallback(
-    (compactScores: boolean) => patchView({ compactScores }),
-    [patchView]
+    (compactScores: boolean) =>
+      patchView({
+        compactScores,
+        userOverrides: { ...view.userOverrides, compactScores },
+      }),
+    [patchView, view.userOverrides]
   );
 
   const setColorScalesEnabled = useCallback(
-    (colorScalesEnabled: boolean) => patchView({ colorScalesEnabled }),
-    [patchView]
+    (colorScalesEnabled: boolean) =>
+      patchView({
+        colorScalesEnabled,
+        userOverrides: { ...view.userOverrides, colorScalesEnabled },
+      }),
+    [patchView, view.userOverrides]
   );
 
   const setView = useCallback(
