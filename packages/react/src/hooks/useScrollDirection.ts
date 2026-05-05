@@ -248,7 +248,13 @@ export function useScrollDirection(
         el.removeEventListener("scroll", handler);
       }
     };
-  }, [scrollEls, threshold, transitionLockMs, suppressRef, stayHiddenOnUpScroll]);
+  }, [
+    scrollEls,
+    threshold,
+    transitionLockMs,
+    suppressRef,
+    stayHiddenOnUpScroll,
+  ]);
 
   const resetAnchor = useCallback(
     (debounce?: boolean) => {
