@@ -34,6 +34,7 @@ import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
   useSamplesView,
+  useSamplesViewColorScalesEnabled,
   useSamplesViewCompactScores,
   useSamplesViewMultiline,
   useSamplesViewScoreColorScales,
@@ -203,7 +204,12 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const multiline = useSamplesViewMultiline();
   const compactScores = useSamplesViewCompactScores();
   const scoreLabels = useSamplesViewScoreLabels();
-  const scoreColorScales = useSamplesViewScoreColorScales();
+  const wireScoreColorScales = useSamplesViewScoreColorScales();
+  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+  const scoreColorScales = useMemo(
+    () => (colorScalesEnabled ? wireScoreColorScales : {}),
+    [colorScalesEnabled, wireScoreColorScales]
+  );
 
   const allColumns = useMemo(
     () =>
@@ -465,6 +471,14 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     });
     if (state.length > 0) api.applyColumnState({ state });
   }, [compactScores]);
+
+  // ag-grid caches `cellStyle` output as inline styles; the new
+  // column def alone doesn't clear them. `redrawRows` does.
+  useEffect(() => {
+    const api = sampleListHandle.current?.api;
+    if (!api) return;
+    api.redrawRows();
+  }, [colorScalesEnabled, scoreColorScales]);
 
   // When the toolbar text is a non-round-trippable expression, hide the
   // column-header filter buttons. Using one would overwrite the typed

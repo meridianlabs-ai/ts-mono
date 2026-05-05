@@ -66,6 +66,23 @@ export function useSamplesViewScoreColorScales(): Record<
   }, [evalDefaultField]);
 }
 
+/** Resolved `colorScalesEnabled` — same access pattern as the
+ *  multiline companion above. Read in `SamplesTab` so the columns
+ *  builder can decide whether to attach a `cellStyle` callback. */
+export function useSamplesViewColorScalesEnabled(): boolean {
+  const stored = useStore(
+    (state) => state.logs.samplesListState.byScope.logViewSamples.view
+  );
+  const evalDefaultField = useStore(
+    (state) =>
+      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
+  );
+  return useMemo(() => {
+    const evalDefault = pickActiveView(evalDefaultField);
+    return resolveSamplesView(stored, evalDefault).colorScalesEnabled;
+  }, [stored, evalDefaultField]);
+}
+
 /** Resolved `compactScores` — same access pattern as the multiline
  *  companion above. Read in `SamplesTab` before columns are built so
  *  the flag can flow into `buildSampleColumns`. */
@@ -93,6 +110,7 @@ export interface UseSamplesViewResult {
   setGridState: (gs: GridState) => void;
   setMultiline: (multiline: boolean) => void;
   setCompactScores: (compactScores: boolean) => void;
+  setColorScalesEnabled: (enabled: boolean) => void;
   /** Reset just the column list (order + visibility) to the
    *  eval-author default (when present) or the built-in seeded
    *  default. Sort, filter, multiline, and compactScores are left
@@ -215,6 +233,11 @@ export function useSamplesView<TRow>(
     [patchView]
   );
 
+  const setColorScalesEnabled = useCallback(
+    (colorScalesEnabled: boolean) => patchView({ colorScalesEnabled }),
+    [patchView]
+  );
+
   const setView = useCallback(
     (next: SamplesViewState) => setSampleListView(next),
     [setSampleListView]
@@ -250,6 +273,7 @@ export function useSamplesView<TRow>(
     setGridState,
     setMultiline,
     setCompactScores,
+    setColorScalesEnabled,
     resetColumns,
   };
 }

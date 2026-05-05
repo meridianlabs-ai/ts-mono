@@ -3,6 +3,7 @@ import { FC, Fragment } from "react";
 import { useScores, useSelectedScores } from "../../state/hooks";
 import { useStore } from "../../state/store";
 
+import { ColorScalesToggle } from "./list/ColorScalesToggle";
 import { CompactScoresToggle } from "./list/CompactScoresToggle";
 import { MultilineToggle } from "./list/MultilineToggle";
 import { SampleFilter } from "./sample-tools/sample-filter/SampleFilter";
@@ -11,14 +12,15 @@ import { SelectScorer } from "./sample-tools/SelectScorer";
 interface SampleToolsProps {}
 
 // Multi-sample tools: DSL filter + row-layout (multiline) toggle +
-// compact-scores toggle. Scorer selection is handled by the
-// column-chooser popover in `SamplesTab`.
+// compact-scores + colour-scales toggles. Scorer selection is handled
+// by the column-chooser popover in `SamplesTab`.
 export const SampleTools: FC<SampleToolsProps> = () => {
   return (
     <Fragment>
       <SampleFilter />
       <MultilineToggle />
       <CompactScoresToggle />
+      <ColorScalesToggle />
     </Fragment>
   );
 };

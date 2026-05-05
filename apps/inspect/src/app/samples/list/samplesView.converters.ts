@@ -42,6 +42,8 @@ export const liftEvalView = (
     filters: { dsl: wire.filter ?? "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,
     compactScores: wire.compact_scores ?? fallback.compactScores,
+    colorScalesEnabled:
+      wire.color_scales_enabled ?? fallback.colorScalesEnabled,
   };
 };
 
@@ -57,6 +59,7 @@ export const flattenToEvalView = (state: SamplesViewState): SamplesView => ({
   filter: state.filters.dsl ? state.filters.dsl : null,
   multiline: state.multiline,
   compact_scores: state.compactScores,
+  color_scales_enabled: state.colorScalesEnabled,
 });
 
 /**

@@ -56,6 +56,12 @@ export interface SamplesViewState {
    * rotated 45° headers; `false` = standard-width horizontal headers.
    */
   compactScores: boolean;
+  /**
+   * Whether the score-cell colour-scale heatmap is currently on.
+   * Only consulted when the eval has at least one entry in
+   * `score_color_scales`; the toolbar hides its toggle otherwise.
+   */
+  colorScalesEnabled: boolean;
 }
 
 /**
@@ -72,4 +78,5 @@ export const defaultSamplesView = (): SamplesViewState => ({
   filters: { dsl: "", extraColumnFilters: {} },
   multiline: true,
   compactScores: false,
+  colorScalesEnabled: true,
 });

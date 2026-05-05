@@ -2453,6 +2453,8 @@ export interface components {
          *     `user > eval default > built-in`.
          */
         SamplesView: {
+            /** Color Scales Enabled */
+            color_scales_enabled?: boolean | null;
             /** Columns */
             columns?: components["schemas"]["SamplesColumn"][] | null;
             /** Compact Scores */

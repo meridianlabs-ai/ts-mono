@@ -98,6 +98,7 @@ export const ApplicationIcons = {
   link: "bi bi-link-45deg",
   "list-wrap": "bi bi-text-wrap",
   "compact-scores": "bi bi-arrows-collapse-vertical",
+  "color-scales": "bi bi-palette",
   loading: "bi bi-arrow-clockwise",
   logging: loggingIcons,
   menu: "bi bi-list",

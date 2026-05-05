@@ -11,6 +11,7 @@ describe("defaultSamplesView", () => {
       filters: { dsl: "", extraColumnFilters: {} },
       multiline: true,
       compactScores: false,
+      colorScalesEnabled: true,
     });
   });
 

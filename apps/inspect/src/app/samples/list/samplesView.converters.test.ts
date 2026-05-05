@@ -53,6 +53,7 @@ describe("liftEvalView", () => {
       filters: { dsl: "has_error", extraColumnFilters: {} },
       multiline: false,
       compactScores: false,
+      colorScalesEnabled: true,
     });
   });
 
@@ -64,11 +65,17 @@ describe("liftEvalView", () => {
     expect(lifted.filters).toEqual({ dsl: "", extraColumnFilters: {} });
     expect(lifted.multiline).toBe(true);
     expect(lifted.compactScores).toBe(false);
+    expect(lifted.colorScalesEnabled).toBe(true);
   });
 
   test("compact_scores wire field maps to compactScores runtime field", () => {
     const wire: SamplesView = { name: "Triage", compact_scores: true };
     expect(liftEvalView(wire).compactScores).toBe(true);
+  });
+
+  test("color_scales_enabled wire field maps to colorScalesEnabled runtime field", () => {
+    const wire: SamplesView = { name: "Triage", color_scales_enabled: false };
+    expect(liftEvalView(wire).colorScalesEnabled).toBe(false);
   });
 
   test("score_labels stays on the wire side (not lifted into state)", () => {
@@ -123,6 +130,7 @@ describe("flattenToEvalView", () => {
       filter: "has_error",
       multiline: false,
       compact_scores: false,
+      color_scales_enabled: true,
     });
   });
 
