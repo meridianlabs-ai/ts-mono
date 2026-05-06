@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 
 import { useStore } from "../../../state/store";
+import { useCachedSearchResult } from "../../server/useSearches";
 import {
   getSearchPanelStateKey,
   normalizeSearchPanelState,
 } from "../searchPanelState";
-import type { TranscriptSearchScope } from "../searchRequest";
+import { buildSearchScope, type TranscriptSearchScope } from "../searchRequest";
 
 type UseSearchReferenceLabelsOptions = {
   scope: TranscriptSearchScope;
@@ -25,14 +26,8 @@ export const useSearchReferenceLabels = ({
 }: UseSearchReferenceLabelsOptions): SearchReferenceLabels | undefined => {
   const searchPanelStateKey = useMemo(
     () =>
-      transcriptDir
-        ? getSearchPanelStateKey({
-            scope,
-            transcriptDir,
-            transcriptId,
-          })
-        : null,
-    [scope, transcriptDir, transcriptId]
+      transcriptDir ? getSearchPanelStateKey({ scope, transcriptDir }) : null,
+    [scope, transcriptDir]
   );
 
   const storedSearchPanelState = useStore((state) =>
@@ -46,15 +41,20 @@ export const useSearchReferenceLabels = ({
     [storedSearchPanelState]
   );
 
-  const searchResult = useMemo(() => {
-    const activeSearch = searchPanelState.searches[searchPanelState.searchType];
-    return activeSearch.hasSearched ? activeSearch.currentSearch : null;
-  }, [searchPanelState]);
+  const searchId =
+    searchPanelState.searches[searchPanelState.searchType].searchId;
+
+  const cachedResult = useCachedSearchResult({
+    transcriptDir: transcriptDir ?? "",
+    transcriptId,
+    scope: buildSearchScope(scope),
+    searchId: transcriptDir ? searchId : null,
+  });
 
   const referenceLabels = useMemo(() => {
     const messageLabels: Record<string, string> = {};
     const eventLabels: Record<string, string> = {};
-    for (const ref of searchResult?.references ?? []) {
+    for (const ref of cachedResult.data?.references ?? []) {
       if (ref.type === "message" && ref.cite) {
         messageLabels[ref.id] = ref.cite;
       } else if (ref.type === "event" && ref.cite) {
@@ -70,7 +70,7 @@ export const useSearchReferenceLabels = ({
       ...(hasMessageLabels ? { messageLabels } : {}),
       ...(hasEventLabels ? { eventLabels } : {}),
     };
-  }, [searchResult]);
+  }, [cachedResult.data]);
 
   return referenceLabels;
 };

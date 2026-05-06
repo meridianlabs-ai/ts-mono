@@ -10,41 +10,22 @@ describe("search panel state", () => {
   it("stores grep and llm search state separately", () => {
     const state = createInitialSearchPanelState();
     state.searches.grep.query = "literal text";
-    state.searches.grep.hasSearched = true;
+    state.searches.grep.searchId = "grep-1";
     state.searches.llm.query = "summarize the failure";
 
     expect(state.searches.grep.query).toBe("literal text");
-    expect(state.searches.grep.hasSearched).toBe(true);
+    expect(state.searches.grep.searchId).toBe("grep-1");
     expect(state.searches.llm.query).toBe("summarize the failure");
-    expect(state.searches.llm.hasSearched).toBe(false);
+    expect(state.searches.llm.searchId).toBeNull();
   });
 
-  it("migrates legacy flat grep state into the grep branch", () => {
-    const legacy = {
-      searchType: "grep",
-      query: "error",
-      hasSearched: true,
-      grepOptions: { regex: true },
-    } satisfies StoredSearchPanelState;
+  it("fills missing fields with defaults", () => {
+    const state = normalizeSearchPanelState();
 
-    const state = normalizeSearchPanelState(legacy);
-
-    expect(state.searchType).toBe("grep");
-    expect(state.searches.grep).toEqual({
-      query: "error",
-      hasSearched: true,
-      currentSearch: null,
-      grepOptions: {
-        ignoreCase: true,
-        regex: true,
-        wordBoundary: false,
-      },
-    });
-    expect(state.searches.llm.query).toBe("");
-    expect(state.searches.llm.hasSearched).toBe(false);
+    expect(state).toEqual(createInitialSearchPanelState());
   });
 
-  it("fills missing nested fields without mixing branches", () => {
+  it("normalizes a partially-stored state without mixing branches", () => {
     const persisted = {
       searchType: "llm",
       searches: {
@@ -55,6 +36,7 @@ describe("search panel state", () => {
         llm: {
           query: "what happened?",
           model: "gpt-5.4",
+          searchId: "llm-7",
         },
       },
     } satisfies StoredSearchPanelState;
@@ -63,6 +45,7 @@ describe("search panel state", () => {
 
     expect(state.searchType).toBe("llm");
     expect(state.searches.grep.query).toBe("stack trace");
+    expect(state.searches.grep.searchId).toBeNull();
     expect(state.searches.grep.grepOptions).toEqual({
       ignoreCase: false,
       regex: false,
@@ -70,6 +53,6 @@ describe("search panel state", () => {
     });
     expect(state.searches.llm.query).toBe("what happened?");
     expect(state.searches.llm.model).toBe("gpt-5.4");
-    expect(state.searches.llm.hasSearched).toBe(false);
+    expect(state.searches.llm.searchId).toBe("llm-7");
   });
 });

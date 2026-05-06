@@ -1,23 +1,19 @@
-import type { Result } from "../../types/api-types";
-
 import type {
   GrepOptions,
   SearchType,
   TranscriptSearchScope,
 } from "./searchRequest";
 
-export type SearchTypePanelState = {
+export type GrepSearchPanelState = {
   query: string;
-  hasSearched: boolean;
-  currentSearch: Result | null;
-};
-
-export type GrepSearchPanelState = SearchTypePanelState & {
   grepOptions: GrepOptions;
+  searchId: string | null;
 };
 
-export type LlmSearchPanelState = SearchTypePanelState & {
+export type LlmSearchPanelState = {
+  query: string;
   model: string;
+  searchId: string | null;
 };
 
 export type SearchPanelState = {
@@ -40,11 +36,6 @@ export type StoredSearchPanelState = {
     grep?: StoredGrepSearchPanelState;
     llm?: Partial<LlmSearchPanelState>;
   };
-  query?: string;
-  hasSearched?: boolean;
-  currentSearch?: Result | null;
-  grepOptions?: Partial<GrepOptions>;
-  model?: string;
 };
 
 export const createInitialSearchPanelState = (): SearchPanelState => ({
@@ -52,8 +43,7 @@ export const createInitialSearchPanelState = (): SearchPanelState => ({
   searches: {
     grep: {
       query: "",
-      hasSearched: false,
-      currentSearch: null,
+      searchId: null,
       grepOptions: {
         ignoreCase: true,
         regex: false,
@@ -62,8 +52,7 @@ export const createInitialSearchPanelState = (): SearchPanelState => ({
     },
     llm: {
       query: "",
-      hasSearched: false,
-      currentSearch: null,
+      searchId: null,
       model: "",
     },
   },
@@ -79,54 +68,22 @@ export const normalizeSearchPanelState = (
   state?: StoredSearchPanelState
 ): SearchPanelState => {
   const initial = createInitialSearchPanelState();
-  if (!state) {
-    return initial;
-  }
-
-  const searchType = state.searchType ?? initial.searchType;
-  if (state.searches) {
-    return {
-      searchType,
-      searches: {
-        grep: {
-          ...initial.searches.grep,
-          ...state.searches.grep,
-          grepOptions: mergeGrepOptions(state.searches.grep?.grepOptions),
-        },
-        llm: {
-          ...initial.searches.llm,
-          ...state.searches.llm,
-        },
-      },
-    };
-  }
-
-  if (searchType === "grep") {
-    return {
-      ...initial,
-      searchType,
-      searches: {
-        ...initial.searches,
-        grep: {
-          query: state.query ?? "",
-          hasSearched: state.hasSearched ?? false,
-          currentSearch: state.currentSearch ?? null,
-          grepOptions: mergeGrepOptions(state.grepOptions),
-        },
-      },
-    };
-  }
+  if (!state) return initial;
 
   return {
-    ...initial,
-    searchType,
+    searchType: state.searchType ?? initial.searchType,
     searches: {
-      ...initial.searches,
+      grep: {
+        query: state.searches?.grep?.query ?? initial.searches.grep.query,
+        searchId:
+          state.searches?.grep?.searchId ?? initial.searches.grep.searchId,
+        grepOptions: mergeGrepOptions(state.searches?.grep?.grepOptions),
+      },
       llm: {
-        query: state.query ?? "",
-        hasSearched: state.hasSearched ?? false,
-        currentSearch: state.currentSearch ?? null,
-        model: state.model ?? "",
+        query: state.searches?.llm?.query ?? initial.searches.llm.query,
+        model: state.searches?.llm?.model ?? initial.searches.llm.model,
+        searchId:
+          state.searches?.llm?.searchId ?? initial.searches.llm.searchId,
       },
     },
   };
@@ -135,9 +92,7 @@ export const normalizeSearchPanelState = (
 export const getSearchPanelStateKey = ({
   scope,
   transcriptDir,
-  transcriptId,
 }: {
   scope: TranscriptSearchScope;
   transcriptDir: string;
-  transcriptId: string;
-}) => `search-panel:${transcriptDir}:${transcriptId}:${scope}`;
+}) => `search-panel:${transcriptDir}:${scope}`;

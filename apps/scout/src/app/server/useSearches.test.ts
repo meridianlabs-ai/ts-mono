@@ -150,18 +150,21 @@ describe("useCachedSearchResult", () => {
     );
 
     const { result } = renderHook(
-      () => useCachedSearchResult({ transcriptDir, transcriptId }),
+      () =>
+        useCachedSearchResult({
+          transcriptDir,
+          transcriptId,
+          scope: { messages: "all" },
+          searchId: "grep-1",
+        }),
       { wrapper: createTestWrapper() }
     );
 
-    const searchResult = await act(() =>
-      result.current.mutateAsync({
-        scope: { messages: "all" },
-        searchId: "grep-1",
-      })
-    );
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
 
-    expect(searchResult).toEqual(cachedResult);
+    expect(result.current.data).toEqual(cachedResult);
   });
 
   it("returns null when cached transcript search results are missing", async () => {
@@ -175,17 +178,44 @@ describe("useCachedSearchResult", () => {
     );
 
     const { result } = renderHook(
-      () => useCachedSearchResult({ transcriptDir, transcriptId }),
+      () =>
+        useCachedSearchResult({
+          transcriptDir,
+          transcriptId,
+          scope: { events: "all" },
+          searchId: "grep-1",
+        }),
       { wrapper: createTestWrapper() }
     );
 
-    const searchResult = await act(() =>
-      result.current.mutateAsync({
-        scope: { events: "all" },
-        searchId: "grep-1",
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data).toBeNull();
+  });
+
+  it("does not fetch when searchId is null", () => {
+    let calls = 0;
+    server.use(
+      http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () => {
+        calls += 1;
+        return HttpResponse.json<Result>(emptyResult);
       })
     );
 
-    expect(searchResult).toBeNull();
+    const { result } = renderHook(
+      () =>
+        useCachedSearchResult({
+          transcriptDir,
+          transcriptId,
+          scope: { events: "all" },
+          searchId: null,
+        }),
+      { wrapper: createTestWrapper() }
+    );
+
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(calls).toBe(0);
   });
 });

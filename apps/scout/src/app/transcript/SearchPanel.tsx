@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { VscodeTextarea } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
@@ -31,6 +32,7 @@ import {
   useProjectConfig,
 } from "../server/useProjectConfig";
 import {
+  searchQueryKeys,
   useCachedSearchResult,
   useCreateSearch,
   useSearches,
@@ -89,6 +91,45 @@ function isSearchType(value: string): value is SearchType {
   return value === "llm" || value === "grep";
 }
 
+function applyRecentSearch(
+  prev: SearchPanelState,
+  search: SearchInput
+): SearchPanelState {
+  if (search.type === "llm") {
+    return {
+      ...prev,
+      searchType: "llm",
+      searches: {
+        ...prev.searches,
+        llm: {
+          ...prev.searches.llm,
+          query: search.query,
+          model: search.model ?? "",
+          searchId: search.search_id,
+        },
+      },
+    };
+  }
+
+  return {
+    ...prev,
+    searchType: "grep",
+    searches: {
+      ...prev.searches,
+      grep: {
+        ...prev.searches.grep,
+        query: search.query,
+        grepOptions: {
+          ignoreCase: search.ignore_case,
+          regex: search.regex,
+          wordBoundary: search.word_boundary,
+        },
+        searchId: search.search_id,
+      },
+    },
+  };
+}
+
 export const SearchPanel = (props: SearchPanelProps) => {
   const result = useProjectConfig();
 
@@ -112,9 +153,10 @@ const SearchPanelWithData = ({
   const { getMessageUrl, getEventUrl, getEventMessageUrl } =
     useTranscriptNavigation();
   const modelInputId = useId();
+  const queryClient = useQueryClient();
   const searchPanelStateKey = useMemo(
-    () => getSearchPanelStateKey({ scope, transcriptDir, transcriptId }),
-    [scope, transcriptDir, transcriptId]
+    () => getSearchPanelStateKey({ scope, transcriptDir }),
+    [scope, transcriptDir]
   );
   const storedState = useStore(
     (state) => state.searchPanelStates[searchPanelStateKey]
@@ -125,13 +167,6 @@ const SearchPanelWithData = ({
   );
   const recordSearchModel = useUserSettings((state) => state.recordSearchModel);
 
-  const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
-  const cachedSearchMutation = useCachedSearchResult({
-    transcriptDir,
-    transcriptId,
-  });
-
-  const state = normalizeSearchPanelState(storedState);
   const setState = useCallback(
     (
       updater: SearchPanelState | ((prev: SearchPanelState) => SearchPanelState)
@@ -140,18 +175,47 @@ const SearchPanelWithData = ({
     },
     [searchPanelStateKey, setSearchPanelState]
   );
+
+  const state = normalizeSearchPanelState(storedState);
   const { searchType } = state;
-  const activeState = state.searches[searchType];
-  const { query, hasSearched, currentSearch } = activeState;
+  const activeBranch = state.searches[searchType];
+  const { query, searchId } = activeBranch;
   const grepOptions = state.searches.grep.grepOptions;
   const model = state.searches.llm.model;
 
+  const createSearchMutation = useCreateSearch({ transcriptDir, transcriptId });
+  const cachedSearchQuery = useCachedSearchResult({
+    transcriptDir,
+    transcriptId,
+    scope: buildSearchScope(scope),
+    searchId,
+  });
+
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const recentButtonRef = useRef<HTMLButtonElement>(null);
-  const recentLookupSearchIdRef = useRef<string | null>(null);
 
   const loading =
-    createSearchMutation.isPending || cachedSearchMutation.isPending;
+    createSearchMutation.isPending || cachedSearchQuery.isFetching;
+  const error = createSearchMutation.error || cachedSearchQuery.error;
+  const currentSearch: Result | null = cachedSearchQuery.data ?? null;
+  const hasSearched =
+    !!searchId ||
+    createSearchMutation.isPending ||
+    !!createSearchMutation.error;
+
+  const clearSearchIdForCurrentType = useCallback(() => {
+    createSearchMutation.reset();
+    setState((prev) => ({
+      ...prev,
+      searches: {
+        ...prev.searches,
+        [prev.searchType]: {
+          ...prev.searches[prev.searchType],
+          searchId: null,
+        },
+      },
+    }));
+  }, [createSearchMutation, setState]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -159,20 +223,7 @@ const SearchPanelWithData = ({
       const text = query.trim();
       if (!text || loading) return;
 
-      setState((prev) => ({
-        ...prev,
-        searches: {
-          ...prev.searches,
-          [searchType]: {
-            ...prev.searches[searchType],
-            hasSearched: true,
-            currentSearch: null,
-          },
-        },
-      }));
-      createSearchMutation.reset();
-      cachedSearchMutation.reset();
-      recentLookupSearchIdRef.current = null;
+      clearSearchIdForCurrentType();
 
       const resolvedModel =
         searchType === "llm"
@@ -188,14 +239,23 @@ const SearchPanelWithData = ({
       });
 
       createSearchMutation.mutate(request, {
-        onSuccess: (result) => {
+        onSuccess: (response) => {
+          queryClient.setQueryData(
+            searchQueryKeys.cachedResult({
+              transcriptDir,
+              transcriptId,
+              scope: buildSearchScope(scope),
+              searchId: response.id,
+            }),
+            response.result
+          );
           setState((prev) => ({
             ...prev,
             searches: {
               ...prev.searches,
               [searchType]: {
                 ...prev.searches[searchType],
-                currentSearch: result,
+                searchId: response.id,
               },
             },
           }));
@@ -206,17 +266,20 @@ const SearchPanelWithData = ({
       });
     },
     [
-      cachedSearchMutation,
+      clearSearchIdForCurrentType,
       createSearchMutation,
       grepOptions,
-      searchType,
       loading,
       model,
-      scope,
       projectConfig.config.model,
       query,
+      queryClient,
       recordSearchModel,
+      scope,
+      searchType,
       setState,
+      transcriptDir,
+      transcriptId,
     ]
   );
 
@@ -230,85 +293,20 @@ const SearchPanelWithData = ({
   const handleSelectRecent = useCallback(
     (search: SearchInput) => {
       createSearchMutation.reset();
-      cachedSearchMutation.reset();
-      recentLookupSearchIdRef.current = search.search_id;
       setIsRecentOpen(false);
-      setState((prev) => {
-        if (search.type === "llm") {
-          return {
-            ...prev,
-            searchType: search.type,
-            searches: {
-              ...prev.searches,
-              llm: {
-                ...prev.searches.llm,
-                currentSearch: null,
-                hasSearched: false,
-                model: search.model ?? "",
-                query: search.query,
-              },
-            },
-          };
-        } else {
-          return {
-            ...prev,
-            searchType: search.type,
-            searches: {
-              ...prev.searches,
-              grep: {
-                ...prev.searches.grep,
-                currentSearch: null,
-                grepOptions: {
-                  ignoreCase: search.ignore_case,
-                  regex: search.regex,
-                  wordBoundary: search.word_boundary,
-                },
-                hasSearched: false,
-                query: search.query,
-              },
-            },
-          };
-        }
-      });
-      cachedSearchMutation.mutate(
-        {
-          scope: buildSearchScope(scope),
-          searchId: search.search_id,
-        },
-        {
-          onSuccess: (searchResult) => {
-            if (
-              searchResult &&
-              recentLookupSearchIdRef.current === search.search_id
-            ) {
-              setState((prev) => ({
-                ...prev,
-                searches: {
-                  ...prev.searches,
-                  [search.type]: {
-                    ...prev.searches[search.type],
-                    currentSearch: searchResult,
-                    hasSearched: true,
-                  },
-                },
-              }));
-            }
-          },
-        }
-      );
+      setState((prev) => applyRecentSearch(prev, search));
     },
-    [cachedSearchMutation, createSearchMutation, scope, setState]
+    [createSearchMutation, setState]
   );
 
   const handleNewSearch = useCallback(() => {
     createSearchMutation.reset();
-    cachedSearchMutation.reset();
-    recentLookupSearchIdRef.current = null;
     setState(createInitialSearchPanelState());
-  }, [cachedSearchMutation, createSearchMutation, setState]);
+  }, [createSearchMutation, setState]);
 
   const toggleGrepOption = useCallback(
     (key: keyof GrepOptions) => {
+      createSearchMutation.reset();
       setState((prev) => ({
         ...prev,
         searches: {
@@ -319,11 +317,12 @@ const SearchPanelWithData = ({
               ...prev.searches.grep.grepOptions,
               [key]: !prev.searches.grep.grepOptions[key],
             },
+            searchId: null,
           },
         },
       }));
     },
-    [setState]
+    [createSearchMutation, setState]
   );
 
   const handleSearchTypeChange = useCallback(
@@ -347,6 +346,7 @@ const SearchPanelWithData = ({
   const handleQueryInput = useCallback(
     (e: Event) => {
       const value = getInputValue(e);
+      createSearchMutation.reset();
       setState((prev) => ({
         ...prev,
         searches: {
@@ -354,11 +354,30 @@ const SearchPanelWithData = ({
           [prev.searchType]: {
             ...prev.searches[prev.searchType],
             query: value,
+            searchId: null,
           },
         },
       }));
     },
-    [setState]
+    [createSearchMutation, setState]
+  );
+
+  const handleModelChange = useCallback(
+    (value: string) => {
+      createSearchMutation.reset();
+      setState((prev) => ({
+        ...prev,
+        searches: {
+          ...prev.searches,
+          llm: {
+            ...prev.searches.llm,
+            model: value,
+            searchId: null,
+          },
+        },
+      }));
+    },
+    [createSearchMutation, setState]
   );
 
   return (
@@ -460,18 +479,7 @@ const SearchPanelWithData = ({
                         projectConfig.config.model ?? "e.g., openai/gpt-5"
                       }
                       value={model}
-                      onChange={(value) =>
-                        setState((prev) => ({
-                          ...prev,
-                          searches: {
-                            ...prev.searches,
-                            llm: {
-                              ...prev.searches.llm,
-                              model: value,
-                            },
-                          },
-                        }))
-                      }
+                      onChange={handleModelChange}
                       suggestions={searchModelHistory}
                       allowBrowse={searchModelHistory.length > 0}
                       required
@@ -493,7 +501,7 @@ const SearchPanelWithData = ({
         <div className={styles.results}>
           <SearchResults
             loading={loading}
-            error={createSearchMutation.error || cachedSearchMutation.error}
+            error={error}
             hasSearched={hasSearched}
             currentSearch={currentSearch}
             scope={scope}
@@ -628,8 +636,11 @@ const SearchResults: FC<{
   if (!hasSearched) {
     return null;
   }
+  // currentSearch is null when the active search hasn't been run for this
+  // transcript yet (cache miss). Render nothing — only show "No results
+  // found" once we have a result that turned out to be empty.
   if (currentSearch === null) {
-    return <div className={styles.emptyState}>No results found</div>;
+    return null;
   }
 
   const result = currentSearch;

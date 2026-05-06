@@ -100,6 +100,7 @@ type RenderOptions = {
   initialState?: SearchPanelState;
   projectModel?: string | null;
   recentSearches?: SearchInputListResponse;
+  startTranscriptId?: string;
 };
 
 const renderSearchPanel = ({
@@ -107,6 +108,7 @@ const renderSearchPanel = ({
   initialState,
   projectModel = null,
   recentSearches = emptyRecentSearches,
+  startTranscriptId = transcriptId,
 }: RenderOptions = {}) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -118,7 +120,7 @@ const renderSearchPanel = ({
     store
       .getState()
       .setSearchPanelState(
-        getSearchPanelStateKey({ scope, transcriptDir, transcriptId }),
+        getSearchPanelStateKey({ scope, transcriptDir }),
         initialState
       );
   }
@@ -136,7 +138,7 @@ const renderSearchPanel = ({
     )
   );
 
-  const route = `/transcripts/${encodeBase64Url(transcriptDir)}/${transcriptId}`;
+  const route = `/transcripts/${encodeBase64Url(transcriptDir)}/${startTranscriptId}`;
 
   const Wrapper = ({ children }: PropsWithChildren) => (
     <QueryClientProvider client={queryClient}>
@@ -157,17 +159,45 @@ const renderSearchPanel = ({
     </QueryClientProvider>
   );
 
-  const utils = render(
+  const searchPanel = (id: string) => (
     <SearchPanel
       scope={scope}
       transcriptDir={transcriptDir}
-      transcriptId={transcriptId}
+      transcriptId={id}
       onClose={() => {}}
-    />,
-    { wrapper: Wrapper }
+    />
   );
 
-  return { ...utils, store };
+  const utils = render(searchPanel(startTranscriptId), { wrapper: Wrapper });
+
+  const rerenderSearchPanel = (id: string) => utils.rerender(searchPanel(id));
+
+  return { ...utils, rerenderSearchPanel, store };
+};
+
+const recentGrepSearch = (
+  overrides: Partial<SearchInputListResponse["items"][number]> = {}
+): SearchInputListResponse["items"][number] => ({
+  created_at: "2026-04-11T09:00:00Z",
+  ignore_case: true,
+  query: "needle",
+  regex: false,
+  search_id: "grep-1",
+  type: "grep",
+  word_boundary: false,
+  ...overrides,
+});
+
+const selectRecentSearch = async (label: string) => {
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Recent searches" })
+    ).not.toBeNull()
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Recent searches" }));
+  const option = await screen.findByRole("option", { name: label });
+  fireEvent.mouseDown(option);
 };
 
 type SearchPanelStateOverrides = {
@@ -254,6 +284,130 @@ describe("SearchPanel", () => {
     });
   });
 
+  it("uses the submitted search id to load cached results after transcript changes", async () => {
+    let postCalls = 0;
+    const cachedRequests: Array<{
+      transcriptId: string;
+      searchId: string;
+      events: string | null;
+    }> = [];
+
+    server.use(
+      http.post("/api/v2/transcripts/:dir/:id/search", () => {
+        postCalls += 1;
+        return HttpResponse.json<SearchResponse>({
+          id: "grep-compare",
+          result: seededGrepResult(3),
+        });
+      }),
+      http.get(
+        "/api/v2/transcripts/:dir/:id/searches/:searchId",
+        ({ request, params }) => {
+          const url = new URL(request.url);
+          cachedRequests.push({
+            transcriptId: String(params.id),
+            searchId: String(params.searchId),
+            events: url.searchParams.get("events"),
+          });
+          return HttpResponse.json<Result>(seededGrepResult(9));
+        }
+      )
+    );
+
+    const { rerenderSearchPanel, store } = renderSearchPanel({
+      initialState: buildState({
+        searchType: "grep",
+        searches: {
+          grep: { query: "needle" },
+        },
+      }),
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Run" })).not.toBeNull()
+    );
+
+    fireEvent.click(getRunButton());
+
+    await waitFor(() => {
+      expect(screen.queryByText("3 matches")).not.toBeNull();
+    });
+
+    rerenderSearchPanel("next-transcript");
+
+    await waitFor(() => {
+      expect(screen.queryByText("9 matches")).not.toBeNull();
+    });
+
+    expect(postCalls).toBe(1);
+    expect(cachedRequests).toEqual([
+      {
+        transcriptId: "next-transcript",
+        searchId: "grep-compare",
+        events: "all",
+      },
+    ]);
+
+    const stored =
+      store.getState().searchPanelStates[
+        getSearchPanelStateKey({ scope: "events", transcriptDir })
+      ];
+    expect(stored?.searches.grep.query).toBe("needle");
+    expect(stored?.searches.grep.searchId).toBe("grep-compare");
+  });
+
+  it("selects a recent search and loads cached results without posting", async () => {
+    let postCalls = 0;
+    const cachedRequests: Array<{
+      transcriptId: string;
+      searchId: string;
+      events: string | null;
+    }> = [];
+
+    server.use(
+      http.post("/api/v2/transcripts/:dir/:id/search", () => {
+        postCalls += 1;
+        return HttpResponse.json<SearchResponse>({
+          id: "unexpected-post",
+          result: seededGrepResult(1),
+        });
+      }),
+      http.get(
+        "/api/v2/transcripts/:dir/:id/searches/:searchId",
+        ({ request, params }) => {
+          const url = new URL(request.url);
+          cachedRequests.push({
+            transcriptId: String(params.id),
+            searchId: String(params.searchId),
+            events: url.searchParams.get("events"),
+          });
+          return HttpResponse.json<Result>(seededGrepResult(4));
+        }
+      )
+    );
+
+    renderSearchPanel({
+      recentSearches: {
+        items: [recentGrepSearch({ search_id: "grep-recent" })],
+      },
+    });
+
+    await selectRecentSearch("needle");
+
+    await waitFor(() => {
+      expect(screen.queryByText("4 matches")).not.toBeNull();
+    });
+
+    expect(postCalls).toBe(0);
+    expect(cachedRequests).toEqual([
+      {
+        transcriptId,
+        searchId: "grep-recent",
+        events: "all",
+      },
+    ]);
+  });
+
   it("requires an explicit LLM model before submitting", async () => {
     useUserSettings.setState({
       dataframeColumnPresets: [],
@@ -328,6 +482,57 @@ describe("SearchPanel", () => {
     });
   });
 
+  it("preserves results when toggling search type and back", async () => {
+    server.use(
+      http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () =>
+        HttpResponse.json<Result>(seededGrepResult(5))
+      )
+    );
+
+    renderSearchPanel({
+      initialState: buildState({
+        searchType: "grep",
+        searches: {
+          grep: { query: "needle", searchId: "grep-kept" },
+          llm: { query: "question" },
+        },
+      }),
+    });
+
+    await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "LLM" }));
+
+    // The grep result should not be visible while we're on the LLM tab.
+    expect(screen.queryByText("5 matches")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Grep" }));
+
+    await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
+  });
+
+  it("does not show 'No results found' before a selected search has been run", async () => {
+    server.use(
+      http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () =>
+        // The cached endpoint returns null when the search hasn't been run
+        // for this transcript yet.
+        HttpResponse.json(null)
+      )
+    );
+
+    renderSearchPanel({
+      initialState: buildState({
+        searchType: "grep",
+        searches: { grep: { query: "needle", searchId: "grep-unrun" } },
+      }),
+    });
+
+    // Wait for the loading state to clear.
+    await waitFor(() => expect(screen.queryByText("Searching…")).toBeNull());
+
+    expect(screen.queryByText("No results found")).toBeNull();
+  });
+
   it("preserves separate query state across grep/llm toggle", async () => {
     const { store } = renderSearchPanel({
       initialState: buildState({
@@ -342,7 +547,6 @@ describe("SearchPanel", () => {
     const stateKey = getSearchPanelStateKey({
       scope: "events",
       transcriptDir,
-      transcriptId,
     });
 
     await waitFor(() =>
@@ -363,15 +567,17 @@ describe("SearchPanel", () => {
   });
 
   it("resets state when New search is clicked", async () => {
+    server.use(
+      http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () =>
+        HttpResponse.json<Result>(seededGrepResult(7))
+      )
+    );
+
     const { store } = renderSearchPanel({
       initialState: buildState({
         searchType: "grep",
         searches: {
-          grep: {
-            query: "stale",
-            hasSearched: true,
-            currentSearch: seededGrepResult(7),
-          },
+          grep: { query: "stale", searchId: "grep-stale" },
           llm: { query: "lingering" },
         },
       }),
@@ -386,7 +592,7 @@ describe("SearchPanel", () => {
 
     const stored =
       store.getState().searchPanelStates[
-        getSearchPanelStateKey({ scope: "events", transcriptDir, transcriptId })
+        getSearchPanelStateKey({ scope: "events", transcriptDir })
       ];
     expect(stored).toEqual(createInitialSearchPanelState());
   });
