@@ -184,11 +184,13 @@ export const EventPanel: FC<EventPanelProps> = ({
             </span>
           ) : null}
           {url ? (
-            <CopyButton
-              value={url}
-              icon={kLinkIcon}
-              className={clsx(styles.copyLink)}
-            />
+            <span onClick={(e) => e.stopPropagation()}>
+              <CopyButton
+                value={url}
+                icon={kLinkIcon}
+                className={clsx(styles.copyLink)}
+              />
+            </span>
           ) : null}
         </div>
         <div onClick={toggleCollapse}></div>
