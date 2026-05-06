@@ -40,6 +40,15 @@
   margin-top: 0;
 }
 
+.usageHeader {
+  display: flex !important;
+  align-items: center;
+}
+
+.usageHeaderControl {
+  margin-left: auto;
+}
+
 .timingItems {
   display: flex;
   gap: 2rem;

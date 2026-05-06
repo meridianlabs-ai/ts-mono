@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { EvalSample } from "@tsmono/inspect-common/types";
+import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import {
   ChatViewVirtualList,
   messagesToStr,
@@ -29,6 +29,7 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
+  SegmentedControl,
   StickyScroll,
   TabPanel,
   TabSet,
@@ -241,7 +242,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
-  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample);
+  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
     scrollRef,
@@ -807,15 +808,72 @@ const fmtClock = (iso?: string | null, showDate = false): string => {
   }
 };
 
-const usageViewsForSample = (
-  id: string,
-  sample?: EvalSample
-) => {
-  if (!sample) return [];
-  const views = [];
+type UsageMode = "model" | "role";
 
-  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
-    views.push(
+interface SampleUsagePanelProps {
+  id: string;
+  sample: EvalSample;
+  evalSpec?: EvalSpec;
+}
+
+const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
+  id,
+  sample,
+  evalSpec,
+}) => {
+  const hasModelUsage = !!(
+    sample.model_usage && Object.keys(sample.model_usage).length > 0
+  );
+  const hasRoleUsage = !!(
+    sample.role_usage && Object.keys(sample.role_usage).length > 0
+  );
+
+  const roleModels = useMemo(() => {
+    if (!evalSpec) return undefined;
+    const roles: Record<string, string> = {};
+    if (evalSpec.model) roles["eval"] = evalSpec.model;
+    if (evalSpec.model_roles) {
+      for (const [role, config] of Object.entries(evalSpec.model_roles)) {
+        if (config.model) roles[role] = config.model;
+      }
+    }
+    return Object.keys(roles).length > 0 ? roles : undefined;
+  }, [evalSpec]);
+
+  const [usageMode, setUsageMode] = useState<UsageMode>("model");
+
+  if (!hasModelUsage && !hasRoleUsage) return null;
+
+  if (hasModelUsage && hasRoleUsage) {
+    return (
+      <Card key={`sample-usage-${id}`}>
+        <CardHeader label="Usage" className={styles.usageHeader}>
+          <div className={styles.usageHeaderControl}>
+            <SegmentedControl
+              segments={[
+                { id: "model", label: "Model" },
+                { id: "role", label: "Role" },
+              ]}
+              selectedId={usageMode}
+              onSegmentChange={(value) => setUsageMode(value as UsageMode)}
+            />
+          </div>
+        </CardHeader>
+        <CardBody>
+          <ModelTokenTable
+            model_usage={
+              usageMode === "model" ? sample.model_usage : sample.role_usage
+            }
+            model_aliases={usageMode === "role" ? roleModels : undefined}
+            className={clsx(styles.noTop)}
+          />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  if (hasModelUsage) {
+    return (
       <Card key={`sample-usage-${id}`}>
         <CardHeader label="Usage" />
         <CardBody>
@@ -825,6 +883,42 @@ const usageViewsForSample = (
           />
         </CardBody>
       </Card>
+    );
+  }
+
+  return (
+    <Card key={`sample-usage-${id}`}>
+      <CardHeader label="Role Usage" />
+      <CardBody>
+        <ModelTokenTable
+          model_usage={sample.role_usage}
+          model_aliases={roleModels}
+          className={clsx(styles.noTop)}
+        />
+      </CardBody>
+    </Card>
+  );
+};
+
+const usageViewsForSample = (
+  id: string,
+  sample?: EvalSample,
+  evalSpec?: EvalSpec
+) => {
+  if (!sample) return [];
+  const views = [];
+
+  if (
+    (sample.model_usage && Object.keys(sample.model_usage).length > 0) ||
+    (sample.role_usage && Object.keys(sample.role_usage).length > 0)
+  ) {
+    views.push(
+      <SampleUsagePanel
+        key={`sample-usage-${id}`}
+        id={id}
+        sample={sample}
+        evalSpec={evalSpec}
+      />
     );
   }
 
