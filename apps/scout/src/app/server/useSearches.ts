@@ -57,8 +57,14 @@ export const useCreateSearch = (params: SearchParams) => {
   const queryClient = useQueryClient();
 
   return useMutation<Result, Error, SearchRequest>({
-    mutationFn: (request) =>
-      api.postSearch(params.transcriptDir, params.transcriptId, request),
+    mutationFn: async (request) => {
+      const response = await api.postSearch(
+        params.transcriptDir,
+        params.transcriptId,
+        request
+      );
+      return response.result;
+    },
     onSuccess: (_result, request) => {
       void queryClient.invalidateQueries({
         queryKey: searchQueryKeys.searches({ searchType: request.type }),

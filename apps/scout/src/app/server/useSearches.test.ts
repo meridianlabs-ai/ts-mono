@@ -9,6 +9,7 @@ import type {
   Result,
   SearchInputListResponse,
   SearchRequest,
+  SearchResponse,
 } from "../../types/api-types";
 
 import {
@@ -69,7 +70,10 @@ describe("useCreateSearch", () => {
       word_boundary: true,
     };
 
-    const result: Result = emptyResult;
+    const response: SearchResponse = {
+      id: "grep-1",
+      result: emptyResult,
+    };
     const updatedSearches: SearchInputListResponse = {
       items: [
         {
@@ -96,7 +100,7 @@ describe("useCreateSearch", () => {
       }),
       http.post("/api/v2/transcripts/:dir/:id/search", async ({ request }) => {
         capturedBody = await request.json();
-        return HttpResponse.json<Result>(result);
+        return HttpResponse.json<SearchResponse>(response);
       })
     );
 

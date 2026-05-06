@@ -24,6 +24,7 @@ import type {
   ProjectConfig,
   Result,
   SearchInputListResponse,
+  SearchResponse,
 } from "../../types/api-types";
 
 import { SearchPanel } from "./SearchPanel";
@@ -209,7 +210,10 @@ describe("SearchPanel", () => {
     server.use(
       http.post("/api/v2/transcripts/:dir/:id/search", async ({ request }) => {
         capturedBody = await request.json();
-        return HttpResponse.json<Result>(seededGrepResult(3));
+        return HttpResponse.json<SearchResponse>({
+          id: "grep-1",
+          result: seededGrepResult(3),
+        });
       })
     );
 
@@ -230,7 +234,9 @@ describe("SearchPanel", () => {
       }),
     });
 
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Run" })).not.toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Run" })).not.toBeNull()
+    );
 
     fireEvent.click(getRunButton());
 
@@ -264,10 +270,9 @@ describe("SearchPanel", () => {
       }),
     });
 
-    const modelInput =
-      await screen.findByPlaceholderText<HTMLInputElement>(
-        "project-default-model"
-      );
+    const modelInput = await screen.findByPlaceholderText<HTMLInputElement>(
+      "project-default-model"
+    );
 
     expect(modelInput.required).toBe(true);
     expect(modelInput.checkValidity()).toBe(false);
@@ -284,7 +289,10 @@ describe("SearchPanel", () => {
     server.use(
       http.post("/api/v2/transcripts/:dir/:id/search", async ({ request }) => {
         capturedBody = await request.json();
-        return HttpResponse.json<Result>({ value: 1, references: [] });
+        return HttpResponse.json<SearchResponse>({
+          id: "llm-1",
+          result: { value: 1, references: [] },
+        });
       })
     );
 
@@ -337,7 +345,9 @@ describe("SearchPanel", () => {
       transcriptId,
     });
 
-    await waitFor(() => expect(screen.queryByRole("button", { name: "LLM" })).not.toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "LLM" })).not.toBeNull()
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "LLM" }));
     expect(store.getState().searchPanelStates[stateKey]?.searchType).toBe(

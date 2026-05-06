@@ -21,6 +21,7 @@ import {
   ScansResponse,
   SearchInputListResponse,
   SearchRequest,
+  SearchResponse,
   Status,
   Transcript,
   TranscriptInfo,
@@ -290,8 +291,8 @@ export const apiScoutServer = (
       transcriptDir: string,
       transcriptId: string,
       request: SearchRequest
-    ): Promise<Result> =>
-      asyncJsonParse<Result>(
+    ): Promise<SearchResponse> =>
+      asyncJsonParse<SearchResponse>(
         (
           await requestApi.fetchString(
             "POST",

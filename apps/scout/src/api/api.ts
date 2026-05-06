@@ -18,6 +18,7 @@ import {
   ScansResponse,
   SearchInputListResponse,
   SearchRequest,
+  SearchResponse,
   Status,
   Transcript,
   TranscriptsResponse,
@@ -112,7 +113,7 @@ export interface ScoutApiV2 {
     transcriptDir: string,
     transcriptId: string,
     request: SearchRequest
-  ): Promise<Result>;
+  ): Promise<SearchResponse>;
   getSearches(
     searchType: SearchRequest["type"],
     count: number

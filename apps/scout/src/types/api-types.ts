@@ -55,3 +55,4 @@ export type LlmSearchInput = components["schemas"]["LlmSearchInput"];
 export type SearchInput = components["schemas"]["SearchInput"];
 export type SearchInputListResponse =
   components["schemas"]["SearchInputListResponse"];
+export type SearchResponse = components["schemas"]["SearchResponse"];
