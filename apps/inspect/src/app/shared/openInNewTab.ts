@@ -6,7 +6,7 @@
 export function openInNewTab(hashRoute: string): void {
   const newWin = window.open(
     `${window.location.pathname}#${hashRoute}`,
-    "_blank",
+    "_blank"
   );
   if (newWin) {
     newWin.blur();

@@ -38,8 +38,6 @@ import {
 import { useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
-import { openInNewTab } from "../shared/openInNewTab";
-
 import { Events } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
@@ -68,6 +66,7 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
+import { openInNewTab } from "../shared/openInNewTab";
 
 import { messagesFromEvents } from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";

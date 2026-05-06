@@ -293,10 +293,7 @@ export const updateColumnsParam = (
  * Handles the hash router URL format.
  */
 export const openRouteInNewTab = (route: string): void => {
-  const newWin = window.open(
-    `${window.location.pathname}#${route}`,
-    "_blank",
-  );
+  const newWin = window.open(`${window.location.pathname}#${route}`, "_blank");
   if (newWin) {
     newWin.blur();
   }

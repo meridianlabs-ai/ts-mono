@@ -31,10 +31,10 @@ import { useStore } from "../../../state/store";
 
 import "../../shared/agGrid";
 
-import { openInNewTab } from "../../shared/openInNewTab";
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
 import { createGridColumnResizer } from "../../shared/gridUtils";
+import { openInNewTab } from "../../shared/openInNewTab";
 import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
 import { useApplyColumnVisibility } from "../../shared/useApplyColumnVisibility";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";

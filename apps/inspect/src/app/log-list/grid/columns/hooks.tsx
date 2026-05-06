@@ -183,7 +183,6 @@ export const useLogListColumns = (
         pinned: "left",
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const type = params.data?.type;
-          const url = params.data?.url;
           const icon =
             type === "file" || type === "pending-task"
               ? ApplicationIcons.inspectFile
