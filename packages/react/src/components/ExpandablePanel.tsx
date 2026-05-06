@@ -5,6 +5,7 @@ import {
   memo,
   ReactNode,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -12,6 +13,7 @@ import {
 import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
+import { useFindTarget } from "./FindTargetContext";
 
 interface ExpandablePanelProps {
   id: string;
@@ -61,6 +63,38 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     );
     const contentRef = useResizeObserver(checkOverflow);
 
+    const findTarget = useFindTarget();
+    // Initialize optimistically: if there's an active find target when we
+    // mount, assume our subtree contains it and render expanded immediately.
+    // The post-render effect below will collapse us back if the term isn't
+    // actually present. This swaps a "collapsed→expanded" flash on remount
+    // (which the user sees on every search step as Virtuoso re-renders) for
+    // a much rarer "expanded→collapsed" flash on panels that don't match.
+    const [containsFindTarget, setContainsFindTarget] = useState(
+      () => findTarget !== null
+    );
+
+    // No dep array: intentionally re-runs after every render so that changes
+    // in children text (e.g. lazily loaded content) are picked up without an
+    // additional mechanism.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-run after every render to track subtree text changes
+    useEffect(() => {
+      if (!findTarget) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible
+        setContainsFindTarget(false);
+        return;
+      }
+      const root = contentRef.current;
+      if (!root) {
+        setContainsFindTarget(false);
+        return;
+      }
+      const text = (root.textContent ?? "").toLowerCase();
+      setContainsFindTarget(text.includes(findTarget.term.toLowerCase()));
+    });
+
+    const effectiveCollapsed = containsFindTarget ? false : collapsed;
+
     // `overflow: hidden` + `maxHeight` live on the inner content wrapper, not
     // the outer panel. Two reasons:
     //   1. Keeping it off the panel when expanded prevents the panel from
@@ -69,7 +103,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     //      visible (clipped) area, so a `mask-image` gradient on the wrapper
     //      fades the bottom of the *visible* region — not the bottom of the
     //      natural-height content (which would sit off-screen).
-    const contentStyles: CSSProperties = collapsed
+    const contentStyles: CSSProperties = effectiveCollapsed
       ? { overflow: "hidden", maxHeight: `${lines}rem` }
       : {};
 
@@ -112,7 +146,9 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             style={contentStyles}
             className={clsx(
               styles.expandableContentWrap,
-              collapsed && showToggle ? styles.expandableTruncated : undefined
+              effectiveCollapsed && showToggle
+                ? styles.expandableTruncated
+                : undefined
             )}
           >
             {children}

@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { useExtendedFind } from "@tsmono/react/components";
+import { useExtendedFind, useFindTargetSetter } from "@tsmono/react/components";
 import { debounce } from "@tsmono/util";
 
 import { useStore } from "../state/store";
@@ -30,6 +30,7 @@ export const FindBand: FC<FindBandProps> = () => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const storeHideFind = useStore((state) => state.appActions.hideFind);
   const { extendedFindTerm, countAllMatches } = useExtendedFind();
+  const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
     text: string;
     offset: number;
@@ -44,37 +45,13 @@ export const FindBand: FC<FindBandProps> = () => {
     term: "",
     count: 0,
   });
-  const mutatedPanelsRef = useRef<
-    Map<
-      HTMLElement,
-      {
-        display: string;
-        maxHeight: string;
-        webkitLineClamp: string;
-        webkitBoxOrient: string;
-      }
-    >
-  >(new Map());
-
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-
-  const getParentExpandablePanel = useCallback(
-    (selection: Selection): HTMLElement | undefined => {
-      let node = selection.anchorNode;
-      while (node) {
-        if (
-          node instanceof HTMLElement &&
-          node.hasAttribute("data-expandable-panel")
-        ) {
-          return node;
-        }
-        node = node.parentElement;
-      }
-      return undefined;
-    },
-    []
-  );
+  // Tracks whether the most recent search returned no result, separate
+  // from `matchCount`. On tabs that don't register a search source
+  // (Scoring/Metadata/JSON) the counter is unknown but `window.find` may
+  // still succeed — we use this flag for the "No results" UI instead.
+  const [noResults, setNoResults] = useState(false);
 
   const handleSearch = useCallback(
     async (back = false) => {
@@ -84,15 +61,25 @@ export const FindBand: FC<FindBandProps> = () => {
       if (!searchTerm) {
         setMatchCount(null);
         setCurrentMatchIndex(0);
+        setNoResults(false);
+        setFindTarget(null);
         return;
       }
 
-      if (currentSearchTerm.current !== searchTerm) {
+      const termChanged = currentSearchTerm.current !== searchTerm;
+      if (termChanged) {
         lastFoundItem.current = null;
         currentSearchTerm.current = searchTerm;
         setCurrentMatchIndex(0);
       }
 
+      // `total` only counts matches reported by registered search sources
+      // (transcript, chat virtual list). Tabs that are plain static markup
+      // — Scoring, Metadata, JSON — register no source, so total is 0 even
+      // though `window.find` could highlight visible text just fine. Don't
+      // bail on `total === 0`: try the find, and if it succeeds use the
+      // index-1-of-unknown UI; if it doesn't, the post-search "no result"
+      // branch handles it.
       let total: number;
       if (cachedCount.current.term === searchTerm) {
         total = cachedCount.current.count;
@@ -100,12 +87,7 @@ export const FindBand: FC<FindBandProps> = () => {
         total = countAllMatches(searchTerm);
         cachedCount.current = { term: searchTerm, count: total };
       }
-      setMatchCount(total);
-
-      if (total === 0) {
-        setCurrentMatchIndex(0);
-        return;
-      }
+      setMatchCount(total > 0 ? total : null);
 
       const focusedElement = document.activeElement as HTMLElement;
 
@@ -131,6 +113,7 @@ export const FindBand: FC<FindBandProps> = () => {
         return;
       }
 
+      setNoResults(!result);
       if (!result && savedRange) {
         const sel = window.getSelection();
         if (sel) {
@@ -156,6 +139,17 @@ export const FindBand: FC<FindBandProps> = () => {
             parentElement,
           };
 
+          // Publish the active term AFTER the find succeeds so consumers
+          // (ExpandablePanel) auto-expand panels whose subtree contains the
+          // term. Doing this after window.find avoids the auto-expand
+          // re-render landing in the middle of the search, which could
+          // detach the text node the selection is anchored on. The
+          // transcript's search source overlays this with a per-event
+          // target via its own setFindTarget call.
+          if (termChanged) {
+            setFindTarget({ term: searchTerm, eventId: "" });
+          }
+
           if (isNewMatch) {
             setCurrentMatchIndex((prev) => {
               if (back) {
@@ -164,22 +158,6 @@ export const FindBand: FC<FindBandProps> = () => {
                 return prev >= total ? 1 : prev + 1;
               }
             });
-          }
-
-          const parentPanel = getParentExpandablePanel(selection);
-          if (parentPanel) {
-            if (!mutatedPanelsRef.current.has(parentPanel)) {
-              mutatedPanelsRef.current.set(parentPanel, {
-                display: parentPanel.style.display,
-                maxHeight: parentPanel.style.maxHeight,
-                webkitLineClamp: parentPanel.style.webkitLineClamp,
-                webkitBoxOrient: parentPanel.style.webkitBoxOrient,
-              });
-            }
-            parentPanel.style.display = "block";
-            parentPanel.style.maxHeight = "none";
-            parentPanel.style.webkitLineClamp = "";
-            parentPanel.style.webkitBoxOrient = "";
           }
 
           if (scrollTimeoutRef.current !== null) {
@@ -193,7 +171,7 @@ export const FindBand: FC<FindBandProps> = () => {
 
       focusedElement?.focus();
     },
-    [getParentExpandablePanel, extendedFindTerm, countAllMatches]
+    [setFindTarget, extendedFindTerm, countAllMatches]
   );
 
   useEffect(() => {
@@ -202,7 +180,6 @@ export const FindBand: FC<FindBandProps> = () => {
       searchBoxRef.current?.select();
     }, 10);
 
-    const mutatedPanels = mutatedPanelsRef.current;
     const scrollTimeout = scrollTimeoutRef.current;
     const focusTimeout = focusTimeoutRef.current;
 
@@ -213,16 +190,9 @@ export const FindBand: FC<FindBandProps> = () => {
       if (focusTimeout !== null) {
         window.clearTimeout(focusTimeout);
       }
-      // Restore original styles on mutated expandable panels
-      mutatedPanels.forEach((originalStyles, panel) => {
-        panel.style.display = originalStyles.display;
-        panel.style.maxHeight = originalStyles.maxHeight;
-        panel.style.webkitLineClamp = originalStyles.webkitLineClamp;
-        panel.style.webkitBoxOrient = originalStyles.webkitBoxOrient;
-      });
-      mutatedPanels.clear();
+      setFindTarget(null);
     };
-  }, []);
+  }, [setFindTarget]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -344,7 +314,7 @@ export const FindBand: FC<FindBandProps> = () => {
       onKeyDown={handleKeyDown}
       onBeforeInput={handleBeforeInput}
       onChange={handleInputChange}
-      noResults={matchCount !== null && matchCount === 0}
+      noResults={noResults}
       matchCount={matchCount ?? undefined}
       matchIndex={
         matchCount !== null && matchCount > 0

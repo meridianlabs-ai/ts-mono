@@ -1,9 +1,11 @@
 import clsx from "clsx";
 import {
+  FC,
   ReactNode,
   RefObject,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -60,6 +62,19 @@ interface LiveVirtualListProps<T> {
   // If not provided, will use JSON.stringify as fallback
   // Return a string or array of strings to search within
   itemSearchText?: (item: T) => string | string[];
+
+  /**
+   * When true, this list does not register itself with ExtendedFindContext for
+   * search or counting. Use when an enclosing component owns find behavior
+   * for a wider scope (e.g. sample-wide transcript search).
+   */
+  disableFindRegistration?: boolean;
+
+  /** Called whenever Virtuoso reports a new visible range. */
+  onVisibleRangeChange?: (range: {
+    startIndex: number;
+    endIndex: number;
+  }) => void;
 }
 
 /**
@@ -79,6 +94,8 @@ export const LiveVirtualList = <T,>({
   components,
   itemSearchText,
   animation = true,
+  disableFindRegistration = false,
+  onVisibleRangeChange,
 }: LiveVirtualListProps<T>) => {
   // The list handle and list state management
   const { getRestoreState, isScrolling, visibleRange, setVisibleRange } =
@@ -355,6 +372,7 @@ export const LiveVirtualList = <T,>({
   );
 
   useEffect(() => {
+    if (disableFindRegistration) return;
     const unregisterSearch = registerVirtualList(id, searchInData);
     const unregisterCount = registerMatchCounter(id, countMatchesInData);
     return () => {
@@ -367,15 +385,31 @@ export const LiveVirtualList = <T,>({
     registerMatchCounter,
     searchInData,
     countMatchesInData,
+    disableFindRegistration,
   ]);
 
-  const Footer = () => {
-    return showProgress ? (
-      <div className={clsx(styles.progressContainer)}>
-        <PulsingDots subtle={false} size="medium" />
-      </div>
-    ) : undefined;
-  };
+  // Memoize Footer so its identity is stable across renders. A new ref
+  // on every render makes Virtuoso treat `components` as changed and
+  // re-mount every row, which detaches text nodes (and any find-selection
+  // anchored on them).
+  const Footer = useMemo(
+    () =>
+      Object.assign(
+        function LiveVirtualListFooter() {
+          return showProgress ? (
+            <div className={clsx(styles.progressContainer)}>
+              <PulsingDots subtle={false} size="medium" />
+            </div>
+          ) : undefined;
+        } as FC,
+        { displayName: "LiveVirtualListFooter" }
+      ),
+    [showProgress]
+  );
+  const mergedComponents = useMemo(
+    () => ({ Footer, ...components }),
+    [Footer, components]
+  );
 
   useEffect(() => {
     // Listen to scroll events
@@ -470,25 +504,23 @@ export const LiveVirtualList = <T,>({
       isScrolling={handleScrollingChange}
       rangeChanged={(range) => {
         setVisibleRange({ ...range, totalCount: data.length });
+        onVisibleRangeChange?.(range);
       }}
       skipAnimationFrameInResizeObserver={true}
       restoreStateFrom={getRestoreState()}
       totalListHeightChanged={heightChanged}
-      components={{
-        Footer,
-        ...components,
-      }}
+      components={mergedComponents}
     />
   );
 };
 
-type PreparedSearchTerms = {
+export type PreparedSearchTerms = {
   simple: string;
   unquoted?: string;
   jsonEscaped?: string;
 };
 
-const prepareSearchTerm = (term: string): PreparedSearchTerms => {
+export const prepareSearchTerm = (term: string): PreparedSearchTerms => {
   const lower = term.toLowerCase();
 
   // No special characters that need JSON handling

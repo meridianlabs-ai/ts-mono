@@ -36,6 +36,8 @@ interface TranscriptVirtualListComponentProps {
   eventCallbacks?: EventPanelCallbacks;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
+  /** External ref filled with Virtuoso's current visible range, for find machinery. */
+  visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
 
 /**
@@ -59,6 +61,7 @@ export const TranscriptVirtualListComponent: FC<
   renderAgentCard,
   eventCallbacks,
   eventNodeContext,
+  visibleRangeRef,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
   // (`running || eventNodes.length > 100`) skipped virtualization for short
@@ -203,6 +206,10 @@ export const TranscriptVirtualListComponent: FC<
         live={running}
         animation={!!running}
         itemSearchText={eventSearchText}
+        disableFindRegistration={true}
+        onVisibleRangeChange={(range) => {
+          if (visibleRangeRef) visibleRangeRef.current = range;
+        }}
       />
     );
   } else {

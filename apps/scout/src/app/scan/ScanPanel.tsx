@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   ErrorPanel,
   ExtendedFindProvider,
+  FindTargetProvider,
   LoadingBar,
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
@@ -62,7 +63,9 @@ export const ScanPanel: React.FC = () => {
         <>
           <ScanPanelTitle resultsDir={scansDir} selectedScan={selectedScan} />
           <ExtendedFindProvider>
-            <ScanPanelBody selectedScan={selectedScan} />
+            <FindTargetProvider>
+              <ScanPanelBody selectedScan={selectedScan} />
+            </FindTargetProvider>
           </ExtendedFindProvider>
         </>
       )}

@@ -41,6 +41,7 @@ import {
   resolveMessageInBranches,
   resolveMessageToEvent,
 } from "./resolveMessageToEvent";
+import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { spanHasBranches, type TimelineSpan } from "./timeline/core";
 import {
@@ -142,6 +143,10 @@ export interface TranscriptLayoutProps {
 
   // --- Headroom ---
   headroomHidden?: boolean;
+  /** Force the headroom into the given hidden state. Used by sources (e.g.
+   *  search) that drive scroll-direction-sensitive UI when their motion
+   *  doesn't match what the scroll-direction tracker would infer. */
+  onHeadroomSetHidden?: (hidden: boolean) => void;
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
 
   // --- Event list ---
@@ -226,6 +231,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   onScrollToTop,
   headroomHidden,
   onHeadroomResetAnchor,
+  onHeadroomSetHidden,
   listId,
   initialEventId,
   initialMessageId,
@@ -335,6 +341,27 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     running,
     showSwimlanes ? sourceSpans : undefined
   );
+
+  const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
+
+  // Honor the same event-type filter the renderer uses. State/store events
+  // carry huge JSON payloads but aren't surfaced in the transcript tree;
+  // matching their fields would inflate the counter with unreachable results.
+  const searchableEvents = useMemo(() => {
+    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
+    const hidden = new Set(hiddenEventTypes);
+    return events.filter((e) => !hidden.has(e.event));
+  }, [events, hiddenEventTypes]);
+
+  useTranscriptSearchSource({
+    events: searchableEvents,
+    rows: timelineState.rows,
+    selected: timelineSelection?.selected ?? null,
+    onSelect: timelineSelection?.onSelect ?? (() => {}),
+    viewNodesRef: eventsListRef ?? nullViewNodesRef,
+    onHeadroomResetAnchor,
+    onHeadroomSetHidden,
+  });
 
   // ---------------------------------------------------------------------------
   // Sticky swimlane height

@@ -65,10 +65,14 @@ export interface TranscriptViewNodesProps {
 }
 
 export interface TranscriptViewNodesHandle {
-  /** Scroll to an event by its ID. */
+  /** Scroll to an event by its ID. Expands collapsed ancestors first if needed. */
   scrollToEvent: (eventId: string) => void;
   /** Scroll to a flattened-list index. */
   scrollToIndex: (index: number) => void;
+  /** Read-only accessor for the current flattened nodes (post-collapse filter). */
+  getFlattenedNodes: () => EventNode[];
+  /** Read-only accessor for Virtuoso's currently-rendered visible range. */
+  getVisibleRange: () => { startIndex: number; endIndex: number };
 }
 
 // =============================================================================
@@ -93,6 +97,29 @@ const escapeAttr = (id: string): string =>
   typeof CSS !== "undefined" && CSS.escape
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
+
+/**
+ * Find the IDs of all ancestors of `eventId` in the EventNode tree.
+ * Returns an empty array if `eventId` is not found.
+ * Order: outermost ancestor first.
+ */
+function findAncestorIds(nodes: EventNode[], eventId: string): string[] {
+  const path: string[] = [];
+  const found = walk(nodes, eventId, path);
+  return found ? path : [];
+
+  function walk(nodes: EventNode[], target: string, path: string[]): boolean {
+    for (const n of nodes) {
+      if (n.id === target) return true;
+      if (n.children.length > 0) {
+        path.push(n.id);
+        if (walk(n.children, target, path)) return true;
+        path.pop();
+      }
+    }
+    return false;
+  }
+}
 
 /** Worst-case bottom edge of the top-pinned sticky bar (relative to the
  *  scroll container's top), based on each sticky element's CSS `top` +
@@ -327,23 +354,75 @@ export const TranscriptViewNodes = forwardRef<
 
   const scrollToEvent = useCallback(
     (eventId: string) => {
+      const tryScroll = (idx: number) => {
+        if (listHandle.current) {
+          listHandle.current.scrollToIndex({
+            index: idx,
+            align: "start",
+            behavior: "auto",
+            offset: offsetTop ? -offsetTop : undefined,
+          });
+        } else {
+          const el = scrollRef?.current?.querySelector(
+            `[id="${escapeAttr(eventId)}"]`
+          );
+          el?.scrollIntoView({ block: "start", behavior: "auto" });
+        }
+      };
+
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
-      if (idx !== -1 && listHandle.current) {
-        listHandle.current.scrollToIndex({
-          index: idx,
-          align: "start",
-          behavior: "auto",
-          offset: offsetTop ? -offsetTop : undefined,
-        });
-      } else {
-        // Non-virtual fallback: find the DOM element and scroll it into view
-        const el = scrollRef?.current?.querySelector(
-          `[id="${escapeAttr(eventId)}"]`
-        );
-        el?.scrollIntoView({ block: "start", behavior: "auto" });
+      if (idx !== -1) {
+        tryScroll(idx);
+        return;
       }
+
+      // Event is not in the flat list — likely a collapsed ancestor hides it.
+      // Walk the eventNodes tree to find ancestors and expand each that's collapsed.
+      const ancestorIds = findAncestorIds(eventNodes, eventId);
+      if (ancestorIds.length > 0 && onCollapseTranscript) {
+        const collapsedMap = collapsedTranscript ?? defaultCollapsedIds;
+        let didExpand = false;
+        for (const ancestorId of ancestorIds) {
+          if (collapsedMap[ancestorId]) {
+            onCollapseTranscript(ancestorId, false);
+            didExpand = true;
+          }
+        }
+        if (didExpand) {
+          // After the next render, the flat list will include the event.
+          // Retry up to 3 frames in case React batching pushes the commit later.
+          const retryScroll = (attemptsLeft: number) => {
+            const newIdx = flattenedNodesLatest.current.findIndex(
+              (e) => e.id === eventId
+            );
+            if (newIdx !== -1) {
+              tryScroll(newIdx);
+              return;
+            }
+            if (attemptsLeft > 0) {
+              requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
+            }
+          };
+          requestAnimationFrame(() => retryScroll(3));
+          return;
+        }
+      }
+
+      // Fall back to direct DOM scroll.
+      const el = scrollRef?.current?.querySelector(
+        `[id="${escapeAttr(eventId)}"]`
+      );
+      el?.scrollIntoView({ block: "start", behavior: "auto" });
     },
-    [flattenedNodes, offsetTop, scrollRef]
+    [
+      flattenedNodes,
+      eventNodes,
+      collapsedTranscript,
+      defaultCollapsedIds,
+      onCollapseTranscript,
+      offsetTop,
+      scrollRef,
+    ]
   );
 
   const scrollToIndex = useCallback(
@@ -358,10 +437,26 @@ export const TranscriptViewNodes = forwardRef<
     [offsetTop]
   );
 
-  useImperativeHandle(ref, () => ({ scrollToEvent, scrollToIndex }), [
-    scrollToEvent,
-    scrollToIndex,
-  ]);
+  const flattenedNodesLatest = useRef<EventNode[]>(flattenedNodes);
+  useEffect(() => {
+    flattenedNodesLatest.current = flattenedNodes;
+  }, [flattenedNodes]);
+
+  const visibleRangeRef = useRef<{ startIndex: number; endIndex: number }>({
+    startIndex: 0,
+    endIndex: 0,
+  });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToEvent,
+      scrollToIndex,
+      getFlattenedNodes: () => flattenedNodesLatest.current,
+      getVisibleRange: () => visibleRangeRef.current,
+    }),
+    [scrollToEvent, scrollToIndex]
+  );
 
   // Runtime URL→event navigation. The mount-time anchor lives in
   // TranscriptVirtualListComponent (frozen at first render); after mount,
@@ -429,6 +524,7 @@ export const TranscriptViewNodes = forwardRef<
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
+          visibleRangeRef={visibleRangeRef}
         />
       </div>
     </StickyScrollProvider>
