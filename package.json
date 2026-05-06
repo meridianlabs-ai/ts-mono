@@ -48,6 +48,6 @@
     "@tsmono/prettier-config": "workspace:*",
     "picocolors": "^1.1.1",
     "prettier": "^3.8.3",
-    "turbo": "^2.9.6"
+    "turbo": "^2.9.9"
   }
 }
