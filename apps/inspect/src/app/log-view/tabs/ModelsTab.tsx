@@ -5,7 +5,6 @@ import { UsageCard } from "@tsmono/inspect-components/usage";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
-import { ModelCard } from "../../plan/ModelCard";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -39,6 +38,33 @@ export const ModelTab: FC<ModelTabProps> = ({
   evalStats,
   evalStatus,
 }) => {
+  const modelConfigs = useMemo(() => {
+    if (!evalSpec) return undefined;
+    const configs: Record<string, Record<string, unknown>> = {};
+
+    const addConfig = (modelId: string, config: unknown) => {
+      if (
+        modelId &&
+        config &&
+        typeof config === "object" &&
+        Object.keys(config).length > 0
+      ) {
+        configs[modelId] = config as Record<string, unknown>;
+      }
+    };
+
+    addConfig(evalSpec.model, evalSpec.model_generate_config);
+    if (evalSpec.model_roles) {
+      for (const roleConfig of Object.values(evalSpec.model_roles)) {
+        if (roleConfig.model && !configs[roleConfig.model]) {
+          addConfig(roleConfig.model, roleConfig.config);
+        }
+      }
+    }
+
+    return Object.keys(configs).length > 0 ? configs : undefined;
+  }, [evalSpec]);
+
   return (
     <div style={{ width: "100%" }}>
       <div
@@ -50,12 +76,15 @@ export const ModelTab: FC<ModelTabProps> = ({
           gap: "0.75rem",
         }}
       >
-        {evalSpec ? <ModelCard evalSpec={evalSpec} /> : undefined}
         {evalStatus !== "started" &&
           evalStats?.model_usage &&
           Object.keys(evalStats.model_usage).length > 0 && (
             <>
-              <UsageCard label="Model Usage" usage={evalStats.model_usage} />
+              <UsageCard
+                label="Model Usage"
+                usage={evalStats.model_usage}
+                model_configs={modelConfigs}
+              />
               {evalStats.role_usage &&
                 Object.keys(evalStats.role_usage).length > 0 && (
                   <UsageCard label="Role Usage" usage={evalStats.role_usage} />

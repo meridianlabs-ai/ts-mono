@@ -12,6 +12,7 @@ interface UsageCardProps {
   usage?: Record<string, ModelUsageData>;
   label?: string;
   samples?: number;
+  model_configs?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -21,6 +22,7 @@ export const UsageCard: FC<UsageCardProps> = ({
   usage,
   label = "Usage",
   samples,
+  model_configs,
 }) => {
   if (!usage) {
     return null;
@@ -31,7 +33,11 @@ export const UsageCard: FC<UsageCardProps> = ({
       <CardHeader label={label} />
       <CardBody id={kUsageCardBodyId}>
         <div className={styles.wrapper}>
-          <ModelTokenTable model_usage={usage} samples={samples} />
+          <ModelTokenTable
+            model_usage={usage}
+            samples={samples}
+            model_configs={model_configs}
+          />
         </div>
       </CardBody>
     </Card>

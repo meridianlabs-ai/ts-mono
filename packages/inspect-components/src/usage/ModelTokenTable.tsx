@@ -10,7 +10,14 @@ interface ModelTokenTableProps {
   model_usage: Record<string, ModelUsageData>;
   samples?: number;
   className?: string | string[];
+  model_configs?: Record<string, Record<string, unknown>>;
 }
+
+const fmtConfigVal = (v: unknown): string => {
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+};
 
 type CategoryKey =
   | "input"
@@ -71,6 +78,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   model_usage,
   samples,
   className,
+  model_configs,
 }) => {
   const models = Object.keys(model_usage).filter((k) => model_usage[k]);
   if (models.length === 0) return null;
@@ -109,6 +117,22 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     {formatNumber(total)}
                     <small>tokens</small>
                   </span>
+                  {(() => {
+                    const cfg = model_configs?.[modelId];
+                    if (!cfg) return null;
+                    const entries = Object.entries(cfg).filter(([, v]) => v != null);
+                    if (entries.length === 0) return null;
+                    return (
+                      <dl className={styles.configTable}>
+                        {entries.map(([k, v]) => (
+                          <Fragment key={k}>
+                            <dt className={styles.configKey}>{k}</dt>
+                            <dd className={styles.configVal}>{fmtConfigVal(v)}</dd>
+                          </Fragment>
+                        ))}
+                      </dl>
+                    );
+                  })()}
                 </td>
                 <td className={styles.composeCell}>
                   <div className={styles.stack}>

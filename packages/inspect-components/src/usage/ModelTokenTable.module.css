@@ -64,6 +64,28 @@
   margin-top: 0.4rem;
 }
 
+.configTable {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.5rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--bs-light-border-subtle);
+}
+
+.configKey {
+  font-size: 0.7rem;
+  color: var(--bs-secondary);
+  white-space: nowrap;
+}
+
+.configVal {
+  font-size: 0.7rem;
+  color: var(--bs-body-color);
+  font-weight: 500;
+  margin: 0;
+}
+
 .modelTotal small {
   font-size: 0.7rem;
   font-weight: 400;
