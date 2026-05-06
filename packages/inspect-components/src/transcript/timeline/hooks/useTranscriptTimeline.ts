@@ -21,13 +21,13 @@ import {
   resolveForkTimestamp,
   type MarkerConfig,
 } from "../markers";
+import { correctRetryTimestamps } from "../retryOrdering";
 import {
   computeRowLayouts,
   rowHasEvents,
   type RowLayout,
 } from "../swimlaneLayout";
 import { isSingleSpan, type SwimlaneRow } from "../swimlaneRows";
-import { correctRetryTimestamps } from "../retryOrdering";
 import {
   collectPathWithNavigators,
   collectRawEvents,
@@ -123,10 +123,7 @@ export function useTranscriptTimeline(
     activeTimelineProps,
   } = options;
 
-  const events = useMemo(
-    () => correctRetryTimestamps(rawEvents),
-    [rawEvents]
-  );
+  const events = useMemo(() => correctRetryTimestamps(rawEvents), [rawEvents]);
 
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;

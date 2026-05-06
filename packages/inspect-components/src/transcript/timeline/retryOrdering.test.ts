@@ -154,7 +154,7 @@ describe("correctRetryTimestamps", () => {
       working_start: 0.0,
       working_time: 12.5,
       completed: "2025-01-01T00:00:12.500Z",
-    } as ModelEvent;
+    };
     const events: Event[] = [
       model("2025-01-01T00:00:01.000Z", { error: "transient" }),
       success,
