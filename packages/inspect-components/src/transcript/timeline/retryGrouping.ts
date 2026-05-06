@@ -52,10 +52,7 @@ function toolChoiceEqual(a: ToolChoice, b: ToolChoice): boolean {
   return a?.name === b?.name;
 }
 
-function toolsEqual(
-  a: ModelEvent["tools"],
-  b: ModelEvent["tools"]
-): boolean {
+function toolsEqual(a: ModelEvent["tools"], b: ModelEvent["tools"]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i]?.name !== b[i]?.name) return false;
@@ -95,10 +92,7 @@ export function groupRetryAttempts(events: Event[]): RetryGroupingResult {
     if (run && run.length > 0) {
       const matches = run.filter((p) => isSameCall(p.event, m));
       if (matches.length > 0) {
-        attempts.set(retryAttemptKey(m), [
-          ...matches.map((p) => p.event),
-          m,
-        ]);
+        attempts.set(retryAttemptKey(m), [...matches.map((p) => p.event), m]);
         for (const p of matches) dropIndices.add(p.index);
       }
       // Any failed events that do NOT match the success's identity are

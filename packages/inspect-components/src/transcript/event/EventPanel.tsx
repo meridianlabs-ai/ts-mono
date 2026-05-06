@@ -171,7 +171,11 @@ export const EventPanel: FC<EventPanelProps> = ({
           ""
         )}
         <div
-          className={clsx("text-style-secondary", "text-style-label", styles.title)}
+          className={clsx(
+            "text-style-secondary",
+            "text-style-label",
+            styles.title
+          )}
           onClick={toggleCollapse}
         >
           <span>{title}</span>

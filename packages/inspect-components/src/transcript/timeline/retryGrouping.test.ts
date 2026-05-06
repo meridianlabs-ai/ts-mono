@@ -237,7 +237,9 @@ describe("retryAttemptKey", () => {
 
   it("falls back to span_id + parsed epoch when uuid is missing", () => {
     const e = model("2025-01-01T00:00:00.000Z", { spanId: "S" });
-    expect(retryAttemptKey(e)).toBe(`ts:S:${Date.parse("2025-01-01T00:00:00.000Z")}`);
+    expect(retryAttemptKey(e)).toBe(
+      `ts:S:${Date.parse("2025-01-01T00:00:00.000Z")}`
+    );
   });
 
   it("returns equal keys for equivalent timestamps in different formats (no uuid)", () => {
