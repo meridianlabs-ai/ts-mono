@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, Fragment, ReactNode } from "react";
 
 import { formatPrettyDecimal } from "@tsmono/util";
 
@@ -38,6 +38,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
       if (metrics.length > i) {
         cells.push(
           <th
+            key={i}
             className={clsx(
               "text-style-label",
               "text-style-secondary",
@@ -49,7 +50,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
           </th>
         );
       } else {
-        cells.push(<td></td>);
+        cells.push(<td key={i}></td>);
       }
     }
 
@@ -62,22 +63,22 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
       </thead>
     );
     const rows: ReactNode[] = [];
-    scoreGroup.forEach((g) => {
+    scoreGroup.forEach((g, rowIndex) => {
       const cells: ReactNode[] = [];
       for (let i = 0; i < columnCount; i++) {
         if (metrics.length > i) {
           cells.push(
-            <td className={clsx(styles.value, "text-size-small")}>
+            <td key={i} className={clsx(styles.value, "text-size-small")}>
               {formatPrettyDecimal(g.metrics[i].value)}
             </td>
           );
         } else {
-          cells.push(<td className={clsx(styles.value)}></td>);
+          cells.push(<td key={i} className={clsx(styles.value)}></td>);
         }
       }
 
       rows.push(
-        <tr>
+        <tr key={rowIndex}>
           <th className={clsx(styles.scorer, "text-size-small")}>
             {g.scorer} {showReducer && g.reducer ? `(${g.reducer})` : undefined}
             <UnscoredSamples
@@ -91,7 +92,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
     });
 
     subTables.push(
-      <>
+      <Fragment key={index}>
         {index > 0 ? (
           <tbody className={clsx(styles.tableSeparator)}>
             <tr>
@@ -106,7 +107,7 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
         <tbody className={clsx("table-group-divider", styles.tableBody)}>
           {rows}
         </tbody>
-      </>
+      </Fragment>
     );
 
     index++;
