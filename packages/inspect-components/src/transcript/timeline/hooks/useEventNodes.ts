@@ -9,6 +9,7 @@ import { useMemo } from "react";
 
 import type {
   Event,
+  ModelEvent,
   SpanBeginEvent,
   StepEvent,
   SubtaskEvent,
@@ -20,6 +21,7 @@ import { treeifyEvents } from "../../transform/treeify";
 import { EventNode, kCollapsibleEventTypes } from "../../types";
 import type { EventType } from "../../types";
 import type { TimelineSpan } from "../core";
+import { groupRetryAttempts } from "../retryGrouping";
 import { correctRetryTimestamps } from "../retryOrdering";
 import { attachSourceSpans } from "../timelineEventNodes";
 
@@ -54,16 +56,23 @@ export const useEventNodes = (
   running: boolean,
   sourceSpans?: ReadonlyMap<string, TimelineSpan>
 ) => {
-  const { eventTree, defaultCollapsedIds } = useMemo((): {
+  const { eventTree, defaultCollapsedIds, retryAttempts } = useMemo((): {
     eventTree: EventNode[];
     defaultCollapsedIds: Record<string, true>;
+    retryAttempts: Map<string, ModelEvent[]>;
   } => {
     // Repair retry-inverted ModelEvent timestamps before any downstream
     // sort sees them (treeifyEvents sorts span children by timestamp).
     const orderedEvents = correctRetryTimestamps(events);
 
+    // Fold consecutive same-span failed→success ModelEvent runs into a
+    // single visible event; the failed siblings are removed from the
+    // stream and surfaced via the retryAttempts map for the chip UI.
+    const { events: groupedEvents, attempts: retryAttempts } =
+      groupRetryAttempts(orderedEvents);
+
     // Apply fixups to the event stream
-    const resolvedEvents = fixupEventStream(orderedEvents, !running);
+    const resolvedEvents = fixupEventStream(groupedEvents, !running);
 
     // Build the event tree
     const rawEventTree = treeifyEvents(resolvedEvents, 0);
@@ -121,8 +130,8 @@ export const useEventNodes = (
     };
     findCollapsibleEvents(eventTree);
 
-    return { eventTree, defaultCollapsedIds };
+    return { eventTree, defaultCollapsedIds, retryAttempts };
   }, [events, running, sourceSpans]);
 
-  return { eventNodes: eventTree, defaultCollapsedIds };
+  return { eventNodes: eventTree, defaultCollapsedIds, retryAttempts };
 };

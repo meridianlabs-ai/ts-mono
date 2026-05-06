@@ -20,6 +20,19 @@
   justify-self: end;
 }
 
+.title {
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.titleExtra {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.5em;
+}
+
+
 .navs {
   justify-self: end;
   display: flex;
@@ -55,10 +68,12 @@
 
 .copyLink {
   font-size: 1.2em;
-  height: 1em;
   opacity: 0;
   padding-left: 0.2em;
-  padding-right: 2em;
+  padding-right: 0;
+  vertical-align: middle;
+  line-height: 1;
+  margin-left: 0.25em;
 }
 
 .hover .copyLink {

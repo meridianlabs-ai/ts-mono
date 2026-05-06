@@ -330,10 +330,15 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         : rawEventsForNodes,
     [rawEventsForNodes, hiddenEventTypes]
   );
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
+  const { eventNodes, defaultCollapsedIds, retryAttempts } = useEventNodes(
     eventsForNodes,
     running,
     showSwimlanes ? sourceSpans : undefined
+  );
+
+  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
+    () => ({ ...eventNodeContext, retryAttempts }),
+    [eventNodeContext, retryAttempts]
   );
 
   // ---------------------------------------------------------------------------
@@ -971,7 +976,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 collapsedTranscript={collapseState?.transcript}
                 collapsedOutline={collapseState?.outline}
                 onCollapseTranscript={onCollapseTranscript}
-                eventNodeContext={eventNodeContext}
+                eventNodeContext={mergedEventNodeContext}
               />
             ) : emptyText !== null ? (
               <NoContentsPanel text={emptyText} />
