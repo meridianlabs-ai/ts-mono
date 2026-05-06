@@ -19,16 +19,24 @@ const EMPTY_OUTPUT = {
 
 function model(
   timestamp: string,
-  options?: { error?: string; spanId?: string | null }
+  options?: {
+    error?: string;
+    spanId?: string | null;
+    name?: string;
+    inputLen?: number;
+    tools?: string[];
+    toolChoice?: ModelEvent["tool_choice"];
+  }
 ): ModelEvent {
+  const inputLen = options?.inputLen ?? 0;
   return {
     event: "model",
-    model: "test",
+    model: options?.name ?? "test",
     role: null,
-    input: [],
+    input: Array.from({ length: inputLen }, () => ({}) as never),
     input_refs: null,
-    tools: [],
-    tool_choice: "auto",
+    tools: (options?.tools ?? []).map((name) => ({ name }) as never),
+    tool_choice: options?.toolChoice ?? "auto",
     config: NULL_CONFIG,
     output: EMPTY_OUTPUT,
     cache: null,
@@ -140,5 +148,81 @@ describe("groupRetryAttempts", () => {
     const out = groupRetryAttempts(events);
     expect(out.events).toBe(events);
     expect(out.attempts.size).toBe(0);
+  });
+
+  it("does not group failed model A with later success on different model B", () => {
+    const failedA = model("2025-01-01T00:00:00.000Z", {
+      name: "anthropic/sonnet",
+      error: "transient",
+    });
+    const successB = model("2025-01-01T00:00:01.000Z", {
+      name: "openai/gpt-5",
+    });
+    const events: Event[] = [failedA, successB];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toBe(events);
+    expect(out.attempts.size).toBe(0);
+  });
+
+  it("does not group when input length differs (fresh call, not a retry)", () => {
+    const failed = model("2025-01-01T00:00:00.000Z", {
+      error: "transient",
+      inputLen: 3,
+    });
+    const success = model("2025-01-01T00:00:01.000Z", { inputLen: 5 });
+    const events: Event[] = [failed, success];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toBe(events);
+    expect(out.attempts.size).toBe(0);
+  });
+
+  it("does not group when tools differ", () => {
+    const failed = model("2025-01-01T00:00:00.000Z", {
+      error: "transient",
+      tools: ["read_file"],
+    });
+    const success = model("2025-01-01T00:00:01.000Z", {
+      tools: ["read_file", "write_file"],
+    });
+    const events: Event[] = [failed, success];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toBe(events);
+    expect(out.attempts.size).toBe(0);
+  });
+
+  it("does not group when tool_choice differs", () => {
+    const failed = model("2025-01-01T00:00:00.000Z", {
+      error: "transient",
+      toolChoice: "auto",
+    });
+    const success = model("2025-01-01T00:00:01.000Z", {
+      toolChoice: "any",
+    });
+    const events: Event[] = [failed, success];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toBe(events);
+    expect(out.attempts.size).toBe(0);
+  });
+
+  it("groups only the matching subset when prior failures mix unrelated calls", () => {
+    // Span has: failed call to model A (unrelated), then a retry sequence
+    // for model B (failed B then success B). Only the model-B failure
+    // should be grouped; the model-A failure stays visible.
+    const failedA = model("2025-01-01T00:00:00.000Z", {
+      name: "model-a",
+      error: "down",
+    });
+    const failedB = model("2025-01-01T00:00:01.000Z", {
+      name: "model-b",
+      error: "transient",
+    });
+    const successB = model("2025-01-01T00:00:02.000Z", { name: "model-b" });
+    const events: Event[] = [failedA, failedB, successB];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toEqual([failedA, successB]);
+    expect(out.attempts.get(retryAttemptKey(successB))).toEqual([
+      failedB,
+      successB,
+    ]);
   });
 });
