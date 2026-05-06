@@ -16,7 +16,7 @@
   font-size: 0.7rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 0 0.75rem 0.5rem;
+  padding: 0 0.75rem 0.5rem 0;
   border-bottom: 1px solid var(--bs-light-border-subtle);
   white-space: nowrap;
 }
@@ -37,7 +37,7 @@
 }
 
 .table tbody td {
-  padding: 0.25rem 0.75rem;
+  padding: 0.25rem 0.75rem 0.25rem 0;
   vertical-align: top;
 }
 
@@ -74,8 +74,11 @@
 }
 
 .composeCell {
-  padding-right: 1.5rem;
   min-width: 18rem;
+}
+
+.table tbody td.composeCell {
+  padding-right: 3rem;
 }
 
 .stack {
@@ -85,6 +88,7 @@
   border-radius: 999px;
   overflow: hidden;
   background: var(--bs-light-border-subtle);
+  margin-top: 7px;
 }
 
 .stack > span {
@@ -132,7 +136,6 @@
 
 .totalCell {
   vertical-align: top;
-  padding-top: 1.4rem;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bs-body-color);
@@ -140,7 +143,6 @@
 
 .perSampleCell {
   vertical-align: top;
-  padding-top: 1.4rem;
   color: var(--bs-secondary);
 }
 
@@ -151,22 +153,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 0.15rem;
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.1rem;
-  font-size: 0.7rem;
-  color: var(--bs-secondary);
-  margin-top: 0.875rem;
-  padding: 0 0.75rem;
-}
-
-.legend .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
 .swatch {

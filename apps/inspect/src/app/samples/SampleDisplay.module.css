@@ -40,12 +40,55 @@
   margin-top: 0;
 }
 
-.timePanel {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  grid-template-rows: auto;
-  column-gap: 0.5em;
-  min-width: 200px;
+.timingItems {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.timingLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.timingBig {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  line-height: 1.1;
+}
+
+.timingBig small {
+  font-size: 0.75rem;
+  color: var(--bs-secondary);
+  font-weight: 400;
+}
+
+.timingClockStack {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.timingClockVal {
+  font-weight: 600;
+  color: var(--bs-body-color);
+}
+
+.timingClockArrow {
+  color: var(--bs-secondary);
 }
 
 .chat {

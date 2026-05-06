@@ -75,9 +75,6 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   const models = Object.keys(model_usage).filter((k) => model_usage[k]);
   if (models.length === 0) return null;
 
-  const usedKeys = CAT_ORDER.filter((k) =>
-    models.some((m) => categoryValue(model_usage[m]!, k) > 0)
-  );
   const showPerSample = samples !== undefined && samples > 0;
 
   return (
@@ -89,7 +86,6 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
             <th>Composition</th>
             <th>Breakdown</th>
             {showPerSample && <th className={styles.num}>Per sample</th>}
-            <th className={styles.num}>Total tokens</th>
           </tr>
         </thead>
         <tbody>
@@ -162,22 +158,11 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     <span className={styles.perSampleSub}>avg / sample</span>
                   </td>
                 )}
-                <td className={clsx(styles.num, styles.totalCell)}>
-                  {formatNumber(total)}
-                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <div className={styles.legend}>
-        {usedKeys.map((k) => (
-          <span key={k} className={styles.item}>
-            <span className={clsx(styles.swatch, CAT_SWATCH[k])} />
-            {CAT_LABEL[k]}
-          </span>
-        ))}
-      </div>
     </div>
   );
 };

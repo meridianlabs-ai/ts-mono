@@ -57,7 +57,7 @@ import {
   useSelectedSampleSummary,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { formatDateTime, formatTime } from "../../utils/format";
+import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
@@ -241,7 +241,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
-  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, scrollRef, sample);
+  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
     scrollRef,
@@ -773,9 +773,42 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
+const fmtDuration = (s: number): { value: string; unit: string } => {
+  if (s < 60) return { value: String(Math.round(s)), unit: "sec" };
+  if (s < 3600) {
+    const m = Math.floor(s / 60);
+    const r = Math.round(s % 60);
+    return r > 0 ? { value: `${m}m ${r}`, unit: "sec" } : { value: String(m), unit: "min" };
+  }
+  if (s < 86400) {
+    const h = Math.floor(s / 3600);
+    const m = Math.round((s % 3600) / 60);
+    return m > 0 ? { value: `${h}h ${m}`, unit: "min" } : { value: String(h), unit: "hr" };
+  }
+  const d = Math.floor(s / 86400);
+  const h = Math.round((s % 86400) / 3600);
+  return h > 0 ? { value: `${d}d ${h}`, unit: "hr" } : { value: String(d), unit: "days" };
+};
+
+const fmtClock = (iso?: string | null, showDate = false): string => {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    if (!showDate) return time;
+    const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return `${date}, ${time}`;
+  } catch {
+    return iso;
+  }
+};
+
 const usageViewsForSample = (
   id: string,
-  scrollRef: RefObject<HTMLDivElement | null>,
   sample?: EvalSample
 ) => {
   if (!sample) return [];
@@ -796,24 +829,51 @@ const usageViewsForSample = (
   }
 
   if (
-    sample.total_time !== undefined &&
-    sample.total_time !== null &&
     sample.working_time !== undefined &&
     sample.working_time !== null
   ) {
+    const workDur = fmtDuration(sample.working_time);
+    const totalDur = sample.total_time != null ? fmtDuration(sample.total_time) : null;
+    const hasClock = !!(sample.started_at || sample.completed_at);
+    const showDate = !!(
+      sample.started_at &&
+      sample.completed_at &&
+      new Date(sample.started_at).toDateString() !== new Date(sample.completed_at).toDateString()
+    );
     views.push(
       <Card key={`sample-time-${id}`}>
         <CardHeader label="Time" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-time-${id}`}
-            record={{
-              Working: formatTime(sample.working_time),
-              Total: formatTime(sample.total_time),
-            }}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-          />
+        <CardBody>
+          <div className={styles.timingItems}>
+            <div>
+              <span className={styles.timingLabel}>Working time</span>
+              <span className={styles.timingBig}>
+                {workDur.value} <small>{workDur.unit}</small>
+              </span>
+            </div>
+            {totalDur && (
+              <div>
+                <span className={styles.timingLabel}>Total time</span>
+                <span className={styles.timingBig}>
+                  {totalDur.value} <small>{totalDur.unit}</small>
+                </span>
+              </div>
+            )}
+            {hasClock && (
+              <div>
+                <span className={styles.timingLabel}>Window</span>
+                <div className={styles.timingClockStack}>
+                  <span className={styles.timingClockVal}>
+                    {fmtClock(sample.started_at, showDate)}
+                  </span>
+                  <span className={styles.timingClockArrow}>→</span>
+                  <span className={styles.timingClockVal}>
+                    {fmtClock(sample.completed_at, showDate)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </CardBody>
       </Card>
     );
