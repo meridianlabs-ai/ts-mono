@@ -75,7 +75,6 @@ export const EventPanel: FC<EventPanelProps> = ({
   const { onCollapse, getCollapsed, getEventUrl, linkingEnabled } =
     eventCallbacks ?? {};
   const eventLabel = useContext(EventLabelContext);
-  const displayTitle = eventLabel && title ? `${eventLabel} ${title}` : title;
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
 
@@ -92,9 +91,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   const url =
     linkingEnabled && getEventUrl ? getEventUrl(eventNodeId) : undefined;
 
-  const pillId = (index: number) => {
-    return `${eventNodeId}-nav-pill-${index}`;
-  };
+  const pillId = (index: number) => `${eventNodeId}-nav-pill-${index}`;
 
   const filteredArrChildren = (
     Array.isArray(children) ? children : [children]
@@ -122,6 +119,11 @@ export const EventPanel: FC<EventPanelProps> = ({
     gridColumns.push("minmax(0, max-content)");
   }
 
+  // search/reference label
+  if (eventLabel) {
+    gridColumns.push("minmax(0, max-content)");
+  }
+
   // icon
   if (icon) {
     gridColumns.push("max-content");
@@ -144,7 +146,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   const [mouseOver, setMouseOver] = useState(false);
 
   const titleEl =
-    displayTitle || icon || filteredArrChildren.length > 1 ? (
+    eventLabel || title || icon || filteredArrChildren.length > 1 ? (
       <div
         title={subTitle}
         className={clsx(
@@ -170,6 +172,20 @@ export const EventPanel: FC<EventPanelProps> = ({
         ) : (
           ""
         )}
+        {eventLabel ? (
+          <div
+            className={clsx(
+              "text-style-secondary",
+              "text-style-label",
+              styles.eventLabel
+            )}
+            onClick={toggleCollapse}
+          >
+            {eventLabel} -
+          </div>
+        ) : (
+          ""
+        )}
         {icon ? (
           <i
             className={clsx(icon || kDefaultIcon, "text-style-secondary")}
@@ -186,7 +202,7 @@ export const EventPanel: FC<EventPanelProps> = ({
           )}
           onClick={toggleCollapse}
         >
-          <span>{displayTitle}</span>
+          <span>{title}</span>
           {headerExtra ? (
             <span
               className={styles.titleExtra}
