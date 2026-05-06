@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, KeyboardEvent, useCallback, useEffect, useRef } from "react";
 
-import { useExtendedFind } from "@tsmono/react/components";
+import { useExtendedFind, useFindTargetSetter } from "@tsmono/react/components";
 
 import "./FindBand.css";
 
@@ -22,6 +22,7 @@ const findConfig = {
 export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const { extendedFindTerm } = useExtendedFind();
+  const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
     text: string;
     offset: number;
@@ -32,28 +33,12 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const needsCursorRestoreRef = useRef<boolean>(false);
   const lastNoResultTerm = useRef<string>("");
 
-  const getParentExpandablePanel = useCallback(
-    (selection: Selection): HTMLElement | undefined => {
-      let node = selection.anchorNode;
-      while (node) {
-        if (
-          node instanceof HTMLElement &&
-          node.hasAttribute("data-expandable-panel")
-        ) {
-          return node;
-        }
-        node = node.parentElement;
-      }
-      return undefined;
-    },
-    []
-  );
-
   const handleSearch = useCallback(
     async (back = false) => {
       // The search term
       const searchTerm = searchBoxRef.current?.value ?? "";
       if (!searchTerm) {
+        setFindTarget(null);
         return;
       }
 
@@ -118,14 +103,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
             parentElement,
           };
 
-          const parentPanel = getParentExpandablePanel(selection);
-          if (parentPanel) {
-            parentPanel.style.display = "block";
-            parentPanel.style.maxHeight = "none";
-            parentPanel.style.webkitLineClamp = "";
-            parentPanel.style.webkitBoxOrient = "";
-          }
-
           const element = range.startContainer.parentElement;
 
           if (element) {
@@ -141,7 +118,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
 
       focusedElement?.focus();
     },
-    [getParentExpandablePanel, extendedFindTerm]
+    [setFindTarget, extendedFindTerm]
   );
 
   useEffect(() => {
@@ -283,6 +260,12 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
     };
   }, [handleSearch, restoreCursor, handleRestoreCursorIfNeeded]);
+
+  useEffect(() => {
+    return () => {
+      setFindTarget(null);
+    };
+  }, [setFindTarget]);
 
   return (
     <div data-unsearchable="true" className={clsx("findBand")}>

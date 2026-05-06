@@ -54,7 +54,7 @@ const sanitizeStringify = (v: unknown): string => {
 /**
  * Extracts labeled fields from an event for search and text serialization.
  */
-const extractEventFields = (event: EventType): [string, string][] => {
+export const extractEventFields = (event: EventType): [string, string][] => {
   const fields: [string, string][] = [];
 
   switch (event.event) {
@@ -412,6 +412,10 @@ const extractContentText = (content: string | Array<Content>): string[] => {
         texts.push(item.text);
         break;
       case "reasoning": {
+        // The transcript uses MessageContent.tsx's reasoning renderer (via
+        // the chat view), which shows the summary when redacted (since the
+        // reasoning blob is encrypted) and the reasoning otherwise. Match
+        // that here so search hits what the user can see.
         const text = item.redacted
           ? item.summary
           : item.reasoning || item.summary;

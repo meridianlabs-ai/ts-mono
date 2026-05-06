@@ -12,10 +12,12 @@ import {
 // search is requested and no matches are found. In this case, they can 'look ahead'
 // and scroll an item into view if it is likely/certain to contain the search term.
 
+export type FindDirection = "forward" | "backward";
+
 // Find will call this when an extended find is requested
 export type ExtendedFindFn = (
   term: string,
-  direction: "forward" | "backward",
+  direction: FindDirection,
   onContentReady: () => void
 ) => Promise<boolean>;
 
@@ -27,7 +29,7 @@ export type ExtendedCountFn = (term: string) => number;
 interface ExtendedFindContextType {
   extendedFindTerm: (
     term: string,
-    direction: "forward" | "backward"
+    direction: FindDirection
   ) => Promise<boolean>;
   registerVirtualList: (id: string, searchFn: ExtendedFindFn) => () => void;
   countAllMatches: (term: string) => number;
@@ -47,10 +49,7 @@ export const ExtendedFindProvider = ({
   const matchCounters = useRef<Map<string, ExtendedCountFn>>(new Map());
 
   const extendedFindTerm = useCallback(
-    async (
-      term: string,
-      direction: "forward" | "backward"
-    ): Promise<boolean> => {
+    async (term: string, direction: FindDirection): Promise<boolean> => {
       for (const [, searchFn] of virtualLists.current) {
         const found = await new Promise<boolean>((resolve) => {
           let callbackFired = false;

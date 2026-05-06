@@ -57,8 +57,14 @@ const extractContentText = (content: string | Array<Content>): string[] => {
         texts.push(item.text);
         break;
       case "reasoning": {
+        // Mirror MessageContent.tsx's render logic for reasoning so the
+        // search matches what the user actually sees: redacted reasoning
+        // shows the summary (the raw reasoning is encrypted), unredacted
+        // shows reasoning when present and falls back to summary.
         const reasoning = item;
-        if (reasoning.reasoning) {
+        if (reasoning.redacted) {
+          if (reasoning.summary) texts.push(reasoning.summary);
+        } else if (reasoning.reasoning) {
           texts.push(reasoning.reasoning);
         } else if (reasoning.summary) {
           texts.push(reasoning.summary);

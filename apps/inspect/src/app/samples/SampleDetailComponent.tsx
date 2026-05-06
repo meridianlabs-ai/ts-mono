@@ -1,7 +1,10 @@
 import clsx from "clsx";
 import React, { FC, useCallback, useEffect, useMemo } from "react";
 
-import { ExtendedFindProvider } from "@tsmono/react/components";
+import {
+  ExtendedFindProvider,
+  FindTargetProvider,
+} from "@tsmono/react/components";
 
 import { FindBand } from "../../components/FindBand";
 import { useSampleData } from "../../state/hooks";
@@ -190,54 +193,56 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
 
   return (
     <ExtendedFindProvider>
-      {showFind ? <FindBand /> : ""}
-      <div className={styles.detail}>
-        <ApplicationNavbar
-          currentPath={currentPath}
-          fnNavigationUrl={fnNavigationUrl}
-          bordered={bordered}
-          breadcrumbsEnabled={breadcrumbsEnabled}
-        >
-          <div className={clsx(styles.sampleNav)}>
-            <div
-              onClick={hasPrevious ? onPrevious : undefined}
-              onKeyDown={(e) =>
-                handleNavButtonKeyDown(e, onPrevious, hasPrevious)
-              }
-              tabIndex={hasPrevious ? 0 : -1}
-              role="button"
-              aria-label="Previous sample"
-              aria-disabled={!hasPrevious}
-              className={clsx(!hasPrevious && styles.disabled, styles.nav)}
-            >
-              <i className={clsx(ApplicationIcons.previous)} />
+      <FindTargetProvider>
+        {showFind ? <FindBand /> : ""}
+        <div className={styles.detail}>
+          <ApplicationNavbar
+            currentPath={currentPath}
+            fnNavigationUrl={fnNavigationUrl}
+            bordered={bordered}
+            breadcrumbsEnabled={breadcrumbsEnabled}
+          >
+            <div className={clsx(styles.sampleNav)}>
+              <div
+                onClick={hasPrevious ? onPrevious : undefined}
+                onKeyDown={(e) =>
+                  handleNavButtonKeyDown(e, onPrevious, hasPrevious)
+                }
+                tabIndex={hasPrevious ? 0 : -1}
+                role="button"
+                aria-label="Previous sample"
+                aria-disabled={!hasPrevious}
+                className={clsx(!hasPrevious && styles.disabled, styles.nav)}
+              >
+                <i className={clsx(ApplicationIcons.previous)} />
+              </div>
+              <div className={clsx(styles.sampleInfo, "text-size-smallest")}>
+                Sample {sampleId} (Epoch {epoch})
+              </div>
+              <div
+                onClick={hasNext ? onNext : undefined}
+                onKeyDown={(e) => handleNavButtonKeyDown(e, onNext, hasNext)}
+                tabIndex={hasNext ? 0 : -1}
+                role="button"
+                aria-label="Next sample"
+                aria-disabled={!hasNext}
+                className={clsx(!hasNext && styles.disabled, styles.nav)}
+              >
+                <i className={clsx(ApplicationIcons.next)} />
+              </div>
             </div>
-            <div className={clsx(styles.sampleInfo, "text-size-smallest")}>
-              Sample {sampleId} (Epoch {epoch})
-            </div>
-            <div
-              onClick={hasNext ? onNext : undefined}
-              onKeyDown={(e) => handleNavButtonKeyDown(e, onNext, hasNext)}
-              tabIndex={hasNext ? 0 : -1}
-              role="button"
-              aria-label="Next sample"
-              aria-disabled={!hasNext}
-              className={clsx(!hasNext && styles.disabled, styles.nav)}
-            >
-              <i className={clsx(ApplicationIcons.next)} />
-            </div>
-          </div>
-        </ApplicationNavbar>
+          </ApplicationNavbar>
 
-        {sampleMatchesRequest && (
-          <InlineSampleComponent
-            showActivity={
-              sampleStatus === "loading" || sampleStatus === "streaming"
-            }
-            className={styles.panel}
-          />
-        )}
-      </div>
+          {sampleMatchesRequest && (
+            <InlineSampleComponent
+              showActivity={
+                sampleStatus === "loading" || sampleStatus === "streaming"
+              }
+              className={styles.panel}
+            />
+          )}
+        </div>
+      </FindTargetProvider>
     </ExtendedFindProvider>
   );
 };

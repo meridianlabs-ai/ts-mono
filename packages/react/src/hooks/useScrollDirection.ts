@@ -42,6 +42,11 @@ interface UseScrollDirectionResult {
    *    stops (useful for Virtuoso multi-pass settling). When false (default),
    *    the lock uses a fixed timeout matching the CSS transition duration. */
   resetAnchor: (debounce?: boolean) => void;
+  /** Imperatively set the hidden state. Used by callers that drive scroll
+   *  motions for which `hidden` should match an explicit direction (e.g.
+   *  search Next = forward = collapse) — calling `resetAnchor` alone would
+   *  freeze the prior state instead of advancing to the new intended one. */
+  setHidden: (hidden: boolean) => void;
 }
 
 /**
@@ -276,5 +281,25 @@ export function useScrollDirection(
     [primaryRef, transitionLockMs]
   );
 
-  return { hidden, resetAnchor };
+  const setHiddenExternal = useCallback(
+    (next: boolean) => {
+      setHidden((prev) => {
+        if (prev === next) return prev;
+        // Match the internal state-change path: engage the transition lock so
+        // scroll events from the imminent imperative scroll don't fight us.
+        transitionLockedRef.current = true;
+        if (lockTimerRef.current !== null) {
+          clearTimeout(lockTimerRef.current);
+        }
+        lockTimerRef.current = setTimeout(() => {
+          transitionLockedRef.current = false;
+          lockTimerRef.current = null;
+        }, transitionLockMs);
+        return next;
+      });
+    },
+    [transitionLockMs]
+  );
+
+  return { hidden, resetAnchor, setHidden: setHiddenExternal };
 }

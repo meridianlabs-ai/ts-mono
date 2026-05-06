@@ -34,4 +34,5 @@ export * from "./LightboxCarousel";
 export * from "./HumanBaselineView";
 export * from "./LiveVirtualList";
 export * from "./ComponentNavigationContext";
+export * from "./FindTargetContext";
 export * from "./MarkdownDivWithReferences";

@@ -231,8 +231,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [scrollRef]
   );
 
-  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
-    useScrollDirection(scrollRefs);
+  const {
+    hidden: headroomHidden,
+    resetAnchor: headroomResetAnchor,
+    setHidden: setHeadroomHidden,
+  } = useScrollDirection(scrollRefs);
 
   const onHeadroomResetAnchor = useCallback(
     (debounce?: boolean) => headroomResetAnchor(debounce),
@@ -432,6 +435,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       onMarkerNavigate={onMarkerNavigate}
       headroomHidden={headroomHidden}
       onHeadroomResetAnchor={onHeadroomResetAnchor}
+      onHeadroomSetHidden={setHeadroomHidden}
       eventNodeContext={eventNodeContext}
       listId={id}
       initialEventId={initialEventId}

@@ -155,3 +155,6 @@ export {
 
 // Timeline utilities
 export * from "./timeline";
+
+// Search utilities
+export * from "./search";

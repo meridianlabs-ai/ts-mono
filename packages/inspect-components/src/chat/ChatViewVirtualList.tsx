@@ -28,6 +28,31 @@ import {
   ChatViewToolOptions,
 } from "./types";
 
+// Stable Virtuoso Item wrapper. Defined at module scope so its identity
+// doesn't change across renders of ChatViewVirtualListComponent — Virtuoso
+// re-mounts every row when `components.Item` is a new ref, which detaches
+// the text node any active find selection is anchored to and silently
+// collapses the highlight after about a second of settling.
+const ChatVirtuosoItem = ({
+  children,
+  ...props
+}: ItemProps<unknown> & ContextProp<unknown>) => {
+  return (
+    <div
+      className={clsx(styles.item)}
+      data-index={props["data-index"]}
+      data-item-group-index={props["data-item-group-index"]}
+      data-item-index={props["data-item-index"]}
+      data-known-size={props["data-known-size"]}
+      style={props.style}
+    >
+      {children}
+    </div>
+  );
+};
+
+const chatVirtuosoComponents = { Item: ChatVirtuosoItem };
+
 export interface ChatViewVirtualListProps {
   id: string;
   messages: ChatMessage[];
@@ -179,24 +204,6 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
       [id, display, labels, linking, tools, maxLabelLength]
     );
 
-    const Item = ({
-      children,
-      ...props
-    }: ItemProps<unknown> & ContextProp<unknown>) => {
-      return (
-        <div
-          className={clsx(styles.item)}
-          data-index={props["data-index"]}
-          data-item-group-index={props["data-item-group-index"]}
-          data-item-index={props["data-item-index"]}
-          data-known-size={props["data-known-size"]}
-          style={props.style}
-        >
-          {children}
-        </div>
-      );
-    };
-
     return (
       <LiveVirtualList<ResolvedMessage>
         id="chat-virtual-list"
@@ -209,7 +216,7 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
         offsetTop={offsetTop}
         live={running}
         showProgress={running}
-        components={{ Item }}
+        components={chatVirtuosoComponents}
         animation={false}
         itemSearchText={messageSearchText}
       />

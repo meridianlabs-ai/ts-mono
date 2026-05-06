@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   ExtendedFindProvider,
+  FindTargetProvider,
   JSONPanel,
   LoadingBar,
   TabPanel,
@@ -363,35 +364,37 @@ export const ScannerResultPanel: FC = () => {
 
       {selectedResult && (
         <ExtendedFindProvider>
-          <div
-            className={clsx(
-              styles.contentArea,
-              !validationSidebarCollapsed && styles.withValidation
-            )}
-          >
-            {validationSidebarCollapsed || !selectedResult.transcriptId ? (
-              <div className={styles.tabSetWrapper}>
-                {renderTabSet(selectedResult)}
-              </div>
-            ) : (
-              <VscodeSplitLayout
-                className={styles.splitLayout}
-                fixedPane="end"
-                initialHandlePosition="80%"
-                minEnd="180px"
-                minStart="200px"
-              >
-                <div slot="start" className={styles.splitStart}>
+          <FindTargetProvider>
+            <div
+              className={clsx(
+                styles.contentArea,
+                !validationSidebarCollapsed && styles.withValidation
+              )}
+            >
+              {validationSidebarCollapsed || !selectedResult.transcriptId ? (
+                <div className={styles.tabSetWrapper}>
                   {renderTabSet(selectedResult)}
                 </div>
-                <div slot="end" className={styles.validationSidebar}>
-                  <ValidationCaseEditor
-                    transcriptId={selectedResult.transcriptId}
-                  />
-                </div>
-              </VscodeSplitLayout>
-            )}
-          </div>
+              ) : (
+                <VscodeSplitLayout
+                  className={styles.splitLayout}
+                  fixedPane="end"
+                  initialHandlePosition="80%"
+                  minEnd="180px"
+                  minStart="200px"
+                >
+                  <div slot="start" className={styles.splitStart}>
+                    {renderTabSet(selectedResult)}
+                  </div>
+                  <div slot="end" className={styles.validationSidebar}>
+                    <ValidationCaseEditor
+                      transcriptId={selectedResult.transcriptId}
+                    />
+                  </div>
+                </VscodeSplitLayout>
+              )}
+            </div>
+          </FindTargetProvider>
         </ExtendedFindProvider>
       )}
     </div>

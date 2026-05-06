@@ -62,7 +62,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       <span
         className={clsx(
           "findBand-match-count",
-          noResults && matchCount === 0 && "findBand-no-results"
+          noResults && "findBand-no-results"
         )}
         style={{ visibility: showStatus ? "visible" : "hidden" }}
       >
