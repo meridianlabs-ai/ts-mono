@@ -64,7 +64,19 @@ export default defineConfig(({ mode }) => {
           formats: ["es"],
         },
         rollupOptions: {
-          external: ["react", "react-dom", "@tanstack/react-query"],
+          // Externalize as regex so subpath imports like `react/jsx-runtime`
+          // are also externalized. Without this, Rolldown bundles the CJS
+          // versions and emits runtime `__require("react")` calls that
+          // throw in browsers.
+          //
+          // mathjax is heavy and registers globals; keep it external so the
+          // consumer installs/dedupes it once instead of each viewer
+          // shipping its own copy.
+          external: (id: string) =>
+            /^(react|react-dom|@tanstack\/react-query)(\/|$)/.test(id) ||
+            id === "mathjax-full" ||
+            id.startsWith("mathjax-full/") ||
+            id === "markdown-it-mathjax3",
           output: {
             globals: {
               react: "React",
