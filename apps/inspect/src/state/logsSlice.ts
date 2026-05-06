@@ -110,8 +110,15 @@ export const createLogsSlice = (
     logsActions: {
       setLogDir: (logDir?: string) => {
         set((state) => {
-          if (logDir !== state.logs.logDir) {
-            state.logs.logDir = logDir;
+          const prev = state.logs.logDir;
+          if (logDir === prev) return;
+          state.logs.logDir = logDir;
+          // Only wipe on real dir-to-dir transitions. undefined/"" are
+          // initialization signals (two competing sources race during load
+          // and rehydration) — wiping then would clobber the persisted sort.
+          const realPrev = prev !== undefined && prev !== "";
+          const realNew = logDir !== undefined && logDir !== "";
+          if (realPrev && realNew) {
             state.logs.samplesListState.byScope.samplesPanel.gridState =
               undefined;
             // SampleList: keep columns + multiline (general preferences);
