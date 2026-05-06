@@ -284,8 +284,22 @@ export const SamplesGrid = <TRow,>(
     return { ...initialState, columnVisibility: { hiddenColIds } };
   }, [initialState, columnVisibility]);
 
+  // Only forward column/sort/filter changes. Transient sources like
+  // `focusedCell` fire on mousedown; round-tripping that through the store
+  // re-renders the grid mid-click, leaving the trailing `click` event
+  // pointed at a stale row and suppressing `onRowClicked` entirely.
   const handleStateUpdated = useCallback(
     (e: StateUpdatedEvent<TRow>) => {
+      const persistable = e.sources.some(
+        (s) =>
+          s === "columnVisibility" ||
+          s === "columnOrder" ||
+          s === "columnPinning" ||
+          s === "columnSizing" ||
+          s === "sort" ||
+          s === "filter"
+      );
+      if (!persistable) return;
       onStateUpdated?.(e.state);
     },
     [onStateUpdated]
