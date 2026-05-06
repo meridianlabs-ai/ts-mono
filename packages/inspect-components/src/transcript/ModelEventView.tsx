@@ -22,7 +22,6 @@ import { formatTime } from "@tsmono/util";
 import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
-import { EventTimingPanel } from "./event/EventTimingPanel";
 import { RetryChip } from "./event/RetryChip";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
@@ -219,19 +218,17 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             </EventSection>
           )}
 
-          <EventSection title="Usage" className={styles.tableSelection}>
+          <EventSection title="Usage">
             {event.output.usage ? (
-              <ModelUsagePanel usage={event.output.usage} />
+              <ModelUsagePanel
+                usage={event.output.usage}
+                timing={{
+                  timestamp: event.timestamp,
+                  completed: event.completed,
+                  working_time: event.working_time,
+                }}
+              />
             ) : undefined}
-          </EventSection>
-
-          <EventSection title="Timing" className={styles.tableSelection}>
-            <EventTimingPanel
-              timestamp={event.timestamp}
-              completed={event.completed}
-              working_start={event.working_start}
-              working_time={event.working_time}
-            />
           </EventSection>
         </div>
 
