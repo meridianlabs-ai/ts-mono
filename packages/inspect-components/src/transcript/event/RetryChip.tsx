@@ -2,7 +2,9 @@ import clsx from "clsx";
 import { FC, useEffect, useState } from "react";
 
 import type { ModelEvent } from "@tsmono/inspect-common/types";
+import { formatTime } from "@tsmono/util";
 
+import { attemptDurationSec } from "./attemptDuration";
 import styles from "./RetryChip.module.css";
 import { summarizeModelError } from "./summarizeModelError";
 
@@ -54,7 +56,6 @@ export const RetryChip: FC<RetryChipProps> = ({
         type="button"
         className={clsx(styles.chip, open && styles.chipOpen)}
         title={`${chipText} — click to view`}
-        aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -71,7 +72,7 @@ export const RetryChip: FC<RetryChipProps> = ({
       {open && (
         <>
           <div className={styles.backdrop} onClick={() => setOpen(false)} />
-          <div className={styles.menu} role="menu">
+          <div className={styles.menu}>
             {attempts.map((attempt, idx) => {
               const key = keyOf(attempt);
               const isCurrent = idx === attempts.length - 1;
@@ -83,7 +84,6 @@ export const RetryChip: FC<RetryChipProps> = ({
                 <button
                   key={key}
                   type="button"
-                  role="menuitem"
                   className={clsx(
                     styles.item,
                     selectedKey === key && styles.itemActive
@@ -106,17 +106,6 @@ export const RetryChip: FC<RetryChipProps> = ({
 };
 
 function formatAttemptDuration(event: ModelEvent): string | null {
-  const explicit = event.output?.time ?? event.working_time;
-  if (typeof explicit === "number" && !Number.isNaN(explicit)) {
-    return `${Math.round(explicit)}s`;
-  }
-  if (event.timestamp && event.completed) {
-    const start = new Date(event.timestamp).getTime();
-    const end = new Date(event.completed).getTime();
-    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-      const sec = Math.round((end - start) / 1000);
-      return `${sec}s`;
-    }
-  }
-  return null;
+  const sec = attemptDurationSec(event);
+  return sec != null ? formatTime(sec) : null;
 }

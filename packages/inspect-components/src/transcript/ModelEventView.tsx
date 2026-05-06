@@ -19,6 +19,7 @@ import {
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
+import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { EventTimingPanel } from "./event/EventTimingPanel";
@@ -265,18 +266,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 };
 
 function formatFailureTime(event: ModelEvent): string {
-  const explicit = event.output?.time ?? event.working_time;
-  if (typeof explicit === "number" && !Number.isNaN(explicit)) {
-    return ` · ${formatTime(explicit)}`;
-  }
-  if (event.timestamp && event.completed) {
-    const start = new Date(event.timestamp).getTime();
-    const end = new Date(event.completed).getTime();
-    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-      return ` · ${formatTime((end - start) / 1000)}`;
-    }
-  }
-  return "";
+  const sec = attemptDurationSec(event);
+  return sec != null ? ` · ${formatTime(sec)}` : "";
 }
 
 interface APIViewProps {
