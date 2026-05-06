@@ -49,6 +49,7 @@ import {
   kSampleRetriesTabId,
   kSampleScoringTabId,
   kSampleTranscriptTabId,
+  kSampleUsageTabId,
 } from "../../constants";
 import {
   useDocumentTitle,
@@ -240,6 +241,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
+  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, scrollRef, sample);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
     scrollRef,
@@ -659,6 +661,25 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   scrollRef={scrollRef}
                 />
               </TabPanel>
+              {sampleUsages.length > 0 ? (
+                <TabPanel
+                  id={kSampleUsageTabId}
+                  className={clsx("sample-tab")}
+                  title="Usage"
+                  onSelected={onSelectedTab}
+                  selected={effectiveSelectedTab === kSampleUsageTabId}
+                >
+                  <div
+                    className={clsx(
+                      styles.padded,
+                      styles.fullWidth,
+                      styles.metadataPanel
+                    )}
+                  >
+                    {sampleUsages}
+                  </div>
+                </TabPanel>
+              ) : null}
               <TabPanel
                 id={kSampleMetdataTabId}
                 className={clsx("sample-tab")}
@@ -752,6 +773,55 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
+const usageViewsForSample = (
+  id: string,
+  scrollRef: RefObject<HTMLDivElement | null>,
+  sample?: EvalSample
+) => {
+  if (!sample) return [];
+  const views = [];
+
+  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
+    views.push(
+      <Card key={`sample-usage-${id}`}>
+        <CardHeader label="Usage" />
+        <CardBody>
+          <ModelTokenTable
+            model_usage={sample.model_usage}
+            className={clsx(styles.noTop)}
+          />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  if (
+    sample.total_time !== undefined &&
+    sample.total_time !== null &&
+    sample.working_time !== undefined &&
+    sample.working_time !== null
+  ) {
+    views.push(
+      <Card key={`sample-time-${id}`}>
+        <CardHeader label="Time" />
+        <CardBody padded={false}>
+          <RecordTree
+            id={`task-sample-time-${id}`}
+            record={{
+              Working: formatTime(sample.working_time),
+              Total: formatTime(sample.total_time),
+            }}
+            className={clsx("tab-pane", styles.noTop)}
+            scrollRef={scrollRef}
+          />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  return views;
+};
+
 const metadataViewsForSample = (
   id: string,
   scrollRef: RefObject<HTMLDivElement | null>,
@@ -798,44 +868,6 @@ const metadataViewsForSample = (
           <RecordTree
             id={`task-sample-invalidation-${id}`}
             record={invalidationRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-          />
-        </CardBody>
-      </Card>
-    );
-  }
-
-  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-usage-${id}`}>
-        <CardHeader label="Usage" />
-        <CardBody>
-          <ModelTokenTable
-            model_usage={sample.model_usage}
-            className={clsx(styles.noTop)}
-          />
-        </CardBody>
-      </Card>
-    );
-  }
-
-  if (
-    sample.total_time !== undefined &&
-    sample.total_time !== null &&
-    sample.working_time !== undefined &&
-    sample.working_time !== null
-  ) {
-    sampleMetadatas.push(
-      <Card key={`sample-time-${id}`}>
-        <CardHeader label="Time" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-time-${id}`}
-            record={{
-              Working: formatTime(sample.working_time),
-              Total: formatTime(sample.total_time),
-            }}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
           />

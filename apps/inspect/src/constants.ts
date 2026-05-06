@@ -23,6 +23,7 @@ export const kSampleMessagesTabId = `messages`;
 export const kSampleTranscriptTabId = `transcript`;
 export const kSampleScoringTabId = `scoring`;
 export const kSampleMetdataTabId = `metadata`;
+export const kSampleUsageTabId = `usage`;
 export const kSampleErrorTabId = `error`;
 export const kSampleRetriesTabId = `retries`;
 export const kSampleErrorRetriesTabId = `retry-errors`;
@@ -32,6 +33,7 @@ export const kSampleTabIds = [
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
   kSampleScoringTabId,
+  kSampleUsageTabId,
   kSampleMetdataTabId,
   kSampleErrorTabId,
   kSampleRetriesTabId,
