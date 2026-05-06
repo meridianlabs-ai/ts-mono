@@ -26,6 +26,7 @@ function model(
     inputLen?: number;
     tools?: string[];
     toolChoice?: ModelEvent["tool_choice"];
+    uuid?: string | null;
   }
 ): ModelEvent {
   const inputLen = options?.inputLen ?? 0;
@@ -45,6 +46,7 @@ function model(
     span_id: options?.spanId === undefined ? null : options.spanId,
     timestamp,
     working_start: 0,
+    uuid: options?.uuid ?? null,
   } as unknown as ModelEvent;
 }
 
@@ -223,6 +225,71 @@ describe("groupRetryAttempts", () => {
     expect(out.attempts.get(retryAttemptKey(successB))).toEqual([
       failedB,
       successB,
+    ]);
+  });
+});
+
+describe("retryAttemptKey", () => {
+  it("uses uuid when present", () => {
+    const e = model("2025-01-01T00:00:00.000Z", { uuid: "abc-123" });
+    expect(retryAttemptKey(e)).toBe("uuid:abc-123");
+  });
+
+  it("falls back to span_id + parsed epoch when uuid is missing", () => {
+    const e = model("2025-01-01T00:00:00.000Z", { spanId: "S" });
+    expect(retryAttemptKey(e)).toBe(`ts:S:${Date.parse("2025-01-01T00:00:00.000Z")}`);
+  });
+
+  it("returns equal keys for equivalent timestamps in different formats (no uuid)", () => {
+    const z = model("2025-01-01T00:00:01.000Z", { spanId: "S" });
+    const offset = model("2025-01-01T00:00:01.000+00:00", { spanId: "S" });
+    expect(retryAttemptKey(z)).toBe(retryAttemptKey(offset));
+  });
+
+  it("returns distinct keys for same-timestamp same-span events with different uuids", () => {
+    const a = model("2025-01-01T00:00:00.000Z", {
+      spanId: "S",
+      uuid: "id-a",
+    });
+    const b = model("2025-01-01T00:00:00.000Z", {
+      spanId: "S",
+      uuid: "id-b",
+    });
+    expect(retryAttemptKey(a)).not.toBe(retryAttemptKey(b));
+  });
+
+  it("preserves timestamp string when unparseable (pathological fallback)", () => {
+    const e = model("not-a-real-timestamp", { spanId: "S" });
+    expect(retryAttemptKey(e)).toBe("ts:S:not-a-real-timestamp");
+  });
+});
+
+describe("groupRetryAttempts (uuid keying)", () => {
+  it("keys the attempts map by uuid when the success event has one", () => {
+    const failed = model("2025-01-01T00:00:00.000Z", {
+      error: "transient",
+      uuid: "fail-1",
+    });
+    const success = model("2025-01-01T00:00:01.000Z", { uuid: "ok-1" });
+    const events: Event[] = [failed, success];
+    const out = groupRetryAttempts(events);
+    expect(out.attempts.get("uuid:ok-1")).toEqual([failed, success]);
+    // Lookup by retryAttemptKey on the success event still resolves.
+    expect(out.attempts.get(retryAttemptKey(success))).toEqual([
+      failed,
+      success,
+    ]);
+  });
+
+  it("groups correctly when neither attempt has a uuid (legacy log)", () => {
+    const failed = model("2025-01-01T00:00:00.000Z", { error: "transient" });
+    const success = model("2025-01-01T00:00:01.000Z");
+    const events: Event[] = [failed, success];
+    const out = groupRetryAttempts(events);
+    expect(out.events).toEqual([success]);
+    expect(out.attempts.get(retryAttemptKey(success))).toEqual([
+      failed,
+      success,
     ]);
   });
 });

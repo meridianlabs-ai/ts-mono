@@ -29,8 +29,12 @@ import type {
   ToolChoice,
 } from "@tsmono/inspect-common/types";
 
-export const retryAttemptKey = (event: ModelEvent): string =>
-  `${event.span_id ?? ""}:${event.timestamp}`;
+export const retryAttemptKey = (event: ModelEvent): string => {
+  if (event.uuid) return `uuid:${event.uuid}`;
+  const epoch = Date.parse(event.timestamp);
+  const tsPart = Number.isNaN(epoch) ? event.timestamp : String(epoch);
+  return `ts:${event.span_id ?? ""}:${tsPart}`;
+};
 
 export interface RetryGroupingResult {
   events: Event[];

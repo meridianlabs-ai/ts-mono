@@ -20,19 +20,19 @@ import type { Event } from "@tsmono/inspect-common/types";
 
 const EPSILON_MS = 1;
 
-function bumpAfter(iso: string): string {
-  const t = new Date(iso).getTime();
-  return new Date(t + EPSILON_MS).toISOString();
-}
-
 /**
  * Return `events` with retry-inverted ModelEvent timestamps repaired.
  *
  * Returns the input array reference unchanged when no inversion is
  * detected, so callers can safely memoize on the result.
+ *
+ * Comparisons are done in parsed epoch milliseconds so mixed input
+ * formats (the backend emits `+00:00`; corrected outputs use `Z`) sort
+ * correctly. The output timestamp is always normalized to ISO-Z via
+ * `new Date(epoch).toISOString()`.
  */
 export function correctRetryTimestamps(events: Event[]): Event[] {
-  const lastModelTs = new Map<string | null, string>();
+  const lastModelTs = new Map<string | null, number>();
   let result: Event[] | null = null;
 
   for (let i = 0; i < events.length; i++) {
@@ -40,15 +40,19 @@ export function correctRetryTimestamps(events: Event[]): Event[] {
     if (e.event !== "model") continue;
     if (!e.timestamp) continue;
 
+    const epoch = Date.parse(e.timestamp);
+    if (Number.isNaN(epoch)) continue;
+
     const key = e.span_id ?? null;
     const prev = lastModelTs.get(key);
-    if (prev != null && e.timestamp < prev) {
-      const corrected = bumpAfter(prev);
+    if (prev != null && epoch < prev) {
+      const correctedEpoch = prev + EPSILON_MS;
+      const correctedIso = new Date(correctedEpoch).toISOString();
       if (!result) result = events.slice();
-      result[i] = { ...e, timestamp: corrected };
-      lastModelTs.set(key, corrected);
+      result[i] = { ...e, timestamp: correctedIso };
+      lastModelTs.set(key, correctedEpoch);
     } else {
-      lastModelTs.set(key, e.timestamp);
+      lastModelTs.set(key, epoch);
     }
   }
 
