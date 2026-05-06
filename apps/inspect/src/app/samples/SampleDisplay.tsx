@@ -939,14 +939,14 @@ const usageViewsForSample = (
         <CardHeader label="Time" />
         <CardBody>
           <div className={styles.timingItems}>
-            <div>
+            <div className={styles.timingItem}>
               <span className={styles.timingLabel}>Working time</span>
               <span className={styles.timingBig}>
                 {workDur.value} <small>{workDur.unit}</small>
               </span>
             </div>
             {totalDur && (
-              <div>
+              <div className={styles.timingItem}>
                 <span className={styles.timingLabel}>Total time</span>
                 <span className={styles.timingBig}>
                   {totalDur.value} <small>{totalDur.unit}</small>
@@ -954,7 +954,7 @@ const usageViewsForSample = (
               </div>
             )}
             {hasClock && (
-              <div>
+              <div className={styles.timingItem}>
                 <span className={styles.timingLabel}>Window</span>
                 <div className={styles.timingClockStack}>
                   <span className={styles.timingClockVal}>
