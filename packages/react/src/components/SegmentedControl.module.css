@@ -10,6 +10,7 @@
 .segment.selected {
   background-color: var(--bs-secondary-bg);
   border-radius: var(--bs-border-radius);
+  color: var(--bs-emphasis-color);
 }
 
 button.segment {
