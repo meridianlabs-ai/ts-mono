@@ -55,7 +55,6 @@
 
 .outline {
   padding-left: 0.6rem;
-  padding-top: 0.2rem;
   /* Prevent stretching to the full grid-row height so that
      position:sticky has room to travel within the cell. */
   align-self: start;
@@ -181,13 +180,16 @@
   margin-right: -1.2rem;
 }
 
+/* Center the close icon vertically with the rootHeader title that follows
+   in the scroll content. The title (text-size-smaller) sits at the top of
+   that content; this offset aligns the icon's visual center with the title's. */
 .sidebarHeaderClose {
   all: unset;
   cursor: pointer;
   font-size: 0.9em;
   padding: 0.2rem 0.4rem;
   position: absolute;
-  top: 0;
+  top: -0.25em;
   right: 0;
   background-color: var(--bs-body-bg);
 }
