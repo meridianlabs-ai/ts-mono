@@ -63,6 +63,8 @@ interface TimelineEventsViewProps {
   linkingEnabled?: boolean;
   /** Per-message labels rendered in model-call message gutters. */
   messageLabels?: Record<string, string>;
+  /** Per-event labels rendered beside transcript event rows. */
+  eventLabels?: Record<string, string>;
   className?: string;
 }
 
@@ -89,6 +91,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   getEventUrl,
   linkingEnabled,
   messageLabels,
+  eventLabels,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -199,11 +202,20 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   }, [scrollRef]);
 
   const eventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(
-    () =>
-      messageLabels && Object.keys(messageLabels).length > 0
-        ? { messageLabels }
-        : undefined,
-    [messageLabels]
+    () => {
+      const hasMessageLabels =
+        messageLabels && Object.keys(messageLabels).length > 0;
+      const hasEventLabels =
+        eventLabels && Object.keys(eventLabels).length > 0;
+
+      if (!hasMessageLabels && !hasEventLabels) return undefined;
+
+      return {
+        ...(hasMessageLabels ? { messageLabels } : {}),
+        ...(hasEventLabels ? { eventLabels } : {}),
+      };
+    },
+    [messageLabels, eventLabels]
   );
 
   // ---------------------------------------------------------------------------

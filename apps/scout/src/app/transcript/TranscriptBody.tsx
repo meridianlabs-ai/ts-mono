@@ -41,7 +41,7 @@ import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
-import { useSearchMessageLabels } from "./hooks/useSearchMessageLabels";
+import { useSearchReferenceLabels } from "./hooks/useSearchReferenceLabels";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
@@ -125,7 +125,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         ? "events"
         : undefined;
 
-  const eventsMessageLabels = useSearchMessageLabels({
+  const eventsReferenceLabels = useSearchReferenceLabels({
     scope: "events",
     transcriptDir: resolvedTranscriptsDir,
     transcriptId: transcript.transcript_id,
@@ -459,7 +459,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           onHeadroomResetAnchor={onHeadroomResetAnchor}
           getEventUrl={getFullEventUrl}
           linkingEnabled={isHostedEnvironment()}
-          messageLabels={eventsMessageLabels}
+          messageLabels={eventsReferenceLabels?.messageLabels}
+          eventLabels={eventsReferenceLabels?.eventLabels}
         />,
         "events"
       )}

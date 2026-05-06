@@ -61,6 +61,8 @@ export const useTranscriptNavigation = () => {
     [transcriptsDir, transcriptId, searchParams]
   );
 
+  // TODO: seems like these "full" urls don't work in vscode
+  // is this a foot gun? an existing bug?
   const getFullEventUrl = useCallback(
     (eventId: string): string | undefined => {
       const route = getEventUrl(eventId);

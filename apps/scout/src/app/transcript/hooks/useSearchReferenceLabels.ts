@@ -7,17 +7,22 @@ import {
 } from "../searchPanelState";
 import type { TranscriptSearchScope } from "../searchRequest";
 
-type UseSearchMessageLabelsOptions = {
+type UseSearchReferenceLabelsOptions = {
   scope: TranscriptSearchScope;
   transcriptDir: string | null | undefined;
   transcriptId: string;
 };
 
-export const useSearchMessageLabels = ({
+export type SearchReferenceLabels = {
+  messageLabels?: Record<string, string>;
+  eventLabels?: Record<string, string>;
+};
+
+export const useSearchReferenceLabels = ({
   scope,
   transcriptDir,
   transcriptId,
-}: UseSearchMessageLabelsOptions): Record<string, string> | undefined => {
+}: UseSearchReferenceLabelsOptions): SearchReferenceLabels | undefined => {
   const searchPanelStateKey = useMemo(
     () =>
       transcriptDir
@@ -46,18 +51,26 @@ export const useSearchMessageLabels = ({
     return activeSearch.hasSearched ? activeSearch.currentSearch : null;
   }, [searchPanelState]);
 
-  const messageLabels = useMemo(() => {
-    const map: Record<string, string> = {};
+  const referenceLabels = useMemo(() => {
+    const messageLabels: Record<string, string> = {};
+    const eventLabels: Record<string, string> = {};
     for (const ref of searchResult?.references ?? []) {
       if (ref.type === "message" && ref.cite) {
-        map[ref.id] = ref.cite;
+        messageLabels[ref.id] = ref.cite;
+      } else if (ref.type === "event" && ref.cite) {
+        eventLabels[ref.id] = ref.cite;
       }
     }
-    return map;
+
+    const hasMessageLabels = Object.keys(messageLabels).length > 0;
+    const hasEventLabels = Object.keys(eventLabels).length > 0;
+    if (!hasMessageLabels && !hasEventLabels) return undefined;
+
+    return {
+      ...(hasMessageLabels ? { messageLabels } : {}),
+      ...(hasEventLabels ? { eventLabels } : {}),
+    };
   }, [searchResult]);
 
-  return useMemo(
-    () => (Object.keys(messageLabels).length > 0 ? messageLabels : undefined),
-    [messageLabels]
-  );
+  return referenceLabels;
 };

@@ -14,6 +14,7 @@ import { VirtuosoHandle } from "react-virtuoso";
 
 import { LiveVirtualList } from "@tsmono/react/components";
 
+import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
@@ -129,6 +130,8 @@ export const TranscriptVirtualListComponent: FC<
     return map;
   }, [eventNodes, hasToolEventsAtCurrentDepth, turnMap, eventNodeContext]);
 
+  const eventLabels = eventNodeContext?.eventLabels;
+
   const renderRow = useCallback(
     (index: number, item: EventNode, style?: CSSProperties) => {
       const paddingClass = index === 0 ? styles.first : undefined;
@@ -156,6 +159,23 @@ export const TranscriptVirtualListComponent: FC<
 
       const context = contextMap.get(item.id);
       const isLast = index === eventNodes.length - 1;
+      const renderedNode = (
+        <EventLabelContext.Provider value={eventLabels?.[item.id]}>
+          <RenderedEventNode
+            node={item}
+            next={next}
+            className={clsx(
+              attachedParentClass,
+              attachedChildClass,
+              depthRootClass
+            )}
+            context={context}
+            onAutoCollapse={onAutoCollapse}
+            renderAgentCard={renderAgentCard}
+            eventCallbacks={eventCallbacks}
+          />
+        </EventLabelContext.Provider>
+      );
 
       return (
         <div
@@ -173,23 +193,18 @@ export const TranscriptVirtualListComponent: FC<
             paddingRight: `${item.depth === 0 ? undefined : ".7em"} `,
           }}
         >
-          <RenderedEventNode
-            node={item}
-            next={next}
-            className={clsx(
-              attachedParentClass,
-              attachedChildClass,
-              depthRootClass
-            )}
-            context={context}
-            onAutoCollapse={onAutoCollapse}
-            renderAgentCard={renderAgentCard}
-            eventCallbacks={eventCallbacks}
-          />
+          {renderedNode}
         </div>
       );
     },
-    [eventNodes, contextMap, onAutoCollapse, renderAgentCard, eventCallbacks]
+    [
+      eventNodes,
+      contextMap,
+      onAutoCollapse,
+      renderAgentCard,
+      eventCallbacks,
+      eventLabels,
+    ]
   );
 
   if (useVirtualization) {

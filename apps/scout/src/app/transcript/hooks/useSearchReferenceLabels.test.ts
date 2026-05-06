@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 import { createTestWrapperWithStore } from "../../../test/test-utils";
 import type { Reference, Result } from "../../../types/api-types";
 import { getSearchPanelStateKey } from "../searchPanelState";
+import type { SearchType } from "../searchRequest";
 
-import { useSearchMessageLabels } from "./useSearchMessageLabels";
+import { useSearchReferenceLabels } from "./useSearchReferenceLabels";
 
 const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
@@ -14,8 +15,9 @@ const transcriptId = "sample-transcript";
 const seedSearchResult = (
   store: ReturnType<typeof createTestWrapperWithStore>["store"],
   result: Result,
-  overrides?: { hasSearched?: boolean }
+  overrides?: { hasSearched?: boolean; searchType?: SearchType }
 ) => {
+  const searchType = overrides?.searchType ?? "llm";
   const key = getSearchPanelStateKey({
     scope: "events",
     transcriptDir,
@@ -24,11 +26,11 @@ const seedSearchResult = (
   act(() => {
     store.getState().setSearchPanelState(key, (prev) => ({
       ...prev,
-      searchType: "llm",
+      searchType,
       searches: {
         ...prev.searches,
-        llm: {
-          ...prev.searches.llm,
+        [searchType]: {
+          ...prev.searches[searchType],
           currentSearch: result,
           hasSearched: overrides?.hasSearched ?? true,
         },
@@ -42,7 +44,7 @@ const buildReferences = (refs: Reference[]): Result => ({
   references: refs,
 });
 
-describe("useSearchMessageLabels", () => {
+describe("useSearchReferenceLabels", () => {
   it("returns undefined when transcriptDir is missing (no key, no work)", () => {
     const { wrapper, store } = createTestWrapperWithStore();
     seedSearchResult(
@@ -52,7 +54,7 @@ describe("useSearchMessageLabels", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "events",
           transcriptDir: undefined,
           transcriptId,
@@ -73,7 +75,7 @@ describe("useSearchMessageLabels", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -96,7 +98,7 @@ describe("useSearchMessageLabels", () => {
 
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -104,23 +106,100 @@ describe("useSearchMessageLabels", () => {
       { wrapper }
     );
 
-    expect(result.current).toEqual({ "msg-1": "[1]", "msg-2": "[2]" });
+    expect(result.current).toEqual({
+      messageLabels: { "msg-1": "[1]", "msg-2": "[2]" },
+    });
   });
 
-  it("filters out event references and refs missing a cite", () => {
+  it("returns labels for event references with a cite", () => {
+    const { wrapper, store } = createTestWrapperWithStore();
+    seedSearchResult(
+      store,
+      buildReferences([
+        { id: "evt-1", type: "event", cite: "[E1]" },
+        { id: "evt-2", type: "event", cite: "[E2]" },
+      ])
+    );
+
+    const { result } = renderHook(
+      () =>
+        useSearchReferenceLabels({
+          scope: "events",
+          transcriptDir,
+          transcriptId,
+        }),
+      { wrapper }
+    );
+
+    expect(result.current).toEqual({
+      eventLabels: { "evt-1": "[E1]", "evt-2": "[E2]" },
+    });
+  });
+
+  it("reads labels from the active grep search", () => {
+    const { wrapper, store } = createTestWrapperWithStore();
+    seedSearchResult(
+      store,
+      buildReferences([{ id: "evt-1", type: "event", cite: "[E1]" }]),
+      { searchType: "grep" }
+    );
+
+    const { result } = renderHook(
+      () =>
+        useSearchReferenceLabels({
+          scope: "events",
+          transcriptDir,
+          transcriptId,
+        }),
+      { wrapper }
+    );
+
+    expect(result.current).toEqual({
+      eventLabels: { "evt-1": "[E1]" },
+    });
+  });
+
+  it("returns message and event labels together", () => {
+    const { wrapper, store } = createTestWrapperWithStore();
+    seedSearchResult(
+      store,
+      buildReferences([
+        { id: "msg-1", type: "message", cite: "[M1]" },
+        { id: "evt-1", type: "event", cite: "[E1]" },
+      ])
+    );
+
+    const { result } = renderHook(
+      () =>
+        useSearchReferenceLabels({
+          scope: "events",
+          transcriptDir,
+          transcriptId,
+        }),
+      { wrapper }
+    );
+
+    expect(result.current).toEqual({
+      messageLabels: { "msg-1": "[M1]" },
+      eventLabels: { "evt-1": "[E1]" },
+    });
+  });
+
+  it("filters out refs missing a cite", () => {
     const { wrapper, store } = createTestWrapperWithStore();
     seedSearchResult(
       store,
       buildReferences([
         { id: "msg-1", type: "message", cite: "[1]" },
         { id: "msg-2", type: "message" },
-        { id: "evt-1", type: "event", cite: "[ignored]" },
+        { id: "evt-1", type: "event", cite: "[E1]" },
+        { id: "evt-2", type: "event" },
       ])
     );
 
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -128,19 +207,25 @@ describe("useSearchMessageLabels", () => {
       { wrapper }
     );
 
-    expect(result.current).toEqual({ "msg-1": "[1]" });
+    expect(result.current).toEqual({
+      messageLabels: { "msg-1": "[1]" },
+      eventLabels: { "evt-1": "[E1]" },
+    });
   });
 
-  it("returns undefined when the result has no message references", () => {
+  it("returns undefined when the result has no labeled references", () => {
     const { wrapper, store } = createTestWrapperWithStore();
     seedSearchResult(
       store,
-      buildReferences([{ id: "evt-1", type: "event", cite: "[1]" }])
+      buildReferences([
+        { id: "msg-1", type: "message" },
+        { id: "evt-1", type: "event" },
+      ])
     );
 
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "events",
           transcriptDir,
           transcriptId,
@@ -162,7 +247,7 @@ describe("useSearchMessageLabels", () => {
     // The messages-scope hook reads a different key — should see no labels.
     const { result } = renderHook(
       () =>
-        useSearchMessageLabels({
+        useSearchReferenceLabels({
           scope: "messages",
           transcriptDir,
           transcriptId,
