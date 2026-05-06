@@ -13,6 +13,10 @@ interface ScoreValueDisplayProps {
   /** Pixel diameter for grade / bool circles. Plain text scales with
    *  the surrounding font size and ignores this. */
   size?: number;
+  /** Optional CSS color expression resolved from the eval-author's
+   *  `score_color_scales`. When set on the chip variant, paints the
+   *  mini-pill background instead of the tone-derived class. */
+  bgColor?: string;
 }
 
 /**
@@ -98,15 +102,23 @@ export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
   value,
   scoreType,
   size = 16,
+  bgColor,
 }) => {
   if (isCircleScoreType(scoreType, value)) {
     return <CircleValue value={value} scoreType={scoreType} size={size} />;
   }
   const tone = scoreTone(value, scoreType);
   const formatted = formatPlainValue(value);
+  // A configured `bgColor` wins over the tone-derived class so the
+  // pill matches the chip border. Fall through to the tone class when
+  // no scale is configured for this score.
+  const pillStyle: CSSProperties | undefined = bgColor
+    ? { backgroundColor: bgColor }
+    : undefined;
   return (
     <span
-      className={clsx(styles.miniPill, toneMiniPillClass(tone))}
+      className={clsx(styles.miniPill, !bgColor && toneMiniPillClass(tone))}
+      style={pillStyle}
       title={formatted}
     >
       {formatted}

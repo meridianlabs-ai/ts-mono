@@ -6,6 +6,7 @@ import { ToolDropdownButton } from "@tsmono/react/components";
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
+import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
 import {
   resolveScorePanelSort,
   resolveScorePanelView,
@@ -14,7 +15,15 @@ import {
   useScorePanelSort,
   useScorePanelView,
 } from "../../../state/hooks";
+import {
+  colorForValue,
+  resolveScale,
+} from "../../shared/samples-grid/colorScale";
 import { EvalDescriptor } from "../descriptor/types";
+import {
+  useSamplesViewColorScalesEnabled,
+  useSamplesViewScoreColorScales,
+} from "../list/useSamplesView";
 
 import styles from "./ScorePanel.module.css";
 import { scoreTone, Tone } from "./scoreTone";
@@ -37,6 +46,9 @@ interface RenderedScore {
    *  heatmap border so the highest displayed value reads darkest and
    *  the lowest reads lightest. */
   numericIntensity?: number;
+  /** CSS color from `score_color_scales` — paints both the chip
+   *  border and the inner mini-pill background. */
+  bgColor?: string;
 }
 
 const TONE_RANK: Record<Tone, number> = {
@@ -58,16 +70,41 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   sample,
   evalDescriptor,
 }) => {
+  const wireScoreColorScales = useSamplesViewScoreColorScales();
+  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+
   const renderedScores = useMemo<RenderedScore[]>(() => {
     const initial = scores.map((label) => {
       const selected = evalDescriptor.score(sample, label);
       const descriptor = evalDescriptor.scoreDescriptor(label);
+      // Pass/fail and boolean already render via semantic tones; opting
+      // them into a configured color scale would clash with the
+      // chipFail / chipWarn border. Match the grid's exclusion at
+      // columns.tsx:559-560.
+      const acceptsColorScale =
+        colorScalesEnabled &&
+        descriptor.scoreType !== kScoreTypePassFail &&
+        descriptor.scoreType !== kScoreTypeBoolean;
+      let bgColor: string | undefined;
+      if (acceptsColorScale) {
+        const wire = wireScoreColorScales[label.name];
+        if (wire) {
+          const resolved = resolveScale(wire, {
+            min: descriptor.min,
+            max: descriptor.max,
+          });
+          if (resolved) {
+            bgColor = colorForValue(resolved, selected?.value);
+          }
+        }
+      }
       return {
         label,
         key: `${label.scorer}__${label.name}`,
         value: selected?.value,
         scoreType: descriptor.scoreType,
         tone: scoreTone(selected?.value, descriptor.scoreType),
+        bgColor,
       };
     });
 
@@ -86,7 +123,13 @@ export const ScorePanel: FC<ScorePanelProps> = ({
         numbers.length <= 1 || range === 0 ? 1 : (s.value - min) / range;
       return { ...s, numericIntensity: intensity };
     });
-  }, [scores, sample, evalDescriptor]);
+  }, [
+    scores,
+    sample,
+    evalDescriptor,
+    wireScoreColorScales,
+    colorScalesEnabled,
+  ]);
 
   const count = renderedScores.length;
   const tight = count <= 6;
@@ -191,12 +234,15 @@ interface ScoreChipProps {
 }
 
 const ScoreChip: FC<ScoreChipProps> = ({ score }) => {
-  // Numeric chips with no semantic tone pick up a blue border whose
-  // darkness scales with the chip's value relative to the other
-  // numeric values in the panel. tone-attention chips (fail/warn)
-  // keep their semantic color regardless.
+  // Configured `score_color_scales` win: tint the chip border and the
+  // inner mini-pill with the resolved (subtle) color. Otherwise
+  // numeric neutral chips fall back to a blue border whose darkness
+  // scales with the value relative to the other numeric values in the
+  // panel. tone-attention chips (fail/warn) keep their semantic border.
   let style: CSSProperties | undefined;
-  if (score.tone === "neutral" && score.numericIntensity !== undefined) {
+  if (score.bgColor) {
+    style = { borderColor: score.bgColor };
+  } else if (score.tone === "neutral" && score.numericIntensity !== undefined) {
     const opacity = (0.25 + 0.75 * score.numericIntensity).toFixed(2);
     style = { borderColor: `rgba(var(--bs-primary-rgb), ${opacity})` };
   }
@@ -214,6 +260,7 @@ const ScoreChip: FC<ScoreChipProps> = ({ score }) => {
         value={score.value}
         scoreType={score.scoreType}
         size={16}
+        bgColor={score.bgColor}
       />
       <span className={styles.chipName}>{score.label.name}</span>
     </span>
