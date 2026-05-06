@@ -243,6 +243,22 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   className,
 }) => {
   // ---------------------------------------------------------------------------
+  // Timeline-pipeline events
+  // ---------------------------------------------------------------------------
+
+  // Apply the user's event-type filter to the timeline pipeline so hidden
+  // types don't leave behind empty swimlane rows (e.g. an "init" span whose
+  // only content was a filtered `sample_init`). `anchor` events are always
+  // preserved — they're structural references used by `convertServerTimeline`
+  // to position fork navigators, not display content.
+  const eventsForTimeline = useMemo(() => {
+    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
+    return events.filter(
+      (e) => e.event === "anchor" || !hiddenEventTypes.includes(e.event)
+    );
+  }, [events, hiddenEventTypes]);
+
+  // ---------------------------------------------------------------------------
   // Timeline config (persistent user preferences)
   // ---------------------------------------------------------------------------
 
@@ -251,7 +267,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // explicitly toggled it). `useTimelinesArray` is memoized, so the redundant
   // call inside `useTranscriptTimeline` below reuses the same result.
   const timelinesForBranchDetection = useTimelinesArray(
-    events,
+    eventsForTimeline,
     serverTimelines
   );
   const branchesPresent = useMemo(
@@ -288,7 +304,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     pushView,
     popView,
   } = useTranscriptTimeline({
-    events,
+    events: eventsForTimeline,
     markerConfig: resolvedMarkerConfig,
     timelineOptions: resolvedAgentConfig,
     serverTimelines,
