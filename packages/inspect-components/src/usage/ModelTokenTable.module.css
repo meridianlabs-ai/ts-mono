@@ -56,6 +56,15 @@
   word-break: break-word;
 }
 
+.modelAlias {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--bs-secondary);
+  margin-top: 0.1rem;
+  word-break: break-word;
+}
+
 .modelTotal {
   display: block;
   font-size: 1rem;

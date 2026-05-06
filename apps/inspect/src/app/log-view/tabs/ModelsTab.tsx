@@ -1,10 +1,22 @@
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 
 import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
-import { UsageCard } from "@tsmono/inspect-components/usage";
+import {
+  ModelTokenTable,
+  UsageCard,
+} from "@tsmono/inspect-components/usage";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  SegmentedControl,
+} from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
+import { ModelCard } from "../../plan/ModelCard";
+
+import styles from "./ModelsTab.module.css";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -32,6 +44,8 @@ interface ModelTabProps {
   evalStats?: EvalStats;
   evalStatus?: EvalLogStatus;
 }
+
+type UsageMode = "model" | "role";
 
 export const ModelTab: FC<ModelTabProps> = ({
   evalSpec,
@@ -65,6 +79,34 @@ export const ModelTab: FC<ModelTabProps> = ({
     return Object.keys(configs).length > 0 ? configs : undefined;
   }, [evalSpec]);
 
+  const roleModels = useMemo(() => {
+    if (!evalSpec) return undefined;
+    const roles: Record<string, string> = {};
+    if (evalSpec.model) {
+      roles["eval"] = evalSpec.model;
+    }
+    if (evalSpec.model_roles) {
+      for (const [role, config] of Object.entries(evalSpec.model_roles)) {
+        if (config.model) {
+          roles[role] = config.model;
+        }
+      }
+    }
+    return Object.keys(roles).length > 0 ? roles : undefined;
+  }, [evalSpec]);
+
+  const [usageMode, setUsageMode] = useState<UsageMode>("model");
+
+  const showUsage = evalStatus !== "started";
+  const hasModelUsage =
+    showUsage &&
+    !!evalStats?.model_usage &&
+    Object.keys(evalStats.model_usage).length > 0;
+  const hasRoleUsage =
+    showUsage &&
+    !!evalStats?.role_usage &&
+    Object.keys(evalStats.role_usage).length > 0;
+
   return (
     <div style={{ width: "100%" }}>
       <div
@@ -76,21 +118,57 @@ export const ModelTab: FC<ModelTabProps> = ({
           gap: "0.75rem",
         }}
       >
-        {evalStatus !== "started" &&
-          evalStats?.model_usage &&
-          Object.keys(evalStats.model_usage).length > 0 && (
-            <>
-              <UsageCard
-                label="Model Usage"
-                usage={evalStats.model_usage}
-                model_configs={modelConfigs}
+        {hasModelUsage && hasRoleUsage && evalStats && (
+          <Card>
+            <CardHeader label="Usage" className={styles.usageHeader}>
+              <div className={styles.usageHeaderControl}>
+                <SegmentedControl
+                  segments={[
+                    { id: "model", label: "Model" },
+                    { id: "role", label: "Role" },
+                  ]}
+                  selectedId={usageMode}
+                  onSegmentChange={(id) => setUsageMode(id as UsageMode)}
+                />
+              </div>
+            </CardHeader>
+            <CardBody>
+              <ModelTokenTable
+                model_usage={
+                  usageMode === "model"
+                    ? evalStats.model_usage
+                    : evalStats.role_usage
+                }
+                model_configs={
+                  usageMode === "model" ? modelConfigs : undefined
+                }
+                model_aliases={
+                  usageMode === "role" ? roleModels : undefined
+                }
               />
-              {evalStats.role_usage &&
-                Object.keys(evalStats.role_usage).length > 0 && (
-                  <UsageCard label="Role Usage" usage={evalStats.role_usage} />
-                )}
-            </>
-          )}
+            </CardBody>
+          </Card>
+        )}
+
+        {hasModelUsage && !hasRoleUsage && evalStats && (
+          <UsageCard
+            label="Model Usage"
+            usage={evalStats.model_usage}
+            model_configs={modelConfigs}
+          />
+        )}
+
+        {!hasModelUsage && hasRoleUsage && evalStats && (
+          <UsageCard
+            label="Role Usage"
+            usage={evalStats.role_usage}
+            model_aliases={roleModels}
+          />
+        )}
+
+        {!hasModelUsage && !hasRoleUsage && evalSpec && (
+          <ModelCard evalSpec={evalSpec} />
+        )}
       </div>
     </div>
   );

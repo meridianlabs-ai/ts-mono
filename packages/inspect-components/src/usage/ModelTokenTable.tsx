@@ -11,6 +11,7 @@ interface ModelTokenTableProps {
   samples?: number;
   className?: string | string[];
   model_configs?: Record<string, Record<string, unknown>>;
+  model_aliases?: Record<string, string>;
 }
 
 const fmtConfigVal = (v: unknown): string => {
@@ -79,6 +80,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   samples,
   className,
   model_configs,
+  model_aliases,
 }) => {
   const models = Object.keys(model_usage).filter((k) => model_usage[k]);
   if (models.length === 0) return null;
@@ -113,6 +115,11 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
               <tr key={modelId} className={styles.modelRow}>
                 <td className={styles.modelCell}>
                   <span className={styles.modelName}>{modelId}</span>
+                  {model_aliases?.[modelId] && (
+                    <span className={styles.modelAlias}>
+                      {model_aliases[modelId]}
+                    </span>
+                  )}
                   <span className={styles.modelTotal}>
                     {formatNumber(total)}
                     <small>tokens</small>
