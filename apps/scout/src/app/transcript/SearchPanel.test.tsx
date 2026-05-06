@@ -248,19 +248,11 @@ describe("SearchPanel", () => {
     });
   });
 
-  it("falls back to the project model when LLM model is empty and records it on success", async () => {
+  it("requires an explicit LLM model before submitting", async () => {
     useUserSettings.setState({
       dataframeColumnPresets: [],
       searchModelHistory: [],
     });
-
-    let capturedBody: { model?: string | null } | undefined;
-    server.use(
-      http.post("/api/v2/transcripts/:dir/:id/search", async ({ request }) => {
-        capturedBody = (await request.json()) as { model?: string | null };
-        return HttpResponse.json<Result>({ value: 1, references: [] });
-      })
-    );
 
     renderSearchPanel({
       projectModel: "project-default-model",
@@ -272,24 +264,58 @@ describe("SearchPanel", () => {
       }),
     });
 
-    // Project config loads asynchronously; wait until its model surfaces as the
-    // model input's placeholder before submitting, otherwise the fallback would
-    // see undefined.
+    const modelInput =
+      await screen.findByPlaceholderText<HTMLInputElement>(
+        "project-default-model"
+      );
+
+    expect(modelInput.required).toBe(true);
+    expect(modelInput.checkValidity()).toBe(false);
+    expect(getRunButton().disabled).toBe(false);
+  });
+
+  it("submits an LLM search with the explicit model and records it on success", async () => {
+    useUserSettings.setState({
+      dataframeColumnPresets: [],
+      searchModelHistory: [],
+    });
+
+    let capturedBody: unknown;
+    server.use(
+      http.post("/api/v2/transcripts/:dir/:id/search", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json<Result>({ value: 1, references: [] });
+      })
+    );
+
+    renderSearchPanel({
+      projectModel: "project-default-model",
+      initialState: buildState({
+        searchType: "llm",
+        searches: {
+          llm: { query: "What happened?", model: "openai/custom-model" },
+        },
+      }),
+    });
+
     await waitFor(() =>
-      expect(
-        screen.queryByPlaceholderText("project-default-model")
-      ).not.toBeNull()
+      expect(screen.queryByDisplayValue("openai/custom-model")).not.toBeNull()
     );
 
     fireEvent.click(getRunButton());
 
     await waitFor(() => {
-      expect(capturedBody?.model).toBe("project-default-model");
+      expect(capturedBody).toEqual({
+        events: "all",
+        model: "openai/custom-model",
+        query: "What happened?",
+        type: "llm",
+      });
     });
 
     await waitFor(() => {
       expect(useUserSettings.getState().searchModelHistory).toEqual([
-        "project-default-model",
+        "openai/custom-model",
       ]);
     });
   });
