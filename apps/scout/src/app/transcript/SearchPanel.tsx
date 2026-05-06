@@ -505,6 +505,7 @@ const SearchPanelWithData = ({
             hasSearched={hasSearched}
             currentSearch={currentSearch}
             scope={scope}
+            searchType={searchType}
             getMessageUrl={getMessageUrl}
             getEventUrl={getEventUrl}
             getEventMessageUrl={getEventMessageUrl}
@@ -601,6 +602,7 @@ const SearchResults: FC<{
   hasSearched: boolean;
   currentSearch: Result | null;
   scope: TranscriptSearchScope;
+  searchType: SearchType;
   getMessageUrl: (id: string) => string | undefined;
   getEventUrl: (id: string) => string | undefined;
   getEventMessageUrl: (id: string) => string | undefined;
@@ -610,6 +612,7 @@ const SearchResults: FC<{
   hasSearched,
   currentSearch,
   scope,
+  searchType,
   getMessageUrl,
   getEventUrl,
   getEventMessageUrl,
@@ -667,6 +670,7 @@ const SearchResults: FC<{
       <SearchResult
         result={result}
         scope={scope}
+        searchType={searchType}
         getMessageUrl={getMessageUrl}
         getEventUrl={getEventUrl}
         getEventMessageUrl={getEventMessageUrl}
@@ -678,10 +682,18 @@ const SearchResults: FC<{
 const SearchResult: FC<{
   result: Result;
   scope: TranscriptSearchScope;
+  searchType: SearchType;
   getMessageUrl: (id: string) => string | undefined;
   getEventUrl: (id: string) => string | undefined;
   getEventMessageUrl: (id: string) => string | undefined;
-}> = ({ result, scope, getMessageUrl, getEventUrl, getEventMessageUrl }) => {
+}> = ({
+  result,
+  scope,
+  searchType,
+  getMessageUrl,
+  getEventUrl,
+  getEventMessageUrl,
+}) => {
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
@@ -712,21 +724,40 @@ const SearchResult: FC<{
     getEventMessageUrl,
   ]);
 
+  if (searchType === "grep") {
+    return (
+      <div className={styles.resultCard}>
+        {result.explanation && (
+          <MarkdownDivWithReferences
+            markdown={result.explanation}
+            references={markdownRefs}
+            renderer="textOnly"
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.resultCard}>
-      {result.explanation && (
-        <MarkdownDivWithReferences
-          markdown={result.explanation}
-          references={markdownRefs}
-          renderer="textOnly"
-        />
-      )}
       {typeof result.value === "string" && (
         <MarkdownDivWithReferences
           markdown={result.value}
           references={markdownRefs}
           renderer="textOnly"
         />
+      )}
+      {result.explanation && (
+        <>
+          <div className={styles.sectionHeader}>
+            <span>Explanation</span>
+          </div>
+          <MarkdownDivWithReferences
+            markdown={result.explanation}
+            references={markdownRefs}
+            renderer="textOnly"
+          />
+        </>
       )}
     </div>
   );
