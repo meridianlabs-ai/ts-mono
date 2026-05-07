@@ -13,6 +13,7 @@ interface UsageCardProps {
   label?: string;
   samples?: number;
   model_configs?: Record<string, Record<string, unknown>>;
+  model_args?: Record<string, Record<string, unknown>>;
   model_aliases?: Record<string, string>;
 }
 
@@ -24,6 +25,7 @@ export const UsageCard: FC<UsageCardProps> = ({
   label = "Usage",
   samples,
   model_configs,
+  model_args,
   model_aliases,
 }) => {
   if (!usage) {
@@ -39,6 +41,7 @@ export const UsageCard: FC<UsageCardProps> = ({
             model_usage={usage}
             samples={samples}
             model_configs={model_configs}
+            model_args={model_args}
             model_aliases={model_aliases}
           />
         </div>

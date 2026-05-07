@@ -26,14 +26,15 @@
 }
 
 .table tbody tr.modelRow td {
-  padding-top: 0.875rem;
+  padding-top: 22px;
+  padding-bottom: 18px;
   border-top: 1px solid var(--bs-light-border-subtle);
   vertical-align: top;
 }
 
 .table tbody tr.modelRow:first-child td {
   border-top: 0;
-  padding-top: 0.4rem;
+  padding-top: 6px;
 }
 
 .table tbody td {
@@ -73,26 +74,49 @@
   margin-top: 0.4rem;
 }
 
+.configSection {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--bs-light-border-subtle);
+  max-width: 240px;
+}
+
+.configSectionLabel {
+  font-family: var(--bs-font-monospace);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary);
+  margin-top: 10px;
+}
+
+.configSectionLabel:first-child {
+  margin-top: 0;
+}
+
 .configTable {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.15rem 0.75rem;
-  margin: 0.5rem 0 0;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--bs-light-border-subtle);
+  gap: 2px 14px;
+  align-items: baseline;
+  margin: 2px 0 0;
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bs-body-color);
 }
 
 .configKey {
-  font-size: 0.7rem;
   color: var(--bs-secondary);
+  font-weight: 400;
   white-space: nowrap;
 }
 
 .configVal {
-  font-size: 0.7rem;
-  color: var(--bs-body-color);
-  font-weight: 500;
   margin: 0;
+  color: var(--bs-body-color);
+  font-weight: 400;
 }
 
 .modelTotal small {

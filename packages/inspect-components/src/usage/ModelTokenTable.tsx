@@ -11,6 +11,7 @@ interface ModelTokenTableProps {
   samples?: number;
   className?: string | string[];
   model_configs?: Record<string, Record<string, unknown>>;
+  model_args?: Record<string, Record<string, unknown>>;
   model_aliases?: Record<string, string>;
 }
 
@@ -78,6 +79,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   samples,
   className,
   model_configs,
+  model_args,
   model_aliases,
 }) => {
   const models = Object.keys(model_usage).filter((k) => model_usage[k]);
@@ -126,22 +128,40 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                   </span>
                   {(() => {
                     const cfg = model_configs?.[modelId];
-                    if (!cfg) return null;
-                    const entries = Object.entries(cfg).filter(
-                      ([, v]) => v != null
+                    const args = model_args?.[modelId];
+                    const cfgEntries = cfg
+                      ? Object.entries(cfg).filter(([, v]) => v != null)
+                      : [];
+                    const argEntries = args
+                      ? Object.entries(args).filter(([, v]) => v != null)
+                      : [];
+                    if (cfgEntries.length === 0 && argEntries.length === 0)
+                      return null;
+                    const renderSection = (
+                      label: string,
+                      entries: [string, unknown][]
+                    ) => (
+                      <>
+                        <div className={styles.configSectionLabel}>{label}</div>
+                        <dl className={styles.configTable}>
+                          {entries.map(([k, v]) => (
+                            <Fragment key={k}>
+                              <dt className={styles.configKey}>{k}</dt>
+                              <dd className={styles.configVal}>
+                                {fmtConfigVal(v)}
+                              </dd>
+                            </Fragment>
+                          ))}
+                        </dl>
+                      </>
                     );
-                    if (entries.length === 0) return null;
                     return (
-                      <dl className={styles.configTable}>
-                        {entries.map(([k, v]) => (
-                          <Fragment key={k}>
-                            <dt className={styles.configKey}>{k}</dt>
-                            <dd className={styles.configVal}>
-                              {fmtConfigVal(v)}
-                            </dd>
-                          </Fragment>
-                        ))}
-                      </dl>
+                      <div className={styles.configSection}>
+                        {cfgEntries.length > 0 &&
+                          renderSection("config", cfgEntries)}
+                        {argEntries.length > 0 &&
+                          renderSection("args", argEntries)}
+                      </div>
                     );
                   })()}
                 </td>

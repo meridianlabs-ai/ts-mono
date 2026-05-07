@@ -1,7 +1,14 @@
 import { FC, useMemo, useState } from "react";
 
 import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
-import { ModelTokenTable, UsageCard } from "@tsmono/inspect-components/usage";
+import {
+  buildArgsByModel,
+  buildArgsByRole,
+  buildConfigsByModel,
+  buildConfigsByRole,
+  ModelTokenTable,
+  UsageCard,
+} from "@tsmono/inspect-components/usage";
 import {
   Card,
   CardBody,
@@ -49,32 +56,13 @@ export const ModelTab: FC<ModelTabProps> = ({
   evalStats,
   evalStatus,
 }) => {
-  const modelConfigs = useMemo(() => {
-    if (!evalSpec) return undefined;
-    const configs: Record<string, Record<string, unknown>> = {};
-
-    const addConfig = (modelId: string, config: unknown) => {
-      if (
-        modelId &&
-        config &&
-        typeof config === "object" &&
-        Object.keys(config).length > 0
-      ) {
-        configs[modelId] = config as Record<string, unknown>;
-      }
-    };
-
-    addConfig(evalSpec.model, evalSpec.model_generate_config);
-    if (evalSpec.model_roles) {
-      for (const roleConfig of Object.values(evalSpec.model_roles)) {
-        if (roleConfig.model && !configs[roleConfig.model]) {
-          addConfig(roleConfig.model, roleConfig.config);
-        }
-      }
-    }
-
-    return Object.keys(configs).length > 0 ? configs : undefined;
-  }, [evalSpec]);
+  const configsByModel = useMemo(
+    () => buildConfigsByModel(evalSpec),
+    [evalSpec]
+  );
+  const configsByRole = useMemo(() => buildConfigsByRole(evalSpec), [evalSpec]);
+  const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
+  const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
   const roleModels = useMemo(() => {
     if (!evalSpec) return undefined;
@@ -136,7 +124,10 @@ export const ModelTab: FC<ModelTabProps> = ({
                     ? evalStats.model_usage
                     : evalStats.role_usage
                 }
-                model_configs={usageMode === "model" ? modelConfigs : undefined}
+                model_configs={
+                  usageMode === "model" ? configsByModel : configsByRole
+                }
+                model_args={usageMode === "model" ? argsByModel : argsByRole}
                 model_aliases={usageMode === "role" ? roleModels : undefined}
               />
             </CardBody>
@@ -147,7 +138,8 @@ export const ModelTab: FC<ModelTabProps> = ({
           <UsageCard
             label="Model Usage"
             usage={evalStats.model_usage}
-            model_configs={modelConfigs}
+            model_configs={configsByModel}
+            model_args={argsByModel}
           />
         )}
 
@@ -155,6 +147,8 @@ export const ModelTab: FC<ModelTabProps> = ({
           <UsageCard
             label="Role Usage"
             usage={evalStats.role_usage}
+            model_configs={configsByRole}
+            model_args={argsByRole}
             model_aliases={roleModels}
           />
         )}

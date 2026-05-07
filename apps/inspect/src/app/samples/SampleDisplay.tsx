@@ -22,7 +22,13 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import { eventsToStr } from "@tsmono/inspect-components/transcript";
-import { ModelTokenTable } from "@tsmono/inspect-components/usage";
+import {
+  buildArgsByModel,
+  buildArgsByRole,
+  buildConfigsByModel,
+  buildConfigsByRole,
+  ModelTokenTable,
+} from "@tsmono/inspect-components/usage";
 import {
   ANSIDisplay,
   Card,
@@ -849,6 +855,14 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
     return Object.keys(roles).length > 0 ? roles : undefined;
   }, [evalSpec]);
 
+  const configsByModel = useMemo(
+    () => buildConfigsByModel(evalSpec),
+    [evalSpec]
+  );
+  const configsByRole = useMemo(() => buildConfigsByRole(evalSpec), [evalSpec]);
+  const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
+  const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
+
   const [usageMode, setUsageMode] = useState<UsageMode>("model");
 
   if (!hasModelUsage && !hasRoleUsage) return null;
@@ -873,6 +887,10 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
             model_usage={
               usageMode === "model" ? sample.model_usage : sample.role_usage
             }
+            model_configs={
+              usageMode === "model" ? configsByModel : configsByRole
+            }
+            model_args={usageMode === "model" ? argsByModel : argsByRole}
             model_aliases={usageMode === "role" ? roleModels : undefined}
             className={clsx(styles.noTop)}
           />
@@ -888,6 +906,8 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
         <CardBody>
           <ModelTokenTable
             model_usage={sample.model_usage}
+            model_configs={configsByModel}
+            model_args={argsByModel}
             className={clsx(styles.noTop)}
           />
         </CardBody>
@@ -901,6 +921,8 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
       <CardBody>
         <ModelTokenTable
           model_usage={sample.role_usage}
+          model_configs={configsByRole}
+          model_args={argsByRole}
           model_aliases={roleModels}
           className={clsx(styles.noTop)}
         />
