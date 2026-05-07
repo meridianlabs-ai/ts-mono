@@ -283,7 +283,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
         style={
           dynamicRightMax !== null
             ? {
-                gridTemplateColumns: `minmax(0, 1fr) minmax(220px, ${dynamicRightMax}px)`,
+                // Cap the right column at 40% of container so the score
+                // panel never dominates the width on narrow viewports.
+                // The panel is horizontally scrollable inside, so it can
+                // tolerate a tighter cell.
+                gridTemplateColumns: `minmax(0, 1fr) min(${dynamicRightMax}px, 40%)`,
               }
             : undefined
         }
