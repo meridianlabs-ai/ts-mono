@@ -40,81 +40,67 @@
   margin-top: 0;
 }
 
-.usageHeader {
-  display: flex !important;
-  align-items: center;
+.saPanel {
+  display: block;
 }
 
-.usageHeaderControl {
-  margin-left: auto;
-}
-
-.timingItems {
+.saHead {
   display: flex;
-  align-items: stretch;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
   flex-wrap: wrap;
-  font-variant-numeric: tabular-nums;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--bs-light-border-subtle);
+  margin-bottom: 14px;
 }
 
-.timingItem {
+.saHeadLeft {
   display: flex;
-  flex-direction: column;
-  padding: 0.25rem 1.75rem;
-  border-right: 1px solid var(--bs-light-border-subtle);
-  min-height: 3.25rem;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.timingItem:first-child {
-  padding-left: 0;
+.saTitle {
+  margin: 0;
+  font-size: var(--inspect-font-size-small);
+  font-weight: 600;
 }
 
-.timingItem:last-child {
-  border-right: none;
-  padding-right: 0;
+.saMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--bs-body-color);
 }
 
-.timingLabel {
-  font-size: 0.7rem;
+.saMetaItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.saMetaLab {
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--bs-secondary);
-  display: block;
-  margin-bottom: 0.6rem;
 }
 
-.timingBig {
-  font-size: 1.25rem;
-  font-weight: 600;
+.saMetaVal {
+  font-size: 13px;
   color: var(--bs-body-color);
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.timingBig small {
-  font-size: 0.75rem;
-  color: var(--bs-secondary);
-  font-weight: 400;
-}
-
-.timingClockStack {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 1rem;
-  flex-wrap: wrap;
-  line-height: 1.1;
-}
-
-.timingClockVal {
-  font-weight: 600;
-  color: var(--bs-body-color);
-}
-
-.timingClockArrow {
-  color: var(--bs-secondary);
+.saMetaSep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--bs-light-border-subtle);
+  margin: 2px 4px;
 }
 
 .chat {

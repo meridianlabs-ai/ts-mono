@@ -780,27 +780,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
-const fmtDuration = (s: number): { value: string; unit: string } => {
-  if (s < 60) return { value: String(Math.round(s)), unit: "sec" };
+const fmtDuration = (s: number): string => {
+  if (s < 60) return `${Math.round(s)}s`;
   if (s < 3600) {
     const m = Math.floor(s / 60);
     const r = Math.round(s % 60);
-    return r > 0
-      ? { value: `${m}m ${r}`, unit: "sec" }
-      : { value: String(m), unit: "min" };
+    return r > 0 ? `${m}m ${r}s` : `${m}m`;
   }
   if (s < 86400) {
     const h = Math.floor(s / 3600);
     const m = Math.round((s % 3600) / 60);
-    return m > 0
-      ? { value: `${h}h ${m}`, unit: "min" }
-      : { value: String(h), unit: "hr" };
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
   const d = Math.floor(s / 86400);
   const h = Math.round((s % 86400) / 3600);
-  return h > 0
-    ? { value: `${d}d ${h}`, unit: "hr" }
-    : { value: String(d), unit: "days" };
+  return h > 0 ? `${d}d ${h}h` : `${d}d`;
 };
 
 const fmtClock = (iso?: string | null, showDate = false): string => {
@@ -867,11 +861,36 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
 
   if (!hasModelUsage && !hasRoleUsage) return null;
 
-  if (hasModelUsage && hasRoleUsage) {
-    return (
-      <Card key={`sample-usage-${id}`}>
-        <CardHeader label="Usage" className={styles.usageHeader}>
-          <div className={styles.usageHeaderControl}>
+  const showSegmented = hasModelUsage && hasRoleUsage;
+  const isModelView = hasModelUsage && (!hasRoleUsage || usageMode === "model");
+  const label = !hasModelUsage && hasRoleUsage ? "Role Usage" : "Usage";
+
+  const usageData = isModelView ? sample.model_usage : sample.role_usage;
+  const tableConfigs = isModelView ? configsByModel : configsByRole;
+  const tableArgs = isModelView ? argsByModel : argsByRole;
+  const tableAliases = !isModelView ? roleModels : undefined;
+
+  const workDur =
+    sample.working_time != null ? fmtDuration(sample.working_time) : null;
+  const totalDur =
+    sample.total_time != null ? fmtDuration(sample.total_time) : null;
+  const hasClock = !!(sample.started_at || sample.completed_at);
+  const showDate = !!(
+    sample.started_at &&
+    sample.completed_at &&
+    new Date(sample.started_at).toDateString() !==
+      new Date(sample.completed_at).toDateString()
+  );
+  const hasMeta = !!workDur || !!totalDur || hasClock;
+
+  return (
+    <div key={`sample-usage-${id}`} className={styles.saPanel}>
+      <div className={styles.saHead}>
+        <div className={styles.saHeadLeft}>
+          <div className={clsx("text-style-label", styles.saTitle)}>
+            {label}
+          </div>
+          {showSegmented && (
             <SegmentedControl
               segments={[
                 { id: "model", label: "Model" },
@@ -880,54 +899,48 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
               selectedId={usageMode}
               onSegmentChange={(value) => setUsageMode(value as UsageMode)}
             />
+          )}
+        </div>
+        {hasMeta && (
+          <div className={styles.saMeta}>
+            {workDur && (
+              <span className={styles.saMetaItem}>
+                <span className={styles.saMetaLab}>Working time</span>
+                <span className={styles.saMetaVal}>{workDur}</span>
+              </span>
+            )}
+            {totalDur && (
+              <>
+                {workDur && <span className={styles.saMetaSep} />}
+                <span className={styles.saMetaItem}>
+                  <span className={styles.saMetaLab}>Total time</span>
+                  <span className={styles.saMetaVal}>{totalDur}</span>
+                </span>
+              </>
+            )}
+            {hasClock && (
+              <>
+                {(workDur || totalDur) && <span className={styles.saMetaSep} />}
+                <span className={styles.saMetaItem}>
+                  <span className={styles.saMetaLab}>Window</span>
+                  <span className={styles.saMetaVal}>
+                    {fmtClock(sample.started_at, showDate)} →{" "}
+                    {fmtClock(sample.completed_at, showDate)}
+                  </span>
+                </span>
+              </>
+            )}
           </div>
-        </CardHeader>
-        <CardBody>
-          <ModelTokenTable
-            model_usage={
-              usageMode === "model" ? sample.model_usage : sample.role_usage
-            }
-            model_configs={
-              usageMode === "model" ? configsByModel : configsByRole
-            }
-            model_args={usageMode === "model" ? argsByModel : argsByRole}
-            model_aliases={usageMode === "role" ? roleModels : undefined}
-            className={clsx(styles.noTop)}
-          />
-        </CardBody>
-      </Card>
-    );
-  }
-
-  if (hasModelUsage) {
-    return (
-      <Card key={`sample-usage-${id}`}>
-        <CardHeader label="Usage" />
-        <CardBody>
-          <ModelTokenTable
-            model_usage={sample.model_usage}
-            model_configs={configsByModel}
-            model_args={argsByModel}
-            className={clsx(styles.noTop)}
-          />
-        </CardBody>
-      </Card>
-    );
-  }
-
-  return (
-    <Card key={`sample-usage-${id}`}>
-      <CardHeader label="Role Usage" />
-      <CardBody>
-        <ModelTokenTable
-          model_usage={sample.role_usage}
-          model_configs={configsByRole}
-          model_args={argsByRole}
-          model_aliases={roleModels}
-          className={clsx(styles.noTop)}
-        />
-      </CardBody>
-    </Card>
+        )}
+      </div>
+      <ModelTokenTable
+        model_usage={usageData}
+        model_configs={tableConfigs}
+        model_args={tableArgs}
+        model_aliases={tableAliases}
+        className={clsx(styles.noTop)}
+      />
+    </div>
   );
 };
 
@@ -950,56 +963,6 @@ const usageViewsForSample = (
         sample={sample}
         evalSpec={evalSpec}
       />
-    );
-  }
-
-  if (sample.working_time !== undefined && sample.working_time !== null) {
-    const workDur = fmtDuration(sample.working_time);
-    const totalDur =
-      sample.total_time != null ? fmtDuration(sample.total_time) : null;
-    const hasClock = !!(sample.started_at || sample.completed_at);
-    const showDate = !!(
-      sample.started_at &&
-      sample.completed_at &&
-      new Date(sample.started_at).toDateString() !==
-        new Date(sample.completed_at).toDateString()
-    );
-    views.push(
-      <Card key={`sample-time-${id}`}>
-        <CardHeader label="Time" />
-        <CardBody>
-          <div className={styles.timingItems}>
-            <div className={styles.timingItem}>
-              <span className={styles.timingLabel}>Working time</span>
-              <span className={styles.timingBig}>
-                {workDur.value} <small>{workDur.unit}</small>
-              </span>
-            </div>
-            {totalDur && (
-              <div className={styles.timingItem}>
-                <span className={styles.timingLabel}>Total time</span>
-                <span className={styles.timingBig}>
-                  {totalDur.value} <small>{totalDur.unit}</small>
-                </span>
-              </div>
-            )}
-            {hasClock && (
-              <div className={styles.timingItem}>
-                <span className={styles.timingLabel}>Window</span>
-                <div className={styles.timingClockStack}>
-                  <span className={styles.timingClockVal}>
-                    {fmtClock(sample.started_at, showDate)}
-                  </span>
-                  <span className={styles.timingClockArrow}>→</span>
-                  <span className={styles.timingClockVal}>
-                    {fmtClock(sample.completed_at, showDate)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardBody>
-      </Card>
     );
   }
 
