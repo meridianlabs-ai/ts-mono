@@ -15,6 +15,10 @@
   justify-self: start;
 }
 
+.config {
+  margin-top: 0;
+}
+
 .tools {
   grid-column: -1/1;
 }
