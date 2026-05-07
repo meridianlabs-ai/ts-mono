@@ -2,6 +2,7 @@ import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
 import react from "@vitejs/plugin-react";
+import { build as esbuild } from "esbuild";
 import pc from "picocolors";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -11,6 +12,29 @@ import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
+
+function inlineThemeBootstrap(): Plugin {
+  const entry = resolve(__dirname, "src/theme/bootstrap.ts");
+  const placeholder = "<!-- THEME_BOOTSTRAP -->";
+  return {
+    name: "inline-theme-bootstrap",
+    transformIndexHtml: {
+      order: "pre",
+      async handler(html) {
+        const result = await esbuild({
+          entryPoints: [entry],
+          bundle: true,
+          format: "iife",
+          target: "es2020",
+          minify: true,
+          write: false,
+        });
+        const code = result.outputFiles[0].text.trim();
+        return html.replace(placeholder, `<script>${code}</script>`);
+      },
+    },
+  };
+}
 
 function copyToPythonRepo(): Plugin {
   return {
@@ -101,6 +125,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
+        inlineThemeBootstrap(),
         warnIfWatchingWithoutSubmodule("inspect_scout"),
         copyToPythonRepo(),
       ],

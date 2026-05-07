@@ -5,68 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Inspect Scout</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <script>
-      (() => {
-        const SETTINGS_KEY = "inspect-scout-user-settings";
-        const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
-
-        const readThemePreference = () => {
-          try {
-            const raw = localStorage.getItem(SETTINGS_KEY);
-            if (!raw) return "system";
-            const parsed = JSON.parse(raw);
-            const value = parsed?.state?.themePreference;
-            return value === "light" || value === "dark" || value === "system"
-              ? value
-              : "system";
-          } catch {
-            return "system";
-          }
-        };
-
-        const isDarkTheme = (theme) => {
-          return theme === "dark" || theme === "vscode-dark";
-        };
-
-        const applyTheme = () => {
-          const urlParams = new URLSearchParams(window.location.search);
-          const explicitTheme = urlParams.get("inspectViewThemeCategory");
-          const themePreference = readThemePreference();
-          const userOverride =
-            themePreference === "light" || themePreference === "dark"
-              ? themePreference
-              : null;
-
-          if (!userOverride && isVscodeWebview && !explicitTheme) return;
-
-          let theme;
-          if (userOverride) {
-            theme = userOverride;
-          } else if (explicitTheme) {
-            theme = explicitTheme;
-          } else {
-            theme = systemTheme.matches ? "dark" : "light";
-          }
-
-          document.documentElement.setAttribute("data-text-highlight", theme);
-          document.documentElement.setAttribute(
-            "data-bs-theme",
-            isDarkTheme(theme) ? "dark" : "light"
-          );
-
-          if (!isVscodeWebview || userOverride) {
-            document.body?.classList.toggle("vscode-dark", isDarkTheme(theme));
-          }
-        };
-
-        window.__SCOUT_APPLY_BROWSER_THEME__ = applyTheme;
-        window.__SCOUT_APPLY_BROWSER_THEME__();
-
-        systemTheme.addEventListener("change", applyTheme);
-      })();
-    </script>
+    <!-- THEME_BOOTSTRAP -->
   </head>
 
   <body style="min-width: 450px">
