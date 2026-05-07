@@ -7,12 +7,14 @@ import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
 
 interface ModelTokenTableProps {
-  model_usage: Record<string, ModelUsageData>;
+  model_usage?: Record<string, ModelUsageData>;
   samples?: number;
   className?: string | string[];
   model_configs?: Record<string, Record<string, unknown>>;
   model_args?: Record<string, Record<string, unknown>>;
   model_aliases?: Record<string, string>;
+  rowKeys?: string[];
+  showTokenColumns?: boolean;
 }
 
 const fmtConfigVal = (v: unknown): string => {
@@ -81,11 +83,16 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   model_configs,
   model_args,
   model_aliases,
+  rowKeys,
+  showTokenColumns = true,
 }) => {
-  const models = Object.keys(model_usage).filter((k) => model_usage[k]);
+  const models =
+    rowKeys ??
+    (model_usage ? Object.keys(model_usage).filter((k) => model_usage[k]) : []);
   if (models.length === 0) return null;
 
-  const showPerSample = samples !== undefined && samples > 0;
+  const showPerSample =
+    showTokenColumns && samples !== undefined && samples > 0;
 
   return (
     <div className={clsx(styles.wrapper, className)}>
@@ -93,24 +100,28 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
         <thead>
           <tr>
             <th>Model</th>
-            <th>Composition</th>
-            <th>Breakdown</th>
+            {showTokenColumns && (
+              <>
+                <th>Composition</th>
+                <th>Breakdown</th>
+              </>
+            )}
             {showPerSample && <th className={styles.num}>Per sample</th>}
           </tr>
         </thead>
         <tbody>
           {models.map((modelId) => {
-            const usage = model_usage[modelId]!;
-            const composeSum = compositionTotal(usage);
-            const total = usageTotal(usage);
+            const usage = model_usage?.[modelId];
+            const composeSum = usage ? compositionTotal(usage) : 0;
+            const total = usage ? usageTotal(usage) : 0;
             const cacheRate =
-              total > 0
+              usage && total > 0
                 ? Math.round(
                     ((usage.input_tokens_cache_read ?? 0) / total) * 100
                   )
                 : 0;
             const outputRate =
-              total > 0
+              usage && total > 0
                 ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
                 : 0;
             return (
@@ -122,10 +133,12 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                       {model_aliases[modelId]}
                     </span>
                   )}
-                  <span className={styles.modelTotal}>
-                    {formatNumber(total)}
-                    <small>tokens</small>
-                  </span>
+                  {showTokenColumns && (
+                    <span className={styles.modelTotal}>
+                      {formatNumber(total)}
+                      <small>tokens</small>
+                    </span>
+                  )}
                   {(() => {
                     const cfg = model_configs?.[modelId];
                     const args = model_args?.[modelId];
@@ -165,52 +178,58 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     );
                   })()}
                 </td>
-                <td className={styles.composeCell}>
-                  <div className={styles.stack}>
-                    {composeSum > 0 &&
-                      CAT_ORDER.map((k) => {
-                        const v = categoryValue(usage, k);
-                        if (!v) return null;
-                        return (
-                          <span
-                            key={k}
-                            className={CAT_SWATCH[k]}
-                            style={{ width: `${(v / composeSum) * 100}%` }}
-                          />
-                        );
-                      })}
-                  </div>
-                  <div className={styles.pcts}>
-                    <span>{cacheRate}% cache read</span>
-                    <span>{outputRate}% output</span>
-                  </div>
-                </td>
-                <td>
-                  <dl className={styles.breakdown}>
-                    {CAT_ORDER.map((k) => {
-                      const v = categoryValue(usage, k);
-                      if (!v) return null;
-                      return (
-                        <Fragment key={k}>
-                          <dt className={styles.breakdownLabel}>
-                            <span
-                              className={clsx(
-                                styles.swatchSmall,
-                                CAT_SWATCH[k]
-                              )}
-                            />
-                            {CAT_LABEL[k]}
-                          </dt>
-                          <dd className={styles.breakdownLeader} />
-                          <dd className={styles.breakdownValue}>
-                            {formatNumber(v)}
-                          </dd>
-                        </Fragment>
-                      );
-                    })}
-                  </dl>
-                </td>
-                {showPerSample && (
+                {showTokenColumns && usage && (
+                  <>
+                    <td className={styles.composeCell}>
+                      <div className={styles.stack}>
+                        {composeSum > 0 &&
+                          CAT_ORDER.map((k) => {
+                            const v = categoryValue(usage, k);
+                            if (!v) return null;
+                            return (
+                              <span
+                                key={k}
+                                className={CAT_SWATCH[k]}
+                                style={{
+                                  width: `${(v / composeSum) * 100}%`,
+                                }}
+                              />
+                            );
+                          })}
+                      </div>
+                      <div className={styles.pcts}>
+                        <span>{cacheRate}% cache read</span>
+                        <span>{outputRate}% output</span>
+                      </div>
+                    </td>
+                    <td>
+                      <dl className={styles.breakdown}>
+                        {CAT_ORDER.map((k) => {
+                          const v = categoryValue(usage, k);
+                          if (!v) return null;
+                          return (
+                            <Fragment key={k}>
+                              <dt className={styles.breakdownLabel}>
+                                <span
+                                  className={clsx(
+                                    styles.swatchSmall,
+                                    CAT_SWATCH[k]
+                                  )}
+                                />
+                                {CAT_LABEL[k]}
+                              </dt>
+                              <dd className={styles.breakdownLeader} />
+                              <dd className={styles.breakdownValue}>
+                                {formatNumber(v)}
+                              </dd>
+                            </Fragment>
+                          );
+                        })}
+                      </dl>
+                    </td>
+                  </>
+                )}
+                {showPerSample && usage && (
                   <td className={clsx(styles.num, styles.perSampleCell)}>
                     {formatNumber(Math.round(total / samples))}
                     <span className={styles.perSampleSub}>avg / sample</span>

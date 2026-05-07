@@ -41,8 +41,23 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   meta,
   className,
 }) => {
-  const hasModel = !!(model_usage && Object.keys(model_usage).length > 0);
-  const hasRole = !!(role_usage && Object.keys(role_usage).length > 0);
+  const keysOf = (
+    ...maps: (Record<string, unknown> | undefined)[]
+  ): string[] => {
+    const out = new Set<string>();
+    for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
+    return Array.from(out);
+  };
+
+  const modelKeys = keysOf(model_usage, configs_by_model, args_by_model);
+  const roleKeys = keysOf(
+    role_usage,
+    configs_by_role,
+    args_by_role,
+    role_aliases
+  );
+  const hasModel = modelKeys.length > 0;
+  const hasRole = roleKeys.length > 0;
 
   const [mode, setMode] = useState<Mode>(hasRole ? "role" : "model");
 
@@ -53,13 +68,16 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const isModel = effectiveMode === "model";
   const resolvedLabel = label ?? "Usage";
 
-  const usageData = isModel ? model_usage! : role_usage!;
+  const usageData = isModel ? model_usage : role_usage;
+  const hasUsageData = !!(usageData && Object.keys(usageData).length > 0);
   const tableConfigs = isModel ? configs_by_model : configs_by_role;
   const tableArgs = isModel ? args_by_model : args_by_role;
   const tableAliases = !isModel ? role_aliases : undefined;
+  const tableRowKeys = isModel ? modelKeys : roleKeys;
 
-  const metaItems =
-    meta?.filter((m) => m.value != null && m.value !== "") ?? [];
+  const metaItems = hasUsageData
+    ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
+    : [];
 
   return (
     <div className={clsx(styles.panel, className)}>
@@ -98,6 +116,8 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
         model_configs={tableConfigs}
         model_args={tableArgs}
         model_aliases={tableAliases}
+        rowKeys={tableRowKeys}
+        showTokenColumns={hasUsageData}
         samples={samples}
         className={styles.tableNoTop}
       />

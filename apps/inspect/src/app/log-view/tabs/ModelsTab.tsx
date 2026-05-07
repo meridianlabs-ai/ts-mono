@@ -14,7 +14,6 @@ import {
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
-import { ModelCard } from "../../plan/ModelCard";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -123,22 +122,16 @@ export const ModelTab: FC<ModelTabProps> = ({
           gap: "0.75rem",
         }}
       >
-        {(hasModelUsage || hasRoleUsage) && evalStats && (
-          <UsagePanel
-            model_usage={hasModelUsage ? evalStats.model_usage : undefined}
-            role_usage={hasRoleUsage ? evalStats.role_usage : undefined}
-            configs_by_model={configsByModel}
-            configs_by_role={configsByRole}
-            args_by_model={argsByModel}
-            args_by_role={argsByRole}
-            role_aliases={roleAliases}
-            meta={meta}
-          />
-        )}
-
-        {!hasModelUsage && !hasRoleUsage && evalSpec && (
-          <ModelCard evalSpec={evalSpec} />
-        )}
+        <UsagePanel
+          model_usage={hasModelUsage ? evalStats?.model_usage : undefined}
+          role_usage={hasRoleUsage ? evalStats?.role_usage : undefined}
+          configs_by_model={configsByModel}
+          configs_by_role={configsByRole}
+          args_by_model={argsByModel}
+          args_by_role={argsByRole}
+          role_aliases={roleAliases}
+          meta={meta}
+        />
       </div>
     </div>
   );
