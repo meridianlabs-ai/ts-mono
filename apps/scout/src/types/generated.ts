@@ -3147,6 +3147,15 @@ export interface components {
             items: components["schemas"]["SearchInput"][];
         };
         /**
+         * SearchResponse
+         * @description Response from running a transcript search.
+         */
+        SearchResponse: {
+            /** Id */
+            id: string;
+            result: components["schemas"]["Result"];
+        };
+        /**
          * SpanBeginEvent
          * @description Mark the beginning of a transcript span.
          */
@@ -4668,7 +4677,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Result"];
+                    "application/json": components["schemas"]["SearchResponse"];
                 };
             };
         };
