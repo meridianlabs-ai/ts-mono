@@ -201,22 +201,20 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [scrollRef]);
 
-  const eventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(
-    () => {
-      const hasMessageLabels =
-        messageLabels && Object.keys(messageLabels).length > 0;
-      const hasEventLabels =
-        eventLabels && Object.keys(eventLabels).length > 0;
+  const eventNodeContext = useMemo<
+    Partial<EventNodeContext> | undefined
+  >(() => {
+    const hasMessageLabels =
+      messageLabels && Object.keys(messageLabels).length > 0;
+    const hasEventLabels = eventLabels && Object.keys(eventLabels).length > 0;
 
-      if (!hasMessageLabels && !hasEventLabels) return undefined;
+    if (!hasMessageLabels && !hasEventLabels) return undefined;
 
-      return {
-        ...(hasMessageLabels ? { messageLabels } : {}),
-        ...(hasEventLabels ? { eventLabels } : {}),
-      };
-    },
-    [messageLabels, eventLabels]
-  );
+    return {
+      ...(hasMessageLabels ? { messageLabels } : {}),
+      ...(hasEventLabels ? { eventLabels } : {}),
+    };
+  }, [messageLabels, eventLabels]);
 
   // ---------------------------------------------------------------------------
   // Render
