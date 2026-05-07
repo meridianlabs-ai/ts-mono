@@ -44,14 +44,14 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const hasModel = !!(model_usage && Object.keys(model_usage).length > 0);
   const hasRole = !!(role_usage && Object.keys(role_usage).length > 0);
 
-  const [mode, setMode] = useState<Mode>("model");
+  const [mode, setMode] = useState<Mode>(hasRole ? "role" : "model");
 
   if (!hasModel && !hasRole) return null;
 
   const showSegmented = hasModel && hasRole;
-  const isModel = hasModel && (!hasRole || mode === "model");
-  const resolvedLabel =
-    label ?? (!hasModel && hasRole ? "Role Usage" : "Usage");
+  const effectiveMode: Mode = showSegmented ? mode : hasRole ? "role" : "model";
+  const isModel = effectiveMode === "model";
+  const resolvedLabel = label ?? "Usage";
 
   const usageData = isModel ? model_usage! : role_usage!;
   const tableConfigs = isModel ? configs_by_model : configs_by_role;
@@ -71,10 +71,10 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           {showSegmented && (
             <SegmentedControl
               segments={[
-                { id: "model", label: "Model" },
-                { id: "role", label: "Role" },
+                { id: "role", label: "Roles" },
+                { id: "model", label: "Models" },
               ]}
-              selectedId={mode}
+              selectedId={effectiveMode}
               onSegmentChange={(value) => setMode(value as Mode)}
             />
           )}

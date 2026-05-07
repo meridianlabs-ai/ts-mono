@@ -37,3 +37,9 @@ button.segment.compact {
 button.segment.compact i {
   margin-right: 0;
 }
+
+button.segment.disabled,
+button.segment.disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

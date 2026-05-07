@@ -35,10 +35,10 @@ export const buildConfigsByModel = (
     if (!modelId || !cfg) return;
     acc[modelId] = mergeDefined(acc[modelId] ?? {}, cfg);
   };
-  add(evalSpec.model, evalSpec.model_generate_config as Dict | undefined);
+  add(evalSpec.model, evalSpec.model_generate_config);
   if (evalSpec.model_roles) {
     for (const rc of Object.values(evalSpec.model_roles)) {
-      add(rc.model, rc.config as Dict | undefined);
+      add(rc.model, rc.config);
     }
   }
   return finalize(acc);
@@ -50,11 +50,11 @@ export const buildConfigsByRole = (
   if (!evalSpec) return undefined;
   const acc: DictMap = {};
   if (evalSpec.model_generate_config) {
-    acc["eval"] = stripNullish(evalSpec.model_generate_config as Dict);
+    acc["eval"] = stripNullish(evalSpec.model_generate_config);
   }
   if (evalSpec.model_roles) {
     for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-      if (rc.config) acc[role] = stripNullish(rc.config as Dict);
+      if (rc.config) acc[role] = stripNullish(rc.config);
     }
   }
   return finalize(acc);
@@ -67,10 +67,10 @@ export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
     if (!modelId || !args) return;
     acc[modelId] = mergeDefined(acc[modelId] ?? {}, args);
   };
-  add(evalSpec.model, evalSpec.model_args as Dict | undefined);
+  add(evalSpec.model, evalSpec.model_args);
   if (evalSpec.model_roles) {
     for (const rc of Object.values(evalSpec.model_roles)) {
-      add(rc.model, rc.args as Dict | undefined);
+      add(rc.model, rc.args);
     }
   }
   return finalize(acc);
@@ -80,11 +80,11 @@ export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec) return undefined;
   const acc: DictMap = {};
   if (evalSpec.model_args) {
-    acc["eval"] = stripNullish(evalSpec.model_args as Dict);
+    acc["eval"] = stripNullish(evalSpec.model_args);
   }
   if (evalSpec.model_roles) {
     for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-      if (rc.args) acc[role] = stripNullish(rc.args as Dict);
+      if (rc.args) acc[role] = stripNullish(rc.args);
     }
   }
   return finalize(acc);

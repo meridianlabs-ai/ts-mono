@@ -8,6 +8,7 @@ export interface Segment {
   label: string;
   icon?: string;
   selectedId?: string;
+  disabled?: boolean;
 }
 
 export interface SegmentedControlProps {
@@ -49,10 +50,12 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
             styles.segment,
             selectedId === segment.id && styles.selected,
             compact && styles.compact,
+            segment.disabled && styles.disabled,
             "text-size-smallest",
             selectedId === segment.id ? undefined : "text-style-secondary"
           )}
           onClick={() => handleSegmentClick(segment.id, index)}
+          disabled={segment.disabled}
           aria-pressed={selectedId === segment.id}
           aria-label={compact ? segment.label : undefined}
           title={compact ? segment.label : undefined}
