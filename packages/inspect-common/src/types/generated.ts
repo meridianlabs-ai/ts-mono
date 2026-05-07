@@ -2155,9 +2155,23 @@ export interface components {
          * @description Call to a language model.
          */
         ModelEvent: {
+            /** Attempt */
+            attempt?: number | null;
             /** Cache */
             cache?: ("read" | "write") | null;
             call?: components["schemas"]["ModelCall"] | null;
+            /** Call Completed At */
+            call_completed_at?: string | null;
+            /** Call Id */
+            call_id?: string | null;
+            /** Call Retries */
+            call_retries?: number | null;
+            /** Call Started At */
+            call_started_at?: string | null;
+            /** Call Working Start */
+            call_working_start?: number | null;
+            /** Call Working Time */
+            call_working_time?: number | null;
             /** Completed */
             completed?: string | null;
             config: components["schemas"]["GenerateConfig"];
@@ -2169,6 +2183,8 @@ export interface components {
              * @constant
              */
             event: "model";
+            /** Http Retries */
+            http_retries?: number | null;
             /** Input */
             input: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Input Refs */
