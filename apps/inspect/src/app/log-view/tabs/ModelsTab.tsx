@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 
 import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
 import {
@@ -6,21 +6,15 @@ import {
   buildArgsByRole,
   buildConfigsByModel,
   buildConfigsByRole,
-  ModelTokenTable,
-  UsageCard,
+  fmtClock,
+  fmtCompactDuration,
+  MetaItem,
+  UsagePanel,
 } from "@tsmono/inspect-components/usage";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  SegmentedControl,
-} from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
 import { ModelCard } from "../../plan/ModelCard";
-
-import styles from "./ModelsTab.module.css";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -49,8 +43,6 @@ interface ModelTabProps {
   evalStatus?: EvalLogStatus;
 }
 
-type UsageMode = "model" | "role";
-
 export const ModelTab: FC<ModelTabProps> = ({
   evalSpec,
   evalStats,
@@ -64,7 +56,7 @@ export const ModelTab: FC<ModelTabProps> = ({
   const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
   const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
-  const roleModels = useMemo(() => {
+  const roleAliases = useMemo(() => {
     if (!evalSpec) return undefined;
     const roles: Record<string, string> = {};
     if (evalSpec.model) {
@@ -80,7 +72,35 @@ export const ModelTab: FC<ModelTabProps> = ({
     return Object.keys(roles).length > 0 ? roles : undefined;
   }, [evalSpec]);
 
-  const [usageMode, setUsageMode] = useState<UsageMode>("model");
+  const meta = useMemo<MetaItem[]>(() => {
+    const items: MetaItem[] = [];
+    const startedAt = evalStats?.started_at;
+    const completedAt = evalStats?.completed_at;
+    if (startedAt && completedAt) {
+      const elapsedSec =
+        (new Date(completedAt).getTime() - new Date(startedAt).getTime()) /
+        1000;
+      if (Number.isFinite(elapsedSec) && elapsedSec >= 0) {
+        items.push({
+          label: "Elapsed",
+          value: fmtCompactDuration(elapsedSec),
+        });
+      }
+    }
+    if (startedAt || completedAt) {
+      const showDate = !!(
+        startedAt &&
+        completedAt &&
+        new Date(startedAt).toDateString() !==
+          new Date(completedAt).toDateString()
+      );
+      items.push({
+        label: "Window",
+        value: `${fmtClock(startedAt, showDate)} → ${fmtClock(completedAt, showDate)}`,
+      });
+    }
+    return items;
+  }, [evalStats?.started_at, evalStats?.completed_at]);
 
   const showUsage = evalStatus !== "started";
   const hasModelUsage =
@@ -103,53 +123,16 @@ export const ModelTab: FC<ModelTabProps> = ({
           gap: "0.75rem",
         }}
       >
-        {hasModelUsage && hasRoleUsage && evalStats && (
-          <Card>
-            <CardHeader label="Usage" className={styles.usageHeader}>
-              <div className={styles.usageHeaderControl}>
-                <SegmentedControl
-                  segments={[
-                    { id: "model", label: "Model" },
-                    { id: "role", label: "Role" },
-                  ]}
-                  selectedId={usageMode}
-                  onSegmentChange={(id) => setUsageMode(id as UsageMode)}
-                />
-              </div>
-            </CardHeader>
-            <CardBody>
-              <ModelTokenTable
-                model_usage={
-                  usageMode === "model"
-                    ? evalStats.model_usage
-                    : evalStats.role_usage
-                }
-                model_configs={
-                  usageMode === "model" ? configsByModel : configsByRole
-                }
-                model_args={usageMode === "model" ? argsByModel : argsByRole}
-                model_aliases={usageMode === "role" ? roleModels : undefined}
-              />
-            </CardBody>
-          </Card>
-        )}
-
-        {hasModelUsage && !hasRoleUsage && evalStats && (
-          <UsageCard
-            label="Model Usage"
-            usage={evalStats.model_usage}
-            model_configs={configsByModel}
-            model_args={argsByModel}
-          />
-        )}
-
-        {!hasModelUsage && hasRoleUsage && evalStats && (
-          <UsageCard
-            label="Role Usage"
-            usage={evalStats.role_usage}
-            model_configs={configsByRole}
-            model_args={argsByRole}
-            model_aliases={roleModels}
+        {(hasModelUsage || hasRoleUsage) && evalStats && (
+          <UsagePanel
+            model_usage={hasModelUsage ? evalStats.model_usage : undefined}
+            role_usage={hasRoleUsage ? evalStats.role_usage : undefined}
+            configs_by_model={configsByModel}
+            configs_by_role={configsByRole}
+            args_by_model={argsByModel}
+            args_by_role={argsByRole}
+            role_aliases={roleAliases}
+            meta={meta}
           />
         )}
 

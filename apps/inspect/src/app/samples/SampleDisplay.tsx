@@ -27,7 +27,10 @@ import {
   buildArgsByRole,
   buildConfigsByModel,
   buildConfigsByRole,
-  ModelTokenTable,
+  fmtClock,
+  fmtCompactDuration,
+  MetaItem,
+  UsagePanel,
 } from "@tsmono/inspect-components/usage";
 import {
   ANSIDisplay,
@@ -35,7 +38,6 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
-  SegmentedControl,
   StickyScroll,
   TabPanel,
   TabSet,
@@ -780,45 +782,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
-const fmtDuration = (s: number): string => {
-  if (s < 60) return `${Math.round(s)}s`;
-  if (s < 3600) {
-    const m = Math.floor(s / 60);
-    const r = Math.round(s % 60);
-    return r > 0 ? `${m}m ${r}s` : `${m}m`;
-  }
-  if (s < 86400) {
-    const h = Math.floor(s / 3600);
-    const m = Math.round((s % 3600) / 60);
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
-  const d = Math.floor(s / 86400);
-  const h = Math.round((s % 86400) / 3600);
-  return h > 0 ? `${d}d ${h}h` : `${d}d`;
-};
-
-const fmtClock = (iso?: string | null, showDate = false): string => {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    const time = d.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    if (!showDate) return time;
-    const date = d.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-    return `${date}, ${time}`;
-  } catch {
-    return iso;
-  }
-};
-
-type UsageMode = "model" | "role";
-
 interface SampleUsagePanelProps {
   id: string;
   sample: EvalSample;
@@ -830,14 +793,7 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   sample,
   evalSpec,
 }) => {
-  const hasModelUsage = !!(
-    sample.model_usage && Object.keys(sample.model_usage).length > 0
-  );
-  const hasRoleUsage = !!(
-    sample.role_usage && Object.keys(sample.role_usage).length > 0
-  );
-
-  const roleModels = useMemo(() => {
+  const roleAliases = useMemo(() => {
     if (!evalSpec) return undefined;
     const roles: Record<string, string> = {};
     if (evalSpec.model) roles["eval"] = evalSpec.model;
@@ -857,90 +813,52 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
   const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
-  const [usageMode, setUsageMode] = useState<UsageMode>("model");
-
-  if (!hasModelUsage && !hasRoleUsage) return null;
-
-  const showSegmented = hasModelUsage && hasRoleUsage;
-  const isModelView = hasModelUsage && (!hasRoleUsage || usageMode === "model");
-  const label = !hasModelUsage && hasRoleUsage ? "Role Usage" : "Usage";
-
-  const usageData = isModelView ? sample.model_usage : sample.role_usage;
-  const tableConfigs = isModelView ? configsByModel : configsByRole;
-  const tableArgs = isModelView ? argsByModel : argsByRole;
-  const tableAliases = !isModelView ? roleModels : undefined;
-
-  const workDur =
-    sample.working_time != null ? fmtDuration(sample.working_time) : null;
-  const totalDur =
-    sample.total_time != null ? fmtDuration(sample.total_time) : null;
-  const hasClock = !!(sample.started_at || sample.completed_at);
-  const showDate = !!(
-    sample.started_at &&
-    sample.completed_at &&
-    new Date(sample.started_at).toDateString() !==
-      new Date(sample.completed_at).toDateString()
-  );
-  const hasMeta = !!workDur || !!totalDur || hasClock;
+  const meta = useMemo<MetaItem[]>(() => {
+    const items: MetaItem[] = [];
+    if (sample.working_time != null) {
+      items.push({
+        label: "Working time",
+        value: fmtCompactDuration(sample.working_time),
+      });
+    }
+    if (sample.total_time != null) {
+      items.push({
+        label: "Total time",
+        value: fmtCompactDuration(sample.total_time),
+      });
+    }
+    if (sample.started_at || sample.completed_at) {
+      const showDate = !!(
+        sample.started_at &&
+        sample.completed_at &&
+        new Date(sample.started_at).toDateString() !==
+          new Date(sample.completed_at).toDateString()
+      );
+      items.push({
+        label: "Window",
+        value: `${fmtClock(sample.started_at, showDate)} → ${fmtClock(sample.completed_at, showDate)}`,
+      });
+    }
+    return items;
+  }, [
+    sample.working_time,
+    sample.total_time,
+    sample.started_at,
+    sample.completed_at,
+  ]);
 
   return (
-    <div key={`sample-usage-${id}`} className={styles.saPanel}>
-      <div className={styles.saHead}>
-        <div className={styles.saHeadLeft}>
-          <div className={clsx("text-style-label", styles.saTitle)}>
-            {label}
-          </div>
-          {showSegmented && (
-            <SegmentedControl
-              segments={[
-                { id: "model", label: "Model" },
-                { id: "role", label: "Role" },
-              ]}
-              selectedId={usageMode}
-              onSegmentChange={(value) => setUsageMode(value as UsageMode)}
-            />
-          )}
-        </div>
-        {hasMeta && (
-          <div className={styles.saMeta}>
-            {workDur && (
-              <span className={styles.saMetaItem}>
-                <span className={styles.saMetaLab}>Working time</span>
-                <span className={styles.saMetaVal}>{workDur}</span>
-              </span>
-            )}
-            {totalDur && (
-              <>
-                {workDur && <span className={styles.saMetaSep} />}
-                <span className={styles.saMetaItem}>
-                  <span className={styles.saMetaLab}>Total time</span>
-                  <span className={styles.saMetaVal}>{totalDur}</span>
-                </span>
-              </>
-            )}
-            {hasClock && (
-              <>
-                {(workDur || totalDur) && <span className={styles.saMetaSep} />}
-                <span className={styles.saMetaItem}>
-                  <span className={styles.saMetaLab}>Window</span>
-                  <span className={styles.saMetaVal}>
-                    {fmtClock(sample.started_at, showDate)} →{" "}
-                    {fmtClock(sample.completed_at, showDate)}
-                  </span>
-                </span>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      <ModelTokenTable
-        model_usage={usageData}
-        model_configs={tableConfigs}
-        model_args={tableArgs}
-        model_aliases={tableAliases}
-        className={clsx(styles.noTop)}
-      />
-    </div>
+    <UsagePanel
+      key={`sample-usage-${id}`}
+      model_usage={sample.model_usage ?? undefined}
+      role_usage={sample.role_usage ?? undefined}
+      configs_by_model={configsByModel}
+      configs_by_role={configsByRole}
+      args_by_model={argsByModel}
+      args_by_role={argsByRole}
+      role_aliases={roleAliases}
+      meta={meta}
+    />
   );
 };
 
