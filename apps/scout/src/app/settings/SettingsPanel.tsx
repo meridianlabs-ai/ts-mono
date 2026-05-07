@@ -20,11 +20,14 @@ export const SettingsPanel: FC = () => {
   const setThemePreference = useUserSettings((s) => s.setThemePreference);
 
   const handleThemeChange = (e: Event) => {
-    if (e.target instanceof HTMLSelectElement) {
-      const { value } = e.target;
-      if (isThemePreference(value)) {
-        setThemePreference(value);
-      }
+    const value =
+      e.target !== null &&
+      "value" in e.target &&
+      typeof e.target.value === "string"
+        ? e.target.value
+        : "";
+    if (isThemePreference(value)) {
+      setThemePreference(value);
     }
   };
 
