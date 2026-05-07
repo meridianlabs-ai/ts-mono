@@ -98,19 +98,24 @@ describe("resolveTheme", () => {
     });
   });
 
-  it("VS Code + user override applies and toggles body class", () => {
+  it.each<"light" | "dark">(["light", "dark"])(
+    "VS Code ignores in-app override '%s' and skips",
+    (preference) => {
+      expect(
+        resolveTheme({ ...baseInput, isVscodeWebview: true, preference })
+      ).toEqual({ kind: "skip" });
+    }
+  );
+
+  it("VS Code + explicit param wins even when override is also set", () => {
     expect(
       resolveTheme({
         ...baseInput,
         isVscodeWebview: true,
-        preference: "dark",
+        preference: "light",
+        explicitParam: "vscode-dark",
       })
-    ).toEqual({
-      kind: "apply",
-      theme: "dark",
-      isDark: true,
-      toggleBodyClass: true,
-    });
+    ).toMatchObject({ theme: "vscode-dark", isDark: true });
   });
 
   it("standalone + explicit param + system → uses explicit param", () => {

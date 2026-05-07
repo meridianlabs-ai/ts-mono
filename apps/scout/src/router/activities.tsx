@@ -60,9 +60,13 @@ const allActivities: ActivityConfig[] = [
   },
 ];
 
-export const activities = allActivities.filter(
-  (a) => a.id !== "runScan" || __SCOUT_RUN_SCAN__
-);
+const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
+
+export const activities = allActivities.filter((a) => {
+  if (a.id === "runScan" && !__SCOUT_RUN_SCAN__) return false;
+  if (a.id === "settings" && isVscodeWebview) return false;
+  return true;
+});
 
 export const getActivityByRoute = (
   path: string

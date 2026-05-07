@@ -45,15 +45,24 @@ const isDarkTheme = (theme: string): boolean =>
   theme === "dark" || theme === "vscode-dark";
 
 export const resolveTheme = (input: ResolveInput): ResolveOutput => {
-  const userOverride = input.preference !== "system" ? input.preference : null;
-
-  if (!userOverride && input.isVscodeWebview && !input.explicitParam) {
-    return { kind: "skip" };
+  // Inside VS Code we always defer to VS Code's own theme machinery;
+  // the in-app preference is hidden in that environment, so any persisted
+  // override from a standalone session must stay inert. An explicit theme
+  // query parameter is still honored since callers use it to embed Scout
+  // with a specific theme.
+  if (input.isVscodeWebview) {
+    if (!input.explicitParam) return { kind: "skip" };
+    return {
+      kind: "apply",
+      theme: input.explicitParam,
+      isDark: isDarkTheme(input.explicitParam),
+      toggleBodyClass: false,
+    };
   }
 
   let theme: string;
-  if (userOverride) {
-    theme = userOverride;
+  if (input.preference !== "system") {
+    theme = input.preference;
   } else if (input.explicitParam) {
     theme = input.explicitParam;
   } else {
@@ -64,6 +73,6 @@ export const resolveTheme = (input: ResolveInput): ResolveOutput => {
     kind: "apply",
     theme,
     isDark: isDarkTheme(theme),
-    toggleBodyClass: !input.isVscodeWebview || userOverride !== null,
+    toggleBodyClass: true,
   };
 };
