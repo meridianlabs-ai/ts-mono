@@ -123,11 +123,15 @@ export const EventPanel: FC<EventPanelProps> = ({
     gridColumns.push("max-content");
   }
 
-  // title (now also carries copy-link + headerExtra so they wrap with the title)
-  gridColumns.push("minmax(0px, auto)");
-  gridColumns.push("minmax(0px, 1fr)");
-  gridColumns.push("minmax(0px, max-content)");
-  gridColumns.push("minmax(0px, max-content)");
+  // title (carries copy-link + headerExtra so they wrap with the title)
+  gridColumns.push("minmax(0, max-content)");
+  gridColumns.push("minmax(0, 1fr)");
+  gridColumns.push("minmax(0, max-content)");
+  // navs: auto so it shrinks to picker mode when over-constrained
+  gridColumns.push("auto");
+  if (turnLabel) {
+    gridColumns.push("max-content");
+  }
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(!collapsed);
@@ -227,10 +231,10 @@ export const EventPanel: FC<EventPanelProps> = ({
           ) : (
             ""
           )}
-          {turnLabel && (
-            <span className={clsx(styles.turnLabel)}>{turnLabel}</span>
-          )}
         </div>
+        {turnLabel && (
+          <span className={clsx(styles.turnLabel)}>{turnLabel}</span>
+        )}
       </div>
     ) : (
       ""

@@ -33,13 +33,15 @@
 }
 
 .navs {
-  justify-self: end;
   display: flex;
   align-items: baseline;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .turnLabel {
-  margin-left: 0.625rem;
+  margin-left: 1rem;
+  margin-top: 0.2rem;
   opacity: 0.5;
   font-size: var(--inspect-font-size-smallest);
 }
