@@ -8,14 +8,22 @@
 
     <script>
       (() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const explicitTheme = urlParams.get("inspectViewThemeCategory");
+        const SETTINGS_KEY = "inspect-scout-user-settings";
         const isVscodeWebview = typeof window.acquireVsCodeApi === "function";
         const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const resolvedTheme = () => {
-          if (explicitTheme) return explicitTheme;
-          return systemTheme.matches ? "dark" : "light";
+        const readThemePreference = () => {
+          try {
+            const raw = localStorage.getItem(SETTINGS_KEY);
+            if (!raw) return "system";
+            const parsed = JSON.parse(raw);
+            const value = parsed?.state?.themePreference;
+            return value === "light" || value === "dark" || value === "system"
+              ? value
+              : "system";
+          } catch {
+            return "system";
+          }
         };
 
         const isDarkTheme = (theme) => {
@@ -23,13 +31,32 @@
         };
 
         const applyTheme = () => {
-          if (isVscodeWebview && !explicitTheme) return;
+          const urlParams = new URLSearchParams(window.location.search);
+          const explicitTheme = urlParams.get("inspectViewThemeCategory");
+          const themePreference = readThemePreference();
+          const userOverride =
+            themePreference === "light" || themePreference === "dark"
+              ? themePreference
+              : null;
 
-          const theme = resolvedTheme();
+          if (!userOverride && isVscodeWebview && !explicitTheme) return;
+
+          let theme;
+          if (userOverride) {
+            theme = userOverride;
+          } else if (explicitTheme) {
+            theme = explicitTheme;
+          } else {
+            theme = systemTheme.matches ? "dark" : "light";
+          }
+
           document.documentElement.setAttribute("data-text-highlight", theme);
-          document.documentElement.setAttribute("data-bs-theme", theme);
+          document.documentElement.setAttribute(
+            "data-bs-theme",
+            isDarkTheme(theme) ? "dark" : "light"
+          );
 
-          if (!isVscodeWebview) {
+          if (!isVscodeWebview || userOverride) {
             document.body?.classList.toggle("vscode-dark", isDarkTheme(theme));
           }
         };
@@ -37,9 +64,7 @@
         window.__SCOUT_APPLY_BROWSER_THEME__ = applyTheme;
         window.__SCOUT_APPLY_BROWSER_THEME__();
 
-        if (!explicitTheme && !isVscodeWebview) {
-          systemTheme.addEventListener("change", applyTheme);
-        }
+        systemTheme.addEventListener("change", applyTheme);
       })();
     </script>
   </head>

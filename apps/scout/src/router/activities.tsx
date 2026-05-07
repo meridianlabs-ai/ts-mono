@@ -50,6 +50,14 @@ const allActivities: ActivityConfig[] = [
     routePatterns: ["/validation"],
     description: "Manage validation sets",
   },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: ApplicationIcons.settings,
+    route: "/settings",
+    routePatterns: ["/settings"],
+    description: "Scout settings",
+  },
 ];
 
 export const activities = allActivities.filter(

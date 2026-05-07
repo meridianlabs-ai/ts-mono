@@ -1,4 +1,4 @@
-import { createContext, FC, useMemo } from "react";
+import { createContext, FC, useEffect, useMemo } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import "prismjs";
@@ -25,6 +25,7 @@ import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
 import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";
+import { useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -51,8 +52,16 @@ export interface AppProps {
 
 export const App: FC<AppProps> = (props) => {
   const invalidationReady = useTopicInvalidation();
+  useThemePreferenceSync();
 
   return invalidationReady ? <AppContent {...props} /> : null;
+};
+
+const useThemePreferenceSync = () => {
+  const themePreference = useUserSettings((s) => s.themePreference);
+  useEffect(() => {
+    window.__SCOUT_APPLY_BROWSER_THEME__?.();
+  }, [themePreference]);
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {

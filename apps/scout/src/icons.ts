@@ -142,6 +142,7 @@ export const ApplicationIcons = {
   scanner: "bi bi-radar",
   scorer: "bi bi-calculator",
   search: "bi bi-search",
+  settings: "bi bi-sliders",
   sidebar: "bi bi-list",
   solvers: {
     default: "bi bi-arrow-return-right",

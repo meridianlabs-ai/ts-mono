@@ -20,6 +20,7 @@ declare global {
   interface Window {
     __SCOUT_BASE_PATH__?: string;
     __SCOUT_DISABLE_SSE__?: boolean;
+    __SCOUT_APPLY_BROWSER_THEME__?: () => void;
   }
 }
 
