@@ -16,8 +16,9 @@ interface ModelTokenTableProps {
 
 const fmtConfigVal = (v: unknown): string => {
   if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "bigint") return String(v);
+  return JSON.stringify(v);
 };
 
 type CategoryKey =
