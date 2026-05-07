@@ -209,17 +209,16 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       </div>
       <div data-name="All" className={styles.container}>
         <div className={styles.all}>
-            {event.output.usage ? (
-              <ModelUsagePanel
-                usage={event.output.usage}
-                timing={{
-                  timestamp: event.timestamp,
-                  completed: event.completed,
-                  working_time: event.working_time,
-                }}
-              />
-            ) : undefined}
-
+          {event.output.usage ? (
+            <ModelUsagePanel
+              usage={event.output.usage}
+              timing={{
+                timestamp: event.timestamp,
+                completed: event.completed,
+                working_time: event.working_time,
+              }}
+            />
+          ) : undefined}
 
           {Object.keys(entries).length > 0 && (
             <EventSection
@@ -229,7 +228,6 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
               <MetaDataGrid entries={entries} options={{ plain: true }} />
             </EventSection>
           )}
-
         </div>
 
         <EventSection title="Messages">
@@ -239,8 +237,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             tools={{
               collapseToolMessages: context?.hasToolEvents !== false,
             }}
-            labels = {{
-              show: false
+            labels={{
+              show: false,
             }}
           />
         </EventSection>
