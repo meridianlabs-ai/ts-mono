@@ -1,10 +1,7 @@
 import { FC, useMemo, useState } from "react";
 
 import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
-import {
-  ModelTokenTable,
-  UsageCard,
-} from "@tsmono/inspect-components/usage";
+import { ModelTokenTable, UsageCard } from "@tsmono/inspect-components/usage";
 import {
   Card,
   CardBody,
@@ -139,12 +136,8 @@ export const ModelTab: FC<ModelTabProps> = ({
                     ? evalStats.model_usage
                     : evalStats.role_usage
                 }
-                model_configs={
-                  usageMode === "model" ? modelConfigs : undefined
-                }
-                model_aliases={
-                  usageMode === "role" ? roleModels : undefined
-                }
+                model_configs={usageMode === "model" ? modelConfigs : undefined}
+                model_aliases={usageMode === "role" ? roleModels : undefined}
               />
             </CardBody>
           </Card>

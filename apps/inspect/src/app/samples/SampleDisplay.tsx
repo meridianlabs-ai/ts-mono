@@ -779,16 +779,22 @@ const fmtDuration = (s: number): { value: string; unit: string } => {
   if (s < 3600) {
     const m = Math.floor(s / 60);
     const r = Math.round(s % 60);
-    return r > 0 ? { value: `${m}m ${r}`, unit: "sec" } : { value: String(m), unit: "min" };
+    return r > 0
+      ? { value: `${m}m ${r}`, unit: "sec" }
+      : { value: String(m), unit: "min" };
   }
   if (s < 86400) {
     const h = Math.floor(s / 3600);
     const m = Math.round((s % 3600) / 60);
-    return m > 0 ? { value: `${h}h ${m}`, unit: "min" } : { value: String(h), unit: "hr" };
+    return m > 0
+      ? { value: `${h}h ${m}`, unit: "min" }
+      : { value: String(h), unit: "hr" };
   }
   const d = Math.floor(s / 86400);
   const h = Math.round((s % 86400) / 3600);
-  return h > 0 ? { value: `${d}d ${h}`, unit: "hr" } : { value: String(d), unit: "days" };
+  return h > 0
+    ? { value: `${d}d ${h}`, unit: "hr" }
+    : { value: String(d), unit: "days" };
 };
 
 const fmtClock = (iso?: string | null, showDate = false): string => {
@@ -801,7 +807,10 @@ const fmtClock = (iso?: string | null, showDate = false): string => {
       second: "2-digit",
     });
     if (!showDate) return time;
-    const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const date = d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
     return `${date}, ${time}`;
   } catch {
     return iso;
@@ -922,17 +931,16 @@ const usageViewsForSample = (
     );
   }
 
-  if (
-    sample.working_time !== undefined &&
-    sample.working_time !== null
-  ) {
+  if (sample.working_time !== undefined && sample.working_time !== null) {
     const workDur = fmtDuration(sample.working_time);
-    const totalDur = sample.total_time != null ? fmtDuration(sample.total_time) : null;
+    const totalDur =
+      sample.total_time != null ? fmtDuration(sample.total_time) : null;
     const hasClock = !!(sample.started_at || sample.completed_at);
     const showDate = !!(
       sample.started_at &&
       sample.completed_at &&
-      new Date(sample.started_at).toDateString() !== new Date(sample.completed_at).toDateString()
+      new Date(sample.started_at).toDateString() !==
+        new Date(sample.completed_at).toDateString()
     );
     views.push(
       <Card key={`sample-time-${id}`}>

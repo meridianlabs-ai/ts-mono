@@ -140,8 +140,18 @@
 }
 
 /* Category colours — single blue-family hue */
-.catInput      { background: #cfdcef; }
-.catCacheRead  { background: #a8c4ec; }
-.catCacheWrite { background: #6ea0dc; }
-.catOutput     { background: #3a7bd5; }
-.catReasoning  { background: #1f4e8c; }
+.catInput {
+  background: #cfdcef;
+}
+.catCacheRead {
+  background: #a8c4ec;
+}
+.catCacheWrite {
+  background: #6ea0dc;
+}
+.catOutput {
+  background: #3a7bd5;
+}
+.catReasoning {
+  background: #1f4e8c;
+}

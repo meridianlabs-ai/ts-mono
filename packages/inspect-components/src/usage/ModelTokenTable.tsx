@@ -3,8 +3,8 @@ import { FC, Fragment } from "react";
 
 import { formatNumber } from "@tsmono/util";
 
-import { ModelUsageData } from "./ModelUsagePanel";
 import styles from "./ModelTokenTable.module.css";
+import { ModelUsageData } from "./ModelUsagePanel";
 
 interface ModelTokenTableProps {
   model_usage: Record<string, ModelUsageData>;
@@ -51,10 +51,7 @@ const CAT_SWATCH: Record<CategoryKey, string> = {
   reasoning: styles.catReasoning!,
 };
 
-const categoryValue = (
-  usage: ModelUsageData,
-  key: CategoryKey
-): number => {
+const categoryValue = (usage: ModelUsageData, key: CategoryKey): number => {
   switch (key) {
     case "input":
       return usage.input_tokens ?? 0;
@@ -105,7 +102,9 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
             const total = usageTotal(usage);
             const cacheRate =
               total > 0
-                ? Math.round(((usage.input_tokens_cache_read ?? 0) / total) * 100)
+                ? Math.round(
+                    ((usage.input_tokens_cache_read ?? 0) / total) * 100
+                  )
                 : 0;
             const outputRate =
               total > 0
@@ -127,14 +126,18 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                   {(() => {
                     const cfg = model_configs?.[modelId];
                     if (!cfg) return null;
-                    const entries = Object.entries(cfg).filter(([, v]) => v != null);
+                    const entries = Object.entries(cfg).filter(
+                      ([, v]) => v != null
+                    );
                     if (entries.length === 0) return null;
                     return (
                       <dl className={styles.configTable}>
                         {entries.map(([k, v]) => (
                           <Fragment key={k}>
                             <dt className={styles.configKey}>{k}</dt>
-                            <dd className={styles.configVal}>{fmtConfigVal(v)}</dd>
+                            <dd className={styles.configVal}>
+                              {fmtConfigVal(v)}
+                            </dd>
                           </Fragment>
                         ))}
                       </dl>
@@ -170,7 +173,10 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                         <Fragment key={k}>
                           <dt className={styles.breakdownLabel}>
                             <span
-                              className={clsx(styles.swatchSmall, CAT_SWATCH[k])}
+                              className={clsx(
+                                styles.swatchSmall,
+                                CAT_SWATCH[k]
+                              )}
                             />
                             {CAT_LABEL[k]}
                           </dt>

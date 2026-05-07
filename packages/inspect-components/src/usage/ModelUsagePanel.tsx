@@ -154,11 +154,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
 
   return (
     <div
-      className={clsx(
-        styles.strip,
-        hasTiming && styles.stripTimed,
-        className
-      )}
+      className={clsx(styles.strip, hasTiming && styles.stripTimed, className)}
     >
       {/* Total tokens */}
       <div className={styles.cell}>
