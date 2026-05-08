@@ -1,3 +1,5 @@
+import { dirname } from "@tsmono/util";
+
 /**
  * Single-file mode is set when the viewer is opened against a specific log
  * rather than a directory listing — e.g. an embedded iframe deep-link. We
@@ -14,4 +16,16 @@ export const detectInitialSingleFileMode = (
   }
   const params = new URLSearchParams(location.search);
   return params.has("log_file") || params.has("task_file");
+};
+
+/**
+ * In single-file mode we don't ask the server for the log root (which would
+ * walk the whole directory) — we derive the log dir from the selected file.
+ */
+export const deriveSingleFileLogDir = (
+  logFile: string | undefined
+): string | undefined => {
+  if (!logFile) return undefined;
+  const dir = dirname(logFile);
+  return dir === "" ? undefined : dir;
 };

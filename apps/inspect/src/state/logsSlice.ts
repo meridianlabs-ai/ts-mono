@@ -4,6 +4,7 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
+import { deriveSingleFileLogDir } from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -218,7 +219,22 @@ export const createLogsSlice = (
         });
       },
       initLogDir: async () => {
-        const api = get().api;
+        const state = get();
+
+        // In single-file mode there is no directory listing to fetch — derive
+        // the log dir from the selected file. Avoids a server round-trip that,
+        // depending on the backend, may walk the entire log directory.
+        if (state.app.singleFileMode) {
+          const existing = state.logs.logDir;
+          if (existing !== undefined) return existing;
+          const logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+          if (logDir !== undefined) {
+            state.logsActions.setLogDir(logDir);
+          }
+          return logDir;
+        }
+
+        const api = state.api;
         if (!api) {
           console.error("API not initialized in LogsStore");
           return undefined;

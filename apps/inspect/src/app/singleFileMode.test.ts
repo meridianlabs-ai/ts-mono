@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { detectInitialSingleFileMode } from "./singleFileMode";
+import {
+  deriveSingleFileLogDir,
+  detectInitialSingleFileMode,
+} from "./singleFileMode";
 
 const docWithEmbedded = (hasEmbedded: boolean): Pick<Document, "getElementById"> => ({
   getElementById: (id: string) =>
@@ -30,5 +33,18 @@ describe("detectInitialSingleFileMode", () => {
     expect(
       detectInitialSingleFileMode({ search: "?my_log_file=foo" }, emptyDoc)
     ).toBe(false);
+  });
+});
+
+describe("deriveSingleFileLogDir", () => {
+  it.each([
+    [undefined, undefined],
+    ["", undefined],
+    ["file.eval", undefined],
+    ["/abs/path/file.eval", "/abs/path"],
+    ["relative/path/file.eval", "relative/path"],
+    ["s3://bucket/path/file.eval", "s3://bucket/path"],
+  ])("derives %s -> %s", (input, expected) => {
+    expect(deriveSingleFileLogDir(input)).toBe(expected);
   });
 });
