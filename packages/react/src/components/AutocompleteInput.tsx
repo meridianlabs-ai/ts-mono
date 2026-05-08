@@ -287,7 +287,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
         role="combobox"
         aria-expanded={showDropdown}
         aria-autocomplete="list"
-        aria-controls={`${id}-listbox`}
+        aria-controls={showDropdown ? `${id}-listbox` : undefined}
         aria-activedescendant={
           showDropdown && highlightedIndex >= 0
             ? `${id}-option-${highlightedIndex}`
