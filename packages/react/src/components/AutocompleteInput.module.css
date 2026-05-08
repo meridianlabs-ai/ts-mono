@@ -4,6 +4,7 @@
 }
 
 .input {
+  display: block;
   width: 100%;
   font-size: 12px;
   padding: 4px 6px;
