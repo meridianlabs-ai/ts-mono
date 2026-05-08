@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { getVscodeApi } from "@tsmono/util";
 
 import { App } from "./app/App";
+import { detectInitialSingleFileMode } from "./app/singleFileMode";
 import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
@@ -40,6 +41,13 @@ if (vscode) {
 
 // Inititialize the application store
 initializeStore(applicationApi, capabilities, applicationStorage);
+
+// Set single-file mode synchronously before the first render. Otherwise
+// AppRouter mounts LogsPanel on the index route, which fans out directory-wide
+// replication requests before App's effect can flip the flag.
+if (detectInitialSingleFileMode(window.location, document)) {
+  storeImplementation?.getState().appActions.setSingleFileMode(true);
+}
 
 // Determine whether we need to restore a stored hash
 restoreHash();
