@@ -315,7 +315,11 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           onClick={handleToggleBrowse}
           disabled={disabled}
           tabIndex={-1}
-          aria-label="Show all options"
+          aria-label={
+            isOpen && isBrowseMode ? "Hide options" : "Show all options"
+          }
+          aria-expanded={isOpen && isBrowseMode}
+          aria-controls={showDropdown ? `${id}-listbox` : undefined}
         >
           <i
             className={
