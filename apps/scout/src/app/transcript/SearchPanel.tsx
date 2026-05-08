@@ -346,7 +346,6 @@ const SearchPanelWithData = ({
   const handleQueryInput = useCallback(
     (e: Event) => {
       const value = getInputValue(e);
-      createSearchMutation.reset();
       setState((prev) => ({
         ...prev,
         searches: {
@@ -354,12 +353,11 @@ const SearchPanelWithData = ({
           [prev.searchType]: {
             ...prev.searches[prev.searchType],
             query: value,
-            searchId: null,
           },
         },
       }));
     },
-    [createSearchMutation, setState]
+    [setState]
   );
 
   const handleModelChange = useCallback(

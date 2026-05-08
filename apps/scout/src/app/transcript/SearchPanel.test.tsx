@@ -482,6 +482,30 @@ describe("SearchPanel", () => {
     });
   });
 
+  it("keeps showing prior results while editing the query", async () => {
+    server.use(
+      http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () =>
+        HttpResponse.json<Result>(seededGrepResult(5))
+      )
+    );
+
+    renderSearchPanel({
+      initialState: buildState({
+        searchType: "grep",
+        searches: {
+          grep: { query: "needle", searchId: "grep-kept" },
+        },
+      }),
+    });
+
+    await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
+
+    const textarea = screen.getByTestId("search-textarea");
+    fireEvent.input(textarea, { target: { value: "needles" } });
+
+    expect(screen.queryByText("5 matches")).not.toBeNull();
+  });
+
   it("preserves results when toggling search type and back", async () => {
     server.use(
       http.get("/api/v2/transcripts/:dir/:id/searches/:searchId", () =>
