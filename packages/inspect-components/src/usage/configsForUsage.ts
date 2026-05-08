@@ -47,15 +47,10 @@ export const buildConfigsByModel = (
 export const buildConfigsByRole = (
   evalSpec?: EvalSpec
 ): DictMap | undefined => {
-  if (!evalSpec) return undefined;
+  if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
-  if (evalSpec.model_generate_config) {
-    acc["eval"] = stripNullish(evalSpec.model_generate_config);
-  }
-  if (evalSpec.model_roles) {
-    for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-      if (rc.config) acc[role] = stripNullish(rc.config);
-    }
+  for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
+    if (rc.config) acc[role] = stripNullish(rc.config);
   }
   return finalize(acc);
 };
@@ -77,15 +72,10 @@ export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
 };
 
 export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
-  if (!evalSpec) return undefined;
+  if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
-  if (evalSpec.model_args) {
-    acc["eval"] = stripNullish(evalSpec.model_args);
-  }
-  if (evalSpec.model_roles) {
-    for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-      if (rc.args) acc[role] = stripNullish(rc.args);
-    }
+  for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
+    if (rc.args) acc[role] = stripNullish(rc.args);
   }
   return finalize(acc);
 };

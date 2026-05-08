@@ -56,16 +56,11 @@ export const ModelTab: FC<ModelTabProps> = ({
   const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
   const roleAliases = useMemo(() => {
-    if (!evalSpec) return undefined;
+    if (!evalSpec?.model_roles) return undefined;
     const roles: Record<string, string> = {};
-    if (evalSpec.model) {
-      roles["eval"] = evalSpec.model;
-    }
-    if (evalSpec.model_roles) {
-      for (const [role, config] of Object.entries(evalSpec.model_roles)) {
-        if (config.model) {
-          roles[role] = config.model;
-        }
+    for (const [role, config] of Object.entries(evalSpec.model_roles)) {
+      if (config.model) {
+        roles[role] = config.model;
       }
     }
     return Object.keys(roles).length > 0 ? roles : undefined;

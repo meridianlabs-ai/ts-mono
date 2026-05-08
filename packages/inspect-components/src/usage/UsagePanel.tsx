@@ -58,8 +58,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   );
   const hasModel = modelKeys.length > 0;
   const hasRole = roleKeys.length > 0;
+  const hasRoleUsage = !!(role_usage && Object.keys(role_usage).length > 0);
 
-  const [mode, setMode] = useState<Mode>(hasRole ? "role" : "model");
+  const [mode, setMode] = useState<Mode>(hasRoleUsage ? "role" : "model");
 
   if (!hasModel && !hasRole) return null;
 
