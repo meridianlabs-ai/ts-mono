@@ -367,7 +367,6 @@ const SearchPanelWithData = ({
 
   const handleModelChange = useCallback(
     (value: string) => {
-      createSearchMutation.reset();
       setState((prev) => ({
         ...prev,
         searches: {
@@ -375,12 +374,11 @@ const SearchPanelWithData = ({
           llm: {
             ...prev.searches.llm,
             model: value,
-            searchId: null,
           },
         },
       }));
     },
-    [createSearchMutation, setState]
+    [setState]
   );
 
   return (
