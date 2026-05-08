@@ -192,6 +192,18 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           e.preventDefault();
           e.stopPropagation();
           onCommit?.();
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          // Open the dropdown via keyboard. If nothing matches the current
+          // input, fall back to browse mode so the user can still see options.
+          const hasOptions = suggestions.some((s) => s !== null);
+          if (filteredSuggestions.length > 0 || hasOptions) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (filteredSuggestions.length === 0) {
+              setIsBrowseMode(true);
+            }
+            setIsOpen(true);
+          }
         }
         return;
       }
@@ -251,6 +263,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
       selectSuggestion,
       onCommit,
       onCancel,
+      suggestions,
     ]
   );
 
