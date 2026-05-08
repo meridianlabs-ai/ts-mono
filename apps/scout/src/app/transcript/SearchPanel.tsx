@@ -332,6 +332,11 @@ const SearchPanelWithData = ({
     [setState]
   );
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const handleModelCommit = useCallback(() => {
+    formRef.current?.requestSubmit();
+  }, []);
+
   const searchTextareaRef = useRef<HTMLElement | null>(null);
   const handleSearchTextareaRef = useCallback((el: HTMLElement | null) => {
     searchTextareaRef.current = el;
@@ -386,7 +391,11 @@ const SearchPanelWithData = ({
         onClose={onClose}
       />
       <div className={styles.body}>
-        <form className={styles.searchArea} onSubmit={handleSubmit}>
+        <form
+          ref={formRef}
+          className={styles.searchArea}
+          onSubmit={handleSubmit}
+        >
           <div className={styles.topRow}>
             <div className={styles.typeToggle}>
               <SegmentedControl
@@ -478,6 +487,7 @@ const SearchPanelWithData = ({
                       }
                       value={model}
                       onChange={handleModelChange}
+                      onCommit={handleModelCommit}
                       suggestions={searchModelHistory}
                       allowBrowse={searchModelHistory.length > 0}
                       required
