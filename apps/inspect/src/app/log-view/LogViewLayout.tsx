@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 
-import { ErrorPanel, ExtendedFindProvider } from "@tsmono/react/components";
+import {
+  ErrorPanel,
+  ExtendedFindProvider,
+  FindTargetProvider,
+} from "@tsmono/react/components";
 
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
@@ -70,35 +74,37 @@ export const LogViewLayout: FC = () => {
 
   return (
     <ExtendedFindProvider>
-      <div
-        ref={mainAppRef}
-        className={clsx(
-          "app-main-grid",
-          fullScreen ? "full-screen" : undefined,
-          singleFileMode ? "single-file-mode" : undefined,
-          "log-view"
-        )}
-        tabIndex={0}
-      >
-        {showFind ? <FindBand /> : ""}
-        {!singleFileMode ? (
-          <ApplicationNavbar
-            fnNavigationUrl={navigationUrl}
-            currentPath={logPath}
-            showActivity="log"
-          />
-        ) : (
-          <ActivityBar animating={!!appStatus.loading} />
-        )}
-        {appStatus.error ? (
-          <ErrorPanel
-            title="An error occurred while loading this task."
-            error={appStatus.error}
-          />
-        ) : (
-          <LogView />
-        )}
-      </div>
+      <FindTargetProvider>
+        <div
+          ref={mainAppRef}
+          className={clsx(
+            "app-main-grid",
+            fullScreen ? "full-screen" : undefined,
+            singleFileMode ? "single-file-mode" : undefined,
+            "log-view"
+          )}
+          tabIndex={0}
+        >
+          {showFind ? <FindBand /> : ""}
+          {!singleFileMode ? (
+            <ApplicationNavbar
+              fnNavigationUrl={navigationUrl}
+              currentPath={logPath}
+              showActivity="log"
+            />
+          ) : (
+            <ActivityBar animating={!!appStatus.loading} />
+          )}
+          {appStatus.error ? (
+            <ErrorPanel
+              title="An error occurred while loading this task."
+              error={appStatus.error}
+            />
+          ) : (
+            <LogView />
+          )}
+        </div>
+      </FindTargetProvider>
     </ExtendedFindProvider>
   );
 };
