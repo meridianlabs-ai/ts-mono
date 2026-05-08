@@ -431,6 +431,7 @@ export const createStore = (api: ScoutApiV2) =>
           clearTranscriptState: () => {
             set((state) => {
               state.selectedTranscriptTab = undefined;
+              state.searchPanelStates = {};
             });
           },
           setPropertyValue<T>(id: string, propertyName: string, value: T) {
