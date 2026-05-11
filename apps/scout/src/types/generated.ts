@@ -698,7 +698,7 @@ export interface components {
             decrease_factor: number;
             /**
              * Max
-             * @default 200
+             * @default 100
              */
             max: number;
             /**
@@ -1434,7 +1434,7 @@ export interface components {
          */
         "GenerateConfig-Input": {
             /** Adaptive Connections */
-            adaptive_connections?: boolean | components["schemas"]["AdaptiveConcurrency"] | null;
+            adaptive_connections?: boolean | number | components["schemas"]["AdaptiveConcurrency"] | null;
             /** Attempt Timeout */
             attempt_timeout?: number | null;
             /** Batch */
@@ -1517,7 +1517,7 @@ export interface components {
          */
         "GenerateConfig-Output": {
             /** Adaptive Connections */
-            adaptive_connections?: boolean | components["schemas"]["AdaptiveConcurrency"] | null;
+            adaptive_connections?: boolean | number | components["schemas"]["AdaptiveConcurrency"] | null;
             /** Attempt Timeout */
             attempt_timeout?: number | null;
             /** Batch */
