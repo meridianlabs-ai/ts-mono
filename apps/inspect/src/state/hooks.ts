@@ -654,8 +654,8 @@ export const useDocumentTitle = () => {
   return { setDocumentTitle };
 };
 
-const simplifiedStatusForDeduplication = (status: EvalLogStatus | undefined) =>
-  status === "started" || status === "success" ? status : "_other_";
+const isActiveStatus = (status: EvalLogStatus | undefined) =>
+  status === "started" || status === "success";
 
 export type LogHandleWithretried = LogHandle & { retried?: boolean };
 
@@ -669,8 +669,9 @@ type LogPreviewStatusMap = Record<
  *
  * Groups logs by (parent directory, task_id) so that logs sharing a task_id
  * across different folders (e.g. copied log directories under a shared parent)
- * are not treated as retries of each other. Within each group, the "best"
- * log wins (started > success > other, ties broken by newest mtime) and is
+ * are not treated as retries of each other. Within each group, logs whose
+ * status is `started` or `success` rank above other statuses; ties are
+ * broken by filename descending so the newest run wins. The winner is
  * marked `retried: false`; the rest are marked `retried: true`.
  */
 export const computeLogsWithRetried = (
@@ -691,23 +692,17 @@ export const computeLogsWithRetried = (
     },
     {}
   );
-  // For each group, select the best item (prefer running/complete over error)
-  // Sort by status priority: started > success > error, cancelled, or missing if logPreview is not loaded
-  // If same priority, take the latest one
+  // For each group, select the best item: prefer logs whose status is
+  // started or success (treated as equivalent — both mean "not failed"),
+  // then break ties by filename descending so the newest run wins.
+  // An older `started` log is treated as orphaned once a newer log exists.
   const bestByName: Record<string, LogHandleWithretried> = {};
   for (const items of Object.values(logsByGroup)) {
     items.sort((a, b) => {
-      const as = simplifiedStatusForDeduplication(logPreviews[a.name]?.status);
-      const bs = simplifiedStatusForDeduplication(logPreviews[b.name]?.status);
-
-      if (as === bs) return b.name.localeCompare(a.name);
-      if (as === "started") return -1;
-      if (bs === "started") return 1;
-      if (as === "success") return -1;
-      if (bs === "success") return 1;
-
-      console.warn(`Unexpected status combination: ${as}, ${bs}`, a, b);
-      return 0;
+      const aActive = isActiveStatus(logPreviews[a.name]?.status);
+      const bActive = isActiveStatus(logPreviews[b.name]?.status);
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return b.name.localeCompare(a.name);
     });
     const { name } = items[0];
     bestByName[name] = { ...items[0], retried: false };

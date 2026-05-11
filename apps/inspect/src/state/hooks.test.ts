@@ -63,7 +63,7 @@ describe("computeLogsWithRetried", () => {
     expect(result.find((r) => r.name === newer.name)?.retried).toBe(false);
   });
 
-  it("prefers started over success regardless of mtime", () => {
+  it("prefers newer success over older orphaned started", () => {
     const olderStarted = log({
       name: "/a/flow/2026_task_abc.eval",
       task_id: "abc",
@@ -79,11 +79,74 @@ describe("computeLogsWithRetried", () => {
       [newerSuccess.name]: preview("success"),
     });
     expect(result.find((r) => r.name === olderStarted.name)?.retried).toBe(
-      false
-    );
-    expect(result.find((r) => r.name === newerSuccess.name)?.retried).toBe(
       true
     );
+    expect(result.find((r) => r.name === newerSuccess.name)?.retried).toBe(
+      false
+    );
+  });
+
+  it("keeps started as active when it is the newest in the group", () => {
+    const olderSuccess = log({
+      name: "/a/flow/2026_task_abc.eval",
+      task_id: "abc",
+      mtime: 100,
+    });
+    const newerStarted = log({
+      name: "/a/flow/2027_task_abc.eval",
+      task_id: "abc",
+      mtime: 200,
+    });
+    const result = computeLogsWithRetried([olderSuccess, newerStarted], {
+      [olderSuccess.name]: preview("success"),
+      [newerStarted.name]: preview("started"),
+    });
+    expect(result.find((r) => r.name === olderSuccess.name)?.retried).toBe(
+      true
+    );
+    expect(result.find((r) => r.name === newerStarted.name)?.retried).toBe(
+      false
+    );
+  });
+
+  it("picks newest success when an orphaned started sits between failed retries", () => {
+    const oldError = log({
+      name: "/a/flow/2026-05-08T08-08-34_task_abc.eval",
+      task_id: "abc",
+      mtime: 100,
+    });
+    const orphanedStarted = log({
+      name: "/a/flow/2026-05-08T09-00-00_task_abc.eval",
+      task_id: "abc",
+      mtime: 200,
+    });
+    const midError = log({
+      name: "/a/flow/2026-05-08T09-49-08_task_abc.eval",
+      task_id: "abc",
+      mtime: 300,
+    });
+    const newestSuccess = log({
+      name: "/a/flow/2026-05-08T10-56-02_task_abc.eval",
+      task_id: "abc",
+      mtime: 400,
+    });
+    const result = computeLogsWithRetried(
+      [oldError, orphanedStarted, midError, newestSuccess],
+      {
+        [oldError.name]: preview("error"),
+        [orphanedStarted.name]: preview("started"),
+        [midError.name]: preview("error"),
+        [newestSuccess.name]: preview("success"),
+      }
+    );
+    expect(result.find((r) => r.name === newestSuccess.name)?.retried).toBe(
+      false
+    );
+    expect(result.find((r) => r.name === orphanedStarted.name)?.retried).toBe(
+      true
+    );
+    expect(result.find((r) => r.name === oldError.name)?.retried).toBe(true);
+    expect(result.find((r) => r.name === midError.name)?.retried).toBe(true);
   });
 
   it("prefers success over error regardless of mtime", () => {
