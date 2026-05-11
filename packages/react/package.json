@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "typecheck:next": "tsgo --noEmit",
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"

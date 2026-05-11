@@ -10,6 +10,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "typecheck:next": "turbo run typecheck:next",
     "check": "manypkg check && turbo run check",
     "manypkg:check": "manypkg check",
     "manypkg:fix": "manypkg fix",
@@ -46,6 +47,7 @@
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@manypkg/cli": "^0.25.1",
     "@tsmono/prettier-config": "workspace:*",
+    "@typescript/native-preview": "7.0.0-dev.20260421.2",
     "picocolors": "^1.1.1",
     "prettier": "^3.8.3",
     "turbo": "^2.9.6"

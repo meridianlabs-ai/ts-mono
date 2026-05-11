@@ -37,6 +37,7 @@
     "lint:fix": "eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' --fix",
     "tsc": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "typecheck:next": "tsgo --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test --config playwright.config.ts",
