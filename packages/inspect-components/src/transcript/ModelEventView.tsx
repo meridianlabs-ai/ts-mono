@@ -16,14 +16,18 @@ import {
   MarkdownDiv,
   PulsingDots,
 } from "@tsmono/react/components";
-import { usePrismHighlight } from "@tsmono/react/hooks";
+import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
+import { formatTime } from "@tsmono/util";
 
+import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { EventTimingPanel } from "./event/EventTimingPanel";
+import { RetryChip } from "./event/RetryChip";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
+import { retryAttemptKey } from "./timeline/retryGrouping";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface ModelEventViewProps {
@@ -41,13 +45,28 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   context,
   eventCallbacks,
 }) => {
-  const event = eventNode.event;
-  const totalUsage = event.output.usage?.total_tokens;
-  const callTime = event.output.time;
+  const successEvent = eventNode.event;
+  const attempts = context?.retryAttempts?.get(retryAttemptKey(successEvent));
+  const successKey = retryAttemptKey(successEvent);
+
+  const [selectedAttemptKey, setSelectedAttemptKey] = useProperty<string>(
+    eventNode.id,
+    "selectedAttempt",
+    { defaultValue: successKey }
+  );
+
+  const selectedEvent =
+    attempts?.find((a) => retryAttemptKey(a) === selectedAttemptKey) ??
+    successEvent;
+  const event = selectedEvent;
+  const isFailed = !!event.error;
+
+  const totalUsage = event.output?.usage?.total_tokens;
+  const callTime = event.output?.time;
 
   // Note: despite the type system saying otherwise, this has appeared empirically
   // to sometimes be undefined
-  const outputMessages = event.output.choices?.map((choice) => {
+  const outputMessages = event.output?.choices?.map((choice) => {
     return choice.message;
   });
 
@@ -118,15 +137,28 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     ? `Model Call (${event.role}): ${event.model}`
     : `Model Call: ${event.model}`;
 
+  const titleString = isFailed
+    ? `${panelTitle} · FAILED${formatFailureTime(event)}`
+    : formatTitle(panelTitle, totalUsage, callTime);
+
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
     : undefined;
+
+  const retryChip = attempts ? (
+    <RetryChip
+      attempts={attempts}
+      selectedKey={selectedAttemptKey}
+      onSelect={setSelectedAttemptKey}
+      keyOf={retryAttemptKey}
+    />
+  ) : undefined;
 
   return (
     <EventPanel
       eventNodeId={eventNode.id}
       className={className}
-      title={formatTitle(panelTitle, totalUsage, callTime)}
+      title={titleString}
       subTitle={
         event.timestamp
           ? formatTiming(event.timestamp, event.working_start)
@@ -134,6 +166,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       }
       icon={TranscriptIcons.model}
       turnLabel={turnLabel}
+      headerExtra={retryChip}
       eventCallbacks={eventCallbacks}
       collapsibleContent
     >
@@ -231,6 +264,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </EventPanel>
   );
 };
+
+function formatFailureTime(event: ModelEvent): string {
+  const sec = attemptDurationSec(event);
+  return sec != null ? ` · ${formatTime(sec)}` : "";
+}
 
 interface APIViewProps {
   call: ModelCall;

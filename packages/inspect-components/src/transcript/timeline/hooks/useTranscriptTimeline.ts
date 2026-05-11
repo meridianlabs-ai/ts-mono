@@ -21,6 +21,7 @@ import {
   resolveForkTimestamp,
   type MarkerConfig,
 } from "../markers";
+import { correctRetryTimestamps } from "../retryOrdering";
 import {
   computeRowLayouts,
   rowHasEvents,
@@ -114,13 +115,15 @@ export function useTranscriptTimeline(
   options: UseTranscriptTimelineOptions
 ): TranscriptTimelineResult {
   const {
-    events,
+    events: rawEvents,
     markerConfig = defaultMarkerConfig,
     timelineOptions,
     serverTimelines,
     timelineProps,
     activeTimelineProps,
   } = options;
+
+  const events = useMemo(() => correctRetryTimestamps(rawEvents), [rawEvents]);
 
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;

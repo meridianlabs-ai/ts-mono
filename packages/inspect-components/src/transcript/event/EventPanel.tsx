@@ -40,6 +40,8 @@ interface EventPanelProps {
   depth?: number;
   /** Turn label displayed in the header (e.g. "turn 1/3"). */
   turnLabel?: string;
+  /** Inline content rendered between the title and the trailing nav/turn label (e.g. retry chip on retried model events). */
+  headerExtra?: ReactNode;
   /** Collapse state and deep-link callbacks from the app store. */
   eventCallbacks?: EventPanelCallbacks;
 }
@@ -65,6 +67,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   muted,
   depth,
   turnLabel,
+  headerExtra,
   eventCallbacks,
 }) => {
   const { onCollapse, getCollapsed, getEventUrl, linkingEnabled } =
@@ -120,15 +123,11 @@ export const EventPanel: FC<EventPanelProps> = ({
     gridColumns.push("max-content");
   }
 
-  // title
-  gridColumns.push("minmax(0, max-content)");
-  // id
-  if (url) {
-    gridColumns.push("minmax(0, max-content)");
-  }
-  gridColumns.push("auto");
-  gridColumns.push("minmax(0, max-content)");
-  gridColumns.push("minmax(0, max-content)");
+  // title (now also carries copy-link + headerExtra so they wrap with the title)
+  gridColumns.push("minmax(0px, auto)");
+  gridColumns.push("minmax(0px, 1fr)");
+  gridColumns.push("minmax(0px, max-content)");
+  gridColumns.push("minmax(0px, max-content)");
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(!collapsed);
@@ -172,20 +171,32 @@ export const EventPanel: FC<EventPanelProps> = ({
           ""
         )}
         <div
-          className={clsx("text-style-secondary", "text-style-label")}
+          className={clsx(
+            "text-style-secondary",
+            "text-style-label",
+            styles.title
+          )}
           onClick={toggleCollapse}
         >
-          {title}
+          <span>{title}</span>
+          {headerExtra ? (
+            <span
+              className={styles.titleExtra}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {headerExtra}
+            </span>
+          ) : null}
+          {url ? (
+            <span onClick={(e) => e.stopPropagation()}>
+              <CopyButton
+                value={url}
+                icon={kLinkIcon}
+                className={clsx(styles.copyLink)}
+              />
+            </span>
+          ) : null}
         </div>
-        {url ? (
-          <CopyButton
-            value={url}
-            icon={kLinkIcon}
-            className={clsx(styles.copyLink)}
-          />
-        ) : (
-          ""
-        )}
         <div onClick={toggleCollapse}></div>
         <div
           className={clsx("text-style-secondary", styles.label)}
