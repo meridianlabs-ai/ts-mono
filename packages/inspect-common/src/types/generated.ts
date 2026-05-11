@@ -602,6 +602,22 @@ export interface components {
             working_start: number;
         };
         /**
+         * BudgetPercent
+         * @description Fire at percentage milestones of a named budget. Not yet implemented (Phase 5).
+         *
+         *     Example: ``BudgetPercent(budget="cost", percent=10)`` fires at 10%, 20%, …
+         *     of the ``cost_limit`` configured on the task or sample.
+         */
+        BudgetPercent: {
+            /**
+             * Budget
+             * @enum {string}
+             */
+            budget: "token" | "cost" | "time" | "working";
+            /** Percent */
+            percent: number;
+        };
+        /**
          * CachePolicy
          * @description Caching options for model generation.
          */
@@ -749,6 +765,38 @@ export interface components {
             source?: ("input" | "generate") | null;
             /** Tool Call Id */
             tool_call_id?: string[] | null;
+        };
+        /**
+         * CheckpointConfig
+         * @description User-facing checkpoint configuration.
+         *
+         *     Specify on ``Sample(checkpoint=...)``, ``Task(checkpoint=...)``, or
+         *     ``eval(checkpoint=...)``. All fields default to ``None`` so that
+         *     each level can supply a partial config; the layers are combined
+         *     per-field at sample-run time (precedence: eval > sample > task).
+         *
+         *     Construct a config at the level that "owns" each value:
+         *     - **Task**: defaults common to every sample (typical trigger,
+         *       sandbox paths).
+         *     - **Sample**: per-row overrides (e.g. a particular sample needs a
+         *       tighter cadence or a different captured path).
+         *     - **Eval / CLI**: run-level overrides (e.g. operator switches
+         *       cadence or destination for one run).
+         *
+         *     See ``design/plans/checkpointing-working.md`` §2.
+         */
+        CheckpointConfig: {
+            /** Checkpoints Dir */
+            checkpoints_dir?: string | null;
+            /** Max Consecutive Failures */
+            max_consecutive_failures?: number | null;
+            retention?: components["schemas"]["Retention"] | null;
+            /** Sandbox Paths */
+            sandbox_paths?: {
+                [key: string]: string[];
+            } | null;
+            /** Trigger */
+            trigger?: components["schemas"]["TimeInterval"] | components["schemas"]["TurnInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | "manual" | null;
         };
         /** Citation */
         Citation: components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"];
@@ -1001,6 +1049,14 @@ export interface components {
             type: "video";
             /** Video */
             video: string;
+        };
+        /**
+         * CostInterval
+         * @description Fire every $N spent. Not yet implemented (Phase 5).
+         */
+        CostInterval: {
+            /** Every */
+            every: number;
         };
         /**
          * DocumentCitation
@@ -2344,10 +2400,23 @@ export interface components {
             strict?: boolean | null;
         };
         /**
+         * Retention
+         * @description Controls when checkpoint data is deleted.
+         */
+        Retention: {
+            /**
+             * After Eval
+             * @default delete
+             * @enum {string}
+             */
+            after_eval: "delete" | "retain";
+        };
+        /**
          * Sample
          * @description Sample for an evaluation task.
          */
         Sample: {
+            checkpoint?: components["schemas"]["CheckpointConfig"] | null;
             /** Choices */
             choices?: string[] | null;
             /** Files */
@@ -3029,6 +3098,17 @@ export interface components {
             value?: number | null;
         };
         /**
+         * TimeInterval
+         * @description Fire every N of wall-clock time.
+         */
+        TimeInterval: {
+            /**
+             * Every
+             * Format: duration
+             */
+            every: string;
+        };
+        /**
          * Timeline
          * @description A named timeline view over a transcript.
          *
@@ -3095,6 +3175,14 @@ export interface components {
              * @default false
              */
             utility: boolean;
+        };
+        /**
+         * TokenInterval
+         * @description Fire every N tokens generated. Not yet implemented (Phase 5).
+         */
+        TokenInterval: {
+            /** Every */
+            every: number;
         };
         /** ToolCall */
         ToolCall: {
@@ -3300,6 +3388,14 @@ export interface components {
             logprob: number;
             /** Token */
             token: string;
+        };
+        /**
+         * TurnInterval
+         * @description Fire every N agent turns.
+         */
+        TurnInterval: {
+            /** Every */
+            every: number;
         };
         /**
          * UrlCitation
