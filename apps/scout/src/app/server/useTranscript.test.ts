@@ -5,7 +5,7 @@ import { http, HttpResponse, passthrough } from "msw";
 import { beforeAll, expect, it } from "vitest";
 import { ZstdCodec } from "zstd-codec";
 
-import { encodeBase64Url } from "@tsmono/util";
+import { ApiError, encodeBase64Url } from "@tsmono/util";
 
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
@@ -233,8 +233,11 @@ it("returns error when info endpoint fails", async () => {
     expect(result.current.loading).toBe(false);
   });
 
-  expect(result.current.error).toBeDefined();
-  expect(result.current.error?.message).toContain("500");
+  const { error } = result.current;
+  expect(error).toBeInstanceOf(ApiError);
+  if (error instanceof ApiError) {
+    expect(error.status).toBe(500);
+  }
 });
 
 it("returns error when messages-events endpoint fails", async () => {
@@ -255,8 +258,11 @@ it("returns error when messages-events endpoint fails", async () => {
     expect(result.current.loading).toBe(false);
   });
 
-  expect(result.current.error).toBeDefined();
-  expect(result.current.error?.message).toContain("500");
+  const { error } = result.current;
+  expect(error).toBeInstanceOf(ApiError);
+  if (error instanceof ApiError) {
+    expect(error.status).toBe(500);
+  }
 });
 
 it("returns error for unsupported X-Content-Encoding", async () => {

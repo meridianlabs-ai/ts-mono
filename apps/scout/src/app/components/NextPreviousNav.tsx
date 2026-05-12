@@ -29,13 +29,19 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
     }
 
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-      // Don't handle keyboard events if focus is on an input, textarea, or select element
-      const activeElement = document.activeElement;
+      // Walk shadow roots so custom elements like
+      // <vscode-textarea> (whose real <textarea> lives in shadow DOM) count.
+      let activeElement: Element | null = document.activeElement;
+      while (activeElement?.shadowRoot?.activeElement) {
+        activeElement = activeElement.shadowRoot.activeElement;
+      }
       const isInputFocused =
         activeElement &&
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA" ||
-          activeElement.tagName === "SELECT");
+          activeElement.tagName === "SELECT" ||
+          (activeElement instanceof HTMLElement &&
+            activeElement.isContentEditable));
 
       if (isInputFocused) {
         return;

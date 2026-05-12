@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "@tsmono/util";
+
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { ScanJobConfig, Status } from "../../types/api-types";
@@ -76,6 +78,10 @@ describe("useStartScan", () => {
       expect(result.current.isError).toBe(true);
     });
 
-    expect(result.current.error?.message).toContain("400");
+    const { error } = result.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(400);
+    }
   });
 });

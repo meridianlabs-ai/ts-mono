@@ -289,6 +289,22 @@ export const FindBand: FC<FindBandProps> = () => {
       const input = searchBoxRef.current;
       if (!input) return;
 
+      if (document.activeElement !== input) {
+        // Don't steal focus from another editable surface — users typing
+        // into a textarea/input/contenteditable should keep their keystrokes.
+        // Pierce shadow roots: document.activeElement only returns the shadow
+        // host, so walk down to find the real focused element.
+        let active: Element | null = document.activeElement;
+        while (active?.shadowRoot?.activeElement) {
+          active = active.shadowRoot.activeElement;
+        }
+        const isEditable =
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active instanceof HTMLElement && active.isContentEditable);
+        if (isEditable) return;
+      }
+
       const hasSelection = input.selectionStart !== input.selectionEnd;
       if (!hasSelection) {
         restoreCursor();

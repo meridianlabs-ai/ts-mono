@@ -1,7 +1,10 @@
 .container {
   display: grid;
   grid-template-rows: max-content max-content max-content 1fr;
-  height: 100vh;
+  /* 
+  This is a hack to compensate for ProjectBar. It has a `min-height: 2em`.
+  */
+  height: calc(100vh - 2em);
 }
 
 .transcriptContainer {

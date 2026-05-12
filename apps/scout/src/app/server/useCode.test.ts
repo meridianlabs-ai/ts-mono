@@ -4,6 +4,8 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "@tsmono/util";
+
 import { Column } from "../../query/column";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
@@ -77,8 +79,11 @@ describe("useCode", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBeDefined();
-    expect(result.current.error?.message).toContain("400");
+    const { error } = result.current;
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(400);
+    }
   });
 
   it("does not make request when skipToken is passed", async () => {

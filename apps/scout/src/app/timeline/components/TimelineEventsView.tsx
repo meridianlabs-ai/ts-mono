@@ -6,6 +6,7 @@ import {
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   useTimelinesArray,
+  type EventNodeContext,
   type MarkerConfig,
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
@@ -60,6 +61,10 @@ interface TimelineEventsViewProps {
   getEventUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
+  /** Per-message labels rendered in model-call message gutters. */
+  messageLabels?: Record<string, string>;
+  /** Per-event labels rendered beside transcript event rows. */
+  eventLabels?: Record<string, string>;
   className?: string;
 }
 
@@ -85,6 +90,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   onHeadroomResetAnchor,
   getEventUrl,
   linkingEnabled,
+  messageLabels,
+  eventLabels,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -194,6 +201,21 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [scrollRef]);
 
+  const eventNodeContext = useMemo<
+    Partial<EventNodeContext> | undefined
+  >(() => {
+    const hasMessageLabels =
+      messageLabels && Object.keys(messageLabels).length > 0;
+    const hasEventLabels = eventLabels && Object.keys(eventLabels).length > 0;
+
+    if (!hasMessageLabels && !hasEventLabels) return undefined;
+
+    return {
+      ...(hasMessageLabels ? { messageLabels } : {}),
+      ...(hasEventLabels ? { eventLabels } : {}),
+    };
+  }, [messageLabels, eventLabels]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -219,6 +241,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}
+      eventNodeContext={eventNodeContext}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{

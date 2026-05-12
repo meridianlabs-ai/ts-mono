@@ -30,6 +30,7 @@ export interface AutocompleteInputProps {
   className?: string;
   /** When true, shows a dropdown toggle icon to browse all options */
   allowBrowse?: boolean;
+  required?: boolean;
 }
 
 export const AutocompleteInput: FC<AutocompleteInputProps> = ({
@@ -47,6 +48,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   autoFocus,
   className,
   allowBrowse = false,
+  required = false,
 }) => {
   const icons = useComponentIcons();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -190,6 +192,18 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           e.preventDefault();
           e.stopPropagation();
           onCommit?.();
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          // Open the dropdown via keyboard. If nothing matches the current
+          // input, fall back to browse mode so the user can still see options.
+          const hasOptions = suggestions.some((s) => s !== null);
+          if (filteredSuggestions.length > 0 || hasOptions) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (filteredSuggestions.length === 0) {
+              setIsBrowseMode(true);
+            }
+            setIsOpen(true);
+          }
         }
         return;
       }
@@ -249,6 +263,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
       selectSuggestion,
       onCommit,
       onCancel,
+      suggestions,
     ]
   );
 
@@ -274,6 +289,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           className
         )}
         value={value}
+        required={required}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
@@ -284,7 +300,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
         role="combobox"
         aria-expanded={showDropdown}
         aria-autocomplete="list"
-        aria-controls={`${id}-listbox`}
+        aria-controls={showDropdown ? `${id}-listbox` : undefined}
         aria-activedescendant={
           showDropdown && highlightedIndex >= 0
             ? `${id}-option-${highlightedIndex}`
@@ -299,7 +315,11 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           onClick={handleToggleBrowse}
           disabled={disabled}
           tabIndex={-1}
-          aria-label="Show all options"
+          aria-label={
+            isOpen && isBrowseMode ? "Hide options" : "Show all options"
+          }
+          aria-expanded={isOpen && isBrowseMode}
+          aria-controls={showDropdown ? `${id}-listbox` : undefined}
         >
           <i
             className={

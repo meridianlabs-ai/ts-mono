@@ -5,12 +5,14 @@ import {
   ReactElement,
   ReactNode,
   useCallback,
+  useContext,
   useState,
 } from "react";
 
 import { CopyButton } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
+import { EventLabelContext } from "../EventLabelContext";
 import { useStickyObserver } from "../hooks/useStickyObserver";
 import type { EventPanelCallbacks } from "../types";
 
@@ -72,6 +74,7 @@ export const EventPanel: FC<EventPanelProps> = ({
 }) => {
   const { onCollapse, getCollapsed, getEventUrl, linkingEnabled } =
     eventCallbacks ?? {};
+  const eventLabel = useContext(EventLabelContext);
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
 
@@ -88,17 +91,15 @@ export const EventPanel: FC<EventPanelProps> = ({
   const url =
     linkingEnabled && getEventUrl ? getEventUrl(eventNodeId) : undefined;
 
-  const pillId = (index: number) => {
-    return `${eventNodeId}-nav-pill-${index}`;
-  };
+  const pillId = (index: number) => `${eventNodeId}-nav-pill-${index}`;
 
   const filteredArrChildren = (
     Array.isArray(children) ? children : [children]
-  ).filter((child) => !!child);
+  ).filter(Boolean);
 
-  const defaultPill = filteredArrChildren.findIndex((node) => {
-    return hasDataDefault(node) && node.props["data-default"];
-  });
+  const defaultPill = filteredArrChildren.findIndex(
+    (node) => hasDataDefault(node) && node.props["data-default"]
+  );
   const defaultPillId = defaultPill !== -1 ? pillId(defaultPill) : pillId(0);
 
   const [selectedNav, setSelectedNav] = useProperty(
@@ -115,6 +116,11 @@ export const EventPanel: FC<EventPanelProps> = ({
 
   // chevron
   if (isCollapsible && !useBottomDongle) {
+    gridColumns.push("minmax(0, max-content)");
+  }
+
+  // search/reference label
+  if (eventLabel) {
     gridColumns.push("minmax(0, max-content)");
   }
 
@@ -140,7 +146,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   const [mouseOver, setMouseOver] = useState(false);
 
   const titleEl =
-    title || icon || filteredArrChildren.length > 1 ? (
+    eventLabel || title || icon || filteredArrChildren.length > 1 ? (
       <div
         title={subTitle}
         className={clsx(
@@ -163,6 +169,20 @@ export const EventPanel: FC<EventPanelProps> = ({
             onClick={toggleCollapse}
             className={collapsed ? kChevronRight : kChevronDown}
           />
+        ) : (
+          ""
+        )}
+        {eventLabel ? (
+          <div
+            className={clsx(
+              "text-style-secondary",
+              "text-style-label",
+              styles.eventLabel
+            )}
+            onClick={toggleCollapse}
+          >
+            {eventLabel} -
+          </div>
         ) : (
           ""
         )}

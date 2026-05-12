@@ -123,14 +123,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     [showAllMessages, event.input, outputMessages, userMessages]
   );
 
-  // Only enable labels for the Summary when at least one visible message has
-  // a matching entry — otherwise every row reserves an empty label column.
   const summaryLabels = useMemo(() => {
     const map = context?.messageLabels;
     if (!map) return { show: false } as const;
-    const hasAny = summaryMessages.some((m) => !!m.id && !!map[m.id]);
-    return hasAny ? { messageLabels: map } : ({ show: false } as const);
-  }, [context?.messageLabels, summaryMessages]);
+    return { messageLabels: map };
+  }, [context?.messageLabels]);
 
   const panelTitle = event.role
     ? `Model Call (${event.role}): ${event.model}`
