@@ -231,6 +231,19 @@ export interface LogViewAPI {
     last_message_pool?: number,
     last_call_pool?: number
   ) => Promise<SampleDataResponse | undefined>;
+  // POSTs a LogUpdate (tag/metadata edits + provenance) to the server,
+  // which read-modifies-writes the log header. Returns the updated EvalLog
+  // along with the new ETag (S3 only) for chained edits.
+  edit_log?: (
+    log_file: string,
+    update: LogUpdate,
+    if_match_etag?: string
+  ) => Promise<EditLogResult>;
+}
+
+export interface EditLogResult {
+  log: EvalLog;
+  etag?: string;
 }
 
 export interface ClientAPI {
@@ -292,6 +305,14 @@ export interface ClientAPI {
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
   open_log_file: (log_file: string, log_dir: string) => Promise<void>;
+
+  // Edit a log's tags / metadata. Optional — only backends that support
+  // server-side mutation (today: the view server) expose this.
+  edit_log?: (
+    log_file: string,
+    update: LogUpdate,
+    if_match_etag?: string
+  ) => Promise<EditLogResult>;
 }
 
 export interface ClientStorage {

@@ -1,4 +1,8 @@
-import { EvalSample, LogFilesResponse } from "@tsmono/inspect-common/types";
+import {
+  EvalSample,
+  LogFilesResponse,
+  LogUpdate,
+} from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
@@ -11,6 +15,7 @@ import { FileSizeLimitError } from "../remote/remoteZipFile";
 
 import {
   ClientAPI,
+  EditLogResult,
   LogContents,
   LogDetails,
   LogPreview,
@@ -481,6 +486,23 @@ export const clientApi = (
       : undefined,
     get_log_sample_data: api.eval_log_sample_data
       ? middleware("get_log_sample_data", get_log_sample_data)
+      : undefined,
+    edit_log: api.edit_log
+      ? middleware(
+          "edit_log",
+          (
+            log_file: string,
+            update: LogUpdate,
+            if_match_etag?: string
+          ): Promise<EditLogResult> => {
+            // current_log is now stale; clear it so the next read fetches
+            // the just-written version (with the new tags/log_updates).
+            if (current_path === log_file) {
+              current_log = undefined;
+            }
+            return api.edit_log!(log_file, update, if_match_etag);
+          }
+        )
       : undefined,
   };
 };

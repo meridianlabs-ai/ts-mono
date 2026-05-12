@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useMemo } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 
 import {
   EarlyStoppingSummary,
@@ -11,7 +11,11 @@ import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
+import { useRefreshLog } from "../../../state/hooks";
+import { useStore } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
+import { ApplicationIcons } from "../../appearance/icons";
+import { EditTagsDialog } from "../title-view/EditTagsDialog";
 
 import styles from "./TaskTab.module.css";
 
@@ -51,6 +55,15 @@ export const TaskTab: FC<TaskTabProps> = ({
   earlyStopping,
   tags,
 }) => {
+  const refreshLog = useRefreshLog();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
+  const [editing, setEditing] = useState(false);
+
+  const handleSaved = useCallback(() => {
+    refreshLog();
+  }, [refreshLog]);
+
   const config: Record<string, unknown> = {};
   Object.entries(evalSpec?.config || {}).forEach((entry) => {
     const key = entry[0];
@@ -88,9 +101,7 @@ export const TaskTab: FC<TaskTabProps> = ({
       taskInformation["Inspect"] = names;
     }
   }
-  if (tags && tags.length > 0) {
-    taskInformation["tags"] = tags.join(", ");
-  }
+  // tags are rendered separately below so we can attach an Edit affordance.
 
   if (evalSpec?.sandbox) {
     if (Array.isArray(evalSpec?.sandbox)) {
@@ -144,8 +155,45 @@ export const TaskTab: FC<TaskTabProps> = ({
                 }}
               />
             </div>
+            <div className={styles.tagsRow}>
+              <span className={clsx("text-size-small", styles.tagsLabel)}>
+                tags
+              </span>
+              <span className={clsx("text-size-small", styles.tagsValue)}>
+                {tags && tags.length > 0 ? (
+                  tags.join(", ")
+                ) : (
+                  <span className={styles.tagsEmpty}>(none)</span>
+                )}
+              </span>
+              {canEditTags && selectedLogFile && (
+                <button
+                  type="button"
+                  className={clsx(
+                    "btn",
+                    "btn-link",
+                    "text-size-smaller",
+                    styles.editButton
+                  )}
+                  onClick={() => setEditing(true)}
+                  title="Edit tags"
+                >
+                  <i className={ApplicationIcons.edit} /> Edit…
+                </button>
+              )}
+            </div>
           </CardBody>
         </Card>
+
+        {selectedLogFile && (
+          <EditTagsDialog
+            showing={editing}
+            setShowing={setEditing}
+            currentTags={tags || []}
+            logFile={selectedLogFile}
+            onSaved={handleSaved}
+          />
+        )}
 
         {earlyStopping && (
           <Card>
