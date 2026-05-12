@@ -16,7 +16,6 @@ import { LiveVirtualList } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 
 import { ChatMessageRow } from "./ChatMessageRow";
-import { ChatView } from "./ChatView";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { ResolvedMessage, resolveMessages } from "./messages";
@@ -29,7 +28,7 @@ import {
 } from "./types";
 
 // Stable Virtuoso Item wrapper. Defined at module scope so its identity
-// doesn't change across renders of ChatViewVirtualListComponent — Virtuoso
+// doesn't change across renders of ChatViewVirtualList — Virtuoso
 // re-mounts every row when `components.Item` is a new ref, which detaches
 // the text node any active find selection is anchored to and silently
 // collapses the highlight after about a second of settling.
@@ -68,10 +67,6 @@ export interface ChatViewVirtualListProps {
   tools?: ChatViewToolOptions;
 }
 
-interface ChatViewVirtualListComponentProps extends ChatViewVirtualListProps {
-  listHandle: RefObject<VirtuosoHandle | null>;
-}
-
 export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
   function ChatViewVirtualList({
     id,
@@ -87,14 +82,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     linking,
     tools,
   }: ChatViewVirtualListProps) {
-    // Support either virtualized or normal mode rendering based upon message count
-    const useVirtuoso = running || messages.length > 200;
     const listHandle = useRef<VirtuosoHandle>(null);
 
-    // Notify host app when native find availability changes
     useEffect(() => {
-      onNativeFindChanged?.(!useVirtuoso);
-    }, [onNativeFindChanged, useVirtuoso]);
+      onNativeFindChanged?.(false);
+    }, [onNativeFindChanged]);
 
     useListKeyboardNavigation({
       listHandle,
@@ -102,57 +94,6 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       itemCount: messages.length,
     });
 
-    if (!useVirtuoso) {
-      return (
-        <ChatView
-          id={id}
-          messages={messages}
-          className={className}
-          display={display}
-          labels={labels}
-          linking={linking}
-          tools={tools}
-        />
-      );
-    } else {
-      return (
-        <ChatViewVirtualListComponent
-          id={id}
-          listHandle={listHandle}
-          className={className}
-          scrollRef={scrollRef}
-          messages={messages}
-          initialMessageId={initialMessageId}
-          offsetTop={offsetTop}
-          running={running}
-          display={display}
-          labels={labels}
-          linking={linking}
-          tools={tools}
-        />
-      );
-    }
-  }
-);
-
-/**
- * Renders the ChatViewVirtualList component.
- */
-export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps> =
-  memo(function ChatViewVirtualListComponent({
-    id,
-    listHandle,
-    messages,
-    initialMessageId,
-    offsetTop,
-    className,
-    scrollRef,
-    running,
-    display,
-    labels,
-    linking,
-    tools,
-  }: ChatViewVirtualListComponentProps) {
     const resolveInto = tools?.collapseToolMessages ?? true;
     const collapsedMessages = useMemo(() => {
       return resolveInto
@@ -221,4 +162,5 @@ export const ChatViewVirtualListComponent: FC<ChatViewVirtualListComponentProps>
         itemSearchText={messageSearchText}
       />
     );
-  });
+  }
+);
