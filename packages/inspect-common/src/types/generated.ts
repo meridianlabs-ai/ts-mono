@@ -389,7 +389,7 @@ export interface components {
             decrease_factor: number;
             /**
              * Max
-             * @default 100
+             * @default 200
              */
             max: number;
             /**
@@ -1716,7 +1716,7 @@ export interface components {
          */
         GenerateConfig: {
             /** Adaptive Connections */
-            adaptive_connections?: boolean | number | components["schemas"]["AdaptiveConcurrency"] | null;
+            adaptive_connections?: boolean | components["schemas"]["AdaptiveConcurrency"] | null;
             /** Attempt Timeout */
             attempt_timeout?: number | null;
             /** Batch */
