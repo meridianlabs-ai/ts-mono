@@ -48,8 +48,14 @@ export const PopOver: React.FC<PopOverProps> = ({
   closeOnMouseLeave = true,
   styles = {},
 }) => {
-  const popperRef = useRef<HTMLDivElement | null>(null);
-  const arrowRef = useRef<HTMLDivElement | null>(null);
+  // State-backed elements so usePopper / modifiers receive the live DOM node
+  // after mount instead of reading a mutable ref during render. The callback
+  // ref pattern triggers a re-render when the node attaches, which lets
+  // react-popper compute layout on the first paint of the popover.
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(
+    null
+  );
+  const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null
   );
@@ -105,10 +111,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
     const handleMouseDown = (event: MouseEvent) => {
       // Only cancel popover on mouse down outside the popover content
-      if (
-        popperRef.current &&
-        !popperRef.current.contains(event.target as Node)
-      ) {
+      if (popperElement && !popperElement.contains(event.target as Node)) {
         if (hoverTimerRef.current !== null) {
           window.clearTimeout(hoverTimerRef.current);
         }
@@ -129,7 +132,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
       const captureListener = (event: MouseEvent) => {
         const target = event.target as Node;
-        mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
+        mouseDownInsidePopover = popperElement?.contains(target) ?? false;
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
         // then reopening in the trigger handler would net to no change.
@@ -137,7 +140,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       };
 
       const bubbleListener = () => {
-        if (!popperRef.current) return;
+        if (!popperElement) return;
         if (mouseDownInsidePopover || mouseDownOnTrigger) return;
         setIsOpenRef.current(false);
       };
@@ -186,7 +189,9 @@ export const PopOver: React.FC<PopOverProps> = ({
         dismissalTimerRef.current = null;
       }
     };
-  }, [isOpen, positionEl, hoverDelay]);
+    // popperElement is read in closures above (outside-click handlers) so we
+    // include it; one teardown/rebuild on null→attached transition is cheap.
+  }, [isOpen, positionEl, hoverDelay, popperElement]);
 
   // Effect to create portal container when needed
   useEffect(() => {
@@ -283,8 +288,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       name: "arrow",
       enabled: showArrow,
       options: {
-        // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
-        element: arrowRef.current,
+        element: arrowElement,
         padding: 5, // This keeps the arrow from getting too close to the corner
       },
     },
@@ -311,9 +315,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     styles: popperStyles,
     attributes,
     state,
-    update,
-    // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
-  } = usePopper(positionEl, popperRef.current, {
+  } = usePopper(positionEl, popperElement, {
     placement,
     strategy: "fixed",
     modifiers,
@@ -343,32 +345,15 @@ export const PopOver: React.FC<PopOverProps> = ({
   const positionedThisOpen =
     isOpen && state !== null && state !== openBaselineState;
 
-  // Force update when needed refs change
-  useEffect(() => {
-    if (update && isOpen && shouldShowPopover) {
-      // Need to delay the update slightly to ensure refs are properly set
-      const timer = setTimeout(() => {
-        void update();
-      }, 10);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs -- arrowRef.current mutable read; see meridianlabs-ai/ts-mono#90
-  }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
-
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover
   useEffect(() => {
     // Wait for both the popover to be visible AND Popper to have calculated positioning
-    if (
-      !popperRef.current ||
-      !isOpen ||
-      !shouldShowPopover ||
-      !state?.placement
-    ) {
+    if (!popperElement || !isOpen || !shouldShowPopover || !state?.placement) {
       return;
     }
 
-    const popperEl = popperRef.current;
+    const popperEl = popperElement;
 
     const handlePopoverMouseEnter = () => {
       isOverPopoverRef.current = true;
@@ -408,7 +393,13 @@ export const PopOver: React.FC<PopOverProps> = ({
       popperEl.removeEventListener("mouseenter", handlePopoverMouseEnter, true);
       popperEl.removeEventListener("mouseleave", handlePopoverMouseLeave, true);
     };
-  }, [isOpen, shouldShowPopover, state?.placement, closeOnMouseLeave]);
+  }, [
+    isOpen,
+    shouldShowPopover,
+    state?.placement,
+    closeOnMouseLeave,
+    popperElement,
+  ]);
 
   // Define arrow data-* attribute based on placement
   const getArrowDataPlacement = () => {
@@ -471,7 +462,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   // Create the popper content with position-aware styles
   const popperContent = (
     <div
-      ref={popperRef}
+      ref={setPopperElement}
       style={{ ...defaultPopperStyles, ...positionedStyle, ...styles }}
       className={clsx(className)}
       {...attributes.popper}
@@ -482,7 +473,7 @@ export const PopOver: React.FC<PopOverProps> = ({
         <>
           {/* Invisible div for Popper.js to use as reference */}
           <div
-            ref={arrowRef}
+            ref={setArrowElement}
             style={{ position: "absolute", visibility: "hidden" }}
             data-placement={getArrowDataPlacement()}
           />
