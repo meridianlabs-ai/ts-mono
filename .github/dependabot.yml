@@ -13,6 +13,12 @@ updates:
 
     open-pull-requests-limit: 5
 
+    # Match the pnpm minimum-release-age soak in .npmrc so Dependabot waits
+    # before opening PRs. Without this, pnpm refuses the resolution and the
+    # update job errors out silently. Security updates bypass cooldown.
+    cooldown:
+      default-days: 3
+
     groups:
       minor-and-patch:
         patterns:
