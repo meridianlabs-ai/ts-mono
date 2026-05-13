@@ -2,3 +2,9 @@ packages:
   - "apps/*"
   - "packages/*"
   - "tooling/*"
+
+# Require a 7-day soak before pnpm will resolve a newly published version.
+# Mitigates supply-chain attacks where a compromised release is detected and
+# yanked within days. pnpm 11 enables a 1-day floor by default; this is
+# stricter and aligns with current public guidance.
+minimumReleaseAge: 10080
