@@ -7,7 +7,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
@@ -52,29 +51,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
     listHandle,
     `metadata-grid-${id}`
   );
-
-  // Resolve `scrollRef` (a RefObject) into state so Virtuoso's
-  // `customScrollParent` receives a real DOM node on first render. Reading
-  // `scrollRef.current` directly during render would capture `null` on the
-  // initial pass — Virtuoso would only pick up the real parent on a later,
-  // unrelated re-render. Pattern mirrors LiveVirtualList.tsx.
-  const [scrollParent, setScrollParent] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!scrollRef) {
-      setScrollParent(null);
-      return;
-    }
-    const sync = () => {
-      setScrollParent((prev) =>
-        prev === scrollRef.current ? prev : (scrollRef.current ?? null)
-      );
-    };
-    sync();
-    // The ref target may unmount/remount across renders; keep watching.
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [scrollRef]);
 
   // Collapse state — persisted user choices only. Defaults are applied on
   // the fly at render time by `isItemCollapsed`, so we never bootstrap
@@ -265,7 +241,19 @@ export const RecordTree: FC<RecordTreeProps> = ({
   return (
     <Virtuoso
       ref={listHandle}
-      customScrollParent={scrollParent ?? undefined}
+      // Latent only — see meridianlabs-ai/ts-mono#90. Reading `.current`
+      // during render yields `null` on the first commit, so Virtuoso
+      // initially receives `customScrollParent={undefined}` and only
+      // picks up the real parent on the next re-render. Virtuoso
+      // re-renders frequently enough in practice that no user-visible
+      // symptom has been observed. The prescribed fix changes this prop
+      // API to `HTMLDivElement | null`, which cascades through PlanCard,
+      // SampleDisplay (also reads `scrollRef.current.focus()` and feeds
+      // `useScrollDirection`), SampleScoresGrid, and their parents —
+      // wide ripple for a non-firing bug. Suppress until that migration
+      // happens or a real symptom appears.
+      // eslint-disable-next-line react-hooks/refs
+      customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}
       data={items}
