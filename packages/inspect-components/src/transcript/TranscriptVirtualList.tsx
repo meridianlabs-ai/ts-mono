@@ -8,6 +8,7 @@ import type {
   ErrorEvent,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   LoggerEvent,
   ModelEvent,
   SampleInitEvent,
@@ -31,6 +32,7 @@ import { ErrorEventView } from "./ErrorEventView";
 import { ForkNavigatorView } from "./ForkNavigatorView";
 import { InfoEventView } from "./InfoEventView";
 import { InputEventView } from "./InputEventView";
+import { InterruptEventView } from "./InterruptEventView";
 import { LoggerEventView } from "./LoggerEventView";
 import { ModelEventView } from "./ModelEventView";
 import { SampleInitEventView } from "./SampleInitEventView";
@@ -236,6 +238,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <InputEventView
           eventNode={node as EventNode<InputEvent>}
+          className={className}
+        />
+      );
+
+    case "interrupt":
+      return (
+        <InterruptEventView
+          eventNode={node as EventNode<InterruptEvent>}
           className={className}
         />
       );

@@ -6,6 +6,7 @@ import type {
   ErrorEvent,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   JsonChange,
   LoggerEvent,
   ModelEvent,
@@ -60,6 +61,7 @@ export type EventType =
   | ScoreEditEvent
   | ToolEvent
   | InputEvent
+  | InterruptEvent
   | ErrorEvent
   | AnchorEvent
   | ApprovalEvent
@@ -84,6 +86,7 @@ export const eventTypeValues = [
   "score_edit",
   "tool",
   "input",
+  "interrupt",
   "error",
   "anchor",
   "approval",

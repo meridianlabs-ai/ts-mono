@@ -23,6 +23,7 @@ export const TranscriptIcons = {
   fork: "bi bi-sign-intersection-y-fill",
   info: "bi bi-info-circle",
   input: "bi bi-terminal",
+  interrupt: "bi bi-slash-circle",
   limits: {
     messages: "bi bi-chat-right-text",
     custom: "bi bi-exclamation-triangle",

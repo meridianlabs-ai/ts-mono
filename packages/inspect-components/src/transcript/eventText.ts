@@ -321,6 +321,25 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       break;
     }
 
+    case "interrupt": {
+      const interruptEvent = event;
+      fields.push(["source", interruptEvent.source]);
+      fields.push(["interrupted", interruptEvent.interrupted]);
+      if (interruptEvent.interrupted_tool_call_id) {
+        fields.push([
+          "interrupted_tool_call_id",
+          interruptEvent.interrupted_tool_call_id,
+        ]);
+      }
+      if (interruptEvent.interrupted_model_event_id) {
+        fields.push([
+          "interrupted_model_event_id",
+          interruptEvent.interrupted_model_event_id,
+        ]);
+      }
+      break;
+    }
+
     case "approval": {
       const approvalEvent = event;
       if (approvalEvent.decision) {

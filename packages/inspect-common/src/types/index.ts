@@ -48,6 +48,7 @@ export type CompactionEvent = S["CompactionEvent"];
 export type ErrorEvent = S["ErrorEvent"];
 export type InfoEvent = S["InfoEvent"];
 export type InputEvent = S["InputEvent"];
+export type InterruptEvent = S["InterruptEvent"];
 export type LoggerEvent = S["LoggerEvent"];
 export type ModelEvent = S["ModelEvent"];
 export type SampleInitEvent = S["SampleInitEvent"];

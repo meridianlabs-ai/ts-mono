@@ -116,6 +116,7 @@ export { CompactionEventView } from "./CompactionEventView";
 export { ErrorEventView } from "./ErrorEventView";
 export { InfoEventView } from "./InfoEventView";
 export { InputEventView } from "./InputEventView";
+export { InterruptEventView } from "./InterruptEventView";
 export { LoggerEventView } from "./LoggerEventView";
 export { ModelEventView } from "./ModelEventView";
 export { SampleInitEventView } from "./SampleInitEventView";
