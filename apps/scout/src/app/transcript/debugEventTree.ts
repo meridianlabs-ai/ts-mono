@@ -101,6 +101,9 @@ function label(ev: Event): string {
     case "anchor":
       return `anchor id=${ev.anchor_id}`;
 
+    case "interrupt":
+      return `interrupt source=${ev.source} interrupted=${ev.interrupted}`;
+
     default: {
       const exhaustive: never = ev;
       return (exhaustive as { event: string }).event;

@@ -18,6 +18,7 @@ const eventTypes: Record<AllEventTypes, string> = {
   tool: "Tool",
   approval: "Approval",
   input: "Input",
+  interrupt: "Interrupt",
   score: "Score",
   score_edit: "Score Edit",
   error: "Error",
