@@ -1,5 +1,5 @@
 // Main React App Component
-export { App } from "./app/App";
+export { App, type AppProps } from "./app/App";
 
 // Client APIs
 export { clientApi } from "./client/api/client-api";
