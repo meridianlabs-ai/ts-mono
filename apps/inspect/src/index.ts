@@ -34,3 +34,7 @@ export {
   useSelectedScores,
   useLogSelection,
 } from "./state/hooks";
+
+// Selection-related types
+export type { SampleSummary } from "./client/api/types";
+export type { ScoreLabel } from "./app/types";
