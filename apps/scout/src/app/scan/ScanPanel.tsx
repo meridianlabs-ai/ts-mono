@@ -8,6 +8,7 @@ import { useDocumentTitle } from "@tsmono/react/hooks";
 import { getScannerParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
+import { useScanRoute } from "../hooks/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useAppConfig } from "../server/useAppConfig";
 import { getScanDisplayName } from "../utils/scan";
@@ -28,13 +29,16 @@ export const ScanPanel: React.FC = () => {
   // Set document title with scan location
   useDocumentTitle(getScanDisplayName(selectedScan, scansDir), "Scans");
 
-  // Clear scan state from the store on mount
+  // Clear scan state when viewing a different scan, but preserve it on back-nav
+  // to the same scan (so search text, sort, grouping survive round-trips).
+  const { scanPath } = useScanRoute();
+  const selectedScanLocation = useStore((state) => state.selectedScanLocation);
   const clearScanState = useStore((state) => state.clearScanState);
   useEffect(() => {
-    clearScanState();
-    // TODO: lint react-hooks/exhaustive-deps - should we just add clearScanState to the dependencies
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (scanPath !== selectedScanLocation) {
+      clearScanState();
+    }
+  }, [scanPath, selectedScanLocation, clearScanState]);
 
   // Sync URL query param with store state
   const [searchParams] = useSearchParams();
