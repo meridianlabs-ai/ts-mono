@@ -1148,6 +1148,8 @@ export interface components {
          * @description Configuration used for evaluation.
          */
         EvalConfig: {
+            /** Acp Server */
+            acp_server?: boolean | number | string | null;
             approval?: components["schemas"]["ApprovalPolicyConfig"] | null;
             /** Continue On Fail */
             continue_on_fail?: boolean | null;
