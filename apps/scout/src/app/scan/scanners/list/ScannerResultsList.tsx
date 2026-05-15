@@ -26,6 +26,7 @@ import {
 } from "../../../utils/results";
 import {
   kFilterAllResults,
+  kFilterNegativeResults,
   kFilterPositiveResults,
 } from "../results/ScannerResultsFilter";
 
@@ -136,11 +137,14 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       });
     }
 
-    // Filter positives results if needed
+    // Filter results by value if needed
     const resultsFiltered =
-      selectedFilter === kFilterPositiveResults || selectedFilter === undefined
-        ? textFiltered.filter((s) => !!s.value)
-        : textFiltered;
+      selectedFilter === kFilterNegativeResults
+        ? textFiltered.filter((s) => !s.value)
+        : selectedFilter === kFilterPositiveResults ||
+            selectedFilter === undefined
+          ? textFiltered.filter((s) => !!s.value)
+          : textFiltered;
 
     return [...resultsFiltered].sort((a, b) => sortByColumns(a, b, activeSort));
   }, [scannerSummaries, selectedFilter, scansSearchText, activeSort]);
@@ -389,10 +393,17 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   } else if (
     !isLoading &&
     filteredSummaries.length === 0 &&
-    selectedFilter !== kFilterAllResults &&
+    selectedFilter === kFilterPositiveResults &&
     !scansSearchText
   ) {
     noContentMessage = "No positive scan results were found.";
+  } else if (
+    !isLoading &&
+    filteredSummaries.length === 0 &&
+    selectedFilter === kFilterNegativeResults &&
+    !scansSearchText
+  ) {
+    noContentMessage = "No negative scan results were found.";
   } else if (!isLoading && filteredSummaries.length === 0) {
     noContentMessage = "No scan results match the current filter.";
   }
