@@ -35,6 +35,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
         : `${selectedCount} Scores`;
 
   const allScoresSelected = selectedCount === scores.length;
+  const noneSelected = selectedCount === 0;
 
   return (
     <div style={{ display: "flex" }}>
@@ -92,6 +93,18 @@ export const SelectScorer: FC<SelectScorerProps> = ({
             }}
           >
             All
+          </a>
+          |
+          <a
+            className={clsx(
+              styles.link,
+              noneSelected ? styles.selected : undefined
+            )}
+            onClick={() => {
+              setSelectedScores([]);
+            }}
+          >
+            None
           </a>
         </div>
         <div className={styles.container}>
