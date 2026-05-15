@@ -171,6 +171,7 @@ export const sortByColumns = (
     let comparison = 0;
 
     switch (sortCol.column.toLowerCase()) {
+      case "result":
       case "id": {
         const identifierA = resultIdentifier(a);
         const identifierB = resultIdentifier(b);

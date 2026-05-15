@@ -17,7 +17,7 @@ import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
 import { useScanResultSummaries } from "../../../hooks/useScanResultSummaries";
 import { useScanRoute } from "../../../hooks/useScanRoute";
-import { ScanResultSummary } from "../../../types";
+import { ScanResultSummary, SortColumn } from "../../../types";
 import {
   resultIdentifierStr,
   resultLog,
@@ -99,6 +99,21 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     }
   }, [selectedScan, selectedFilter, setSelectedFilter]);
 
+  const kDefaultSort: SortColumn[] = useMemo(
+    () => [{ column: "Result", direction: "asc" }],
+    []
+  );
+
+  // The sort used for rendering: user-explicit or default id/epoch asc.
+  const activeSort = sortResults ?? kDefaultSort;
+
+  // Sync the default to the store so the column header shows the sort indicator.
+  useEffect(() => {
+    if (!sortResults && scannerSummaries.length > 0) {
+      setSortResults(kDefaultSort);
+    }
+  }, [sortResults, scannerSummaries, kDefaultSort, setSortResults]);
+
   // Apply text filtering to the scanner summaries
   const filteredSummaries = useMemo(() => {
     let textFiltered = scannerSummaries;
@@ -127,35 +142,8 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
         ? textFiltered.filter((s) => !!s.value)
         : textFiltered;
 
-    // Return filtered sorted summaries
-    if (sortResults === undefined || sortResults.length === 0) {
-      return resultsFiltered;
-    } else {
-      return [...resultsFiltered].sort((a, b) =>
-        sortByColumns(a, b, sortResults)
-      );
-    }
-  }, [scannerSummaries, selectedFilter, scansSearchText, sortResults]);
-
-  // Set the default sort order when the filter changes (if there isn't an explicit order)
-  useEffect(() => {
-    if (filteredSummaries.length === 0 || sortResults) {
-      return;
-    }
-
-    if (
-      selectedFilter === kFilterAllResults &&
-      filteredSummaries.some((s) => !!s.scanError)
-    ) {
-      // Default sort for error filter: errors first, then by identifier
-      setSortResults([{ column: "Error", direction: "desc" }]);
-    } else if (
-      filteredSummaries.some((s) => s.validationResult !== undefined)
-    ) {
-      // Default sort for validations: validations first, then by identifier
-      setSortResults([{ column: "Validation", direction: "desc" }]);
-    }
-  }, [sortResults, selectedFilter, filteredSummaries, setSortResults]);
+    return [...resultsFiltered].sort((a, b) => sortByColumns(a, b, activeSort));
+  }, [scannerSummaries, selectedFilter, scansSearchText, activeSort]);
 
   // Compute the optimal column layout based on the current data
   const gridDescriptor = useMemo(() => {
