@@ -1,4 +1,3 @@
-import JSON5 from "json5";
 import { useEffect, useMemo } from "react";
 
 import { basename } from "@tsmono/util";
@@ -47,7 +46,7 @@ export function getEmbeddedAppMessage(): AppMessage | null {
   }
 
   try {
-    const state: unknown = JSON5.parse(embeddedState.textContent);
+    const state: unknown = JSON.parse(embeddedState.textContent);
     if (isAppMessage(state)) {
       return state;
     }
