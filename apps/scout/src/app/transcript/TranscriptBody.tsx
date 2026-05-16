@@ -402,21 +402,22 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       scrollable={false}
     >
       {renderWithSearchSplit(
-        <ChatViewVirtualList
-          id={"transcript-id"}
-          messages={transcript.messages || []}
-          initialMessageId={messageParam}
-          className={styles.chatList}
-          scrollRef={activeScrollRef}
-          display={{
-            unlabeledRoles: ["assistant"],
-            formatDateTime,
-          }}
-          linking={{
-            enabled: isHostedEnvironment(),
-            getMessageUrl: getFullMessageUrl,
-          }}
-        />,
+        <div className={styles.chatList}>
+          <ChatViewVirtualList
+            id={"transcript-id"}
+            messages={transcript.messages || []}
+            initialMessageId={messageParam}
+            scrollRef={activeScrollRef}
+            display={{
+              unlabeledRoles: ["assistant"],
+              formatDateTime,
+            }}
+            linking={{
+              enabled: isHostedEnvironment(),
+              getMessageUrl: getFullMessageUrl,
+            }}
+          />
+        </div>,
         "messages"
       )}
     </TabPanel>
