@@ -201,7 +201,7 @@ export const ScannerResultPanel: FC = () => {
         resolvedTranscriptsDir,
         selectedResult?.transcriptId ?? ""
       );
-      if (e.shiftKey) {
+      if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
         void navigate(route);
@@ -242,7 +242,7 @@ export const ScannerResultPanel: FC = () => {
           label="Transcript"
           icon={ApplicationIcons.transcript}
           onClick={handleNavigateToTranscript}
-          title="View complete transcript (Shift+click to open in new tab)"
+          title="View complete transcript (Cmd/Ctrl+click to open in new tab)"
           subtle={true}
         />
       );
