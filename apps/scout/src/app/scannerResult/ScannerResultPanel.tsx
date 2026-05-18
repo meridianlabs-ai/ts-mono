@@ -2,7 +2,7 @@ import { skipToken } from "@tanstack/react-query";
 import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   JSONPanel,
@@ -17,6 +17,7 @@ import { ApplicationIcons } from "../../icons";
 import {
   getScannerParam,
   getValidationParam,
+  transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
 import { useStore } from "../../state/store";
@@ -191,6 +192,23 @@ export const ScannerResultPanel: FC = () => {
     setHighlightLabeled(!highlightLabeled);
   }, [highlightLabeled, setHighlightLabeled]);
 
+  const navigate = useNavigate();
+
+  const handleNavigateToTranscript = useCallback(
+    (e: React.MouseEvent) => {
+      const route = transcriptRoute(
+        resolvedTranscriptsDir,
+        selectedResult?.transcriptId ?? ""
+      );
+      if (e.shiftKey) {
+        window.open(route, "_blank");
+      } else {
+        void navigate(route);
+      }
+    },
+    [navigate, resolvedTranscriptsDir, selectedResult?.transcriptId]
+  );
+
   const tools = useMemo(() => {
     const toolButtons: ReactNode[] = [];
 
@@ -207,6 +225,23 @@ export const ScannerResultPanel: FC = () => {
           latched={!!highlightLabeled}
           onClick={toggleHighlightLabeled}
           label="Highlight Refs"
+        />
+      );
+    }
+
+    // Transcript button - navigate to full transcript view
+    const canNavigateToTranscript =
+      !!hasTranscript &&
+      resolvedTranscriptsDir.length > 0 &&
+      !!selectedResult?.transcriptId;
+    if (canNavigateToTranscript) {
+      toolButtons.push(
+        <ToolButton
+          key="transcript-navigate"
+          label="Transcript"
+          icon={ApplicationIcons.transcript}
+          onClick={handleNavigateToTranscript}
+          title="View complete transcript (Shift+click to open in new tab)"
         />
       );
     }
@@ -237,6 +272,9 @@ export const ScannerResultPanel: FC = () => {
     selectedResult,
     toggleValidationSidebar,
     validationSidebarCollapsed,
+    handleNavigateToTranscript,
+    hasTranscript,
+    resolvedTranscriptsDir,
   ]);
 
   const renderTabSet = (resultData: ScanResultData) => (
