@@ -10,12 +10,7 @@ import {
   isRecord,
 } from "@tsmono/util";
 
-import {
-  AppConfig,
-  ScannerInput,
-  Status,
-  Transcript,
-} from "../../types/api-types";
+import { AppConfig, ScannerInput, Status } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
 import { ScoreValue } from "../components/ScoreValue";
 import { TaskName } from "../components/TaskName";
@@ -26,6 +21,7 @@ import {
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
+  ScanResultData,
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
@@ -33,6 +29,7 @@ import styles from "./ScannerResultHeader.module.css";
 interface ScannerResultHeaderProps {
   scan?: Status;
   inputData?: ScannerInput;
+  resultData?: ScanResultData;
   appConfig: AppConfig;
 }
 
@@ -46,15 +43,15 @@ const valueClassName = clsx("text-size-small");
 export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   scan,
   inputData,
+  resultData,
   appConfig,
 }) => {
-  const headings = headingsForResult(appConfig, inputData, scan) ?? [];
+  const headings =
+    headingsForResult(appConfig, inputData, resultData, scan) ?? [];
   if (headings.length === 0) return null;
 
-  // Tabular scores get their own region (same pattern as TranscriptTitle)
-  const transcript =
-    inputData && isTranscriptInput(inputData) ? inputData.input : undefined;
-  const tabularScore = transcript?.score != null && isRecord(transcript.score);
+  const score = resultData?.transcriptScore;
+  const tabularScore = score != null && isRecord(score);
 
   return (
     <div
@@ -66,11 +63,11 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
         labelClassName={labelClassName}
         valueClassName={valueClassName}
       />
-      {tabularScore && transcript?.score != null && (
+      {tabularScore && score != null && (
         <div className={styles.scoreRegion}>
           <span className={labelClassName}>Score</span>
           <span className={valueClassName}>
-            <ScoreValue score={transcript.score} maxRows={5} />
+            <ScoreValue score={score} maxRows={5} />
           </span>
         </div>
       )}
@@ -81,11 +78,12 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
 const headingsForResult = (
   appConfig: AppConfig,
   inputData?: ScannerInput,
+  resultData?: ScanResultData,
   status?: Status
 ): HeadingValue[] | undefined => {
   if (!inputData) return [];
   if (isTranscriptInput(inputData))
-    return transcriptHeadings(appConfig, inputData.input, status);
+    return transcriptHeadings(appConfig, resultData, status);
   if (isMessageInput(inputData))
     return messageHeadings(inputData.input, status);
   if (isMessagesInput(inputData)) return messagesHeadings(inputData.input);
@@ -96,14 +94,13 @@ const headingsForResult = (
 
 const transcriptHeadings = (
   appConfig: AppConfig,
-  transcript: Transcript,
+  resultData?: ScanResultData,
   status?: Status
 ): HeadingValue[] => {
-  // Source info — backwards compat with metadata
-  const sourceUri =
-    transcript.source_uri ||
-    (transcript.metadata?.log as string | undefined) ||
-    "";
+  if (!resultData) return [];
+
+  // Source info
+  const sourceUri = resultData.transcriptSourceUri ?? "";
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
     resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -113,29 +110,18 @@ const transcriptHeadings = (
     resolvedSourceUrl
   );
 
-  // Model — backwards compat with metadata
-  const transcriptModel =
-    transcript.model ||
-    (transcript.metadata?.model as string | undefined) ||
-    "";
-
-  // Task — backwards compat with metadata
-  const taskSet =
-    transcript.task_set ||
-    (transcript.metadata?.task_name as string | undefined) ||
-    "";
-  const taskId =
-    transcript.task_id || (transcript.metadata?.id as string | undefined) || "";
-  const taskRepeat =
-    transcript.task_repeat || (transcript.metadata?.epoch as number) || -1;
-
+  const transcriptModel = resultData.transcriptModel ?? "";
   const scanningModel = status?.spec.model?.model;
 
   const headings: HeadingValue[] = [
     {
       label: "Task",
       value: (
-        <TaskName taskSet={taskSet} taskId={taskId} taskRepeat={taskRepeat} />
+        <TaskName
+          taskSet={resultData.transcriptTaskSet}
+          taskId={resultData.transcriptTaskId}
+          taskRepeat={resultData.transcriptTaskRepeat}
+        />
       ),
     },
   ];
@@ -144,15 +130,15 @@ const transcriptHeadings = (
     headings.push({ label: "Source", value: displaySourceUri });
   }
 
-  if (transcript.date) {
+  if (resultData.transcriptDate) {
     headings.push({
       label: "Date",
-      value: formatDateTime(new Date(transcript.date)),
+      value: formatDateTime(new Date(resultData.transcriptDate)),
     });
   }
 
-  if (transcript.agent) {
-    headings.push({ label: "Agent", value: transcript.agent });
+  if (resultData.transcriptAgent) {
+    headings.push({ label: "Agent", value: resultData.transcriptAgent });
   }
 
   if (transcriptModel) {
@@ -163,40 +149,43 @@ const transcriptHeadings = (
     headings.push({ label: "Scanning Model", value: scanningModel });
   }
 
-  if (transcript.limit) {
-    headings.push({ label: "Limit", value: transcript.limit });
+  if (resultData.transcriptLimit) {
+    headings.push({ label: "Limit", value: resultData.transcriptLimit });
   }
 
-  if (transcript.error) {
-    headings.push({ label: "Error", value: transcript.error });
+  if (resultData.transcriptError) {
+    headings.push({ label: "Error", value: resultData.transcriptError });
   }
 
-  if (transcript.total_tokens) {
+  if (resultData.transcriptTotalTokens) {
     headings.push({
       label: "Tokens",
-      value: formatNumber(transcript.total_tokens),
+      value: formatNumber(resultData.transcriptTotalTokens),
     });
   }
 
-  if (transcript.total_time) {
+  if (resultData.transcriptTotalTime) {
     headings.push({
       label: "Time",
-      value: formatTime(transcript.total_time),
+      value: formatTime(resultData.transcriptTotalTime),
     });
   }
 
-  if (transcript.message_count) {
+  if (resultData.transcriptMessageCount) {
     headings.push({
       label: "Messages",
-      value: transcript.message_count.toString(),
+      value: resultData.transcriptMessageCount.toString(),
     });
   }
 
   // Simple (non-tabular) scores go inline; tabular scores are handled by the parent
-  if (transcript.score != null && !isRecord(transcript.score)) {
+  if (
+    resultData.transcriptScore != null &&
+    !isRecord(resultData.transcriptScore)
+  ) {
     headings.push({
       label: "Score",
-      value: <ScoreValue score={transcript.score} />,
+      value: <ScoreValue score={resultData.transcriptScore} />,
     });
   }
 

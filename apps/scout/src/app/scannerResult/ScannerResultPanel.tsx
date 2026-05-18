@@ -391,6 +391,7 @@ export const ScannerResultPanel: FC = () => {
       />
       <ScannerResultHeader
         inputData={inputData}
+        resultData={selectedResult}
         scan={selectedScan}
         appConfig={appConfig}
       />
