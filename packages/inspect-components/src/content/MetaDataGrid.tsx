@@ -1,7 +1,5 @@
-// TODO: lint @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 import clsx from "clsx";
-import { CSSProperties, FC, Fragment, useState } from "react";
+import { CSSProperties, FC, useState } from "react";
 
 import { MarkdownReference } from "@tsmono/react/components";
 
@@ -15,15 +13,27 @@ interface MetadataGridProps {
   style?: CSSProperties;
   entries: Record<string, unknown>;
   maxRows?: number;
+  depth?: number;
   options?: {
     size?: "mini" | "small";
     plain?: boolean;
+    striped?: boolean;
     previewRefsOnHover?: boolean;
   };
 }
 
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
+
+const isNonEmptyObject = (v: unknown): v is Record<string, unknown> =>
+  isPlainObject(v) && Object.keys(v).length > 0;
+
 /**
- * Renders the MetaDataView component.
+ * Renders structured metadata as a grid with section cards.
+ *
+ * Top-level scalars render as key-value rows; nested objects are
+ * promoted to titled sections with a header rule. Recurses for
+ * deeply nested objects.
  */
 export const MetaDataGrid: FC<MetadataGridProps> = ({
   id,
@@ -33,71 +43,66 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
   style,
   maxRows,
   options,
+  depth = 0,
 }) => {
-  const baseId = "metadata-grid";
-  const fontStyle =
-    options?.size === "mini" ? "text-size-smallest" : "text-size-smaller";
+  const baseId = id ?? "metadata-grid";
+  const allEntries = entryRecords(entries);
+
+  const scalars = allEntries.filter((e) => !isNonEmptyObject(e.value));
+  const groups = allEntries.filter((e) => isNonEmptyObject(e.value));
 
   const [expanded, setExpanded] = useState(false);
-  const allEntries = entryRecords(entries);
-  const isCollapsible = maxRows != null && allEntries.length > maxRows;
-  const visibleEntries =
-    isCollapsible && !expanded ? allEntries.slice(0, maxRows) : allEntries;
+  const isCollapsible = maxRows != null && scalars.length > maxRows;
+  const visibleScalars =
+    isCollapsible && !expanded ? scalars.slice(0, maxRows) : scalars;
 
-  const entryEls = visibleEntries.map((entry, index) => {
-    const id = `${baseId}-value-${index}`;
-    return (
-      <Fragment key={`${baseId}-record-${index}`}>
-        {index !== 0 ? (
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              borderBottom: `${!options?.plain ? "solid 1px var(--bs-light-border-subtle" : ""}`,
-            }}
-          ></div>
-        ) : undefined}
-        <div
-          className={clsx(
-            `${baseId}-key`,
-            styles.cell,
-            "text-style-label",
-            "text-style-secondary",
-            fontStyle
-          )}
-        >
-          {entry?.name}
-        </div>
-        <div className={clsx(styles.value, `${baseId}-value`, fontStyle)}>
-          {entry && (
-            <RenderedContent
-              id={id}
-              entry={entry}
-              references={references}
-              renderOptions={{
-                renderString: "markdown",
-                previewRefsOnHover: options?.previewRefsOnHover,
-              }}
-              renderObject={(obj: any) => {
-                return (
-                  <MetaDataGrid
-                    id={id}
-                    className={clsx(styles.nested)}
-                    entries={obj}
-                    options={options}
-                    references={references}
-                  />
-                );
-              }}
-            />
-          )}
-        </div>
-      </Fragment>
-    );
-  });
+  const depthClass =
+    depth === 1 ? styles.depth1 : depth >= 2 ? styles.depth2 : undefined;
 
   return (
-    <div id={id} className={clsx(className, styles.grid)} style={style}>
-      {entryEls}
+    <div
+      id={depth === 0 ? id : undefined}
+      className={clsx(
+        depth === 0 && className,
+        styles.grid,
+        depthClass,
+        options?.striped && depth === 0 && styles.striped
+      )}
+      style={depth === 0 ? style : undefined}
+    >
+      {visibleScalars.length > 0 && (
+        <div className={styles.rows}>
+          {visibleScalars.map((entry, index) => {
+            const entryId = `${baseId}-value-${index}`;
+            return (
+              <div key={entryId} className={styles.row}>
+                <div className={styles.key}>{entry.name}</div>
+                <div className={styles.val}>
+                  <RenderedContent
+                    id={entryId}
+                    entry={entry}
+                    references={references}
+                    renderOptions={{
+                      renderString: "markdown",
+                      previewRefsOnHover: options?.previewRefsOnHover,
+                    }}
+                    renderObject={(obj: Record<string, unknown>) => (
+                      <MetaDataGrid
+                        id={entryId}
+                        entries={obj}
+                        options={options}
+                        references={references}
+                        depth={depth + 1}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {isCollapsible && (
         <div className={styles.toggleContainer}>
           <button
@@ -106,21 +111,37 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
           >
             {expanded
               ? "less"
-              : `${allEntries.length - visibleEntries.length} more`}
+              : `${scalars.length - visibleScalars.length} more`}
             ...
           </button>
         </div>
       )}
+
+      {groups.map((entry, groupIndex) => {
+        const groupId = `${baseId}-group-${groupIndex}`;
+        return (
+          <section
+            key={groupId}
+            className={clsx(styles.group, depth >= 1 && styles.depth1Group)}
+          >
+            <header className={styles.groupHeader}>
+              <span className={styles.groupKey}>{entry.name}</span>
+              <span className={styles.groupRule} />
+            </header>
+            <MetaDataGrid
+              id={groupId}
+              entries={entry.value as Record<string, unknown>}
+              options={options}
+              references={references}
+              depth={depth + 1}
+            />
+          </section>
+        );
+      })}
     </div>
   );
 };
 
-// entries can be either a Record<string, stringable>
-// or an array of record with name/value on way in
-// but coerce to array of records for order
-/**
- * Ensure the proper type for entries
- */
 const entryRecords = (
   entries: { name: string; value: unknown }[] | Record<string, unknown>
 ): { name: string; value: unknown }[] => {

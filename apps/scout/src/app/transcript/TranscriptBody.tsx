@@ -494,6 +494,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             id="transcript-metadata-grid"
             entries={transcript.metadata || {}}
             className={clsx(styles.metadata)}
+            options={{ striped: true }}
           />
         </div>
       </TabPanel>
@@ -518,6 +519,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           id="transcript-info-grid"
           entries={infoData}
           className={clsx(styles.metadata)}
+          options={{ striped: true }}
         />
       </div>
     </TabPanel>
