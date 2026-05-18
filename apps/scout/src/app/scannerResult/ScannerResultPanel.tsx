@@ -17,6 +17,7 @@ import { ApplicationIcons } from "../../icons";
 import {
   getScannerParam,
   getValidationParam,
+  openRouteInNewTab,
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
@@ -201,7 +202,7 @@ export const ScannerResultPanel: FC = () => {
         selectedResult?.transcriptId ?? ""
       );
       if (e.shiftKey) {
-        window.open(route, "_blank");
+        openRouteInNewTab(route);
       } else {
         void navigate(route);
       }
