@@ -1,8 +1,14 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC } from "react";
 
 import type { ChatMessage, Event } from "@tsmono/inspect-common/types";
 import type { EventType } from "@tsmono/inspect-components/transcript";
+import {
+  formatDateTime,
+  formatNumber,
+  formatTime,
+  isRecord,
+} from "@tsmono/util";
 
 import {
   AppConfig,
@@ -10,6 +16,8 @@ import {
   Status,
   Transcript,
 } from "../../types/api-types";
+import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
+import { ScoreValue } from "../components/ScoreValue";
 import { TaskName } from "../components/TaskName";
 import { projectOrAppAliasedPath } from "../server/useAppConfig";
 import {
@@ -28,107 +36,74 @@ interface ScannerResultHeaderProps {
   appConfig: AppConfig;
 }
 
-interface Column {
-  label: string;
-  value: ReactNode;
-  className?: string | string[];
-}
+const labelClassName = clsx(
+  "text-style-label",
+  "text-size-smallestest",
+  "text-style-secondary"
+);
+const valueClassName = clsx("text-size-small");
 
 export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   scan,
   inputData,
   appConfig,
 }) => {
-  const columns = colsForResult(appConfig, inputData, scan) || [];
+  const headings = headingsForResult(appConfig, inputData, scan) ?? [];
+  if (headings.length === 0) return null;
+
+  // Tabular scores get their own region (same pattern as TranscriptTitle)
+  const transcript =
+    inputData && isTranscriptInput(inputData) ? inputData.input : undefined;
+  const tabularScore = transcript?.score != null && isRecord(transcript.score);
 
   return (
-    <div className={clsx(styles.header, classForCols(columns.length))}>
-      {columns.map((col) => {
-        return (
-          <div
-            key={`header-label-${col.label}`}
-            className={clsx(
-              "text-size-smallest",
-              "text-style-label",
-              "text-style-secondary",
-              styles.label,
-              col.className
-            )}
-          >
-            {col.label}
-          </div>
-        );
-      })}
-
-      {columns.map((col) => {
-        return (
-          <div
-            key={`header-val-${col.label}`}
-            className={clsx("text-size-small", styles.value, col.className)}
-          >
-            {col.value}
-          </div>
-        );
-      })}
+    <div
+      className={clsx(styles.header, tabularScore && styles.headerWithScore)}
+    >
+      <HeadingGrid
+        headings={headings}
+        className={tabularScore ? styles.metadataRegion : undefined}
+        labelClassName={labelClassName}
+        valueClassName={valueClassName}
+      />
+      {tabularScore && transcript?.score != null && (
+        <div className={styles.scoreRegion}>
+          <span className={labelClassName}>Score</span>
+          <span className={valueClassName}>
+            <ScoreValue score={transcript.score} maxRows={5} />
+          </span>
+        </div>
+      )}
     </div>
   );
 };
 
-const classForCols = (numCols: number) => {
-  return clsx(
-    numCols === 1
-      ? styles.oneCol
-      : numCols === 2
-        ? styles.twoCol
-        : numCols === 3
-          ? styles.threeCol
-          : numCols === 4
-            ? styles.fourCol
-            : numCols === 5
-              ? styles.fiveCol
-              : styles.sixCol
-  );
-};
-
-const colsForResult: (
+const headingsForResult = (
   appConfig: AppConfig,
   inputData?: ScannerInput,
   status?: Status
-) => Column[] | undefined = (appConfig, inputData, status) => {
-  if (!inputData) {
-    return [];
-  }
-  if (isTranscriptInput(inputData)) {
-    return transcriptCols(appConfig, inputData.input, status);
-  } else if (isMessageInput(inputData)) {
-    return messageCols(inputData.input, status);
-  } else if (isMessagesInput(inputData)) {
-    return messagesCols(inputData.input);
-  } else if (isEventInput(inputData)) {
-    return eventCols(inputData.input);
-  } else if (isEventsInput(inputData)) {
-    return eventsCols(inputData.input);
-  } else {
-    return [];
-  }
+): HeadingValue[] | undefined => {
+  if (!inputData) return [];
+  if (isTranscriptInput(inputData))
+    return transcriptHeadings(appConfig, inputData.input, status);
+  if (isMessageInput(inputData))
+    return messageHeadings(inputData.input, status);
+  if (isMessagesInput(inputData)) return messagesHeadings(inputData.input);
+  if (isEventInput(inputData)) return eventHeadings(inputData.input);
+  if (isEventsInput(inputData)) return eventsHeadings(inputData.input);
+  return [];
 };
 
-const transcriptCols = (
+const transcriptHeadings = (
   appConfig: AppConfig,
   transcript: Transcript,
   status?: Status
-) => {
-  // Read values from the transcript directly, falling back to metadata
-  // The metadata was previously used to store these values before they were
-  // added to the main Transcript schema (so we're doing this mainly for backwards
-  // compatibility with old scan results)
-  // Source info
+): HeadingValue[] => {
+  // Source info — backwards compat with metadata
   const sourceUri =
     transcript.source_uri ||
     (transcript.metadata?.log as string | undefined) ||
     "";
-
-  // Coerce this to a URI
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
     resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -138,14 +113,13 @@ const transcriptCols = (
     resolvedSourceUrl
   );
 
-  // Model info
+  // Model — backwards compat with metadata
   const transcriptModel =
     transcript.model ||
     (transcript.metadata?.model as string | undefined) ||
     "";
-  const scanningModel = status?.spec.model?.model;
 
-  // Task information
+  // Task — backwards compat with metadata
   const taskSet =
     transcript.task_set ||
     (transcript.metadata?.task_name as string | undefined) ||
@@ -155,96 +129,120 @@ const transcriptCols = (
   const taskRepeat =
     transcript.task_repeat || (transcript.metadata?.epoch as number) || -1;
 
-  const cols: Column[] = [
+  const scanningModel = status?.spec.model?.model;
+
+  const headings: HeadingValue[] = [
     {
       label: "Task",
       value: (
         <TaskName taskSet={taskSet} taskId={taskId} taskRepeat={taskRepeat} />
       ),
     },
-    {
-      label: "Source",
-      value: displaySourceUri,
-    },
-    {
-      label: "Model",
-      value: transcriptModel,
-    },
   ];
 
-  if (status?.spec.model?.model) {
-    cols.push({
-      label: "Scanning Model",
-      value: scanningModel,
+  if (displaySourceUri) {
+    headings.push({ label: "Source", value: displaySourceUri });
+  }
+
+  if (transcript.date) {
+    headings.push({
+      label: "Date",
+      value: formatDateTime(new Date(transcript.date)),
     });
   }
 
-  return cols;
+  if (transcript.agent) {
+    headings.push({ label: "Agent", value: transcript.agent });
+  }
+
+  if (transcriptModel) {
+    headings.push({ label: "Model", value: transcriptModel });
+  }
+
+  if (scanningModel) {
+    headings.push({ label: "Scanning Model", value: scanningModel });
+  }
+
+  if (transcript.limit) {
+    headings.push({ label: "Limit", value: transcript.limit });
+  }
+
+  if (transcript.error) {
+    headings.push({ label: "Error", value: transcript.error });
+  }
+
+  if (transcript.total_tokens) {
+    headings.push({
+      label: "Tokens",
+      value: formatNumber(transcript.total_tokens),
+    });
+  }
+
+  if (transcript.total_time) {
+    headings.push({
+      label: "Time",
+      value: formatTime(transcript.total_time),
+    });
+  }
+
+  if (transcript.message_count) {
+    headings.push({
+      label: "Messages",
+      value: transcript.message_count.toString(),
+    });
+  }
+
+  // Simple (non-tabular) scores go inline; tabular scores are handled by the parent
+  if (transcript.score != null && !isRecord(transcript.score)) {
+    headings.push({
+      label: "Score",
+      value: <ScoreValue score={transcript.score} />,
+    });
+  }
+
+  return headings;
 };
 
-const messageCols = (message: ChatMessage, status?: Status) => {
-  const cols: Column[] = [
-    {
-      label: "Message ID",
-      value: message.id,
-    },
-  ];
+const messageHeadings = (
+  message: ChatMessage,
+  status?: Status
+): HeadingValue[] => {
+  const headings: HeadingValue[] = [{ label: "Message ID", value: message.id }];
 
   if (message.role === "assistant") {
-    cols.push({
-      label: "Model",
-      value: message.model,
-    });
-    cols.push({
+    headings.push({ label: "Model", value: message.model });
+    headings.push({
       label: "Tool Calls",
       value: ((message.tool_calls as []) || []).length,
     });
   } else {
-    cols.push({
-      label: "Role",
-      value: message.role,
-    });
+    headings.push({ label: "Role", value: message.role });
   }
 
   if (status?.spec.model?.model) {
-    cols.push({
+    headings.push({
       label: "Scanning Model",
       value: status.spec.model.model,
     });
   }
 
-  return cols;
+  return headings;
 };
 
-const messagesCols = (messages: ChatMessage[]): Column[] => {
-  return [
-    {
-      label: "Message Count",
-      value: messages.length,
-    },
-  ];
-};
+const messagesHeadings = (messages: ChatMessage[]): HeadingValue[] => [
+  { label: "Message Count", value: messages.length },
+];
 
-const eventCols = (event: EventType): Column[] => {
-  return [
-    {
-      label: "Event Type",
-      value: event.event,
-    },
-    {
-      label: "Timestamp",
-      value: event.timestamp
-        ? new Date(event.timestamp).toLocaleString()
-        : undefined,
-    },
-  ];
-};
+const eventHeadings = (event: EventType): HeadingValue[] => [
+  { label: "Event Type", value: event.event },
+  {
+    label: "Timestamp",
+    value: event.timestamp
+      ? new Date(event.timestamp).toLocaleString()
+      : undefined,
+  },
+];
 
-const eventsCols = (events: Event[]): Column[] => {
-  return [
-    {
-      label: "Event Count",
-      value: events.length,
-    },
-  ];
-};
+const eventsHeadings = (events: Event[]): HeadingValue[] => [
+  { label: "Event Count", value: events.length },
+];
