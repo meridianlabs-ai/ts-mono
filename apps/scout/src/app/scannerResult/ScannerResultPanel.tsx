@@ -243,6 +243,7 @@ export const ScannerResultPanel: FC = () => {
           icon={ApplicationIcons.transcript}
           onClick={handleNavigateToTranscript}
           title="View complete transcript (Shift+click to open in new tab)"
+          subtle={true}
         />
       );
     }
