@@ -361,6 +361,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scout/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent search inputs
+         * @description List recent global search inputs, newest first.
+         */
+        get: operations["list_search_inputs_scout_searches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scout/transcripts/{dir}/{id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search a transcript
+         * @description Search a transcript using grep or LLM-based search.
+         *
+         *     Returns cached results if the same search was run before.
+         */
+        post: operations["search_scout_transcripts__dir___id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scout/transcripts/{dir}/{id}/searches/{search_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a saved search result
+         * @description Get a cached search result by search input ID and transcript scope.
+         */
+        get: operations["get_search_scout_transcripts__dir___id__searches__search_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tool-choice": {
         parameters: {
             query?: never;
@@ -1859,6 +1921,61 @@ export interface components {
             /** Verbosity */
             verbosity?: ("low" | "medium" | "high") | null;
         };
+        /**
+         * GrepSearchInput
+         * @description A persisted grep search input.
+         */
+        GrepSearchInput: {
+            /** Created At */
+            created_at: string;
+            /** Ignore Case */
+            ignore_case: boolean;
+            /** Query */
+            query: string;
+            /** Regex */
+            regex: boolean;
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /** Word Boundary */
+            word_boundary: boolean;
+        };
+        /**
+         * GrepSearchRequest
+         * @description Request body for grep transcript searches.
+         */
+        GrepSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /**
+             * Ignore Case
+             * @default true
+             */
+            ignore_case: boolean;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Query */
+            query: string;
+            /**
+             * Regex
+             * @default false
+             */
+            regex: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /**
+             * Word Boundary
+             * @default false
+             */
+            word_boundary: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1995,6 +2112,44 @@ export interface components {
             value: components["schemas"]["JsonValue"];
         };
         JsonValue: JsonValue;
+        /**
+         * LlmSearchInput
+         * @description A persisted LLM search input.
+         */
+        LlmSearchInput: {
+            /** Created At */
+            created_at: string;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+        };
+        /**
+         * LlmSearchRequest
+         * @description Request body for LLM transcript searches.
+         */
+        LlmSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+        };
         /** LogDirResponse */
         LogDirResponse: {
             /** Log Dir */
@@ -2380,6 +2535,21 @@ export interface components {
             timestamp: string;
         };
         /**
+         * Reference
+         * @description Reference to scanned content.
+         */
+        Reference: {
+            /** Cite */
+            cite?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "message" | "event";
+        };
+        /**
          * ResponseSchema
          * @description Schema for model response when using Structured Output.
          */
@@ -2391,6 +2561,29 @@ export interface components {
             name: string;
             /** Strict */
             strict?: boolean | null;
+        };
+        /**
+         * Result
+         * @description Scan result.
+         */
+        Result: {
+            /** Answer */
+            answer?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Type */
+            type?: string | null;
+            /** Uuid */
+            uuid?: string | null;
+            value: components["schemas"]["JsonValue"];
         };
         /**
          * Sample
@@ -2843,6 +3036,24 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        SearchInput: components["schemas"]["GrepSearchInput"] | components["schemas"]["LlmSearchInput"];
+        /**
+         * SearchInputListResponse
+         * @description Response from the list search inputs endpoint.
+         */
+        SearchInputListResponse: {
+            /** Items */
+            items: components["schemas"]["SearchInput"][];
+        };
+        /**
+         * SearchResponse
+         * @description Response from running a transcript search.
+         */
+        SearchResponse: {
+            /** Id */
+            id: string;
+            result: components["schemas"]["Result"];
         };
         /** SegmentRef */
         SegmentRef: {
@@ -3910,6 +4121,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Samples"];
+                };
+            };
+        };
+    };
+    list_search_inputs_scout_searches_get: {
+        parameters: {
+            query: {
+                /** @description Search input type to list */
+                type: "grep" | "llm";
+                /** @description Maximum number of recent search inputs to return */
+                count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchInputListResponse"];
+                };
+            };
+        };
+    };
+    search_scout_transcripts__dir___id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrepSearchRequest"] | components["schemas"]["LlmSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+        };
+    };
+    get_search_scout_transcripts__dir___id__searches__search_id__get: {
+        parameters: {
+            query?: {
+                /** @description Message filter used for the cached search result */
+                messages?: string | null;
+                /** @description Event filter used for the cached search result */
+                events?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+                /** @description Search ID */
+                search_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Result"];
                 };
             };
         };
