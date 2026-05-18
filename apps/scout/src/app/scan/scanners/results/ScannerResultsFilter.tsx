@@ -7,6 +7,7 @@ import styles from "./ScannerResultsFilter.module.css";
 
 export const kFilterPositiveResults = "positive_results";
 export const kFilterAllResults = "all_results";
+export const kFilterNegativeResults = "negative_results";
 
 export const ScannerResultsFilter: FC = () => {
   const setSelectedFilter = useStore((state) => state.setSelectedFilter);
@@ -22,6 +23,7 @@ export const ScannerResultsFilter: FC = () => {
 
   const options = [
     { label: "Positive", val: kFilterPositiveResults },
+    { label: "Negative", val: kFilterNegativeResults },
     { label: "All", val: kFilterAllResults },
   ];
 

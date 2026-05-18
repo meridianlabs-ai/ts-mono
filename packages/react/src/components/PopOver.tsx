@@ -283,7 +283,18 @@ export const PopOver: React.FC<PopOverProps> = ({
       name: "arrow",
       enabled: showArrow,
       options: {
-        // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
+        // Latent — see meridianlabs-ai/ts-mono#90. `arrowRef.current` is
+        // null on the first render, so the arrow modifier initially has
+        // no element. The force-update useEffect below schedules a
+        // popper recompute after refs attach, and the `positionedThisOpen`
+        // gating hides the popover (visibility: hidden, offscreen) until
+        // popper has positioned it for this open cycle — so the
+        // unpositioned-arrow render never paints. Migrating to a
+        // state-backed `arrowElement` is the textbook fix but the
+        // existing belt-and-suspenders gating means there is no
+        // user-visible symptom today; deferring until the broader
+        // popper-ref migration.
+        // eslint-disable-next-line react-hooks/refs
         element: arrowRef.current,
         padding: 5, // This keeps the arrow from getting too close to the corner
       },
@@ -307,12 +318,21 @@ export const PopOver: React.FC<PopOverProps> = ({
   ];
 
   // Use popper hook with modifiers
+  //
+  // Latent — see meridianlabs-ai/ts-mono#90. `popperRef.current` is null on
+  // the first render, so usePopper initially has no popper element to
+  // position. The force-update useEffect below recomputes once refs
+  // attach, and `positionedThisOpen` keeps the popover hidden until
+  // popper has positioned it for this open cycle. No user-visible
+  // symptom today; migration to state-backed `popperElement` is the
+  // mechanically clean fix but deferred until we touch this component
+  // for other reasons.
   const {
     styles: popperStyles,
     attributes,
     state,
     update,
-    // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to callback-ref + useState)
+    // eslint-disable-next-line react-hooks/refs
   } = usePopper(positionEl, popperRef.current, {
     placement,
     strategy: "fixed",
@@ -343,16 +363,27 @@ export const PopOver: React.FC<PopOverProps> = ({
   const positionedThisOpen =
     isOpen && state !== null && state !== openBaselineState;
 
-  // Force update when needed refs change
+  // Force update when needed refs change.
+  //
+  // This effect papers over the stale-null reads of `popperRef.current` /
+  // `arrowRef.current` passed to usePopper above (see meridianlabs-ai/ts-mono#90).
+  // A 10ms setTimeout gives the callback refs time to attach, then we ask
+  // popper to recompute against the now-populated DOM nodes. Including
+  // `arrowRef.current` in the dep array is intentional: re-running this
+  // effect when the arrow node attaches is exactly what makes the
+  // workaround load-bearing. Reading `.current` during render to derive
+  // the dep is the reason for the `react-hooks/refs` suppression, and
+  // the lint rule can't see that the read drives effect scheduling
+  // (hence `exhaustive-deps`). Removing this effect requires the
+  // state-backed migration prescribed by #90.
   useEffect(() => {
     if (update && isOpen && shouldShowPopover) {
-      // Need to delay the update slightly to ensure refs are properly set
       const timer = setTimeout(() => {
         void update();
       }, 10);
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs -- arrowRef.current mutable read; see meridianlabs-ai/ts-mono#90
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs
   }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself

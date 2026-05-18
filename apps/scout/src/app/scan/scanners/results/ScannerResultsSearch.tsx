@@ -20,7 +20,7 @@ export const ScannerResultsSearch: FC = () => {
   return (
     <TextInput
       icon={ApplicationIcons.search}
-      value={scansSearchText}
+      value={scansSearchText ?? ""}
       onChange={handleChange}
       placeholder={"Search"}
       className={styles.searchBox}

@@ -767,30 +767,23 @@ export interface components {
             tool_call_id?: string[] | null;
         };
         /**
-         * CheckpointConfig
-         * @description User-facing checkpoint configuration.
+         * CheckpointSampleConfig
+         * @description Checkpoint configuration fields that may be set at the sample layer.
          *
-         *     Specify on ``Sample(checkpoint=...)``, ``Task(checkpoint=...)``, or
-         *     ``eval(checkpoint=...)``. All fields default to ``None`` so that
-         *     each level can supply a partial config; the layers are combined
-         *     per-field at sample-run time (precedence: eval > sample > task).
+         *     These fields can be specified on ``Sample(checkpoint=...)`` and are
+         *     also accepted at the task and eval layers (where they participate in
+         *     the per-field merge — precedence: eval > sample > task).
          *
-         *     Construct a config at the level that "owns" each value:
-         *     - **Task**: defaults common to every sample (typical trigger,
-         *       sandbox paths).
-         *     - **Sample**: per-row overrides (e.g. a particular sample needs a
-         *       tighter cadence or a different captured path).
-         *     - **Eval / CLI**: run-level overrides (e.g. operator switches
-         *       cadence or destination for one run).
+         *     The fields excluded from this base class — ``checkpoints_dir`` and
+         *     ``retention`` — are eval-wide concerns that the sample layer must
+         *     not influence. They live only on the derived :class:`CheckpointConfig`,
+         *     which is the type used at the task and eval layers.
          *
          *     See ``design/plans/checkpointing-working.md`` §2.
          */
-        CheckpointConfig: {
-            /** Checkpoints Dir */
-            checkpoints_dir?: string | null;
+        CheckpointSampleConfig: {
             /** Max Consecutive Failures */
             max_consecutive_failures?: number | null;
-            retention?: components["schemas"]["Retention"] | null;
             /** Sandbox Paths */
             sandbox_paths?: {
                 [key: string]: string[];
@@ -2400,23 +2393,11 @@ export interface components {
             strict?: boolean | null;
         };
         /**
-         * Retention
-         * @description Controls when checkpoint data is deleted.
-         */
-        Retention: {
-            /**
-             * After Eval
-             * @default delete
-             * @enum {string}
-             */
-            after_eval: "delete" | "retain";
-        };
-        /**
          * Sample
          * @description Sample for an evaluation task.
          */
         Sample: {
-            checkpoint?: components["schemas"]["CheckpointConfig"] | null;
+            checkpoint?: components["schemas"]["CheckpointSampleConfig"] | null;
             /** Choices */
             choices?: string[] | null;
             /** Files */

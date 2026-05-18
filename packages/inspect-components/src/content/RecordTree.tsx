@@ -241,7 +241,18 @@ export const RecordTree: FC<RecordTreeProps> = ({
   return (
     <Virtuoso
       ref={listHandle}
-      // eslint-disable-next-line react-hooks/refs -- see meridianlabs-ai/ts-mono#90 (migrate to state-backed element prop)
+      // Latent only — see meridianlabs-ai/ts-mono#90. Reading `.current`
+      // during render yields `null` on the first commit, so Virtuoso
+      // initially receives `customScrollParent={undefined}` and only
+      // picks up the real parent on the next re-render. Virtuoso
+      // re-renders frequently enough in practice that no user-visible
+      // symptom has been observed. The prescribed fix changes this prop
+      // API to `HTMLDivElement | null`, which cascades through PlanCard,
+      // SampleDisplay (also reads `scrollRef.current.focus()` and feeds
+      // `useScrollDirection`), SampleScoresGrid, and their parents —
+      // wide ripple for a non-firing bug. Suppress until that migration
+      // happens or a real symptom appears.
+      // eslint-disable-next-line react-hooks/refs
       customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}

@@ -416,6 +416,7 @@ export const createStore = (api: ScoutApiV2) =>
               state.selectedResultTab = undefined;
               state.groupResultsBy = undefined;
               state.scansSearchText = undefined;
+              state.sortResults = undefined;
             });
           },
           clearScansState: () => {
