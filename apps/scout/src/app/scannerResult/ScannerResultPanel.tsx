@@ -316,12 +316,7 @@ export const ScannerResultPanel: FC = () => {
           className={styles.fullHeight}
         >
           {resultData && inputData && (
-            <ResultPanel
-              resultData={resultData}
-              inputData={inputData}
-              transcriptDir={resolvedTranscriptsDir}
-              hasTranscript={!!hasTranscript}
-            />
+            <ResultPanel resultData={resultData} inputData={inputData} />
           )}
         </TabPanel>
       ) : undefined}

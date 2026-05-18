@@ -1,19 +1,14 @@
 import clsx from "clsx";
-import { FC, useCallback, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { FC, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../../icons";
-import { transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";
-import {
-  ColumnHeader,
-  ColumnHeaderButton,
-} from "../../components/ColumnHeader";
+import { ColumnHeader } from "../../components/ColumnHeader";
 import { TimelineEventsView } from "../../timeline/components/TimelineEventsView";
 import {
   isEventInput,
@@ -29,19 +24,11 @@ import styles from "./ResultBody.module.css";
 export interface ResultBodyProps {
   resultData: ScanResultData;
   inputData: ScannerInput;
-  transcriptDir: string;
-  hasTranscript: boolean;
 }
 
-export const ResultBody: FC<ResultBodyProps> = ({
-  resultData,
-  inputData,
-  transcriptDir,
-  hasTranscript,
-}) => {
+export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // Headroom: collapse swimlanes on scroll-down, expand on scroll-up.
   const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
@@ -53,26 +40,9 @@ export const ResultBody: FC<ResultBodyProps> = ({
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
 
-  const handleNavigateToTranscript = useCallback(() => {
-    if (transcriptDir && resultData.transcriptId) {
-      void navigate(transcriptRoute(transcriptDir, resultData.transcriptId));
-    }
-  }, [navigate, transcriptDir, resultData.transcriptId]);
-
-  // Only show the transcript button when we have both transcriptsDir and transcriptId
-  const canNavigateToTranscript =
-    hasTranscript && transcriptDir.length > 0 && resultData.transcriptId;
-  const transcriptAction = canNavigateToTranscript ? (
-    <ColumnHeaderButton
-      icon={ApplicationIcons.transcript}
-      onClick={handleNavigateToTranscript}
-      title="View complete transcript"
-    />
-  ) : undefined;
-
   return (
     <div className={clsx(styles.container, containerClass(inputData))}>
-      <ColumnHeader label="Input" actions={transcriptAction} />
+      <ColumnHeader label="Input" />
       <div ref={scrollRef} className={clsx(styles.scrollable)}>
         <InputRenderer
           resultData={resultData}
