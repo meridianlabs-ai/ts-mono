@@ -537,6 +537,9 @@ importers:
       '@types/json5':
         specifier: ^2.2.0
         version: 2.2.0
+      '@types/node':
+        specifier: ^25.7.0
+        version: 25.7.0
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.14

@@ -10,6 +10,8 @@
  * the fixtures directory won't exist and the test suite is skipped.
  */
 
+/// <reference types="node" />
+
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
