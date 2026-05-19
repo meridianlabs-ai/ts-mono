@@ -15,7 +15,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   JSONPanel,
   LoadingBar,
-  StickyScroll,
   TabPanel,
   TabSet,
   ToolButton,
@@ -70,6 +69,17 @@ export const ScannerResultPanel: FC = () => {
   const [scoresDialogResultId, setScoresDialogResultId] = useState<
     string | undefined
   >();
+
+  // Collapse header when the scroller has been scrolled past the header
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const onScroll = () => {
+      setHeaderCollapsed(scroller.scrollTop > 0);
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Url data
   const { scanResultUuid } = useScanRoute();
@@ -407,7 +417,7 @@ export const ScannerResultPanel: FC = () => {
         }
       />
       <div className={styles.scroller} ref={scrollRef}>
-        <StickyScroll scrollRef={scrollRef} onStickyChange={setHeaderCollapsed}>
+        <div className={styles.stickyHeader}>
           <ScannerResultHeader
             inputData={inputData}
             resultData={selectedResult}
@@ -416,7 +426,7 @@ export const ScannerResultPanel: FC = () => {
             collapsed={headerCollapsed}
             onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
           />
-        </StickyScroll>
+        </div>
         {selectedResult && (
           <div
             className={clsx(

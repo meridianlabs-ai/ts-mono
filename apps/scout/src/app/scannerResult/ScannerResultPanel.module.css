@@ -10,6 +10,13 @@
   overflow-y: auto;
 }
 
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bs-body-bg);
+}
+
 .tabSet {
   border-top: solid 1px var(--bs-border-color);
   flex: 1;
