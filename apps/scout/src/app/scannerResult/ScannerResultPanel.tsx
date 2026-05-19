@@ -1,12 +1,21 @@
 import { skipToken } from "@tanstack/react-query";
 import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import { clsx } from "clsx";
-import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   JSONPanel,
   LoadingBar,
+  StickyScroll,
   TabPanel,
   TabSet,
   ToolButton,
@@ -36,6 +45,7 @@ import { useScansDir } from "../utils/useScansDir";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
+import { AllScoresDialog } from "./AllScoresDialog";
 import { ErrorPanel } from "./error/ErrorPanel";
 import { InfoPanel } from "./info/InfoPanel";
 import { MetadataPanel } from "./metadata/MetadataPanel";
@@ -54,6 +64,10 @@ const kTabIdTranscript = "transcript";
 const kTabIdMetadata = "Metadata";
 
 export const ScannerResultPanel: FC = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [showAllScores, setShowAllScores] = useState(false);
+
   // Url data
   const { scanResultUuid } = useScanRoute();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -389,43 +403,55 @@ export const ScannerResultPanel: FC = () => {
           scanLoading || resultLoading || detailLoading || hasTranscriptLoading
         }
       />
-      <ScannerResultHeader
-        inputData={inputData}
-        resultData={selectedResult}
-        scan={selectedScan}
-        appConfig={appConfig}
-      />
-
-      {selectedResult && (
-        <div
-          className={clsx(
-            styles.contentArea,
-            !validationSidebarCollapsed && styles.withValidation
-          )}
-        >
-          {validationSidebarCollapsed || !selectedResult.transcriptId ? (
-            <div className={styles.tabSetWrapper}>
-              {renderTabSet(selectedResult)}
-            </div>
-          ) : (
-            <VscodeSplitLayout
-              className={styles.splitLayout}
-              fixedPane="end"
-              initialHandlePosition="80%"
-              minEnd="180px"
-              minStart="200px"
-            >
-              <div slot="start" className={styles.splitStart}>
+      <div className={styles.scroller} ref={scrollRef}>
+        <StickyScroll scrollRef={scrollRef} onStickyChange={setHeaderCollapsed}>
+          <ScannerResultHeader
+            inputData={inputData}
+            resultData={selectedResult}
+            scan={selectedScan}
+            appConfig={appConfig}
+            collapsed={headerCollapsed}
+            onShowAllScores={() => setShowAllScores(true)}
+          />
+        </StickyScroll>
+        {selectedResult && (
+          <div
+            className={clsx(
+              styles.contentArea,
+              !validationSidebarCollapsed && styles.withValidation
+            )}
+          >
+            {validationSidebarCollapsed || !selectedResult.transcriptId ? (
+              <div className={styles.tabSetWrapper}>
                 {renderTabSet(selectedResult)}
               </div>
-              <div slot="end" className={styles.validationSidebar}>
-                <ValidationCaseEditor
-                  transcriptId={selectedResult.transcriptId}
-                />
-              </div>
-            </VscodeSplitLayout>
-          )}
-        </div>
+            ) : (
+              <VscodeSplitLayout
+                className={styles.splitLayout}
+                fixedPane="end"
+                initialHandlePosition="80%"
+                minEnd="180px"
+                minStart="200px"
+              >
+                <div slot="start" className={styles.splitStart}>
+                  {renderTabSet(selectedResult)}
+                </div>
+                <div slot="end" className={styles.validationSidebar}>
+                  <ValidationCaseEditor
+                    transcriptId={selectedResult.transcriptId}
+                  />
+                </div>
+              </VscodeSplitLayout>
+            )}
+          </div>
+        )}
+      </div>
+      {selectedResult?.transcriptScore != null && (
+        <AllScoresDialog
+          showing={showAllScores}
+          setShowing={setShowAllScores}
+          score={selectedResult.transcriptScore}
+        />
       )}
     </div>
   );
