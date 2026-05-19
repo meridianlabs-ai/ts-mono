@@ -66,7 +66,10 @@ const kTabIdMetadata = "Metadata";
 export const ScannerResultPanel: FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const [showAllScores, setShowAllScores] = useState(false);
+  // Track which result's scores dialog is open — auto-resets on navigation
+  const [scoresDialogResultId, setScoresDialogResultId] = useState<
+    string | undefined
+  >();
 
   // Url data
   const { scanResultUuid } = useScanRoute();
@@ -411,7 +414,7 @@ export const ScannerResultPanel: FC = () => {
             scan={selectedScan}
             appConfig={appConfig}
             collapsed={headerCollapsed}
-            onShowAllScores={() => setShowAllScores(true)}
+            onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
           />
         </StickyScroll>
         {selectedResult && (
@@ -448,8 +451,10 @@ export const ScannerResultPanel: FC = () => {
       </div>
       {selectedResult?.transcriptScore != null && (
         <AllScoresDialog
-          showing={showAllScores}
-          setShowing={setShowAllScores}
+          showing={scoresDialogResultId === scanResultUuid}
+          setShowing={(show) =>
+            setScoresDialogResultId(show ? scanResultUuid : undefined)
+          }
           score={selectedResult.transcriptScore}
         />
       )}

@@ -50,15 +50,14 @@ export const CollapsedScore: FC<{
 }> = ({ score, onShowAllScores }) => {
   const isComplex = isRecord(score);
 
-  if (isComplex) {
-    const totalScores = Object.keys(score).length;
+  if (isComplex && onShowAllScores) {
     return (
       <button
         type="button"
         className={styles.allScoresLink}
         onClick={onShowAllScores}
       >
-        All scores ({totalScores})
+        All scores ({Object.keys(score).length})
       </button>
     );
   }
