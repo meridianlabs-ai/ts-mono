@@ -24,7 +24,7 @@ import {
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
-import { ScoreColumn } from "./ScoreColumn";
+import { CollapsedScore, ScoreColumn } from "./ScoreColumn";
 import { SourcePath } from "./SourcePath";
 
 interface ScannerResultHeaderProps {
@@ -32,6 +32,7 @@ interface ScannerResultHeaderProps {
   inputData?: ScannerInput;
   resultData?: ScanResultData;
   appConfig: AppConfig;
+  collapsed?: boolean;
   onShowAllScores?: () => void;
 }
 
@@ -47,8 +48,66 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   inputData,
   resultData,
   appConfig,
+  collapsed,
   onShowAllScores,
 }) => {
+  if (collapsed) {
+    if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
+
+    const sourceUri = resultData.transcriptSourceUri ?? "";
+    let resolvedSourceUrl = sourceUri;
+    if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
+      resolvedSourceUrl = `file://${resolvedSourceUrl}`;
+    }
+    const displaySourceUri = projectOrAppAliasedPath(
+      appConfig,
+      resolvedSourceUrl
+    );
+    const scanningModel = scan?.spec.model?.model;
+    const score = resultData.transcriptScore;
+
+    return (
+      <div className={styles.collapsedBar}>
+        <i className="bi bi-chevron-right" />
+        <span className={styles.collapsedTask}>
+          <TaskName
+            taskSet={resultData.transcriptTaskSet}
+            taskId={resultData.transcriptTaskId}
+            taskRepeat={resultData.transcriptTaskRepeat}
+          />
+        </span>
+        {displaySourceUri && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <span className={styles.collapsedSource}>
+              <SourcePath uri={displaySourceUri} maxLength={48} />
+            </span>
+          </>
+        )}
+        {resultData.transcriptDate && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <span className={styles.collapsedDate}>
+              {formatDateTime(new Date(resultData.transcriptDate))}
+            </span>
+          </>
+        )}
+        {scanningModel && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <span className={styles.collapsedMono}>{scanningModel}</span>
+          </>
+        )}
+        {score != null && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <CollapsedScore score={score} onShowAllScores={onShowAllScores} />
+          </>
+        )}
+      </div>
+    );
+  }
+
   const headings =
     headingsForResult(appConfig, inputData, resultData, scan) ?? [];
   if (headings.length === 0) return null;
