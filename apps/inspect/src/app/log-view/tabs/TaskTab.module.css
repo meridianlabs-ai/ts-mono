@@ -4,32 +4,3 @@
   column-gap: 3em;
   align-items: flex-start;
 }
-
-.tagsRow {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.tagsLabel {
-  font-weight: 600;
-  min-width: 5rem;
-}
-
-.tagsValue {
-  flex: 1;
-  min-width: 0;
-}
-
-.tagsEmpty {
-  color: var(--bs-secondary-color);
-  font-style: italic;
-}
-
-.editButton {
-  padding: 0;
-  margin-left: 0.25rem;
-  white-space: nowrap;
-}

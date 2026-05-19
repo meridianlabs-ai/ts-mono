@@ -1,0 +1,24 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  color: var(--bs-primary-text-emphasis);
+  cursor: pointer;
+  padding: 0.125rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.button:hover {
+  background: var(--bs-secondary-bg);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--bs-primary-border-subtle);
+  outline-offset: 1px;
+}

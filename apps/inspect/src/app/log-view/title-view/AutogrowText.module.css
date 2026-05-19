@@ -1,0 +1,10 @@
+.textarea {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.4rem 0.625rem;
+  border-radius: 5px;
+  resize: none;
+  overflow: auto;
+  background: var(--bs-body-bg);
+}

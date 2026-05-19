@@ -59,8 +59,7 @@ export const LogView: FC = () => {
   const taskTabConfig = useTaskTabConfig(
     evalSpec,
     selectedLogDetails?.stats,
-    selectedLogDetails?.results?.early_stopping,
-    selectedLogDetails?.tags
+    selectedLogDetails?.results?.early_stopping
   );
 
   const modelsTabConfig = useModelsTab(
@@ -139,6 +138,7 @@ export const LogView: FC = () => {
           runningMetrics={runningMetrics}
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
+          tags={selectedLogDetails?.tags}
           collapsed={titleCollapsed}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>

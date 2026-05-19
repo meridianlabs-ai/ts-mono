@@ -1,0 +1,63 @@
+/* Shared chrome for EditTagsDialog and EditMetadataDialog. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--bs-body-color);
+  margin: 0;
+}
+
+.hint {
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+}
+
+.required {
+  color: var(--bs-danger);
+  margin-left: 0.15rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--bs-border-color);
+  margin: 0.15rem 0;
+}
+
+.provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.error {
+  padding: 0.4rem 0.6rem;
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+  border: 1px solid var(--bs-danger-border-subtle);
+  border-radius: var(--bs-border-radius);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}

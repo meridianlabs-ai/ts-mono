@@ -1,0 +1,15 @@
+.headerActions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  /* The CardHeader grid lays the label in the first column and children
+     in the second; nudging this to the row's end keeps the Edit affordance
+     right-aligned without changing the parent component. */
+  justify-self: end;
+}
+
+.emptyMetadata {
+  color: var(--bs-secondary-color);
+  font-style: italic;
+  padding: 0.25rem 0.5rem;
+}

@@ -1,0 +1,29 @@
+.container {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--bs-secondary-color);
+  font-style: italic;
+}
+
+.label {
+  font-weight: 600;
+  font-style: normal;
+}
+
+.items {
+  color: var(--bs-secondary-color);
+}
+
+.accentAdding {
+  color: var(--bs-success-text-emphasis);
+}
+
+.accentEditing {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.accentRemoving {
+  color: var(--bs-danger);
+}

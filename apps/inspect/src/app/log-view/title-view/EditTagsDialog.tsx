@@ -3,12 +3,16 @@ import { FC, KeyboardEvent, useEffect, useMemo, useState } from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
 
-import { ApiError } from "../../../client/api/view-server/request";
 import { Modal } from "../../../components/Modal";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 
+import { ChangeSummary } from "./ChangeSummary";
+import sharedStyles from "./EditAnnotationsDialog.module.css";
 import styles from "./EditTagsDialog.module.css";
+import { formatEditError } from "./editErrors";
+import { ProvenanceFields } from "./ProvenanceFields";
+import { TagChip } from "./TagChip";
 
 interface EditTagsDialogProps {
   showing: boolean;
@@ -76,7 +80,6 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       e.preventDefault();
       addPendingTag();
     } else if (e.key === "," && pending.trim()) {
-      // comma also commits, matches common chip-input UX
       e.preventDefault();
       addPendingTag();
     }
@@ -111,7 +114,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       setShowing(false);
       onSaved?.();
     } catch (err) {
-      setError(formatError(err));
+      setError(formatEditError(err));
       setSubmitting(false);
     }
   };
@@ -122,105 +125,9 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       showing={showing}
       setShowing={setShowing}
       title="Edit tags"
-    >
-      <div className={styles.body}>
-        <div className={styles.section}>
-          <label className={clsx("text-size-smaller", styles.label)}>
-            Tags
-          </label>
-          <div className={styles.tagsRow}>
-            {tags.length === 0 && (
-              <span className={clsx("text-size-smaller", styles.empty)}>
-                No tags yet — add one below.
-              </span>
-            )}
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className={clsx("text-size-smaller", styles.chip, {
-                  [styles.chipNew]: !initialSet.has(tag),
-                })}
-              >
-                {tag}
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  aria-label={`Remove tag ${tag}`}
-                  onClick={() => removeTag(tag)}
-                >
-                  <i className={ApplicationIcons.close} />
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className={styles.addRow}>
-            <input
-              type="text"
-              className={clsx("form-control", "text-size-smaller", styles.input)}
-              placeholder="Add a tag and press Enter"
-              value={pending}
-              onChange={(e) => setPending(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              disabled={submitting}
-              autoFocus
-            />
-            <button
-              type="button"
-              className={clsx("btn", "btn-secondary", "text-size-smaller")}
-              onClick={addPendingTag}
-              disabled={submitting || !pending.trim()}
-            >
-              <i className={ApplicationIcons.changes.add} /> Add
-            </button>
-          </div>
-          {tagsRemove.length > 0 && (
-            <div className={clsx("text-size-smaller", styles.removedNote)}>
-              Removing: {tagsRemove.join(", ")}
-            </div>
-          )}
-        </div>
-
-        <div className={styles.section}>
-          <label
-            className={clsx("text-size-smaller", styles.label)}
-            htmlFor="edit-tags-author"
-          >
-            Author <span className={styles.required}>*</span>
-          </label>
-          <input
-            id="edit-tags-author"
-            type="text"
-            className={clsx("form-control", "text-size-smaller")}
-            placeholder="Your name or username"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            disabled={submitting}
-          />
-        </div>
-
-        <div className={styles.section}>
-          <label
-            className={clsx("text-size-smaller", styles.label)}
-            htmlFor="edit-tags-reason"
-          >
-            Reason
-          </label>
-          <input
-            id="edit-tags-reason"
-            type="text"
-            className={clsx("form-control", "text-size-smaller")}
-            placeholder="Optional — why this edit?"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            disabled={submitting}
-          />
-        </div>
-
-        {error && (
-          <div className={clsx("text-size-smaller", styles.error)}>{error}</div>
-        )}
-
-        <div className={styles.actions}>
+      width="580px"
+      footer={
+        <div className={sharedStyles.footer}>
           <button
             type="button"
             className={clsx("btn", "btn-secondary", "text-size-smaller")}
@@ -238,23 +145,76 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             {submitting ? "Saving…" : "Save"}
           </button>
         </div>
+      }
+    >
+      <div className={sharedStyles.body}>
+        <div className={sharedStyles.section}>
+          <label className={clsx("text-size-smaller", sharedStyles.label)}>
+            Tags
+          </label>
+          <div className={styles.chipBox}>
+            {tags.length === 0 && (
+              <span className={clsx("text-size-smaller", styles.empty)}>
+                No tags yet — add one below.
+              </span>
+            )}
+            {tags.map((tag) => (
+              <TagChip
+                key={tag}
+                label={tag}
+                isNew={!initialSet.has(tag)}
+                onRemove={() => removeTag(tag)}
+              />
+            ))}
+          </div>
+          <div className={styles.addRow}>
+            <input
+              type="text"
+              className={clsx(
+                "form-control",
+                "text-size-smaller",
+                styles.input
+              )}
+              placeholder="Add a tag and press Enter"
+              value={pending}
+              onChange={(e) => setPending(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              disabled={submitting}
+              autoFocus
+            />
+            <button
+              type="button"
+              className={clsx(
+                "btn",
+                pending.trim() ? "btn-primary" : "btn-secondary",
+                "text-size-smaller",
+                styles.addButton
+              )}
+              onClick={addPendingTag}
+              disabled={submitting || !pending.trim()}
+            >
+              <i className={ApplicationIcons.changes.add} /> Add
+            </button>
+          </div>
+          <ChangeSummary adding={tagsAdd} removing={tagsRemove} />
+        </div>
+
+        <hr className={sharedStyles.divider} />
+
+        <ProvenanceFields
+          author={author}
+          setAuthor={setAuthor}
+          reason={reason}
+          setReason={setReason}
+          disabled={submitting}
+        />
+
+        {error && (
+          <div className={clsx("text-size-smaller", sharedStyles.error)}>
+            {error}
+          </div>
+        )}
       </div>
     </Modal>
   );
 };
-
-function formatError(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.status === 412) {
-      return "This log was modified by someone else. Please reload and try again.";
-    }
-    if (err.status === 400) {
-      return err.message.replace(/^API Error 400:\s*/, "");
-    }
-    return err.message;
-  }
-  if (err instanceof Error) {
-    return err.message;
-  }
-  return String(err);
-}

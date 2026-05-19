@@ -68,6 +68,8 @@ export const ApplicationIcons = {
     return `bi bi-${epoch}-circle`;
   },
   edit: "bi bi-pencil-square",
+  pencil: "bi bi-pencil",
+  trash: "bi bi-trash",
   error: "bi bi-exclamation-circle-fill",
   eval: "bi bi-info-circle-fill",
   "eval-set": "bi bi-list-task",

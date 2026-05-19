@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, useCallback, useState } from "react";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
 import { CopyButton } from "@tsmono/react/components";
@@ -10,13 +10,17 @@ import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
+import { useRefreshLog } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 
+import { EditButton } from "./EditButton";
+import { EditTagsDialog } from "./EditTagsDialog";
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
 import { displayScorersFromRunningMetrics, ResultsPanel } from "./ResultsPanel";
 import { RunningStatusPanel } from "./RunningStatusPanel";
 import { CancelledPanel, ErroredPanel } from "./StatusPanel";
+import { TagChip } from "./TagChip";
 
 interface PrimaryBarProps {
   status?: EvalLogStatus;
@@ -24,6 +28,7 @@ interface PrimaryBarProps {
   runningMetrics?: RunningMetric[];
   evalSpec?: EvalSpec;
   sampleCount?: number;
+  tags?: string[];
 }
 
 export const PrimaryBar: FC<PrimaryBarProps> = ({
@@ -32,14 +37,21 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   runningMetrics,
   evalSpec,
   sampleCount,
+  tags,
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
   const absLogDir = useStore((state) => state.logs.absLogDir);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
+  const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
+  const refreshLog = useRefreshLog();
+  const [editingTags, setEditingTags] = useState(false);
+  const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
+  const showTagEdit = canEditTags && !!selectedLogFile;
+  const tagList = tags ?? [];
 
   const copyValue = (() => {
     if (!absLogDir || !selectedLogFile || !logDir) return selectedLogFile;
@@ -87,6 +99,25 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             ) : (
               ""
             )}
+            {(tagList.length > 0 || showTagEdit) && (
+              <div className={styles.tagRow}>
+                {tagList.length > 0 && (
+                  <span
+                    className={styles.tagSeparator}
+                    aria-hidden="true"
+                  />
+                )}
+                {tagList.map((tag) => (
+                  <TagChip key={tag} label={tag} />
+                ))}
+                {showTagEdit && (
+                  <EditButton
+                    onClick={() => setEditingTags(true)}
+                    title="Edit tags"
+                  />
+                )}
+              </div>
+            )}
           </div>
           {evalSpec?.model_roles ? (
             <ModelRolesView roles={evalSpec.model_roles} />
@@ -130,6 +161,15 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
       <div id="task-created" style={{ display: "none" }}>
         {evalSpec?.created}
       </div>
+      {selectedLogFile && (
+        <EditTagsDialog
+          showing={editingTags}
+          setShowing={setEditingTags}
+          currentTags={tagList}
+          logFile={selectedLogFile}
+          onSaved={onTagsSaved}
+        />
+      )}
     </div>
   );
 };
