@@ -12,7 +12,6 @@ import {
 
 import { AppConfig, ScannerInput, Status } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
-import { ScoreValue } from "../components/ScoreValue";
 import { TaskName } from "../components/TaskName";
 import { projectOrAppAliasedPath } from "../server/useAppConfig";
 import {
@@ -25,12 +24,15 @@ import {
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
+import { ScoreColumn } from "./ScoreColumn";
+import { SourcePath } from "./SourcePath";
 
 interface ScannerResultHeaderProps {
   scan?: Status;
   inputData?: ScannerInput;
   resultData?: ScanResultData;
   appConfig: AppConfig;
+  onShowAllScores?: () => void;
 }
 
 const labelClassName = clsx(
@@ -45,31 +47,40 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   inputData,
   resultData,
   appConfig,
+  onShowAllScores,
 }) => {
   const headings =
     headingsForResult(appConfig, inputData, resultData, scan) ?? [];
   if (headings.length === 0) return null;
 
   const score = resultData?.transcriptScore;
-  const tabularScore = score != null && isRecord(score);
+  const hasScore = score != null;
+  const scoreGridColumns = hasScore
+    ? isRecord(score)
+      ? "minmax(0,1fr) minmax(260px, 38%)"
+      : "minmax(0,1fr) auto"
+    : undefined;
 
   return (
     <div
-      className={clsx(styles.header, tabularScore && styles.headerWithScore)}
+      className={clsx(styles.header, hasScore && styles.headerWithScore)}
+      style={
+        scoreGridColumns ? { gridTemplateColumns: scoreGridColumns } : undefined
+      }
     >
       <HeadingGrid
         headings={headings}
-        className={tabularScore ? styles.metadataRegion : undefined}
+        className={hasScore ? styles.metadataRegion : undefined}
         labelClassName={labelClassName}
         valueClassName={valueClassName}
       />
-      {tabularScore && score != null && (
-        <div className={styles.scoreRegion}>
-          <span className={labelClassName}>Score</span>
-          <span className={valueClassName}>
-            <ScoreValue score={score} maxRows={5} />
-          </span>
-        </div>
+      {hasScore && (
+        <ScoreColumn
+          score={score}
+          labelClassName={labelClassName}
+          valueClassName={valueClassName}
+          onShowAllScores={onShowAllScores}
+        />
       )}
     </div>
   );
@@ -127,7 +138,10 @@ const transcriptHeadings = (
   ];
 
   if (displaySourceUri) {
-    headings.push({ label: "Source", value: displaySourceUri });
+    headings.push({
+      label: "Source",
+      value: <SourcePath uri={displaySourceUri} />,
+    });
   }
 
   if (resultData.transcriptDate) {
@@ -138,15 +152,36 @@ const transcriptHeadings = (
   }
 
   if (resultData.transcriptAgent) {
-    headings.push({ label: "Agent", value: resultData.transcriptAgent });
+    headings.push({
+      label: "Agent",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {resultData.transcriptAgent}
+        </span>
+      ),
+    });
   }
 
   if (transcriptModel) {
-    headings.push({ label: "Model", value: transcriptModel });
+    headings.push({
+      label: "Model",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {transcriptModel}
+        </span>
+      ),
+    });
   }
 
   if (scanningModel) {
-    headings.push({ label: "Scanning Model", value: scanningModel });
+    headings.push({
+      label: "Scanning Model",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {scanningModel}
+        </span>
+      ),
+    });
   }
 
   if (resultData.transcriptLimit) {
@@ -175,17 +210,6 @@ const transcriptHeadings = (
     headings.push({
       label: "Messages",
       value: resultData.transcriptMessageCount.toString(),
-    });
-  }
-
-  // Simple (non-tabular) scores go inline; tabular scores are handled by the parent
-  if (
-    resultData.transcriptScore != null &&
-    !isRecord(resultData.transcriptScore)
-  ) {
-    headings.push({
-      label: "Score",
-      value: <ScoreValue score={resultData.transcriptScore} />,
     });
   }
 
