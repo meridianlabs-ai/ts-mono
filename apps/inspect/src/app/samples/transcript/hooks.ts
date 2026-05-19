@@ -28,6 +28,7 @@ const eventTypes: Record<AllEventTypes, string> = {
   subtask: "Subtask",
   anchor: "Anchor",
   branch: "Branch",
+  checkpoint: "Checkpoint",
   step: "Step",
 } as const;
 

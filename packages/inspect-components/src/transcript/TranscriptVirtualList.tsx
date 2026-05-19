@@ -4,6 +4,7 @@ import type {
   AnchorEvent,
   ApprovalEvent,
   BranchEvent,
+  CheckpointEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -27,6 +28,7 @@ import type {
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
 import { BranchEventView } from "./BranchEventView";
+import { CheckpointEventView } from "./CheckpointEventView";
 import { CompactionEventView } from "./CompactionEventView";
 import { ErrorEventView } from "./ErrorEventView";
 import { ForkNavigatorView } from "./ForkNavigatorView";
@@ -270,6 +272,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <SandboxEventView
           eventNode={node as EventNode<SandboxEvent>}
+          className={className}
+        />
+      );
+
+    case "checkpoint":
+      return (
+        <CheckpointEventView
+          eventNode={node as EventNode<CheckpointEvent>}
           className={className}
         />
       );

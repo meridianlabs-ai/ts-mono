@@ -18,6 +18,7 @@ export const TYPE_AGENT = "agent";
 export const TYPE_HANDOFF = "handoff";
 export const TYPE_SCORERS = "scorers";
 export const TYPE_SCORER = "scorer";
+export const TYPE_CHECKPOINT = "checkpoint";
 
 export const hasSpans = (events: EventType[]): boolean => {
   return events.some((event: EventType) => event.event === SPAN_BEGIN);

@@ -132,6 +132,8 @@ export function labelForOutlineNode(node: EventNode): string {
       return "scoring";
     case "step":
       return node.event.name;
+    case "checkpoint":
+      return `checkpoint ${node.event.checkpoint_id}`;
     default:
       return node.event.event;
   }

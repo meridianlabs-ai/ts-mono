@@ -6,6 +6,7 @@ import {
   STORE,
   TOOL,
   TYPE_AGENT,
+  TYPE_CHECKPOINT,
   TYPE_HANDOFF,
   TYPE_SOLVER,
   TYPE_SOLVERS,
@@ -154,6 +155,12 @@ const transformers = () => {
         const nodes = discardNode(node);
         return nodes;
       },
+    },
+    {
+      name: "discard_checkpoint_span",
+      matches: (node) =>
+        node.event.event === SPAN_BEGIN && node.event.type === TYPE_CHECKPOINT,
+      process: (node) => discardNode(node),
     },
   ];
   return treeNodeTransformers;

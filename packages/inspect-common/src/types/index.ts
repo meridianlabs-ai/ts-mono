@@ -44,6 +44,7 @@ export type EventsData = S["EventsData"];
 export type AnchorEvent = S["AnchorEvent"];
 export type ApprovalEvent = S["ApprovalEvent"];
 export type BranchEvent = S["BranchEvent"];
+export type CheckpointEvent = S["CheckpointEvent"];
 export type CompactionEvent = S["CompactionEvent"];
 export type ErrorEvent = S["ErrorEvent"];
 export type InfoEvent = S["InfoEvent"];
