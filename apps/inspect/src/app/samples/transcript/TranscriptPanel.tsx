@@ -24,6 +24,7 @@ import {
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
+import { SearchPanel } from "@tsmono/inspect-components/transcript-search";
 import { useScrollDirection } from "@tsmono/react/hooks";
 import {
   isScannerScore,
@@ -44,6 +45,14 @@ import { SampleScansSidebar } from "../scans/SampleScansSidebar";
 import { useMakeCiteUrl } from "../scans/scanReferences";
 
 import { useTranscriptFilter } from "./hooks";
+import {
+  INSPECT_SEARCH_ICONS,
+  useInspectSearchApi,
+  useInspectSearchModelHistory,
+  useInspectSearchNavigation,
+  useInspectSearchPanelState,
+} from "./search/inspectSearchAdapters";
+import styles from "./TranscriptPanel.module.css";
 
 interface TranscriptPanelProps {
   id: string;
@@ -421,79 +430,145 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Search panel
+  // ---------------------------------------------------------------------------
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchLogFile = logFile ?? "";
+  const searchSampleId = sampleId ?? "";
+  const searchSampleEpoch = sampleEpoch ?? 0;
+  const searchApi = useInspectSearchApi(
+    searchLogFile,
+    searchSampleId,
+    searchSampleEpoch
+  );
+  const searchStateController = useInspectSearchPanelState({
+    scope: "events",
+    logFile: searchLogFile,
+    sampleId: searchSampleId,
+    sampleEpoch: searchSampleEpoch,
+  });
+  const searchLogPath = urlLogPath ?? makeLogsPath(searchLogFile, logDir);
+  const searchNavigation = useInspectSearchNavigation({
+    logPath: searchLogPath ?? "",
+    sampleId: searchSampleId,
+    sampleEpoch: searchSampleEpoch,
+  });
+  const searchModelHistory = useInspectSearchModelHistory();
+  const searchSupported =
+    !!searchApi && !!searchLogFile && sampleId !== undefined;
+  const showSearch = searchOpen && searchSupported;
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
+  const rightPane =
+    showSearch && searchApi
+      ? {
+          collapsed: false,
+          onCollapsedChange: (collapsed: boolean) => {
+            if (collapsed) setSearchOpen(false);
+          },
+          toggleIcon: ApplicationIcons.search,
+          toggleTitle: "Close search",
+          label: "search",
+          width: 360,
+          content: (
+            <SearchPanel
+              scope="events"
+              api={searchApi}
+              stateController={searchStateController}
+              navigation={searchNavigation}
+              icons={INSPECT_SEARCH_ICONS}
+              modelHistory={searchModelHistory}
+              onClose={() => setSearchOpen(false)}
+            />
+          ),
+        }
+      : hasScores && scores
+        ? {
+            collapsed: scoresCollapsed,
+            onCollapsedChange: setScoresCollapsed,
+            toggleIcon: ApplicationIcons.scoringSidebar,
+            toggleTitle: scoresCollapsed
+              ? "Show scan results"
+              : "Hide scan results",
+            label: "scans",
+            width: scoresWidth,
+            onWidthChange: setScoresWidth,
+            content: (
+              <SampleScansSidebar
+                scores={scores}
+                events={events}
+                makeCiteUrl={makeCiteUrl}
+                selected={selectedScanner}
+                onSelectedChange={setSelectedScanner}
+              />
+            ),
+          }
+        : undefined;
+
   return (
-    <TranscriptLayout
-      events={events}
-      hiddenEventTypes={filteredEventTypes}
-      running={running}
-      scrollRef={scrollRef}
-      offsetTop={offsetTop}
-      timelineSelection={timelineSelection}
-      activeTimeline={activeTimeline}
-      serverTimelines={serverTimelines}
-      showSwimlanes="auto"
-      onMarkerNavigate={onMarkerNavigate}
-      headroomHidden={headroomHidden}
-      onHeadroomResetAnchor={onHeadroomResetAnchor}
-      onHeadroomSetHidden={setHeadroomHidden}
-      eventNodeContext={eventNodeContext}
-      listId={id}
-      initialEventId={initialEventId}
-      initialMessageId={initialMessageId}
-      getEventUrl={getEventUrl}
-      linkingEnabled={true}
-      bulkCollapse={bulkCollapse}
-      collapseState={collapseState}
-      eventsListRef={eventsListRef}
-      outlineScrollRef={outlineScrollRef}
-      rightPaneScrollRef={rightPaneScrollRef}
-      outline={{
-        collapsed: outlineCollapsed,
-        onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
-        toggleTitle: outlineCollapsed
-          ? "Show transcript outline"
-          : "Hide transcript outline",
-        renderLink,
-        onNavigateToEvent: onOutlineNavigate,
-        selectedId: selectedOutlineId,
-        setSelectedId: setSelectedOutlineId,
-      }}
-      rightPane={
-        hasScores && scores
-          ? {
-              collapsed: scoresCollapsed,
-              onCollapsedChange: setScoresCollapsed,
-              toggleIcon: ApplicationIcons.scoringSidebar,
-              toggleTitle: scoresCollapsed
-                ? "Show scan results"
-                : "Hide scan results",
-              label: "scans",
-              width: scoresWidth,
-              onWidthChange: setScoresWidth,
-              content: (
-                <SampleScansSidebar
-                  scores={scores}
-                  events={events}
-                  makeCiteUrl={makeCiteUrl}
-                  selected={selectedScanner}
-                  onSelectedChange={setSelectedScanner}
-                />
-              ),
-            }
-          : undefined
-      }
-      emptyText={
-        running && isDefaultFilter
-          ? "Sample is starting"
-          : filteredEventTypes.length > 0
-            ? "The currently applied filter hides all events."
-            : undefined
-      }
-      emptyBusy={running && isDefaultFilter}
-    />
+    <div className={styles.transcriptHost}>
+      {searchSupported && !showSearch && (
+        <button
+          type="button"
+          className={styles.searchToggle}
+          onClick={() => setSearchOpen(true)}
+          title="Search transcript"
+          aria-label="Search transcript"
+        >
+          <i className={INSPECT_SEARCH_ICONS.search} aria-hidden="true" />
+        </button>
+      )}
+      <TranscriptLayout
+        events={events}
+        hiddenEventTypes={filteredEventTypes}
+        running={running}
+        scrollRef={scrollRef}
+        offsetTop={offsetTop}
+        timelineSelection={timelineSelection}
+        activeTimeline={activeTimeline}
+        serverTimelines={serverTimelines}
+        showSwimlanes="auto"
+        onMarkerNavigate={onMarkerNavigate}
+        headroomHidden={headroomHidden}
+        onHeadroomResetAnchor={onHeadroomResetAnchor}
+        onHeadroomSetHidden={setHeadroomHidden}
+        eventNodeContext={eventNodeContext}
+        listId={id}
+        initialEventId={initialEventId}
+        initialMessageId={initialMessageId}
+        getEventUrl={getEventUrl}
+        linkingEnabled={true}
+        bulkCollapse={bulkCollapse}
+        collapseState={collapseState}
+        eventsListRef={eventsListRef}
+        outlineScrollRef={outlineScrollRef}
+        rightPaneScrollRef={rightPaneScrollRef}
+        outline={{
+          collapsed: outlineCollapsed,
+          onCollapsedChange: setOutlineCollapsed,
+          toggleIcon: ApplicationIcons.sidebar,
+          toggleTitle: outlineCollapsed
+            ? "Show transcript outline"
+            : "Hide transcript outline",
+          renderLink,
+          onNavigateToEvent: onOutlineNavigate,
+          selectedId: selectedOutlineId,
+          setSelectedId: setSelectedOutlineId,
+        }}
+        rightPane={rightPane}
+        emptyText={
+          running && isDefaultFilter
+            ? "Sample is starting"
+            : filteredEventTypes.length > 0
+              ? "The currently applied filter hides all events."
+              : undefined
+        }
+        emptyBusy={running && isDefaultFilter}
+      />
+    </div>
   );
 });
