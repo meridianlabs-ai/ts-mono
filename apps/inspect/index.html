@@ -7,20 +7,13 @@
     <title>Inspect View</title>
     <link rel="icon" href="./favicon.svg" />
 
-    <script>
-      // Forward the theme (dark or light) onto the root html element
-      // this parameter will tend to appear when the view is hosted within
-      // an iframe (e.g. in vscode)
-      const urlParams = new URLSearchParams(window.location.search);
-      const theme = urlParams.get("inspectLogviewThemeCategory");
-      if (theme) {
-        document.documentElement.setAttribute("data-text-highlight", theme);
-        document.documentElement.setAttribute("data-bs-theme", theme);
-      }
-    </script>
+    <!-- THEME_BOOTSTRAP -->
   </head>
 
   <body style="min-width: 450px">
+    <script>
+      window.__APPLY_BROWSER_THEME__?.();
+    </script>
     <div id="app"></div>
     <script type="module" src="./src/main.tsx"></script>
   </body>

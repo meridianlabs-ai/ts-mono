@@ -1,7 +1,12 @@
 import { FC, ReactNode, useMemo, useRef } from "react";
 
+import { ThemeToggle } from "@tsmono/react/components";
+import { THEME_OPTIONS } from "@tsmono/theme/bootstrap";
+import { isVscode } from "@tsmono/util";
+
 import { ActivityBar } from "../../components/ActivityBar";
 import { useStore } from "../../state/store";
+import { resolveIsDark, useThemePreference } from "../../theme/themePreference";
 import { ViewerOptionsButton } from "../log-list/ViewerOptionsButton";
 import { ViewerOptionsPopover } from "../log-list/ViewerOptionsPopover";
 
@@ -25,6 +30,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   breadcrumbsEnabled,
 }) => {
   const optionsRef = useRef<HTMLButtonElement>(null);
+  const [themePreference, setThemePreference] = useThemePreference();
   const loading = useStore((state) => state.app.status.loading);
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
@@ -54,6 +60,14 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         breadcrumbsEnabled={breadcrumbsEnabled}
       >
         {children}
+        {!isVscode() && (
+          <ThemeToggle
+            value={themePreference}
+            isDark={resolveIsDark(themePreference)}
+            options={THEME_OPTIONS}
+            onChange={setThemePreference}
+          />
+        )}
         <ViewerOptionsButton
           showing={isShowing}
           setShowing={setShowing}

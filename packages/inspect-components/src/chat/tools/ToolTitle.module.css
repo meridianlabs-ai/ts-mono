@@ -4,11 +4,13 @@
 }
 
 .toolTitle {
-  color: unset !important;
+  /* Token (defaults to body color) instead of `unset` so the title never
+     inherits link-blue when rendered inside an <a>/<button>. */
+  color: var(--inspect-tool-title-color) !important;
   overflow-wrap: anywhere;
 }
 
 .description {
   margin-left: 0.3em;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-tool-description-color);
 }

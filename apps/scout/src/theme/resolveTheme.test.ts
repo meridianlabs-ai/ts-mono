@@ -11,32 +11,38 @@ const fakeStorage = (raw: string | null): Pick<Storage, "getItem"> => ({
   getItem: (key) => (key === SETTINGS_STORAGE_KEY ? raw : null),
 });
 
+const readPref = (raw: string | null) =>
+  readThemePreference(fakeStorage(raw), SETTINGS_STORAGE_KEY);
+
 const persisted = (themePreference?: unknown): string =>
   JSON.stringify({ state: { themePreference }, version: 0 });
 
 describe("readThemePreference", () => {
   it("defaults to 'system' when storage is empty", () => {
-    expect(readThemePreference(fakeStorage(null))).toBe("system");
+    expect(readPref(null)).toBe("system");
   });
 
   it("defaults to 'system' when JSON is malformed", () => {
-    expect(readThemePreference(fakeStorage("{not json"))).toBe("system");
+    expect(readPref("{not json")).toBe("system");
   });
 
   it("defaults to 'system' when state is missing", () => {
-    expect(readThemePreference(fakeStorage("{}"))).toBe("system");
+    expect(readPref("{}")).toBe("system");
   });
 
   it("defaults to 'system' when themePreference has unknown value", () => {
-    expect(readThemePreference(fakeStorage(persisted("solar")))).toBe("system");
+    expect(readPref(persisted("solar"))).toBe("system");
   });
 
-  it.each<ThemePreference>(["system", "light", "dark"])(
-    "returns persisted value '%s'",
-    (value) => {
-      expect(readThemePreference(fakeStorage(persisted(value)))).toBe(value);
-    }
-  );
+  it.each<ThemePreference>([
+    "system",
+    "light",
+    "dark",
+    "readable-light",
+    "readable-dark",
+  ])("returns persisted value '%s'", (value) => {
+    expect(readPref(persisted(value))).toBe(value);
+  });
 });
 
 describe("resolveTheme", () => {
@@ -52,6 +58,7 @@ describe("resolveTheme", () => {
       kind: "apply",
       theme: "light",
       isDark: false,
+      variant: "default",
       toggleBodyClass: true,
     });
   });
@@ -61,6 +68,7 @@ describe("resolveTheme", () => {
       kind: "apply",
       theme: "dark",
       isDark: true,
+      variant: "default",
       toggleBodyClass: true,
     });
   });
@@ -94,6 +102,7 @@ describe("resolveTheme", () => {
       kind: "apply",
       theme: "vscode-dark",
       isDark: true,
+      variant: "default",
       toggleBodyClass: false,
     });
   });
@@ -132,5 +141,62 @@ describe("resolveTheme", () => {
         explicitParam: "light",
       })
     ).toMatchObject({ theme: "dark", isDark: true });
+  });
+
+  it("readable-light → base light, readable variant", () => {
+    expect(
+      resolveTheme({ ...baseInput, preference: "readable-light" })
+    ).toEqual({
+      kind: "apply",
+      theme: "light",
+      isDark: false,
+      variant: "readable",
+      toggleBodyClass: true,
+    });
+  });
+
+  it("readable-dark → base dark, readable variant", () => {
+    expect(resolveTheme({ ...baseInput, preference: "readable-dark" })).toEqual(
+      {
+        kind: "apply",
+        theme: "dark",
+        isDark: true,
+        variant: "readable",
+        toggleBodyClass: true,
+      }
+    );
+  });
+
+  it("readable-dark wins over light OS", () => {
+    expect(
+      resolveTheme({
+        ...baseInput,
+        preference: "readable-dark",
+        prefersDark: false,
+      })
+    ).toMatchObject({ theme: "dark", isDark: true, variant: "readable" });
+  });
+
+  it("VS Code honors an explicit readable-dark param", () => {
+    expect(
+      resolveTheme({
+        ...baseInput,
+        isVscodeWebview: true,
+        explicitParam: "readable-dark",
+      })
+    ).toEqual({
+      kind: "apply",
+      // `readable-` stripped for prism; skin is on data-theme-variant.
+      theme: "dark",
+      isDark: true,
+      variant: "readable",
+      toggleBodyClass: false,
+    });
+  });
+
+  it("system + readable not selectable → default variant", () => {
+    expect(resolveTheme({ ...baseInput, prefersDark: true })).toMatchObject({
+      variant: "default",
+    });
   });
 });

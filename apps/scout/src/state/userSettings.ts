@@ -1,12 +1,14 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { ThemePreference } from "../theme/resolveTheme";
+
+export type { ThemePreference };
+
 export interface ColumnPreset {
   name: string;
   columns: string[];
 }
-
-export type ThemePreference = "system" | "light" | "dark";
 
 const MAX_SEARCH_MODEL_HISTORY = 25;
 

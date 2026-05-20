@@ -11,6 +11,10 @@
     "./vscode": {
       "types": "./src/vscode.d.ts",
       "default": "./src/vscode.css"
+    },
+    "./bootstrap": {
+      "types": "./src/bootstrap.ts",
+      "default": "./src/bootstrap.ts"
     }
   }
 }

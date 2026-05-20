@@ -25,6 +25,7 @@ export * from "./SourceCodePanel";
 export * from "./StickyScroll";
 export * from "./StickyScrollContext";
 export * from "./TextInput";
+export * from "./ThemeToggle";
 export * from "./ToolButton";
 export * from "./ToolDropdownButton";
 export * from "./NavPills";

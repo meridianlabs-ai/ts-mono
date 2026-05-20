@@ -1,6 +1,6 @@
 .toolImage {
   max-width: 800px;
-  border: solid var(--bs-border-color) 1px;
+  border: solid var(--inspect-tool-output-border) 1px;
 }
 
 .output {
@@ -14,6 +14,9 @@
   margin-bottom: 0;
   font-size: 0.9em !important;
   border-radius: var(--bs-border-radius);
+  /* Background/color come from the global `.tool-output` token rule in
+     base.css (this element also carries that class); keeping them here too
+     would just duplicate — and fight — that rule at equal specificity. */
 }
 
 .textCode {

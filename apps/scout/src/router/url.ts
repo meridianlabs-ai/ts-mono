@@ -9,7 +9,6 @@ export const kScanResultRouteUrlPattern = "/scan/:scansDir/*/*";
 export const kTranscriptsRouteUrlPattern = "/transcripts";
 export const kProjectRouteUrlPattern = "/project";
 export const kValidationRouteUrlPattern = "/validation";
-export const kSettingsRouteUrlPattern = "/settings";
 export const kTranscriptDetailRoute =
   "/transcripts/:transcriptsDir/:transcriptId";
 export const kTranscriptDetailRouteUrlPattern =
@@ -77,8 +76,6 @@ export const transcriptsRoute = (searchParams?: URLSearchParams) => {
 export const projectRoute = () => "/project";
 
 export const validationRoute = () => "/validation";
-
-export const settingsRoute = () => "/settings";
 
 export const transcriptRoute = (
   transcriptsDir: string,
