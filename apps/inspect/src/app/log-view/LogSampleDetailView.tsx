@@ -7,7 +7,6 @@ import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
 import { useLogSampleNavigation } from "../routing/sampleNavigation";
-import { isSingleFileMode } from "../singleFileMode";
 import {
   logSamplesUrl,
   logsUrl,
@@ -15,6 +14,7 @@ import {
   useRoutePrefix,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
+import { isSingleFileMode } from "../singleFileMode";
 
 /**
  * Component that displays a single sample in detail view within the logs route.

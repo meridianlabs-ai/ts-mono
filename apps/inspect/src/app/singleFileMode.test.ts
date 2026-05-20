@@ -5,7 +5,9 @@ import {
   detectInitialSingleFileMode,
 } from "./singleFileMode";
 
-const docWithEmbedded = (hasEmbedded: boolean): Pick<Document, "getElementById"> => ({
+const docWithEmbedded = (
+  hasEmbedded: boolean
+): Pick<Document, "getElementById"> => ({
   getElementById: (id: string) =>
     hasEmbedded && id === "logview-state" ? ({} as HTMLElement) : null,
 });
@@ -24,9 +26,9 @@ describe("detectInitialSingleFileMode", () => {
   });
 
   it("returns true when embedded logview-state element is present", () => {
-    expect(detectInitialSingleFileMode({ search: "" }, docWithEmbedded(true))).toBe(
-      true
-    );
+    expect(
+      detectInitialSingleFileMode({ search: "" }, docWithEmbedded(true))
+    ).toBe(true);
   });
 
   it("does not match log_file as a substring of another param", () => {

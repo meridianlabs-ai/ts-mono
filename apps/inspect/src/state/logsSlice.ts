@@ -4,7 +4,10 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { deriveSingleFileLogDir, isSingleFileMode } from "../app/singleFileMode";
+import {
+  deriveSingleFileLogDir,
+  isSingleFileMode,
+} from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -420,10 +423,7 @@ export const createLogsSlice = (
           ) !== -1;
 
         if (!isInFileList) {
-          if (
-            state.replicationService?.isReplicating() &&
-            !isSingleFileMode
-          ) {
+          if (state.replicationService?.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>
               val.name.endsWith(logFile)

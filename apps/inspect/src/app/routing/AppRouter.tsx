@@ -13,8 +13,8 @@ import { storeImplementation } from "../../state/store";
 import { AppErrorBoundary } from "../AppErrorBoundary";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
-import { isSingleFileMode } from "../singleFileMode";
 import { LogViewContainer } from "../log-view/LogViewContainer";
+import { isSingleFileMode } from "../singleFileMode";
 
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
