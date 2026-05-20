@@ -12,6 +12,12 @@ import { forwardRef, type PropsWithChildren } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  createInitialSearchPanelState,
+  type GrepSearchPanelState,
+  type LlmSearchPanelState,
+  type SearchPanelState,
+} from "@tsmono/inspect-components/transcript-search";
 import { ComponentIconProvider } from "@tsmono/react/components";
 import { encodeBase64Url } from "@tsmono/util";
 
@@ -27,14 +33,8 @@ import type {
   SearchResponse,
 } from "../../types/api-types";
 
+import { getSearchPanelStateKey } from "./scoutSearchAdapters";
 import { SearchPanel } from "./SearchPanel";
-import {
-  createInitialSearchPanelState,
-  getSearchPanelStateKey,
-  type GrepSearchPanelState,
-  type LlmSearchPanelState,
-  type SearchPanelState,
-} from "./searchPanelState";
 
 // VscodeTextarea is a custom element backed by ElementInternals, which jsdom
 // doesn't fully implement (`_internals.setValidity` is missing). Stub it with

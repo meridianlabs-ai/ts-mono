@@ -20,6 +20,7 @@ import {
   DisplayModeContext,
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
+import type { SearchScope as TranscriptSearchScope } from "@tsmono/inspect-components/transcript-search";
 import {
   TabPanel,
   TabSet,
@@ -45,7 +46,6 @@ import { useSearchReferenceLabels } from "./hooks/useSearchReferenceLabels";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
-import type { TranscriptSearchScope } from "./searchRequest";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
 

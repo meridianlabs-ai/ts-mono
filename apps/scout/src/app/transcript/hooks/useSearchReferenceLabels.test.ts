@@ -3,11 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import type { SearchType } from "@tsmono/inspect-components/transcript-search";
+
 import { server } from "../../../test/setup-msw";
 import { createTestWrapperWithStore } from "../../../test/test-utils";
 import type { Reference, Result } from "../../../types/api-types";
-import { getSearchPanelStateKey } from "../searchPanelState";
-import type { SearchType } from "../searchRequest";
+import { getSearchPanelStateKey } from "../scoutSearchAdapters";
 
 import { useSearchReferenceLabels } from "./useSearchReferenceLabels";
 

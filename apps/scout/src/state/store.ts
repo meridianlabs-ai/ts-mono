@@ -10,16 +10,16 @@ import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
+import {
+  createInitialSearchPanelState,
+  normalizeSearchPanelState,
+  type SearchPanelState,
+} from "@tsmono/inspect-components/transcript-search";
 import { debounce } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
 import type { ScanColumnKey } from "../app/scans/columns";
-import {
-  createInitialSearchPanelState,
-  normalizeSearchPanelState,
-  SearchPanelState,
-} from "../app/transcript/searchPanelState";
 import {
   ErrorScope,
   ResultGroup,

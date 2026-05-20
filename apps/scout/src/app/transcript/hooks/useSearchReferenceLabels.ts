@@ -1,15 +1,20 @@
 import { useMemo } from "react";
 
+import {
+  buildSearchScope,
+  normalizeSearchPanelState,
+  useCachedSearchResult,
+  type SearchScope,
+} from "@tsmono/inspect-components/transcript-search";
+
 import { useStore } from "../../../state/store";
-import { useCachedSearchResult } from "../../server/useSearches";
 import {
   getSearchPanelStateKey,
-  normalizeSearchPanelState,
-} from "../searchPanelState";
-import { buildSearchScope, type TranscriptSearchScope } from "../searchRequest";
+  useScoutSearchApi,
+} from "../scoutSearchAdapters";
 
 type UseSearchReferenceLabelsOptions = {
-  scope: TranscriptSearchScope;
+  scope: SearchScope;
   transcriptDir: string | null | undefined;
   transcriptId: string;
 };
@@ -44,9 +49,9 @@ export const useSearchReferenceLabels = ({
   const searchId =
     searchPanelState.searches[searchPanelState.searchType].searchId;
 
+  const api = useScoutSearchApi(transcriptDir ?? "", transcriptId);
   const cachedResult = useCachedSearchResult({
-    transcriptDir: transcriptDir ?? "",
-    transcriptId,
+    api,
     scope: buildSearchScope(scope),
     searchId: transcriptDir ? searchId : null,
   });

@@ -24,5 +24,8 @@ export type {
 } from "./types";
 export {
   searchQueryKeys,
+  useCachedSearchResult,
+  useCreateSearch,
+  useSearches,
   DEFAULT_RECENT_SEARCH_COUNT,
 } from "./useSearchQueries";
