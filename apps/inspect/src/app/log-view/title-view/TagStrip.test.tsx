@@ -32,7 +32,9 @@ describe("TagStrip", () => {
       />
     );
 
-    const edit = screen.getByRole("button", { name: /edit/i });
+    // The button's visible label is "Tags" (italic); we query by the
+    // stable `title` attribute so the test isn't coupled to label copy.
+    const edit = screen.getByTitle("Edit tags");
     // The wrap-aware container has `flex-wrap: wrap`; if Edit is nested
     // inside it, it wraps to a new line with the trailing chips.
     expect(edit.closest(".tagRow")).toBeNull();
@@ -59,7 +61,11 @@ describe("TagStrip", () => {
 
   test("Edit button still renders when there are no tags", () => {
     render(<TagStrip tags={[]} showEdit onEdit={() => {}} />);
-    expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+    // With no chips present, the button labels itself ("Tags") so the
+    // pill makes sense in isolation.
+    const btn = screen.getByTitle("Edit tags");
+    expect(btn).toBeInTheDocument();
+    expect(btn.textContent).toMatch(/Tags/);
   });
 
   test("renders nothing when there are no tags and no edit affordance", () => {

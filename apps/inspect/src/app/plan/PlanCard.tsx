@@ -36,11 +36,18 @@ export const PlanCard: FC<PlanCardProps> = ({
 
   const canEditMetadata = useStore((state) => Boolean(state.api?.edit_log));
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const logStatus = useStore(
+    (state) => state.log.selectedLogDetails?.status
+  );
   const refreshLog = useRefreshLog();
   const [editingMetadata, setEditingMetadata] = useState(false);
   const onMetadataSaved = useCallback(() => refreshLog(), [refreshLog]);
 
-  const showMetadataCard = hasMetadata || (canEditMetadata && !!selectedLogFile);
+  // Edit gated on the server with 409 while the recorder is running;
+  // mirror that here so the affordance isn't even offered.
+  const isInProgress = logStatus === "started";
+  const canEdit = canEditMetadata && !!selectedLogFile && !isInProgress;
+  const showMetadataCard = hasMetadata || canEdit;
 
   return (
     <>
@@ -58,7 +65,7 @@ export const PlanCard: FC<PlanCardProps> = ({
       {showMetadataCard && (
         <Card>
           <CardHeader label="Metadata">
-            {canEditMetadata && selectedLogFile && (
+            {canEdit && (
               <span className={styles.headerActions}>
                 <EditButton
                   onClick={() => setEditingMetadata(true)}

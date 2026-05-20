@@ -49,7 +49,12 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
-  const showTagEdit = canEditTags && !!selectedLogFile;
+  // Hide the Edit affordance while the recorder is still appending —
+  // the server returns 409 for edits on in-progress logs, and a UI that
+  // offered the action only to fail on save is worse than not offering
+  // it at all.
+  const isInProgress = status === "started";
+  const showTagEdit = canEditTags && !!selectedLogFile && !isInProgress;
   const tagList = tags ?? [];
 
   const copyValue = (() => {

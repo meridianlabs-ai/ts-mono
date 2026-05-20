@@ -58,10 +58,16 @@ export const TaskTab: FC<TaskTabProps> = ({
 }) => {
   const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const logStatus = useStore(
+    (state) => state.log.selectedLogDetails?.status
+  );
   const refreshLog = useRefreshLog();
   const [editingTags, setEditingTags] = useState(false);
   const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
-  const showTagEdit = canEditTags && !!selectedLogFile;
+  // Hide the Edit affordance while the recorder is still running — the
+  // server returns 409 for edits on in-progress logs.
+  const isInProgress = logStatus === "started";
+  const showTagEdit = canEditTags && !!selectedLogFile && !isInProgress;
   const tagList = tags ?? [];
 
   const config: Record<string, unknown> = {};
@@ -120,7 +126,9 @@ export const TaskTab: FC<TaskTabProps> = ({
               onClick={() => setEditingTags(true)}
               title="Edit tags"
               variant="pill"
-            />
+            >
+              Tags
+            </EditButton>
           )}
         </div>
       ),

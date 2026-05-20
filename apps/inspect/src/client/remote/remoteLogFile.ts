@@ -55,11 +55,32 @@ export interface RemoteLogFile {
   readCompleteLog: () => Promise<EvalLog>;
 }
 
-interface LogStart {
+export interface LogStart {
   version: number;
   eval: EvalSpec;
   plan: EvalPlan;
 }
+
+/**
+ * Synthesize an EvalHeader from a `_journal/start.json` payload.
+ *
+ * `header.json` is only written at end-of-eval, so while a log is in
+ * progress the viewer falls back to `start.json` (which carries the
+ * EvalSpec + EvalPlan). The Python side does the analogous lift via
+ * `EvalLog.recompute_tags_and_metadata` on the model validator —
+ * `log.tags` / `log.metadata` derive from `eval.tags` / `eval.metadata`
+ * until `log_updates` adds edits on top. Mirror that here so a running
+ * log's chips and metadata still render in the viewer.
+ *
+ * Exported for unit testing.
+ */
+export const headerFromLogStart = (start: LogStart): EvalHeader => ({
+  status: "started",
+  eval: start.eval,
+  plan: start.plan,
+  tags: start.eval?.tags ?? [],
+  metadata: start.eval?.metadata ?? {},
+});
 
 /**
  * Opens a remote log file and provides methods to read its contents.
@@ -220,12 +241,11 @@ export const openRemoteLogFile = async (
     if (remoteZipFile.centralDirectory.has("header.json")) {
       return (await readJSONFile("header.json")) as EvalHeader;
     } else {
-      const evalSpec = (await readJSONFile("_journal/start.json")) as LogStart;
-      return {
-        status: "started",
-        eval: evalSpec.eval,
-        plan: evalSpec.plan,
-      };
+      // While the eval is still running, header.json hasn't been
+      // written yet — the recorder only flushes it at end-of-eval.
+      // Fall back to start.json and synthesize a header from it.
+      const start = (await readJSONFile("_journal/start.json")) as LogStart;
+      return headerFromLogStart(start);
     }
   };
 
