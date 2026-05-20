@@ -71,6 +71,7 @@ export const App: FC<AppProps> = ({ api }) => {
   const setLoading = useStore((state) => state.appActions.setLoading);
 
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
   const setSelectedLogFile = useStore(
@@ -209,6 +210,12 @@ export const App: FC<AppProps> = ({ api }) => {
           // If a log file was passed, select it
           const log_file = urlParams.get("log_file");
           if (log_file) {
+            // Resolve logDir first so setSelectedLogFile can produce an
+            // absolute path. Otherwise a bare basename gets stored and the
+            // first /api/log-info call goes out unqualified and 403s
+            // against OnlyDirAccessPolicy before the rest of the load
+            // self-recovers.
+            await initLogDir();
             setSelectedLogFile(log_file);
           }
           // Else do nothing - RouteProvider will handle it
@@ -223,6 +230,7 @@ export const App: FC<AppProps> = ({ api }) => {
     setLogDir,
     setLogFiles,
     setSelectedLogFile,
+    initLogDir,
     syncLogs,
     onMessage,
   ]);
