@@ -43,6 +43,8 @@
   flex-direction: row;
   min-height: 100%;
   overflow: hidden;
+  position: relative;
+  z-index: 0;
 }
 
 .tabSetWrapper {
