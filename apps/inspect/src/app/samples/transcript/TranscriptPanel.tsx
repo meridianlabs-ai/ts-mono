@@ -44,7 +44,6 @@ import { SampleScansSidebar } from "../scans/SampleScansSidebar";
 import { useMakeCiteUrl } from "../scans/scanReferences";
 
 import { useTranscriptFilter } from "./hooks";
-import { SearchPanelSlot } from "./search/SearchPanelSlot";
 
 interface TranscriptPanelProps {
   id: string;
@@ -63,14 +62,6 @@ interface TranscriptPanelProps {
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
-
-  // Search panel — controlled from the parent so the toggle can live in the
-  // sample toolbar alongside Print/Collapse rather than floating over content.
-  // sampleUuid is the transcript_id used by inspect_scout's search endpoints
-  // (sample.id/epoch alone don't identify a transcript in that schema).
-  sampleUuid?: string;
-  searchOpen?: boolean;
-  onSearchOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -90,9 +81,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     scans: allScores,
     sampleId,
     sampleEpoch,
-    sampleUuid,
-    searchOpen = false,
-    onSearchOpenChange,
   } = props;
 
   // Narrow to scanner-produced scores only. The sidebar is a scans sidebar,
@@ -433,42 +421,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Search panel — searchOpen is controlled by the parent (SampleDisplay).
-  // Search hijacks the rightPane slot for the duration; closing it restores
-  // the scores sidebar (when there are scores).
-  // ---------------------------------------------------------------------------
-
-  const transcriptId = sampleUuid ?? "";
-  const searchLogPath = urlLogPath ?? makeLogsPath(logFile ?? "", logDir);
-  const showSearch = searchOpen && !!logFile && !!transcriptId;
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
-  const rightPane = showSearch
-    ? {
-        collapsed: false,
-        onCollapsedChange: (collapsed: boolean) => {
-          if (collapsed) onSearchOpenChange?.(false);
-        },
-        toggleIcon: ApplicationIcons.search,
-        toggleTitle: "Close search",
-        label: "search",
-        width: 360,
-        content: (
-          <SearchPanelSlot
-            scope="events"
-            logFile={logFile ?? ""}
-            logPath={searchLogPath ?? ""}
-            transcriptId={transcriptId}
-            sampleId={sampleId ?? ""}
-            sampleEpoch={sampleEpoch ?? 0}
-            onClose={() => onSearchOpenChange?.(false)}
-          />
-        ),
-      }
-    : hasScores && scores
+  const rightPane =
+    hasScores && scores
       ? {
           collapsed: scoresCollapsed,
           onCollapsedChange: setScoresCollapsed,

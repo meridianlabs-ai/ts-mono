@@ -44,7 +44,7 @@
   padding: 0.5rem;
 }
 
-.messagesSearchHost {
+.tabSearchHost {
   display: flex;
   flex-direction: row;
   width: 100%;
@@ -52,13 +52,13 @@
   gap: 0;
 }
 
-.messagesContent {
+.tabContent {
   flex: 1;
   min-width: 0;
   min-height: 0;
 }
 
-.messagesSearchSidebar {
+.tabSearchSidebar {
   flex: 0 0 360px;
   min-width: 0;
   border-left: 1px solid var(--bs-border-color);

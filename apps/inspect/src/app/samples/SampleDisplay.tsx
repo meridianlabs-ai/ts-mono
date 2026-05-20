@@ -680,23 +680,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     />
                   )
                 ) : (
-                  <TranscriptPanel
-                    id={`${baseId}-transcript-display-${id}`}
-                    key={`${baseId}-transcript-display-${id}`}
-                    scrollRef={scrollRef}
-                    offsetTop={stickyOffsetTop}
-                    sampleId={sample?.id ?? undefined}
-                    sampleEpoch={sample?.epoch ?? undefined}
-                    running={running}
-                    events={sampleEvents}
-                    timelines={sample?.timelines ?? undefined}
-                    scans={sample?.scores ?? undefined}
-                    initialEventId={sampleDetailNavigation.event}
-                    initialMessageId={sampleDetailNavigation.message}
-                    sampleUuid={sample?.uuid ?? undefined}
-                    searchOpen={searchOpen && searchScope === "events"}
-                    onSearchOpenChange={setSearchOpen}
-                  />
+                  <div className={styles.tabSearchHost}>
+                    <div className={styles.tabContent}>
+                      <TranscriptPanel
+                        id={`${baseId}-transcript-display-${id}`}
+                        key={`${baseId}-transcript-display-${id}`}
+                        scrollRef={scrollRef}
+                        offsetTop={stickyOffsetTop}
+                        sampleId={sample?.id ?? undefined}
+                        sampleEpoch={sample?.epoch ?? undefined}
+                        running={running}
+                        events={sampleEvents}
+                        timelines={sample?.timelines ?? undefined}
+                        scans={sample?.scores ?? undefined}
+                        initialEventId={sampleDetailNavigation.event}
+                        initialMessageId={sampleDetailNavigation.message}
+                      />
+                    </div>
+                    {searchOpen &&
+                      searchSupported &&
+                      searchScope === "events" &&
+                      sample?.uuid && (
+                        <div className={styles.tabSearchSidebar}>
+                          <SearchPanelSlot
+                            scope="events"
+                            logFile={searchLogFile}
+                            logPath={searchLogPath ?? ""}
+                            transcriptId={sample.uuid}
+                            sampleId={sample.id ?? ""}
+                            sampleEpoch={sample.epoch ?? 0}
+                            onClose={() => setSearchOpen(false)}
+                          />
+                        </div>
+                      )}
+                  </div>
                 )}
               </TabPanel>
               <TabPanel
@@ -713,8 +730,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleMessagesTabId}
                 scrollable={false}
               >
-                <div className={styles.messagesSearchHost}>
-                  <div className={styles.messagesContent}>
+                <div className={styles.tabSearchHost}>
+                  <div className={styles.tabContent}>
                     <ChatViewVirtualList
                       key={`${baseId}-chat-${id}`}
                       id={`${baseId}-chat-${id}`}
@@ -734,7 +751,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     searchSupported &&
                     searchScope === "messages" &&
                     sample?.uuid && (
-                      <div className={styles.messagesSearchSidebar}>
+                      <div className={styles.tabSearchSidebar}>
                         <SearchPanelSlot
                           scope="messages"
                           logFile={searchLogFile}
