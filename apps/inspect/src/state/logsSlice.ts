@@ -227,7 +227,16 @@ export const createLogsSlice = (
         if (state.app.singleFileMode) {
           const existing = state.logs.logDir;
           if (existing !== undefined) return existing;
-          const logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+          let logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+          // When the deep link is just a basename there's no dir to derive;
+          // fall back to the server's configured log dir (cheap — no listing).
+          if (logDir === undefined && state.api?.get_log_dir) {
+            try {
+              logDir = await state.api.get_log_dir();
+            } catch (e) {
+              console.log(e);
+            }
+          }
           if (logDir !== undefined) {
             state.logsActions.setLogDir(logDir);
           }
