@@ -8,7 +8,7 @@ import { StoreState } from "./store";
 
 export interface SearchSlice {
   search: {
-    panelStates: Record<string, SearchPanelState>;
+    panelStates: Record<string, SearchPanelState | undefined>;
   };
   searchActions: {
     setSearchPanelState: (

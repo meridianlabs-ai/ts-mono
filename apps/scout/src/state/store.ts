@@ -129,7 +129,7 @@ interface StoreState {
   // Transcript
   transcriptCollapsedEvents: Record<string, Record<string, boolean>>;
   transcriptOutlineId?: string;
-  searchPanelStates: Record<string, SearchPanelState>;
+  searchPanelStates: Record<string, SearchPanelState | undefined>;
 
   // Transcript Detail properties (clear when switching transcripts)
   selectedTranscriptTab?: string;

@@ -9,7 +9,6 @@ import {
   type SearchPanelStateController,
   type SearchScope,
   type SearchType,
-  type StoredSearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 
 import { ApplicationIcons } from "../../icons";
@@ -59,9 +58,7 @@ export const useScoutSearchPanelState = ({
     () => getSearchPanelStateKey({ scope, transcriptDir }),
     [scope, transcriptDir]
   );
-  const state = useStore((s) => s.searchPanelStates[key]) as
-    | StoredSearchPanelState
-    | undefined;
+  const state = useStore((s) => s.searchPanelStates[key])
   const setSearchPanelState = useStore((s) => s.setSearchPanelState);
 
   const setState = useCallback<SearchPanelStateController["setState"]>(
