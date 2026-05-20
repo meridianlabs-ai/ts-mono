@@ -64,11 +64,13 @@ export const ScansPanel: FC = () => {
     fetchNextPage({ cancelRefetch: false }).catch(console.error);
   }, [fetchNextPage]);
 
-  // Clear scan state from store on mount
+  // Clear both scan-level and scans-level state on mount
   const clearScansState = useStore((state) => state.clearScansState);
+  const clearScanState = useStore((state) => state.clearScanState);
   useEffect(() => {
     clearScansState();
-  }, [clearScansState]);
+    clearScanState();
+  }, [clearScansState, clearScanState]);
 
   return (
     <div className={clsx(styles.container)}>

@@ -70,11 +70,12 @@
 }
 
 .chatList {
+  flex: 1;
+  min-width: 0;
   padding: 0.5rem;
 }
 
 .metadata {
-  padding: 0.5rem;
   padding-bottom: 50px;
 }
 

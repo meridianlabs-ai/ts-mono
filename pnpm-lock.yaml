@@ -20,6 +20,7 @@ overrides:
   '@microsoft/api-extractor': ^7.57.6
   rollup: ^4.59.0
   fast-uri: ^3.1.2
+  ws: ^8.20.1
 
 importers:
 
@@ -87,7 +88,7 @@ importers:
         version: link:../../packages/util
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
-        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ag-grid-community:
         specifier: ^34.3.1
         version: 34.3.1
@@ -295,10 +296,10 @@ importers:
         version: link:../../packages/util
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
-        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@vscode/codicons':
-        specifier: ^0.0.44
-        version: 0.0.44
+        specifier: ^0.0.45
+        version: 0.0.45
       ag-grid-community:
         specifier: ^34.3.1
         version: 34.3.1
@@ -644,7 +645,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
-        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       eslint:
         specifier: ^9.39.4
         version: 9.39.4
@@ -732,7 +733,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
-        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       eslint:
         specifier: ^9.39.4
         version: 9.39.4
@@ -2591,8 +2592,8 @@ packages:
       react: 17 || 18 || 19
       react-dom: 17 || 18 || 19
 
-  '@vscode/codicons@0.0.44':
-    resolution: {integrity: sha512-F7qPRumUK3EHjNdopfICLGRf3iNPoZQt+McTHAn4AlOWPB3W2kL4H0S7uqEqbyZ6rCxaeDjpAn3MCUnwTu/VJQ==}
+  '@vscode/codicons@0.0.45':
+    resolution: {integrity: sha512-1KAZ7XCMagp5Gdrlr4bbbcAqgcIL623iO1wW6rfcSVGAVUQvR0WP7bQx1SbJ11gmV3fdQTSEFIJQ/5C+HuVasw==}
 
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha512-6aN99yL695Hi9SuIk1oC88l9o0gmxL1nGWWQ/kNy81HigJ0FoaoTXpytCj6ItzgyCEwA9kF1wixsTuv5cjsgng==}
@@ -5151,8 +5152,8 @@ packages:
     resolution: {integrity: sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ==}
     engines: {node: '>=12'}
 
-  ws@8.20.0:
-    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
+  ws@8.20.1:
+    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -6780,23 +6781,23 @@ snapshots:
       path-browserify: 1.0.1
       vscode-uri: 3.1.0
 
-  '@vscode-elements/elements@2.5.0(@vscode/codicons@0.0.44)':
+  '@vscode-elements/elements@2.5.0(@vscode/codicons@0.0.45)':
     dependencies:
       '@lit/context': 1.1.6
-      '@vscode/codicons': 0.0.44
+      '@vscode/codicons': 0.0.45
       lit: 3.3.2
 
-  '@vscode-elements/react-elements@2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.44)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@vscode-elements/react-elements@2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@lit/react': 1.0.8(@types/react@19.2.14)
-      '@vscode-elements/elements': 2.5.0(@vscode/codicons@0.0.44)
+      '@vscode-elements/elements': 2.5.0(@vscode/codicons@0.0.45)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
     transitivePeerDependencies:
       - '@types/react'
       - '@vscode/codicons'
 
-  '@vscode/codicons@0.0.44': {}
+  '@vscode/codicons@0.0.45': {}
 
   '@webcontainer/env@1.1.1': {}
 
@@ -9053,7 +9054,7 @@ snapshots:
       recast: 0.23.11
       semver: 7.8.0
       use-sync-external-store: 1.6.0(react@19.2.6)
-      ws: 8.20.0
+      ws: 8.20.1
     optionalDependencies:
       prettier: 3.8.3
     transitivePeerDependencies:
@@ -9599,7 +9600,7 @@ snapshots:
       string-width: 5.1.2
       strip-ansi: 7.2.0
 
-  ws@8.20.0: {}
+  ws@8.20.1: {}
 
   wsl-utils@0.1.0:
     dependencies:
