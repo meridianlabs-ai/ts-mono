@@ -9,10 +9,11 @@ import {
 
 import { ComponentNavigationProvider } from "@tsmono/react/components";
 
-import { storeImplementation, useStore } from "../../state/store";
+import { storeImplementation } from "../../state/store";
 import { AppErrorBoundary } from "../AppErrorBoundary";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
+import { isSingleFileMode } from "../singleFileMode";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 
 import { RouteDispatcher } from "./RouteDispatcher";
@@ -45,16 +46,13 @@ const AppLayout = () => {
     }
   }, [location]);
 
-  // Get log selection state from store
-  const singleFileMode = useStore((state) => state.app.singleFileMode);
-
   // Get route params to check for sample detail routes
   const { sampleId, epoch, sampleUuid } = useLogRouteParams();
 
   // Single file mode is a legacy mode that is used when an explicit
   // file is passed via URL (task_file or log_file params) or via
   // embedded state (VSCode)
-  if (singleFileMode) {
+  if (isSingleFileMode) {
     // Check if this is a sample detail URL
     const isSampleDetail = (sampleId && epoch) || sampleUuid;
 

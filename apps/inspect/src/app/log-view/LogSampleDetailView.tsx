@@ -7,6 +7,7 @@ import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
 import { useLogSampleNavigation } from "../routing/sampleNavigation";
+import { isSingleFileMode } from "../singleFileMode";
 import {
   logSamplesUrl,
   logsUrl,
@@ -62,7 +63,6 @@ export const LogSampleDetailView: FC = () => {
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
-  const singleFileMode = useStore((state) => state.app.singleFileMode);
 
   // Use route params if available, otherwise fall back to state
   const logPath = routeLogPath || selectedLogFile;
@@ -178,7 +178,7 @@ export const LogSampleDetailView: FC = () => {
         currentPath: logPath ? `${logPath}/sample` : undefined,
         fnNavigationUrl,
         bordered: true,
-        breadcrumbsEnabled: !singleFileMode,
+        breadcrumbsEnabled: !isSingleFileMode,
       }}
     />
   );

@@ -80,10 +80,6 @@ export const App: FC<AppProps> = ({ api }) => {
   const loadLog = useStore((state) => state.logActions.syncLog);
   const pollLog = useStore((state) => state.logActions.pollLog);
 
-  const setSingleFileMode = useStore(
-    (state) => state.appActions.setSingleFileMode
-  );
-
   // Load a specific log
   useEffect(() => {
     const loadSpecificLog = async () => {
@@ -194,7 +190,6 @@ export const App: FC<AppProps> = ({ api }) => {
       if (embeddedState) {
         const state = JSON5.parse(embeddedState.textContent || "");
         onMessage({ data: state });
-        setSingleFileMode(true);
       } else {
         // For non-route URL params support (legacy)
         const urlParams = new URLSearchParams(window.location.search);
@@ -210,13 +205,11 @@ export const App: FC<AppProps> = ({ api }) => {
           setLogDir(undefined);
           // Load just the passed file
           setLogFiles([{ name: resolvedLogPath }]);
-          setSingleFileMode(true);
         } else {
           // If a log file was passed, select it
           const log_file = urlParams.get("log_file");
           if (log_file) {
             setSelectedLogFile(log_file);
-            setSingleFileMode(true);
           }
           // Else do nothing - RouteProvider will handle it
         }
@@ -232,7 +225,6 @@ export const App: FC<AppProps> = ({ api }) => {
     setSelectedLogFile,
     syncLogs,
     onMessage,
-    setSingleFileMode,
   ]);
 
   return (

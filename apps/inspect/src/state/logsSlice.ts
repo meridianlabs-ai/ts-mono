@@ -4,7 +4,7 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { deriveSingleFileLogDir } from "../app/singleFileMode";
+import { deriveSingleFileLogDir, isSingleFileMode } from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -224,7 +224,7 @@ export const createLogsSlice = (
         // In single-file mode there is no directory listing to fetch — derive
         // the log dir from the selected file. Avoids a server round-trip that,
         // depending on the backend, may walk the entire log directory.
-        if (state.app.singleFileMode) {
+        if (isSingleFileMode) {
           const existing = state.logs.logDir;
           if (existing !== undefined) return existing;
           let logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
@@ -328,7 +328,7 @@ export const createLogsSlice = (
           };
 
           // Don't enable syncing if there is no log directory
-          if (!logDir || get().app.singleFileMode) {
+          if (!logDir || isSingleFileMode) {
             if (useProgress) {
               get().appActions.setLoading(false);
             }
@@ -429,7 +429,7 @@ export const createLogsSlice = (
         if (!isInFileList) {
           if (
             state.replicationService?.isReplicating() &&
-            !state.app.singleFileMode
+            !isSingleFileMode
           ) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>

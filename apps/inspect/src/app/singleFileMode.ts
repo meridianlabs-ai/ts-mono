@@ -29,3 +29,14 @@ export const deriveSingleFileLogDir = (
   const dir = dirname(logFile);
   return dir === "" ? undefined : dir;
 };
+
+/**
+ * Resolved once at module import. Whether the viewer is in single-file mode
+ * is a startup-time property: it's a function of the URL the page loaded with
+ * (or embedded state injected by VSCode) and never flips during the session,
+ * so we don't need to thread it through application state.
+ */
+export const isSingleFileMode: boolean =
+  typeof window !== "undefined"
+    ? detectInitialSingleFileMode(window.location, document)
+    : false;

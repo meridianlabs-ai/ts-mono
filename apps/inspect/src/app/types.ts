@@ -67,7 +67,6 @@ export interface AppState {
     sample_epoch?: string;
   };
   rehydrated?: boolean;
-  singleFileMode?: boolean;
   displayMode?: "rendered" | "raw";
   logsSampleView: boolean;
 }
