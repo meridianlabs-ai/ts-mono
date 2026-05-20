@@ -34,7 +34,9 @@ export const TagStrip: FC<TagStripProps> = ({ tags, showEdit, onEdit }) => {
           ))}
         </div>
       )}
-      {showEdit && <EditButton onClick={onEdit} title="Edit tags" />}
+      {showEdit && (
+        <EditButton onClick={onEdit} title="Edit tags" variant="pill" />
+      )}
     </Fragment>
   );
 };

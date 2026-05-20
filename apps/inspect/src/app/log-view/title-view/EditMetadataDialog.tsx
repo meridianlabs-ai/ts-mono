@@ -164,6 +164,10 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  // Captures the most recently added key so a layout effect can scroll
+  // the new row into view and focus its value textarea once it's in
+  // the DOM. Reset to null after handling.
+  const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!showing) return;
@@ -252,7 +256,29 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
     ]);
     setNewKey("");
     setNewType("string");
+    // Trigger a scroll-into-view + focus on the freshly inserted row
+    // once it's in the DOM (handled by the effect below).
+    setPendingFocusKey(k);
   };
+
+  // Scroll the just-added row into view and focus its textarea so the
+  // user can type the value immediately. Runs after the row's been
+  // committed to the DOM; we look it up by `data-meta-key` rather than
+  // taking a ref so we don't need to thread a ref handler through
+  // every MetaRow.
+  useEffect(() => {
+    if (pendingFocusKey == null) return;
+    const selector = `[data-meta-key="${CSS.escape(pendingFocusKey)}"]`;
+    const row = document.querySelector<HTMLElement>(selector);
+    const textarea = row?.querySelector<HTMLTextAreaElement>("textarea");
+    if (textarea) {
+      // scrollIntoView walks up to the nearest scrollable ancestor —
+      // here, the .tableScroll wrapper around the table.
+      textarea.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      textarea.focus();
+    }
+    setPendingFocusKey(null);
+  }, [pendingFocusKey]);
 
   const handleNewKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -457,6 +483,11 @@ const MetaRow: FC<{
       !first && styles.rowDivider,
       entry.isNew && styles.rowNew
     )}
+    // Used by the dialog's "scroll-to-new-key" effect to locate this
+    // row's element via querySelector — keys are unique within the
+    // editing session and are CSS.escape()'d on lookup so dots/quotes
+    // are safe.
+    data-meta-key={entry.key}
   >
     <code className={clsx("text-size-smaller", styles.key)}>{entry.key}</code>
     <div className={styles.value}>

@@ -8,11 +8,12 @@
      off the right edge of the header. The label inside ellipsizes. */
   max-width: 18rem;
   min-width: 0;
-  background: var(--bs-secondary-bg);
+  /* Outline-only look — transparent fill, body weight text. Keeps
+     the chips from competing with the task title for visual weight. */
+  background: transparent;
   color: var(--bs-body-color);
   border-radius: 999px;
-  border: 1px solid transparent;
-  font-weight: 500;
+  border: 1px solid var(--bs-border-color);
   letter-spacing: 0.01em;
   white-space: nowrap;
   line-height: 1;
@@ -25,9 +26,11 @@
   min-width: 0;
 }
 
+/* Pending-add variant inside the editor: keep the green outline so it
+   still reads as "new", but no fill (matches the saved-chip style). */
 .chipNew {
-  background: var(--bs-success-bg-subtle);
   border-color: var(--bs-success-border-subtle);
+  color: var(--bs-success-text-emphasis);
 }
 
 .chipRemove {

@@ -108,6 +108,9 @@ export const TaskTab: FC<TaskTabProps> = ({
   if (tagList.length > 0 || showTagEdit) {
     taskInformation["tags"] = {
       _html: (
+        // Edit pill flows as the last item in the wrap-aware chip
+        // row — it behaves like another pill, joining or wrapping
+        // with the chips on whatever line they land on.
         <div className={styles.tagPillRow}>
           {tagList.map((tag) => (
             <TagChip key={tag} label={tag} />
@@ -116,6 +119,7 @@ export const TaskTab: FC<TaskTabProps> = ({
             <EditButton
               onClick={() => setEditingTags(true)}
               title="Edit tags"
+              variant="pill"
             />
           )}
         </div>
