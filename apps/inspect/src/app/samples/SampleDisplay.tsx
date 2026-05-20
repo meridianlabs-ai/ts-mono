@@ -722,7 +722,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 className={clsx(
                   "sample-tab",
                   styles.fullWidth,
-                  styles.chat,
                   styles.overflowVisible
                 )}
                 title="Messages"
@@ -731,7 +730,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 scrollable={false}
               >
                 <div className={styles.tabSearchHost}>
-                  <div className={styles.tabContent}>
+                  <div className={clsx(styles.tabContent, styles.chat)}>
                     <ChatViewVirtualList
                       key={`${baseId}-chat-${id}`}
                       id={`${baseId}-chat-${id}`}
