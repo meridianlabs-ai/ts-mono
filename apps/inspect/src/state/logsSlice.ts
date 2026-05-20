@@ -221,15 +221,17 @@ export const createLogsSlice = (
       initLogDir: async () => {
         const state = get();
 
-        // In single-file mode there is no directory listing to fetch — derive
-        // the log dir from the selected file. Avoids a server round-trip that,
-        // depending on the backend, may walk the entire log directory.
+        let logDir: string | undefined;
+        let absLogDir: string | undefined;
+
         if (isSingleFileMode) {
-          const existing = state.logs.logDir;
-          if (existing !== undefined) return existing;
-          let logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
-          // When the deep link is just a basename there's no dir to derive;
-          // fall back to the server's configured log dir (cheap — no listing).
+          // No directory listing to fetch — derive the log dir from the
+          // selected file. Re-deriving against the same file would just
+          // produce the same answer, so short-circuit if it's already set.
+          if (state.logs.logDir !== undefined) return state.logs.logDir;
+          logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+          // For bare-basename deep links there's no dir to derive; fall back
+          // to the server's configured log dir (cheap — no walk).
           if (logDir === undefined && state.api?.get_log_dir) {
             try {
               logDir = await state.api.get_log_dir();
@@ -237,35 +239,26 @@ export const createLogsSlice = (
               console.log(e);
             }
           }
-          if (logDir !== undefined) {
-            state.logsActions.setLogDir(logDir);
+        } else {
+          const api = state.api;
+          if (!api) {
+            console.error("API not initialized in LogsStore");
+            return undefined;
           }
-          return logDir;
-        }
-
-        const api = state.api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return undefined;
-        }
-
-        // Determine the log directory
-        const loadLogInfo = async () => {
           try {
             const root = await api.get_log_root();
-            return { logDir: root.log_dir, absLogDir: root.abs_log_dir };
+            logDir = root.log_dir;
+            absLogDir = root.abs_log_dir;
           } catch (e) {
             console.log(e);
             get().appActions.setLoading(false, e as Error);
-            return undefined;
+            // Fall through with undefined to clear any stale state below.
           }
-        };
-        const info = await loadLogInfo();
-        const logDir = info?.logDir;
+        }
+
         if (get().logs.logDir !== logDir) {
           get().logsActions.setLogDir(logDir);
         }
-        const absLogDir = info?.absLogDir;
         if (get().logs.absLogDir !== absLogDir) {
           set((state) => {
             state.logs.absLogDir = absLogDir;

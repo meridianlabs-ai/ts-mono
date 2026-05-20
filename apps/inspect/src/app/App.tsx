@@ -210,11 +210,6 @@ export const App: FC<AppProps> = ({ api }) => {
           // If a log file was passed, select it
           const log_file = urlParams.get("log_file");
           if (log_file) {
-            // Resolve logDir first so setSelectedLogFile can produce an
-            // absolute path. Otherwise a bare basename gets stored and the
-            // first /api/log-info call goes out unqualified and 403s
-            // against OnlyDirAccessPolicy before the rest of the load
-            // self-recovers.
             await initLogDir();
             setSelectedLogFile(log_file);
           }
