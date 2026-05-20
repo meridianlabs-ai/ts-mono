@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createApplyTheme } from "@tsmono/theme/bootstrap";
 
 import {
   readThemePreference,
@@ -16,6 +18,10 @@ const readPref = (raw: string | null) =>
 
 const persisted = (themePreference?: unknown): string =>
   JSON.stringify({ state: { themePreference }, version: 0 });
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("readThemePreference", () => {
   it("defaults to 'system' when storage is empty", () => {
@@ -38,6 +44,7 @@ describe("readThemePreference", () => {
     "system",
     "light",
     "dark",
+    "readable-system",
     "readable-light",
     "readable-dark",
   ])("returns persisted value '%s'", (value) => {
@@ -85,9 +92,11 @@ describe("resolveTheme", () => {
     ).toMatchObject({ theme: "dark", isDark: true });
   });
 
-  it("VS Code + system + no explicit param → skip (let VS Code own theme)", () => {
+  it("VS Code + system + no explicit param → clears variant only", () => {
     expect(resolveTheme({ ...baseInput, isVscodeWebview: true })).toEqual({
-      kind: "skip",
+      kind: "apply-variant-only",
+      variant: "default",
+      hostIsDark: null,
     });
   });
 
@@ -108,15 +117,116 @@ describe("resolveTheme", () => {
   });
 
   it.each<"light" | "dark">(["light", "dark"])(
-    "VS Code ignores in-app override '%s' and skips",
+    "VS Code ignores plain light/dark override '%s' (host owns base mode)",
     (preference) => {
       expect(
         resolveTheme({ ...baseInput, isVscodeWebview: true, preference })
-      ).toEqual({ kind: "skip" });
+      ).toEqual({
+        kind: "apply-variant-only",
+        variant: "default",
+        hostIsDark: null,
+      });
     }
   );
 
-  it("VS Code + explicit param wins even when override is also set", () => {
+  it.each<"readable-system" | "readable-light" | "readable-dark">([
+    "readable-system",
+    "readable-light",
+    "readable-dark",
+  ])(
+    "VS Code applies Event Colors '%s' as variant-only (host keeps base mode)",
+    (preference) => {
+      expect(
+        resolveTheme({ ...baseInput, isVscodeWebview: true, preference })
+      ).toEqual({
+        kind: "apply-variant-only",
+        variant: "readable",
+        // jsdom: no `vscode-*` class on <body>, so caller is told to leave
+        // `data-bs-theme` alone.
+        hostIsDark: null,
+      });
+    }
+  );
+
+  it.each([
+    ["vscode-dark", true],
+    ["vscode-light", false],
+  ])("VS Code mirrors host class '%s' for Event Colors", (className, hostIsDark) => {
+    vi.stubGlobal("document", {
+      body: {
+        classList: {
+          contains: (candidate: string) => candidate === className,
+        },
+      },
+    });
+
+    expect(
+      resolveTheme({
+        ...baseInput,
+        isVscodeWebview: true,
+        preference: "readable-system",
+      })
+    ).toEqual({
+      kind: "apply-variant-only",
+      variant: "readable",
+      hostIsDark,
+    });
+  });
+
+  it("VS Code clears readable DOM variant when Event Colors is turned off", () => {
+    const attrs = new Map<string, string>();
+    const storage = new Map<string, string>([
+      [SETTINGS_STORAGE_KEY, persisted("readable-system")],
+    ]);
+    vi.stubGlobal("document", {
+      documentElement: {
+        setAttribute: (name: string, value: string) => attrs.set(name, value),
+        removeAttribute: (name: string) => attrs.delete(name),
+      },
+      body: {
+        className: "vscode-dark",
+        classList: {
+          contains: (candidate: string) => candidate === "vscode-dark",
+          toggle: vi.fn(),
+        },
+      },
+    });
+    vi.stubGlobal("window", {
+      location: { search: "" },
+      matchMedia: () => ({
+        matches: false,
+        addEventListener: vi.fn(),
+      }),
+      acquireVsCodeApi: vi.fn(),
+    });
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+    });
+
+    const applyTheme = createApplyTheme({
+      queryParamName: "inspectLogviewThemeCategory",
+      storageKey: SETTINGS_STORAGE_KEY,
+    });
+    applyTheme();
+    expect(attrs.get("data-theme-variant")).toBe("readable");
+    expect(attrs.get("data-bs-theme")).toBe("dark");
+
+    storage.set(SETTINGS_STORAGE_KEY, persisted("system"));
+    applyTheme();
+    expect(attrs.has("data-theme-variant")).toBe(false);
+    expect(attrs.get("data-bs-theme")).toBe("dark");
+  });
+
+  it("standalone + readable-system follows OS scheme but keeps readable variant", () => {
+    expect(
+      resolveTheme({ ...baseInput, preference: "readable-system", prefersDark: true })
+    ).toMatchObject({ theme: "dark", isDark: true, variant: "readable" });
+    expect(
+      resolveTheme({ ...baseInput, preference: "readable-system", prefersDark: false })
+    ).toMatchObject({ theme: "light", isDark: false, variant: "readable" });
+  });
+
+  it("VS Code + explicit param applies when preference is not a readable override", () => {
     expect(
       resolveTheme({
         ...baseInput,

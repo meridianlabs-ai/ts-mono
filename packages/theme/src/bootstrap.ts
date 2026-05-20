@@ -18,6 +18,7 @@ export type ThemePreference =
   | "system"
   | "light"
   | "dark"
+  | "readable-system"
   | "readable-light"
   | "readable-dark";
 
@@ -33,6 +34,7 @@ const THEME_PREFERENCES: readonly ThemePreference[] = [
   "system",
   "light",
   "dark",
+  "readable-system",
   "readable-light",
   "readable-dark",
 ];
@@ -45,6 +47,7 @@ export const THEME_OPTIONS: readonly {
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+  { value: "readable-system", label: "Event Colors (System)" },
   { value: "readable-light", label: "Event Colors Light" },
   { value: "readable-dark", label: "Event Colors Dark" },
 ];
@@ -61,6 +64,15 @@ export const isThemePreference = (value: unknown): value is ThemePreference =>
 export const resolveIsDark = (value: ThemePreference): boolean => {
   if (value === "dark" || value === "readable-dark") return true;
   if (value === "light" || value === "readable-light") return false;
+  // "system" and "readable-system" both follow the host/OS theme below.
+  // VS Code webview: the host (VS Code/Cursor) sets `vscode-dark` /
+  // `vscode-light` on <body> to mirror its own theme — trust that over
+  // `matchMedia`, which only reports the OS color scheme and so can disagree
+  // with the IDE theme.
+  if (typeof document !== "undefined" && document.body) {
+    if (document.body.classList.contains("vscode-dark")) return true;
+    if (document.body.classList.contains("vscode-light")) return false;
+  }
   return (
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -121,6 +133,17 @@ export type ResolveInput = {
 export type ResolveOutput =
   | { kind: "skip" }
   | {
+      kind: "apply-variant-only";
+      variant: ThemeVariant;
+      /**
+       * The host's resolved dark/light, so the variant token block keyed on
+       * `:root[data-bs-theme="dark"]` activates when the host is dark.
+       * `null` if we can't tell (no vscode-* body class yet) — caller then
+       * leaves `data-bs-theme` untouched.
+       */
+      hostIsDark: boolean | null;
+    }
+  | {
       kind: "apply";
       theme: string;
       isDark: boolean;
@@ -129,13 +152,34 @@ export type ResolveOutput =
     };
 
 export const resolveTheme = (input: ResolveInput): ResolveOutput => {
-  // Inside VS Code we always defer to VS Code's own theme machinery; the
-  // in-app preference is hidden in that environment, so any persisted
-  // override from a standalone session must stay inert. An explicit theme
-  // query parameter is still honored since callers use it to embed a
-  // viewer with a specific theme (and may itself request `readable-*`).
+  // Inside VS Code: the in-app preference wins when explicitly set; only on
+  // `system` do we defer to VS Code's own theme machinery (or to a host
+  // query param, which embedders use to force a specific theme).
   if (input.isVscodeWebview) {
-    if (!input.explicitParam) return { kind: "skip" };
+    // In a webview the host injects `--vscode-*` tokens we cannot reliably
+    // re-skin, so trying to override light/dark from inside always leaves
+    // hybrid messes (host-tinted code blocks on user-picked backgrounds,
+    // etc.). The host owns base mode. Event Colors (the readable variant)
+    // is safe to override because it only flips `data-theme-variant` and
+    // doesn't touch the bridge — apply it without changing the base theme.
+    if (
+      input.preference === "readable-light" ||
+      input.preference === "readable-dark" ||
+      input.preference === "readable-system" ||
+      !input.explicitParam
+    ) {
+      // Mirror the host's body class onto `data-bs-theme` so the dark readable
+      // token block follows Cursor/VS Code theme changes. Plain webview
+      // preferences use the same path to clear a previously selected variant.
+      const hostIsDark = hostIsDarkFromBody();
+      return {
+        kind: "apply-variant-only",
+        variant: input.preference.startsWith("readable-")
+          ? "readable"
+          : "default",
+        hostIsDark,
+      };
+    }
     const parsed = parseThemeName(input.explicitParam);
     return {
       kind: "apply",
@@ -149,12 +193,21 @@ export const resolveTheme = (input: ResolveInput): ResolveOutput => {
   }
 
   let name: string;
-  if (input.preference !== "system") {
+  // `readable-system` keeps the readable variant but follows the OS scheme
+  // for base mode — so toggling OS dark/light still flips light/dark while
+  // Event Colors stays on.
+  if (
+    input.preference !== "system" &&
+    input.preference !== "readable-system"
+  ) {
     name = input.preference;
   } else if (input.explicitParam) {
     name = input.explicitParam;
   } else {
     name = input.prefersDark ? "dark" : "light";
+  }
+  if (input.preference === "readable-system" && !name.startsWith("readable-")) {
+    name = `readable-${name}`;
   }
 
   const { isDark, variant, base } = parseThemeName(name);
@@ -191,10 +244,48 @@ declare global {
 // re-inits) never accumulate listeners or leak.
 let currentApplyTheme: (() => void) | null = null;
 let mediaListenerInstalled = false;
+let bodyClassObserverInstalled = false;
+// Subscribers re-render React state that depends on the resolved theme (the
+// sun/moon icon, the "system" → host-dark/light resolution, etc.) when the
+// host swaps `vscode-dark` ↔ `vscode-light` on <body>.
+const hostThemeSubscribers = new Set<() => void>();
+export const subscribeHostTheme = (cb: () => void): (() => void) => {
+  hostThemeSubscribers.add(cb);
+  return () => hostThemeSubscribers.delete(cb);
+};
+
+const hostIsDarkFromBody = (): boolean | null => {
+  if (typeof document === "undefined" || !document.body) return null;
+  if (document.body.classList.contains("vscode-dark")) return true;
+  if (document.body.classList.contains("vscode-light")) return false;
+  return null;
+};
 
 const isVscodeWebview = (): boolean =>
   typeof (window as { acquireVsCodeApi?: unknown }).acquireVsCodeApi ===
   "function";
+
+const installBodyClassObserver = (): void => {
+  if (
+    bodyClassObserverInstalled ||
+    typeof MutationObserver === "undefined" ||
+    !document.body
+  ) {
+    return;
+  }
+
+  bodyClassObserverInstalled = true;
+  let lastClass = document.body.className;
+  new MutationObserver(() => {
+    if (document.body.className === lastClass) return;
+    lastClass = document.body.className;
+    currentApplyTheme?.();
+    hostThemeSubscribers.forEach((cb) => cb());
+  }).observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+};
 
 /**
  * Build (do not run) the apply-theme function. The returned function is
@@ -207,6 +298,8 @@ export const createApplyTheme = (
   options: ApplyThemeOptions
 ): (() => void) => {
   const applyTheme = (): void => {
+    installBodyClassObserver();
+
     const params = new URLSearchParams(window.location.search);
     const result = resolveTheme({
       preference: options.storageKey
@@ -218,6 +311,24 @@ export const createApplyTheme = (
     });
 
     if (result.kind === "skip") return;
+
+    // Variant-only path: in a webview we never touch the host's base theme
+    // (we can't re-skin `--vscode-*` reliably), but Event Colors is just a
+    // `data-theme-variant` flip and is safe to apply on top.
+    if (result.kind === "apply-variant-only") {
+      if (result.variant === "readable") {
+        document.documentElement.setAttribute("data-theme-variant", "readable");
+      } else {
+        document.documentElement.removeAttribute("data-theme-variant");
+      }
+      if (result.hostIsDark !== null) {
+        document.documentElement.setAttribute(
+          "data-bs-theme",
+          result.hostIsDark ? "dark" : "light"
+        );
+      }
+      return;
+    }
 
     // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
     // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
@@ -256,6 +367,12 @@ export const createApplyTheme = (
       .matchMedia("(prefers-color-scheme: dark)")
       .addEventListener("change", () => currentApplyTheme?.());
   }
+
+  // VS Code/Cursor swaps `vscode-dark` ↔ `vscode-light` on <body> when the
+  // user changes the host theme. Re-apply so `data-bs-theme` / variant
+  // tokens follow, and wake up React subscribers so the sun/moon icon and
+  // any `resolveIsDark("system")` reads update too.
+  installBodyClassObserver();
 
   return applyTheme;
 };

@@ -3,6 +3,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import {
   isThemePreference,
   resolveIsDark,
+  subscribeHostTheme,
   type ThemePreference,
 } from "@tsmono/theme/bootstrap";
 
@@ -55,9 +56,14 @@ const subscribe = (cb: () => void): (() => void) => {
     if (e.key === SETTINGS_STORAGE_KEY) cb();
   };
   window.addEventListener("storage", onStorage);
+  // Host theme swap (VS Code/Cursor flipping `vscode-dark` ↔ `vscode-light`)
+  // changes what `resolveIsDark("system")` returns, so the sun/moon icon
+  // and any UI keyed off it must re-render.
+  const unsubHost = subscribeHostTheme(cb);
   return () => {
     listeners.delete(cb);
     window.removeEventListener("storage", onStorage);
+    unsubHost();
   };
 };
 

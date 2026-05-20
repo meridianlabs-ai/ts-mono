@@ -17,9 +17,14 @@ export interface ThemeToggleProps<T extends string> {
   options: readonly ThemeOption<T>[];
   onChange: (value: T) => void;
   className?: string;
+  /**
+   * Hide the light/dark mode radios — used inside VS Code/Cursor where the
+   * host owns base mode and the viewer can only safely flip Event Colors.
+   */
+  hideModeSwitch?: boolean;
 }
 
-type ThemeMode = "light" | "dark";
+type ThemeMode = "system" | "light" | "dark";
 
 /**
  * Header control: clicking opens the full theme menu. Purely presentational:
@@ -31,31 +36,34 @@ export const ThemeToggle = <T extends string>({
   options,
   onChange,
   className,
+  hideModeSwitch,
 }: ThemeToggleProps<T>) => {
   const id = useId();
   const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
 
-  const mode: ThemeMode =
-    value.endsWith("-light") || value === "light"
-      ? "light"
-      : value.endsWith("-dark") || value === "dark"
-        ? "dark"
-        : isDark
-          ? "dark"
-          : "light";
+  // `base` is the persisted preference's mode axis (may be `system`); `mode`
+  // is just what the radios show as selected (concrete light/dark, falling
+  // back to the host-resolved `isDark` when base is `system`). Splitting
+  // them keeps "follow OS / host" intact when Event Colors is toggled.
+  const stripped =
+    value.startsWith("readable-") ? value.slice("readable-".length) : value;
+  const base: ThemeMode =
+    stripped === "light" || stripped === "dark" ? stripped : "system";
+  const mode: "light" | "dark" =
+    base === "system" ? (isDark ? "dark" : "light") : base;
   const eventColors = value.startsWith("readable-");
 
-  const optionValue = (nextMode: ThemeMode, nextEventColors: boolean) => {
-    const nextValue = nextEventColors ? `readable-${nextMode}` : nextMode;
+  const optionValue = (nextBase: ThemeMode, nextEventColors: boolean) => {
+    const nextValue = nextEventColors ? `readable-${nextBase}` : nextBase;
     return options.find((opt) => opt.value === nextValue)?.value;
   };
 
   const setPreference = (
-    nextMode: ThemeMode,
+    nextBase: ThemeMode,
     nextEventColors = eventColors
   ) => {
-    const nextValue = optionValue(nextMode, nextEventColors);
+    const nextValue = optionValue(nextBase, nextEventColors);
     if (nextValue) onChange(nextValue);
   };
 
@@ -117,7 +125,7 @@ export const ThemeToggle = <T extends string>({
             </button>
           )}
         </div>
-        <fieldset className={styles.group}>
+        <fieldset className={styles.group} hidden={hideModeSwitch}>
           <legend className={styles.srOnly}>Theme mode</legend>
           {(["light", "dark"] as const).map((themeMode) => (
             <label key={themeMode} className={styles.option}>
@@ -138,7 +146,7 @@ export const ThemeToggle = <T extends string>({
           <input
             type="checkbox"
             checked={eventColors}
-            onChange={() => setPreference(mode, !eventColors)}
+            onChange={() => setPreference(base, !eventColors)}
           />
           <span>Event Colors</span>
         </label>

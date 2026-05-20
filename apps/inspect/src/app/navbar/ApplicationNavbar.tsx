@@ -60,14 +60,13 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         breadcrumbsEnabled={breadcrumbsEnabled}
       >
         {children}
-        {!isVscode() && (
-          <ThemeToggle
-            value={themePreference}
-            isDark={resolveIsDark(themePreference)}
-            options={THEME_OPTIONS}
-            onChange={setThemePreference}
-          />
-        )}
+        <ThemeToggle
+          value={themePreference}
+          isDark={resolveIsDark(themePreference)}
+          options={THEME_OPTIONS}
+          onChange={setThemePreference}
+          hideModeSwitch={isVscode()}
+        />
         <ViewerOptionsButton
           showing={isShowing}
           setShowing={setShowing}

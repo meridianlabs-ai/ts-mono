@@ -250,9 +250,6 @@ a:hover {
 }
 
 body[class^="vscode-"] {
-  --bs-border-radius: 0;
-  --bs-border-radius-lg: 0;
-
   /* Tool message tokens bridged to VS Code's editor widget palette so tool
      calls read as embedded editor panels inside the IDE. */
   --inspect-tool-title-color: var(--vscode-editor-foreground);
