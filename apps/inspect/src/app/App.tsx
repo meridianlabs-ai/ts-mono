@@ -1,5 +1,6 @@
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
+import "@vscode/codicons/dist/codicon.css";
 
 import JSON5 from "json5";
 
