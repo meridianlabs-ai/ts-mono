@@ -5,6 +5,10 @@
   padding: 0.4rem 0.625rem;
   border-radius: 5px;
   resize: none;
-  overflow: auto;
+  /* No inner scrollbar — the surrounding container (e.g. the metadata
+     table scroll wrapper) handles overflow. The height is matched to
+     scrollHeight, so a scrollbar would only appear from a transient
+     measurement glitch. */
+  overflow: hidden;
   background: var(--bs-body-bg);
 }

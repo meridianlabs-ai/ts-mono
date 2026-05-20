@@ -1,11 +1,10 @@
 .headerActions {
+  /* CardHeader is a flex row (icon → label → children); pushing this
+     wrapper with margin-left:auto sends the Edit affordance to the
+     right edge of the header. */
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  /* The CardHeader grid lays the label in the first column and children
-     in the second; nudging this to the row's end keeps the Edit affordance
-     right-aligned without changing the parent component. */
-  justify-self: end;
 }
 
 .emptyMetadata {

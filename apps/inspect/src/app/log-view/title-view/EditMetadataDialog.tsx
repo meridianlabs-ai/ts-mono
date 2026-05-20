@@ -24,11 +24,17 @@ import { ProvenanceFields } from "./ProvenanceFields";
 
 type NewType = "string" | "number" | "boolean" | "object" | "array" | "null";
 
-interface MetaEntry {
+export interface MetaEntry {
   key: string;
   // String form used in the textarea. We persist as a string and parse on
   // save so users can type plain text or JSON freely.
   text: string;
+  // Tracks the user's chosen type for the value: `true` means the value
+  // should be saved as a raw string (no JSON parse), so that a string
+  // tag with content `43` round-trips as `"43"` rather than the number
+  // `43`. Set from `typeof value === "string"` when loading existing
+  // metadata, or from the type dropdown when a key is added.
+  isString?: boolean;
   isNew?: boolean;
   // Whether the value text has been touched since the row was loaded /
   // added. Used to drive the "Editing" change-summary line.
@@ -51,14 +57,64 @@ const toEditableString = (v: unknown): string => {
   return JSON.stringify(v, null, 2);
 };
 
-// Reverse of toEditableString. JSON.parse covers true/false/null/numbers/
-// arrays/objects; bare strings (the only thing JSON.parse refuses) round-
-// trip as the raw text the user typed.
-const parseOrRaw = (text: string): unknown => {
+/**
+ * Thrown by {@link serializeEntry} when a non-string entry's text
+ * isn't well-formed JSON. The dialog's save handler catches this and
+ * surfaces a per-key error message so the user knows which row needs
+ * to be fixed.
+ */
+export class MetadataParseError extends Error {
+  constructor(
+    public readonly key: string,
+    public readonly text: string,
+    public readonly cause: unknown
+  ) {
+    super(`Invalid JSON for "${key}"`);
+    this.name = "MetadataParseError";
+  }
+}
+
+// Detects text whose leading character unambiguously signals JSON
+// syntax: `{` for objects, `[` for arrays, `"` for explicit strings.
+// Such text always goes through `JSON.parse` regardless of the user's
+// type-dropdown choice — typing `{a: 1}` is a clear attempt at an
+// object literal, and silently saving it as the string `"{a: 1}"`
+// (because the dropdown defaulted to `string`) hid the typo from the
+// user. Primitives like `43`, `true`, or bare words respect the
+// type dropdown.
+const looksLikeJsonSyntax = (text: string): boolean => {
+  const trimmed = text.trim();
+  return (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith('"')
+  );
+};
+
+/**
+ * Convert a dialog entry to its on-the-wire value, honoring the user's
+ * chosen type *unless* the text carries JSON syntax (a leading `{`,
+ * `[`, or `"`), in which case the structured intent wins:
+ *
+ *  - String-typed rows are saved verbatim when the text doesn't look
+ *    structural. So a `string` row whose text is `43`, `approved`, or
+ *    `true` round-trips as the string `"43"` / `"approved"` / `"true"`.
+ *  - Anything else (other types, or string-typed but JSON-looking)
+ *    goes through `JSON.parse`. Well-formed input lands as the proper
+ *    JS value (`true`, `42`, `[1,2,3]`, `{"a": 1}`, `null`); malformed
+ *    input throws {@link MetadataParseError} so the dialog can show a
+ *    per-key message instead of saving garbage.
+ *
+ * Exported for unit testing.
+ */
+export const serializeEntry = (entry: MetaEntry): unknown => {
+  if (entry.isString && !looksLikeJsonSyntax(entry.text)) {
+    return entry.text;
+  }
   try {
-    return JSON.parse(text);
-  } catch {
-    return text;
+    return JSON.parse(entry.text);
+  } catch (e) {
+    throw new MetadataParseError(entry.key, entry.text, e);
   }
 };
 
@@ -93,6 +149,9 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       Object.entries(currentMetadata).map(([key, value]) => ({
         key,
         text: toEditableString(value),
+        // Anchors the type when re-serializing on save: a value loaded
+        // as a string stays a string even if the user types digits.
+        isString: typeof value === "string",
       })),
     [currentMetadata]
   );
@@ -183,6 +242,10 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       {
         key: k,
         text: toEditableString(seedFor(newType)),
+        // Remember the user's chosen type so the value is serialized
+        // back the same way on save — picking `string` and typing `43`
+        // must yield "43", not 43.
+        isString: newType === "string",
         isNew: true,
         dirty: true,
       },
@@ -209,7 +272,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       const metadata_set: Record<string, unknown> = {};
       for (const entry of entries) {
         if (entry.isNew || entry.dirty) {
-          metadata_set[entry.key] = parseOrRaw(entry.text);
+          metadata_set[entry.key] = serializeEntry(entry);
         }
       }
       const edit: MetadataEdit = {
@@ -229,6 +292,17 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       setShowing(false);
       onSaved?.();
     } catch (err) {
+      if (err instanceof MetadataParseError) {
+        // Show a per-key message and bail out before any network call.
+        // Common cause: JS-style object shorthand (`{a: 1}`) instead of
+        // JSON (`{"a": 1}`) for keys whose chosen type isn't `string`.
+        setError(
+          `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
+            `and strings, e.g. {"a": 1} or "yes".`
+        );
+        setSubmitting(false);
+        return;
+      }
       setError(formatEditError(err));
       setSubmitting(false);
     }
@@ -274,22 +348,24 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             </span>
           </div>
 
-          <div className={styles.table}>
-            {entries.length === 0 && (
-              <div className={clsx("text-size-smaller", styles.empty)}>
-                No metadata yet — add a key below.
-              </div>
-            )}
-            {entries.map((entry, idx) => (
-              <MetaRow
-                key={entry.key}
-                entry={entry}
-                first={idx === 0}
-                onChange={(text) => updateValue(entry.key, text)}
-                onRemove={() => removeKey(entry.key)}
-                disabled={submitting}
-              />
-            ))}
+          <div className={styles.tableScroll}>
+            <div className={styles.table}>
+              {entries.length === 0 && (
+                <div className={clsx("text-size-smaller", styles.empty)}>
+                  No metadata yet — add a key below.
+                </div>
+              )}
+              {entries.map((entry, idx) => (
+                <MetaRow
+                  key={entry.key}
+                  entry={entry}
+                  first={idx === 0}
+                  onChange={(text) => updateValue(entry.key, text)}
+                  onRemove={() => removeKey(entry.key)}
+                  disabled={submitting}
+                />
+              ))}
+            </div>
           </div>
 
           <ChangeSummary

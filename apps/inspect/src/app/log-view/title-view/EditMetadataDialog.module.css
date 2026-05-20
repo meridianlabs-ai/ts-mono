@@ -1,8 +1,17 @@
-.table {
+/* The scroll wrapper bounds the table's vertical reach so the add-key
+   row, provenance fields, and footer stay on-screen no matter how many
+   keys the user has. The chrome (border, rounded corners) moves to
+   this element since the inner table now overflows scrollwise. */
+.tableScroll {
+  max-height: 40vh;
+  overflow-y: auto;
   border: 1px solid var(--bs-border-color);
   border-radius: 6px;
   background: var(--bs-body-bg);
-  overflow: hidden;
+}
+
+.table {
+  /* chrome handled by .tableScroll above */
 }
 
 .empty {
