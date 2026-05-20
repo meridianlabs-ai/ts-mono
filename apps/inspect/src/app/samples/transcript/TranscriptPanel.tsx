@@ -24,7 +24,6 @@ import {
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import { SearchPanel } from "@tsmono/inspect-components/transcript-search";
 import { useScrollDirection } from "@tsmono/react/hooks";
 import {
   isScannerScore,
@@ -45,13 +44,7 @@ import { SampleScansSidebar } from "../scans/SampleScansSidebar";
 import { useMakeCiteUrl } from "../scans/scanReferences";
 
 import { useTranscriptFilter } from "./hooks";
-import {
-  INSPECT_SEARCH_ICONS,
-  useInspectSearchApi,
-  useInspectSearchModelHistory,
-  useInspectSearchNavigation,
-  useInspectSearchPanelState,
-} from "./search/inspectSearchAdapters";
+import { SearchPanelSlot } from "./search/SearchPanelSlot";
 
 interface TranscriptPanelProps {
   id: string;
@@ -441,85 +434,62 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // ---------------------------------------------------------------------------
   // Search panel — searchOpen is controlled by the parent (SampleDisplay).
+  // Search hijacks the rightPane slot for the duration; closing it restores
+  // the scores sidebar (when there are scores).
   // ---------------------------------------------------------------------------
 
-  const setSearchOpen = useCallback(
-    (open: boolean) => onSearchOpenChange?.(open),
-    [onSearchOpenChange]
-  );
-  const searchLogFile = logFile ?? "";
-  const searchSampleId = sampleId ?? "";
-  const searchSampleEpoch = sampleEpoch ?? 0;
-  const searchTranscriptId = sampleUuid ?? "";
-  const searchApi = useInspectSearchApi(
-    searchLogFile,
-    searchTranscriptId
-  );
-  const searchStateController = useInspectSearchPanelState({
-    scope: "events",
-    logFile: searchLogFile,
-    transcriptId: searchTranscriptId,
-  });
-  const searchLogPath = urlLogPath ?? makeLogsPath(searchLogFile, logDir);
-  const searchNavigation = useInspectSearchNavigation({
-    logPath: searchLogPath ?? "",
-    sampleId: searchSampleId,
-    sampleEpoch: searchSampleEpoch,
-  });
-  const searchModelHistory = useInspectSearchModelHistory();
-  const searchSupported =
-    !!searchApi && !!searchLogFile && !!searchTranscriptId;
-  const showSearch = searchOpen && searchSupported;
+  const transcriptId = sampleUuid ?? "";
+  const searchLogPath = urlLogPath ?? makeLogsPath(logFile ?? "", logDir);
+  const showSearch = searchOpen && !!logFile && !!transcriptId;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
-  const rightPane =
-    showSearch && searchApi
+  const rightPane = showSearch
+    ? {
+        collapsed: false,
+        onCollapsedChange: (collapsed: boolean) => {
+          if (collapsed) onSearchOpenChange?.(false);
+        },
+        toggleIcon: ApplicationIcons.search,
+        toggleTitle: "Close search",
+        label: "search",
+        width: 360,
+        content: (
+          <SearchPanelSlot
+            scope="events"
+            logFile={logFile ?? ""}
+            logPath={searchLogPath ?? ""}
+            transcriptId={transcriptId}
+            sampleId={sampleId ?? ""}
+            sampleEpoch={sampleEpoch ?? 0}
+            onClose={() => onSearchOpenChange?.(false)}
+          />
+        ),
+      }
+    : hasScores && scores
       ? {
-          collapsed: false,
-          onCollapsedChange: (collapsed: boolean) => {
-            if (collapsed) setSearchOpen(false);
-          },
-          toggleIcon: ApplicationIcons.search,
-          toggleTitle: "Close search",
-          label: "search",
-          width: 360,
+          collapsed: scoresCollapsed,
+          onCollapsedChange: setScoresCollapsed,
+          toggleIcon: ApplicationIcons.scoringSidebar,
+          toggleTitle: scoresCollapsed
+            ? "Show scan results"
+            : "Hide scan results",
+          label: "scans",
+          width: scoresWidth,
+          onWidthChange: setScoresWidth,
           content: (
-            <SearchPanel
-              scope="events"
-              api={searchApi}
-              stateController={searchStateController}
-              navigation={searchNavigation}
-              icons={INSPECT_SEARCH_ICONS}
-              modelHistory={searchModelHistory}
-              onClose={() => setSearchOpen(false)}
+            <SampleScansSidebar
+              scores={scores}
+              events={events}
+              makeCiteUrl={makeCiteUrl}
+              selected={selectedScanner}
+              onSelectedChange={setSelectedScanner}
             />
           ),
         }
-      : hasScores && scores
-        ? {
-            collapsed: scoresCollapsed,
-            onCollapsedChange: setScoresCollapsed,
-            toggleIcon: ApplicationIcons.scoringSidebar,
-            toggleTitle: scoresCollapsed
-              ? "Show scan results"
-              : "Hide scan results",
-            label: "scans",
-            width: scoresWidth,
-            onWidthChange: setScoresWidth,
-            content: (
-              <SampleScansSidebar
-                scores={scores}
-                events={events}
-                makeCiteUrl={makeCiteUrl}
-                selected={selectedScanner}
-                onSelectedChange={setSelectedScanner}
-              />
-            ),
-          }
-        : undefined;
+      : undefined;
 
   return (
     <TranscriptLayout

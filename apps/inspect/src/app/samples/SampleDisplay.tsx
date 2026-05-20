@@ -22,6 +22,7 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import { eventsToStr } from "@tsmono/inspect-components/transcript";
+import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
 import {
   buildArgsByModel,
   buildArgsByRole,
@@ -70,6 +71,7 @@ import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
+  makeLogsPath,
   printSampleUrl,
   sampleMessageUrl,
   useLogOrSampleRouteParams,
@@ -88,6 +90,7 @@ import { SampleRetriedErrors } from "./SampleRetriedErrors";
 import { SampleSummaryView } from "./SampleSummaryView";
 import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
+import { SearchPanelSlot } from "./transcript/search/SearchPanelSlot";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
 
@@ -307,6 +310,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const logDir = useStore((state) => state.logs.logDir);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -453,14 +457,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Transcript search toggle — lifted here so the button sits in the toolbar
   // alongside Print/Collapse rather than floating over the transcript content.
+  // Scope follows the active tab (events on Transcript, messages on Messages).
   // Backed lookups use sample.uuid (the transcript_id in inspect_scout's
   // schema); only samples carrying a UUID are searchable.
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchScope: SearchScope | undefined =
+    effectiveSelectedTab === kSampleTranscriptTabId
+      ? "events"
+      : effectiveSelectedTab === kSampleMessagesTabId
+        ? "messages"
+        : undefined;
   const searchSupported =
     !!api?.post_search &&
     !!api?.get_search_result &&
     !!api?.list_searches &&
-    !!sample?.uuid;
+    !!sample?.uuid &&
+    searchScope !== undefined;
+  // searchLogFile is the absolute path the backend uses to open the eval log;
+  // selectedLogFile (from the store) carries the full `file://...` URI while
+  // urlLogPath is sometimes just a filename relative to logDir.
+  const searchLogFile = selectedLogFile ?? urlLogPath ?? "";
+  const searchLogPath = urlLogPath ?? makeLogsPath(searchLogFile, logDir);
 
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
@@ -495,19 +512,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         subtle
       />
     );
+  }
 
-    if (searchSupported) {
-      tools.push(
-        <ToolButton
-          key="sample-search-transcript"
-          label="Search"
-          icon={ApplicationIcons.search}
-          onClick={() => setSearchOpen((prev) => !prev)}
-          latched={searchOpen}
-          subtle
-        />
-      );
-    }
+  if (searchSupported) {
+    tools.push(
+      <ToolButton
+        key="sample-search-toggle"
+        label="Search"
+        icon={ApplicationIcons.search}
+        onClick={() => setSearchOpen((prev) => !prev)}
+        latched={searchOpen}
+        subtle
+      />
+    );
   }
 
   tools.push(
@@ -677,7 +694,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
                     sampleUuid={sample?.uuid ?? undefined}
-                    searchOpen={searchOpen}
+                    searchOpen={searchOpen && searchScope === "events"}
                     onSearchOpenChange={setSearchOpen}
                   />
                 )}
@@ -696,20 +713,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleMessagesTabId}
                 scrollable={false}
               >
-                <ChatViewVirtualList
-                  key={`${baseId}-chat-${id}`}
-                  id={`${baseId}-chat-${id}`}
-                  messages={sampleMessages}
-                  initialMessageId={sampleDetailNavigation.message}
-                  offsetTop={stickyOffsetTop}
-                  display={chatDisplay}
-                  linking={chatLinking}
-                  onNativeFindChanged={setNativeFind}
-                  scrollRef={scrollRef}
-                  tools={chatTools}
-                  running={running}
-                  className={styles.fullWidth}
-                />
+                <div className={styles.messagesSearchHost}>
+                  <div className={styles.messagesContent}>
+                    <ChatViewVirtualList
+                      key={`${baseId}-chat-${id}`}
+                      id={`${baseId}-chat-${id}`}
+                      messages={sampleMessages}
+                      initialMessageId={sampleDetailNavigation.message}
+                      offsetTop={stickyOffsetTop}
+                      display={chatDisplay}
+                      linking={chatLinking}
+                      onNativeFindChanged={setNativeFind}
+                      scrollRef={scrollRef}
+                      tools={chatTools}
+                      running={running}
+                      className={styles.fullWidth}
+                    />
+                  </div>
+                  {searchOpen &&
+                    searchSupported &&
+                    searchScope === "messages" &&
+                    sample?.uuid && (
+                      <div className={styles.messagesSearchSidebar}>
+                        <SearchPanelSlot
+                          scope="messages"
+                          logFile={searchLogFile}
+                          logPath={searchLogPath ?? ""}
+                          transcriptId={sample.uuid}
+                          sampleId={sample.id ?? ""}
+                          sampleEpoch={sample.epoch ?? 0}
+                          onClose={() => setSearchOpen(false)}
+                        />
+                      </div>
+                    )}
+                </div>
               </TabPanel>
               <TabPanel
                 key={kSampleScoringTabId}
