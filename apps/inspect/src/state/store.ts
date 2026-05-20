@@ -19,12 +19,18 @@ import {
   initializeSampleSlice,
   SampleSlice,
 } from "./sampleSlice";
+import { createSearchSlice, SearchSlice } from "./searchSlice";
 import { filterState } from "./store_filter";
 import { ReplicationService } from "./sync/replicationService";
 
 const log = createLogger("store");
 
-export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
+export interface StoreState
+  extends AppSlice,
+    LogsSlice,
+    LogSlice,
+    SampleSlice,
+    SearchSlice {
   // The shared database service
   databaseService?: DatabaseService | null;
 
@@ -114,6 +120,9 @@ export const initializeStore = (
             get,
             store
           );
+          const [searchSlice, searchCleanup] = createSearchSlice(
+            set as (fn: (state: StoreState) => void) => void
+          );
 
           // Create a shared database service instance
           const databaseService = createDatabaseService();
@@ -154,6 +163,7 @@ export const initializeStore = (
             ...logsSlice,
             ...logSlice,
             ...sampleSlice,
+            ...searchSlice,
 
             cleanup: async () => {
               // Close database before cleaning up slices
@@ -163,6 +173,7 @@ export const initializeStore = (
               logsCleanup();
               logCleanup();
               sampleCleanup();
+              searchCleanup();
             },
           };
         }),

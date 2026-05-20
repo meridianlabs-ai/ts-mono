@@ -26,10 +26,14 @@ import type {
   ModelEvent,
   ModelFallback,
   ModelUsage,
+  Result,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
   ScoreEvent,
+  SearchInputListResponse,
+  SearchRequest,
+  SearchResponse,
   StateEvent,
   StepEvent,
   StoreEvent,
@@ -43,6 +47,8 @@ import {
   EvalSampleScore,
   EvalSampleTarget,
 } from "../../@types/extraInspect";
+
+export type SearchResultScope = { events?: "all"; messages?: "all" };
 
 export type { CallPoolData, MessagePoolData };
 
@@ -253,10 +259,30 @@ export interface LogViewAPI {
   // user.name/user.email, falling back to the OS login). Used to prefill
   // the Author field on edit dialogs. Optional — not all backends.
   get_user_info?: () => Promise<UserInfo>;
+
   // Installed inspect (and optional scout) versions. Fetched once at startup
   // to gate rendering. Required — every backend supplies it (the view server
   // serves it, vscode/static-http fall back when unavailable).
   get_app_config: () => Promise<AppConfig>;
+
+  // Transcript search (inspect_ai's /scout/* endpoints). Optional — backends
+  // that don't host these endpoints (e.g., static-http, vscode) leave them
+  // undefined and the UI hides the search affordance.
+  list_searches?: (
+    search_type: "grep" | "llm",
+    count: number
+  ) => Promise<SearchInputListResponse>;
+  post_search?: (
+    transcriptDir: string,
+    transcriptId: string,
+    request: SearchRequest
+  ) => Promise<SearchResponse>;
+  get_search_result?: (
+    transcriptDir: string,
+    transcriptId: string,
+    search_id: string,
+    scope: SearchResultScope
+  ) => Promise<Result | null>;
 }
 
 export interface EditLogResult {
@@ -340,6 +366,24 @@ export interface ClientAPI {
   get_user_info?: () => Promise<UserInfo>;
   // Installed inspect / scout versions, fetched once at startup to gate render.
   get_app_config: () => Promise<AppConfig>;
+
+  // Transcript search — see LogViewAPI for details. Optional; absent when
+  // the underlying backend doesn't expose /scout/* endpoints.
+  list_searches?: (
+    search_type: "grep" | "llm",
+    count: number
+  ) => Promise<SearchInputListResponse>;
+  post_search?: (
+    transcriptDir: string,
+    transcriptId: string,
+    request: SearchRequest
+  ) => Promise<SearchResponse>;
+  get_search_result?: (
+    transcriptDir: string,
+    transcriptId: string,
+    search_id: string,
+    scope: SearchResultScope
+  ) => Promise<Result | null>;
 }
 
 export interface ClientStorage {

@@ -3,7 +3,12 @@ import {
   EvalLog,
   LogInfo,
   LogUpdate,
+  Result,
+  SearchInputListResponse,
+  SearchRequest,
+  SearchResponse,
 } from "@tsmono/inspect-common/types";
+import { encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
 import { asyncJsonParse } from "../../../utils/json-worker";
@@ -21,6 +26,7 @@ import {
   PendingSampleUrls,
   SampleData,
   SampleDataResponse,
+  SearchResultScope,
   UserInfo,
 } from "../types";
 
@@ -523,6 +529,58 @@ export function viewServerApi(
     return result.parsed as AppConfig;
   };
 
+  const list_searches = async (
+    search_type: "grep" | "llm",
+    count: number
+  ): Promise<SearchInputListResponse> => {
+    const params = new URLSearchParams();
+    params.append("type", search_type);
+    params.append("count", String(count));
+    const result = await requestApi.fetchString(
+      "GET",
+      `/scout/searches?${params.toString()}`
+    );
+    return result.parsed;
+  };
+
+  const post_search = async (
+    transcriptDir: string,
+    transcriptId: string,
+    request: SearchRequest
+  ): Promise<SearchResponse> => {
+    const result = await requestApi.fetchString(
+      "POST",
+      `/scout/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}/search`,
+      { "Content-Type": "application/json" },
+      JSON.stringify(request)
+    );
+    return result.parsed;
+  };
+
+  const get_search_result = async (
+    transcriptDir: string,
+    transcriptId: string,
+    search_id: string,
+    scope: SearchResultScope
+  ): Promise<Result | null> => {
+    const params = new URLSearchParams();
+    if (scope.messages) params.set("messages", scope.messages);
+    if (scope.events) params.set("events", scope.events);
+    const query = params.toString();
+    const path =
+      `/scout/transcripts/${encodeBase64Url(transcriptDir)}/${encodeURIComponent(transcriptId)}` +
+      `/searches/${encodeURIComponent(search_id)}${query ? `?${query}` : ""}`;
+    try {
+      const result = await requestApi.fetchString("GET", path);
+      return result.parsed;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  };
+
   const download_log = async (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
@@ -556,5 +614,8 @@ export function viewServerApi(
     edit_log,
     get_user_info,
     get_app_config,
+    list_searches,
+    post_search,
+    get_search_result,
   };
 }

@@ -579,6 +579,28 @@ export const clientApi = (
           }
         )
       : undefined,
+    list_searches: api.list_searches
+      ? middleware("list_searches", (search_type, count) =>
+          api.list_searches!(search_type, count)
+        )
+      : undefined,
+    post_search: api.post_search
+      ? middleware("post_search", (transcriptDir, transcriptId, request) =>
+          api.post_search!(transcriptDir, transcriptId, request)
+        )
+      : undefined,
+    get_search_result: api.get_search_result
+      ? middleware(
+          "get_search_result",
+          (transcriptDir, transcriptId, search_id, scope) =>
+            api.get_search_result!(
+              transcriptDir,
+              transcriptId,
+              search_id,
+              scope
+            )
+        )
+      : undefined,
   };
 };
 
