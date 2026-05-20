@@ -68,7 +68,6 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
 
     return (
       <div className={styles.collapsedBar}>
-        <i className="bi bi-chevron-right" />
         <span className={styles.collapsedTask}>
           <TaskName
             taskSet={resultData.transcriptTaskSet}
