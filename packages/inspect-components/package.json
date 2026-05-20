@@ -13,6 +13,7 @@
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",
+    "./transcript-search": "./src/transcript-search/index.ts",
     "./usage": "./src/usage/index.ts"
   },
   "scripts": {
@@ -30,12 +31,15 @@
     "clsx": "^2.1.1"
   },
   "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "@vscode-elements/react-elements": "^2.4.0",
     "json5": "^2.2.3",
     "jsondiffpatch": "^0.7.6",
     "react": "^19.0.0",
     "react-virtuoso": "^4.0.0"
   },
   "devDependencies": {
+    "@tanstack/react-query": "^5.100.14",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
@@ -44,6 +48,7 @@
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vscode-elements/react-elements": "^2.4.0",
     "eslint": "^9.39.4",
     "jsdom": "^29.1.1",
     "json5": "^2.2.3",
