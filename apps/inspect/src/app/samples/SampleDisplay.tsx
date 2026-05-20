@@ -451,6 +451,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
+  // Transcript search toggle — lifted here so the button sits in the toolbar
+  // alongside Print/Collapse rather than floating over the transcript content.
+  // Backed lookups use sample.uuid (the transcript_id in inspect_scout's
+  // schema); only samples carrying a UUID are searchable.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchSupported =
+    !!api?.post_search &&
+    !!api?.get_search_result &&
+    !!api?.list_searches &&
+    !!sample?.uuid;
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -484,6 +495,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         subtle
       />
     );
+
+    if (searchSupported) {
+      tools.push(
+        <ToolButton
+          key="sample-search-transcript"
+          label="Search"
+          icon={ApplicationIcons.search}
+          onClick={() => setSearchOpen((prev) => !prev)}
+          latched={searchOpen}
+          subtle
+        />
+      );
+    }
   }
 
   tools.push(
@@ -652,6 +676,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scans={sample?.scores ?? undefined}
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
+                    sampleUuid={sample?.uuid ?? undefined}
+                    searchOpen={searchOpen}
+                    onSearchOpenChange={setSearchOpen}
                   />
                 )}
               </TabPanel>

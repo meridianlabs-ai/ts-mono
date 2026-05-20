@@ -26,81 +26,66 @@ import {
 } from "../../../routing/url";
 
 /**
- * Inspect's search endpoints are inspect_ai's `/scout/...` routes. The path
- * params `dir` and `id` are passed through opaquely from the React adapter
- * to the API client; only the API client is responsible for URL encoding.
+ * inspect_scout's search endpoints (proxied by inspect_ai under /scout/...)
+ * are backed by transcripts_view(dir), which:
+ *   - accepts a `.eval` file path (file:// prefix stripped) as `dir`
+ *   - looks up rows by `transcript_id`, which equals `eval_sample.uuid`
  *
- * For Inspect, we map:
- *   transcriptDir = log_file        (raw path; encoded by view-server)
- *   transcriptId  = `${sample_id}|${epoch}`   (synthetic per-sample identity)
- *
- * If the inspect_ai backend expects a different shape, change this single
- * mapping — the rest of the wiring is identity-agnostic.
+ * Samples without a UUID can't be searched (the human-readable sample.id
+ * isn't what the schema indexes by).
  */
-const buildTranscriptId = (
-  sampleId: string | number,
-  sampleEpoch: number
-): string => `${sampleId}|${sampleEpoch}`;
+const stripFileScheme = (path: string): string =>
+  path.startsWith("file://") ? path.slice("file://".length) : path;
 
 export const getInspectSearchPanelStateKey = ({
   scope,
   logFile,
-  sampleId,
-  sampleEpoch,
+  transcriptId,
 }: {
   scope: SearchScope;
   logFile: string;
-  sampleId: string | number;
-  sampleEpoch: number;
-}) => `inspect-search-panel:${logFile}:${sampleId}:${sampleEpoch}:${scope}`;
+  transcriptId: string;
+}) => `inspect-search-panel:${logFile}:${transcriptId}:${scope}`;
 
 export const useInspectSearchApi = (
   logFile: string,
-  sampleId: string | number,
-  sampleEpoch: number
+  transcriptId: string
 ): SearchPanelApi | null => {
   const api = useApi();
   return useMemo(() => {
     if (
       !api.post_search ||
       !api.get_search_result ||
-      !api.list_searches
+      !api.list_searches ||
+      !transcriptId
     ) {
       return null;
     }
-    const transcriptId = buildTranscriptId(sampleId, sampleEpoch);
+    const transcriptDir = stripFileScheme(logFile);
     return {
-      cacheKey: `${logFile}\u0000${transcriptId}`,
+      cacheKey: `${transcriptDir}\u0000${transcriptId}`,
       createSearch: (request) =>
-        api.post_search!(logFile, transcriptId, request),
+        api.post_search!(transcriptDir, transcriptId, request),
       getCachedResult: (searchId, scope) =>
-        api.get_search_result!(logFile, transcriptId, searchId, scope),
+        api.get_search_result!(transcriptDir, transcriptId, searchId, scope),
       listRecentSearches: (searchType: SearchType, count?: number) =>
         api.list_searches!(searchType, count ?? 20),
     };
-  }, [api, logFile, sampleId, sampleEpoch]);
+  }, [api, logFile, transcriptId]);
 };
 
 export const useInspectSearchPanelState = ({
   scope,
   logFile,
-  sampleId,
-  sampleEpoch,
+  transcriptId,
 }: {
   scope: SearchScope;
   logFile: string;
-  sampleId: string | number;
-  sampleEpoch: number;
+  transcriptId: string;
 }): SearchPanelStateController => {
   const key = useMemo(
-    () =>
-      getInspectSearchPanelStateKey({
-        scope,
-        logFile,
-        sampleId,
-        sampleEpoch,
-      }),
-    [scope, logFile, sampleId, sampleEpoch]
+    () => getInspectSearchPanelStateKey({ scope, logFile, transcriptId }),
+    [scope, logFile, transcriptId]
   );
   const state = useStore((s) => s.search.panelStates[key]) as
     | StoredSearchPanelState

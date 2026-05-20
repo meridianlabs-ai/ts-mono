@@ -52,7 +52,6 @@ import {
   useInspectSearchNavigation,
   useInspectSearchPanelState,
 } from "./search/inspectSearchAdapters";
-import styles from "./TranscriptPanel.module.css";
 
 interface TranscriptPanelProps {
   id: string;
@@ -71,6 +70,14 @@ interface TranscriptPanelProps {
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
+
+  // Search panel — controlled from the parent so the toggle can live in the
+  // sample toolbar alongside Print/Collapse rather than floating over content.
+  // sampleUuid is the transcript_id used by inspect_scout's search endpoints
+  // (sample.id/epoch alone don't identify a transcript in that schema).
+  sampleUuid?: string;
+  searchOpen?: boolean;
+  onSearchOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -90,6 +97,9 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     scans: allScores,
     sampleId,
     sampleEpoch,
+    sampleUuid,
+    searchOpen = false,
+    onSearchOpenChange,
   } = props;
 
   // Narrow to scanner-produced scores only. The sidebar is a scans sidebar,
@@ -430,23 +440,25 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Search panel
+  // Search panel — searchOpen is controlled by the parent (SampleDisplay).
   // ---------------------------------------------------------------------------
 
-  const [searchOpen, setSearchOpen] = useState(false);
+  const setSearchOpen = useCallback(
+    (open: boolean) => onSearchOpenChange?.(open),
+    [onSearchOpenChange]
+  );
   const searchLogFile = logFile ?? "";
   const searchSampleId = sampleId ?? "";
   const searchSampleEpoch = sampleEpoch ?? 0;
+  const searchTranscriptId = sampleUuid ?? "";
   const searchApi = useInspectSearchApi(
     searchLogFile,
-    searchSampleId,
-    searchSampleEpoch
+    searchTranscriptId
   );
   const searchStateController = useInspectSearchPanelState({
     scope: "events",
     logFile: searchLogFile,
-    sampleId: searchSampleId,
-    sampleEpoch: searchSampleEpoch,
+    transcriptId: searchTranscriptId,
   });
   const searchLogPath = urlLogPath ?? makeLogsPath(searchLogFile, logDir);
   const searchNavigation = useInspectSearchNavigation({
@@ -456,7 +468,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   });
   const searchModelHistory = useInspectSearchModelHistory();
   const searchSupported =
-    !!searchApi && !!searchLogFile && sampleId !== undefined;
+    !!searchApi && !!searchLogFile && !!searchTranscriptId;
   const showSearch = searchOpen && searchSupported;
 
   // ---------------------------------------------------------------------------
@@ -510,65 +522,52 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         : undefined;
 
   return (
-    <div className={styles.transcriptHost}>
-      {searchSupported && !showSearch && (
-        <button
-          type="button"
-          className={styles.searchToggle}
-          onClick={() => setSearchOpen(true)}
-          title="Search transcript"
-          aria-label="Search transcript"
-        >
-          <i className={INSPECT_SEARCH_ICONS.search} aria-hidden="true" />
-        </button>
-      )}
-      <TranscriptLayout
-        events={events}
-        hiddenEventTypes={filteredEventTypes}
-        running={running}
-        scrollRef={scrollRef}
-        offsetTop={offsetTop}
-        timelineSelection={timelineSelection}
-        activeTimeline={activeTimeline}
-        serverTimelines={serverTimelines}
-        showSwimlanes="auto"
-        onMarkerNavigate={onMarkerNavigate}
-        headroomHidden={headroomHidden}
-        onHeadroomResetAnchor={onHeadroomResetAnchor}
-        onHeadroomSetHidden={setHeadroomHidden}
-        eventNodeContext={eventNodeContext}
-        listId={id}
-        initialEventId={initialEventId}
-        initialMessageId={initialMessageId}
-        getEventUrl={getEventUrl}
-        linkingEnabled={true}
-        bulkCollapse={bulkCollapse}
-        collapseState={collapseState}
-        eventsListRef={eventsListRef}
-        outlineScrollRef={outlineScrollRef}
-        rightPaneScrollRef={rightPaneScrollRef}
-        outline={{
-          collapsed: outlineCollapsed,
-          onCollapsedChange: setOutlineCollapsed,
-          toggleIcon: ApplicationIcons.sidebar,
-          toggleTitle: outlineCollapsed
-            ? "Show transcript outline"
-            : "Hide transcript outline",
-          renderLink,
-          onNavigateToEvent: onOutlineNavigate,
-          selectedId: selectedOutlineId,
-          setSelectedId: setSelectedOutlineId,
-        }}
-        rightPane={rightPane}
-        emptyText={
-          running && isDefaultFilter
-            ? "Sample is starting"
-            : filteredEventTypes.length > 0
-              ? "The currently applied filter hides all events."
-              : undefined
-        }
-        emptyBusy={running && isDefaultFilter}
-      />
-    </div>
+    <TranscriptLayout
+      events={events}
+      hiddenEventTypes={filteredEventTypes}
+      running={running}
+      scrollRef={scrollRef}
+      offsetTop={offsetTop}
+      timelineSelection={timelineSelection}
+      activeTimeline={activeTimeline}
+      serverTimelines={serverTimelines}
+      showSwimlanes="auto"
+      onMarkerNavigate={onMarkerNavigate}
+      headroomHidden={headroomHidden}
+      onHeadroomResetAnchor={onHeadroomResetAnchor}
+      onHeadroomSetHidden={setHeadroomHidden}
+      eventNodeContext={eventNodeContext}
+      listId={id}
+      initialEventId={initialEventId}
+      initialMessageId={initialMessageId}
+      getEventUrl={getEventUrl}
+      linkingEnabled={true}
+      bulkCollapse={bulkCollapse}
+      collapseState={collapseState}
+      eventsListRef={eventsListRef}
+      outlineScrollRef={outlineScrollRef}
+      rightPaneScrollRef={rightPaneScrollRef}
+      outline={{
+        collapsed: outlineCollapsed,
+        onCollapsedChange: setOutlineCollapsed,
+        toggleIcon: ApplicationIcons.sidebar,
+        toggleTitle: outlineCollapsed
+          ? "Show transcript outline"
+          : "Hide transcript outline",
+        renderLink,
+        onNavigateToEvent: onOutlineNavigate,
+        selectedId: selectedOutlineId,
+        setSelectedId: setSelectedOutlineId,
+      }}
+      rightPane={rightPane}
+      emptyText={
+        running && isDefaultFilter
+          ? "Sample is starting"
+          : filteredEventTypes.length > 0
+            ? "The currently applied filter hides all events."
+            : undefined
+      }
+      emptyBusy={running && isDefaultFilter}
+    />
   );
 });
