@@ -14,6 +14,7 @@ import {
   ErrorPanel,
   LoadingBar,
   MenuActionButton,
+  SidebarHeader,
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
@@ -462,6 +463,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
         icon={ApplicationIcons.validation}
         actions={actions}
         onClose={closeValidationSidebar}
+        closeIcon={ApplicationIcons.close}
       />
       <div className={styles.content}>
         <SidebarPanel>
@@ -599,44 +601,6 @@ interface SidebarPanelProps {
 
 export const SidebarPanel: FC<SidebarPanelProps> = ({ children }) => {
   return <div className={styles.panel}>{children}</div>;
-};
-
-interface SidebarHeaderProps {
-  icon?: string;
-  title?: string;
-  secondary?: string;
-  actions?: React.ReactNode;
-  onClose?: () => void;
-}
-
-export const SidebarHeader: FC<SidebarHeaderProps> = ({
-  icon,
-  title,
-  secondary,
-  actions,
-  onClose,
-}) => {
-  return (
-    <div className={styles.header}>
-      <h3 className={styles.headerTitle}>
-        {icon && <i className={clsx(icon, styles.headerIcon)} />}
-        {title}
-      </h3>
-      {secondary && <div className={styles.headerSecondary}>{secondary}</div>}
-
-      {(actions || onClose) && (
-        <div className={styles.headerActions}>
-          {actions}
-          {onClose && (
-            <i
-              className={clsx(ApplicationIcons.close, styles.clickable)}
-              onClick={onClose}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
 };
 
 export const SecondaryDisplayValue: FC<{ label: string; value: string }> = ({

@@ -4,34 +4,6 @@
   padding: 0;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem;
-  flex-shrink: 0;
-  height: 39px;
-  border-bottom: 1px solid var(--bs-border-color);
-  background-color: var(--bs-light);
-}
-
-.headerTitle {
-  margin: 0;
-  font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-body-color);
-  text-transform: uppercase;
-  font-weight: 400;
-}
-
-.headerIcon {
-  margin-right: 0.5em;
-}
-
-.headerSecondary {
-  font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-secondary-color);
-}
-
 .content {
   flex: 1;
   overflow-y: auto;
@@ -64,10 +36,6 @@
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100% !important;
-}
-
-.clickable {
-  cursor: pointer;
 }
 
 .idLabel {

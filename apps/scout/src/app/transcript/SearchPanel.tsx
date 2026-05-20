@@ -20,8 +20,13 @@ import {
   MarkdownReference,
   PopOver,
   SegmentedControl,
+  SidebarHeader,
 } from "@tsmono/react/components";
-import { ApiError } from "@tsmono/util";
+import {
+  ApiError,
+  autosizeTextarea,
+  AutosizeTextareaConfig,
+} from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
@@ -37,12 +42,6 @@ import {
   useCreateSearch,
   useSearches,
 } from "../server/useSearches";
-import {
-  autosizeTextarea,
-  AutosizeTextareaConfig,
-} from "../utils/autosizeTextarea";
-import { SidebarHeader } from "../validation/components/ValidationCaseEditor";
-
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
 import styles from "./SearchPanel.module.css";
 import {
@@ -387,6 +386,7 @@ const SearchPanelWithData = ({
         icon={ApplicationIcons.search}
         title={`Search: ${scope}`}
         onClose={onClose}
+        closeIcon={ApplicationIcons.close}
       />
       <div className={styles.body}>
         <form
