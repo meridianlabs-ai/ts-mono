@@ -107,17 +107,35 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
-    if (showing) {
-      setEntries(initialEntries);
-      setRemoved([]);
-      setNewKey("");
-      setNewType("string");
-      setAuthor("");
-      setReason("");
-      setSubmitting(false);
-      setError(undefined);
+    if (!showing) return;
+    setEntries(initialEntries);
+    setRemoved([]);
+    setNewKey("");
+    setNewType("string");
+    setAuthor("");
+    setReason("");
+    setSubmitting(false);
+    setError(undefined);
+
+    // Prefill Author from the server's best-effort identity (git
+    // user.name → OS login). Same pattern as EditTagsDialog.
+    let cancelled = false;
+    if (api?.get_user_info) {
+      api
+        .get_user_info()
+        .then((info) => {
+          if (!cancelled && info.name) {
+            setAuthor((current) => current || info.name || "");
+          }
+        })
+        .catch(() => {
+          /* author stays blank — user can fill in manually */
+        });
     }
-  }, [showing, initialEntries]);
+    return () => {
+      cancelled = true;
+    };
+  }, [showing, initialEntries, api]);
 
   const existingKeys = useMemo(
     () => new Set(entries.map((e) => e.key)),

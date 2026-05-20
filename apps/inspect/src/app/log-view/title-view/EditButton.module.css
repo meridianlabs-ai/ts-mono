@@ -4,21 +4,28 @@
   gap: 0.25rem;
   background: transparent;
   border: none;
-  color: var(--bs-primary-text-emphasis);
+  color: var(--bs-link-color);
   cursor: pointer;
   padding: 0.125rem 0.4rem;
   border-radius: 4px;
   font-weight: 500;
+  text-decoration: none;
   text-transform: none;
   letter-spacing: 0;
   line-height: 1;
+  /* In the PrimaryBar tag strip the button sits directly inside the
+     bodyContainer flex row. Without this it could shrink and clip the
+     "Edit" label or the pencil icon when the row is tight. */
+  flex-shrink: 0;
 }
 
 .button:hover {
   background: var(--bs-secondary-bg);
+  color: var(--bs-link-hover-color);
+  text-decoration: none;
 }
 
 .button:focus-visible {
-  outline: 2px solid var(--bs-primary-border-subtle);
+  outline: 2px solid var(--bs-link-color);
   outline-offset: 1px;
 }

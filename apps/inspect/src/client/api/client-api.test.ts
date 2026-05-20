@@ -1,7 +1,20 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { clientApi } from "./client-api";
-import { LogViewAPI, SampleData, SampleDataResponse } from "./types";
+import {
+  EditLogResult,
+  LogViewAPI,
+  SampleData,
+  SampleDataResponse,
+} from "./types";
+
+// Mock the remote zip reader so .eval cache tests don't try to talk to the
+// real backend. The factory must be hoisted before clientApi is exercised.
+vi.mock("../remote/remoteLogFile", () => ({
+  openRemoteLogFile: vi.fn(),
+  SampleNotFoundError: class SampleNotFoundError extends Error {},
+}));
+import { openRemoteLogFile } from "../remote/remoteLogFile";
 
 const emptySampleData: SampleData = {
   events: [],
@@ -124,5 +137,103 @@ describe("clientApi.get_log_sample_data path selection", () => {
 
     expect(direct).toHaveBeenCalledTimes(3); // a-probe, b-probe, a-followup
     expect(proxy).toHaveBeenCalledTimes(2); // b-first (after probe), b-followup
+  });
+});
+
+describe("clientApi.edit_log cache invalidation", () => {
+  // The user-facing concern: after a successful edit, the next read on the
+  // SAME log must return fresh data. For .eval files (the common case)
+  // this requires invalidating `loadedEvalFile`, the parsed-zip cache
+  // sitting between `get_log_details` and the underlying log fetcher.
+  // Without that, refreshLog() returns a stale RemoteLogFile and the UI
+  // shows the pre-edit tags. The JSON path uses no cache in
+  // get_log_details, so we don't exercise it here.
+
+  const sampleSummary = { tags: [] as string[], sampleSummaries: [] };
+  const okEdit: EditLogResult = {
+    log: {} as unknown as EditLogResult["log"],
+  };
+  const okUpdate = {
+    edits: [],
+    provenance: {
+      author: "a",
+      metadata: {} as Record<string, never>,
+      timestamp: "2026-01-01T00:00:00Z",
+    },
+  };
+
+  test("subsequent reads on the same .eval file re-open after an edit", async () => {
+    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
+    const remoteLogFile = { readLogSummary } as unknown as Awaited<
+      ReturnType<typeof openRemoteLogFile>
+    >;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue(remoteLogFile);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue(okEdit);
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.get_log_details("log.eval", true);
+    await client.get_log_details("log.eval", true);
+    // Sanity: second read was a cache hit.
+    expect(openMock).toHaveBeenCalledTimes(1);
+
+    await client.edit_log!("log.eval", okUpdate);
+
+    await client.get_log_details("log.eval", true);
+    // Edit invalidated the cache → next read re-opened the zip and would
+    // pick up the new header bytes from disk.
+    expect(openMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("an edit on a different log preserves the cached one", async () => {
+    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
+    const remoteLogFile = { readLogSummary } as unknown as Awaited<
+      ReturnType<typeof openRemoteLogFile>
+    >;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue(remoteLogFile);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue(okEdit);
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.get_log_details("a.eval", true);
+    // Edit a different file — `a.eval`'s cache should survive.
+    await client.edit_log!("b.eval", okUpdate);
+    await client.get_log_details("a.eval", true);
+
+    expect(openMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed edit does not invalidate the cache", async () => {
+    // Cache is dropped only after the underlying call resolves; a
+    // rejection propagates without disturbing the cached reader. This
+    // matters so a 412 conflict doesn't trigger an unnecessary refetch.
+    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
+    const remoteLogFile = { readLogSummary } as unknown as Awaited<
+      ReturnType<typeof openRemoteLogFile>
+    >;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue(remoteLogFile);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockRejectedValue(new Error("412 Precondition Failed"));
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.get_log_details("log.eval", true);
+    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow(
+      "412"
+    );
+    await client.get_log_details("log.eval", true);
+
+    expect(openMock).toHaveBeenCalledTimes(1);
   });
 });

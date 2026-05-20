@@ -16,6 +16,7 @@ import {
   PendingSampleUrls,
   SampleData,
   SampleDataResponse,
+  UserInfo,
 } from "../types";
 
 import { ApiError, HeaderProvider, Request, serverRequestApi } from "./request";
@@ -496,6 +497,11 @@ export function viewServerApi(
     return { log, etag };
   };
 
+  const get_user_info = async (): Promise<UserInfo> => {
+    const result = await requestApi.fetchString("GET", "/user-info");
+    return (result.parsed as UserInfo) ?? {};
+  };
+
   const download_log = async (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
@@ -527,5 +533,6 @@ export function viewServerApi(
     eval_log_sample_data,
     eval_log_sample_data_direct,
     edit_log,
+    get_user_info,
   };
 }

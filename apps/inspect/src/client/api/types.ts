@@ -239,11 +239,20 @@ export interface LogViewAPI {
     update: LogUpdate,
     if_match_etag?: string
   ) => Promise<EditLogResult>;
+  // Best-effort identity of the user running the view server (git
+  // user.name/user.email, falling back to the OS login). Used to prefill
+  // the Author field on edit dialogs. Optional — not all backends.
+  get_user_info?: () => Promise<UserInfo>;
 }
 
 export interface EditLogResult {
   log: EvalLog;
   etag?: string;
+}
+
+export interface UserInfo {
+  name?: string;
+  email?: string;
 }
 
 export interface ClientAPI {
@@ -313,6 +322,8 @@ export interface ClientAPI {
     update: LogUpdate,
     if_match_etag?: string
   ) => Promise<EditLogResult>;
+  // Best-effort identity for prefilling provenance.author on edits.
+  get_user_info?: () => Promise<UserInfo>;
 }
 
 export interface ClientStorage {

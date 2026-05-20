@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useMemo } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 
 import {
   EarlyStoppingSummary,
@@ -11,7 +11,12 @@ import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
+import { useRefreshLog } from "../../../state/hooks";
+import { useStore } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
+import { EditButton } from "../title-view/EditButton";
+import { EditTagsDialog } from "../title-view/EditTagsDialog";
+import { TagChip } from "../title-view/TagChip";
 
 import styles from "./TaskTab.module.css";
 
@@ -19,7 +24,8 @@ import styles from "./TaskTab.module.css";
 export const useTaskTabConfig = (
   evalSpec: EvalSpec | undefined,
   evalStats?: EvalStats,
-  earlyStopping?: EarlyStoppingSummary | null
+  earlyStopping?: EarlyStoppingSummary | null,
+  tags?: string[]
 ) => {
   return useMemo(() => {
     return {
@@ -31,22 +37,33 @@ export const useTaskTabConfig = (
         evalSpec,
         evalStats,
         earlyStopping,
+        tags,
       },
     };
-  }, [evalSpec, evalStats, earlyStopping]);
+  }, [evalSpec, evalStats, earlyStopping, tags]);
 };
 
 interface TaskTabProps {
   evalSpec?: EvalSpec;
   evalStats?: EvalStats;
   earlyStopping?: EarlyStoppingSummary | null;
+  tags?: string[];
 }
 
 export const TaskTab: FC<TaskTabProps> = ({
   evalSpec,
   evalStats,
   earlyStopping,
+  tags,
 }) => {
+  const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const refreshLog = useRefreshLog();
+  const [editingTags, setEditingTags] = useState(false);
+  const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
+  const showTagEdit = canEditTags && !!selectedLogFile;
+  const tagList = tags ?? [];
+
   const config: Record<string, unknown> = {};
   Object.entries(evalSpec?.config || {}).forEach((entry) => {
     const key = entry[0];
@@ -84,7 +101,27 @@ export const TaskTab: FC<TaskTabProps> = ({
       taskInformation["Inspect"] = names;
     }
   }
-  // tags are rendered in PrimaryBar (header), not here.
+  // Mirror the header's chip strip in the Task Info card, including
+  // the inline Edit affordance — saving from either surface refreshes
+  // the log so both views stay in sync. `MetaDataGrid` renders the
+  // `_html` payload as raw JSX, bypassing its default string formatting.
+  if (tagList.length > 0 || showTagEdit) {
+    taskInformation["tags"] = {
+      _html: (
+        <div className={styles.tagPillRow}>
+          {tagList.map((tag) => (
+            <TagChip key={tag} label={tag} />
+          ))}
+          {showTagEdit && (
+            <EditButton
+              onClick={() => setEditingTags(true)}
+              title="Edit tags"
+            />
+          )}
+        </div>
+      ),
+    };
+  }
 
   if (evalSpec?.sandbox) {
     if (Array.isArray(evalSpec?.sandbox)) {
@@ -168,6 +205,15 @@ export const TaskTab: FC<TaskTabProps> = ({
           </Card>
         )}
       </div>
+      {selectedLogFile && (
+        <EditTagsDialog
+          showing={editingTags}
+          setShowing={setEditingTags}
+          currentTags={tagList}
+          logFile={selectedLogFile}
+          onSaved={onTagsSaved}
+        />
+      )}
     </div>
   );
 };

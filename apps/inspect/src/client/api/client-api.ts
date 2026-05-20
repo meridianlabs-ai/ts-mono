@@ -487,20 +487,35 @@ export const clientApi = (
     get_log_sample_data: api.eval_log_sample_data
       ? middleware("get_log_sample_data", get_log_sample_data)
       : undefined,
+    get_user_info: api.get_user_info
+      ? middleware("get_user_info", () => api.get_user_info!())
+      : undefined,
     edit_log: api.edit_log
       ? middleware(
           "edit_log",
-          (
+          async (
             log_file: string,
             update: LogUpdate,
             if_match_etag?: string
           ): Promise<EditLogResult> => {
-            // current_log is now stale; clear it so the next read fetches
-            // the just-written version (with the new tags/log_updates).
+            const result = await api.edit_log!(log_file, update, if_match_etag);
+            // The on-disk log just changed; drop both caches so the next
+            // read (typically a `refreshLog` triggered by the dialog's
+            // onSaved callback) re-fetches the new tags / log_updates.
+            //   - `current_log`: JSON-format path in `get_log()` above.
+            //   - `loadedEvalFile`: zip-backed reader used by .eval files
+            //     via `remoteEvalFile()`. Without clearing this, the
+            //     cached central-directory still points at the old
+            //     header.json bytes.
             if (current_path === log_file) {
               current_log = undefined;
+              current_path = undefined;
             }
-            return api.edit_log!(log_file, update, if_match_etag);
+            if (loadedEvalFile.file === log_file) {
+              loadedEvalFile.file = undefined;
+              loadedEvalFile.remoteLog = undefined;
+            }
+            return result;
           }
         )
       : undefined,

@@ -18,8 +18,14 @@ interface TagChipProps {
 export const TagChip: FC<TagChipProps> = ({ label, isNew, onRemove }) => (
   <span
     className={clsx(styles.chip, isNew && styles.chipNew, "text-size-smaller")}
+    // Truncated labels stay discoverable on hover. Without this, a user
+    // who entered a long tag has no way to read it back from the header.
+    title={label}
   >
-    {label}
+    {/* The label lives in its own bounded element so a runaway-length
+       tag can't widen the whole chip — which would otherwise push the
+       inline Edit button off the right edge of the viewer header. */}
+    <span className={styles.chipLabel}>{label}</span>
     {onRemove && (
       <button
         type="button"

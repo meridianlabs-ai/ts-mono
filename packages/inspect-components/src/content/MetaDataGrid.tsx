@@ -28,6 +28,15 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> =>
 const isNonEmptyObject = (v: unknown): v is Record<string, unknown> =>
   isPlainObject(v) && Object.keys(v).length > 0;
 
+// Values shaped like `{ _html: <ReactElement> }` are an escape hatch
+// callers use to render bespoke JSX inside an otherwise scalar row.
+// They must not be treated as nested groups (which would recurse into
+// MetaDataGrid and dump the element as `$$typeof / type / props / ...`
+// pseudo-properties); they should reach RenderedContent's Html branch
+// instead.
+const hasHtmlEscape = (v: unknown): v is { _html: unknown } =>
+  isPlainObject(v) && "_html" in v && v._html != null;
+
 /**
  * Renders structured metadata as a grid with section cards.
  *
@@ -48,8 +57,12 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
   const baseId = id ?? "metadata-grid";
   const allEntries = entryRecords(entries);
 
-  const scalars = allEntries.filter((e) => !isNonEmptyObject(e.value));
-  const groups = allEntries.filter((e) => isNonEmptyObject(e.value));
+  const scalars = allEntries.filter(
+    (e) => !isNonEmptyObject(e.value) || hasHtmlEscape(e.value)
+  );
+  const groups = allEntries.filter(
+    (e) => isNonEmptyObject(e.value) && !hasHtmlEscape(e.value)
+  );
 
   const [expanded, setExpanded] = useState(false);
   const isCollapsible = maxRows != null && scalars.length > maxRows;

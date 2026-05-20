@@ -5,9 +5,16 @@
   min-width: 250px;
 }
 
+/* Body column expands to fill whatever space the right-hand results
+   panel doesn't claim. Previously the right column was a fixed `1fr`
+   share, so even on wide windows the title block was capped at ~half
+   the wrapper — which forced the inline tag strip to wrap chips long
+   before there was any real space pressure (large empty gap between
+   the Edit button and the right column). With `auto` the results
+   panel takes its natural width and the body absorbs the rest. */
 .wrapper {
   display: grid;
-  grid-template-columns: minmax(auto, 1fr) 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
 }
 
@@ -24,12 +31,19 @@
   margin-left: 0.2rem;
 }
 
+/* Single-line flex row: title + model + tag chips share one baseline. The
+   title is the only shrinkable item (via min-width:0 + text-truncate); the
+   model and tag row stay at their natural width so chips sit inline after
+   the model. If chips themselves exceed the remaining space, the inner
+   `tagRow` (flex-wrap: wrap) lets them flow onto extra lines within the
+   tag block without breaking off from the model name. */
 .bodyContainer {
   margin-top: 0.1rem;
-  display: grid;
-  grid-template-columns: minmax(30px, max-content) minmax(100px, max-content) minmax(0, 1fr);
-  column-gap: 0.5rem;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
+  column-gap: 0.5rem;
+  min-width: 0;
 }
 
 .tagRow {
@@ -37,6 +51,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
+  /* Allow shrinking (so chip wrap can engage when content truly exceeds
+     the available width), but pair this with a high flex-shrink on the
+     title (below) so the title absorbs the entire deficit first. Without
+     that bias, the flex algorithm splits the deficit proportional to
+     content size — and the chip strip's content is usually wider than
+     the title's, so it ends up absorbing most of the shrink and wrapping
+     prematurely while the title still shows its full text. */
+  flex-shrink: 1;
   min-width: 0;
 }
 
@@ -50,11 +72,19 @@
 
 .taskTitle {
   font-weight: 600;
-  margin-right: 0.3rem;
+  /* `text-truncate` (overflow:hidden + ellipsis + nowrap) plus min-width:0
+     lets the title shrink below its intrinsic width and ellipsize.
+     The high flex-shrink biases the flex algorithm so the title absorbs
+     essentially all of the deficit before the tag row gives up any of
+     its width — keeping chips inline beside the model until the title
+     has been fully ellipsized to its minimum. */
+  min-width: 0;
+  flex-shrink: 100;
 }
 
 .taskModel {
   padding-top: 0.4rem;
+  flex-shrink: 0;
 }
 
 .taskStatus {

@@ -13,14 +13,13 @@ import { toDisplayScorers } from "../../../scoring/metrics";
 import { useRefreshLog } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 
-import { EditButton } from "./EditButton";
 import { EditTagsDialog } from "./EditTagsDialog";
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
 import { displayScorersFromRunningMetrics, ResultsPanel } from "./ResultsPanel";
 import { RunningStatusPanel } from "./RunningStatusPanel";
 import { CancelledPanel, ErroredPanel } from "./StatusPanel";
-import { TagChip } from "./TagChip";
+import { TagStrip } from "./TagStrip";
 
 interface PrimaryBarProps {
   status?: EvalLogStatus;
@@ -99,25 +98,11 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             ) : (
               ""
             )}
-            {(tagList.length > 0 || showTagEdit) && (
-              <div className={styles.tagRow}>
-                {tagList.length > 0 && (
-                  <span
-                    className={styles.tagSeparator}
-                    aria-hidden="true"
-                  />
-                )}
-                {tagList.map((tag) => (
-                  <TagChip key={tag} label={tag} />
-                ))}
-                {showTagEdit && (
-                  <EditButton
-                    onClick={() => setEditingTags(true)}
-                    title="Edit tags"
-                  />
-                )}
-              </div>
-            )}
+            <TagStrip
+              tags={tagList}
+              showEdit={showTagEdit}
+              onEdit={() => setEditingTags(true)}
+            />
           </div>
           {evalSpec?.model_roles ? (
             <ModelRolesView roles={evalSpec.model_roles} />
