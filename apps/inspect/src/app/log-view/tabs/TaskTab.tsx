@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useCallback, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 
 import {
   EarlyStoppingSummary,
@@ -11,12 +11,9 @@ import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
-import { useRefreshLog } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
-import { EditButton } from "../title-view/EditButton";
-import { EditTagsDialog } from "../title-view/EditTagsDialog";
-import { TagChip } from "../title-view/TagChip";
+import { TagsField } from "../title-view/TagsField";
 
 import styles from "./TaskTab.module.css";
 
@@ -56,18 +53,10 @@ export const TaskTab: FC<TaskTabProps> = ({
   earlyStopping,
   tags,
 }) => {
+  // Only used to decide whether to include the "tags" row in the
+  // metadata grid for an empty log — TagsField owns the actual gating
+  // (in-progress, dialog state, save flow, refresh).
   const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logStatus = useStore(
-    (state) => state.log.selectedLogDetails?.status
-  );
-  const refreshLog = useRefreshLog();
-  const [editingTags, setEditingTags] = useState(false);
-  const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
-  // Hide the Edit affordance while the recorder is still running — the
-  // server returns 409 for edits on in-progress logs.
-  const isInProgress = logStatus === "started";
-  const showTagEdit = canEditTags && !!selectedLogFile && !isInProgress;
   const tagList = tags ?? [];
 
   const config: Record<string, unknown> = {};
@@ -107,31 +96,13 @@ export const TaskTab: FC<TaskTabProps> = ({
       taskInformation["Inspect"] = names;
     }
   }
-  // Mirror the header's chip strip in the Task Info card, including
-  // the inline Edit affordance — saving from either surface refreshes
-  // the log so both views stay in sync. `MetaDataGrid` renders the
-  // `_html` payload as raw JSX, bypassing its default string formatting.
-  if (tagList.length > 0 || showTagEdit) {
+  // Mirror the header's chip strip in the Task Info card — saving from
+  // either surface refreshes the log so both views stay in sync.
+  // `MetaDataGrid` renders the `_html` payload as raw JSX, bypassing its
+  // default string formatting.
+  if (tagList.length > 0 || canEditTags) {
     taskInformation["tags"] = {
-      _html: (
-        // Edit pill flows as the last item in the wrap-aware chip
-        // row — it behaves like another pill, joining or wrapping
-        // with the chips on whatever line they land on.
-        <div className={styles.tagPillRow}>
-          {tagList.map((tag) => (
-            <TagChip key={tag} label={tag} />
-          ))}
-          {showTagEdit && (
-            <EditButton
-              onClick={() => setEditingTags(true)}
-              title="Edit tags"
-              variant="pill"
-            >
-              Tags
-            </EditButton>
-          )}
-        </div>
-      ),
+      _html: <TagsField tags={tagList} className={styles.tagPillAlign} />,
     };
   }
 
@@ -217,15 +188,6 @@ export const TaskTab: FC<TaskTabProps> = ({
           </Card>
         )}
       </div>
-      {selectedLogFile && (
-        <EditTagsDialog
-          showing={editingTags}
-          setShowing={setEditingTags}
-          currentTags={tagList}
-          logFile={selectedLogFile}
-          onSaved={onTagsSaved}
-        />
-      )}
     </div>
   );
 };

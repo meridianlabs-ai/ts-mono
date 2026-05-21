@@ -3,19 +3,28 @@
  *
  * jsdom doesn't run a CSS layout engine, so we can't observe the visual
  * overflow that hides the Edit button when several long tags are added.
- * Instead we pin the CSS contract that makes the bug impossible:
+ * Instead we pin the CSS contract that makes the bug impossible.
  *
- *   - `.tagRow` must be shrinkable inside `.bodyContainer`. Without this,
- *     a multi-chip row grows to its content's natural width and pushes
- *     the trailing Edit button past the right edge of the header.
+ * The rules split across two CSS modules now:
+ *   - `TagStrip.module.css .tagRow`     — base flex (display/wrap/gap).
+ *   - `PrimaryBar.module.css .tagRowHeader` — header-context shrink
+ *      overrides (`align-items`, `margin-top`, `flex-shrink`,
+ *      `min-width`) applied to <TagStrip> only when rendered in the
+ *      header.
+ *
+ * The relevant contract:
  *   - `.tagRow` must wrap its children. With shrinkability in place,
  *     wrap is what actually keeps the row inside the available width.
- *   - `min-width: 0` is required because a flex item's default
+ *   - `.tagRowHeader` must be shrinkable inside `.bodyContainer`.
+ *     Without this, a multi-chip row grows to its content's natural
+ *     width and pushes the trailing Edit button past the right edge of
+ *     the header.
+ *   - `.tagRowHeader` needs `min-width: 0` — a flex item's default
  *     `min-width: auto` resolves to its content's intrinsic minimum,
  *     which prevents shrinking even when `flex-shrink: 1` is set.
  *
- * If a future change re-introduces `flex-shrink: 0` on `.tagRow`, this
- * test will catch the regression at the rule level.
+ * If a future change re-introduces `flex-shrink: 0` on `.tagRowHeader`,
+ * this test will catch the regression at the rule level.
  */
 
 import fs from "node:fs";
@@ -23,10 +32,11 @@ import path from "node:path";
 
 import { describe, expect, test } from "vitest";
 
-const CSS_PATH = path.join(__dirname, "PrimaryBar.module.css");
-const css = fs.readFileSync(CSS_PATH, "utf8");
+const PRIMARY_BAR_CSS = path.join(__dirname, "PrimaryBar.module.css");
+const TAG_STRIP_CSS = path.join(__dirname, "TagStrip.module.css");
 
-function ruleBlock(name: string): string {
+function ruleBlock(file: string, name: string): string {
+  const css = fs.readFileSync(file, "utf8");
   // Strip CSS comments so explanatory text inside the block (which may
   // describe the very thing the rule no longer does) doesn't trip the
   // regex below.
@@ -36,22 +46,24 @@ function ruleBlock(name: string): string {
   const re = new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`);
   const m = stripped.match(re);
   if (!m) {
-    throw new Error(
-      `Could not find .${name} rule in ${path.basename(CSS_PATH)}`
-    );
+    throw new Error(`Could not find .${name} rule in ${path.basename(file)}`);
   }
   return m[1];
 }
 
-describe("PrimaryBar.tagRow layout contract", () => {
-  const block = ruleBlock("tagRow");
-
-  test("does not pin `flex-shrink: 0` (would prevent wrap inside the bodyContainer)", () => {
-    expect(block).not.toMatch(/flex-shrink\s*:\s*0\b/);
-  });
+describe("TagStrip base layout contract", () => {
+  const block = ruleBlock(TAG_STRIP_CSS, "tagRow");
 
   test("wraps chips onto additional lines when needed", () => {
     expect(block).toMatch(/flex-wrap\s*:\s*wrap/);
+  });
+});
+
+describe("PrimaryBar.tagRowHeader override contract", () => {
+  const block = ruleBlock(PRIMARY_BAR_CSS, "tagRowHeader");
+
+  test("does not pin `flex-shrink: 0` (would prevent wrap inside the bodyContainer)", () => {
+    expect(block).not.toMatch(/flex-shrink\s*:\s*0\b/);
   });
 
   test("allows shrinking below content width via min-width:0", () => {
@@ -72,7 +84,7 @@ describe("PrimaryBar wrapper sizing contract", () => {
   // the columns at the rule level — visual layout isn't observable in
   // jsdom.
   test("wrapper grid lets the body absorb the space the results panel doesn't claim", () => {
-    const wrapper = ruleBlock("wrapper");
+    const wrapper = ruleBlock(PRIMARY_BAR_CSS, "wrapper");
     const cols = wrapper.match(/grid-template-columns\s*:\s*([^;]+);/);
     expect(cols).not.toBeNull();
     const value = cols![1].trim();
@@ -92,15 +104,19 @@ describe("PrimaryBar shrink-priority contract", () => {
   // pinned so it doesn't ellipsize on tight viewports.
 
   test("title is not shrinkable", () => {
-    expect(ruleBlock("taskTitle")).toMatch(/flex-shrink\s*:\s*0\b/);
+    expect(ruleBlock(PRIMARY_BAR_CSS, "taskTitle")).toMatch(
+      /flex-shrink\s*:\s*0\b/
+    );
   });
 
   test("model name is not shrinkable either", () => {
-    expect(ruleBlock("taskModel")).toMatch(/flex-shrink\s*:\s*0\b/);
+    expect(ruleBlock(PRIMARY_BAR_CSS, "taskModel")).toMatch(
+      /flex-shrink\s*:\s*0\b/
+    );
   });
 
   test("bodyContainer aligns items to the top so title meets first chip row", () => {
-    expect(ruleBlock("bodyContainer")).toMatch(
+    expect(ruleBlock(PRIMARY_BAR_CSS, "bodyContainer")).toMatch(
       /align-items\s*:\s*flex-start/
     );
   });

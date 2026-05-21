@@ -5,9 +5,9 @@
   align-items: flex-start;
 }
 
-.tagPillRow {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
+/* TaskTab-context override for <TagStrip>. Centers chips vertically
+   inside the MetaDataGrid value cell so they line up with the "tags"
+   label on the left. Base flex rules come from TagStrip.module.css. */
+.tagPillAlign {
   align-items: center;
 }

@@ -1,27 +1,32 @@
+import clsx from "clsx";
 import { FC } from "react";
 
 import { EditButton } from "./EditButton";
-import styles from "./PrimaryBar.module.css";
 import { TagChip } from "./TagChip";
+import styles from "./TagStrip.module.css";
 
 interface TagStripProps {
   tags: string[];
   showEdit: boolean;
   onEdit: () => void;
+  className?: string;
 }
 
 /**
- * The inline tag chip block rendered in the viewer header.
- *
- * The chip strip is a single wrap-aware flex container — chips followed
- * by the Edit pill as the last item, matching the Task tab. When chips
- * wrap to additional lines, the Edit pill follows the last chip onto
- * whichever line it lands on.
+ * Wrap-aware chip row: tag chips followed by the Edit pill as the last
+ * item, so when chips wrap to additional lines the Edit pill follows the
+ * last chip onto whichever line it lands on. Layout context (alignment,
+ * margin, shrink) is supplied by the consumer via `className`.
  */
-export const TagStrip: FC<TagStripProps> = ({ tags, showEdit, onEdit }) => {
+export const TagStrip: FC<TagStripProps> = ({
+  tags,
+  showEdit,
+  onEdit,
+  className,
+}) => {
   if (tags.length === 0 && !showEdit) return null;
   return (
-    <div className={styles.tagRow}>
+    <div className={clsx(styles.tagRow, className)}>
       {tags.map((tag) => (
         <TagChip key={tag} label={tag} />
       ))}

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useCallback, useState } from "react";
+import { FC } from "react";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
 import { CopyButton } from "@tsmono/react/components";
@@ -10,16 +10,14 @@ import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
-import { useRefreshLog } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 
-import { EditTagsDialog } from "./EditTagsDialog";
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
 import { displayScorersFromRunningMetrics, ResultsPanel } from "./ResultsPanel";
 import { RunningStatusPanel } from "./RunningStatusPanel";
 import { CancelledPanel, ErroredPanel } from "./StatusPanel";
-import { TagStrip } from "./TagStrip";
+import { TagsField } from "./TagsField";
 
 interface PrimaryBarProps {
   status?: EvalLogStatus;
@@ -43,18 +41,8 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   const absLogDir = useStore((state) => state.logs.absLogDir);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
-  const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
-  const refreshLog = useRefreshLog();
-  const [editingTags, setEditingTags] = useState(false);
-  const onTagsSaved = useCallback(() => refreshLog(), [refreshLog]);
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
-  // Hide the Edit affordance while the recorder is still appending —
-  // the server returns 409 for edits on in-progress logs, and a UI that
-  // offered the action only to fail on save is worse than not offering
-  // it at all.
-  const isInProgress = status === "started";
-  const showTagEdit = canEditTags && !!selectedLogFile && !isInProgress;
   const tagList = tags ?? [];
 
   const copyValue = (() => {
@@ -103,11 +91,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             ) : (
               ""
             )}
-            <TagStrip
-              tags={tagList}
-              showEdit={showTagEdit}
-              onEdit={() => setEditingTags(true)}
-            />
+            <TagsField tags={tagList} className={styles.tagRowHeader} />
           </div>
           {evalSpec?.model_roles ? (
             <ModelRolesView roles={evalSpec.model_roles} />
@@ -151,15 +135,6 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
       <div id="task-created" style={{ display: "none" }}>
         {evalSpec?.created}
       </div>
-      {selectedLogFile && (
-        <EditTagsDialog
-          showing={editingTags}
-          setShowing={setEditingTags}
-          currentTags={tagList}
-          logFile={selectedLogFile}
-          onSaved={onTagsSaved}
-        />
-      )}
     </div>
   );
 };
