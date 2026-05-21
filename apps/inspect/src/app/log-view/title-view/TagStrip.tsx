@@ -1,4 +1,4 @@
-import { FC, Fragment } from "react";
+import { FC } from "react";
 
 import { EditButton } from "./EditButton";
 import styles from "./PrimaryBar.module.css";
@@ -13,32 +13,23 @@ interface TagStripProps {
 /**
  * The inline tag chip block rendered in the viewer header.
  *
- * Lives as a Fragment of flex items inside the surrounding row
- * (`PrimaryBar`'s `bodyContainer`), not as a single wrapper element.
- * The `tagRow` div is wrap-aware so chips can overflow onto additional
- * lines, but the **Edit button is a sibling**, not a descendant — so
- * when chips wrap, the button stays anchored next to the chip block
- * instead of being pulled onto the wrap line with the last chip.
+ * The chip strip is a single wrap-aware flex container — chips followed
+ * by the Edit pill as the last item, matching the Task tab. When chips
+ * wrap to additional lines, the Edit pill follows the last chip onto
+ * whichever line it lands on.
  */
 export const TagStrip: FC<TagStripProps> = ({ tags, showEdit, onEdit }) => {
   if (tags.length === 0 && !showEdit) return null;
   return (
-    <Fragment>
-      {tags.length > 0 && (
-        <span className={styles.tagSeparator} aria-hidden="true" />
-      )}
-      {tags.length > 0 && (
-        <div className={styles.tagRow}>
-          {tags.map((tag) => (
-            <TagChip key={tag} label={tag} />
-          ))}
-        </div>
-      )}
+    <div className={styles.tagRow}>
+      {tags.map((tag) => (
+        <TagChip key={tag} label={tag} />
+      ))}
       {showEdit && (
         <EditButton onClick={onEdit} title="Edit tags" variant="pill">
           Tags
         </EditButton>
       )}
-    </Fragment>
+    </div>
   );
 };

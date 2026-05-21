@@ -1,15 +1,14 @@
 /**
- * Regression: the Edit button used to live inside the wrap-aware
- * `.tagRow` container. When chips wrapped onto a second line, the
- * Edit button wrapped with them (it's the last flex item) and ended
- * up on its own row below the chips — out of reach if the user's
- * window was tight enough to push chips past the first row.
+ * TagStrip behavior:
  *
- * Fix: pull Edit out of `.tagRow` and render it as a flex *sibling*
- * inside the bodyContainer. `.tagRow` still wraps its chips
- * internally, but Edit stays anchored beside the chip block,
- * vertically centered against whatever height the wrapped chips
- * take.
+ * The strip is a single wrap-aware `.tagRow` container holding the
+ * chips followed by the Edit pill as the last item — same pattern as
+ * the Task tab. When chips wrap to extra lines, the Edit pill follows
+ * the last chip onto whichever line it ends up on.
+ *
+ * Regression: an earlier iteration pulled Edit out as a sibling so it
+ * couldn't be clipped, but that broke the inline-with-chips look. The
+ * tests below pin Edit's inline placement.
  */
 
 import { cleanup, render, screen, within } from "@testing-library/react";
@@ -23,24 +22,30 @@ import { TagStrip } from "./TagStrip";
 afterEach(cleanup);
 
 describe("TagStrip", () => {
-  test("renders the Edit button as a sibling of the wrap-aware tagRow, not a descendant", () => {
-    render(
+  test("Edit pill is inline with chips inside the tagRow", () => {
+    // Regression for an earlier change that pulled Edit out as a sibling
+    // of `.tagRow`. The Edit pill must live INSIDE the wrap-aware chip
+    // container so it visually flows after the last chip — matching the
+    // Task tab pattern. If something moves Edit back out of `.tagRow`,
+    // this test fails.
+    const { container } = render(
       <TagStrip
-        tags={["alpha", "beta", "gamma", "delta"]}
+        tags={["alpha", "beta", "gamma"]}
         showEdit
         onEdit={() => {}}
       />
     );
 
-    // The button's visible label is "Tags" (italic); we query by the
-    // stable `title` attribute so the test isn't coupled to label copy.
+    const tagRow = container.querySelector<HTMLElement>(".tagRow");
+    expect(tagRow).not.toBeNull();
+
     const edit = screen.getByTitle("Edit tags");
-    // The wrap-aware container has `flex-wrap: wrap`; if Edit is nested
-    // inside it, it wraps to a new line with the trailing chips.
-    expect(edit.closest(".tagRow")).toBeNull();
+    expect(tagRow!.contains(edit)).toBe(true);
+    // And it's the last child so it visually follows the last chip.
+    expect(tagRow!.lastElementChild).toBe(edit);
   });
 
-  test("the tagRow contains every chip and only chips", () => {
+  test("tagRow contains every chip plus the Edit pill", () => {
     const { container } = render(
       <TagStrip
         tags={["one", "two", "three"]}
@@ -51,12 +56,11 @@ describe("TagStrip", () => {
 
     const tagRow = container.querySelector<HTMLElement>(".tagRow");
     expect(tagRow).not.toBeNull();
-    // Each tag is rendered (label is the visible text).
     for (const label of ["one", "two", "three"]) {
       expect(within(tagRow!).getByText(label)).toBeInTheDocument();
     }
-    // The Edit button is not in the tagRow.
-    expect(within(tagRow!).queryByRole("button")).toBeNull();
+    // Exactly one button (the Edit pill).
+    expect(within(tagRow!).getAllByRole("button")).toHaveLength(1);
   });
 
   test("Edit button still renders when there are no tags", () => {

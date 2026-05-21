@@ -82,7 +82,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
           <div className={styles.bodyContainer}>
             <div
               id="task-title"
-              className={clsx("task-title", "text-truncate", styles.taskTitle)}
+              className={clsx("task-title", styles.taskTitle)}
               title={evalSpec?.task}
             >
               {evalSpec?.task}

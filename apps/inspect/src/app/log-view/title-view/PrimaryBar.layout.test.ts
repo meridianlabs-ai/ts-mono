@@ -43,15 +43,6 @@ function ruleBlock(name: string): string {
   return m[1];
 }
 
-// Returns the rule's `flex-shrink` value as a number. Default is `1`.
-// Doesn't try to interpret the `flex:` shorthand — the stylesheet uses
-// the longhand and we want the test to fail loudly if that changes.
-function flexShrink(name: string): number {
-  const block = ruleBlock(name);
-  const m = block.match(/flex-shrink\s*:\s*(\d+(?:\.\d+)?)\b/);
-  return m ? Number(m[1]) : 1;
-}
-
 describe("PrimaryBar.tagRow layout contract", () => {
   const block = ruleBlock("tagRow");
 
@@ -94,32 +85,23 @@ describe("PrimaryBar wrapper sizing contract", () => {
 });
 
 describe("PrimaryBar shrink-priority contract", () => {
-  // When the title + model + chips don't fit on one line, the flex
-  // algorithm distributes the deficit proportional to
-  //   shrink_factor × flex-basis
-  // for each item that can shrink. The tag row's basis (combined chip
-  // widths) is typically much larger than the title's, so giving both
-  // items the default `flex-shrink: 1` makes the tag row absorb most of
-  // the deficit even when the title could ellipsize and free up the
-  // entire deficit on its own. The visible symptom is that chips wrap
-  // to a second line while the title still shows its full text — which
-  // is what users perceive as "wrapping unnecessarily".
-  //
-  // The fix is to bias the shrink ratio so the title absorbs essentially
-  // all of the deficit first. Concretely: title's flex-shrink must be
-  // strictly greater than the tag row's so a small deficit is fully
-  // absorbed by the title, and chip wrap only activates after the title
-  // has been ellipsized to its minimum width.
+  // The eval name is the most important piece of identity on the
+  // header — it stays at natural width no matter how many tags there
+  // are. Only the wrap-aware tag row shrinks (and chips wrap to
+  // additional lines when there isn't room). The model name is also
+  // pinned so it doesn't ellipsize on tight viewports.
 
-  test("title shrinks more aggressively than the tag row", () => {
-    const titleShrink = flexShrink("taskTitle");
-    const tagRowShrink = flexShrink("tagRow");
-    expect(titleShrink).toBeGreaterThan(tagRowShrink);
+  test("title is not shrinkable", () => {
+    expect(ruleBlock("taskTitle")).toMatch(/flex-shrink\s*:\s*0\b/);
   });
 
-  test("title is the only shrinkable inline-item besides the tag row", () => {
-    // Model name should never shrink — losing characters off the model
-    // makes the header confusing in a way a truncated task name doesn't.
+  test("model name is not shrinkable either", () => {
     expect(ruleBlock("taskModel")).toMatch(/flex-shrink\s*:\s*0\b/);
+  });
+
+  test("bodyContainer aligns items to the top so title meets first chip row", () => {
+    expect(ruleBlock("bodyContainer")).toMatch(
+      /align-items\s*:\s*flex-start/
+    );
   });
 });
