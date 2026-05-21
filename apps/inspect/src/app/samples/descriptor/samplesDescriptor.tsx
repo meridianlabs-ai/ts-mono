@@ -144,6 +144,13 @@ export const createEvalDescriptor = (
           .filter((value) => {
             return value !== undefined;
           })
+          // NaN is the canonical "unscored" sentinel (see Score.unscored()).
+          // Excluding it from type detection keeps a column of "C"/"I" strings
+          // with some unscored samples from being misclassified as numeric
+          // (which would render every cell — including the C/I ones — as NaN).
+          .filter((value) => {
+            return !(typeof value === "number" && Number.isNaN(value));
+          })
       ),
     ];
     const uniqScoreTypes = [
@@ -172,6 +179,8 @@ export const createEvalDescriptor = (
     if (score === null) {
       return "null";
     } else if (score === undefined) {
+      return "";
+    } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
     } else if (descriptor && descriptor.render) {
       return descriptor.render(score);
