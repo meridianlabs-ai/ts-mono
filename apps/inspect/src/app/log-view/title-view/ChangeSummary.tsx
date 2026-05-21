@@ -39,9 +39,14 @@ const Line: FC<{ label: string; accent: string; items: string[] }> = ({
   label,
   accent,
   items,
-}) => (
-  <div>
-    <span className={clsx(styles.label, accent)}>{label}:</span>{" "}
-    <span className={styles.items}>{items.join(", ")}</span>
-  </div>
-);
+}) => {
+  const joined = items.join(", ");
+  return (
+    // The full list lives in the `title` attribute so a truncated line
+    // is still discoverable on hover.
+    <div className={styles.line} title={`${label}: ${joined}`}>
+      <span className={clsx(styles.label, accent)}>{label}:</span>{" "}
+      <span className={styles.items}>{joined}</span>
+    </div>
+  );
+};

@@ -343,22 +343,29 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       width="820px"
       footer={
         <div className={sharedStyles.footer}>
-          <button
-            type="button"
-            className={clsx("btn", "btn-secondary", "text-size-smaller")}
-            onClick={() => setShowing(false)}
-            disabled={submitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={clsx("btn", "btn-primary", "text-size-smaller")}
-            onClick={handleSave}
-            disabled={!canSave}
-          >
-            {submitting ? "Saving…" : "Save"}
-          </button>
+          <ChangeSummary
+            adding={adding}
+            editing={editing}
+            removing={removed}
+          />
+          <div className={sharedStyles.footerActions}>
+            <button
+              type="button"
+              className={clsx("btn", "btn-secondary", "text-size-smaller")}
+              onClick={() => setShowing(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={clsx("btn", "btn-primary", "text-size-smaller")}
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              {submitting ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
       }
     >
@@ -393,12 +400,6 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
               ))}
             </div>
           </div>
-
-          <ChangeSummary
-            adding={adding}
-            editing={editing}
-            removing={removed}
-          />
 
           <div className={styles.addRow}>
             <input

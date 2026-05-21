@@ -147,22 +147,25 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       width="580px"
       footer={
         <div className={sharedStyles.footer}>
-          <button
-            type="button"
-            className={clsx("btn", "btn-secondary", "text-size-smaller")}
-            onClick={() => setShowing(false)}
-            disabled={submitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={clsx("btn", "btn-primary", "text-size-smaller")}
-            onClick={handleSave}
-            disabled={!canSave}
-          >
-            {submitting ? "Saving…" : "Save"}
-          </button>
+          <ChangeSummary adding={tagsAdd} removing={tagsRemove} />
+          <div className={sharedStyles.footerActions}>
+            <button
+              type="button"
+              className={clsx("btn", "btn-secondary", "text-size-smaller")}
+              onClick={() => setShowing(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={clsx("btn", "btn-primary", "text-size-smaller")}
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              {submitting ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
       }
     >
@@ -215,7 +218,6 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
               <i className={ApplicationIcons.changes.add} /> Add
             </button>
           </div>
-          <ChangeSummary adding={tagsAdd} removing={tagsRemove} />
         </div>
 
         <hr className={sharedStyles.divider} />

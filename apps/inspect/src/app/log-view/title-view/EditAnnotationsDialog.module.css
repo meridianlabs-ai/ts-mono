@@ -54,10 +54,20 @@
   border-radius: var(--bs-border-radius);
 }
 
+/* Footer layout: optional change-summary on the left, action buttons
+   pinned to the right via `margin-left: auto` on `.footerActions` so
+   the buttons stay flush right whether or not the summary is showing
+   (it returns null when there are no pending changes). */
 .footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  width: 100%;
+  margin-left: auto;
 }
