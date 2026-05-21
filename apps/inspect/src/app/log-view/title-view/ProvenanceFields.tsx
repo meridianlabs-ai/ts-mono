@@ -46,14 +46,13 @@ export const ProvenanceFields: FC<ProvenanceFieldsProps> = ({
           Reason
         </label>
         <span className={clsx("text-size-smaller", styles.hint)}>
-          optional — why this edit?
+          optional
         </span>
       </div>
       <input
         id="edit-annotations-reason"
         type="text"
         className={clsx("form-control", "text-size-smaller")}
-        placeholder="e.g. correcting after manual review"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         disabled={disabled}

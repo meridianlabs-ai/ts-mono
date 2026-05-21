@@ -25,7 +25,10 @@
   color: var(--bs-body-color);
   padding: 0.125rem 0.4rem;
   border-radius: 4px;
-  font-weight: 500;
+  /* Matches the pill variant's regular weight so the two Edit
+     affordances (metadata card header, tag-strip pill) read at the
+     same visual weight. */
+  font-weight: 400;
   letter-spacing: 0;
 }
 

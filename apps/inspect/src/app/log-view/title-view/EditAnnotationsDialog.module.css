@@ -27,6 +27,7 @@
 .hint {
   color: var(--bs-secondary-color);
   font-weight: 400;
+  font-style: italic;
 }
 
 .required {
