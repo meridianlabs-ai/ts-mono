@@ -1,15 +1,12 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC } from "react";
 
 import type { ChatMessage, Event } from "@tsmono/inspect-common/types";
 import type { EventType } from "@tsmono/inspect-components/transcript";
+import { formatDateTime, formatNumber, formatTime } from "@tsmono/util";
 
-import {
-  AppConfig,
-  ScannerInput,
-  Status,
-  Transcript,
-} from "../../types/api-types";
+import { AppConfig, ScannerInput, Status } from "../../types/api-types";
+import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
 import { TaskName } from "../components/TaskName";
 import { projectOrAppAliasedPath } from "../server/useAppConfig";
 import {
@@ -18,117 +15,154 @@ import {
   isMessageInput,
   isMessagesInput,
   isTranscriptInput,
+  ScanResultData,
 } from "../types";
 
 import styles from "./ScannerResultHeader.module.css";
+import { CollapsedScore, ScoreColumn } from "./ScoreColumn";
+import { SourcePath } from "./SourcePath";
 
 interface ScannerResultHeaderProps {
   scan?: Status;
   inputData?: ScannerInput;
+  resultData?: ScanResultData;
   appConfig: AppConfig;
+  collapsed?: boolean;
+  onShowAllScores?: () => void;
 }
 
-interface Column {
-  label: string;
-  value: ReactNode;
-  className?: string | string[];
-}
+const labelClassName = clsx(
+  "text-style-label",
+  "text-size-smallestest",
+  "text-style-secondary"
+);
+const valueClassName = clsx("text-size-small");
 
 export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   scan,
   inputData,
+  resultData,
   appConfig,
+  collapsed,
+  onShowAllScores,
 }) => {
-  const columns = colsForResult(appConfig, inputData, scan) || [];
+  if (collapsed) {
+    if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
+
+    const sourceUri = resultData.transcriptSourceUri ?? "";
+    let resolvedSourceUrl = sourceUri;
+    if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
+      resolvedSourceUrl = `file://${resolvedSourceUrl}`;
+    }
+    const displaySourceUri = projectOrAppAliasedPath(
+      appConfig,
+      resolvedSourceUrl
+    );
+    const scanningModel = scan?.spec.model?.model;
+    const score = resultData.transcriptScore;
+
+    return (
+      <div className={styles.collapsedBar}>
+        <span className={styles.collapsedTask}>
+          <TaskName
+            taskSet={resultData.transcriptTaskSet}
+            taskId={resultData.transcriptTaskId}
+            taskRepeat={resultData.transcriptTaskRepeat}
+          />
+        </span>
+        {displaySourceUri && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <SourcePath
+              uri={displaySourceUri}
+              maxLength={Infinity}
+              className={styles.collapsedSource}
+            />
+          </>
+        )}
+        {resultData.transcriptDate && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <span className={styles.collapsedDate}>
+              {formatDateTime(new Date(resultData.transcriptDate))}
+            </span>
+          </>
+        )}
+        {scanningModel && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <span className={styles.collapsedMono}>{scanningModel}</span>
+          </>
+        )}
+        {score != null && (
+          <>
+            <span className={styles.dot}>&middot;</span>
+            <CollapsedScore score={score} onShowAllScores={onShowAllScores} />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const headings =
+    headingsForResult(appConfig, inputData, resultData, scan) ?? [];
+  if (headings.length === 0) return null;
+
+  const score = resultData?.transcriptScore;
+  const hasScore = score != null;
+  const scoreGridColumns = hasScore ? "minmax(0,1fr) auto" : undefined;
 
   return (
-    <div className={clsx(styles.header, classForCols(columns.length))}>
-      {columns.map((col) => {
-        return (
-          <div
-            key={`header-label-${col.label}`}
-            className={clsx(
-              "text-size-smallest",
-              "text-style-label",
-              "text-style-secondary",
-              styles.label,
-              col.className
-            )}
-          >
-            {col.label}
-          </div>
-        );
-      })}
-
-      {columns.map((col) => {
-        return (
-          <div
-            key={`header-val-${col.label}`}
-            className={clsx("text-size-small", styles.value, col.className)}
-          >
-            {col.value}
-          </div>
-        );
-      })}
+    <div
+      className={clsx(styles.header, hasScore && styles.headerWithScore)}
+      style={
+        scoreGridColumns ? { gridTemplateColumns: scoreGridColumns } : undefined
+      }
+    >
+      <HeadingGrid
+        headings={headings}
+        className={hasScore ? styles.metadataRegion : undefined}
+        labelClassName={labelClassName}
+        valueClassName={valueClassName}
+      />
+      {hasScore && (
+        <ScoreColumn
+          score={score}
+          labelClassName={labelClassName}
+          valueClassName={valueClassName}
+          onShowAllScores={onShowAllScores}
+        />
+      )}
     </div>
   );
 };
 
-const classForCols = (numCols: number) => {
-  return clsx(
-    numCols === 1
-      ? styles.oneCol
-      : numCols === 2
-        ? styles.twoCol
-        : numCols === 3
-          ? styles.threeCol
-          : numCols === 4
-            ? styles.fourCol
-            : numCols === 5
-              ? styles.fiveCol
-              : styles.sixCol
-  );
-};
-
-const colsForResult: (
+const headingsForResult = (
   appConfig: AppConfig,
   inputData?: ScannerInput,
+  resultData?: ScanResultData,
   status?: Status
-) => Column[] | undefined = (appConfig, inputData, status) => {
-  if (!inputData) {
-    return [];
-  }
-  if (isTranscriptInput(inputData)) {
-    return transcriptCols(appConfig, inputData.input, status);
-  } else if (isMessageInput(inputData)) {
-    return messageCols(inputData.input, status);
-  } else if (isMessagesInput(inputData)) {
-    return messagesCols(inputData.input);
-  } else if (isEventInput(inputData)) {
-    return eventCols(inputData.input);
-  } else if (isEventsInput(inputData)) {
-    return eventsCols(inputData.input);
-  } else {
-    return [];
-  }
+): HeadingValue[] | undefined => {
+  if (!inputData) return [];
+  if (isTranscriptInput(inputData))
+    return transcriptHeadings(appConfig, resultData, status);
+  if (isMessageInput(inputData))
+    return messageHeadings(inputData.input, status);
+  if (isMessagesInput(inputData)) return messagesHeadings(inputData.input);
+  if (isEventInput(inputData)) return eventHeadings(inputData.input);
+  if (isEventsInput(inputData)) return eventsHeadings(inputData.input);
+  return [];
 };
 
-const transcriptCols = (
+const transcriptHeadings = (
   appConfig: AppConfig,
-  transcript: Transcript,
+  resultData?: ScanResultData,
   status?: Status
-) => {
-  // Read values from the transcript directly, falling back to metadata
-  // The metadata was previously used to store these values before they were
-  // added to the main Transcript schema (so we're doing this mainly for backwards
-  // compatibility with old scan results)
-  // Source info
-  const sourceUri =
-    transcript.source_uri ||
-    (transcript.metadata?.log as string | undefined) ||
-    "";
+): HeadingValue[] => {
+  if (!resultData) return [];
 
-  // Coerce this to a URI
+  // Source info
+  const sourceUri = resultData.transcriptSourceUri ?? "";
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
     resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -138,113 +172,141 @@ const transcriptCols = (
     resolvedSourceUrl
   );
 
-  // Model info
-  const transcriptModel =
-    transcript.model ||
-    (transcript.metadata?.model as string | undefined) ||
-    "";
+  const transcriptModel = resultData.transcriptModel ?? "";
   const scanningModel = status?.spec.model?.model;
 
-  // Task information
-  const taskSet =
-    transcript.task_set ||
-    (transcript.metadata?.task_name as string | undefined) ||
-    "";
-  const taskId =
-    transcript.task_id || (transcript.metadata?.id as string | undefined) || "";
-  const taskRepeat =
-    transcript.task_repeat || (transcript.metadata?.epoch as number) || -1;
-
-  const cols: Column[] = [
+  const headings: HeadingValue[] = [
     {
       label: "Task",
       value: (
-        <TaskName taskSet={taskSet} taskId={taskId} taskRepeat={taskRepeat} />
+        <TaskName
+          taskSet={resultData.transcriptTaskSet}
+          taskId={resultData.transcriptTaskId}
+          taskRepeat={resultData.transcriptTaskRepeat}
+        />
       ),
-    },
-    {
-      label: "Source",
-      value: displaySourceUri,
-    },
-    {
-      label: "Model",
-      value: transcriptModel,
     },
   ];
 
-  if (status?.spec.model?.model) {
-    cols.push({
-      label: "Scanning Model",
-      value: scanningModel,
+  if (displaySourceUri) {
+    headings.push({
+      label: "Source",
+      value: <SourcePath uri={displaySourceUri} />,
     });
   }
 
-  return cols;
+  if (resultData.transcriptDate) {
+    headings.push({
+      label: "Date",
+      value: formatDateTime(new Date(resultData.transcriptDate)),
+    });
+  }
+
+  if (resultData.transcriptAgent) {
+    headings.push({
+      label: "Agent",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {resultData.transcriptAgent}
+        </span>
+      ),
+    });
+  }
+
+  if (transcriptModel) {
+    headings.push({
+      label: "Model",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {transcriptModel}
+        </span>
+      ),
+    });
+  }
+
+  if (scanningModel) {
+    headings.push({
+      label: "Scanning Model",
+      value: (
+        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+          {scanningModel}
+        </span>
+      ),
+    });
+  }
+
+  if (resultData.transcriptLimit) {
+    headings.push({ label: "Limit", value: resultData.transcriptLimit });
+  }
+
+  if (resultData.transcriptError) {
+    headings.push({ label: "Error", value: resultData.transcriptError });
+  }
+
+  if (resultData.transcriptTotalTokens) {
+    headings.push({
+      label: "Tokens",
+      value: formatNumber(resultData.transcriptTotalTokens),
+    });
+  }
+
+  if (resultData.transcriptTotalTime) {
+    headings.push({
+      label: "Time",
+      value: formatTime(resultData.transcriptTotalTime),
+    });
+  }
+
+  if (resultData.transcriptMessageCount) {
+    headings.push({
+      label: "Messages",
+      value: resultData.transcriptMessageCount.toString(),
+    });
+  }
+
+  return headings;
 };
 
-const messageCols = (message: ChatMessage, status?: Status) => {
-  const cols: Column[] = [
-    {
-      label: "Message ID",
-      value: message.id,
-    },
-  ];
+const messageHeadings = (
+  message: ChatMessage,
+  status?: Status
+): HeadingValue[] => {
+  const headings: HeadingValue[] = [{ label: "Message ID", value: message.id }];
 
   if (message.role === "assistant") {
-    cols.push({
-      label: "Model",
-      value: message.model,
-    });
-    cols.push({
+    headings.push({ label: "Model", value: message.model });
+    headings.push({
       label: "Tool Calls",
       value: ((message.tool_calls as []) || []).length,
     });
   } else {
-    cols.push({
-      label: "Role",
-      value: message.role,
-    });
+    headings.push({ label: "Role", value: message.role });
   }
 
   if (status?.spec.model?.model) {
-    cols.push({
+    headings.push({
       label: "Scanning Model",
       value: status.spec.model.model,
     });
   }
 
-  return cols;
+  return headings;
 };
 
-const messagesCols = (messages: ChatMessage[]): Column[] => {
-  return [
-    {
-      label: "Message Count",
-      value: messages.length,
-    },
-  ];
-};
+const messagesHeadings = (messages: ChatMessage[]): HeadingValue[] => [
+  { label: "Message Count", value: messages.length },
+];
 
-const eventCols = (event: EventType): Column[] => {
-  return [
-    {
-      label: "Event Type",
-      value: event.event,
-    },
-    {
-      label: "Timestamp",
-      value: event.timestamp
-        ? new Date(event.timestamp).toLocaleString()
-        : undefined,
-    },
-  ];
-};
+const eventHeadings = (event: EventType): HeadingValue[] => [
+  { label: "Event Type", value: event.event },
+  {
+    label: "Timestamp",
+    value: event.timestamp
+      ? new Date(event.timestamp).toLocaleString()
+      : undefined,
+  },
+];
 
-const eventsCols = (events: Event[]): Column[] => {
-  return [
-    {
-      label: "Event Count",
-      value: events.length,
-    },
-  ];
-};
+const eventsHeadings = (events: Event[]): HeadingValue[] => [
+  { label: "Event Count", value: events.length },
+];
