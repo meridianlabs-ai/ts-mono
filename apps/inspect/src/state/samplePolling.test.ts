@@ -1,9 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
 import { SampleDataResponse, SampleSummary } from "../client/api/types";
+
+const mockApi = vi.hoisted(() => ({
+  get_log_sample: vi.fn(),
+  get_log_sample_data: vi.fn(),
+  log_message: vi.fn(),
+}));
+
+vi.mock("../client/api", () => ({ default: mockApi }));
 
 import {
   createSamplePolling,
@@ -11,6 +19,12 @@ import {
   shouldFinalizeStreamingSample,
 } from "./samplePolling";
 import { StoreState } from "./store";
+
+beforeEach(() => {
+  mockApi.get_log_sample.mockReset();
+  mockApi.get_log_sample_data.mockReset();
+  mockApi.log_message.mockReset();
+});
 
 describe("samplePolling helpers", () => {
   it("treats empty sample-data payloads as no-op updates", () => {
@@ -85,7 +99,7 @@ describe("createSamplePolling", () => {
     const user = { role: "user", content: "User" };
     const assistant = { role: "assistant", content: "Assistant" };
 
-    const getLogSampleData = vi.fn().mockResolvedValue({
+    mockApi.get_log_sample_data.mockResolvedValue({
       status: "OK",
       sampleData: {
         attachments: [],
@@ -138,10 +152,6 @@ describe("createSamplePolling", () => {
     };
 
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: vi.fn(),
-      },
       sample: {
         runningEvents: [],
       },
@@ -177,13 +187,12 @@ describe("createSamplePolling", () => {
 
   it("aborts a stale completion fetch when a new polling session starts", async () => {
     const staleSampleDeferred = deferred<EvalSample | undefined>();
-    const getLogSampleData = vi
-      .fn()
+    mockApi.get_log_sample_data
       .mockResolvedValueOnce({
         status: "NotFound",
       } satisfies SampleDataResponse)
       .mockImplementation(() => new Promise(() => {}));
-    const getLogSample = vi.fn().mockReturnValue(staleSampleDeferred.promise);
+    mockApi.get_log_sample.mockReturnValue(staleSampleDeferred.promise);
 
     const sampleActions = {
       setSelectedSample: vi.fn(),
@@ -193,10 +202,6 @@ describe("createSamplePolling", () => {
     };
 
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
       sample: {
         runningEvents: [],
       },
@@ -217,7 +222,11 @@ describe("createSamplePolling", () => {
     polling.startPolling("log.json", createSummary("sample-1"));
     await flushPromises();
 
-    expect(getLogSample).toHaveBeenCalledWith("log.json", "sample-1", 1);
+    expect(mockApi.get_log_sample).toHaveBeenCalledWith(
+      "log.json",
+      "sample-1",
+      1
+    );
 
     polling.startPolling("log.json", createSummary("sample-2"));
 
@@ -229,10 +238,10 @@ describe("createSamplePolling", () => {
   });
 
   it("surfaces an error when the body is missing and the summary has no error", async () => {
-    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+    mockApi.get_log_sample_data.mockResolvedValueOnce({
       status: "NotFound",
     } satisfies SampleDataResponse);
-    const getLogSample = vi.fn().mockResolvedValue(undefined);
+    mockApi.get_log_sample.mockResolvedValue(undefined);
 
     const sampleActions = {
       setSelectedSample: vi.fn(),
@@ -242,10 +251,6 @@ describe("createSamplePolling", () => {
     };
 
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
       sample: { runningEvents: [] },
       sampleActions,
       log: { selectedLogDetails: { sampleSummaries: [] } },
@@ -264,10 +269,10 @@ describe("createSamplePolling", () => {
   });
 
   it("uses the live store summary for the synthesis check, not the stub passed to startPolling", async () => {
-    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+    mockApi.get_log_sample_data.mockResolvedValueOnce({
       status: "NotFound",
     } satisfies SampleDataResponse);
-    const getLogSample = vi.fn().mockResolvedValue(undefined);
+    mockApi.get_log_sample.mockResolvedValue(undefined);
 
     const sampleActions = {
       setSelectedSample: vi.fn(),
@@ -278,10 +283,6 @@ describe("createSamplePolling", () => {
 
     // Live store state: pending samples include the same sample with `error`.
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
       sample: { runningEvents: [] },
       sampleActions,
       log: {
@@ -310,7 +311,7 @@ describe("createSamplePolling", () => {
     } as SampleSummary);
     await flushPromises();
 
-    expect(getLogSample).toHaveBeenCalled();
+    expect(mockApi.get_log_sample).toHaveBeenCalled();
     expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
     const [synthesizedSample] = sampleActions.setSelectedSample.mock.calls[0];
     expect(synthesizedSample.error?.message).toBe(
@@ -333,10 +334,10 @@ describe("createSamplePolling", () => {
       },
     };
 
-    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+    mockApi.get_log_sample_data.mockResolvedValueOnce({
       status: "NotFound",
     } satisfies SampleDataResponse);
-    const getLogSample = vi.fn().mockResolvedValue(realSample);
+    mockApi.get_log_sample.mockResolvedValue(realSample);
 
     const sampleActions = {
       setSelectedSample: vi.fn(),
@@ -346,10 +347,6 @@ describe("createSamplePolling", () => {
     };
 
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
       sample: { runningEvents: [] },
       sampleActions,
       log: {
