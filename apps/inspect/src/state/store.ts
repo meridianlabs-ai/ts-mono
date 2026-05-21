@@ -24,9 +24,6 @@ import { ReplicationService } from "./sync/replicationService";
 const log = createLogger("store");
 
 export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
-  // The shared api
-  api?: ClientAPI | null;
-
   // The shared database service
   databaseService?: DatabaseService | null;
 
@@ -34,7 +31,7 @@ export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
   replicationService?: ReplicationService | null;
 
   // Global actions
-  initialize: (api: ClientAPI, capabilities: Capabilities) => void;
+  initialize: (capabilities: Capabilities) => void;
   cleanup: () => void;
 }
 
@@ -61,7 +58,6 @@ export const useStore = ((selector?: any) => {
 
 // Initialize the store
 export const initializeStore = (
-  api: ClientAPI,
   capabilities: Capabilities,
   storage?: ClientStorage
 ) => {
@@ -123,14 +119,12 @@ export const initializeStore = (
 
           return {
             // Shared state
-            api: null,
             databaseService,
             replicationService,
 
             // Initialize
-            initialize: (api, capabilities) => {
+            initialize: (capabilities) => {
               set((state) => {
-                state.api = api;
                 state.databaseService = databaseService;
                 state.replicationService = replicationService;
               });
@@ -197,7 +191,7 @@ export const initializeStore = (
 
   // Set the implementation and initialize it
   storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
-  store.getState().initialize(api, capabilities);
+  store.getState().initialize(capabilities);
 };
 
 const ApiContext = createContext<ClientAPI | null>(null);
