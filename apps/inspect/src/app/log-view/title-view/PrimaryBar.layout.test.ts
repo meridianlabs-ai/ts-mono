@@ -115,9 +115,9 @@ describe("PrimaryBar shrink-priority contract", () => {
     );
   });
 
-  test("bodyContainer aligns items to the top so title meets first chip row", () => {
+  test("bodyContainer aligns items by baseline so title, model, and first chip row share a line", () => {
     expect(ruleBlock(PRIMARY_BAR_CSS, "bodyContainer")).toMatch(
-      /align-items\s*:\s*flex-start/
+      /align-items\s*:\s*baseline/
     );
   });
 });

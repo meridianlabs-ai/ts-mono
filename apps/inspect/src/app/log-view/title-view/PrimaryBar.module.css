@@ -31,17 +31,18 @@
   margin-left: 0.2rem;
 }
 
-/* Single-line flex row: title + model + tag chips. Items align to
-   their TOP so the eval name's top stays flush with the first chip
-   row even when chips wrap. A small bottom margin reserves breathing
-   room between the chip block and the secondary row (filename / copy
-   / download). */
+/* Single-line flex row: title + model + tag chips. Items align by
+   text baseline so the eval name, model name, and first row of chips
+   all sit on the same line. (Subsequent wrapped chip rows fall below,
+   inside the tag row's own box.) A small bottom margin reserves
+   breathing room between the chip block and the secondary row
+   (filename / copy / download). */
 .bodyContainer {
   margin-top: 0.1rem;
   margin-bottom: 0.4rem;
   display: flex;
   flex-wrap: nowrap;
-  align-items: flex-start;
+  align-items: baseline;
   column-gap: 0.5rem;
   min-width: 0;
 }
@@ -49,19 +50,15 @@
 /* Header-context overrides for <TagStrip>. The base flex rules
    (display/wrap/gap) live in TagStrip.module.css; this class adds the
    bits that only make sense inside the title+chips flex contention:
-     - align-items: flex-start  — chips' top edge meets the eval name's
-       cap line (the bodyContainer uses flex-start too).
-     - margin-top: 0.25rem      — pulls chips down a couple of pixels so
-       the first chip sits roughly at the eval-name x-height (top of the
-       dot on the "i") instead of butting against the title's cap line.
      - flex-shrink: 1 + min-width: 0 — the chip strip must shrink below
        its content width so chips wrap instead of pushing the trailing
        Edit pill past the right edge. (Default `min-width: auto`
        resolves to the content's intrinsic min and would prevent
-       shrinking even with flex-shrink: 1.) */
+       shrinking even with flex-shrink: 1.)
+   Vertical alignment to the title/model baseline is handled by the
+   parent `.bodyContainer`'s `align-items: baseline` — no margin or
+   internal `align-items` is needed here. */
 .tagRowHeader {
-  align-items: flex-start;
-  margin-top: 0.25rem;
   flex-shrink: 1;
   min-width: 0;
 }
@@ -74,7 +71,6 @@
 }
 
 .taskModel {
-  padding-top: 0.4rem;
   flex-shrink: 0;
 }
 
