@@ -1,12 +1,11 @@
 import clsx from "clsx";
-import { FC, RefObject, useCallback, useState } from "react";
+import { FC, RefObject, useState } from "react";
 
 import { EvalPlan, EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
 import { RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { useRefreshLog } from "../../state/hooks";
-import { useStore } from "../../state/store";
+import { useLogEditAffordance } from "../../state/hooks";
 import { EditButton } from "../log-view/title-view/EditButton";
 import { EditMetadataDialog } from "../log-view/title-view/EditMetadataDialog";
 
@@ -34,19 +33,8 @@ export const PlanCard: FC<PlanCardProps> = ({
   const metadata = metadataProp || {};
   const hasMetadata = Object.keys(metadata).length > 0;
 
-  const canEditMetadata = useStore((state) => Boolean(state.api?.edit_log));
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logStatus = useStore(
-    (state) => state.log.selectedLogDetails?.status
-  );
-  const refreshLog = useRefreshLog();
+  const { canEdit, selectedLogFile, refreshOnSave } = useLogEditAffordance();
   const [editingMetadata, setEditingMetadata] = useState(false);
-  const onMetadataSaved = useCallback(() => refreshLog(), [refreshLog]);
-
-  // Edit gated on the server with 409 while the recorder is running;
-  // mirror that here so the affordance isn't even offered.
-  const isInProgress = logStatus === "started";
-  const canEdit = canEditMetadata && !!selectedLogFile && !isInProgress;
   const showMetadataCard = hasMetadata || canEdit;
 
   return (
@@ -101,7 +89,7 @@ export const PlanCard: FC<PlanCardProps> = ({
           setShowing={setEditingMetadata}
           currentMetadata={metadata}
           logFile={selectedLogFile}
-          onSaved={onMetadataSaved}
+          onSaved={refreshOnSave}
         />
       )}
     </>

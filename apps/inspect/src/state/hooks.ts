@@ -169,6 +169,38 @@ export const useRefreshLog = () => {
   }, [refreshLog, resetFiltering, setLoading]);
 };
 
+export interface LogEditAffordance {
+  /** True when an edit can be initiated: server supports edits, a log is
+   *  selected, and the recorder isn't still appending. */
+  canEdit: boolean;
+  /** The log file the edit would target, or undefined. */
+  selectedLogFile: string | undefined;
+  /** Call after a successful edit to re-read the log into the store. */
+  refreshOnSave: () => void;
+}
+
+/**
+ * Capability + plumbing for an edit-the-current-log surface (tag, metadata,
+ * score, …). Each edit dialog kind reads this and renders its own dialog
+ * with its own payload — but the gate and the refresh wiring are shared.
+ *
+ * The in-progress gate mirrors the server: the edit API returns 409 while
+ * the recorder still owns the file, so offering the action and failing
+ * on save is worse than not offering it.
+ */
+export const useLogEditAffordance = (): LogEditAffordance => {
+  const hasEditApi = useStore((s) => Boolean(s.api?.edit_log));
+  const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
+  const logStatus = useStore((s) => s.log.selectedLogDetails?.status);
+  const refreshLog = useRefreshLog();
+  const isInProgress = logStatus === "started";
+  return {
+    canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
+    selectedLogFile,
+    refreshOnSave: refreshLog,
+  };
+};
+
 // Fetches all samples summaries (both completed and incomplete)
 // without applying any filtering
 export const useSampleSummaries = () => {
