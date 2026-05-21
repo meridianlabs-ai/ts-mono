@@ -3,12 +3,7 @@ import { FC } from "react";
 
 import type { ChatMessage, Event } from "@tsmono/inspect-common/types";
 import type { EventType } from "@tsmono/inspect-components/transcript";
-import {
-  formatDateTime,
-  formatNumber,
-  formatTime,
-  isRecord,
-} from "@tsmono/util";
+import { formatDateTime, formatNumber, formatTime } from "@tsmono/util";
 
 import { AppConfig, ScannerInput, Status } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
@@ -78,9 +73,11 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
         {displaySourceUri && (
           <>
             <span className={styles.dot}>&middot;</span>
-            <span className={styles.collapsedSource}>
-              <SourcePath uri={displaySourceUri} maxLength={48} />
-            </span>
+            <SourcePath
+              uri={displaySourceUri}
+              maxLength={Infinity}
+              className={styles.collapsedSource}
+            />
           </>
         )}
         {resultData.transcriptDate && (
@@ -113,11 +110,7 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
 
   const score = resultData?.transcriptScore;
   const hasScore = score != null;
-  const scoreGridColumns = hasScore
-    ? isRecord(score)
-      ? "minmax(0,1fr) minmax(260px, 38%)"
-      : "minmax(0,1fr) auto"
-    : undefined;
+  const scoreGridColumns = hasScore ? "minmax(0,1fr) auto" : undefined;
 
   return (
     <div

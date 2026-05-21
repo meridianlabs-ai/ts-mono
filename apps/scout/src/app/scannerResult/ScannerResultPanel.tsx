@@ -63,22 +63,57 @@ const kTabIdTranscript = "transcript";
 const kTabIdMetadata = "Metadata";
 
 export const ScannerResultPanel: FC = () => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const headerCollapsedRef = useRef(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // Track which result's scores dialog is open — auto-resets on navigation
   const [scoresDialogResultId, setScoresDialogResultId] = useState<
     string | undefined
   >();
 
-  // Collapse header when the scroller has been scrolled past the header
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    const onScroll = () => {
-      setHeaderCollapsed(scroller.scrollTop > 0);
+  // Collapse header when any scroll container inside contentArea has scrolled.
+  // Uses a callback ref so the listener attaches when the node mounts.
+  // After collapsing, the layout shift can cause scroll containers to resize
+  // and auto-clamp scrollTop to 0, which would immediately un-collapse.
+  // A brief cooldown prevents this bounce.
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const collapsedAtRef = useRef(0);
+  const contentRef = useCallback((node: HTMLDivElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    if (!node) {
+      headerCollapsedRef.current = false;
+      setHeaderCollapsed(false);
+      return;
+    }
+
+    const kScrollThreshold = 100;
+
+    const onScroll = (e: Event) => {
+      const target = e.target as Element;
+      const scrolled = target.scrollTop > kScrollThreshold;
+      if (scrolled && !headerCollapsedRef.current) {
+        // Collapsing frees vertical space (~140px). If the container's
+        // overflow is smaller than that, scrollTop will clamp to 0 after
+        // the layout shift, causing an immediate un-collapse flash.
+        const overflow = target.scrollHeight - target.clientHeight;
+        if (overflow < 150) return;
+        headerCollapsedRef.current = true;
+        collapsedAtRef.current = Date.now();
+        setHeaderCollapsed(true);
+      } else if (!scrolled && headerCollapsedRef.current) {
+        if (Date.now() - collapsedAtRef.current < 150) return;
+        const allAtTop = Array.from(node.querySelectorAll("*")).every(
+          (el) => el.scrollTop === 0
+        );
+        if (allAtTop) {
+          headerCollapsedRef.current = false;
+          setHeaderCollapsed(false);
+        }
+      }
     };
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", onScroll);
+    node.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    cleanupRef.current = () =>
+      node.removeEventListener("scroll", onScroll, { capture: true });
   }, []);
 
   // Url data
@@ -416,49 +451,46 @@ export const ScannerResultPanel: FC = () => {
           scanLoading || resultLoading || detailLoading || hasTranscriptLoading
         }
       />
-      <div className={styles.scroller} ref={scrollRef}>
-        <div className={styles.stickyHeader}>
-          <ScannerResultHeader
-            inputData={inputData}
-            resultData={selectedResult}
-            scan={selectedScan}
-            appConfig={appConfig}
-            collapsed={headerCollapsed}
-            onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
-          />
-        </div>
-        {selectedResult && (
-          <div
-            className={clsx(
-              styles.contentArea,
-              !validationSidebarCollapsed && styles.withValidation
-            )}
-          >
-            {validationSidebarCollapsed || !selectedResult.transcriptId ? (
-              <div className={styles.tabSetWrapper}>
+      <ScannerResultHeader
+        inputData={inputData}
+        resultData={selectedResult}
+        scan={selectedScan}
+        appConfig={appConfig}
+        collapsed={headerCollapsed}
+        onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
+      />
+      {selectedResult && (
+        <div
+          ref={contentRef}
+          className={clsx(
+            styles.contentArea,
+            !validationSidebarCollapsed && styles.withValidation
+          )}
+        >
+          {validationSidebarCollapsed || !selectedResult.transcriptId ? (
+            <div className={styles.tabSetWrapper}>
+              {renderTabSet(selectedResult)}
+            </div>
+          ) : (
+            <VscodeSplitLayout
+              className={styles.splitLayout}
+              fixedPane="end"
+              initialHandlePosition="80%"
+              minEnd="180px"
+              minStart="200px"
+            >
+              <div slot="start" className={styles.splitStart}>
                 {renderTabSet(selectedResult)}
               </div>
-            ) : (
-              <VscodeSplitLayout
-                className={styles.splitLayout}
-                fixedPane="end"
-                initialHandlePosition="80%"
-                minEnd="180px"
-                minStart="200px"
-              >
-                <div slot="start" className={styles.splitStart}>
-                  {renderTabSet(selectedResult)}
-                </div>
-                <div slot="end" className={styles.validationSidebar}>
-                  <ValidationCaseEditor
-                    transcriptId={selectedResult.transcriptId}
-                  />
-                </div>
-              </VscodeSplitLayout>
-            )}
-          </div>
-        )}
-      </div>
+              <div slot="end" className={styles.validationSidebar}>
+                <ValidationCaseEditor
+                  transcriptId={selectedResult.transcriptId}
+                />
+              </div>
+            </VscodeSplitLayout>
+          )}
+        </div>
+      )}
       {selectedResult?.transcriptScore != null && (
         <AllScoresDialog
           showing={scoresDialogResultId === scanResultUuid}

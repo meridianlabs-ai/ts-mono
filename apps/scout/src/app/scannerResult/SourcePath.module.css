@@ -3,10 +3,12 @@
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .pathText {
   font-family: var(--bs-font-monospace);
+  font-size: 0.9em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

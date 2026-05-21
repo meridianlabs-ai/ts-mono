@@ -24,13 +24,19 @@ export const ScoreColumn: FC<ScoreColumnProps> = ({
   const isComplex = isRecord(score);
   const totalScores = isComplex ? Object.keys(score).length : 0;
 
+  const kMaxPreviewRows = 3;
+
   return (
     <div className={styles.scoreColumn}>
       <span className={clsx(labelClassName)}>Score</span>
-      <span className={clsx(valueClassName)}>
-        <ScoreValue score={score} maxRows={5} />
+      <span className={clsx(valueClassName, isComplex && styles.scoreGrid)}>
+        <ScoreValue
+          score={score}
+          maxRows={kMaxPreviewRows}
+          expandable={false}
+        />
       </span>
-      {isComplex && totalScores > 5 && onShowAllScores && (
+      {isComplex && totalScores > kMaxPreviewRows && onShowAllScores && (
         <button
           type="button"
           className={styles.allScoresLink}

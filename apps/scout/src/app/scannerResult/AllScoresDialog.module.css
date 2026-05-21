@@ -1,0 +1,83 @@
+.dialog > div:first-child {
+  padding: 6px 8px;
+}
+
+.dialog > div:first-child h3 {
+  font-size: 12px;
+}
+
+/* Align close button with right edge of value column */
+.dialog > div:first-child button {
+  padding: 4px 0;
+}
+
+.body {
+  margin: -16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.table thead {
+  background: var(--bs-light-bg-subtle);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.table th {
+  text-align: left;
+  font-weight: 400;
+  font-size: var(--inspect-font-size-small);
+  color: var(--bs-secondary);
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sortIcon {
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+/* ── Rows ────────────────────────────────────────────────────── */
+
+.table td {
+  padding: 4px 8px;
+  font-size: var(--inspect-font-size-small);
+  border-bottom: 1px dotted var(--bs-light-border-subtle);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.nameCell {
+  font-family: var(--bs-font-monospace);
+  font-size: var(--inspect-font-size-smallest);
+  color: var(--bs-secondary);
+  white-space: nowrap;
+}
+
+.valueCell {
+  color: var(--bs-body-color);
+  font-feature-settings: "tnum";
+  text-align: right;
+}
+
+.valueHeader {
+  text-align: right;
+}
+
+.valueHeader .headerContent {
+  justify-content: flex-end;
+}
