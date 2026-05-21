@@ -22,6 +22,7 @@ export const kDefaultExcludeEvents = [
   "store",
   "branch",
   "anchor",
+  "checkpoint",
 ];
 
 export interface SampleSlice {

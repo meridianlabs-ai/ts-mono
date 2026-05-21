@@ -6,6 +6,7 @@
 export const TranscriptIcons = {
   agent: "bi bi-grid",
   approve: "bi bi-shield",
+  checkpoint: "bi bi-bookmark-check-fill",
   approvals: {
     approve: "bi bi-shield-check",
     reject: "bi bi-shield-x",

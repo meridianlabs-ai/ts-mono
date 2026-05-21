@@ -9,6 +9,7 @@ import { useStore } from "../../../state/store";
 
 export const kDefaultExcludedEventTypes: EventTypeValue[] = [
   "branch",
+  "checkpoint",
   "sample_init",
   "sandbox",
   "state",

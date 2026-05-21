@@ -918,10 +918,11 @@ export interface components {
         };
         /**
          * BudgetPercent
-         * @description Fire at percentage milestones of a named budget. Not yet implemented (Phase 5).
+         * @description Fire on each ``percent``-percent slice of the active ``budget``.
          *
-         *     Example: ``BudgetPercent(budget="cost", percent=10)`` fires at 10%, 20%, …
-         *     of the ``cost_limit`` configured on the task or sample.
+         *     ``percent`` is in 0..100. With ``percent=25``, the trigger fires
+         *     at ~25% / 50% / 75% / 100% of the relevant limit's usage. Has no
+         *     effect when no limit is set for the chosen budget.
          */
         BudgetPercent: {
             /**
@@ -1067,6 +1068,66 @@ export interface components {
             tool_call_id?: string[] | null;
         };
         /**
+         * CheckpointEvent
+         * @description A successful checkpoint commit.
+         *
+         *     Emitted by the checkpointer immediately after the per-checkpoint
+         *     sidecar JSON is written — see working.md §8a. Carries the full
+         *     sidecar payload flattened into top-level fields (via multiple
+         *     inheritance from :class:`CheckpointDetails`), so a consumer of
+         *     ``transcript().events`` (or the ``.eval`` log) reads
+         *     ``event.checkpoint_id`` / ``event.trigger`` / ``event.host`` etc.
+         *     directly — same data as someone reading
+         *     ``<sample>/ckpt-NNNNN.json`` from disk.
+         */
+        CheckpointEvent: {
+            /** Checkpoint Id */
+            checkpoint_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /**
+             * Event
+             * @default checkpoint
+             * @constant
+             */
+            event: "checkpoint";
+            host: components["schemas"]["SnapshotDetails"];
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Sandboxes */
+            sandboxes: {
+                [key: string]: components["schemas"]["SnapshotDetails"];
+            };
+            /** Size Bytes */
+            size_bytes: number;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget";
+            /** Turn */
+            turn: number;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * CheckpointSampleConfig
          * @description Checkpoint configuration fields that may be set at the sample layer.
          *
@@ -1089,7 +1150,7 @@ export interface components {
                 [key: string]: string[];
             } | null;
             /** Trigger */
-            trigger?: components["schemas"]["TimeInterval"] | components["schemas"]["TurnInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | "manual" | null;
+            trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
         };
         /**
          * CompactionEvent
@@ -1342,7 +1403,12 @@ export interface components {
         };
         /**
          * CostInterval
-         * @description Fire every $N spent. Not yet implemented (Phase 5).
+         * @description Fire every ``every`` dollars of sample-level cost.
+         *
+         *     Sample total cost is read from
+         *     :func:`inspect_ai.model.sample_total_cost`; the trigger fires
+         *     each time the running total crosses another ``every``-dollar
+         *     boundary since the last fire.
          */
         CostInterval: {
             /** Every */
@@ -2073,6 +2139,14 @@ export interface components {
             content: components["schemas"]["Logprob"][];
         };
         /**
+         * Manual
+         * @description No-op trigger spec.
+         *
+         *     The engine's ``tick()`` always returns ``None`` for this spec —
+         *     fires happen only through explicit ``cp.checkpoint()`` calls.
+         */
+        Manual: Record<string, never>;
+        /**
          * MessageFormatOptions
          * @description Message formatting options for controlling message content display.
          *
@@ -2106,7 +2180,7 @@ export interface components {
                 [key: string]: string;
             } | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
@@ -2997,7 +3071,7 @@ export interface components {
          */
         ScannerInputResponse: {
             /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
             input_data?: components["schemas"]["EventsData"] | null;
             /**
              * Input Type
@@ -3261,6 +3335,23 @@ export interface components {
             result: components["schemas"]["Result"];
         };
         /**
+         * SnapshotDetails
+         * @description Per-backup stats captured in the sidecar.
+         *
+         *     One per repo (host repo + one per active sandbox repo). Values come
+         *     from restic's backup summary — see :class:`ResticBackupSummary`.
+         */
+        SnapshotDetails: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Snapshot Id */
+            snapshot_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * SpanBeginEvent
          * @description Mark the beginning of a transcript span.
          */
@@ -3486,7 +3577,10 @@ export interface components {
         };
         /**
          * TimeInterval
-         * @description Fire every N of wall-clock time.
+         * @description Fire after a wall-clock interval.
+         *
+         *     The engine fires when at least ``every`` has elapsed since the
+         *     last fire (or since the session opened, for the first fire).
          */
         TimeInterval: {
             /**
@@ -3565,7 +3659,12 @@ export interface components {
         };
         /**
          * TokenInterval
-         * @description Fire every N tokens generated. Not yet implemented (Phase 5).
+         * @description Fire every ``every`` tokens of sample-level usage.
+         *
+         *     Sample total tokens are read from
+         *     :func:`inspect_ai.model.sample_total_tokens`; the trigger fires
+         *     each time the running total crosses another ``every``-token
+         *     boundary since the last fire.
          */
         TokenInterval: {
             /** Every */
@@ -3790,7 +3889,7 @@ export interface components {
             /** Error */
             error?: string | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             /** Limit */
             limit?: string | null;
             /** Message Count */
@@ -3917,7 +4016,14 @@ export interface components {
         };
         /**
          * TurnInterval
-         * @description Fire every N agent turns.
+         * @description Fire after every ``every`` agent turns of work.
+         *
+         *     The very first ``tick()`` call marks the boundary *before* turn 1
+         *     has run — agents place ``cp.tick()`` at the top of their loop, so
+         *     the opening tick stands between "no turn yet" and "turn 1." That
+         *     boundary is informational and doesn't count toward the threshold;
+         *     otherwise ``every=1`` would fire an empty checkpoint on the
+         *     opening tick.
          */
         TurnInterval: {
             /** Every */

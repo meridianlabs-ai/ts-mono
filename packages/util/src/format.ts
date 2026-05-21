@@ -213,3 +213,33 @@ export function centerTruncate(str: string, maxLength: number = 50): string {
 export function formatPercent(value: number, maxDecimals?: number): string {
   return `${formatPrettyDecimal(value * 100, maxDecimals ?? 2)}%`;
 }
+
+/**
+ * Formats a duration in milliseconds as a seconds string with up to 3 decimal
+ * places (e.g. "1.234 s"). Always renders in seconds — does not decompose into
+ * minutes/hours; use formatTime for that.
+ */
+export function formatMs(ms: number): string {
+  return `${(ms / 1000).toLocaleString(navigator.language, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  })} s`;
+}
+
+/**
+ * Formats a byte count as a human-readable string (B, KB, MB, GB, TB).
+ */
+export function formatBytes(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIdx = 0;
+  while (value >= 1024 && unitIdx < units.length - 1) {
+    value /= 1024;
+    unitIdx++;
+  }
+  const formatted = value.toLocaleString(navigator.language, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: unitIdx === 0 ? 0 : 2,
+  });
+  return `${formatted} ${units[unitIdx]}`;
+}
