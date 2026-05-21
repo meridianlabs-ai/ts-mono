@@ -10,6 +10,7 @@ import { createLogger } from "@tsmono/util";
 
 import { sampleIdsEqual } from "../app/shared/sample";
 import { Event } from "../app/types";
+import api from "../client/api";
 import {
   ClientAPI,
   EventData,
@@ -117,12 +118,6 @@ export function createSamplePolling(
     const pollCallback = async (): Promise<PollingCallbackResult> => {
       const state = store.getState();
       const { sampleActions } = state;
-
-      // Get the api
-      const api = state.api;
-      if (!api) {
-        throw new Error("Required API is missing");
-      }
 
       if (!api.get_log_sample_data) {
         throw new Error("Required API get_log_sample_data is undefined.");

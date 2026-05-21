@@ -1,5 +1,6 @@
 import { createLogger } from "@tsmono/util";
 
+import api from "../client/api";
 import { createPolling } from "../utils/polling";
 
 import { StoreState } from "./store";
@@ -27,10 +28,9 @@ export function createLogPolling(
     }
 
     const state = get();
-    const api = state.api;
     const selectedLogFile = state.logs.selectedLogFile;
 
-    if (!api || !selectedLogFile) {
+    if (!selectedLogFile) {
       return false;
     }
 
@@ -93,12 +93,8 @@ export function createLogPolling(
           return false;
         }
 
-        // The state for polling
-        const state = get();
-
         // Don't proceed if API doesn't support it
-        const api = state.api;
-        if (!api?.get_log_pending_samples) {
+        if (!api.get_log_pending_samples) {
           return false;
         }
 

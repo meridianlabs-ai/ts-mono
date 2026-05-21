@@ -1,6 +1,7 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
+import api from "../client/api";
 import { createPolling } from "../utils/polling";
 
 const log = createLogger("Client-Events-Service");
@@ -45,7 +46,7 @@ class ClientEventsService {
     await this.refreshPendingLogFiles();
   }
 
-  startPolling(logs: LogHandle[], api: any) {
+  startPolling(logs: LogHandle[]) {
     // Stop any existing polling
     this.stopPolling();
 
@@ -61,7 +62,7 @@ class ClientEventsService {
         }
 
         log.debug(`Polling client events`);
-        const events = await api?.client_events();
+        const events = await api.client_events();
         log.debug(`Received events`, events);
 
         if (this.abortController?.signal.aborted) {

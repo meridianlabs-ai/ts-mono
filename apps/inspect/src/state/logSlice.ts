@@ -2,6 +2,7 @@ import { createLogger } from "@tsmono/util";
 
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
+import api from "../client/api";
 import { LogDetails, PendingSamples } from "../client/api/types";
 import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
@@ -184,7 +185,6 @@ export const createLogSlice = (
 
       syncLog: async (logFileName: string) => {
         const state = get();
-        const api = state.api;
 
         // Ensure there is a log dir
         let logDir = state.logs.logDir;
@@ -195,11 +195,6 @@ export const createLogSlice = (
         const logAbsPath = !isUri(logFileName)
           ? join(logFileName, logDir)
           : logFileName;
-
-        if (!api) {
-          console.error("API not initialized in Store");
-          return;
-        }
 
         log.debug(`Load log: ${logAbsPath}`);
 
@@ -284,10 +279,9 @@ export const createLogSlice = (
 
       refreshLog: async () => {
         const state = get();
-        const api = state.api;
         const selectedLogFile = state.logs.selectedLogFile;
 
-        if (!api || !selectedLogFile) {
+        if (!selectedLogFile) {
           return;
         }
 

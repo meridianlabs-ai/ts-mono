@@ -9,6 +9,7 @@ import {
   isSingleFileMode,
 } from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
+import api from "../client/api";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
@@ -144,12 +145,6 @@ export const createLogsSlice = (
         }),
       syncLogPreviews: async (logs: LogHandle[]) => {
         const state = get();
-        const api = state.api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return;
-        }
-
         if (!state.replicationService) {
           console.error("Replication service not initialized in LogsStore");
           return;
@@ -235,19 +230,14 @@ export const createLogsSlice = (
           logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
           // For bare-basename deep links there's no dir to derive; fall back
           // to the server's configured log dir (cheap — no walk).
-          if (logDir === undefined && state.api?.get_log_dir) {
+          if (logDir === undefined) {
             try {
-              logDir = await state.api.get_log_dir();
+              logDir = await api.get_log_dir();
             } catch (e) {
               console.log(e);
             }
           }
         } else {
-          const api = state.api;
-          if (!api) {
-            console.error("API not initialized in LogsStore");
-            return undefined;
-          }
           try {
             const root = await api.get_log_root();
             logDir = root.log_dir;
@@ -276,12 +266,6 @@ export const createLogsSlice = (
         }
       },
       syncLogs: async () => {
-        const api = get().api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return [];
-        }
-
         const databaseService = get().databaseService;
         const useProgress = !!databaseService?.getDatabaseHandle();
         if (useProgress) {
@@ -398,15 +382,11 @@ export const createLogsSlice = (
         return (await get().replicationService?.sync(initDatabase)) || [];
       },
       syncEvalSetInfo: async (logPath?: string) => {
-        const api = get().api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return undefined;
-        }
         const info = await api.get_eval_set(logPath);
         set((state) => {
           state.logs.evalSet = info;
         });
+        return info;
       },
       updateFlowData: (flowPath: string, flowData?: string) => {
         set((state) => {
