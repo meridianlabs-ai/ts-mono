@@ -11,30 +11,65 @@ interface TagChipProps {
   // (used inside the editor while there are uncommitted adds).
   isNew?: boolean;
   // Optional remove-callback. When provided, the chip renders a small
-  // × button on the right (used inside the editor only).
+  // × button on the right (used inside the editor only). Mutually
+  // exclusive with `onClick` — passing both would nest a button inside
+  // a button.
   onRemove?: () => void;
+  // Optional click-callback that makes the chip itself interactive
+  // (rendered as a `<button>`). Used in the viewer header so clicking
+  // any chip opens the edit dialog, matching the Edit/overflow pills.
+  onClick?: () => void;
 }
 
-export const TagChip: FC<TagChipProps> = ({ label, isNew, onRemove }) => (
-  <span
-    className={clsx(styles.chip, isNew && styles.chipNew, "text-size-smaller")}
-    // Truncated labels stay discoverable on hover. Without this, a user
-    // who entered a long tag has no way to read it back from the header.
-    title={label}
-  >
-    {/* The label lives in its own bounded element so a runaway-length
-       tag can't widen the whole chip — which would otherwise push the
-       inline Edit button off the right edge of the viewer header. */}
-    <span className={styles.chipLabel}>{label}</span>
-    {onRemove && (
+export const TagChip: FC<TagChipProps> = ({
+  label,
+  isNew,
+  onRemove,
+  onClick,
+}) => {
+  const className = clsx(
+    styles.chip,
+    isNew && styles.chipNew,
+    onClick && styles.chipClickable,
+    "text-size-smaller"
+  );
+
+  // The label lives in its own bounded element so a runaway-length
+  // tag can't widen the whole chip — which would otherwise push the
+  // inline Edit button off the right edge of the viewer header.
+  const labelNode = <span className={styles.chipLabel}>{label}</span>;
+
+  if (onClick) {
+    return (
       <button
         type="button"
-        className={styles.chipRemove}
-        aria-label={`Remove ${label}`}
-        onClick={onRemove}
+        className={className}
+        title={label}
+        aria-label={`Edit tags (${label})`}
+        onClick={onClick}
       >
-        <i className={ApplicationIcons.close} />
+        {labelNode}
       </button>
-    )}
-  </span>
-);
+    );
+  }
+
+  return (
+    <span
+      className={className}
+      // Truncated labels stay discoverable on hover.
+      title={label}
+    >
+      {labelNode}
+      {onRemove && (
+        <button
+          type="button"
+          className={styles.chipRemove}
+          aria-label={`Remove ${label}`}
+          onClick={onRemove}
+        >
+          <i className={ApplicationIcons.close} />
+        </button>
+      )}
+    </span>
+  );
+};

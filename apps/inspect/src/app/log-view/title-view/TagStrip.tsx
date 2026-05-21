@@ -123,14 +123,21 @@ export const TagStrip: FC<TagStripProps> = ({
   return (
     <div ref={rowRef} className={clsx(styles.tagRow, className)}>
       {tags.slice(0, effectiveCount).map((tag) => (
-        <TagChip key={tag} label={tag} />
+        <TagChip
+          key={tag}
+          label={tag}
+          onClick={showEdit ? onEdit : undefined}
+        />
       ))}
       {hiddenTags.length > 0 && (
         <OverflowPill hiddenTags={hiddenTags} onClick={onEdit} />
       )}
       {showEdit && (
         <EditButton onClick={onEdit} title="Edit tags" variant="pill">
-          Tags
+          {/* The pill labels itself only when no chips are present to
+              indicate purpose. Once any tag (visible or hidden behind
+              the overflow pill) exists, the action becomes "Edit". */}
+          {tags.length === 0 ? "Tags" : "Edit"}
         </EditButton>
       )}
     </div>

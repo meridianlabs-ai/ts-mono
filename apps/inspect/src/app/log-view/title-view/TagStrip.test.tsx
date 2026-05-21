@@ -11,8 +11,14 @@
  * tests below pin Edit's inline placement.
  */
 
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, test } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { TagStrip } from "./TagStrip";
 
@@ -59,17 +65,62 @@ describe("TagStrip", () => {
     for (const label of ["one", "two", "three"]) {
       expect(within(tagRow!).getByText(label)).toBeInTheDocument();
     }
-    // Exactly one button (the Edit pill).
-    expect(within(tagRow!).getAllByRole("button")).toHaveLength(1);
+    // Each chip is rendered as a clickable <button> so the whole pill
+    // strip opens the edit dialog uniformly — three chip buttons plus
+    // the trailing Edit pill.
+    expect(within(tagRow!).getAllByRole("button")).toHaveLength(4);
   });
 
-  test("Edit button still renders when there are no tags", () => {
+  test("clicking a chip fires onEdit when showEdit is true", () => {
+    const onEdit = vi.fn();
+    render(
+      <TagStrip
+        tags={["alpha", "beta"]}
+        showEdit
+        onEdit={onEdit}
+      />
+    );
+    fireEvent.click(screen.getByText("alpha"));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  test("chips are inert spans when showEdit is false", () => {
+    // When the log isn't editable, chips fall back to non-interactive
+    // <span> elements — they shouldn't surface as buttons because
+    // clicking them can't open a usable dialog.
+    const { container } = render(
+      <TagStrip
+        tags={["alpha", "beta"]}
+        showEdit={false}
+        onEdit={() => {}}
+      />
+    );
+    const tagRow = container.querySelector<HTMLElement>(".tagRow");
+    expect(tagRow).not.toBeNull();
+    expect(within(tagRow!).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  test("Edit pill labels itself as 'Tags' when there are no chips", () => {
     render(<TagStrip tags={[]} showEdit onEdit={() => {}} />);
-    // With no chips present, the button labels itself ("Tags") so the
-    // pill makes sense in isolation.
+    // With no chips present, the button labels itself so the pill
+    // makes sense in isolation.
     const btn = screen.getByTitle("Edit tags");
     expect(btn).toBeInTheDocument();
     expect(btn.textContent).toMatch(/Tags/);
+    expect(btn.textContent).not.toMatch(/Edit/);
+  });
+
+  test("Edit pill says 'Edit' when chips are present", () => {
+    render(
+      <TagStrip
+        tags={["alpha", "beta"]}
+        showEdit
+        onEdit={() => {}}
+      />
+    );
+    const btn = screen.getByTitle("Edit tags");
+    expect(btn.textContent).toMatch(/Edit/);
+    expect(btn.textContent).not.toMatch(/Tags/);
   });
 
   test("renders nothing when there are no tags and no edit affordance", () => {

@@ -15,6 +15,10 @@
   border: 1px solid var(--bs-border-color);
   letter-spacing: 0.01em;
   white-space: nowrap;
+  /* When the chip is rendered as a <button> (clickable header chip),
+     inherit the surrounding font so the user-agent button styling
+     doesn't switch the text to system fonts at the wrong size. */
+  font: inherit;
   /* line-height > 1 so the label's `overflow: hidden` box (used for
      ellipsis on long tags) contains the full glyph extent, including
      descenders on g/p/q/y/j. With line-height: 1 the box was exactly
@@ -36,6 +40,22 @@
 .chipNew {
   border-color: var(--bs-success-border-subtle);
   color: var(--bs-success-text-emphasis);
+}
+
+/* Applied when the chip is rendered as a clickable <button> (header
+   context). Mirrors the Edit/overflow pills' hover + focus treatment
+   so the whole strip behaves consistently. */
+.chipClickable {
+  cursor: pointer;
+}
+
+.chipClickable:hover {
+  background: var(--bs-secondary-bg);
+}
+
+.chipClickable:focus-visible {
+  outline: 2px solid var(--bs-border-color);
+  outline-offset: 1px;
 }
 
 .chipRemove {
