@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -290,10 +291,15 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const canSave =
     !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
 
+  // Re-entry guard (see EditTagsDialog for rationale).
+  const inFlightRef = useRef(false);
+
   const handleSave = async () => {
-    if (!canSave || !api?.edit_log) return;
-    setSubmitting(true);
-    setError(undefined);
+    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+    inFlightRef.current = true;
+    // Don't clear `error` here — see EditTagsDialog for the no-flash
+    // rationale. Delayed "Saving…" indicator likewise.
+    const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
     try {
       const metadata_set: Record<string, unknown> = {};
       for (const entry of entries) {
@@ -326,11 +332,13 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
           `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
             `and strings, e.g. {"a": 1} or "yes".`
         );
-        setSubmitting(false);
-        return;
+      } else {
+        setError(formatEditError(err));
       }
-      setError(formatEditError(err));
+    } finally {
+      window.clearTimeout(indicatorTimer);
       setSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 

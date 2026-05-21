@@ -1,5 +1,12 @@
 import clsx from "clsx";
-import { FC, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import {
+  FC,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
 
@@ -111,10 +118,28 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   const canSave =
     !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
 
+  // Re-entry guard: prevents a second save from starting if the user
+  // clicks twice before the first finishes. Kept in a ref (not state)
+  // so we can read/write it synchronously without scheduling a render.
+  const inFlightRef = useRef(false);
+
   const handleSave = async () => {
-    if (!canSave || !api?.edit_log) return;
-    setSubmitting(true);
-    setError(undefined);
+    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+    inFlightRef.current = true;
+    // NOTE: we intentionally do NOT call `setError(undefined)` here.
+    // Clearing then re-setting the same error on a quick failure made
+    // the error region disappear and re-appear in two adjacent renders
+    // — a visible flash. Leaving the previous error in place means:
+    //   - Same error reproduced → setError(sameString) is a no-op
+    //     (React compares with Object.is), no re-render, no flash.
+    //   - Different error → one clean transition to the new text.
+    //   - Save succeeds → dialog closes, and the reopen-effect resets
+    //     state for the next session, so stale errors never persist.
+    // Delay the "Saving…" indicator so requests that fail almost
+    // immediately (server unreachable → fetch rejects with a TypeError
+    // before any network IO) don't flash the indicator on and off.
+    // For slower saves the indicator still appears.
+    const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
     try {
       const edit: TagsEdit = {
         type: "tags",
@@ -134,7 +159,10 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       onSaved?.();
     } catch (err) {
       setError(formatEditError(err));
+    } finally {
+      window.clearTimeout(indicatorTimer);
       setSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 
