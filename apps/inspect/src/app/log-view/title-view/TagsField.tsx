@@ -8,6 +8,11 @@ import { TagStrip } from "./TagStrip";
 interface TagsFieldProps {
   tags: string[];
   className?: string;
+  /**
+   * Forwarded to `<TagStrip>` — collapse chips to just the Edit pill
+   * when they would wrap to multiple lines. Off by default.
+   */
+  collapseOnWrap?: boolean;
 }
 
 /**
@@ -18,7 +23,11 @@ interface TagsFieldProps {
  * for its dialog. Consumers pass the tag list and an optional className
  * for layout context.
  */
-export const TagsField: FC<TagsFieldProps> = ({ tags, className }) => {
+export const TagsField: FC<TagsFieldProps> = ({
+  tags,
+  className,
+  collapseOnWrap,
+}) => {
   const { canEdit, selectedLogFile, refreshOnSave } = useLogEditAffordance();
   const [editingTags, setEditingTags] = useState(false);
 
@@ -29,6 +38,7 @@ export const TagsField: FC<TagsFieldProps> = ({ tags, className }) => {
         showEdit={canEdit}
         onEdit={() => setEditingTags(true)}
         className={className}
+        collapseOnWrap={collapseOnWrap}
       />
       {selectedLogFile && (
         <EditTagsDialog

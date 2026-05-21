@@ -91,7 +91,11 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             ) : (
               ""
             )}
-            <TagsField tags={tagList} className={styles.tagRowHeader} />
+            <TagsField
+              tags={tagList}
+              className={styles.tagRowHeader}
+              collapseOnWrap
+            />
           </div>
           {evalSpec?.model_roles ? (
             <ModelRolesView roles={evalSpec.model_roles} />
