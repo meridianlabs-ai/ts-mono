@@ -490,7 +490,10 @@ const MetaRow: FC<{
     // are safe.
     data-meta-key={entry.key}
   >
-    <code className={clsx("text-size-smaller", styles.key)}>{entry.key}</code>
+    {/* Plain <span> not <code> — the global theme tints `<code>` with
+        `--bs-code-color` (dark red) at higher specificity than a CSS
+        module class. The monospace font comes from `.key`. */}
+    <span className={clsx("text-size-smaller", styles.key)}>{entry.key}</span>
     <div className={styles.value}>
       <AutogrowText
         value={entry.text}

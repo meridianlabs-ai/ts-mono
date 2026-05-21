@@ -10,21 +10,28 @@
   background: var(--bs-body-bg);
 }
 
+/* Single grid spanning every row so columns line up uniformly across
+   the whole table. Each row is a subgrid inheriting the parent track
+   layout, which keeps row-level styling (divider, "new" highlight)
+   attached to a single wrapper element rather than every cell. */
 .table {
-  /* chrome handled by .tableScroll above */
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr auto;
+  column-gap: 0.625rem;
 }
 
 .empty {
   padding: 0.75rem 0.875rem;
   color: var(--bs-secondary-color);
+  /* Span all columns when the table is otherwise empty. */
+  grid-column: 1 / -1;
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(140px, 220px) 1fr auto;
-  gap: 0.625rem;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: flex-start;
-  padding: 0.625rem 0.75rem;
 }
 
 .rowDivider {
@@ -35,22 +42,26 @@
   background: var(--bs-success-bg-subtle);
 }
 
+/* Padding lives on the individual cells (not the .row wrapper) so the
+   subgrid tracks stay aligned to the parent's column lines — putting
+   padding on the wrapper would shift its content inward and break the
+   subgrid alignment. The first and last cells absorb the horizontal
+   inset that previously came from `.row { padding-inline: 0.75rem }`. */
 .key {
   font-family: var(--bs-font-monospace);
-  color: var(--bs-body-color);
-  padding-top: 0.4rem;
   word-break: break-all;
+  padding: 1rem 0 0.625rem 0.75rem;
 }
 
 .value {
   min-width: 0;
+  padding: 0.625rem 0;
 }
 
 .remove {
   background: transparent;
   border: none;
-  padding: 0.25rem 0.4rem;
-  margin-top: 0.25rem;
+  padding: 0.875rem 0.75rem 0.625rem 0.4rem;
   color: var(--bs-secondary-color);
   cursor: pointer;
   border-radius: 4px;
