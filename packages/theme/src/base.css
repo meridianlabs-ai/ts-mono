@@ -3,6 +3,12 @@
   --bs-border-radius-lg: 4px;
   --bs-popover-max-width: 50%;
   --bs-code-color: #8b0000;
+  /* Secondary/italic guidance text (e.g. "optional" next to the Reason
+     label in the edit dialogs). Bootstrap's --bs-secondary-color is
+     readable on a light surface; in VS Code dark themes it disappears
+     against the dialog background, so this variable is re-pointed at
+     --vscode-descriptionForeground below. */
+  --inspect-hint-foreground: var(--bs-secondary-color);
   --inspect-find-background: var(--bs-body-bg);
   --inspect-find-foreground: var(--bs-body-color);
   --inspect-input-background: var(--bs-body-bg);
@@ -202,6 +208,10 @@ body[class^="vscode-"] {
   --inspect-input-background: var(--vscode-input-background);
   --inspect-input-foreground: var(--vscode-input-foreground);
   --inspect-input-border: var(--vscode-input-border);
+  /* descriptionForeground is the muted-but-readable text VS Code uses
+     for inline guidance (e.g. quick-pick descriptions). Matches the
+     editor's contrast tuning in both light and dark themes. */
+  --inspect-hint-foreground: var(--vscode-descriptionForeground);
   --inspect-diff-add-color: var(--vscode-diffEditor-insertedTextBackground);
   --inspect-diff-remove-color: var(--vscode-diffEditor-removedTextBackground);
   --inspect-glass-color: var(--vscode-editor-foreground);
@@ -309,6 +319,58 @@ body[class^="vscode-"] .btn-primary {
   --bs-btn-disabled-color: var(--vscode-button-foreground);
   --bs-btn-disabled-bg: var(--vscode-button-background);
   --bs-btn-disabled-border-color: var(--vscode-button-background);
+  --bs-btn-disabled-opacity: 0.8;
+}
+
+/* Inside modal dialogs (edit tags / edit metadata / scoring detail)
+   the editor-tuned `--vscode-editorGroup-border` reads as nearly
+   invisible against dark themes — chip strips, the metadata grid,
+   and form-control inputs all lose their visual containers. Re-point
+   `--bs-border-color` to a widget-grade border so anything Bootstrap
+   styles with the border-color token (chip outlines, input borders,
+   table dividers, etc.) becomes legible. The fallback chain prefers
+   widget/editorWidget borders (typically tuned by themes for popups)
+   and only drops back to editorGroup-border if nothing else is set. */
+body[class^="vscode-"] .modal {
+  --bs-border-color: var(
+    --vscode-widget-border,
+    var(--vscode-editorWidget-border, var(--vscode-editorGroup-border))
+  );
+}
+
+/* Form-control inputs inside dialogs (Author, Reason, "Add a tag…",
+   "Add a key…") should look like native VS Code inputs rather than
+   editor-background panes: surface the input background/foreground
+   tokens, and use the input placeholder token so the placeholder
+   text stays readable in dark themes. */
+body[class^="vscode-"] .modal .form-control {
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-color: var(
+    --vscode-input-border,
+    var(--vscode-widget-border, var(--vscode-editorGroup-border))
+  );
+}
+
+body[class^="vscode-"] .modal .form-control::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+  opacity: 1;
+}
+
+/* Mirror .btn-primary for .btn-secondary so Cancel buttons and the
+   "+ Add" pill (both rendered with Bootstrap's btn-secondary) read as
+   native VS Code secondary buttons rather than the washed-out
+   Bootstrap gray that has poor contrast in dark themes. */
+body[class^="vscode-"] .btn-secondary {
+  --bs-btn-bg: var(--vscode-button-secondaryBackground);
+  --bs-btn-border-color: var(--vscode-button-secondaryBackground);
+  --bs-btn-hover-bg: var(--vscode-button-secondaryHoverBackground);
+  --bs-btn-hover-border-color: var(--vscode-button-secondaryHoverBackground);
+  --bs-btn-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-hover-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-disabled-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-disabled-bg: var(--vscode-button-secondaryBackground);
+  --bs-btn-disabled-border-color: var(--vscode-button-secondaryBackground);
   --bs-btn-disabled-opacity: 0.8;
 }
 

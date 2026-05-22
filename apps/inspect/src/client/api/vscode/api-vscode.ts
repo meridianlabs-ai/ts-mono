@@ -1,20 +1,25 @@
 import JSON5 from "json5";
 
+import { LogUpdate } from "@tsmono/inspect-common/types";
 import { getVscodeApi } from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
 import {
   Capabilities,
+  EditLogResult,
   LogContents,
   LogViewAPI,
   PendingSampleResponse,
   PendingSamples,
   SampleData,
   SampleDataResponse,
+  UserInfo,
 } from "../types";
+import { ApiError } from "../view-server/request";
 
 import {
   kJsonRpcMethodNotFound,
+  kMethodEditLog,
   kMethodEvalLog,
   kMethodEvalLogBytes,
   kMethodEvalLogDir,
@@ -22,6 +27,7 @@ import {
   kMethodEvalLogHeaders,
   kMethodEvalLogInfo,
   kMethodEvalLogs,
+  kMethodGetUserInfo,
   kMethodLogMessage,
   kMethodPendingSamples,
   kMethodSampleData,
@@ -206,6 +212,72 @@ async function download_file() {
   throw Error("Downloading files is not supported in VS Code");
 }
 
+/**
+ * POSTs a LogUpdate (tag/metadata edits + provenance) to the VS Code
+ * extension, which read-modifies-writes the log header and returns the
+ * updated EvalLog (plus an ETag for S3-backed logs).
+ *
+ * Cross-process error mapping:
+ *   - HTTP-style status codes (400/409/412/…) thrown by the extension
+ *     come back through JSON-RPC with `error.code = <status>`. We
+ *     re-throw them as `ApiError` so the existing dialog error mapper
+ *     (`formatEditError`) handles 412 stale-ETag and 400 validation
+ *     branches identically across the view-server and vscode paths.
+ *   - `kJsonRpcMethodNotFound` means the extension predates edit
+ *     support; surface an actionable message instead of the raw
+ *     JSON-RPC text.
+ */
+async function edit_log(
+  log_file: string,
+  update: LogUpdate,
+  if_match_etag?: string
+): Promise<EditLogResult> {
+  try {
+    const response = await vscodeClient(kMethodEditLog, [
+      log_file,
+      update,
+      if_match_etag,
+    ]);
+    if (!response) {
+      throw new Error(`Edit returned no response for ${log_file}.`);
+    }
+    return JSON5.parse(response) as EditLogResult;
+  } catch (e: any) {
+    if (
+      typeof e?.code === "number" &&
+      e.code >= 400 &&
+      e.code < 600
+    ) {
+      throw new ApiError(e.code, e?.message ?? `Edit failed (${e.code})`);
+    }
+    if (e?.code === kJsonRpcMethodNotFound) {
+      throw new Error(
+        "Log editing requires a newer Inspect VS Code extension."
+      );
+    }
+    throw e;
+  }
+}
+
+/**
+ * Best-effort identity of the user editing logs, used to prefill the
+ * Author field. Returns an empty object when the extension doesn't
+ * expose the method (older extension); the dialog then leaves Author
+ * blank and the user types it manually.
+ */
+async function get_user_info(): Promise<UserInfo> {
+  try {
+    const response = await vscodeClient(kMethodGetUserInfo, []);
+    if (!response) return {};
+    return (JSON5.parse(response) as UserInfo) ?? {};
+  } catch (e: any) {
+    if (e?.code === kJsonRpcMethodNotFound) {
+      return {};
+    }
+    throw e;
+  }
+}
+
 async function open_log_file(log_file: string, log_dir: string) {
   const msg = {
     type: "displayLogFile",
@@ -231,6 +303,8 @@ const api: LogViewAPI = {
   open_log_file,
   eval_pending_samples,
   eval_log_sample_data,
+  edit_log,
+  get_user_info,
 };
 
 export default api;

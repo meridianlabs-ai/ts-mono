@@ -25,7 +25,10 @@
 }
 
 .hint {
-  color: var(--bs-secondary-color);
+  /* `--inspect-hint-foreground` defaults to --bs-secondary-color but
+     resolves to --vscode-descriptionForeground inside VS Code so the
+     italic "optional" stays readable against dark editor themes. */
+  color: var(--inspect-hint-foreground);
   font-weight: 400;
   font-style: italic;
 }
