@@ -46,22 +46,28 @@
    subgrid tracks stay aligned to the parent's column lines — putting
    padding on the wrapper would shift its content inward and break the
    subgrid alignment. The first and last cells absorb the horizontal
-   inset that previously came from `.row { padding-inline: 0.75rem }`. */
+   inset that previously came from `.row { padding-inline: 0.75rem }`.
+
+   No vertical padding on `.value`: the textarea's own internal padding
+   (0.4rem top/bottom from AutogrowText) already provides breathing
+   room within the edit box, and an outer pad makes the row feel
+   over-stuffed. `.key` and `.remove` use a top inset that lines them
+   up with the textarea's first text baseline. */
 .key {
   font-family: var(--bs-font-monospace);
   word-break: break-all;
-  padding: 1rem 0 0.625rem 0.75rem;
+  padding: 0.4rem 0 0 0.75rem;
 }
 
 .value {
   min-width: 0;
-  padding: 0.625rem 0;
+  padding: 0;
 }
 
 .remove {
   background: transparent;
   border: none;
-  padding: 0.875rem 0.75rem 0.625rem 0.4rem;
+  padding: 0.4rem 0.75rem 0 0.4rem;
   color: var(--bs-secondary-color);
   cursor: pointer;
   border-radius: 4px;
