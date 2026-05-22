@@ -1,12 +1,5 @@
 import clsx from "clsx";
-import {
-  FC,
-  KeyboardEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
 
@@ -16,8 +9,8 @@ import { ApplicationIcons } from "../../appearance/icons";
 
 import { ChangeSummary } from "./ChangeSummary";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
-import styles from "./EditTagsDialog.module.css";
 import { formatEditError } from "./editErrors";
+import styles from "./EditTagsDialog.module.css";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { TagChip } from "./TagChip";
 

@@ -7,7 +7,7 @@ import { fixupEventStream } from "./fixups";
 const toolEvent = (
   id: string,
   uuid: string | null,
-  pending: boolean,
+  pending: boolean
 ): ToolEvent =>
   ({
     event: "tool",
@@ -25,9 +25,7 @@ const toolEvent = (
   }) as unknown as ToolEvent;
 
 const eventIds = (events: Event[]) =>
-  events
-    .filter((e): e is ToolEvent => e.event === "tool")
-    .map((e) => e.id);
+  events.filter((e): e is ToolEvent => e.event === "tool").map((e) => e.id);
 
 describe("fixupEventStream — pending coalescing", () => {
   it("preserves N parallel pending tool events with distinct uuids", () => {

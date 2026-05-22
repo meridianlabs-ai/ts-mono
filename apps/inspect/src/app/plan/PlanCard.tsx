@@ -9,8 +9,8 @@ import { useLogEditAffordance } from "../../state/hooks";
 import { EditButton } from "../log-view/title-view/EditButton";
 import { EditMetadataDialog } from "../log-view/title-view/EditMetadataDialog";
 
-import { PlanDetailView } from "./PlanDetailView";
 import styles from "./PlanCard.module.css";
+import { PlanDetailView } from "./PlanDetailView";
 
 interface PlanCardProps {
   evalSpec?: EvalSpec;
@@ -70,12 +70,7 @@ export const PlanCard: FC<PlanCardProps> = ({
                 scrollRef={scrollRef}
               />
             ) : (
-              <div
-                className={clsx(
-                  "text-size-smaller",
-                  styles.emptyMetadata
-                )}
-              >
+              <div className={clsx("text-size-smaller", styles.emptyMetadata)}>
                 No metadata — click Edit to add a key.
               </div>
             )}

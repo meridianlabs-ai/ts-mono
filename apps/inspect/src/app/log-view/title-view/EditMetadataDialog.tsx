@@ -19,8 +19,8 @@ import { ApplicationIcons } from "../../appearance/icons";
 import { AutogrowText } from "./AutogrowText";
 import { ChangeSummary } from "./ChangeSummary";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
-import styles from "./EditMetadataDialog.module.css";
 import { formatEditError } from "./editErrors";
+import styles from "./EditMetadataDialog.module.css";
 import { ProvenanceFields } from "./ProvenanceFields";
 
 type NewType = "string" | "number" | "boolean" | "object" | "array" | "null";
@@ -207,9 +207,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   );
 
   const adding = entries.filter((e) => e.isNew).map((e) => e.key);
-  const editing = entries
-    .filter((e) => e.dirty && !e.isNew)
-    .map((e) => e.key);
+  const editing = entries.filter((e) => e.dirty && !e.isNew).map((e) => e.key);
   const hasChanges =
     adding.length > 0 || editing.length > 0 || removed.length > 0;
 
@@ -351,11 +349,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       width="820px"
       footer={
         <div className={sharedStyles.footer}>
-          <ChangeSummary
-            adding={adding}
-            editing={editing}
-            removing={removed}
-          />
+          <ChangeSummary adding={adding} editing={editing} removing={removed} />
           <div className={sharedStyles.footerActions}>
             <button
               type="button"

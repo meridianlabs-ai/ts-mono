@@ -35,11 +35,7 @@ describe("TagStrip", () => {
     // Task tab pattern. If something moves Edit back out of `.tagRow`,
     // this test fails.
     const { container } = render(
-      <TagStrip
-        tags={["alpha", "beta", "gamma"]}
-        showEdit
-        onEdit={() => {}}
-      />
+      <TagStrip tags={["alpha", "beta", "gamma"]} showEdit onEdit={() => {}} />
     );
 
     const tagRow = container.querySelector<HTMLElement>(".tagRow");
@@ -53,11 +49,7 @@ describe("TagStrip", () => {
 
   test("tagRow contains every chip plus the Edit pill", () => {
     const { container } = render(
-      <TagStrip
-        tags={["one", "two", "three"]}
-        showEdit
-        onEdit={() => {}}
-      />
+      <TagStrip tags={["one", "two", "three"]} showEdit onEdit={() => {}} />
     );
 
     const tagRow = container.querySelector<HTMLElement>(".tagRow");
@@ -73,13 +65,7 @@ describe("TagStrip", () => {
 
   test("clicking a chip fires onEdit when showEdit is true", () => {
     const onEdit = vi.fn();
-    render(
-      <TagStrip
-        tags={["alpha", "beta"]}
-        showEdit
-        onEdit={onEdit}
-      />
-    );
+    render(<TagStrip tags={["alpha", "beta"]} showEdit onEdit={onEdit} />);
     fireEvent.click(screen.getByText("alpha"));
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
@@ -89,11 +75,7 @@ describe("TagStrip", () => {
     // <span> elements — they shouldn't surface as buttons because
     // clicking them can't open a usable dialog.
     const { container } = render(
-      <TagStrip
-        tags={["alpha", "beta"]}
-        showEdit={false}
-        onEdit={() => {}}
-      />
+      <TagStrip tags={["alpha", "beta"]} showEdit={false} onEdit={() => {}} />
     );
     const tagRow = container.querySelector<HTMLElement>(".tagRow");
     expect(tagRow).not.toBeNull();
@@ -111,13 +93,7 @@ describe("TagStrip", () => {
   });
 
   test("Edit pill says 'Edit' when chips are present", () => {
-    render(
-      <TagStrip
-        tags={["alpha", "beta"]}
-        showEdit
-        onEdit={() => {}}
-      />
-    );
+    render(<TagStrip tags={["alpha", "beta"]} showEdit onEdit={() => {}} />);
     const btn = screen.getByTitle("Edit tags");
     expect(btn.textContent).toMatch(/Edit/);
     expect(btn.textContent).not.toMatch(/Tags/);

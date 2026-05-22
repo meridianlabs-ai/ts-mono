@@ -45,9 +45,7 @@ export const ProvenanceFields: FC<ProvenanceFieldsProps> = ({
         >
           Reason
         </label>
-        <span className={clsx("text-size-smaller", styles.hint)}>
-          optional
-        </span>
+        <span className={clsx("text-size-smaller", styles.hint)}>optional</span>
       </div>
       <input
         id="edit-annotations-reason"

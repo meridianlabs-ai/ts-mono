@@ -1,5 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
+import { openRemoteLogFile } from "../remote/remoteLogFile";
+
 import { clientApi } from "./client-api";
 import {
   EditLogResult,
@@ -14,7 +16,6 @@ vi.mock("../remote/remoteLogFile", () => ({
   openRemoteLogFile: vi.fn(),
   SampleNotFoundError: class SampleNotFoundError extends Error {},
 }));
-import { openRemoteLogFile } from "../remote/remoteLogFile";
 
 const emptySampleData: SampleData = {
   events: [],
@@ -229,9 +230,7 @@ describe("clientApi.edit_log cache invalidation", () => {
     const client = clientApi({ ...baseApi(), edit_log });
 
     await client.get_log_details("log.eval", true);
-    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow(
-      "412"
-    );
+    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow("412");
     await client.get_log_details("log.eval", true);
 
     expect(openMock).toHaveBeenCalledTimes(1);
@@ -269,7 +268,12 @@ describe("clientApi.edit_log etag plumbing", () => {
 
     // First edit: nothing cached yet, so no If-Match is sent.
     await client.edit_log!("log.eval", okUpdate);
-    expect(edit_log).toHaveBeenNthCalledWith(1, "log.eval", okUpdate, undefined);
+    expect(edit_log).toHaveBeenNthCalledWith(
+      1,
+      "log.eval",
+      okUpdate,
+      undefined
+    );
 
     // Second edit: caller again passes nothing, but the middleware
     // should re-supply the etag returned by the previous call so the
@@ -325,9 +329,7 @@ describe("clientApi.edit_log etag plumbing", () => {
     const client = clientApi({ ...baseApi(), edit_log });
 
     await client.edit_log!("log.eval", okUpdate);
-    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow(
-      "400"
-    );
+    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow("400");
     await client.edit_log!("log.eval", okUpdate);
     // After the rejection the cache is unchanged, so the third call
     // still sends the etag from the first successful edit.
@@ -346,7 +348,12 @@ describe("clientApi.edit_log etag plumbing", () => {
 
     await client.edit_log!("log.eval", okUpdate);
     await client.edit_log!("log.eval", okUpdate);
-    expect(edit_log).toHaveBeenNthCalledWith(2, "log.eval", okUpdate, undefined);
+    expect(edit_log).toHaveBeenNthCalledWith(
+      2,
+      "log.eval",
+      okUpdate,
+      undefined
+    );
   });
 
   test("the first edit after opening an .eval log uses the etag captured at open time", async () => {

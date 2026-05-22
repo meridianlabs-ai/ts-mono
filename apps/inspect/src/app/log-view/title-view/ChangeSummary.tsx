@@ -29,7 +29,11 @@ export const ChangeSummary: FC<ChangeSummaryProps> = ({
         <Line label="Editing" accent={styles.accentEditing} items={editing} />
       )}
       {removing.length > 0 && (
-        <Line label="Removing" accent={styles.accentRemoving} items={removing} />
+        <Line
+          label="Removing"
+          accent={styles.accentRemoving}
+          items={removing}
+        />
       )}
     </div>
   );

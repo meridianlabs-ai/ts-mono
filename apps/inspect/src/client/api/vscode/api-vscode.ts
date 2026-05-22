@@ -243,11 +243,7 @@ async function edit_log(
     }
     return JSON5.parse(response) as EditLogResult;
   } catch (e: any) {
-    if (
-      typeof e?.code === "number" &&
-      e.code >= 400 &&
-      e.code < 600
-    ) {
+    if (typeof e?.code === "number" && e.code >= 400 && e.code < 600) {
       throw new ApiError(e.code, e?.message ?? `Edit failed (${e.code})`);
     }
     if (e?.code === kJsonRpcMethodNotFound) {

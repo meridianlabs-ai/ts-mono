@@ -473,13 +473,13 @@ export function viewServerApi(
 
     const isCrossOrigin = Boolean(
       apiBaseUrl &&
-        (() => {
-          try {
-            return new URL(apiBaseUrl).origin !== window.location.origin;
-          } catch {
-            return false;
-          }
-        })()
+      (() => {
+        try {
+          return new URL(apiBaseUrl).origin !== window.location.origin;
+        } catch {
+          return false;
+        }
+      })()
     );
 
     const response = await fetch(url, {

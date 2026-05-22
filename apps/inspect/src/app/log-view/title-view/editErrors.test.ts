@@ -19,9 +19,9 @@ import { formatEditError } from "./editErrors";
 
 describe("unwrapFastapiDetail", () => {
   test("extracts the detail string from FastAPI's envelope", () => {
-    expect(
-      unwrapFastapiDetail('{"detail": "Empty tag is not allowed"}')
-    ).toBe("Empty tag is not allowed");
+    expect(unwrapFastapiDetail('{"detail": "Empty tag is not allowed"}')).toBe(
+      "Empty tag is not allowed"
+    );
   });
 
   test("passes through plain text unchanged", () => {
@@ -66,9 +66,9 @@ describe("formatEditError", () => {
   test("400 surfaces the server's validation detail directly", () => {
     // No `"API Error 400: "` prefix to strip anymore — the fetch layer
     // unwraps the FastAPI envelope before throwing.
-    expect(
-      formatEditError(new ApiError(400, "Empty tag is not allowed"))
-    ).toBe("Empty tag is not allowed");
+    expect(formatEditError(new ApiError(400, "Empty tag is not allowed"))).toBe(
+      "Empty tag is not allowed"
+    );
   });
 
   test("network failure (TypeError) reports connection lost, not the raw browser text", () => {
