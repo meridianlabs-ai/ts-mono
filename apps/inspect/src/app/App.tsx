@@ -51,7 +51,7 @@ const componentIcons: ComponentIcons = {
   toggleRight: ApplicationIcons["toggle-right"],
 };
 
-interface AppProps {
+export interface AppProps {
   api: ClientAPI;
 }
 
