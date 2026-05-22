@@ -336,6 +336,46 @@ body[class^="vscode-"] .modal {
     --vscode-widget-border,
     var(--vscode-editorWidget-border, var(--vscode-editorGroup-border))
   );
+  /* Error banner inside dialogs: the global vscode block only re-points
+     `--bs-danger-bg-subtle` (at the diff-editor red wash), leaving
+     `--bs-danger-text-emphasis` and `--bs-danger-border-subtle` at
+     Bootstrap's light-mode dark-red values — unreadable on a VS Code
+     dark dialog. Use the editor's input-validation tokens (designed
+     for exactly this purpose: a tinted background with readable
+     foreground and a visible border) with a fallback to
+     `errorForeground` for themes that only define the foreground.
+     Also re-point `--bs-danger` so the required-field asterisk picks
+     up the same readable red. */
+  --bs-danger: var(--vscode-errorForeground);
+  --bs-danger-bg-subtle: var(
+    --vscode-inputValidation-errorBackground,
+    var(--vscode-diffEditor-removedTextBackground)
+  );
+  --bs-danger-text-emphasis: var(
+    --vscode-inputValidation-errorForeground,
+    var(--vscode-errorForeground)
+  );
+  --bs-danger-border-subtle: var(
+    --vscode-inputValidation-errorBorder,
+    var(--vscode-errorForeground)
+  );
+  /* Change-tracking summary in the dialog footer uses these tokens
+     for the italic body, the "Adding" / "Editing" lines, and the
+     "No tags yet —" placeholder inside the chip box. Bootstrap's
+     light-mode values are unreadable on a dark VS Code modal; remap
+     to descriptionForeground (matches the hint label) plus the
+     editor's source-control accent colors so the categories stay
+     distinguishable. (Removing already inherits the readable red
+     from `--bs-danger` re-pointed above.) */
+  --bs-secondary-color: var(--vscode-descriptionForeground);
+  --bs-success-text-emphasis: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    var(--vscode-charts-green)
+  );
+  --bs-warning-text-emphasis: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    var(--vscode-charts-yellow)
+  );
 }
 
 /* Form-control inputs inside dialogs (Author, Reason, "Add a tag…",
