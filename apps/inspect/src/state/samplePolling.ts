@@ -10,7 +10,6 @@ import { createLogger } from "@tsmono/util";
 
 import { sampleIdsEqual } from "../app/shared/sample";
 import { Event } from "../app/types";
-import api from "../client/api";
 import {
   ClientAPI,
   EventData,
@@ -55,7 +54,8 @@ interface PollingState {
 }
 
 export function createSamplePolling(
-  store: UseBoundStore<StoreApi<StoreState>>
+  store: UseBoundStore<StoreApi<StoreState>>,
+  api: ClientAPI
 ) {
   // The polling function that will be returned
   let currentPolling: ReturnType<typeof createPolling> | null = null;

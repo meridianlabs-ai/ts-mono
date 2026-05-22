@@ -3,15 +3,11 @@ import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
-import { SampleDataResponse, SampleSummary } from "../client/api/types";
-
-const mockApi = vi.hoisted(() => ({
-  get_log_sample: vi.fn(),
-  get_log_sample_data: vi.fn(),
-  log_message: vi.fn(),
-}));
-
-vi.mock("../client/api", () => ({ default: mockApi }));
+import {
+  ClientAPI,
+  SampleDataResponse,
+  SampleSummary,
+} from "../client/api/types";
 
 import {
   createSamplePolling,
@@ -19,6 +15,13 @@ import {
   shouldFinalizeStreamingSample,
 } from "./samplePolling";
 import { StoreState } from "./store";
+
+const mockApi = {
+  get_log_sample: vi.fn(),
+  get_log_sample_data: vi.fn(),
+  log_message: vi.fn(),
+};
+const api = mockApi as unknown as ClientAPI;
 
 beforeEach(() => {
   mockApi.get_log_sample.mockReset();
@@ -167,7 +170,7 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
     polling.startPolling("log.json", createSummary("sample-1"));
     await flushPromises();
     polling.stopPolling();
@@ -217,7 +220,7 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
 
     polling.startPolling("log.json", createSummary("sample-1"));
     await flushPromises();
@@ -259,7 +262,7 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
     polling.startPolling("log.eval", createSummary("plain-sample"));
     await flushPromises();
 
@@ -303,7 +306,7 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
     // Simulate the stub summary that usePollSample actually passes today.
     polling.startPolling("log.eval", {
       id: "rocket-medium-vision",
@@ -367,7 +370,7 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
     polling.startPolling("log.eval", {
       id: "dig-medium-vision",
       epoch: 1,

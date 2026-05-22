@@ -12,6 +12,7 @@ import { createDatabaseService, DatabaseService } from "../client/database";
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
+import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,
   handleRehydrate,
@@ -58,6 +59,7 @@ export const useStore = ((selector?: any) => {
 
 // Initialize the store
 export const initializeStore = (
+  api: ClientAPI,
   capabilities: Capabilities,
   storage?: ClientStorage
 ) => {
@@ -98,12 +100,14 @@ export const initializeStore = (
           const [logsSlice, logsCleanup] = createLogsSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store
+            store,
+            api
           );
           const [logSlice, logCleanup] = createLogSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store
+            store,
+            api
           );
           const [sampleSlice, sampleCleanup] = createSampleSlice(
             set as (fn: (state: StoreState) => void) => void,
@@ -191,6 +195,7 @@ export const initializeStore = (
 
   // Set the implementation and initialize it
   storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
+  setSamplePollingApi(api);
   store.getState().initialize(capabilities);
 };
 

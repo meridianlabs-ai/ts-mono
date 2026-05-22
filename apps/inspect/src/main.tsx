@@ -39,7 +39,7 @@ if (vscode) {
 }
 
 // Inititialize the application store
-initializeStore(capabilities, applicationStorage);
+initializeStore(applicationApi, capabilities, applicationStorage);
 
 // Determine whether we need to restore a stored hash
 restoreHash();

@@ -2,8 +2,7 @@ import { createLogger } from "@tsmono/util";
 
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
-import api from "../client/api";
-import { LogDetails, PendingSamples } from "../client/api/types";
+import { ClientAPI, LogDetails, PendingSamples } from "../client/api/types";
 import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
 import { isUri, join } from "../utils/uri";
@@ -89,9 +88,10 @@ const initialState = {
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any
+  _store: any,
+  api: ClientAPI
 ): [LogSlice, () => void] => {
-  const logPolling = createLogPolling(get, set);
+  const logPolling = createLogPolling(get, set, api);
 
   const slice = {
     // State

@@ -5,13 +5,14 @@ import { createLogger } from "@tsmono/util";
 
 import { clientEventsService } from "./clientEventsService";
 import { useLogs } from "./hooks";
-import { useStore } from "./store";
+import { useApi, useStore } from "./store";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const logPreviews = useStore((state) => state.logs.logPreviews);
+  const api = useApi();
   const { loadLogOverviews } = useLogs();
 
   // Set up the refresh callback for the service
@@ -44,9 +45,12 @@ export function useClientEvents() {
   }, [refreshCallback]);
 
   // Wrapper functions that call the service
-  const startPolling = useCallback((logs: LogHandle[]) => {
-    clientEventsService.startPolling(logs);
-  }, []);
+  const startPolling = useCallback(
+    (logs: LogHandle[]) => {
+      clientEventsService.startPolling(logs, api);
+    },
+    [api]
+  );
 
   const stopPolling = useCallback(() => {
     clientEventsService.stopPolling();

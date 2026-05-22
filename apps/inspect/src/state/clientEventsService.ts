@@ -1,7 +1,7 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import api from "../client/api";
+import { ClientAPI } from "../client/api/types";
 import { createPolling } from "../utils/polling";
 
 const log = createLogger("Client-Events-Service");
@@ -46,7 +46,7 @@ class ClientEventsService {
     await this.refreshPendingLogFiles();
   }
 
-  startPolling(logs: LogHandle[]) {
+  startPolling(logs: LogHandle[], api: ClientAPI) {
     // Stop any existing polling
     this.stopPolling();
 

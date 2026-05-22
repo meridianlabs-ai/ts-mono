@@ -9,8 +9,12 @@ import {
   isSingleFileMode,
 } from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
-import api from "../client/api";
-import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
+import {
+  ClientAPI,
+  EvalHeader,
+  LogDetails,
+  LogPreview,
+} from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 
@@ -105,7 +109,8 @@ const initialState: LogsState = {
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any
+  _store: any,
+  api: ClientAPI
 ): [LogsSlice, () => void] => {
   const slice = {
     // State

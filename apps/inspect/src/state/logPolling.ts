@@ -1,6 +1,6 @@
 import { createLogger } from "@tsmono/util";
 
-import api from "../client/api";
+import { ClientAPI } from "../client/api/types";
 import { createPolling } from "../utils/polling";
 
 import { StoreState } from "./store";
@@ -13,7 +13,8 @@ const kPollingInterval = 2;
 
 export function createLogPolling(
   get: () => StoreState,
-  set: (fn: (state: StoreState) => void) => void
+  set: (fn: (state: StoreState) => void) => void,
+  api: ClientAPI
 ) {
   // Tracks the currently polling instance
   let currentPolling: ReturnType<typeof createPolling> | null = null;
