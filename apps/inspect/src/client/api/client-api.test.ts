@@ -348,4 +348,73 @@ describe("clientApi.edit_log etag plumbing", () => {
     await client.edit_log!("log.eval", okUpdate);
     expect(edit_log).toHaveBeenNthCalledWith(2, "log.eval", okUpdate, undefined);
   });
+
+  test("the first edit after opening an .eval log uses the etag captured at open time", async () => {
+    // Verifies the second half of the fix: `get_log_details` seeds the
+    // per-log etag cache from `LogDetails.etag` (lifted off the
+    // `get_log_info` S3 head_object response), so the *first* save in
+    // a session also carries `If-Match`. Without this seeding, only
+    // chained edits would be protected.
+    const readLogSummary = vi.fn().mockResolvedValue({
+      tags: [] as string[],
+      sampleSummaries: [],
+      etag: "initial-from-s3",
+    });
+    const remoteLogFile = { readLogSummary } as unknown as Awaited<
+      ReturnType<typeof openRemoteLogFile>
+    >;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue(remoteLogFile);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: okLog, etag: "after-edit" });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.get_log_details("log.eval", true);
+    await client.edit_log!("log.eval", okUpdate);
+    expect(edit_log).toHaveBeenCalledWith(
+      "log.eval",
+      okUpdate,
+      "initial-from-s3"
+    );
+  });
+
+  test("a fresh get_log_details refreshes the cached etag", async () => {
+    // After someone else edits the file and the client refreshes, the
+    // cached etag must update to the new value — otherwise the next
+    // edit would race using the stale etag and get a (correct but
+    // confusing) 412 even though the user's local view is in sync.
+    const readLogSummary = vi
+      .fn()
+      .mockResolvedValueOnce({
+        tags: [],
+        sampleSummaries: [],
+        etag: "v1",
+      })
+      .mockResolvedValueOnce({
+        tags: [],
+        sampleSummaries: [],
+        etag: "v2",
+      });
+    const remoteLogFile = { readLogSummary } as unknown as Awaited<
+      ReturnType<typeof openRemoteLogFile>
+    >;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue(remoteLogFile);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: okLog });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    // First open: caches v1.
+    await client.get_log_details("log.eval", true);
+    // Refresh: caches v2.
+    await client.get_log_details("log.eval", false);
+    await client.edit_log!("log.eval", okUpdate);
+    expect(edit_log).toHaveBeenCalledWith("log.eval", okUpdate, "v2");
+  });
 });

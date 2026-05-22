@@ -362,20 +362,23 @@ export const clientApi = (
   // bubble up.
   const sampleDataPathByLog = new Map<string, "direct" | "proxy">();
 
-  // Per-log cache of the most recent ETag returned by `edit_log`. The
+  // Per-log cache of the most recent ETag observed for each log. The
   // edit dialogs currently call `edit_log(file, update)` with no third
   // argument, and without this cache we'd silently throw away
   // `result.etag` — making the server's If-Match / 412 protection
   // unreachable from the shipped UI (only tests and external callers
-  // would ever trigger it). The middleware below re-supplies the
-  // cached etag whenever the caller doesn't pass one explicitly, so
-  // chained edits within a session get concurrent-modification
-  // detection for free.
+  // would ever trigger it).
   //
-  // Known limitation: the *first* edit after opening a log still goes
-  // without an If-Match, because we don't yet surface the log header's
-  // ETag at fetch time (the .eval read path doesn't currently capture
-  // it). Capturing that initial etag is a separate change.
+  // The cache is fed from two places:
+  //   - `get_log_details` (below): seeds the entry on log open from
+  //     `LogDetails.etag`, which `openRemoteLogFile` lifts off the
+  //     S3 head_object response via `get_log_info`. This is what
+  //     protects the *first* edit in a session.
+  //   - `edit_log` (below): updates the entry from `result.etag` so
+  //     chained edits within a session keep the protection live.
+  //
+  // The middleware below re-supplies the cached etag whenever the
+  // caller doesn't pass one explicitly.
   const editEtagByLog = new Map<string, string>();
 
   const get_log_sample_data = async (
@@ -468,7 +471,24 @@ export const clientApi = (
       return api.get_flow(dir);
     }),
     get_log_summaries: middleware("get_log_summaries", get_log_summaries),
-    get_log_details: middleware("get_log_details", get_log_details),
+    get_log_details: middleware(
+      "get_log_details",
+      async (log_file: string, cached?: boolean): Promise<LogDetails> => {
+        const result = await get_log_details(log_file, cached);
+        // Seed the per-log etag cache so the next `edit_log` for this
+        // file sends `If-Match` and the first save races safely
+        // against concurrent external edits. Local-filesystem logs and
+        // (currently) JSON-format logs leave `result.etag` undefined,
+        // in which case the cache stays empty and falls through to
+        // last-writer-wins on the first save — matching the previous
+        // behavior. S3-backed .eval files are the path that gets the
+        // protection.
+        if (result.etag) {
+          editEtagByLog.set(log_file, result.etag);
+        }
+        return result;
+      }
+    ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);

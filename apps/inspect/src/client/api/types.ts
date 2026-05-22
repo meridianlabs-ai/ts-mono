@@ -69,6 +69,12 @@ export interface LogDetails {
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
   sampleSummaries: SampleSummary[];
+  // S3 ETag captured at fetch time. Used by the `edit_log` middleware
+  // to prime an `If-Match` on the *first* save so concurrent-modification
+  // protection covers the initial edit, not just chained edits.
+  // Populated for S3-backed .eval logs; undefined for local files and
+  // (currently) JSON-format logs.
+  etag?: string;
 }
 
 export interface PendingSampleResponse {

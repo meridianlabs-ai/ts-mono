@@ -191,6 +191,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/log-edit/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Api Log Edit */
+        post: operations["api_log_edit_log_edit__log__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/log-files": {
         parameters: {
             query?: never;
@@ -432,6 +449,23 @@ export interface paths {
         };
         /** Tool Choice */
         get: operations["_tool_choice_tool_choice_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api User Info */
+        get: operations["api_user_info_user_info_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2303,6 +2337,8 @@ export interface components {
         LogInfo: {
             /** Direct Url */
             direct_url?: string | null;
+            /** Etag */
+            etag?: string | null;
             /** Size */
             size: number;
         };
@@ -3773,6 +3809,16 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * UserInfo
+         * @description Best-effort identity for the user running the view server.
+         */
+        UserInfo: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -4047,6 +4093,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_edit_log_edit__log__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalLog"];
                 };
             };
         };
@@ -4390,6 +4462,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolChoice"];
+                };
+            };
+        };
+    };
+    api_user_info_user_info_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
                 };
             };
         };

@@ -94,6 +94,10 @@ export const openRemoteLogFile = async (
 
   const logInfo = await api.get_log_info(url);
   const directUrl = logInfo.direct_url;
+  // ETag of the log file at open time. Surfaced through `readLogSummary`
+  // so the `edit_log` middleware can seed an `If-Match` for the first
+  // edit (subsequent edits use the etag returned by the previous save).
+  const initialEtag = logInfo.etag ?? undefined;
   const fetchBytes = async (
     _url: string,
     start: number,
@@ -322,6 +326,7 @@ export const openRemoteLogFile = async (
         metadata: header.metadata,
         log_updates: header.log_updates,
         sampleSummaries,
+        etag: initialEtag,
       };
       return result;
     },
