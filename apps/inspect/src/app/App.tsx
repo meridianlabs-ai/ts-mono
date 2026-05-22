@@ -51,7 +51,7 @@ const componentIcons: ComponentIcons = {
   toggleRight: ApplicationIcons["toggle-right"],
 };
 
-interface AppProps {
+export interface AppProps {
   api: ClientAPI;
 }
 
@@ -71,6 +71,7 @@ export const App: FC<AppProps> = ({ api }) => {
   const setLoading = useStore((state) => state.appActions.setLoading);
 
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
   const setSelectedLogFile = useStore(
@@ -79,10 +80,6 @@ export const App: FC<AppProps> = ({ api }) => {
 
   const loadLog = useStore((state) => state.logActions.syncLog);
   const pollLog = useStore((state) => state.logActions.pollLog);
-
-  const setSingleFileMode = useStore(
-    (state) => state.appActions.setSingleFileMode
-  );
 
   // Load a specific log
   useEffect(() => {
@@ -194,7 +191,6 @@ export const App: FC<AppProps> = ({ api }) => {
       if (embeddedState) {
         const state = JSON5.parse(embeddedState.textContent || "");
         onMessage({ data: state });
-        setSingleFileMode(true);
       } else {
         // For non-route URL params support (legacy)
         const urlParams = new URLSearchParams(window.location.search);
@@ -210,13 +206,12 @@ export const App: FC<AppProps> = ({ api }) => {
           setLogDir(undefined);
           // Load just the passed file
           setLogFiles([{ name: resolvedLogPath }]);
-          setSingleFileMode(true);
         } else {
           // If a log file was passed, select it
           const log_file = urlParams.get("log_file");
           if (log_file) {
+            await initLogDir();
             setSelectedLogFile(log_file);
-            setSingleFileMode(true);
           }
           // Else do nothing - RouteProvider will handle it
         }
@@ -230,9 +225,9 @@ export const App: FC<AppProps> = ({ api }) => {
     setLogDir,
     setLogFiles,
     setSelectedLogFile,
+    initLogDir,
     syncLogs,
     onMessage,
-    setSingleFileMode,
   ]);
 
   return (

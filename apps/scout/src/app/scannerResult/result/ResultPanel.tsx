@@ -11,25 +11,16 @@ import { ResultSidebar } from "./ResultSidebar";
 interface ResultPanelProps {
   resultData: ScanResultData;
   inputData: ScannerInput | undefined;
-  transcriptDir: string;
-  hasTranscript: boolean;
 }
 
 export const ResultPanel: FC<ResultPanelProps> = ({
   resultData,
   inputData,
-  transcriptDir,
-  hasTranscript,
 }) => (
   <div className={clsx(styles.container, "text-size-base")}>
     <ResultSidebar inputData={inputData} resultData={resultData} />
     {inputData ? (
-      <ResultBody
-        resultData={resultData}
-        inputData={inputData}
-        transcriptDir={transcriptDir}
-        hasTranscript={hasTranscript}
-      />
+      <ResultBody resultData={resultData} inputData={inputData} />
     ) : (
       <div>No Input Available</div>
     )}

@@ -1,8 +1,16 @@
 import { skipToken } from "@tanstack/react-query";
 import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import { clsx } from "clsx";
-import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   JSONPanel,
@@ -17,6 +25,8 @@ import { ApplicationIcons } from "../../icons";
 import {
   getScannerParam,
   getValidationParam,
+  openRouteInNewTab,
+  transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
 import { useStore } from "../../state/store";
@@ -34,6 +44,7 @@ import { useScansDir } from "../utils/useScansDir";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
+import { AllScoresDialog } from "./AllScoresDialog";
 import { ErrorPanel } from "./error/ErrorPanel";
 import { InfoPanel } from "./info/InfoPanel";
 import { MetadataPanel } from "./metadata/MetadataPanel";
@@ -52,6 +63,59 @@ const kTabIdTranscript = "transcript";
 const kTabIdMetadata = "Metadata";
 
 export const ScannerResultPanel: FC = () => {
+  const headerCollapsedRef = useRef(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  // Track which result's scores dialog is open — auto-resets on navigation
+  const [scoresDialogResultId, setScoresDialogResultId] = useState<
+    string | undefined
+  >();
+
+  // Collapse header when any scroll container inside contentArea has scrolled.
+  // Uses a callback ref so the listener attaches when the node mounts.
+  // After collapsing, the layout shift can cause scroll containers to resize
+  // and auto-clamp scrollTop to 0, which would immediately un-collapse.
+  // A brief cooldown prevents this bounce.
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const collapsedAtRef = useRef(0);
+  const contentRef = useCallback((node: HTMLDivElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    if (!node) {
+      headerCollapsedRef.current = false;
+      setHeaderCollapsed(false);
+      return;
+    }
+
+    const kScrollThreshold = 100;
+
+    const onScroll = (e: Event) => {
+      const target = e.target as Element;
+      const scrolled = target.scrollTop > kScrollThreshold;
+      if (scrolled && !headerCollapsedRef.current) {
+        // Collapsing frees vertical space (~140px). If the container's
+        // overflow is smaller than that, scrollTop will clamp to 0 after
+        // the layout shift, causing an immediate un-collapse flash.
+        const overflow = target.scrollHeight - target.clientHeight;
+        if (overflow < 150) return;
+        headerCollapsedRef.current = true;
+        collapsedAtRef.current = Date.now();
+        setHeaderCollapsed(true);
+      } else if (!scrolled && headerCollapsedRef.current) {
+        if (Date.now() - collapsedAtRef.current < 150) return;
+        const allAtTop = Array.from(node.querySelectorAll("*")).every(
+          (el) => el.scrollTop === 0
+        );
+        if (allAtTop) {
+          headerCollapsedRef.current = false;
+          setHeaderCollapsed(false);
+        }
+      }
+    };
+    node.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    cleanupRef.current = () =>
+      node.removeEventListener("scroll", onScroll, { capture: true });
+  }, []);
+
   // Url data
   const { scanResultUuid } = useScanRoute();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -191,6 +255,23 @@ export const ScannerResultPanel: FC = () => {
     setHighlightLabeled(!highlightLabeled);
   }, [highlightLabeled, setHighlightLabeled]);
 
+  const navigate = useNavigate();
+
+  const handleNavigateToTranscript = useCallback(
+    (e: React.MouseEvent) => {
+      const route = transcriptRoute(
+        resolvedTranscriptsDir,
+        selectedResult?.transcriptId ?? ""
+      );
+      if (e.metaKey || e.ctrlKey) {
+        openRouteInNewTab(route);
+      } else {
+        void navigate(route);
+      }
+    },
+    [navigate, resolvedTranscriptsDir, selectedResult?.transcriptId]
+  );
+
   const tools = useMemo(() => {
     const toolButtons: ReactNode[] = [];
 
@@ -207,6 +288,24 @@ export const ScannerResultPanel: FC = () => {
           latched={!!highlightLabeled}
           onClick={toggleHighlightLabeled}
           label="Highlight Refs"
+        />
+      );
+    }
+
+    // Transcript button - navigate to full transcript view
+    const canNavigateToTranscript =
+      !!hasTranscript &&
+      resolvedTranscriptsDir.length > 0 &&
+      !!selectedResult?.transcriptId;
+    if (canNavigateToTranscript) {
+      toolButtons.push(
+        <ToolButton
+          key="transcript-navigate"
+          label="Transcript"
+          icon={ApplicationIcons.transcript}
+          onClick={handleNavigateToTranscript}
+          title="View complete transcript (Cmd/Ctrl+click to open in new tab)"
+          subtle={true}
         />
       );
     }
@@ -237,6 +336,9 @@ export const ScannerResultPanel: FC = () => {
     selectedResult,
     toggleValidationSidebar,
     validationSidebarCollapsed,
+    handleNavigateToTranscript,
+    hasTranscript,
+    resolvedTranscriptsDir,
   ]);
 
   const renderTabSet = (resultData: ScanResultData) => (
@@ -278,12 +380,7 @@ export const ScannerResultPanel: FC = () => {
           className={styles.fullHeight}
         >
           {resultData && inputData && (
-            <ResultPanel
-              resultData={resultData}
-              inputData={inputData}
-              transcriptDir={resolvedTranscriptsDir}
-              hasTranscript={!!hasTranscript}
-            />
+            <ResultPanel resultData={resultData} inputData={inputData} />
           )}
         </TabPanel>
       ) : undefined}
@@ -356,12 +453,15 @@ export const ScannerResultPanel: FC = () => {
       />
       <ScannerResultHeader
         inputData={inputData}
+        resultData={selectedResult}
         scan={selectedScan}
         appConfig={appConfig}
+        collapsed={headerCollapsed}
+        onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
       />
-
       {selectedResult && (
         <div
+          ref={contentRef}
           className={clsx(
             styles.contentArea,
             !validationSidebarCollapsed && styles.withValidation
@@ -390,6 +490,15 @@ export const ScannerResultPanel: FC = () => {
             </VscodeSplitLayout>
           )}
         </div>
+      )}
+      {selectedResult?.transcriptScore != null && (
+        <AllScoresDialog
+          showing={scoresDialogResultId === scanResultUuid}
+          setShowing={(show) =>
+            setScoresDialogResultId(show ? scanResultUuid : undefined)
+          }
+          score={selectedResult.transcriptScore}
+        />
       )}
     </div>
   );

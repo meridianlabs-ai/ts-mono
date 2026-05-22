@@ -4,6 +4,10 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
+import {
+  deriveSingleFileLogDir,
+  isSingleFileMode,
+} from "../app/singleFileMode";
 import { DisplayedSample, LogsState } from "../app/types";
 import { EvalHeader, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -218,29 +222,46 @@ export const createLogsSlice = (
         });
       },
       initLogDir: async () => {
-        const api = get().api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return undefined;
-        }
+        const state = get();
 
-        // Determine the log directory
-        const loadLogInfo = async () => {
+        let logDir: string | undefined;
+        let absLogDir: string | undefined;
+
+        if (isSingleFileMode) {
+          // No directory listing to fetch — derive the log dir from the
+          // selected file. Re-deriving against the same file would just
+          // produce the same answer, so short-circuit if it's already set.
+          if (state.logs.logDir !== undefined) return state.logs.logDir;
+          logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+          // For bare-basename deep links there's no dir to derive; fall back
+          // to the server's configured log dir (cheap — no walk).
+          if (logDir === undefined && state.api?.get_log_dir) {
+            try {
+              logDir = await state.api.get_log_dir();
+            } catch (e) {
+              console.log(e);
+            }
+          }
+        } else {
+          const api = state.api;
+          if (!api) {
+            console.error("API not initialized in LogsStore");
+            return undefined;
+          }
           try {
             const root = await api.get_log_root();
-            return { logDir: root.log_dir, absLogDir: root.abs_log_dir };
+            logDir = root.log_dir;
+            absLogDir = root.abs_log_dir;
           } catch (e) {
             console.log(e);
             get().appActions.setLoading(false, e as Error);
-            return undefined;
+            // Fall through with undefined to clear any stale state below.
           }
-        };
-        const info = await loadLogInfo();
-        const logDir = info?.logDir;
+        }
+
         if (get().logs.logDir !== logDir) {
           get().logsActions.setLogDir(logDir);
         }
-        const absLogDir = info?.absLogDir;
         if (get().logs.absLogDir !== absLogDir) {
           set((state) => {
             state.logs.absLogDir = absLogDir;
@@ -303,7 +324,7 @@ export const createLogsSlice = (
           };
 
           // Don't enable syncing if there is no log directory
-          if (!logDir || get().app.singleFileMode) {
+          if (!logDir || isSingleFileMode) {
             if (useProgress) {
               get().appActions.setLoading(false);
             }
@@ -402,10 +423,7 @@ export const createLogsSlice = (
           ) !== -1;
 
         if (!isInFileList) {
-          if (
-            state.replicationService?.isReplicating() &&
-            !state.app.singleFileMode
-          ) {
+          if (state.replicationService?.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>
               val.name.endsWith(logFile)

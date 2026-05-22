@@ -65,8 +65,6 @@ export interface AppSlice {
 
     setUrlHash: (urlHash: string) => void;
 
-    setSingleFileMode: (singleFile: boolean) => void;
-
     setDisplayMode: (mode: "raw" | "rendered") => void;
 
     setLogsSampleView: (logsSampleView: boolean) => void;
@@ -353,11 +351,6 @@ export const createAppSlice = (
       setUrlHash: (urlHash: string) => {
         set((state) => {
           state.app.urlHash = urlHash;
-        });
-      },
-      setSingleFileMode: (singleFile: boolean) => {
-        set((state) => {
-          state.app.singleFileMode = singleFile;
         });
       },
       setDisplayMode: (mode: "raw" | "rendered") => {

@@ -54,7 +54,6 @@ export const useScansInfinite = (
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
     staleTime: 10000,
-    refetchInterval: 10000,
     placeholderData: keepPreviousData,
   });
 };

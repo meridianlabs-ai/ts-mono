@@ -1,46 +1,66 @@
 .header {
-  padding-left: 1rem;
-  padding-right: 1rem;
-  display: grid;
-  padding-bottom: 1rem;
-  padding-top: 1rem;
+  padding: 1rem 1rem;
   border-top: solid var(--bs-light-border-subtle) 1px;
-  column-gap: 1rem;
-  grid-template-rows: max-content max-content;
 }
 
-.value {
-  word-wrap: break-all;
-  overflow-wrap: break-word;
+/* Higher specificity to beat text-size-smallest !important (source-order tie) */
+.header :global(span.text-size-smallest) {
+  font-size: inherit !important;
 }
 
-.oneCol {
-  grid-template-columns: minmax(0, auto);
+.headerWithScore {
+  display: grid;
+  gap: 1rem;
 }
 
-.twoCol {
-  grid-template-columns: minmax(0, auto) minmax(0, auto);
+.metadataRegion {
+  min-width: 0;
 }
 
-.threeCol {
-  grid-template-columns: minmax(0, auto) minmax(0, auto) minmax(0, auto);
+.collapsedBar {
+  background: var(--bs-tertiary-bg);
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--bs-border-color);
+  padding: 0.25rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 0.76rem;
+  color: var(--bs-body-color);
+  min-height: 30px;
 }
 
-.fourCol {
-  grid-template-columns: minmax(0, auto) minmax(0, auto) minmax(0, auto) minmax(
-      0,
-      auto
-    );
+.collapsedTask {
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
-.fiveCol {
-  grid-template-columns:
-    minmax(0, auto) minmax(0, auto) minmax(0, auto) minmax(0, auto)
-    minmax(0, auto);
+/* Higher specificity to beat text-size-smallest !important (source-order tie) */
+.collapsedTask :global(span.text-size-smallest) {
+  font-size: inherit !important;
 }
 
-.sixCol {
-  grid-template-columns:
-    minmax(0, auto) minmax(0, auto) minmax(0, auto) minmax(0, auto)
-    minmax(0, auto) minmax(0, auto);
+.collapsedSource {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.collapsedDate {
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+}
+
+.collapsedMono {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.dot {
+  color: var(--bs-tertiary-color);
+  flex-shrink: 0;
 }

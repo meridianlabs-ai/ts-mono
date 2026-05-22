@@ -1,5 +1,5 @@
 // Main React App Component
-export { App } from "./app/App";
+export { App, type AppProps } from "./app/App";
 
 // Client APIs
 export { clientApi } from "./client/api/client-api";
@@ -27,3 +27,14 @@ export type {
 
 // State Store
 export { initializeStore } from "./state/store";
+
+// Selection hooks
+export {
+  useSelectedSampleSummary,
+  useSelectedScores,
+  useLogSelection,
+} from "./state/hooks";
+
+// Selection-related types
+export type { SampleSummary } from "./client/api/types";
+export type { ScoreLabel } from "./app/types";

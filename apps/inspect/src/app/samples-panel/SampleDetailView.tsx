@@ -12,6 +12,7 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
+import { isSingleFileMode } from "../singleFileMode";
 
 /**
  * Component that displays a single sample in detail view within the samples route.
@@ -53,7 +54,6 @@ export const SampleDetailView: FC = () => {
   );
   const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
-  const singleFileMode = useStore((state) => state.app.singleFileMode);
 
   // Find current sample in displayed samples list
   const currentIndex = useMemo(() => {
@@ -135,7 +135,7 @@ export const SampleDetailView: FC = () => {
         currentPath: routeLogPath,
         fnNavigationUrl: samplesUrl,
         bordered: true,
-        breadcrumbsEnabled: !singleFileMode,
+        breadcrumbsEnabled: !isSingleFileMode,
       }}
     />
   );

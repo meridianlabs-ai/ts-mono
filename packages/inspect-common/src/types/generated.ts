@@ -361,6 +361,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scout/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent search inputs
+         * @description List recent global search inputs, newest first.
+         */
+        get: operations["list_search_inputs_scout_searches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scout/transcripts/{dir}/{id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search a transcript
+         * @description Search a transcript using grep or LLM-based search.
+         *
+         *     Returns cached results if the same search was run before.
+         */
+        post: operations["search_scout_transcripts__dir___id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scout/transcripts/{dir}/{id}/searches/{search_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a saved search result
+         * @description Get a cached search result by search input ID and transcript scope.
+         */
+        get: operations["get_search_scout_transcripts__dir___id__searches__search_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tool-choice": {
         parameters: {
             query?: never;
@@ -603,10 +665,11 @@ export interface components {
         };
         /**
          * BudgetPercent
-         * @description Fire at percentage milestones of a named budget. Not yet implemented (Phase 5).
+         * @description Fire on each ``percent``-percent slice of the active ``budget``.
          *
-         *     Example: ``BudgetPercent(budget="cost", percent=10)`` fires at 10%, 20%, …
-         *     of the ``cost_limit`` configured on the task or sample.
+         *     ``percent`` is in 0..100. With ``percent=25``, the trigger fires
+         *     at ~25% / 50% / 75% / 100% of the relevant limit's usage. Has no
+         *     effect when no limit is set for the chosen budget.
          */
         BudgetPercent: {
             /**
@@ -689,7 +752,7 @@ export interface components {
              */
             role: "assistant";
             /** Source */
-            source?: ("input" | "generate") | null;
+            source?: ("input" | "generate" | "operator") | null;
             /** Tool Calls */
             tool_calls?: components["schemas"]["ToolCall"][] | null;
         };
@@ -713,7 +776,7 @@ export interface components {
              */
             role: "system";
             /** Source */
-            source?: ("input" | "generate") | null;
+            source?: ("input" | "generate" | "operator") | null;
         };
         /**
          * ChatMessageTool
@@ -738,7 +801,7 @@ export interface components {
              */
             role: "tool";
             /** Source */
-            source?: ("input" | "generate") | null;
+            source?: ("input" | "generate" | "operator") | null;
             /** Tool Call Id */
             tool_call_id?: string | null;
         };
@@ -762,9 +825,69 @@ export interface components {
              */
             role: "user";
             /** Source */
-            source?: ("input" | "generate") | null;
+            source?: ("input" | "generate" | "operator") | null;
             /** Tool Call Id */
             tool_call_id?: string[] | null;
+        };
+        /**
+         * CheckpointEvent
+         * @description A successful checkpoint commit.
+         *
+         *     Emitted by the checkpointer immediately after the per-checkpoint
+         *     sidecar JSON is written — see working.md §8a. Carries the full
+         *     sidecar payload flattened into top-level fields (via multiple
+         *     inheritance from :class:`CheckpointDetails`), so a consumer of
+         *     ``transcript().events`` (or the ``.eval`` log) reads
+         *     ``event.checkpoint_id`` / ``event.trigger`` / ``event.host`` etc.
+         *     directly — same data as someone reading
+         *     ``<sample>/ckpt-NNNNN.json`` from disk.
+         */
+        CheckpointEvent: {
+            /** Checkpoint Id */
+            checkpoint_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /**
+             * Event
+             * @default checkpoint
+             * @constant
+             */
+            event: "checkpoint";
+            host: components["schemas"]["SnapshotDetails"];
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Sandboxes */
+            sandboxes: {
+                [key: string]: components["schemas"]["SnapshotDetails"];
+            };
+            /** Size Bytes */
+            size_bytes: number;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget";
+            /** Turn */
+            turn: number;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * CheckpointSampleConfig
@@ -789,7 +912,7 @@ export interface components {
                 [key: string]: string[];
             } | null;
             /** Trigger */
-            trigger?: components["schemas"]["TimeInterval"] | components["schemas"]["TurnInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | "manual" | null;
+            trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
         };
         /** Citation */
         Citation: components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"];
@@ -1045,7 +1168,12 @@ export interface components {
         };
         /**
          * CostInterval
-         * @description Fire every $N spent. Not yet implemented (Phase 5).
+         * @description Fire every ``every`` dollars of sample-level cost.
+         *
+         *     Sample total cost is read from
+         *     :func:`inspect_ai.model.sample_total_cost`; the trigger fires
+         *     each time the running total crosses another ``every``-dollar
+         *     boundary since the last fire.
          */
         CostInterval: {
             /** Every */
@@ -1148,6 +1276,8 @@ export interface components {
          * @description Configuration used for evaluation.
          */
         EvalConfig: {
+            /** Acp Server */
+            acp_server?: boolean | number | string | null;
             approval?: components["schemas"]["ApprovalPolicyConfig"] | null;
             /** Continue On Fail */
             continue_on_fail?: boolean | null;
@@ -1368,7 +1498,7 @@ export interface components {
          */
         EvalRetryError: {
             /** Events */
-            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
             /** Message */
             message: string;
             /** Traceback */
@@ -1412,7 +1542,7 @@ export interface components {
             /** Error Retries */
             error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Files */
             files?: string[] | null;
@@ -1750,7 +1880,7 @@ export interface components {
             started_at: string | "";
         };
         /** Event */
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /** EventData */
         EventData: {
             /** Epoch */
@@ -1859,6 +1989,61 @@ export interface components {
             /** Verbosity */
             verbosity?: ("low" | "medium" | "high") | null;
         };
+        /**
+         * GrepSearchInput
+         * @description A persisted grep search input.
+         */
+        GrepSearchInput: {
+            /** Created At */
+            created_at: string;
+            /** Ignore Case */
+            ignore_case: boolean;
+            /** Query */
+            query: string;
+            /** Regex */
+            regex: boolean;
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /** Word Boundary */
+            word_boundary: boolean;
+        };
+        /**
+         * GrepSearchRequest
+         * @description Request body for grep transcript searches.
+         */
+        GrepSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /**
+             * Ignore Case
+             * @default true
+             */
+            ignore_case: boolean;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Query */
+            query: string;
+            /**
+             * Regex
+             * @default false
+             */
+            regex: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "grep";
+            /**
+             * Word Boundary
+             * @default false
+             */
+            word_boundary: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1939,6 +2124,61 @@ export interface components {
             working_start: number;
         };
         /**
+         * InterruptEvent
+         * @description Records that an agent's turn or sample was cut short.
+         *
+         *     Emitted in three cases:
+         *
+         *     - ``source="user_cancel"`` — an ACP client (e.g. an editor or TUI)
+         *       called ``session/cancel`` while a turn was in flight.
+         *     - ``source="limit"`` — a sample-level limit (tokens, time, cost,
+         *       messages) tripped during execution.
+         *     - ``source="system"`` — the eval is shutting down for an external
+         *       reason and is cancelling active samples.
+         *
+         *     The ``interrupted`` field records what was running at the moment
+         *     the cancel reached the cancel scope. ``interrupted_tool_call_id``
+         *     and ``interrupted_model_event_id`` give cross-references when
+         *     applicable so downstream consumers can correlate this event with
+         *     the in-flight ``ToolEvent`` or ``ModelEvent``.
+         */
+        InterruptEvent: {
+            /**
+             * Event
+             * @default interrupt
+             * @constant
+             */
+            event: "interrupt";
+            /**
+             * Interrupted
+             * @enum {string}
+             */
+            interrupted: "generate" | "tool_call" | "between_turns";
+            /** Interrupted Model Event Id */
+            interrupted_model_event_id?: string | null;
+            /** Interrupted Tool Call Id */
+            interrupted_tool_call_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "user_cancel" | "limit" | "system";
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
          * JSONSchema
          * @description JSON Schema for type.
          */
@@ -1995,6 +2235,44 @@ export interface components {
             value: components["schemas"]["JsonValue"];
         };
         JsonValue: JsonValue;
+        /**
+         * LlmSearchInput
+         * @description A persisted LLM search input.
+         */
+        LlmSearchInput: {
+            /** Created At */
+            created_at: string;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /** Search Id */
+            search_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+        };
+        /**
+         * LlmSearchRequest
+         * @description Request body for LLM transcript searches.
+         */
+        LlmSearchRequest: {
+            /** Events */
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            /** Messages */
+            messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
+            /** Model */
+            model?: string | null;
+            /** Query */
+            query: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+        };
         /** LogDirResponse */
         LogDirResponse: {
             /** Log Dir */
@@ -2125,6 +2403,14 @@ export interface components {
             /** Content */
             content: components["schemas"]["Logprob"][];
         };
+        /**
+         * Manual
+         * @description No-op trigger spec.
+         *
+         *     The engine's ``tick()`` always returns ``None`` for this spec —
+         *     fires happen only through explicit ``cp.checkpoint()`` calls.
+         */
+        Manual: Record<string, never>;
         /** MessagePoolData */
         MessagePoolData: {
             /** Data */
@@ -2380,6 +2666,21 @@ export interface components {
             timestamp: string;
         };
         /**
+         * Reference
+         * @description Reference to scanned content.
+         */
+        Reference: {
+            /** Cite */
+            cite?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "message" | "event";
+        };
+        /**
          * ResponseSchema
          * @description Schema for model response when using Structured Output.
          */
@@ -2391,6 +2692,29 @@ export interface components {
             name: string;
             /** Strict */
             strict?: boolean | null;
+        };
+        /**
+         * Result
+         * @description Scan result.
+         */
+        Result: {
+            /** Answer */
+            answer?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Type */
+            type?: string | null;
+            /** Uuid */
+            uuid?: string | null;
+            value: components["schemas"]["JsonValue"];
         };
         /**
          * Sample
@@ -2844,6 +3168,24 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
+        SearchInput: components["schemas"]["GrepSearchInput"] | components["schemas"]["LlmSearchInput"];
+        /**
+         * SearchInputListResponse
+         * @description Response from the list search inputs endpoint.
+         */
+        SearchInputListResponse: {
+            /** Items */
+            items: components["schemas"]["SearchInput"][];
+        };
+        /**
+         * SearchResponse
+         * @description Response from running a transcript search.
+         */
+        SearchResponse: {
+            /** Id */
+            id: string;
+            result: components["schemas"]["Result"];
+        };
         /** SegmentRef */
         SegmentRef: {
             /** Direct Url */
@@ -2852,6 +3194,23 @@ export interface components {
             id: number;
             /** Member Name */
             member_name: string;
+        };
+        /**
+         * SnapshotDetails
+         * @description Per-backup stats captured in the sidecar.
+         *
+         *     One per repo (host repo + one per active sandbox repo). Values come
+         *     from restic's backup summary — see :class:`ResticBackupSummary`.
+         */
+        SnapshotDetails: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Snapshot Id */
+            snapshot_id: string;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * SpanBeginEvent
@@ -3080,7 +3439,10 @@ export interface components {
         };
         /**
          * TimeInterval
-         * @description Fire every N of wall-clock time.
+         * @description Fire after a wall-clock interval.
+         *
+         *     The engine fires when at least ``every`` has elapsed since the
+         *     last fire (or since the session opened, for the first fire).
          */
         TimeInterval: {
             /**
@@ -3159,7 +3521,12 @@ export interface components {
         };
         /**
          * TokenInterval
-         * @description Fire every N tokens generated. Not yet implemented (Phase 5).
+         * @description Fire every ``every`` tokens of sample-level usage.
+         *
+         *     Sample total tokens are read from
+         *     :func:`inspect_ai.model.sample_total_tokens`; the trigger fires
+         *     each time the running total crosses another ``every``-token
+         *     boundary since the last fire.
          */
         TokenInterval: {
             /** Every */
@@ -3211,7 +3578,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "unknown" | "output_limit";
+            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "unknown" | "output_limit";
         };
         /**
          * ToolCallView
@@ -3372,7 +3739,14 @@ export interface components {
         };
         /**
          * TurnInterval
-         * @description Fire every N agent turns.
+         * @description Fire after every ``every`` agent turns of work.
+         *
+         *     The very first ``tick()`` call marks the boundary *before* turn 1
+         *     has run — agents place ``cp.tick()`` at the top of their loop, so
+         *     the opening tick stands between "no turn yet" and "turn 1." That
+         *     boundary is informational and doesn't count toward the threshold;
+         *     otherwise ``every=1`` would fire an empty checkpoint on the
+         *     opening tick.
          */
         TurnInterval: {
             /** Every */
@@ -3910,6 +4284,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Samples"];
+                };
+            };
+        };
+    };
+    list_search_inputs_scout_searches_get: {
+        parameters: {
+            query: {
+                /** @description Search input type to list */
+                type: "grep" | "llm";
+                /** @description Maximum number of recent search inputs to return */
+                count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchInputListResponse"];
+                };
+            };
+        };
+    };
+    search_scout_transcripts__dir___id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrepSearchRequest"] | components["schemas"]["LlmSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+        };
+    };
+    get_search_scout_transcripts__dir___id__searches__search_id__get: {
+        parameters: {
+            query?: {
+                /** @description Message filter used for the cached search result */
+                messages?: string | null;
+                /** @description Event filter used for the cached search result */
+                events?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description Transcripts directory (base64url-encoded) */
+                dir: string;
+                /** @description Transcript ID */
+                id: string;
+                /** @description Search ID */
+                search_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Result"];
                 };
             };
         };

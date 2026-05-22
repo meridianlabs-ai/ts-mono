@@ -12,6 +12,7 @@ import { FindBand } from "../../components/FindBand";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
+import { isSingleFileMode } from "../singleFileMode";
 
 import { LogView } from "./LogView";
 
@@ -27,7 +28,6 @@ export const LogViewLayout: FC = () => {
   const setShowFind = useStore((state) => state.appActions.setShowFind);
   const nativeFind = useStore((state) => state.app.nativeFind);
   const hideFind = useStore((state) => state.appActions.hideFind);
-  const singleFileMode = useStore((state) => state.app.singleFileMode);
 
   // Logs Data
   const logDir = useStore((state) => state.logs.logDir);
@@ -80,13 +80,13 @@ export const LogViewLayout: FC = () => {
           className={clsx(
             "app-main-grid",
             fullScreen ? "full-screen" : undefined,
-            singleFileMode ? "single-file-mode" : undefined,
+            isSingleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
           tabIndex={0}
         >
           {showFind ? <FindBand /> : ""}
-          {!singleFileMode ? (
+          {!isSingleFileMode ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}
               currentPath={logPath}

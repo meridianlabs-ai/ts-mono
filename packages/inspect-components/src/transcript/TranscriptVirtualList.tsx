@@ -4,10 +4,12 @@ import type {
   AnchorEvent,
   ApprovalEvent,
   BranchEvent,
+  CheckpointEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   LoggerEvent,
   ModelEvent,
   SampleInitEvent,
@@ -26,11 +28,13 @@ import type {
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
 import { BranchEventView } from "./BranchEventView";
+import { CheckpointEventView } from "./CheckpointEventView";
 import { CompactionEventView } from "./CompactionEventView";
 import { ErrorEventView } from "./ErrorEventView";
 import { ForkNavigatorView } from "./ForkNavigatorView";
 import { InfoEventView } from "./InfoEventView";
 import { InputEventView } from "./InputEventView";
+import { InterruptEventView } from "./InterruptEventView";
 import { LoggerEventView } from "./LoggerEventView";
 import { ModelEventView } from "./ModelEventView";
 import { SampleInitEventView } from "./SampleInitEventView";
@@ -240,6 +244,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         />
       );
 
+    case "interrupt":
+      return (
+        <InterruptEventView
+          eventNode={node as EventNode<InterruptEvent>}
+          className={className}
+        />
+      );
+
     case "error":
       return (
         <ErrorEventView
@@ -260,6 +272,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <SandboxEventView
           eventNode={node as EventNode<SandboxEvent>}
+          className={className}
+        />
+      );
+
+    case "checkpoint":
+      return (
+        <CheckpointEventView
+          eventNode={node as EventNode<CheckpointEvent>}
           className={className}
         />
       );

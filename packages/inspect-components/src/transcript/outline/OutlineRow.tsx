@@ -200,6 +200,8 @@ const labelForNode = (node: EventNode): string => {
           return "sandbox events";
         }
         return node.event.name;
+      case "checkpoint":
+        return `checkpoint ${node.event.checkpoint_id}`;
 
       default:
         return node.event.event;

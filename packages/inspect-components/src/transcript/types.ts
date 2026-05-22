@@ -2,10 +2,12 @@ import type {
   AnchorEvent,
   ApprovalEvent,
   BranchEvent,
+  CheckpointEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   JsonChange,
   LoggerEvent,
   ModelEvent,
@@ -60,10 +62,12 @@ export type EventType =
   | ScoreEditEvent
   | ToolEvent
   | InputEvent
+  | InterruptEvent
   | ErrorEvent
   | AnchorEvent
   | ApprovalEvent
   | BranchEvent
+  | CheckpointEvent
   | CompactionEvent
   | SandboxEvent
   | SpanBeginEvent
@@ -84,10 +88,12 @@ export const eventTypeValues = [
   "score_edit",
   "tool",
   "input",
+  "interrupt",
   "error",
   "anchor",
   "approval",
   "branch",
+  "checkpoint",
   "compaction",
   "sandbox",
   "span_begin",

@@ -109,21 +109,20 @@ export const LogViewContainer: FC = () => {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
+  // Sync the workspace tab from the URL synchronously. Kept separate from
+  // the async log-loading effect below so a tab click can't race with a
+  // pending initLogDir() and snap the view back to an older tab.
+  useEffect(() => {
+    if (!logPath) return;
+    setWorkspaceTab(tabId ?? kLogViewSamplesTabId);
+  }, [logPath, tabId, setWorkspaceTab]);
+
   useEffect(() => {
     const loadLogFromPath = async () => {
       if (logPath) {
         await initLogDir();
         setSelectedLogFile(logPath);
         void syncLogs();
-
-        // Set the tab if specified in the URL
-        if (tabId) {
-          // Only set the tab if it's valid - the LogView component will handle
-          // determining if the tab exists before updating the state
-          setWorkspaceTab(tabId);
-        } else {
-          setWorkspaceTab(kLogViewSamplesTabId);
-        }
 
         // Reset the sample
         if (prevLogPath && logPath !== prevLogPath) {
@@ -137,9 +136,7 @@ export const LogViewContainer: FC = () => {
     loadLogFromPath();
   }, [
     logPath,
-    tabId,
     setSelectedLogFile,
-    setWorkspaceTab,
     initLogDir,
     syncLogs,
     prevLogPath,

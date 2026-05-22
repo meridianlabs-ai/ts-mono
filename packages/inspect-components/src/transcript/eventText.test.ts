@@ -454,6 +454,37 @@ describe("eventSearchText", () => {
     expect(texts).toContain("user typed this");
   });
 
+  test("interrupt: includes source and interrupted, plus optional ids", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "interrupt",
+        source: "user_cancel",
+        interrupted: "tool_call",
+        interrupted_tool_call_id: "tc-xyz",
+        interrupted_model_event_id: "me-abc",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("user_cancel");
+    expect(texts).toContain("tool_call");
+    expect(texts).toContain("tc-xyz");
+    expect(texts).toContain("me-abc");
+  });
+
+  test("interrupt: required fields only", () => {
+    const texts = eventSearchText(
+      makeNode({
+        event: "interrupt",
+        source: "limit",
+        interrupted: "between_turns",
+        timestamp: "2024-01-01T00:00:00Z",
+      })
+    );
+    expect(texts).toContain("limit");
+    expect(texts).toContain("between_turns");
+    expect(texts).not.toContain("undefined");
+  });
+
   test("approval: includes decision, explanation, and approver", () => {
     const texts = eventSearchText(
       makeNode({

@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -11,6 +12,7 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
 }
 
 export const Modal: FC<ModalProps> = ({
@@ -20,6 +22,7 @@ export const Modal: FC<ModalProps> = ({
   title,
   children,
   footer,
+  className,
 }) => {
   const icons = useComponentIcons();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -58,7 +61,7 @@ export const Modal: FC<ModalProps> = ({
     <div className={styles.backdrop} onClick={onHide}>
       <div
         ref={modalRef}
-        className={styles.modal}
+        className={clsx(styles.modal, className)}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>

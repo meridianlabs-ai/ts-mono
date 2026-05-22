@@ -6,6 +6,7 @@
 export const TranscriptIcons = {
   agent: "bi bi-grid",
   approve: "bi bi-shield",
+  checkpoint: "bi bi-bookmark-check-fill",
   approvals: {
     approve: "bi bi-shield-check",
     reject: "bi bi-shield-x",
@@ -23,6 +24,7 @@ export const TranscriptIcons = {
   fork: "bi bi-sign-intersection-y-fill",
   info: "bi bi-info-circle",
   input: "bi bi-terminal",
+  interrupt: "bi bi-slash-circle",
   limits: {
     messages: "bi bi-chat-right-text",
     custom: "bi bi-exclamation-triangle",
