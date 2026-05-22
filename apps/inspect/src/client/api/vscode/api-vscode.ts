@@ -241,7 +241,13 @@ async function edit_log(
     if (!response) {
       throw new Error(`Edit returned no response for ${log_file}.`);
     }
-    return JSON5.parse(response) as EditLogResult;
+    // Existing RPC methods are inconsistent about whether their
+    // payload is wire-encoded (string) or returned as a parsed object
+    // (e.g. `get_log_info`). Accept both so the handler isn't coupled
+    // to which form the extension chooses.
+    return (
+      typeof response === "string" ? JSON5.parse(response) : response
+    ) as EditLogResult;
   } catch (e: any) {
     if (typeof e?.code === "number" && e.code >= 400 && e.code < 600) {
       throw new ApiError(e.code, e?.message ?? `Edit failed (${e.code})`);
@@ -265,7 +271,13 @@ async function get_user_info(): Promise<UserInfo> {
   try {
     const response = await vscodeClient(kMethodGetUserInfo, []);
     if (!response) return {};
-    return (JSON5.parse(response) as UserInfo) ?? {};
+    // Accept both wire shapes (string-encoded or parsed-object).
+    // See the matching note on `edit_log` above.
+    const info =
+      typeof response === "string"
+        ? (JSON5.parse(response) as UserInfo)
+        : (response as UserInfo);
+    return info ?? {};
   } catch (e: any) {
     if (e?.code === kJsonRpcMethodNotFound) {
       return {};
