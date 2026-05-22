@@ -29,30 +29,27 @@ export const fixupEventStream = (
 };
 
 const processPendingEvents = (events: Event[], filter: boolean): Event[] => {
-  // If filtering pending, just remove all pending events
-  // otherise, collapse sequential pending events of the same
-  // type
+  // Coalesce repeated emissions of the *same* logical event (same uuid)
+  // while it remains pending — that's the streaming-update case. Distinct
+  // uuids (e.g. parallel sibling tool calls) survive as independent rows.
+  // Events with uuid=null (synthetic step/span events) never coalesce.
   return filter
     ? events.filter((e) => !e.pending)
     : events.reduce<Event[]>((acc, event) => {
-        // Collapse sequential pending events of the same type
         if (!event.pending) {
-          // Not a pending event
           acc.push(event);
+          return acc;
+        }
+        const lastIndex = acc.length - 1;
+        if (
+          lastIndex >= 0 &&
+          event.uuid != null &&
+          acc[lastIndex]?.pending &&
+          acc[lastIndex]?.uuid === event.uuid
+        ) {
+          acc[lastIndex] = event;
         } else {
-          // For pending events, replace previous pending or add new
-          const lastIndex = acc.length - 1;
-          if (
-            lastIndex >= 0 &&
-            acc[lastIndex]?.pending &&
-            acc[lastIndex]?.event === event.event
-          ) {
-            // Replace previous pending with current one (if they're of the same type)
-            acc[lastIndex] = event;
-          } else {
-            // First event or follows non-pending
-            acc.push(event);
-          }
+          acc.push(event);
         }
         return acc;
       }, []);
