@@ -19,7 +19,13 @@ import {
   UserInfo,
 } from "../types";
 
-import { ApiError, HeaderProvider, Request, serverRequestApi } from "./request";
+import {
+  ApiError,
+  HeaderProvider,
+  Request,
+  serverRequestApi,
+  unwrapFastapiDetail,
+} from "./request";
 
 // The time that the view was initially loaded
 const LOADED_TIME = Date.now();
@@ -484,11 +490,15 @@ export function viewServerApi(
     });
 
     if (!response.ok) {
-      const message = (await response.text()) || response.statusText;
-      throw new ApiError(
-        response.status,
-        `API Error ${response.status}: ${message}`
-      );
+      // FastAPI wire-encodes `HTTPException(detail=...)` as
+      // `{"detail": "..."}`. Unwrap so the dialog's `formatEditError`
+      // (and any other ApiError consumer) sees the human-readable
+      // message instead of the JSON envelope or an "API Error N:"
+      // prefix — status-specific server responses (400 validation,
+      // 409 in-progress, 412 stale ETag) need to render as themselves.
+      const rawText = await response.text();
+      const message = unwrapFastapiDetail(rawText) || response.statusText;
+      throw new ApiError(response.status, message);
     }
 
     const text = await response.text();

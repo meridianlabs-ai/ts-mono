@@ -10,6 +10,37 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Unwrap a FastAPI `HTTPException` body — wire-encoded as
+ * `{"detail": "..."}` — into the bare detail string.
+ *
+ * Returns the input unchanged when:
+ *   - the body isn't valid JSON (e.g. the server sent plain text), or
+ *   - the JSON has no top-level `detail` string (older endpoints,
+ *     custom error shapes).
+ *
+ * Used by callers that build their own `ApiError` from a non-OK
+ * response so the dialog renders e.g. `Empty tag is not allowed`
+ * instead of `{"detail": "Empty tag is not allowed"}`.
+ */
+export function unwrapFastapiDetail(body: string): string {
+  if (!body) return body;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "detail" in parsed &&
+      typeof (parsed as { detail: unknown }).detail === "string"
+    ) {
+      return (parsed as { detail: string }).detail;
+    }
+  } catch {
+    // Not JSON — fall through.
+  }
+  return body;
+}
+
 export interface Request<T> {
   headers?: Record<string, string>;
   body?: string;
