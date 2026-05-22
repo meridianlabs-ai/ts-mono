@@ -362,6 +362,22 @@ export const clientApi = (
   // bubble up.
   const sampleDataPathByLog = new Map<string, "direct" | "proxy">();
 
+  // Per-log cache of the most recent ETag returned by `edit_log`. The
+  // edit dialogs currently call `edit_log(file, update)` with no third
+  // argument, and without this cache we'd silently throw away
+  // `result.etag` — making the server's If-Match / 412 protection
+  // unreachable from the shipped UI (only tests and external callers
+  // would ever trigger it). The middleware below re-supplies the
+  // cached etag whenever the caller doesn't pass one explicitly, so
+  // chained edits within a session get concurrent-modification
+  // detection for free.
+  //
+  // Known limitation: the *first* edit after opening a log still goes
+  // without an If-Match, because we don't yet surface the log header's
+  // ETag at fetch time (the .eval read path doesn't currently capture
+  // it). Capturing that initial etag is a separate change.
+  const editEtagByLog = new Map<string, string>();
+
   const get_log_sample_data = async (
     log_file: string,
     id: string | number,
@@ -498,7 +514,18 @@ export const clientApi = (
             update: LogUpdate,
             if_match_etag?: string
           ): Promise<EditLogResult> => {
-            const result = await api.edit_log!(log_file, update, if_match_etag);
+            // Fall back to the etag returned by the previous successful
+            // edit for this log if the caller didn't pass one. See the
+            // `editEtagByLog` block above for why this exists.
+            const effective = if_match_etag ?? editEtagByLog.get(log_file);
+            const result = await api.edit_log!(log_file, update, effective);
+            // Remember the new etag for the next call. A response
+            // without an etag (e.g. local-filesystem edit) leaves the
+            // cache as-is so a subsequent S3-backed edit on the same
+            // path doesn't lose its `If-Match`.
+            if (result.etag) {
+              editEtagByLog.set(log_file, result.etag);
+            }
             // The on-disk log just changed; drop both caches so the next
             // read (typically a `refreshLog` triggered by the dialog's
             // onSaved callback) re-fetches the new tags / log_updates.

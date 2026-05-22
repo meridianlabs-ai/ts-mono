@@ -237,3 +237,115 @@ describe("clientApi.edit_log cache invalidation", () => {
     expect(openMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("clientApi.edit_log etag plumbing", () => {
+  // Concern: the API layer accepts `if_match_etag` and returns
+  // `result.etag`, but the dialogs call `edit_log(file, update)` with no
+  // third argument. If the middleware also threw `result.etag` away,
+  // the server's If-Match / 412 protection would be unreachable from
+  // the shipped UI — only tests and external callers would ever
+  // exercise it.
+  //
+  // The middleware therefore persists `result.etag` per-log and
+  // re-supplies it as `if_match_etag` on the next call when the caller
+  // doesn't pass one explicitly. These tests pin that behavior.
+
+  const okUpdate = {
+    edits: [],
+    provenance: {
+      author: "a",
+      metadata: {} as Record<string, never>,
+      timestamp: "2026-01-01T00:00:00Z",
+    },
+  };
+  const okLog = {} as unknown as EditLogResult["log"];
+
+  test("carries the etag from a successful edit forward to the next edit on the same log", async () => {
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValueOnce({ log: okLog, etag: "etag-after-first" })
+      .mockResolvedValueOnce({ log: okLog, etag: "etag-after-second" });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    // First edit: nothing cached yet, so no If-Match is sent.
+    await client.edit_log!("log.eval", okUpdate);
+    expect(edit_log).toHaveBeenNthCalledWith(1, "log.eval", okUpdate, undefined);
+
+    // Second edit: caller again passes nothing, but the middleware
+    // should re-supply the etag returned by the previous call so the
+    // server's concurrent-edit protection can actually fire.
+    await client.edit_log!("log.eval", okUpdate);
+    expect(edit_log).toHaveBeenNthCalledWith(
+      2,
+      "log.eval",
+      okUpdate,
+      "etag-after-first"
+    );
+  });
+
+  test("an explicit if_match_etag from the caller wins over the cached one", async () => {
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: okLog, etag: "from-server" });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.edit_log!("log.eval", okUpdate);
+    await client.edit_log!("log.eval", okUpdate, "caller-supplied");
+    expect(edit_log).toHaveBeenNthCalledWith(
+      2,
+      "log.eval",
+      okUpdate,
+      "caller-supplied"
+    );
+  });
+
+  test("etag cache is keyed by log file — an edit on one log doesn't leak to another", async () => {
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: okLog, etag: "etag-foo" });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.edit_log!("foo.eval", okUpdate);
+    // Different log → no cached etag for `bar.eval` yet.
+    await client.edit_log!("bar.eval", okUpdate);
+    expect(edit_log).toHaveBeenNthCalledWith(
+      2,
+      "bar.eval",
+      okUpdate,
+      undefined
+    );
+  });
+
+  test("a failed edit doesn't poison the cache — the next attempt still uses the last good etag", async () => {
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValueOnce({ log: okLog, etag: "good" })
+      .mockRejectedValueOnce(new Error("400 invalid"))
+      .mockResolvedValueOnce({ log: okLog, etag: "good2" });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.edit_log!("log.eval", okUpdate);
+    await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow(
+      "400"
+    );
+    await client.edit_log!("log.eval", okUpdate);
+    // After the rejection the cache is unchanged, so the third call
+    // still sends the etag from the first successful edit.
+    expect(edit_log).toHaveBeenNthCalledWith(3, "log.eval", okUpdate, "good");
+  });
+
+  test("a response without an etag leaves the cache unchanged", async () => {
+    // Local-filesystem edits don't return an ETag (S3-only). A second
+    // edit on the same log shouldn't suddenly start sending `If-Match:
+    // undefined-stringified` or similar — the third argument stays
+    // undefined.
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: okLog });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    await client.edit_log!("log.eval", okUpdate);
+    await client.edit_log!("log.eval", okUpdate);
+    expect(edit_log).toHaveBeenNthCalledWith(2, "log.eval", okUpdate, undefined);
+  });
+});
