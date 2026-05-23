@@ -7,10 +7,12 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  AppErrorBoundary,
+  ComponentNavigationProvider,
+} from "@tsmono/react/components";
 
 import { storeImplementation } from "../../state/store";
-import { AppErrorBoundary } from "../AppErrorBoundary";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
