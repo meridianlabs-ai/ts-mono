@@ -4071,6 +4071,10 @@ export interface components {
             /** Split */
             split?: string | null;
             target?: components["schemas"]["JsonValue"] | null;
+            /** Task Id */
+            task_id?: string | null;
+            /** Task Repeat */
+            task_repeat?: number | null;
         };
         /**
          * ValidationCaseRequest
@@ -4088,6 +4092,10 @@ export interface components {
             /** Split */
             split?: string | null;
             target?: components["schemas"]["JsonValue"] | null;
+            /** Task Id */
+            task_id?: string | null;
+            /** Task Repeat */
+            task_repeat?: number | null;
         };
         /**
          * ValidationEntry
