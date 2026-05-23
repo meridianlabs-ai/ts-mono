@@ -1279,6 +1279,7 @@ export interface components {
             /** Acp Server */
             acp_server?: boolean | number | string | null;
             approval?: components["schemas"]["ApprovalPolicyConfig"] | null;
+            ask_user?: components["schemas"]["InputConfigSpec"] | null;
             /** Continue On Fail */
             continue_on_fail?: boolean | null;
             /** Cost Limit */
@@ -2094,24 +2095,51 @@ export interface components {
             working_start: number;
         };
         /**
+         * InputConfigSpec
+         * @description Declarative input config (YAML/JSON-parseable, registry-name based).
+         *
+         *     Resolved into an `InputConfig` via `resolve_input_config` (which
+         *     instantiates each named handler/notifier from the registry) and logged
+         *     back on `EvalConfig.ask_user` for retries.
+         */
+        InputConfigSpec: {
+            input_handler?: components["schemas"]["InputHandlerSpec"] | null;
+            /** Input Handler Timeout */
+            input_handler_timeout?: number | null;
+            /** Input Notifiers */
+            input_notifiers?: components["schemas"]["InputNotifierSpec"][] | null;
+            /** Notifier Timeout */
+            notifier_timeout?: number | null;
+        };
+        /**
          * InputEvent
          * @description Input screen interaction.
          */
         InputEvent: {
+            /** Content */
+            content?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Event
              * @default input
              * @constant
              */
             event: "input";
+            /** Fields */
+            fields?: components["schemas"]["InputField"][] | null;
             /** Input */
             input: string;
             /** Input Ansi */
             input_ansi: string;
+            /** Message */
+            message?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Outcome */
+            outcome?: ("accepted" | "declined" | "cancelled") | null;
             /** Pending */
             pending?: boolean | null;
             /** Span Id */
@@ -2122,6 +2150,45 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * InputField
+         * @description One field of an `ask_user` request.
+         */
+        InputField: {
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "string" | "integer" | "number" | "boolean" | "array";
+        };
+        /**
+         * InputHandlerSpec
+         * @description Declarative spec for a registered input handler.
+         */
+        InputHandlerSpec: {
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+        };
+        /**
+         * InputNotifierSpec
+         * @description Declarative spec for a registered input notifier.
+         */
+        InputNotifierSpec: {
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
         };
         /**
          * InterruptEvent
