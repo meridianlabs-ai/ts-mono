@@ -19,3 +19,4 @@ export * from "./useRafThrottle";
 export * from "./useScrollTrack";
 export * from "./useRevokableUrls";
 export * from "./useListKeyboardNavigation";
+export * from "./useBreadcrumbTruncation";

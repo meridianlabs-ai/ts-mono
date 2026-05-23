@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./components": "./src/components/index.ts",
+    "./icons": "./src/icons/index.ts",
     "./state": "./src/state/index.ts"
   },
   "scripts": {
