@@ -26,6 +26,9 @@ interface ValidationSetSelectorProps {
   allowCreate?: boolean;
   onCreate?: (name: string) => void;
 
+  /** Whether a create operation is currently in progress */
+  createPending?: boolean;
+
   /** Project directory path for displaying full file path in create modal */
   appConfig?: AppConfig;
 }
@@ -42,6 +45,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   autoSize = false,
   allowCreate = false,
   onCreate,
+  createPending = false,
   appConfig,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -336,9 +340,9 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             <button
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleCreateSubmit}
-              disabled={!newSetName.trim()}
+              disabled={!newSetName.trim() || createPending}
             >
-              Create
+              {createPending ? "Creating..." : "Create"}
             </button>
           </>
         }

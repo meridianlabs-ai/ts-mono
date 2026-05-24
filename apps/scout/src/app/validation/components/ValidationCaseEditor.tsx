@@ -473,6 +473,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               onSelect={handleValidationSetSelect}
               allowCreate={true}
               onCreate={(name) => void handleCreateSet(name)}
+              createPending={createSetMutation.isPending}
               appConfig={config}
             />
             {createError && (
