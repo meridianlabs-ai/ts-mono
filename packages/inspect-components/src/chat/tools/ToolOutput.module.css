@@ -1,6 +1,6 @@
 .toolImage {
   max-width: 800px;
-  border: solid var(--bs-border-color) 1px;
+  border: solid var(--inspect-tool-output-border) 1px;
 }
 
 .output {

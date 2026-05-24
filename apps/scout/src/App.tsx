@@ -8,8 +8,8 @@ import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
-import "@tsmono/theme/base";
-import "@tsmono/theme/vscode";
+import "@tsmono/inspect-common/theme/base";
+import "@tsmono/inspect-common/theme/vscode";
 import "./app/App.css";
 
 import {
@@ -26,7 +26,7 @@ import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { createAppRouter } from "./AppRouter";
 import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";
-import { useUserSettings } from "./state/userSettings";
+import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -61,8 +61,22 @@ export const App: FC<AppProps> = (props) => {
 const useThemePreferenceSync = () => {
   const themePreference = useUserSettings((s) => s.themePreference);
   useEffect(() => {
-    window.__SCOUT_APPLY_BROWSER_THEME__?.();
+    window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
+
+  // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
+  // another tab's write would leave this tab's React state stale. The shared
+  // bootstrap already re-applies CSS on its own storage listener; here we
+  // only need to pull the new state into zustand.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SETTINGS_STORAGE_KEY) {
+        void useUserSettings.persist.rehydrate();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {

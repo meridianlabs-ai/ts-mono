@@ -1,4 +1,4 @@
-/* Inspect-specific overlay on top of @tsmono/theme/base + @tsmono/theme/vscode.
+/* Inspect-specific overlay on top of @tsmono/inspect-common/theme/base + @tsmono/inspect-common/theme/vscode.
    Rules here are either unique to inspect or reference assets that live under
    apps/inspect/src/img/. Shared rules live in the theme package. */
 

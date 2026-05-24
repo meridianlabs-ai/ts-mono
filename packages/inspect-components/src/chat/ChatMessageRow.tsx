@@ -191,6 +191,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
                   {label}
                 </div>
                 <div
+                  data-message-role={resolvedMessage.message.role}
                   className={clsx(
                     styles.container,
                     highlightUserMessage &&
@@ -217,6 +218,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       return (
         <div
           key={`chat-message-row-unlabeled-${index}-part-${idx}`}
+          data-message-role={resolvedMessage.message.role}
           className={clsx(
             styles.container,
             idx === 0 ? styles.first : undefined,

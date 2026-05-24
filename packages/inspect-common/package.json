@@ -8,7 +8,19 @@
   "exports": {
     ".": "./src/types/index.ts",
     "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./theme/base": {
+      "types": "./src/theme/base.d.ts",
+      "default": "./src/theme/base.css"
+    },
+    "./theme/vscode": {
+      "types": "./src/theme/vscode.d.ts",
+      "default": "./src/theme/vscode.css"
+    },
+    "./theme/bootstrap": {
+      "types": "./src/theme/bootstrap.ts",
+      "default": "./src/theme/bootstrap.ts"
+    }
   },
   "scripts": {
     "types:generate": "node scripts/generate-types.js",

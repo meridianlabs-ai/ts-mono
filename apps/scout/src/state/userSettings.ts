@@ -1,12 +1,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { ThemePreference } from "@tsmono/inspect-common/theme/bootstrap";
+
+export type { ThemePreference };
+
+export const SETTINGS_STORAGE_KEY = "inspect-scout-user-settings";
+
 export interface ColumnPreset {
   name: string;
   columns: string[];
 }
-
-export type ThemePreference = "system" | "light" | "dark";
 
 const MAX_SEARCH_MODEL_HISTORY = 25;
 
@@ -54,7 +58,7 @@ export const useUserSettings = create<UserSettingsState>()(
       },
     }),
     {
-      name: "inspect-scout-user-settings",
+      name: SETTINGS_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
     }
   )

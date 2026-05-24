@@ -17,7 +17,6 @@ import { ScanPanel } from "./app/scan/ScanPanel";
 import { ScannerResultPanel } from "./app/scannerResult/ScannerResultPanel";
 import { ScansPanel } from "./app/scans/ScansPanel";
 import { useAppConfig } from "./app/server/useAppConfig";
-import { SettingsPanel } from "./app/settings/SettingsPanel";
 import { TranscriptPanel } from "./app/transcript/TranscriptPanel";
 import { TranscriptsPanel } from "./app/transcripts/TranscriptsPanel";
 import { ValidationPanel } from "./app/validation/ValidationPanel";
@@ -32,7 +31,6 @@ import {
   kScansRootRouteUrlPattern,
   kScansRouteUrlPattern,
   kScansWithPathRouteUrlPattern,
-  kSettingsRouteUrlPattern,
   kTranscriptDetailRoute,
   kTranscriptsRouteUrlPattern,
   kValidationRouteUrlPattern,
@@ -158,10 +156,6 @@ export const createAppRouter = (config: AppRouterConfig) => {
           {
             path: kValidationRouteUrlPattern,
             element: <ValidationPanel />,
-          },
-          {
-            path: kSettingsRouteUrlPattern,
-            element: <SettingsPanel />,
           },
           {
             path: kTranscriptDetailRoute,

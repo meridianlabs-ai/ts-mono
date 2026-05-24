@@ -35,6 +35,9 @@ importers:
       '@tsmono/prettier-config':
         specifier: workspace:*
         version: link:tooling/prettier-config
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.0
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
@@ -80,9 +83,6 @@ importers:
       '@tsmono/scout-components':
         specifier: workspace:*
         version: link:../../packages/scout-components
-      '@tsmono/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -288,9 +288,6 @@ importers:
       '@tsmono/scout-components':
         specifier: workspace:*
         version: link:../../packages/scout-components
-      '@tsmono/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -418,9 +415,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(vite@8.0.12(@types/node@25.7.0)(esbuild@0.28.0)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
-      esbuild:
-        specifier: 0.28.0
-        version: 0.28.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.4
@@ -758,8 +752,6 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.7.0)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.7.0)(typescript@6.0.3))(vite@8.0.12(@types/node@25.7.0)(esbuild@0.28.0)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
-
-  packages/theme: {}
 
   packages/util:
     devDependencies:

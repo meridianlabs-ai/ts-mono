@@ -11,6 +11,7 @@ import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
+import { inlineThemeBootstrap } from "../../tooling/vite-plugins/index.js";
 
 import getVersionInfo from "./scripts/get-version.js";
 
@@ -121,6 +122,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
+        inlineThemeBootstrap(resolve(__dirname, "src/theme/bootstrap.ts")),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         copyToPythonRepo(),
       ],

@@ -96,7 +96,6 @@
     "@tsmono/inspect-components": "workspace:*",
     "@tsmono/react": "workspace:*",
     "@tsmono/scout-components": "workspace:*",
-    "@tsmono/theme": "workspace:*",
     "@tsmono/util": "workspace:*",
     "@vscode-elements/react-elements": "^2.4.0",
     "ag-grid-community": "^34.3.1",

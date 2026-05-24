@@ -38,6 +38,93 @@
   /* Inspect Glass */
   --inspect-glass-color: #000000;
   --inspect-glass-opacity: 0.3;
+
+  /* Tool messages — dedicated tokens so apps (and the vscode bridge) can
+     re-skin tool calls/outputs/errors without patching component CSS.
+     Defaults reproduce the previous hard-coded appearance. */
+  --inspect-tool-description-color: var(--bs-secondary-color);
+  --inspect-tool-output-bg: #f8f8f8;
+  --inspect-tool-output-color: inherit;
+  --inspect-tool-output-border: var(--bs-border-color);
+  --inspect-tool-error-color: var(--bs-danger);
+  --inspect-tool-error-bg: rgba(var(--bs-danger-rgb), 0.06);
+
+  /* Readable-variant role bands (light base). These tokens are DEFINED
+     always but only APPLIED under [data-theme-variant="readable"], so the
+     default design-consistent look is untouched — this is the "one small
+     override block per base mode" instead of a duplicated stylesheet. */
+  --inspect-readable-user-bg: #eef4ff;
+  --inspect-readable-user-border: #4a78c8;
+  --inspect-readable-assistant-bg: #eee5ff;
+  --inspect-readable-assistant-border: #7259b0;
+  --inspect-readable-thinking-bg: #f7f2ff;
+  --inspect-readable-thinking-border: #8a74c4;
+  --inspect-readable-tool-call-bg: #eef5f0;
+  --inspect-readable-tool-call-border: #4f8a63;
+  --inspect-readable-system-bg: #f1f1f1;
+  --inspect-readable-system-border: #8a8a8a;
+  --inspect-readable-body-color: #11181f;
+}
+
+:root[data-bs-theme="dark"] {
+  --inspect-readable-user-bg: #1a2740;
+  --inspect-readable-user-border: #5a86c8;
+  --inspect-readable-assistant-bg: #2e2545;
+  --inspect-readable-assistant-border: #9a86d4;
+  --inspect-readable-thinking-bg: #241f31;
+  --inspect-readable-thinking-border: #8c7fbf;
+  --inspect-readable-tool-call-bg: #15241a;
+  --inspect-readable-tool-call-border: #4f8a63;
+  --inspect-readable-system-bg: #232323;
+  --inspect-readable-system-border: #7a7a7a;
+  --inspect-readable-body-color: #e6e8ea;
+}
+
+/* Readable variant: trade design consistency for transcript scannability —
+   each turn gets a distinct tinted band + accent rule, and the tool tokens
+   are pointed at the higher-contrast role colors. Roles are read off the
+   `data-message-role` / `data-content-kind` attributes the chat components
+   already emit (no per-role classes, no duplicated styles). */
+:root[data-theme-variant="readable"] {
+  --bs-body-color: var(--inspect-readable-body-color);
+}
+
+:root[data-theme-variant="readable"] [data-message-role] {
+  border-left: 3px solid transparent;
+}
+
+:root[data-theme-variant="readable"] [data-message-role="user"] {
+  background-color: var(--inspect-readable-user-bg);
+  border-left-color: var(--inspect-readable-user-border);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="assistant"] {
+  background-color: var(--inspect-readable-assistant-bg);
+  border-left-color: var(--inspect-readable-assistant-border);
+}
+
+/* Tool calls/results are usually collapsed into the assistant turn. Tint the
+   former code-block surface for the call itself, while outputs stay neutral. */
+:root[data-theme-variant="readable"] pre.tool-call-input,
+:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
+  background-color: var(--inspect-readable-tool-call-bg) !important;
+  border-left: 3px solid var(--inspect-readable-tool-call-border) !important;
+  padding-left: 0.6rem;
+  border-radius: var(--bs-border-radius);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="system"] {
+  background-color: var(--inspect-readable-system-bg);
+  border-left-color: var(--inspect-readable-system-border);
+}
+
+/* Agent thinking, nested inside an assistant turn, gets its own band so
+   reasoning is visually separable from the model's actual response. */
+:root[data-theme-variant="readable"] [data-content-kind="reasoning"] {
+  background-color: var(--inspect-readable-thinking-bg);
+  border-left: 3px solid var(--inspect-readable-thinking-border);
+  padding-left: 0.6rem;
+  border-radius: var(--bs-border-radius);
 }
 
 body:not([class^="vscode-"]) button {
@@ -162,8 +249,15 @@ a:hover {
 }
 
 body[class^="vscode-"] {
-  --bs-border-radius: 0;
-  --bs-border-radius-lg: 0;
+  /* Tool message tokens bridged to VS Code's editor widget palette so tool
+     calls read as embedded editor panels inside the IDE. */
+  --inspect-tool-description-color: var(--vscode-descriptionForeground);
+  --inspect-tool-output-bg: var(--vscode-textCodeBlock-background);
+  --inspect-tool-output-color: var(--vscode-editor-foreground);
+  --inspect-tool-output-border: var(--vscode-editorWidget-border);
+  --inspect-tool-error-color: var(--vscode-errorForeground);
+  --inspect-tool-error-bg: var(--vscode-inputValidation-errorBackground);
+
   --bs-body-bg: var(--vscode-editor-background);
   --bs-secondary-bg-subtle: var(--vscode-editorHoverWidget-background);
   --bs-tertiary-bg: var(--vscode-list-hoverBackground);
@@ -858,17 +952,25 @@ table.table.table-sm td {
 }
 
 pre[class*="language-"],
-.markdown-content pre[class*="language-"],
+.markdown-content pre[class*="language-"] {
+  background-color: #f8f8f8;
+}
+
+/* The `.tool-output` family is the canonical styling hook for tool message
+   output (the CSS-module `.textOutput` also carries this class). Drive it
+   off the tokens so the vscode bridge / apps can re-skin it; defaults below
+   reproduce the previous #f8f8f8 / #333333 appearance. This rule must own
+   the color so the higher-specificity `.vscode-dark .tool-output` rule
+   that used to hard-code #333333 no longer shadows the token. */
 pre[class*="language-"].tool-output,
 .tool-output {
-  background-color: #f8f8f8;
+  background-color: var(--inspect-tool-output-bg);
+  color: var(--inspect-tool-output-color);
 }
 
 .vscode-dark pre[class*="language-"],
 .vscode-dark .model-call pre[class*="language-"],
-.vscode-dark .markdown-content pre[class*="language-"],
-.vscode-dark pre[class*="language-"].tool-output,
-.vscode-dark .tool-output {
+.vscode-dark .markdown-content pre[class*="language-"] {
   background-color: #333333;
 }
 
