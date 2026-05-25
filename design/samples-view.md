@@ -22,7 +22,7 @@ This is distinct from `sample_score_view` (also under `ViewerConfig`), which con
 
 ## Scope (Phase 0–2)
 
-- The descriptor is owned by `SampleList` (`apps/inspect/src/app/samples/list/SampleList.tsx`, single-log scope `logViewSamples`).
+- The descriptor is owned by `SampleList` (`apps/inspect/src/app/samples/list/SampleList.tsx`). Runtime state is keyed **per log file** in `samplesListState.byLog[logFile]` so different logs (with different scorer columns / eval config) don't share customizations.
 - `SamplesGrid` (`apps/inspect/src/app/shared/samples-grid/SamplesGrid.tsx`) is a dumb-ish ag-grid renderer used by both `SampleList` and `SamplesPanel`. It does not own the descriptor; in Phase 2 it grows a single optional prop `multiline?: boolean`.
 - `SamplesPanel` (cross-log dataframe view, scope `samplesPanel`) is **out of scope**. It can adopt the descriptor in a follow-on, but its persisted state shape is unchanged here.
 
@@ -144,10 +144,10 @@ Mirrors the existing `resolveScorePanelSort` pattern in [`apps/inspect/src/state
 
 ## Column-id instability tolerance
 
-Score columns include scorer + metric (`score__<scorer>__<metric>`). A view recorded against one log may reference columns that don't exist in another. The boundary contract:
+Per-log scoping means a log's descriptor only references columns from that log, so cross-log mismatches are gone. The unknown-id tolerance in `viewToGridState` / `gridStateToView` is now a defence against **transient** mismatches within a single log — e.g. log details streaming in stages where `allColumns` initially lacks scorer columns the user has already customized.
 
-- Read time: `viewToGridState(view, availableColIds)` excludes unknown ids from the `GridState` it hands ag-grid. The persisted descriptor is **not** mutated. When the user navigates to a log that does have those columns, references re-engage automatically.
-- Same rule for sort entries naming missing columns and `extraColumnFilters` keyed on missing columns.
+- Read time: `viewToGridState(view, availableColIds)` excludes unknown ids from the `GridState` it hands ag-grid. The persisted descriptor is **not** mutated.
+- Write time: `gridStateToView(prev, gs, availableColIds)` preserves unknown-id references from `prev` so a write that fires during a partial-load doesn't erase user customizations.
 
 ## `selectedScores` adapter
 
@@ -155,11 +155,11 @@ Score columns include scorer + metric (`score__<scorer>__<metric>`). A view reco
 
 ## Persistence
 
-The store's `persist` middleware in [`apps/inspect/src/state/store.ts`](../apps/inspect/src/state/store.ts) uses host-injected `ClientStorage`. Persistence is transient (used in the VSCode extension to survive tab backgrounding), not long-lived localStorage. There is no formal versioned migrator — the read boundary in Phase 2 will handle the legacy `byScope.logViewSamples = { columnVisibility, gridState }` shape gracefully via a `legacyToView(slot, dslFilter): SamplesViewState` helper, and the first user write replaces it with the new `{ view }` shape.
+The store's `persist` middleware in [`apps/inspect/src/state/store.ts`](../apps/inspect/src/state/store.ts) uses host-injected `ClientStorage`. Persistence is transient (used in the VSCode extension to survive tab backgrounding), not long-lived localStorage. The `version` bump from 3 → 4 (per-log refactor) drops mismatched-version state on rehydrate; backgrounded windows rebuild state on first use.
 
 ## logDir change behavior
 
-In Phase 2, navigating to a different log directory will keep `view.columns` and `view.multiline` for `logViewSamples` and reset only `view.filters` and `view.sort`. Today the entire `gridState` is wiped; the narrowing preserves column choices and row layout (general preferences) while still clearing log-specific filter/sort state. SamplesPanel scope behavior is unchanged.
+Per-log scoping means a logDir change doesn't have to reset SampleList state — each log keeps its own `byLog[logFile]` bucket. The action only resets `samplesPanel.gridState` (cross-log) and the listing's cross-scope grid state. SamplesPanel scope behavior is unchanged.
 
 ## What is explicitly NOT in this descriptor
 

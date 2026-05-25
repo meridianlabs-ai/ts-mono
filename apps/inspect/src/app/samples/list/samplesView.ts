@@ -76,6 +76,13 @@ export interface SamplesViewState {
     compactScores?: boolean;
     colorScalesEnabled?: boolean;
   };
+  /**
+   * User-resized pixel widths keyed by column id. Sparse — only columns
+   * the user has actually resized appear here; others fall through to
+   * the column def's initialWidth. Per-log via `samplesListState.byLog`,
+   * so widths from one log don't bleed into another.
+   */
+  columnWidths?: Record<string, number>;
 }
 
 /**
