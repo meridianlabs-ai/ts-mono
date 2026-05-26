@@ -121,7 +121,6 @@ const Elbow: FC = () => (
 
 /**
  * Adapt a merged `fork_nav` payload to BranchPoint props.
- * Returns null if there are no spawned children to render.
  */
 export function forkNavToBranchPointProps(
   data: ForkNavData
@@ -130,6 +129,9 @@ export function forkNavToBranchPointProps(
   if (!first || first.options.length === 0) return null;
   const parent = first.options[0]!.label;
 
+  // Well-formed data has at most one group with selectedIndex > 0 (the cut
+  // anchor's group). If more than one group somehow reports a selection,
+  // the last one wins.
   const spawned: string[] = [];
   let viewing = parent;
   for (const group of data.groups) {

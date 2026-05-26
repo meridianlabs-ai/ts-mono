@@ -7,7 +7,7 @@ describe("hash32", () => {
     expect(hash32("alpha")).toBe(hash32("alpha"));
   });
 
-  it("returns 0 for empty string", () => {
+  it("returns the FNV offset basis for an empty string", () => {
     expect(hash32("")).toBe(2166136261 >>> 0);
   });
 
