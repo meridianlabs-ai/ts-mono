@@ -60,7 +60,11 @@ function makeTimelineEvent(
   return new TimelineEvent(event);
 }
 
-function makeAnchor(anchorId: string, sec: number): TimelineEvent {
+function makeAnchor(
+  anchorId: string,
+  sec: number,
+  spanId: string | null = null
+): TimelineEvent {
   return new TimelineEvent({
     event: "anchor",
     anchor_id: anchorId,
@@ -69,7 +73,7 @@ function makeAnchor(anchorId: string, sec: number): TimelineEvent {
     working_start: sec,
     metadata: null,
     pending: null,
-    span_id: null,
+    span_id: spanId,
     uuid: `anchor-${anchorId}`,
   } satisfies AnchorEvent);
 }
@@ -415,6 +419,31 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
         makeAnchor("A2", 5),
       ],
       branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+
+  it("does not merge across differing parent_ids", () => {
+    // Restart-style fork emits with parent_id = null; anchor fork emits with
+    // parent_id = stripped anchor span_id. The anchor must carry a non-null
+    // span_id so the two parent_ids differ and the merge is skipped.
+    const restartBranch = makeBranch("BR", "", 0, 1);
+    const anchorBranch = makeBranch("BA", "A1", 3, 4);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2, "root")],
+      branches: [restartBranch, anchorBranch],
       utility: false,
     });
     const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
