@@ -9,7 +9,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "./core";
-import { computeSwimlaneRows } from "./swimlaneRows";
+import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
 import { makeSpan, ts } from "./testHelpers";
 import {
   buildSelectionKey,
@@ -455,5 +455,33 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
         e.event === "span_begin" && e.type === "fork_nav"
     );
     expect(forkBegins).toHaveLength(2);
+  });
+
+  it("merged groups carry independent selectedIndex values", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A2-2";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+
+    const forkBegin = events.find(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    if (!forkBegin) throw new Error("expected a fork_nav span_begin");
+    const data = (forkBegin.metadata as { fork_nav: ForkNavData }).fork_nav;
+
+    expect(data.groups[0]!.selectedIndex).toBe(0);
+    expect(data.groups[1]!.selectedIndex).toBe(1);
   });
 });
