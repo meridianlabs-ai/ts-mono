@@ -44,28 +44,37 @@
   padding: 0.5rem;
 }
 
-.tabSearchHost {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  min-height: 0;
-  gap: 0;
-}
-
 .tabContent {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 0;
 }
 
-.tabSearchSidebar {
-  flex: 0 0 360px;
-  min-width: 0;
-  border-left: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
+/* When the search sidebar is open, the tab panel hosts a VscodeSplitLayout
+   that we pin sticky just under the header + tab bar with a viewport-bounded
+   height. The split's start pane (`searchSplitStart`) then becomes the
+   active scroll container for the inner virtual list. */
+.searchSplitLayout {
+  position: sticky;
+  top: var(--inspect-search-sticky-top, 0);
+  height: calc(100vh - var(--inspect-search-sticky-top, 0px));
+  width: 100%;
+  display: block;
+}
+
+.searchSplitStart {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.searchSplitSidebar {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
+  border-left: 1px solid var(--bs-border-color);
+  background-color: var(--bs-body-bg);
 }
 
 .padded {

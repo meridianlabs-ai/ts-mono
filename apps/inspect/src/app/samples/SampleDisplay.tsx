@@ -1,5 +1,7 @@
+import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
+  CSSProperties,
   FC,
   Fragment,
   MouseEvent,
@@ -468,6 +470,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const canSearch = searchContext !== null && searchScope !== undefined;
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
+  // When the search split is active in a tab, its `start` pane (not the
+  // outer scroller) becomes the actual scroll container. Pass that ref to
+  // the virtualizers so they listen to the right element.
+  const searchSplitStartRef = useRef<HTMLDivElement | null>(null);
+  const searchSplitActive = searchOpen && canSearch;
+  const activeScrollRef = searchSplitActive ? searchSplitStartRef : scrollRef;
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -671,6 +680,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 ) : (
                   <TabSearchHost
                     open={searchOpen && searchScope === "events"}
+                    splitStartRef={searchSplitStartRef}
+                    stickyOffsetTop={stickyOffsetTop}
                     sidebar={
                       searchContext && (
                         <SearchPanelSlot
@@ -684,8 +695,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     <TranscriptPanel
                       id={`${baseId}-transcript-display-${id}`}
                       key={`${baseId}-transcript-display-${id}`}
-                      scrollRef={scrollRef}
-                      offsetTop={stickyOffsetTop}
+                      scrollRef={activeScrollRef}
+                      offsetTop={searchSplitActive ? 0 : stickyOffsetTop}
                       sampleId={sample?.id ?? undefined}
                       sampleEpoch={sample?.epoch ?? undefined}
                       running={running}
@@ -714,6 +725,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <TabSearchHost
                   contentClassName={styles.chat}
                   open={searchOpen && searchScope === "messages"}
+                  splitStartRef={searchSplitStartRef}
+                  stickyOffsetTop={stickyOffsetTop}
                   sidebar={
                     searchContext && (
                       <SearchPanelSlot
@@ -729,11 +742,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     id={`${baseId}-chat-${id}`}
                     messages={sampleMessages}
                     initialMessageId={sampleDetailNavigation.message}
-                    offsetTop={stickyOffsetTop}
+                    offsetTop={searchSplitActive ? 0 : stickyOffsetTop}
                     display={chatDisplay}
                     linking={chatLinking}
                     onNativeFindChanged={setNativeFind}
-                    scrollRef={scrollRef}
+                    scrollRef={activeScrollRef}
                     tools={chatTools}
                     running={running}
                     className={styles.fullWidth}
@@ -872,29 +885,67 @@ interface TabSearchHostProps {
   open: boolean;
   /** The rendered search sidebar (or falsy when no context is available). */
   sidebar: ReactNode;
+  /** Ref that receives the split layout's start pane when search is open.
+   *  Pass this as `scrollRef` to inner virtualized lists — the start pane
+   *  becomes the active scroll container while the split is mounted. */
+  splitStartRef: RefObject<HTMLDivElement | null>;
+  /** Distance in pixels from the viewport top to the bottom of the sticky
+   *  header + tab bar — the split layout pins itself just below this point
+   *  with a viewport-bounded height. */
+  stickyOffsetTop: number;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
 }
 
 /**
- * Lays out a tab's main content alongside the search sidebar. The sidebar
- * is only mounted when both `open` is true and `sidebar` is truthy, so
- * callers don't need to repeat the gating at each site.
+ * Lays out a tab's main content alongside the search sidebar. When the
+ * sidebar is open we mount a VscodeSplitLayout (mirroring Scout) so the
+ * sidebar has its own scroll context and a draggable width handle; when
+ * closed we just render the children inline.
  */
 const TabSearchHost: FC<TabSearchHostProps> = ({
   open,
   sidebar,
+  splitStartRef,
+  stickyOffsetTop,
   contentClassName,
   children,
-}) => (
-  <div className={styles.tabSearchHost}>
-    <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
-    {open && sidebar ? (
-      <div className={styles.tabSearchSidebar}>{sidebar}</div>
-    ) : null}
-  </div>
-);
+}) => {
+  if (!open || !sidebar) {
+    return (
+      <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
+    );
+  }
+  // Sticky-pin the split below the header + tab bar with a viewport-bounded
+  // height so the inner panes can do their own scrolling without restructuring
+  // SampleDisplay's outer scroll container.
+  return (
+    <VscodeSplitLayout
+      className={styles.searchSplitLayout}
+      style={
+        {
+          "--inspect-search-sticky-top": `${stickyOffsetTop}px`,
+        } as CSSProperties
+      }
+      fixedPane="end"
+      initialHandlePosition="70%"
+      minEnd="280px"
+      minStart="200px"
+    >
+      <div
+        slot="start"
+        ref={splitStartRef}
+        className={clsx(styles.searchSplitStart, contentClassName)}
+      >
+        {children}
+      </div>
+      <div slot="end" className={styles.searchSplitSidebar}>
+        {sidebar}
+      </div>
+    </VscodeSplitLayout>
+  );
+};
 
 interface SampleUsagePanelProps {
   id: string;
