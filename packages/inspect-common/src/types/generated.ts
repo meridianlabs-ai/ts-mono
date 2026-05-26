@@ -1279,7 +1279,6 @@ export interface components {
             /** Acp Server */
             acp_server?: boolean | number | string | null;
             approval?: components["schemas"]["ApprovalPolicyConfig"] | null;
-            ask_user?: components["schemas"]["InputConfigSpec"] | null;
             /** Continue On Fail */
             continue_on_fail?: boolean | null;
             /** Cost Limit */
@@ -1319,6 +1318,8 @@ export interface components {
             max_tasks?: number | null;
             /** Message Limit */
             message_limit?: number | null;
+            /** Notification */
+            notification?: string | string[] | null;
             /** Retry On Error */
             retry_on_error?: number | null;
             /** Sample Id */
@@ -2095,23 +2096,6 @@ export interface components {
             working_start: number;
         };
         /**
-         * InputConfigSpec
-         * @description Declarative input config (YAML/JSON-parseable, registry-name based).
-         *
-         *     Resolved into an `InputConfig` via `resolve_input_config` (which
-         *     instantiates each named handler/notifier from the registry) and logged
-         *     back on `EvalConfig.ask_user` for retries.
-         */
-        InputConfigSpec: {
-            input_handler?: components["schemas"]["InputHandlerSpec"] | null;
-            /** Input Handler Timeout */
-            input_handler_timeout?: number | null;
-            /** Input Notifiers */
-            input_notifiers?: components["schemas"]["InputNotifierSpec"][] | null;
-            /** Notifier Timeout */
-            notifier_timeout?: number | null;
-        };
-        /**
          * InputEvent
          * @description Input screen interaction.
          */
@@ -2165,30 +2149,6 @@ export interface components {
              * @enum {string}
              */
             type: "string" | "integer" | "number" | "boolean" | "array";
-        };
-        /**
-         * InputHandlerSpec
-         * @description Declarative spec for a registered input handler.
-         */
-        InputHandlerSpec: {
-            /** Args */
-            args: {
-                [key: string]: unknown;
-            };
-            /** Name */
-            name: string;
-        };
-        /**
-         * InputNotifierSpec
-         * @description Declarative spec for a registered input notifier.
-         */
-        InputNotifierSpec: {
-            /** Args */
-            args: {
-                [key: string]: unknown;
-            };
-            /** Name */
-            name: string;
         };
         /**
          * InterruptEvent
