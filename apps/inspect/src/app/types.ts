@@ -93,19 +93,20 @@ export interface LogsState {
     detailsCount: number;
   };
   samplesListState: {
-    // Asymmetric: samplesPanel keeps the pre-refactor shape; logViewSamples
-    // is now driven by the SamplesView descriptor. See design/samples-view.md.
+    // samplesPanel is cross-log by nature (lists samples from many logs in
+    // a directory); it keeps the single-bucket shape. The single-log view
+    // (logViewSamples) is keyed per log file so user customizations in one
+    // log don't bleed into another with different scorers / eval config.
     byScope: {
       samplesPanel: {
         columnVisibility: Record<string, boolean>;
         gridState?: GridState;
       };
-      logViewSamples: {
-        // undefined = no user override; useSamplesView falls through to
-        // the eval-author default and then the built-in default.
-        view?: SamplesViewState;
-      };
     };
+    /** Per-log SamplesView descriptors keyed by log file path. Missing
+     *  entries fall through to the eval-author default and then the
+     *  built-in default — see `useSamplesView`. */
+    byLog: Record<string, SamplesViewState>;
     displayedSamples?: Array<DisplayedSample>;
     previousSamplesPath?: string;
   };

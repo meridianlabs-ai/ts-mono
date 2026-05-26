@@ -28,10 +28,13 @@ function useEvalDefaultSamplesView(): SamplesView | undefined {
 }
 
 /** Single subscription + resolution; backs every hook that needs a
- *  field off the resolved view. */
+ *  field off the resolved view. Reads the per-log bucket keyed by the
+ *  currently-selected log file so customizations don't bleed across logs
+ *  with different scorers / eval config. */
 function useResolvedSamplesView(): SamplesViewState {
-  const stored = useStore(
-    (state) => state.logs.samplesListState.byScope.logViewSamples.view
+  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const stored = useStore((state) =>
+    logFile ? state.logs.samplesListState.byLog[logFile] : undefined
   );
   const evalDefault = useEvalDefaultSamplesView();
   return useMemo(
@@ -119,8 +122,20 @@ export function useSamplesView<TRow>(
 
   const evalDefault = useEvalDefaultSamplesView();
   const view = useResolvedSamplesView();
-  const setSampleListView = useStore(
+  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const setSampleListViewAction = useStore(
     (state) => state.logsActions.setSampleListView
+  );
+
+  // Bind the log file at hook level so a pending effect from log A's
+  // render can't redirect a write into log B's bucket if navigation
+  // races the effect.
+  const setSampleListView = useCallback(
+    (next: SamplesViewState) => {
+      if (!logFile) return;
+      setSampleListViewAction(logFile, next);
+    },
+    [logFile, setSampleListViewAction]
   );
 
   const availableColIds = useMemo(() => {
