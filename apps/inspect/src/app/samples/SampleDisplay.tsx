@@ -1,7 +1,5 @@
-import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
-  CSSProperties,
   FC,
   Fragment,
   MouseEvent,
@@ -470,13 +468,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const canSearch = searchContext !== null && searchScope !== undefined;
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
-  // When the search split is active in a tab, its `start` pane (not the
-  // outer scroller) becomes the actual scroll container. Pass that ref to
-  // the virtualizers so they listen to the right element.
-  const searchSplitStartRef = useRef<HTMLDivElement | null>(null);
-  const searchSplitActive = searchOpen && canSearch;
-  const activeScrollRef = searchSplitActive ? searchSplitStartRef : scrollRef;
-
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -614,6 +605,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // header and the tab controls.
   const stickyOffsetTop = tabsHeight + headerHeight;
 
+  // Publish stickyOffsetTop as a CSS variable so the search sidebar can
+  // pin itself just under the (variable-height) header + tab bar in
+  // pure CSS, tracking headroom collapse without prop drilling.
+  useEffect(() => {
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    container.style.setProperty(
+      "--inspect-sticky-offset-top",
+      `${stickyOffsetTop}px`
+    );
+  }, [stickyOffsetTop]);
+
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>
@@ -680,8 +683,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 ) : (
                   <TabSearchHost
                     open={searchOpen && searchScope === "events"}
-                    splitStartRef={searchSplitStartRef}
-                    stickyOffsetTop={stickyOffsetTop}
                     sidebar={
                       searchContext && (
                         <SearchPanelSlot
@@ -695,8 +696,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     <TranscriptPanel
                       id={`${baseId}-transcript-display-${id}`}
                       key={`${baseId}-transcript-display-${id}`}
-                      scrollRef={activeScrollRef}
-                      offsetTop={searchSplitActive ? 0 : stickyOffsetTop}
+                      scrollRef={scrollRef}
+                      offsetTop={stickyOffsetTop}
                       sampleId={sample?.id ?? undefined}
                       sampleEpoch={sample?.epoch ?? undefined}
                       running={running}
@@ -725,8 +726,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <TabSearchHost
                   contentClassName={styles.chat}
                   open={searchOpen && searchScope === "messages"}
-                  splitStartRef={searchSplitStartRef}
-                  stickyOffsetTop={stickyOffsetTop}
                   sidebar={
                     searchContext && (
                       <SearchPanelSlot
@@ -742,11 +741,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     id={`${baseId}-chat-${id}`}
                     messages={sampleMessages}
                     initialMessageId={sampleDetailNavigation.message}
-                    offsetTop={searchSplitActive ? 0 : stickyOffsetTop}
+                    offsetTop={stickyOffsetTop}
                     display={chatDisplay}
                     linking={chatLinking}
                     onNativeFindChanged={setNativeFind}
-                    scrollRef={activeScrollRef}
+                    scrollRef={scrollRef}
                     tools={chatTools}
                     running={running}
                     className={styles.fullWidth}
@@ -885,65 +884,89 @@ interface TabSearchHostProps {
   open: boolean;
   /** The rendered search sidebar (or falsy when no context is available). */
   sidebar: ReactNode;
-  /** Ref that receives the split layout's start pane when search is open.
-   *  Pass this as `scrollRef` to inner virtualized lists — the start pane
-   *  becomes the active scroll container while the split is mounted. */
-  splitStartRef: RefObject<HTMLDivElement | null>;
-  /** Distance in pixels from the viewport top to the bottom of the sticky
-   *  header + tab bar — the split layout pins itself just below this point
-   *  with a viewport-bounded height. */
-  stickyOffsetTop: number;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
 }
 
 /**
- * Lays out a tab's main content alongside the search sidebar. When the
- * sidebar is open we mount a VscodeSplitLayout (mirroring Scout) so the
- * sidebar has its own scroll context and a draggable width handle; when
- * closed we just render the children inline.
+ * Lays out a tab's main content next to the search sidebar. The outer
+ * sample scroller stays in charge — header headroom-collapse and tab
+ * stickiness keep working — and the sidebar pins itself just under the
+ * sticky tab bar via `position: sticky`, with its own internal scroll
+ * for the search panel.
  */
 const TabSearchHost: FC<TabSearchHostProps> = ({
   open,
   sidebar,
-  splitStartRef,
-  stickyOffsetTop,
   contentClassName,
   children,
 }) => {
   if (!open || !sidebar) {
     return (
-      <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
-    );
-  }
-  // Sticky-pin the split below the header + tab bar with a viewport-bounded
-  // height so the inner panes can do their own scrolling without restructuring
-  // SampleDisplay's outer scroll container.
-  return (
-    <VscodeSplitLayout
-      className={styles.searchSplitLayout}
-      style={
-        {
-          "--inspect-search-sticky-top": `${stickyOffsetTop}px`,
-        } as CSSProperties
-      }
-      fixedPane="end"
-      initialHandlePosition="70%"
-      minEnd="280px"
-      minStart="200px"
-    >
-      <div
-        slot="start"
-        ref={splitStartRef}
-        className={clsx(styles.searchSplitStart, contentClassName)}
-      >
+      <div className={clsx(styles.tabContent, contentClassName)}>
         {children}
       </div>
-      <div slot="end" className={styles.searchSplitSidebar}>
-        {sidebar}
+    );
+  }
+  return (
+    <div className={styles.tabSearchHost}>
+      <div className={clsx(styles.tabContent, contentClassName)}>
+        {children}
       </div>
-    </VscodeSplitLayout>
+      <SearchSidebar>{sidebar}</SearchSidebar>
+    </div>
+  );
+};
+
+const SEARCH_SIDEBAR_DEFAULT_WIDTH = 360;
+const SEARCH_SIDEBAR_MIN_WIDTH = 240;
+const SEARCH_SIDEBAR_MAX_WIDTH = 720;
+
+const SearchSidebar: FC<{ children: ReactNode }> = ({ children }) => {
+  const [width, setWidth] = useState(SEARCH_SIDEBAR_DEFAULT_WIDTH);
+  // Drag state lives in a ref so the listeners read live values without
+  // re-attaching whenever width changes.
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const onHandleMouseDown = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      dragRef.current = { startX: e.clientX, startWidth: width };
+
+      const onMove = (ev: globalThis.MouseEvent) => {
+        if (!dragRef.current) return;
+        const delta = dragRef.current.startX - ev.clientX;
+        const next = dragRef.current.startWidth + delta;
+        setWidth(
+          Math.max(
+            SEARCH_SIDEBAR_MIN_WIDTH,
+            Math.min(SEARCH_SIDEBAR_MAX_WIDTH, next)
+          )
+        );
+      };
+      const onUp = () => {
+        dragRef.current = null;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [width]
+  );
+
+  return (
+    <aside className={styles.searchSidebar} style={{ width }}>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize search panel"
+        className={styles.searchSidebarHandle}
+        onMouseDown={onHandleMouseDown}
+      />
+      <div className={styles.searchSidebarContent}>{children}</div>
+    </aside>
   );
 };
 

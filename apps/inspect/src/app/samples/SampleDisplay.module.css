@@ -44,37 +44,62 @@
   padding: 0.5rem;
 }
 
+/* When the search sidebar is open we lay the tab out as a flex row.
+   The outer sample scroller stays in charge, so header headroom-collapse
+   and sticky tabs keep working as if search were closed. The sidebar
+   itself uses `position: sticky` to pin just under the (variable-height)
+   header + tab bar and runs its own internal scroll. */
+.tabSearchHost {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
 .tabContent {
+  flex: 1;
   width: 100%;
   min-width: 0;
   min-height: 0;
 }
 
-/* When the search sidebar is open, the tab panel hosts a VscodeSplitLayout
-   that we pin sticky just under the header + tab bar with a viewport-bounded
-   height. The split's start pane (`searchSplitStart`) then becomes the
-   active scroll container for the inner virtual list. */
-.searchSplitLayout {
+.searchSidebar {
   position: sticky;
-  top: var(--inspect-search-sticky-top, 0);
-  height: calc(100vh - var(--inspect-search-sticky-top, 0px));
-  width: 100%;
-  display: block;
+  top: var(--inspect-sticky-offset-top, 0);
+  /* align-self overrides the parent's default stretch so sticky can
+     position the element without it being forced to flex-row height. */
+  align-self: flex-start;
+  flex: 0 0 auto;
+  max-height: calc(100vh - var(--inspect-sticky-offset-top, 0px));
+  display: flex;
+  flex-direction: row;
+  background-color: var(--bs-body-bg);
 }
 
-.searchSplitStart {
-  height: 100%;
+/* Thin draggable column on the left edge of the sidebar that lets the
+   user resize it. Hover/active reveal a subtle accent so the affordance
+   is discoverable but not noisy at rest. */
+.searchSidebarHandle {
+  flex: 0 0 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  border-left: 1px solid var(--bs-border-color);
+  transition: background-color 0.12s ease;
+}
+
+.searchSidebarHandle:hover,
+.searchSidebarHandle:active {
+  background-color: var(--bs-primary, var(--bs-border-color));
+}
+
+.searchSidebarContent {
+  flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-}
-
-.searchSplitSidebar {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  border-left: 1px solid var(--bs-border-color);
-  background-color: var(--bs-body-bg);
+  overflow: hidden;
 }
 
 .padded {
