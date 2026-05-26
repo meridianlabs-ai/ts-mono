@@ -2,7 +2,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { BranchPoint } from "./BranchPoint";
+import {
+  BranchPoint,
+  findRowKeyForLabel,
+  forkNavToBranchPointProps,
+} from "./BranchPoint";
+import type { ForkNavData, ForkNavGroup } from "./timeline/timelineEventNodes";
 
 describe("BranchPoint", () => {
   afterEach(() => {
@@ -136,5 +141,108 @@ describe("BranchPoint", () => {
     ) as HTMLElement;
     expect(b2).not.toBeNull();
     expect(b2.style.getPropertyValue("--bp-hue")).toBe("42");
+  });
+});
+
+function makeGroup(
+  anchorId: string,
+  options: { label: string; rowKey: string }[],
+  selectedIndex = 0
+): ForkNavGroup {
+  return { anchorId, options, selectedIndex };
+}
+
+describe("forkNavToBranchPointProps", () => {
+  it("maps a single-group fork_nav", () => {
+    const data: ForkNavData = {
+      groups: [
+        makeGroup("A1", [
+          { label: "branch 1", rowKey: "root" },
+          { label: "branch 2", rowKey: "root/branch-A1-1" },
+        ]),
+      ],
+    };
+    expect(forkNavToBranchPointProps(data)).toEqual({
+      parent: "branch 1",
+      spawned: ["branch 2"],
+      viewing: "branch 1",
+    });
+  });
+
+  it("flattens merged groups and picks the selected branch as viewing", () => {
+    const data: ForkNavData = {
+      groups: [
+        makeGroup(
+          "A1",
+          [
+            { label: "branch 1", rowKey: "root" },
+            { label: "branch 2", rowKey: "root/branch-A1-1" },
+          ],
+          0
+        ),
+        makeGroup(
+          "A2",
+          [
+            { label: "branch 1", rowKey: "root" },
+            { label: "branch 3", rowKey: "root/branch-A2-1" },
+          ],
+          1 // selected branch 3
+        ),
+      ],
+    };
+    expect(forkNavToBranchPointProps(data)).toEqual({
+      parent: "branch 1",
+      spawned: ["branch 2", "branch 3"],
+      viewing: "branch 3",
+    });
+  });
+
+  it("returns null with empty groups", () => {
+    expect(forkNavToBranchPointProps({ groups: [] })).toBeNull();
+  });
+
+  it("returns null when no group has spawned children", () => {
+    const data: ForkNavData = {
+      groups: [makeGroup("A1", [{ label: "branch 1", rowKey: "root" }])],
+    };
+    expect(forkNavToBranchPointProps(data)).toBeNull();
+  });
+});
+
+describe("findRowKeyForLabel", () => {
+  it("finds the row key for a label", () => {
+    const data: ForkNavData = {
+      groups: [
+        makeGroup("A1", [
+          { label: "branch 1", rowKey: "root" },
+          { label: "branch 2", rowKey: "root/branch-A1-1" },
+        ]),
+      ],
+    };
+    expect(findRowKeyForLabel(data, "branch 2")).toBe("root/branch-A1-1");
+    expect(findRowKeyForLabel(data, "branch 1")).toBe("root");
+  });
+
+  it("returns null when no label matches", () => {
+    const data: ForkNavData = {
+      groups: [makeGroup("A1", [{ label: "branch 1", rowKey: "root" }])],
+    };
+    expect(findRowKeyForLabel(data, "missing")).toBeNull();
+  });
+
+  it("returns the first match when labels collide across groups", () => {
+    const data: ForkNavData = {
+      groups: [
+        makeGroup("A1", [
+          { label: "branch 1", rowKey: "root" },
+          { label: "branch 2", rowKey: "root/branch-A1-1" },
+        ]),
+        makeGroup("A2", [
+          { label: "branch 1", rowKey: "root" },
+          { label: "branch 2", rowKey: "root/branch-A2-1" }, // duplicate label
+        ]),
+      ],
+    };
+    expect(findRowKeyForLabel(data, "branch 2")).toBe("root/branch-A1-1");
   });
 });

@@ -3,6 +3,7 @@ import { CSSProperties, FC, Fragment, MouseEvent } from "react";
 
 import { hueForBranch } from "./branchColor";
 import styles from "./BranchPoint.module.css";
+import type { ForkNavData } from "./timeline/timelineEventNodes";
 
 export interface BranchPointProps {
   /** Branch that already existed and continues past this fork. */
@@ -117,3 +118,45 @@ const Elbow: FC = () => (
     <path d="M 42 0 V 20 H 76" className={styles.elbow} />
   </svg>
 );
+
+/**
+ * Adapt a merged `fork_nav` payload to BranchPoint props.
+ * Returns null if there are no spawned children to render.
+ */
+export function forkNavToBranchPointProps(
+  data: ForkNavData
+): Pick<BranchPointProps, "parent" | "spawned" | "viewing"> | null {
+  const first = data.groups[0];
+  if (!first || first.options.length === 0) return null;
+  const parent = first.options[0]!.label;
+
+  const spawned: string[] = [];
+  let viewing = parent;
+  for (const group of data.groups) {
+    // options[0] is the stay-on-segment pseudo-option (the parent) — skip it.
+    for (let i = 1; i < group.options.length; i++) {
+      spawned.push(group.options[i]!.label);
+    }
+    if (group.selectedIndex > 0) {
+      viewing = group.options[group.selectedIndex]!.label;
+    }
+  }
+  if (spawned.length === 0) return null;
+  return { parent, spawned, viewing };
+}
+
+/**
+ * Find the swimlane row key for a clicked branch label. First match wins
+ * when labels collide across merged groups.
+ */
+export function findRowKeyForLabel(
+  data: ForkNavData,
+  label: string
+): string | null {
+  for (const group of data.groups) {
+    for (const opt of group.options) {
+      if (opt.label === label) return opt.rowKey;
+    }
+  }
+  return null;
+}
