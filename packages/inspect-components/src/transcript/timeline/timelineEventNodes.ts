@@ -764,6 +764,11 @@ export function collectPathWithNavigators(
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   const path = buildPath(rows, selectedRowKey);
+  // Track which segment emitted the most recent fork-nav so navs from
+  // different segments never collapse — even if their parent_ids happen to
+  // coincide (e.g., both null when a cut anchor has a null span_id and the
+  // child segment opens with a restart-style fork).
+  let lastNavSegIdx: number | null = null;
 
   for (let segIdx = 0; segIdx < path.length; segIdx++) {
     const seg = path[segIdx]!;
@@ -800,6 +805,7 @@ export function collectPathWithNavigators(
       const last = events[i];
       const prev = events[i - 1];
       if (
+        lastNavSegIdx === segIdx &&
         last &&
         prev &&
         last.event === "span_end" &&
@@ -828,6 +834,7 @@ export function collectPathWithNavigators(
           fork_nav: { groups: [group] } satisfies ForkNavData,
         },
       });
+      lastNavSegIdx = segIdx;
       return isCut;
     };
 

@@ -484,4 +484,39 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
     expect(data.groups[0]!.selectedIndex).toBe(0);
     expect(data.groups[1]!.selectedIndex).toBe(1);
   });
+
+  it("does not merge across segment boundaries", () => {
+    // Multi-segment path where the cut anchor has span_id=null and the
+    // selected branch opens with a restart-style fork. Both navs end up
+    // with parent_id=null, so the parent_id guard alone would merge them
+    // — the segIdx guard must prevent that.
+    const restartBranchOnB1 = makeBranch("BR", "", 4, 5);
+    const branchB1 = new TimelineSpan({
+      id: "b1",
+      name: "B1",
+      spanType: "branch",
+      content: [makeModel(3, "b1tail")],
+      branches: [restartBranchOnB1],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2)],
+      branches: [branchB1],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A1-1/branch--1";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
 });
