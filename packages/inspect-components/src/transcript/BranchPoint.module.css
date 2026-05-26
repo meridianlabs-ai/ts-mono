@@ -58,6 +58,7 @@
   align-items: center;
   flex-wrap: wrap;
   padding-top: 12px;
+  padding-left: 10px;
 }
 
 .orPipe {
