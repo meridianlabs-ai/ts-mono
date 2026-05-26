@@ -1,7 +1,4 @@
 .empty {
-  background: var(--bs-tertiary-bg, #fafbfd);
-  border: 1px solid var(--bs-border-color, #e5e7eb);
-  border-radius: 6px;
   padding: 14px 18px;
   margin: 8px 0;
   color: var(--bs-secondary-color, #6b7280);
