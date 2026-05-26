@@ -1,0 +1,140 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { BranchPoint } from "./BranchPoint";
+
+describe("BranchPoint", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders parent + spawned with parent viewing", () => {
+    render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2", "branch 3"]}
+        viewing="branch 1"
+      />
+    );
+    const parent = screen.getByRole("button", { name: /branch 1/ });
+    const b2 = screen.getByRole("button", { name: /branch 2/ });
+    const b3 = screen.getByRole("button", { name: /branch 3/ });
+    expect(parent.getAttribute("aria-pressed")).toBe("true");
+    expect(b2.getAttribute("aria-pressed")).toBe("false");
+    expect(b3.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("renders spawned viewing state", () => {
+    render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2", "branch 3"]}
+        viewing="branch 2"
+      />
+    );
+    expect(
+      screen
+        .getByRole("button", { name: /branch 1/ })
+        .getAttribute("aria-pressed")
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("button", { name: /branch 2/ })
+        .getAttribute("aria-pressed")
+    ).toBe("true");
+  });
+
+  it("calls onSelect with the clicked branch name", () => {
+    const onSelect = vi.fn();
+    render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2"]}
+        viewing="branch 1"
+        onSelect={onSelect}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /branch 2/ }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect.mock.calls[0]![0]).toBe("branch 2");
+  });
+
+  it("disables current radio and does not fire onSelect", () => {
+    const onSelect = vi.fn();
+    render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2"]}
+        viewing="branch 1"
+        onSelect={onSelect}
+      />
+    );
+    const parent = screen.getByRole<HTMLButtonElement>("button", {
+      name: /branch 1/,
+    });
+    expect(parent.disabled).toBe(true);
+    fireEvent.click(parent);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("disables all radios when onSelect is omitted", () => {
+    render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2", "branch 3"]}
+        viewing="branch 1"
+      />
+    );
+    const isDisabled = (name: RegExp): boolean =>
+      screen.getByRole<HTMLButtonElement>("button", { name }).disabled;
+    expect(isDisabled(/branch 1/)).toBe(true);
+    expect(isDisabled(/branch 2/)).toBe(true);
+    expect(isDisabled(/branch 3/)).toBe(true);
+  });
+
+  it("renders no OR pipe with a single spawned branch", () => {
+    const { container } = render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2"]}
+        viewing="branch 1"
+      />
+    );
+    expect(container.querySelectorAll('[data-testid="bp-or"]')).toHaveLength(0);
+  });
+
+  it("renders one OR pipe between each pair of spawned branches", () => {
+    const { container } = render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2", "branch 3", "branch 4"]}
+        viewing="branch 1"
+      />
+    );
+    expect(container.querySelectorAll('[data-testid="bp-or"]')).toHaveLength(2);
+  });
+
+  it("returns null with empty spawned", () => {
+    const { container } = render(
+      <BranchPoint parent="branch 1" spawned={[]} viewing="branch 1" />
+    );
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("respects branchHue override", () => {
+    const { container } = render(
+      <BranchPoint
+        parent="branch 1"
+        spawned={["branch 2"]}
+        viewing="branch 1"
+        branchHue={{ "branch 2": 42 }}
+      />
+    );
+    const b2 = container.querySelector(
+      '[data-testid="bp-pill"][data-branch="branch 2"]'
+    ) as HTMLElement;
+    expect(b2).not.toBeNull();
+    expect(b2.style.getPropertyValue("--bp-hue")).toBe("42");
+  });
+});
