@@ -5,15 +5,19 @@ import type {
   CompactionEvent,
   InfoEvent,
   ModelEvent,
+  SpanBeginEvent,
 } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "./core";
-import { ts } from "./testHelpers";
+import { computeSwimlaneRows } from "./swimlaneRows";
+import { makeSpan, ts } from "./testHelpers";
 import {
   buildSelectionKey,
+  collectPathWithNavigators,
   computeCompactionRegions,
   getParentKeyFromBranch,
   parseSelection,
+  type ForkNavData,
 } from "./timelineEventNodes";
 
 // =============================================================================
@@ -114,15 +118,6 @@ function makeBranch(
     utility: false,
   });
 }
-
-// Placeholder reference so makeAnchor/makeBranch are "used" until the
-// collectPathWithNavigators tests land in follow-up commits.
-describe.skip("fork-nav helpers (placeholder)", () => {
-  it("references helpers", () => {
-    expect(typeof makeAnchor).toBe("function");
-    expect(typeof makeBranch).toBe("function");
-  });
-});
 
 // =============================================================================
 // parseSelection
@@ -369,5 +364,41 @@ describe("getParentKeyFromBranch", () => {
         "solvers/agent/branch-550e8400-e29b-41d4-a716-446655440000-1"
       )
     ).toBe("solvers/agent");
+  });
+});
+
+describe("collectPathWithNavigators — adjacent fork merge", () => {
+  // Root span with two back-to-back anchors and one branch off each.
+  // No non-anchor event sits between the two anchors, so the two
+  // fork-navs should collapse into a single node with two groups.
+  function rowsWithTwoAdjacentForks() {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    return computeSwimlaneRows(transcript);
+  }
+
+  it("merges two anchor forks at the same parent into one fork_nav node", () => {
+    const rows = rowsWithTwoAdjacentForks();
+    const { events } = collectPathWithNavigators(rows, "root");
+
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(1);
+
+    const data = (forkBegins[0]!.metadata as { fork_nav: ForkNavData })
+      .fork_nav;
+    expect(data.groups).toHaveLength(2);
+    expect(data.groups.map((g) => g.anchorId)).toEqual(["A1", "A2"]);
   });
 });
