@@ -31,7 +31,7 @@ export const TagChip: FC<TagChipProps> = ({
     styles.chip,
     isNew && styles.chipNew,
     onClick && styles.chipClickable,
-    "text-size-smaller"
+    "text-size-smallest"
   );
 
   // The label lives in its own bounded element so a runaway-length

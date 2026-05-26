@@ -137,7 +137,7 @@ export const TagStrip: FC<TagStripProps> = ({
           {/* The pill labels itself only when no chips are present to
               indicate purpose. Once any tag (visible or hidden behind
               the overflow pill) exists, the action becomes "Edit". */}
-          {tags.length === 0 ? "Tags" : "Edit"}
+          {tags.length === 0 ? "Tags" : "edit"}
         </EditButton>
       )}
     </div>

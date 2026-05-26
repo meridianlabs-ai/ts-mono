@@ -32,12 +32,12 @@ export const EditButton: FC<EditButtonProps> = ({
     className={clsx(
       styles.button,
       variant === "pill" ? styles.pill : styles.link,
-      "text-size-smaller"
+      "text-size-smallest"
     )}
     onClick={onClick}
-    title={title ?? "Edit"}
+    title={title ?? "edit"}
   >
     <i className={ApplicationIcons.pencil} />
-    {children ?? "Edit"}
+    {children ?? "edit"}
   </button>
 );
