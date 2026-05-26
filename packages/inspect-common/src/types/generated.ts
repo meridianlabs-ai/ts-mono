@@ -1319,7 +1319,7 @@ export interface components {
             /** Message Limit */
             message_limit?: number | null;
             /** Notification */
-            notification?: string | string[] | null;
+            notification?: boolean | string | null;
             /** Retry On Error */
             retry_on_error?: number | null;
             /** Sample Id */
