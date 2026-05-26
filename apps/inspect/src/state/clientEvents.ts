@@ -5,14 +5,14 @@ import { createLogger } from "@tsmono/util";
 
 import { clientEventsService } from "./clientEventsService";
 import { useLogs } from "./hooks";
-import { useStore } from "./store";
+import { useApi, useStore } from "./store";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const logPreviews = useStore((state) => state.logs.logPreviews);
-  const api = useStore((state) => state.api);
+  const api = useApi();
   const { loadLogOverviews } = useLogs();
 
   // Set up the refresh callback for the service

@@ -28,7 +28,7 @@ import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import { useStore } from "../state/store.ts";
+import { ApiProvider, useStore } from "../state/store.ts";
 import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
@@ -231,10 +231,12 @@ export const App: FC<AppProps> = ({ api }) => {
   ]);
 
   return (
-    <ComponentIconProvider icons={componentIcons}>
-      <ComponentStateProvider hooks={inspectStateHooks}>
-        <RouterProvider router={AppRouter} />
-      </ComponentStateProvider>
-    </ComponentIconProvider>
+    <ApiProvider value={api}>
+      <ComponentIconProvider icons={componentIcons}>
+        <ComponentStateProvider hooks={inspectStateHooks}>
+          <RouterProvider router={AppRouter} />
+        </ComponentStateProvider>
+      </ComponentIconProvider>
+    </ApiProvider>
   );
 };
