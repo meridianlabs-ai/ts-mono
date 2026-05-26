@@ -51,10 +51,3 @@ export interface SearchPanelNavigation {
   getEventUrl: (id: string) => string | undefined;
   getEventMessageUrl: (id: string) => string | undefined;
 }
-
-export interface SearchPanelIcons {
-  search: string;
-  history: string;
-  add: string;
-  close?: string;
-}

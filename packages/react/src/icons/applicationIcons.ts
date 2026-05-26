@@ -24,6 +24,7 @@ export const iconForMimeType = (mimeType: string): string => {
  * `ApplicationIcons` object.
  */
 export const baseApplicationIcons = {
+  add: "bi bi-plus-lg",
   agent: "bi bi-grid",
   approve: "bi bi-shield",
   approvals: {
@@ -79,6 +80,7 @@ export const baseApplicationIcons = {
   file: "bi bi-file-code",
   filter: "bi bi-funnel",
   folder: "bi bi-folder",
+  history: "bi bi-clock-history",
   home: "bi bi-house",
   info: "bi bi-info-circle",
   input: "bi bi-terminal",

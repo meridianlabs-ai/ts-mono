@@ -6,7 +6,6 @@ import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
 import { useProjectConfig } from "../server/useProjectConfig";
 
 import {
-  SCOUT_SEARCH_ICONS,
   useScoutSearchApi,
   useScoutSearchModelHistory,
   useScoutSearchNavigation,
@@ -38,7 +37,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
       api={api}
       stateController={stateController}
       navigation={navigation}
-      icons={SCOUT_SEARCH_ICONS}
       defaultModel={projectConfig.data?.config.model ?? undefined}
       modelHistory={modelHistory}
       onClose={onClose}

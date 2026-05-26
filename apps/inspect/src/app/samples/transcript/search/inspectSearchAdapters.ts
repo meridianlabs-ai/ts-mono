@@ -4,7 +4,6 @@ import {
   normalizeSearchPanelState,
   type ModelHistoryController,
   type SearchPanelApi,
-  type SearchPanelIcons,
   type SearchPanelNavigation,
   type SearchPanelStateController,
   type SearchScope,
@@ -17,7 +16,6 @@ import {
 } from "../../../../constants";
 import { useApi, useStore } from "../../../../state/store";
 import { useUserSettings } from "../../../../state/userSettings";
-import { ApplicationIcons } from "../../../appearance/icons";
 import {
   sampleEventUrl,
   sampleMessageUrl,
@@ -146,9 +144,3 @@ export const useInspectSearchNavigation = ({
   );
 };
 
-export const INSPECT_SEARCH_ICONS: SearchPanelIcons = {
-  search: ApplicationIcons.search,
-  history: "bi bi-clock-history",
-  add: "bi bi-plus-lg",
-  close: ApplicationIcons.close,
-};

@@ -23,6 +23,7 @@ import {
   SegmentedControl,
   SidebarHeader,
 } from "@tsmono/react/components";
+import { baseApplicationIcons } from "@tsmono/react/icons";
 import {
   ApiError,
   autosizeTextarea,
@@ -40,7 +41,6 @@ import type { GrepOptions } from "./searchRequest";
 import type {
   ModelHistoryController,
   SearchPanelApi,
-  SearchPanelIcons,
   SearchPanelNavigation,
   SearchPanelStateController,
   SearchScope,
@@ -58,7 +58,6 @@ export type SearchPanelProps = {
   api: SearchPanelApi;
   stateController: SearchPanelStateController;
   navigation: SearchPanelNavigation;
-  icons: SearchPanelIcons;
   defaultModel?: string;
   modelHistory?: ModelHistoryController;
   onClose: () => void;
@@ -139,7 +138,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   api,
   stateController,
   navigation,
-  icons,
   defaultModel,
   modelHistory = NOOP_MODEL_HISTORY,
   onClose,
@@ -364,10 +362,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   return (
     <div className={styles.container}>
       <SidebarHeader
-        icon={icons.search}
+        icon={baseApplicationIcons.search}
         title={`Search: ${scope}`}
         onClose={onClose}
-        closeIcon={icons.close}
+        closeIcon={baseApplicationIcons.close}
       />
       <div className={styles.body}>
         <form
@@ -403,7 +401,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 aria-label="Recent searches"
                 aria-expanded={isRecentOpen}
               >
-                <i className={icons.history} aria-hidden="true" />
+                <i
+                  className={baseApplicationIcons.history}
+                  aria-hidden="true"
+                />
               </button>
               <button
                 type="button"
@@ -412,7 +413,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 title="New search"
                 aria-label="New search"
               >
-                <i className={icons.add} aria-hidden="true" />
+                <i className={baseApplicationIcons.add} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -491,7 +492,6 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             currentSearch={currentSearch}
             scope={scope}
             searchType={searchType}
-            icons={icons}
             getMessageUrl={getMessageUrl}
             getEventUrl={getEventUrl}
             getEventMessageUrl={getEventMessageUrl}
@@ -594,7 +594,6 @@ const SearchResults: FC<{
   currentSearch: Result | null;
   scope: SearchScope;
   searchType: SearchType;
-  icons: SearchPanelIcons;
   getMessageUrl: (id: string) => string | undefined;
   getEventUrl: (id: string) => string | undefined;
   getEventMessageUrl: (id: string) => string | undefined;
@@ -605,7 +604,6 @@ const SearchResults: FC<{
   currentSearch,
   scope,
   searchType,
-  icons,
   getMessageUrl,
   getEventUrl,
   getEventMessageUrl,
@@ -614,7 +612,7 @@ const SearchResults: FC<{
     return (
       <div className={styles.emptyState}>
         <p>
-          <i className={icons.search} /> Searching…
+          <i className={baseApplicationIcons.search} /> Searching…
         </p>
       </div>
     );

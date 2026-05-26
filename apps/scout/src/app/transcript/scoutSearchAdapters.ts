@@ -4,14 +4,12 @@ import {
   normalizeSearchPanelState,
   type ModelHistoryController,
   type SearchPanelApi,
-  type SearchPanelIcons,
   type SearchPanelNavigation,
   type SearchPanelStateController,
   type SearchScope,
   type SearchType,
 } from "@tsmono/inspect-components/transcript-search";
 
-import { ApplicationIcons } from "../../icons";
 import { useApi, useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 
@@ -88,9 +86,3 @@ export const useScoutSearchNavigation = (): SearchPanelNavigation => {
   );
 };
 
-export const SCOUT_SEARCH_ICONS: SearchPanelIcons = {
-  search: ApplicationIcons.search,
-  history: ApplicationIcons.history,
-  add: ApplicationIcons.add,
-  close: ApplicationIcons.close,
-};

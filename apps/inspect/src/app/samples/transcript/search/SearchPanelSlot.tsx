@@ -6,7 +6,6 @@ import {
 } from "@tsmono/inspect-components/transcript-search";
 
 import {
-  INSPECT_SEARCH_ICONS,
   useInspectSearchApi,
   useInspectSearchModelHistory,
   useInspectSearchNavigation,
@@ -60,7 +59,6 @@ export const SearchPanelSlot: FC<SearchPanelSlotProps> = ({
       api={api}
       stateController={stateController}
       navigation={navigation}
-      icons={INSPECT_SEARCH_ICONS}
       modelHistory={modelHistory}
       onClose={onClose}
     />

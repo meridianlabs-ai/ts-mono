@@ -15,7 +15,6 @@ export type { GrepOptions } from "./searchRequest";
 export type {
   ModelHistoryController,
   SearchPanelApi,
-  SearchPanelIcons,
   SearchPanelNavigation,
   SearchPanelStateController,
   SearchResultScope,
