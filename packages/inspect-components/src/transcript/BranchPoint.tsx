@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CSSProperties, FC, Fragment, MouseEvent } from "react";
+import { CSSProperties, FC, MouseEvent } from "react";
 
 import { hueForBranch } from "./branchColor";
 import styles from "./BranchPoint.module.css";
@@ -14,9 +14,9 @@ export interface BranchPointProps {
   /** The branch the viewer is currently reading. Must equal `parent` or one of `spawned`. */
   viewing: string;
   /**
-   * Called when a non-current radio is clicked. The second arg is the clicked
-   * element so the host can scroll-anchor (preserves viewport position after
-   * the selection change re-renders the transcript list).
+   * Called when a non-current segment is clicked. The second arg is the
+   * clicked element so the host can scroll-anchor (preserves viewport
+   * position after the selection change re-renders the transcript list).
    */
   onSelect?: (branch: string, anchorEl: HTMLElement) => void;
   /** Optional explicit hue (0..360) per branch label. */
@@ -39,59 +39,57 @@ export const BranchPoint: FC<BranchPointProps> = ({
     return override != null ? override : hueForBranch(b);
   };
 
+  const options = [parent, ...spawned];
+
   return (
     <div
       role="group"
       aria-label="Branch point"
       className={clsx(styles.branchPoint, className)}
     >
-      <div className={styles.row}>
-        <span className={styles.glyph} aria-hidden="true">
-          <i className={TranscriptIcons.fork} />
-        </span>
-        <span className={styles.label}>Branch point</span>
-        <RadioPill
-          branch={parent}
-          hue={hueOf(parent)}
-          filled={viewing === parent}
-          onSelect={onSelect}
+      <span className={styles.label}>
+        <i
+          className={clsx(TranscriptIcons.fork, styles.glyph)}
+          aria-hidden="true"
         />
-      </div>
-      <div className={styles.connectorRow}>
-        <Elbow />
-        <div className={styles.spawnedRow}>
-          {spawned.map((b, i) => (
-            <Fragment key={b}>
-              {i > 0 && (
-                <span
-                  className={styles.orPipe}
-                  aria-hidden="true"
-                  data-testid="bp-or"
-                />
-              )}
-              <RadioPill
-                branch={b}
-                hue={hueOf(b)}
-                filled={viewing === b}
-                onSelect={onSelect}
-              />
-            </Fragment>
-          ))}
-        </div>
+        <span className={styles.labelText}>Branch point</span>
+      </span>
+      <div
+        role="radiogroup"
+        aria-label="Choose branch"
+        className={styles.segmented}
+      >
+        {options.map((b) => (
+          <Segment
+            key={b}
+            branch={b}
+            hue={hueOf(b)}
+            isCurrent={b === viewing}
+            isParent={b === parent}
+            onSelect={onSelect}
+          />
+        ))}
       </div>
     </div>
   );
 };
 
-interface RadioPillProps {
+interface SegmentProps {
   branch: string;
   hue: number;
-  filled: boolean;
+  isCurrent: boolean;
+  isParent: boolean;
   onSelect?: (branch: string, anchorEl: HTMLElement) => void;
 }
 
-const RadioPill: FC<RadioPillProps> = ({ branch, hue, filled, onSelect }) => {
-  const interactive = !!onSelect && !filled;
+const Segment: FC<SegmentProps> = ({
+  branch,
+  hue,
+  isCurrent,
+  isParent,
+  onSelect,
+}) => {
+  const interactive = !!onSelect && !isCurrent;
   const handleClick = (e: MouseEvent<HTMLButtonElement>): void => {
     if (interactive && onSelect) {
       onSelect(branch, e.currentTarget);
@@ -101,24 +99,30 @@ const RadioPill: FC<RadioPillProps> = ({ branch, hue, filled, onSelect }) => {
   return (
     <button
       type="button"
-      className={styles.pill}
+      role="radio"
+      className={styles.segment}
       style={style}
-      data-interactive={interactive ? "true" : "false"}
-      data-testid="bp-pill"
+      data-testid="bp-segment"
       data-branch={branch}
-      aria-pressed={filled ? "true" : "false"}
+      aria-checked={isCurrent}
+      aria-pressed={isCurrent ? "true" : "false"}
       onClick={interactive ? handleClick : undefined}
       disabled={!interactive}
     >
-      <span className={styles.dot} aria-hidden="true" />
+      {isParent && <ContinuesGlyph />}
       <span>{branch}</span>
     </button>
   );
 };
 
-const Elbow: FC = () => (
-  <svg width="76" height="34" viewBox="0 0 76 34" aria-hidden="true">
-    <path d="M 42 0 V 20 H 76" className={styles.elbow} />
+const ContinuesGlyph: FC = () => (
+  <svg
+    className={styles.continuesGlyph}
+    viewBox="0 0 9 9"
+    aria-hidden="true"
+    data-testid="bp-continues"
+  >
+    <path d="M 1 1 L 8 4.5 L 1 8 Z" />
   </svg>
 );
 
