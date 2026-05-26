@@ -112,6 +112,13 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 export { AnchorEventView } from "./AnchorEventView";
 export { ApprovalEventView } from "./ApprovalEventView";
 export { BranchEventView } from "./BranchEventView";
+export {
+  BranchPoint,
+  forkNavToBranchPointProps,
+  findRowKeyForLabel,
+} from "./BranchPoint";
+export type { BranchPointProps } from "./BranchPoint";
+export { hueForBranch, hash32 } from "./branchColor";
 export { CompactionEventView } from "./CompactionEventView";
 export { ErrorEventView } from "./ErrorEventView";
 export { InfoEventView } from "./InfoEventView";
