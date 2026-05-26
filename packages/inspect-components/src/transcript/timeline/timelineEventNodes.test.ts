@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { CompactionEvent, InfoEvent } from "@tsmono/inspect-common/types";
+import type {
+  AnchorEvent,
+  CompactionEvent,
+  InfoEvent,
+  ModelEvent,
+} from "@tsmono/inspect-common/types";
 
-import { TimelineEvent } from "./core";
+import { TimelineEvent, TimelineSpan } from "./core";
 import { ts } from "./testHelpers";
 import {
   buildSelectionKey,
@@ -50,6 +55,74 @@ function makeTimelineEvent(
 
   return new TimelineEvent(event);
 }
+
+function makeAnchor(anchorId: string, sec: number): TimelineEvent {
+  return new TimelineEvent({
+    event: "anchor",
+    anchor_id: anchorId,
+    source: null,
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    metadata: null,
+    pending: null,
+    span_id: null,
+    uuid: `anchor-${anchorId}`,
+  } satisfies AnchorEvent);
+}
+
+function makeModel(sec: number, label = "m"): TimelineEvent {
+  return new TimelineEvent({
+    event: "model",
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    pending: null,
+    span_id: null,
+    uuid: `model-${label}-${sec}`,
+    metadata: null,
+    model: "synthetic",
+    role: null,
+    input: [],
+    tools: [],
+    tool_choice: null,
+    config: {} as ModelEvent["config"],
+    output: {} as ModelEvent["output"],
+    error: null,
+    cache: null,
+    call: null,
+    completed: ts(sec).toISOString(),
+    working_time: 0,
+    retries: null,
+    traceback: null,
+    traceback_ansi: null,
+  } as unknown as ModelEvent);
+}
+
+/** A branch span that forks from the given anchor. */
+function makeBranch(
+  name: string,
+  branchedFrom: string,
+  startSec: number,
+  _endSec: number
+): TimelineSpan {
+  return new TimelineSpan({
+    id: name.toLowerCase(),
+    name,
+    spanType: "branch",
+    content: [makeModel(startSec)],
+    branches: [],
+    branchedFrom,
+    utility: false,
+  });
+}
+
+// Placeholder reference so makeAnchor/makeBranch are "used" until the
+// collectPathWithNavigators tests land in follow-up commits.
+describe.skip("fork-nav helpers (placeholder)", () => {
+  it("references helpers", () => {
+    expect(typeof makeAnchor).toBe("function");
+    expect(typeof makeBranch).toBe("function");
+  });
+});
 
 // =============================================================================
 // parseSelection
