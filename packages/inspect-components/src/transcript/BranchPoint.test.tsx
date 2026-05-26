@@ -22,12 +22,12 @@ describe("BranchPoint", () => {
         viewing="branch 1"
       />
     );
-    const parent = screen.getByRole("button", { name: /branch 1/ });
-    const b2 = screen.getByRole("button", { name: /branch 2/ });
-    const b3 = screen.getByRole("button", { name: /branch 3/ });
-    expect(parent.getAttribute("aria-pressed")).toBe("true");
-    expect(b2.getAttribute("aria-pressed")).toBe("false");
-    expect(b3.getAttribute("aria-pressed")).toBe("false");
+    const parent = screen.getByRole("radio", { name: /branch 1/ });
+    const b2 = screen.getByRole("radio", { name: /branch 2/ });
+    const b3 = screen.getByRole("radio", { name: /branch 3/ });
+    expect(parent.getAttribute("aria-checked")).toBe("true");
+    expect(b2.getAttribute("aria-checked")).toBe("false");
+    expect(b3.getAttribute("aria-checked")).toBe("false");
   });
 
   it("renders spawned viewing state", () => {
@@ -40,13 +40,13 @@ describe("BranchPoint", () => {
     );
     expect(
       screen
-        .getByRole("button", { name: /branch 1/ })
-        .getAttribute("aria-pressed")
+        .getByRole("radio", { name: /branch 1/ })
+        .getAttribute("aria-checked")
     ).toBe("false");
     expect(
       screen
-        .getByRole("button", { name: /branch 2/ })
-        .getAttribute("aria-pressed")
+        .getByRole("radio", { name: /branch 2/ })
+        .getAttribute("aria-checked")
     ).toBe("true");
   });
 
@@ -60,12 +60,12 @@ describe("BranchPoint", () => {
         onSelect={onSelect}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /branch 2/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /branch 2/ }));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect.mock.calls[0]![0]).toBe("branch 2");
   });
 
-  it("disables current radio and does not fire onSelect", () => {
+  it("disables current segment and does not fire onSelect", () => {
     const onSelect = vi.fn();
     render(
       <BranchPoint
@@ -75,7 +75,7 @@ describe("BranchPoint", () => {
         onSelect={onSelect}
       />
     );
-    const parent = screen.getByRole<HTMLButtonElement>("button", {
+    const parent = screen.getByRole<HTMLButtonElement>("radio", {
       name: /branch 1/,
     });
     expect(parent.disabled).toBe(true);
@@ -83,7 +83,7 @@ describe("BranchPoint", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("disables all radios when onSelect is omitted", () => {
+  it("disables all segments when onSelect is omitted", () => {
     render(
       <BranchPoint
         parent="branch 1"
@@ -92,32 +92,45 @@ describe("BranchPoint", () => {
       />
     );
     const isDisabled = (name: RegExp): boolean =>
-      screen.getByRole<HTMLButtonElement>("button", { name }).disabled;
+      screen.getByRole<HTMLButtonElement>("radio", { name }).disabled;
     expect(isDisabled(/branch 1/)).toBe(true);
     expect(isDisabled(/branch 2/)).toBe(true);
     expect(isDisabled(/branch 3/)).toBe(true);
   });
 
-  it("renders no OR pipe with a single spawned branch", () => {
+  it("marks only the parent segment with the continues glyph", () => {
     const { container } = render(
       <BranchPoint
         parent="branch 1"
-        spawned={["branch 2"]}
+        spawned={["branch 2", "branch 3"]}
         viewing="branch 1"
       />
     );
-    expect(container.querySelectorAll('[data-testid="bp-or"]')).toHaveLength(0);
+    const glyphs = container.querySelectorAll('[data-testid="bp-continues"]');
+    expect(glyphs).toHaveLength(1);
+    expect(
+      glyphs[0]!
+        .closest('[data-testid="bp-segment"]')!
+        .getAttribute("data-branch")
+    ).toBe("branch 1");
   });
 
-  it("renders one OR pipe between each pair of spawned branches", () => {
+  it("renders parent first followed by spawned in order", () => {
     const { container } = render(
       <BranchPoint
         parent="branch 1"
-        spawned={["branch 2", "branch 3", "branch 4"]}
+        spawned={["branch 3", "branch 2"]}
         viewing="branch 1"
       />
     );
-    expect(container.querySelectorAll('[data-testid="bp-or"]')).toHaveLength(2);
+    const segments = Array.from(
+      container.querySelectorAll('[data-testid="bp-segment"]')
+    );
+    expect(segments.map((s) => s.getAttribute("data-branch"))).toEqual([
+      "branch 1",
+      "branch 3",
+      "branch 2",
+    ]);
   });
 
   it("returns null with empty spawned", () => {
@@ -137,7 +150,7 @@ describe("BranchPoint", () => {
       />
     );
     const b2 = container.querySelector(
-      '[data-testid="bp-pill"][data-branch="branch 2"]'
+      '[data-testid="bp-segment"][data-branch="branch 2"]'
     ) as HTMLElement;
     expect(b2).not.toBeNull();
     expect(b2.style.getPropertyValue("--bp-hue")).toBe("42");
