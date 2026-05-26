@@ -120,9 +120,6 @@ export function createSamplePolling(
 
       // Get the api
       const api = state.api;
-      if (!api) {
-        throw new Error("Required API is missing");
-      }
 
       if (!api.get_log_sample_data) {
         throw new Error("Required API get_log_sample_data is undefined.");

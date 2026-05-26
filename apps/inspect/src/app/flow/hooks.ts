@@ -9,7 +9,7 @@ export const useFlowServerData = (dir: string) => {
 
   useEffect(() => {
     const fetchFlow = async () => {
-      const flowStr = await api?.get_flow(dir);
+      const flowStr = await api.get_flow(dir);
 
       // Set the flow data into state
       updateFlowData(dir, flowStr);

@@ -24,16 +24,16 @@ const log = createLogger("store");
 
 export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
   // The shared api
-  api?: ClientAPI | null;
+  api: ClientAPI;
 
   // The shared database service
-  databaseService?: DatabaseService | null;
+  databaseService: DatabaseService;
 
   // The shared replication service
-  replicationService?: ReplicationService | null;
+  replicationService: ReplicationService;
 
   // Global actions
-  initialize: (api: ClientAPI, capabilities: Capabilities) => void;
+  initialize: (capabilities: Capabilities) => void;
   cleanup: () => void;
 }
 
@@ -122,18 +122,12 @@ export const initializeStore = (
 
           return {
             // Shared state
-            api: null,
+            api,
             databaseService,
             replicationService,
 
             // Initialize
-            initialize: (api, capabilities) => {
-              set((state) => {
-                state.api = api;
-                state.databaseService = databaseService;
-                state.replicationService = replicationService;
-              });
-
+            initialize: (capabilities) => {
               // Initialize application slices
               initializeAppSlice(
                 set as (fn: (state: StoreState) => void) => void,
@@ -196,5 +190,5 @@ export const initializeStore = (
 
   // Set the implementation and initialize it
   storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
-  store.getState().initialize(api, capabilities);
+  store.getState().initialize(capabilities);
 };

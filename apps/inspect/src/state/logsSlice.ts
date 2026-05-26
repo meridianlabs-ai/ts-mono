@@ -143,18 +143,8 @@ export const createLogsSlice = (
         }),
       syncLogPreviews: async (logs: LogHandle[]) => {
         const state = get();
-        const api = state.api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return;
-        }
-
-        if (!state.replicationService) {
-          console.error("Replication service not initialized in LogsStore");
-          return;
-        }
         try {
-          await state.replicationService?.loadLogPreviews({ logs });
+          await state.replicationService.loadLogPreviews({ logs });
         } catch (e) {
           console.error("Failed to sync log previews", e);
         }
@@ -234,7 +224,7 @@ export const createLogsSlice = (
           logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
           // For bare-basename deep links there's no dir to derive; fall back
           // to the server's configured log dir (cheap — no walk).
-          if (logDir === undefined && state.api?.get_log_dir) {
+          if (logDir === undefined) {
             try {
               logDir = await state.api.get_log_dir();
             } catch (e) {
@@ -242,13 +232,8 @@ export const createLogsSlice = (
             }
           }
         } else {
-          const api = state.api;
-          if (!api) {
-            console.error("API not initialized in LogsStore");
-            return undefined;
-          }
           try {
-            const root = await api.get_log_root();
+            const root = await state.api.get_log_root();
             logDir = root.log_dir;
             absLogDir = root.abs_log_dir;
           } catch (e) {
@@ -276,13 +261,8 @@ export const createLogsSlice = (
       },
       syncLogs: async () => {
         const api = get().api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return [];
-        }
-
         const databaseService = get().databaseService;
-        const useProgress = !!databaseService?.getDatabaseHandle();
+        const useProgress = !!databaseService.getDatabaseHandle();
         if (useProgress) {
           get().appActions.setLoading(true);
         }
@@ -293,7 +273,6 @@ export const createLogsSlice = (
 
         // Setup up the database service
         const initDatabase =
-          !databaseService ||
           databaseService.getDatabaseHandle() !== databaseHandle;
 
         if (initDatabase) {
@@ -308,9 +287,6 @@ export const createLogsSlice = (
 
             try {
               const databaseService = get().databaseService;
-              if (!databaseService) {
-                return undefined;
-              }
               await databaseService.openDatabase(databaseHandle);
               return databaseService;
             } catch (e) {
@@ -338,7 +314,7 @@ export const createLogsSlice = (
           }
 
           // Activate replication for this database
-          await get().replicationService?.startReplication(
+          await get().replicationService.startReplication(
             databaseService,
             api,
             {
@@ -394,18 +370,14 @@ export const createLogsSlice = (
         }
 
         // Sync
-        return (await get().replicationService?.sync(initDatabase)) || [];
+        return await get().replicationService.sync(initDatabase);
       },
       syncEvalSetInfo: async (logPath?: string) => {
-        const api = get().api;
-        if (!api) {
-          console.error("API not initialized in LogsStore");
-          return undefined;
-        }
-        const info = await api.get_eval_set(logPath);
+        const info = await get().api.get_eval_set(logPath);
         set((state) => {
           state.logs.evalSet = info;
         });
+        return info;
       },
       updateFlowData: (flowPath: string, flowData?: string) => {
         set((state) => {
@@ -422,7 +394,7 @@ export const createLogsSlice = (
           ) !== -1;
 
         if (!isInFileList) {
-          if (state.replicationService?.isReplicating() && !isSingleFileMode) {
+          if (state.replicationService.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>
               val.name.endsWith(logFile)
@@ -490,11 +462,7 @@ export const createLogsSlice = (
       getAllCachedSamples: async () => {
         try {
           log.debug("LOADING ALL CACHED SAMPLES");
-          const dbService = get().databaseService;
-          if (!dbService) {
-            throw new Error("Database service not initialized");
-          }
-          const samples = await dbService.readAllSampleSummaries();
+          const samples = await get().databaseService.readAllSampleSummaries();
           log.debug(`Retrieved ${samples.length} cached samples`);
           return samples;
         } catch (e) {
@@ -510,11 +478,8 @@ export const createLogsSlice = (
       }) => {
         try {
           log.debug("QUERYING CACHED SAMPLES", filter);
-          const dbService = get().databaseService;
-          if (!dbService) {
-            throw new Error("Database service not initialized");
-          }
-          const samples = await dbService.querySampleSummaries(filter);
+          const samples =
+            await get().databaseService.querySampleSummaries(filter);
           log.debug(`Query returned ${samples.length} samples`);
           return samples;
         } catch (e) {

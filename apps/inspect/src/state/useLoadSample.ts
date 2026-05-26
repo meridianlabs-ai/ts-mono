@@ -103,7 +103,7 @@ export function useLoadSample() {
           };
 
           const sample: EvalSample | undefined =
-            (await api?.get_log_sample(logFile, id, epoch, onProgress)) ??
+            (await api.get_log_sample(logFile, id, epoch, onProgress)) ??
             (summary?.error
               ? synthesizeErroredSampleFromSummary(summary)
               : undefined);

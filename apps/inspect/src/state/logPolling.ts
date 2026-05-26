@@ -27,10 +27,9 @@ export function createLogPolling(
     }
 
     const state = get();
-    const api = state.api;
     const selectedLogFile = state.logs.selectedLogFile;
 
-    if (!api || !selectedLogFile) {
+    if (!selectedLogFile) {
       return false;
     }
 
@@ -39,7 +38,10 @@ export function createLogPolling(
     try {
       // Pass cached=false so the eval file is re-read from disk,
       // picking up any newly flushed samples.
-      const logDetails = await api.get_log_details(selectedLogFile, false);
+      const logDetails = await state.api.get_log_details(
+        selectedLogFile,
+        false
+      );
 
       set((state) => {
         // Set the log summary
@@ -98,7 +100,7 @@ export function createLogPolling(
 
         // Don't proceed if API doesn't support it
         const api = state.api;
-        if (!api?.get_log_pending_samples) {
+        if (!api.get_log_pending_samples) {
           return false;
         }
 

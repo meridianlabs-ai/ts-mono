@@ -23,7 +23,7 @@ export const DownloadLogButton = ({
   const api = useStore((state) => state.api);
 
   const handleClick = async (): Promise<void> => {
-    if (!api?.download_log) return;
+    if (!api.download_log) return;
 
     setDownloadState("downloading");
 

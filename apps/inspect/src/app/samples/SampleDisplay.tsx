@@ -379,7 +379,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (downloadFiles && sample && api?.download_file) {
+  if (downloadFiles && sample) {
     const sampleId = sample.id ?? "sample";
     tools.push(
       <ToolDropdownButton

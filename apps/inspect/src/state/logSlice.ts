@@ -196,16 +196,11 @@ export const createLogSlice = (
           ? join(logFileName, logDir)
           : logFileName;
 
-        if (!api) {
-          console.error("API not initialized in Store");
-          return;
-        }
-
         log.debug(`Load log: ${logAbsPath}`);
 
         // Try reading the data in the database first
         const dbService = state.databaseService;
-        if (dbService && dbService.opened()) {
+        if (dbService.opened()) {
           try {
             const cachedInfo =
               await dbService.readLogDetailsForFile(logAbsPath);
@@ -242,13 +237,11 @@ export const createLogSlice = (
           state.logActions.setSelectedLogDetails(logDetails);
 
           // OPTIONAL: Cache log info (completely non-blocking)
-          if (dbService) {
-            setTimeout(() => {
-              dbService.writeLogDetail(logFileName, logDetails).catch(() => {
-                // Silently ignore cache errors
-              });
-            }, 0);
-          }
+          setTimeout(() => {
+            dbService.writeLogDetail(logFileName, logDetails).catch(() => {
+              // Silently ignore cache errors
+            });
+          }, 0);
 
           // Push the updated header information up
           const header = {
@@ -284,16 +277,15 @@ export const createLogSlice = (
 
       refreshLog: async () => {
         const state = get();
-        const api = state.api;
         const selectedLogFile = state.logs.selectedLogFile;
 
-        if (!api || !selectedLogFile) {
+        if (!selectedLogFile) {
           return;
         }
 
         log.debug(`refresh: ${selectedLogFile}`);
         try {
-          const logDetails = await api.get_log_details(selectedLogFile);
+          const logDetails = await state.api.get_log_details(selectedLogFile);
           state.logActions.setSelectedLogDetails(logDetails);
         } catch (error) {
           log.error("Error refreshing log:", error);
