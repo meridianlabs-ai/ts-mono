@@ -401,4 +401,30 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
     expect(data.groups).toHaveLength(2);
     expect(data.groups.map((g) => g.anchorId)).toEqual(["A1", "A2"]);
   });
+
+  it("does not merge when a non-fork event sits between two anchors", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 6, 7);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [
+        makeAnchor("A1", 2),
+        makeModel(4, "between"),
+        makeAnchor("A2", 5),
+      ],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
 });
