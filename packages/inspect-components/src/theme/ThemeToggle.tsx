@@ -66,7 +66,12 @@ export const ThemeToggle = ({
   }, [buttonEl, open]);
 
   return (
-    <div className={clsx(styles.root, className)}>
+    // data-testid: stable hook for automated tests and for downstream
+    // hosts that embed the viewer and want to hide the picker (e.g. an
+    // outer app that owns its own theme control). The aria-label on the
+    // button below is the only other stable handle and is subject to
+    // localization, so external code should prefer this.
+    <div className={clsx(styles.root, className)} data-testid="theme-toggle">
       <button
         ref={setButtonEl}
         type="button"
