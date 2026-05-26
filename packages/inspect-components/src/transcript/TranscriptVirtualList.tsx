@@ -35,6 +35,7 @@ import {
 } from "./BranchPoint";
 import { CheckpointEventView } from "./CheckpointEventView";
 import { CompactionEventView } from "./CompactionEventView";
+import { EmptyBranchView } from "./EmptyBranchView";
 import { ErrorEventView } from "./ErrorEventView";
 import { InfoEventView } from "./InfoEventView";
 import { InputEventView } from "./InputEventView";
@@ -191,6 +192,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
               const rowKey = findRowKeyForLabel(data, label);
               if (rowKey) selectRow?.(rowKey, anchorEl);
             }}
+          />
+        );
+      }
+      if (node.event.type === "empty_branch") {
+        return (
+          <EmptyBranchView
+            eventNode={node as EventNode<SpanBeginEvent>}
+            className={className}
           />
         );
       }

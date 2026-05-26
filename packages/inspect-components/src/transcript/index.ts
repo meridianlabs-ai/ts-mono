@@ -120,6 +120,7 @@ export {
 export type { BranchPointProps } from "./BranchPoint";
 export { hueForBranch, hash32 } from "./branchColor";
 export { CompactionEventView } from "./CompactionEventView";
+export { EmptyBranchView } from "./EmptyBranchView";
 export { ErrorEventView } from "./ErrorEventView";
 export { InfoEventView } from "./InfoEventView";
 export { InputEventView } from "./InputEventView";
