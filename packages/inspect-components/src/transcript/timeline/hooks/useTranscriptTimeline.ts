@@ -235,7 +235,7 @@ export function useTranscriptTimeline(
       spans.length === 1 &&
       (row?.branch || (spans[0]?.branches.length ?? 0) > 0)
     ) {
-      const collected = collectPathWithNavigators(state.rows, rowKey);
+      const collected = collectPathWithNavigators(state.rows, rowKey, events);
       return {
         selectedEvents: collected.events,
         sourceSpans: collected.sourceSpans,
