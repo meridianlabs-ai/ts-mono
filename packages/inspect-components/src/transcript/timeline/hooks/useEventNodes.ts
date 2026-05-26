@@ -95,8 +95,7 @@ export const useEventNodes = (
         if (node.sourceSpan) return true;
         if (
           node.event.event === "span_begin" &&
-          (node.event.type === "fork_nav" ||
-            node.event.type === "empty_branch")
+          (node.event.type === "fork_nav" || node.event.type === "empty_branch")
         ) {
           return true;
         }
