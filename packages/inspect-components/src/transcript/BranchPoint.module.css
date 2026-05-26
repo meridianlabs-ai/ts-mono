@@ -56,12 +56,10 @@
   background: transparent;
   flex: none;
 }
-.glyph::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  transform: rotate(45deg);
-  background: var(--bp-accent);
+.glyph > i {
+  color: var(--bp-accent);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .spawnedRow {
