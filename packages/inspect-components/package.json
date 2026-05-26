@@ -39,7 +39,7 @@
     "@tsmono/tsconfig": "workspace:*",
     "@types/css-modules": "^1.0.5",
     "@types/json5": "^2.2.0",
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.9.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
