@@ -95,7 +95,7 @@ describe("TagStrip", () => {
   test("Edit pill says 'Edit' when chips are present", () => {
     render(<TagStrip tags={["alpha", "beta"]} showEdit onEdit={() => {}} />);
     const btn = screen.getByTitle("Edit tags");
-    expect(btn.textContent).toMatch(/Edit/);
+    expect(btn.textContent).toMatch(/edit/);
     expect(btn.textContent).not.toMatch(/Tags/);
   });
 
