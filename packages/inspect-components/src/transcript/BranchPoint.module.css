@@ -1,5 +1,4 @@
 .branchPoint {
-  --bp-accent: oklch(0.58 0.13 35);
   --bp-connector: var(--bs-border-color, #e5e7eb);
   --bp-bg: var(--bs-tertiary-bg, #fafbfd);
   --bp-hairline: var(--bs-border-color, #e5e7eb);
@@ -15,7 +14,6 @@
 }
 
 :global([data-bs-theme="dark"]) .branchPoint {
-  --bp-accent: oklch(0.72 0.16 35);
   --bp-l: 0.78;
   --bp-c: 0.14;
 }
@@ -49,17 +47,10 @@
 .glyph {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1.4px solid var(--bp-accent);
-  background: transparent;
-  flex: none;
-}
-.glyph > i {
-  color: var(--bp-accent);
-  font-size: 11px;
+  color: var(--bp-label);
+  font-size: 14px;
   line-height: 1;
+  flex: none;
 }
 
 .spawnedRow {
