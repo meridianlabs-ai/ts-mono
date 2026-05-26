@@ -103,22 +103,22 @@ export const resolveSamplesView = (
 };
 
 // ---------------------------------------------------------------------------
-// Runtime ↔ ag-grid GridState (column-id tolerance applied at this boundary)
+// Runtime ↔ ag-grid GridState
 // ---------------------------------------------------------------------------
 
 /**
  * Project the runtime descriptor into the `GridState` ag-grid consumes.
  *
- * Column-id tolerance: any persisted reference to a column not present in
- * `availableColIds` (e.g. `score__judge__correctness` on a log without
- * that scorer) is excluded from the emitted GridState but **preserved
- * unchanged in the source descriptor**. The persisted view is never
- * mutated by a render.
+ * Column-id tolerance handles transient mismatches between a per-log
+ * descriptor and its log's columns — e.g. samples loading in stages where
+ * `allColumns` initially lacks scorer columns the user has customized.
+ * Unknown ids are excluded from the emitted GridState but preserved
+ * unchanged in the source descriptor.
  *
  * The DSL filter is intentionally *not* materialized into `filterModel`
  * here — that translation needs the live filter registry, which only
- * exists at runtime. Phase 2's `useSamplesView` layers the DSL→model
- * translation on top of this base GridState.
+ * exists at runtime. `useSamplesView` layers the DSL→model translation
+ * on top of this base GridState.
  */
 export const viewToGridState = (
   view: SamplesViewState,
@@ -133,11 +133,16 @@ export const viewToGridState = (
       availableColIds.has(colId)
     )
   );
+  const widths = view.columnWidths ?? {};
+  const columnSizingModel = Object.entries(widths)
+    .filter(([colId]) => availableColIds.has(colId))
+    .map(([colId, width]) => ({ colId, width }));
   return {
     columnVisibility: {
       hiddenColIds: knownColumns.filter((c) => !c.visible).map((c) => c.id),
     },
     columnOrder: { orderedColIds: knownColumns.map((c) => c.id) },
+    columnSizing: { columnSizingModel },
     sort: { sortModel },
     filter: { filterModel },
   };
@@ -145,13 +150,15 @@ export const viewToGridState = (
 
 /**
  * Fold a fresh ag-grid `GridState` back into the runtime descriptor,
- * preserving any unknown-id references from `prev` so they re-engage when
- * the user navigates back to a log that has those columns.
+ * preserving any unknown-id references from `prev`. Unknown ids occur
+ * during transient column-load mismatches (e.g. user refreshes a log,
+ * a write fires before scorer columns reappear); preservation keeps the
+ * user's customizations alive across those frames.
  *
- * Note: this updates `columns`, `sort`, and `filters.extraColumnFilters`.
- * The `dsl` half of `filters` is the responsibility of the caller — it
- * comes from a different signal (the toolbar text) and is partitioned
- * via `partitionFilterModel`.
+ * Updates `columns`, `sort`, and `filters.extraColumnFilters`. The `dsl`
+ * half of `filters` is the responsibility of the caller — it comes from
+ * a different signal (the toolbar text) and is partitioned via
+ * `partitionFilterModel`.
  */
 export const gridStateToView = (
   prev: SamplesViewState,
@@ -181,6 +188,21 @@ export const gridStateToView = (
     )
   );
 
+  // Widths: capture fresh values for known columns and preserve any
+  // recorded under transient unknown ids (samples still loading).
+  // Flex-only entries (no `width`) don't represent a user resize.
+  const prevWidths = prev.columnWidths ?? {};
+  const knownWidths: Record<string, number> = {};
+  for (const entry of gridState.columnSizing?.columnSizingModel ?? []) {
+    if (availableColIds.has(entry.colId) && typeof entry.width === "number") {
+      knownWidths[entry.colId] = entry.width;
+    }
+  }
+  const unknownWidths = Object.fromEntries(
+    Object.entries(prevWidths).filter(([colId]) => !availableColIds.has(colId))
+  );
+  const mergedWidths = { ...unknownWidths, ...knownWidths };
+
   return {
     ...prev,
     columns: [...knownColumns, ...unknownColumns],
@@ -189,6 +211,8 @@ export const gridStateToView = (
       dsl: prev.filters.dsl,
       extraColumnFilters: { ...knownExtras, ...unknownExtras },
     },
+    columnWidths:
+      Object.keys(mergedWidths).length > 0 ? mergedWidths : undefined,
   };
 };
 
@@ -258,11 +282,10 @@ export const partitionFilterModel = (
 // ---------------------------------------------------------------------------
 
 /**
- * Pre-refactor `samplesListState.byScope.logViewSamples` shape. After
- * the refactor lands, persisted state from before that point can still
- * appear (transient host storage may retain a pre-refactor object). We
- * read it via `legacyToView` and write the new shape back on the next
- * user action.
+ * Pre-refactor scope state from before the SamplesView descriptor
+ * existed (gridState + columnVisibility in one bag). Kept as a converter
+ * for safety; no live caller reads from this slot today — the per-log
+ * refactor migrates older state via the persist `migrate` hook instead.
  */
 export interface LegacyScopeState {
   columnVisibility?: Record<string, boolean>;

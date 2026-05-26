@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "apache-arrow": "^21.1.0",
+    "@uwdata/flechette": "^2.3.0",
     "arquero": "^8.0.3",
     "json5": "^2.2.3",
     "lodash-es": "^4.17.23",
@@ -27,14 +27,14 @@
     "@tsmono/tsconfig": "workspace:*",
     "@types/lodash-es": "^4.17.12",
     "@types/lz4js": "^0.2.2",
-    "apache-arrow": "^21.1.0",
+    "@uwdata/flechette": "^2.3.0",
     "arquero": "^8.0.3",
     "eslint": "^9.39.4",
     "json5": "^2.2.3",
     "lodash-es": "^4.18.1",
     "lz4js": "^0.2.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
+    "typescript-eslint": "^8.59.4",
     "vitest": "^4.1.6"
   }
 }

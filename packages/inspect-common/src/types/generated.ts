@@ -1352,6 +1352,8 @@ export interface components {
             max_tasks?: number | null;
             /** Message Limit */
             message_limit?: number | null;
+            /** Notification */
+            notification?: boolean | string | null;
             /** Retry On Error */
             retry_on_error?: number | null;
             /** Sample Id */
@@ -2132,20 +2134,30 @@ export interface components {
          * @description Input screen interaction.
          */
         InputEvent: {
+            /** Content */
+            content?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Event
              * @default input
              * @constant
              */
             event: "input";
+            /** Fields */
+            fields?: components["schemas"]["InputField"][] | null;
             /** Input */
             input: string;
             /** Input Ansi */
             input_ansi: string;
+            /** Message */
+            message?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Outcome */
+            outcome?: ("accepted" | "declined" | "cancelled") | null;
             /** Pending */
             pending?: boolean | null;
             /** Span Id */
@@ -2156,6 +2168,21 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * InputField
+         * @description One field of an `ask_user` request.
+         */
+        InputField: {
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "string" | "integer" | "number" | "boolean" | "array";
         };
         /**
          * InterruptEvent

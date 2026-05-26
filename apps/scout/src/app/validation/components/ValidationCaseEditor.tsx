@@ -58,11 +58,15 @@ import { ValidationSplitSelector } from "./ValidationSplitSelector";
 
 interface ValidationCaseEditorProps {
   transcriptId: string;
+  taskId?: string | null;
+  taskRepeat?: number | null;
   className?: string | string[];
 }
 
 export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
   transcriptId,
+  taskId,
+  taskRepeat,
   className,
 }) => {
   const [searchParams] = useSearchParams();
@@ -153,6 +157,8 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
             <ValidationCaseEditorComponent
               key={validatedSetUri}
               transcriptId={transcriptId}
+              taskId={taskId}
+              taskRepeat={taskRepeat}
               validationSets={setsData}
               editorValidationSetUri={validatedSetUri}
               validationCase={caseData}
@@ -170,6 +176,8 @@ type ValidationType = "target" | "labels";
 
 interface ValidationCaseEditorComponentProps {
   transcriptId: string;
+  taskId?: string | null;
+  taskRepeat?: number | null;
   validationSets: string[];
   editorValidationSetUri?: string;
   validationCase?: ValidationCase | null;
@@ -179,6 +187,8 @@ interface ValidationCaseEditorComponentProps {
 
 const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
   transcriptId,
+  taskId,
+  taskRepeat,
   validationSets,
   editorValidationSetUri,
   validationCase: caseData,
@@ -294,6 +304,10 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
         labels: updatedCase.labels,
         predicate: updatedCase.predicate,
         split: updatedCase.split,
+        task_id: updatedCase.task_id ?? (taskId !== null ? taskId : undefined),
+        task_repeat:
+          updatedCase.task_repeat ??
+          (taskRepeat !== null ? taskRepeat : undefined),
       };
 
       setSaveStatus("saving");
@@ -319,6 +333,8 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       caseData,
       queryClient,
       updateValidationCaseMutation,
+      taskId,
+      taskRepeat,
     ]
   );
 
@@ -457,6 +473,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               onSelect={handleValidationSetSelect}
               allowCreate={true}
               onCreate={(name) => void handleCreateSet(name)}
+              createPending={createSetMutation.isPending}
               appConfig={config}
             />
             {createError && (

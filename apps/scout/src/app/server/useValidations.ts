@@ -82,8 +82,36 @@ export const useValidationCase = (
 export const useCreateValidationSet = () => {
   const queryClient = useQueryClient();
   const api = useApi();
-  return useMutation<string, Error, CreateValidationSetRequest>({
+  return useMutation<
+    string,
+    Error,
+    CreateValidationSetRequest,
+    { previous: string[] | undefined }
+  >({
     mutationFn: (request) => api.createValidationSet(request),
+
+    onMutate: async (request) => {
+      await queryClient.cancelQueries({
+        queryKey: validationQueryKeys.sets(),
+      });
+      const previous = queryClient.getQueryData<string[]>(
+        validationQueryKeys.sets()
+      );
+      if (previous) {
+        queryClient.setQueryData(validationQueryKeys.sets(), [
+          ...previous,
+          request.path,
+        ]);
+      }
+      return { previous };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(validationQueryKeys.sets(), context.previous);
+      }
+    },
+
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: validationQueryKeys.sets(),

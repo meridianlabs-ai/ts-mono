@@ -67,7 +67,11 @@ export interface LogsSlice {
       visibility: Record<string, boolean>
     ) => void;
 
-    setSampleListView: (view: SamplesViewState) => void;
+    /** Persist a SamplesView descriptor for a specific log file. The
+     *  log path is captured by the caller at hook level so a navigation
+     *  that races a pending effect can't redirect the write to a
+     *  different log's bucket. */
+    setSampleListView: (logFile: string, view: SamplesViewState) => void;
 
     setDisplayedSamples: (samples: Array<DisplayedSample>) => void;
     clearDisplayedSamples: () => void;
@@ -95,8 +99,8 @@ const initialState: LogsState = {
   samplesListState: {
     byScope: {
       samplesPanel: { columnVisibility: {} },
-      logViewSamples: {},
     },
+    byLog: {},
   },
   showRetriedLogs: false,
 };
@@ -125,14 +129,9 @@ export const createLogsSlice = (
           if (realPrev && realNew) {
             state.logs.samplesListState.byScope.samplesPanel.gridState =
               undefined;
-            // SampleList: keep columns + multiline (general preferences);
-            // reset only filter + sort, which reference log-specific values.
-            const view =
-              state.logs.samplesListState.byScope.logViewSamples.view;
-            if (view) {
-              view.filters = { dsl: "", extraColumnFilters: {} };
-              view.sort = [];
-            }
+            // SampleList per-log state survives the dir change — each log
+            // still owns its own bucket via `byLog[logFile]`. No need to
+            // reset filters/sort here.
             // listing.gridStateByScope keys are old logDir paths.
             state.logs.listing.gridStateByScope = {};
           }
@@ -188,9 +187,9 @@ export const createLogsSlice = (
           state.logs.samplesListState.byScope[scope].gridState = undefined;
         });
       },
-      setSampleListView: (view: SamplesViewState) => {
+      setSampleListView: (logFile: string, view: SamplesViewState) => {
         set((state) => {
-          state.logs.samplesListState.byScope.logViewSamples.view = view;
+          state.logs.samplesListState.byLog[logFile] = view;
         });
       },
       setDisplayedSamples: (samples: Array<DisplayedSample>) => {

@@ -485,6 +485,12 @@ export const ScannerResultPanel: FC = () => {
               <div slot="end" className={styles.validationSidebar}>
                 <ValidationCaseEditor
                   transcriptId={selectedResult.transcriptId}
+                  taskId={
+                    selectedResult.transcriptTaskId != null
+                      ? String(selectedResult.transcriptTaskId)
+                      : undefined
+                  }
+                  taskRepeat={selectedResult.transcriptTaskRepeat}
                 />
               </div>
             </VscodeSplitLayout>

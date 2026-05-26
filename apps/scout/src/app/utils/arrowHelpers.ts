@@ -57,7 +57,9 @@ export const parseScanResultData = async (
     parseJson(filtered.get("scan_model_usage", 0) as string),
     parseJson(filtered.get("scan_tags", 0) as string),
     parseJson(filtered.get("scanner_params", 0) as string),
-    parseJson(filtered.get("transcript_metadata", 0) as string),
+    tryParseJson<Record<string, JsonValue>>(
+      filtered.get("transcript_metadata", 0)
+    ),
     tryParseJson<boolean | Record<string, boolean>>(
       filtered.get("validation_result", 0)
     ),
@@ -173,7 +175,7 @@ export const parseScanResultData = async (
     scannerName,
     scannerParams: scannerParams as Record<string, JsonValue>,
     transcriptId,
-    transcriptMetadata: (transcriptMetadata ?? {}) as Record<string, JsonValue>,
+    transcriptMetadata: transcriptMetadata ?? {},
     transcriptSourceId,
     transcriptSourceUri,
     transcriptTaskSet,
@@ -224,7 +226,7 @@ export const parseScanResultSummaries = async (
       ] = await Promise.all([
         tryParseJson<boolean | Record<string, boolean>>(r.validation_result),
         tryParseJson<JsonValue>(r.validation_target),
-        parseJson<Record<string, JsonValue>>(r.transcript_metadata as string),
+        tryParseJson<Record<string, JsonValue>>(r.transcript_metadata),
         parseJson(r.event_references as string),
         parseJson(r.message_references as string),
         parseSimpleValue(r.value, valueType),
@@ -298,6 +300,7 @@ const tryParseJson = async <T>(text: unknown): Promise<T> => {
   try {
     return await asyncJsonParse<T>(text as string);
   } catch {
+    console.error("Failed to parse JSON, returning raw value", { text });
     return text as T;
   }
 };

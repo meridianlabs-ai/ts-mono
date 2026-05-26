@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 
-import { ErrorPanel } from "@tsmono/react/components";
+import { ErrorPanel } from "./ErrorPanel";
 
 interface Props {
   children: ReactNode;

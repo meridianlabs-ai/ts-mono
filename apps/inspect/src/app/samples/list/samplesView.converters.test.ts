@@ -307,6 +307,26 @@ describe("viewToGridState", () => {
     viewToGridState(state, cols("input"));
     expect(JSON.stringify(state)).toBe(before);
   });
+
+  test("emits columnSizing for user-resized columns; skips unknown ids", () => {
+    const state = sampleState({
+      columns: [
+        { id: "input", visible: true },
+        { id: "target", visible: true },
+      ],
+      columnWidths: { input: 420, target: 180, ghost: 999 },
+    });
+    const gs = viewToGridState(state, cols("input", "target"));
+    expect(gs.columnSizing?.columnSizingModel).toEqual([
+      { colId: "input", width: 420 },
+      { colId: "target", width: 180 },
+    ]);
+  });
+
+  test("emits an empty columnSizing model when no widths are recorded", () => {
+    const gs = viewToGridState(sampleState({}), cols("input"));
+    expect(gs.columnSizing?.columnSizingModel).toEqual([]);
+  });
 });
 
 describe("gridStateToView", () => {
@@ -362,6 +382,46 @@ describe("gridStateToView", () => {
     expect(next.filters.extraColumnFilters).toEqual({
       score__missing: { type: "equals", filter: 1 },
     });
+  });
+
+  test("captures user-resized widths from columnSizing", () => {
+    const gridState: GridState = {
+      columnSizing: {
+        columnSizingModel: [
+          { colId: "input", width: 420 },
+          { colId: "tokens", width: 90 },
+        ],
+      },
+    };
+    const next = gridStateToView(baseState, gridState, cols("input", "tokens"));
+    expect(next.columnWidths).toEqual({ input: 420, tokens: 90 });
+  });
+
+  test("preserves widths under transient unknown ids", () => {
+    const prev = sampleState({
+      columns: baseState.columns,
+      columnWidths: { input: 300, score__missing: 250 },
+    });
+    const gridState: GridState = {
+      columnSizing: {
+        columnSizingModel: [{ colId: "input", width: 420 }],
+      },
+    };
+    const next = gridStateToView(prev, gridState, cols("input"));
+    expect(next.columnWidths).toEqual({ input: 420, score__missing: 250 });
+  });
+
+  test("ignores flex-only sizing entries", () => {
+    const gridState: GridState = {
+      columnSizing: {
+        columnSizingModel: [
+          { colId: "input", width: 420 },
+          { colId: "tokens", flex: 1 },
+        ],
+      },
+    };
+    const next = gridStateToView(baseState, gridState, cols("input", "tokens"));
+    expect(next.columnWidths).toEqual({ input: 420 });
   });
 });
 

@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./components": "./src/components/index.ts",
+    "./icons": "./src/icons/index.ts",
     "./state": "./src/state/index.ts"
   },
   "scripts": {
@@ -42,9 +43,9 @@
     "react-virtuoso": "^4.0.0"
   },
   "devDependencies": {
-    "@storybook/react": "^10.3.6",
-    "@storybook/react-vite": "^10.3.6",
-    "@tanstack/react-query": "^5.100.10",
+    "@storybook/react": "^10.4.0",
+    "@storybook/react-vite": "^10.4.0",
+    "@tanstack/react-query": "^5.100.11",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
@@ -63,11 +64,11 @@
     "prismjs": "^1.30.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0",
+    "react-router-dom": "^7.15.1",
     "react-virtuoso": "^4.18.7",
-    "storybook": "^10.3.6",
+    "storybook": "^10.4.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
+    "typescript-eslint": "^8.59.4",
     "vitest": "^4.1.6"
   }
 }

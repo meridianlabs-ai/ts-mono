@@ -13,6 +13,7 @@ import "@tsmono/theme/vscode";
 import "./app/App.css";
 
 import {
+  AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
   ExtendedFindProvider,
@@ -22,7 +23,6 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
-import { AppErrorBoundary } from "./AppErrorBoundary";
 import { createAppRouter } from "./AppRouter";
 import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";

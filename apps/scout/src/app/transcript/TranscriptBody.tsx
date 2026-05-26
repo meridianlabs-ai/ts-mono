@@ -562,7 +562,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             {tabSetContent}
           </div>
           <div slot="end" className={styles.validationSidebar}>
-            <ValidationCaseEditor transcriptId={transcript.transcript_id} />
+            <ValidationCaseEditor
+              transcriptId={transcript.transcript_id}
+              taskId={transcript.task_id}
+              taskRepeat={transcript.task_repeat}
+            />
           </div>
         </VscodeSplitLayout>
       ) : (
