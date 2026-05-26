@@ -644,6 +644,16 @@ export interface ForkNavData {
   groups: ForkNavGroup[];
 }
 
+export interface EmptyBranchData {
+  /** Branch (trajectory) name, for display. */
+  branchName: string;
+  /**
+   * Function name of the last tool event observed inside the trajectory's
+   * span range. Null when no tool was found or no events array was given.
+   */
+  terminator: string | null;
+}
+
 interface PathSegment {
   span: TimelineSpan;
   rowKey: string;
@@ -759,7 +769,8 @@ function forkNavLabel(groups: ForkNavGroup[]): string {
  */
 export function collectPathWithNavigators(
   rows: SwimlaneRow[],
-  selectedRowKey: string
+  selectedRowKey: string,
+  rawEvents?: ReadonlyArray<Event>
 ): CollectedEvents {
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
@@ -870,6 +881,37 @@ export function collectPathWithNavigators(
       }
     }
   }
+
+  // Empty-leaf marker: if the user selected a leaf branch whose content
+  // produced nothing visible, surface an explanation.
+  const leaf = path[path.length - 1];
+  if (leaf && leaf.span.spanType === "branch") {
+    const hasVisible = leaf.span.content.some((item) => {
+      if (item.type === "span") return true;
+      const evt = item.event.event;
+      return evt !== "anchor" && evt !== "branch";
+    });
+    if (!hasVisible) {
+      const terminator = rawEvents
+        ? findTerminatorTool(rawEvents, leaf.span.id)
+        : null;
+      const startTs = leaf.span.startTime().toISOString();
+      emitSyntheticSpan(events, {
+        id: `emptybranch-${leaf.span.id}`,
+        name: `${leaf.span.name} (empty)`,
+        type: "empty_branch",
+        parentId: null,
+        start: startTs,
+        metadata: {
+          empty_branch: {
+            branchName: leaf.span.name,
+            terminator,
+          } satisfies EmptyBranchData,
+        },
+      });
+    }
+  }
+
   return { events, sourceSpans };
 }
 
