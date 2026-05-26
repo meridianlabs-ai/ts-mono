@@ -23,9 +23,7 @@ export const ForkNavigatorView: FC<ForkNavigatorViewProps> = ({
   const selectRow = useTimelineRowSelect();
   if (!data || data.groups.length === 0) return null;
 
-  // A group is renderable only if it offers more than the stay-on-segment
-  // pseudo-option. The previous code applied the same `length < 2` filter
-  // at the whole-nav level; we now apply it per group.
+  // Skip groups that only have the stay-on-segment pseudo-option.
   const renderable = data.groups.filter((g) => g.options.length >= 2);
   if (renderable.length === 0) return null;
 

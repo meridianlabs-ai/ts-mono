@@ -791,10 +791,7 @@ export function collectPathWithNavigators(
         selectedIndex: Math.max(0, sel),
       };
 
-      // If the previous two events are a fork_nav span_begin/span_end pair
-      // with the same parent_id, append this group to that nav instead of
-      // emitting a new span pair. This collapses strictly-adjacent forks
-      // into one row.
+      // Collapse strictly-adjacent fork navs (same parent_id) into one row.
       const last = events[events.length - 1];
       const prev = events[events.length - 2];
       if (
@@ -806,11 +803,12 @@ export function collectPathWithNavigators(
         last.span_id === prev.span_id &&
         prev.parent_id === parentId
       ) {
-        const data = (prev.metadata as { fork_nav?: ForkNavData } | null)
-          ?.fork_nav;
+        const data = (
+          prev.metadata as { fork_nav?: ForkNavData } | null | undefined
+        )?.fork_nav;
         if (data) {
           data.groups.push(group);
-          (prev as { name: string }).name = forkNavLabel(data.groups);
+          prev.name = forkNavLabel(data.groups);
           return isCut;
         }
       }
