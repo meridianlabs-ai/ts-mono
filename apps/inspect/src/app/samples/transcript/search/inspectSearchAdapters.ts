@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 
+import type { EvalSample } from "@tsmono/inspect-common/types";
 import {
   normalizeSearchPanelState,
   type ModelHistoryController,
@@ -17,8 +18,10 @@ import {
 import { useApi, useStore } from "../../../../state/store";
 import { useUserSettings } from "../../../../state/userSettings";
 import {
+  makeLogsPath,
   sampleEventUrl,
   sampleMessageUrl,
+  useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../../routing/url";
 
@@ -33,6 +36,59 @@ import {
  */
 const stripFileScheme = (path: string): string =>
   path.startsWith("file://") ? path.slice("file://".length) : path;
+
+/**
+ * Fully-resolved input for `SearchPanelSlot`. Either the surrounding sample
+ * is searchable and every piece is present, or `useInspectSearchContext`
+ * returns null. No half-populated state at the call site.
+ */
+export interface InspectSearchContext {
+  transcriptId: string;
+  logFile: string;
+  logPath: string;
+  sampleId: string | number;
+  sampleEpoch: number;
+}
+
+/**
+ * Resolves everything a search panel needs from a sample + ambient store /
+ * route state, or returns null when the sample can't be searched. Callers
+ * pass the result straight to `SearchPanelSlot` and use it as the single
+ * gate on the toolbar Search button.
+ *
+ * Requirements: the backend exposes the search endpoints, the sample carries
+ * a UUID (the schema indexes by `eval_sample.uuid`), and we can derive an
+ * absolute `.eval` path plus a URL-shaped log path for deep links.
+ */
+export const useInspectSearchContext = (
+  sample: EvalSample | undefined
+): InspectSearchContext | null => {
+  const api = useApi();
+  const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
+  const logDir = useStore((s) => s.logs.logDir);
+  const { logPath: urlLogPath } = useLogOrSampleRouteParams();
+
+  return useMemo(() => {
+    if (!sample?.uuid) return null;
+    if (!api.post_search || !api.get_search_result || !api.list_searches) {
+      return null;
+    }
+    // selectedLogFile is the absolute `file://...` URI the backend uses to
+    // open the eval log; urlLogPath is sometimes just a filename relative
+    // to logDir, so we may have to reconstruct it.
+    const logFile = selectedLogFile ?? urlLogPath;
+    if (!logFile) return null;
+    const logPath = urlLogPath ?? makeLogsPath(logFile, logDir);
+    if (!logPath) return null;
+    return {
+      transcriptId: sample.uuid,
+      logFile,
+      logPath,
+      sampleId: sample.id,
+      sampleEpoch: sample.epoch,
+    };
+  }, [api, sample, selectedLogFile, urlLogPath, logDir]);
+};
 
 export const getInspectSearchPanelStateKey = ({
   scope,

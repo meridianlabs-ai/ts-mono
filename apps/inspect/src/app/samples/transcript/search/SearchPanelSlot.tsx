@@ -10,34 +10,26 @@ import {
   useInspectSearchModelHistory,
   useInspectSearchNavigation,
   useInspectSearchPanelState,
+  type InspectSearchContext,
 } from "./inspectSearchAdapters";
 
 interface SearchPanelSlotProps {
   scope: SearchScope;
-  logFile: string;
-  logPath: string;
-  transcriptId: string;
-  sampleId: string | number;
-  sampleEpoch: number;
+  context: InspectSearchContext;
   onClose: () => void;
 }
 
 /**
  * Bundles the four adapter hooks and renders the shared SearchPanel.
- * Callers only need to know the sample identity and how to close the panel —
- * mounting is identical between the transcript tab (rendered in
- * TranscriptLayout's rightPane slot) and the messages tab (rendered as a
- * sibling of ChatViewVirtualList).
+ * Callers obtain `context` from `useInspectSearchContext(sample)`, which
+ * encapsulates the "is this sample searchable + can we build URLs?" decision.
  */
 export const SearchPanelSlot: FC<SearchPanelSlotProps> = ({
   scope,
-  logFile,
-  logPath,
-  transcriptId,
-  sampleId,
-  sampleEpoch,
+  context,
   onClose,
 }) => {
+  const { transcriptId, logFile, logPath, sampleId, sampleEpoch } = context;
   const api = useInspectSearchApi(logFile, transcriptId);
   const stateController = useInspectSearchPanelState({
     scope,

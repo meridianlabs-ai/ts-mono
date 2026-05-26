@@ -3,6 +3,7 @@ import {
   FC,
   Fragment,
   MouseEvent,
+  ReactNode,
   RefObject,
   useCallback,
   useEffect,
@@ -71,7 +72,6 @@ import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
-  makeLogsPath,
   printSampleUrl,
   sampleMessageUrl,
   useLogOrSampleRouteParams,
@@ -90,6 +90,7 @@ import { SampleRetriedErrors } from "./SampleRetriedErrors";
 import { SampleSummaryView } from "./SampleSummaryView";
 import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
+import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
 import { SearchPanelSlot } from "./transcript/search/SearchPanelSlot";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
@@ -310,7 +311,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -455,11 +455,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  // Transcript search toggle — lifted here so the button sits in the toolbar
-  // alongside Print/Collapse rather than floating over the transcript content.
-  // Scope follows the active tab (events on Transcript, messages on Messages).
-  // Backed lookups use sample.uuid (the transcript_id in inspect_scout's
-  // schema); only samples carrying a UUID are searchable.
+  // Transcript search toggle — lifted to the toolbar so the button sits
+  // alongside Print/Collapse. Scope follows the active tab.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchScope: SearchScope | undefined =
     effectiveSelectedTab === kSampleTranscriptTabId
@@ -467,17 +464,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       : effectiveSelectedTab === kSampleMessagesTabId
         ? "messages"
         : undefined;
-  const searchSupported =
-    !!api?.post_search &&
-    !!api?.get_search_result &&
-    !!api?.list_searches &&
-    !!sample?.uuid &&
-    searchScope !== undefined;
-  // searchLogFile is the absolute path the backend uses to open the eval log;
-  // selectedLogFile (from the store) carries the full `file://...` URI while
-  // urlLogPath is sometimes just a filename relative to logDir.
-  const searchLogFile = selectedLogFile ?? urlLogPath ?? "";
-  const searchLogPath = urlLogPath ?? makeLogsPath(searchLogFile, logDir);
+  const searchContext = useInspectSearchContext(sample);
+  const canSearch = searchContext !== null && searchScope !== undefined;
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
 
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
@@ -514,7 +503,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (searchSupported) {
+  if (canSearch) {
     tools.push(
       <ToolButton
         key="sample-search-toggle"
@@ -680,40 +669,33 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     />
                   )
                 ) : (
-                  <div className={styles.tabSearchHost}>
-                    <div className={styles.tabContent}>
-                      <TranscriptPanel
-                        id={`${baseId}-transcript-display-${id}`}
-                        key={`${baseId}-transcript-display-${id}`}
-                        scrollRef={scrollRef}
-                        offsetTop={stickyOffsetTop}
-                        sampleId={sample?.id ?? undefined}
-                        sampleEpoch={sample?.epoch ?? undefined}
-                        running={running}
-                        events={sampleEvents}
-                        timelines={sample?.timelines ?? undefined}
-                        scans={sample?.scores ?? undefined}
-                        initialEventId={sampleDetailNavigation.event}
-                        initialMessageId={sampleDetailNavigation.message}
-                      />
-                    </div>
-                    {searchOpen &&
-                      searchSupported &&
-                      searchScope === "events" &&
-                      sample?.uuid && (
-                        <div className={styles.tabSearchSidebar}>
-                          <SearchPanelSlot
-                            scope="events"
-                            logFile={searchLogFile}
-                            logPath={searchLogPath ?? ""}
-                            transcriptId={sample.uuid}
-                            sampleId={sample.id ?? ""}
-                            sampleEpoch={sample.epoch ?? 0}
-                            onClose={() => setSearchOpen(false)}
-                          />
-                        </div>
-                      )}
-                  </div>
+                  <TabSearchHost
+                    open={searchOpen && searchScope === "events"}
+                    sidebar={
+                      searchContext && (
+                        <SearchPanelSlot
+                          scope="events"
+                          context={searchContext}
+                          onClose={closeSearch}
+                        />
+                      )
+                    }
+                  >
+                    <TranscriptPanel
+                      id={`${baseId}-transcript-display-${id}`}
+                      key={`${baseId}-transcript-display-${id}`}
+                      scrollRef={scrollRef}
+                      offsetTop={stickyOffsetTop}
+                      sampleId={sample?.id ?? undefined}
+                      sampleEpoch={sample?.epoch ?? undefined}
+                      running={running}
+                      events={sampleEvents}
+                      timelines={sample?.timelines ?? undefined}
+                      scans={sample?.scores ?? undefined}
+                      initialEventId={sampleDetailNavigation.event}
+                      initialMessageId={sampleDetailNavigation.message}
+                    />
+                  </TabSearchHost>
                 )}
               </TabPanel>
               <TabPanel
@@ -729,40 +711,34 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleMessagesTabId}
                 scrollable={false}
               >
-                <div className={styles.tabSearchHost}>
-                  <div className={clsx(styles.tabContent, styles.chat)}>
-                    <ChatViewVirtualList
-                      key={`${baseId}-chat-${id}`}
-                      id={`${baseId}-chat-${id}`}
-                      messages={sampleMessages}
-                      initialMessageId={sampleDetailNavigation.message}
-                      offsetTop={stickyOffsetTop}
-                      display={chatDisplay}
-                      linking={chatLinking}
-                      onNativeFindChanged={setNativeFind}
-                      scrollRef={scrollRef}
-                      tools={chatTools}
-                      running={running}
-                      className={styles.fullWidth}
-                    />
-                  </div>
-                  {searchOpen &&
-                    searchSupported &&
-                    searchScope === "messages" &&
-                    sample?.uuid && (
-                      <div className={styles.tabSearchSidebar}>
-                        <SearchPanelSlot
-                          scope="messages"
-                          logFile={searchLogFile}
-                          logPath={searchLogPath ?? ""}
-                          transcriptId={sample.uuid}
-                          sampleId={sample.id ?? ""}
-                          sampleEpoch={sample.epoch ?? 0}
-                          onClose={() => setSearchOpen(false)}
-                        />
-                      </div>
-                    )}
-                </div>
+                <TabSearchHost
+                  contentClassName={styles.chat}
+                  open={searchOpen && searchScope === "messages"}
+                  sidebar={
+                    searchContext && (
+                      <SearchPanelSlot
+                        scope="messages"
+                        context={searchContext}
+                        onClose={closeSearch}
+                      />
+                    )
+                  }
+                >
+                  <ChatViewVirtualList
+                    key={`${baseId}-chat-${id}`}
+                    id={`${baseId}-chat-${id}`}
+                    messages={sampleMessages}
+                    initialMessageId={sampleDetailNavigation.message}
+                    offsetTop={stickyOffsetTop}
+                    display={chatDisplay}
+                    linking={chatLinking}
+                    onNativeFindChanged={setNativeFind}
+                    scrollRef={scrollRef}
+                    tools={chatTools}
+                    running={running}
+                    className={styles.fullWidth}
+                  />
+                </TabSearchHost>
               </TabPanel>
               <TabPanel
                 key={kSampleScoringTabId}
@@ -890,6 +866,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     </DisplayModeContext.Provider>
   );
 };
+
+interface TabSearchHostProps {
+  /** True when the search sidebar should be visible for this tab. */
+  open: boolean;
+  /** The rendered search sidebar (or falsy when no context is available). */
+  sidebar: ReactNode;
+  /** Extra className applied to the main content slot. */
+  contentClassName?: string;
+  children: ReactNode;
+}
+
+/**
+ * Lays out a tab's main content alongside the search sidebar. The sidebar
+ * is only mounted when both `open` is true and `sidebar` is truthy, so
+ * callers don't need to repeat the gating at each site.
+ */
+const TabSearchHost: FC<TabSearchHostProps> = ({
+  open,
+  sidebar,
+  contentClassName,
+  children,
+}) => (
+  <div className={styles.tabSearchHost}>
+    <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
+    {open && sidebar ? (
+      <div className={styles.tabSearchSidebar}>{sidebar}</div>
+    ) : null}
+  </div>
+);
 
 interface SampleUsagePanelProps {
   id: string;
