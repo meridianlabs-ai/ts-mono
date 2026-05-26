@@ -918,6 +918,31 @@ export function buildSpanSelectKeys(
 // =============================================================================
 
 /**
+ * Find the most recent tool event whose position sits inside the given
+ * trajectory's span_begin/span_end range. Returns the tool's function name,
+ * or null when no tool is found in range.
+ */
+export function findTerminatorTool(
+  events: ReadonlyArray<Event>,
+  trajectorySpanId: string
+): string | null {
+  let begin = -1;
+  let end = -1;
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.span_id !== trajectorySpanId) continue;
+    if (e.event === "span_begin" && begin === -1) begin = i;
+    else if (e.event === "span_end") end = i;
+  }
+  if (begin === -1 || end === -1) return null;
+  for (let i = end - 1; i > begin; i--) {
+    const e = events[i]!;
+    if (e.event === "tool") return e.function;
+  }
+  return null;
+}
+
+/**
  * Walks the EventNode tree and attaches sourceSpan to any span_begin node
  * whose span_id matches an entry in the map. This links synthetic span events
  * back to their original TimelineSpan for rich rendering.

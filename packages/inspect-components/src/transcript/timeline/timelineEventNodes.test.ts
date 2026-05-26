@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import type {
   AnchorEvent,
   CompactionEvent,
+  Event,
   InfoEvent,
   ModelEvent,
   SpanBeginEvent,
+  SpanEndEvent,
+  ToolEvent,
 } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "./core";
@@ -15,6 +18,7 @@ import {
   buildSelectionKey,
   collectPathWithNavigators,
   computeCompactionRegions,
+  findTerminatorTool,
   getParentKeyFromBranch,
   parseSelection,
   type ForkNavData,
@@ -518,5 +522,133 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
         e.event === "span_begin" && e.type === "fork_nav"
     );
     expect(forkBegins).toHaveLength(2);
+  });
+});
+
+// =============================================================================
+// findTerminatorTool
+// =============================================================================
+
+function makeTool(spanId: string, fn: string, sec: number): TimelineEvent {
+  return new TimelineEvent({
+    event: "tool",
+    type: "function",
+    function: fn,
+    id: `call-${fn}-${sec}`,
+    arguments: {},
+    result: "",
+    events: [],
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    agent: null,
+    agent_span_id: null,
+    completed: ts(sec).toISOString(),
+    error: null,
+    failed: null,
+    message_id: null,
+    metadata: null,
+    pending: null,
+    span_id: spanId,
+    truncated: null,
+    uuid: `tool-${spanId}-${sec}`,
+    view: null,
+  } satisfies ToolEvent);
+}
+
+describe("findTerminatorTool", () => {
+  it("returns the function name of the last tool event inside the trajectory range", () => {
+    const events: Event[] = [
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(0).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      makeTool("inner-1", "send_message", 1).event,
+      makeTool("inner-2", "rollback_conversation", 2).event,
+      makeTool("inner-3", "restart_conversation", 3).event,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(4).toISOString(),
+        pending: false,
+        working_start: 4,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBe("restart_conversation");
+  });
+
+  it("returns null when no tool sits inside the trajectory range", () => {
+    const events: Event[] = [
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(0).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(1).toISOString(),
+        pending: false,
+        working_start: 1,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBeNull();
+  });
+
+  it("returns null when the trajectory span is not present", () => {
+    expect(findTerminatorTool([], "missing")).toBeNull();
+  });
+
+  it("ignores tools outside the trajectory range", () => {
+    const events: Event[] = [
+      makeTool("outside-1", "before_tool", 0).event,
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(1).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 1,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(2).toISOString(),
+        pending: false,
+        working_start: 2,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+      makeTool("outside-2", "after_tool", 3).event,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBeNull();
   });
 });
