@@ -3,6 +3,7 @@ import { CSSProperties, FC, Fragment, MouseEvent } from "react";
 
 import { hueForBranch } from "./branchColor";
 import styles from "./BranchPoint.module.css";
+import { TranscriptIcons } from "./icons";
 import type { ForkNavData } from "./timeline/timelineEventNodes";
 
 export interface BranchPointProps {
@@ -45,7 +46,9 @@ export const BranchPoint: FC<BranchPointProps> = ({
       className={clsx(styles.branchPoint, className)}
     >
       <div className={styles.row}>
-        <span className={styles.glyph} aria-hidden="true" />
+        <span className={styles.glyph} aria-hidden="true">
+          <i className={TranscriptIcons.fork} />
+        </span>
         <span className={styles.label}>Branch point</span>
         <RadioPill
           branch={parent}
