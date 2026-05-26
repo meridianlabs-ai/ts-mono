@@ -797,9 +797,9 @@ export function collectPathWithNavigators(
       };
 
       // Collapse strictly-adjacent fork navs (same parent_id) into one row.
-      // Anchors are always hidden in the rendered transcript (see
-      // kDefaultExcludeEvents), so skip them when checking adjacency — the
-      // user perceives two fork navs separated only by anchors as adjacent.
+      // Anchors are structural markers (hidden by default) — the user
+      // perceives two fork navs separated only by anchors as adjacent — so
+      // skip them when checking adjacency.
       let i = events.length - 1;
       while (i >= 0 && events[i]!.event === "anchor") i--;
       const last = events[i];
