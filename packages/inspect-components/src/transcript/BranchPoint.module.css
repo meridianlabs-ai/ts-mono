@@ -1,0 +1,126 @@
+.branchPoint {
+  --bp-accent: oklch(0.58 0.13 35);
+  --bp-connector: var(--bs-border-color, #e5e7eb);
+  --bp-bg: var(--bs-tertiary-bg, #fafbfd);
+  --bp-hairline: var(--bs-border-color, #e5e7eb);
+  --bp-label: var(--bs-emphasis-color, var(--bs-body-color, #1a1a1a));
+  --bp-muted: var(--bs-secondary-color, #6b7280);
+  --bp-l: 0.52;
+  --bp-c: 0.16;
+
+  background: var(--bp-bg);
+  border-top: 1px solid var(--bp-hairline);
+  border-bottom: 1px solid var(--bp-hairline);
+  padding: 14px 18px;
+}
+
+:global([data-bs-theme="dark"]) .branchPoint {
+  --bp-accent: oklch(0.72 0.16 35);
+  --bp-l: 0.78;
+  --bp-c: 0.14;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.row + .connectorRow {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  align-items: center;
+}
+
+.elbow {
+  stroke: var(--bp-connector);
+  stroke-width: 1.4;
+  fill: none;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-label);
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.4px solid var(--bp-accent);
+  background: transparent;
+  flex: none;
+}
+.glyph::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--bp-accent);
+}
+
+.spawnedRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 12px;
+}
+
+.orPipe {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: var(--bp-connector);
+  margin: 0 14px;
+}
+
+.pill {
+  --bp-color: oklch(var(--bp-l) var(--bp-c) var(--bp-hue, 210));
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: inherit;
+  cursor: default;
+}
+.pill[data-interactive="true"] {
+  cursor: pointer;
+}
+.pill[aria-pressed="true"] {
+  color: var(--bp-color);
+  font-weight: 700;
+  cursor: default;
+}
+.pill .dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.6px solid var(--bp-color);
+  background: var(--bs-body-bg, #fff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.pill[aria-pressed="true"] .dot::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bp-color);
+}
+.pill[data-interactive="true"]:hover:not([aria-pressed="true"]) .dot {
+  background: color-mix(in oklab, var(--bp-color) 10%, var(--bs-body-bg, #fff));
+}
+.pill:focus-visible {
+  outline: 2px solid var(--bp-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
