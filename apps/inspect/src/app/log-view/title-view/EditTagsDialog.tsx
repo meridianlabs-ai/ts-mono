@@ -4,7 +4,7 @@ import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TagsEdit } from "@tsmono/inspect-common/types";
 
 import { Modal } from "../../../components/Modal";
-import { useStore } from "../../../state/store";
+import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { ChangeSummary } from "./ChangeSummary";
@@ -29,7 +29,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useStore((state) => state.api);
+  const api = useApi();
 
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");

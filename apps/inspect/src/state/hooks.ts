@@ -15,7 +15,7 @@ import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
 import { getAvailableScorers } from "./scoring";
-import { useStore } from "./store";
+import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
 const kScorePanelViewBag = "score-panel-view";
@@ -189,7 +189,8 @@ export interface LogEditAffordance {
  * on save is worse than not offering it.
  */
 export const useLogEditAffordance = (): LogEditAffordance => {
-  const hasEditApi = useStore((s) => Boolean(s.api?.edit_log));
+  const api = useApi();
+  const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useStore((s) => s.log.selectedLogDetails?.status);
   const refreshLog = useRefreshLog();

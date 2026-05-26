@@ -13,7 +13,7 @@ import {
 import { MetadataEdit } from "@tsmono/inspect-common/types";
 
 import { Modal } from "../../../components/Modal";
-import { useStore } from "../../../state/store";
+import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { AutogrowText } from "./AutogrowText";
@@ -143,7 +143,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useStore((state) => state.api);
+  const api = useApi();
 
   const initialEntries = useMemo<MetaEntry[]>(
     () =>

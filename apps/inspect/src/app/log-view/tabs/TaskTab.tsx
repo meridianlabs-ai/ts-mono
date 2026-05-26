@@ -11,7 +11,7 @@ import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
-import { useStore } from "../../../state/store";
+import { useApi } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 import { TagsField } from "../title-view/TagsField";
 
@@ -56,7 +56,8 @@ export const TaskTab: FC<TaskTabProps> = ({
   // Only used to decide whether to include the "tags" row in the
   // metadata grid for an empty log — TagsField owns the actual gating
   // (in-progress, dialog state, save flow, refresh).
-  const canEditTags = useStore((state) => Boolean(state.api?.edit_log));
+  const api = useApi();
+  const canEditTags = Boolean(api.edit_log);
   const tagList = tags ?? [];
 
   const config: Record<string, unknown> = {};
