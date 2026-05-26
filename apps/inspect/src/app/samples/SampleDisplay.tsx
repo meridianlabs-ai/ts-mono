@@ -65,7 +65,7 @@ import {
   useSampleData,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { useStore } from "../../state/store";
+import { useApi, useStore } from "../../state/store";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
@@ -334,7 +334,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter();
 
-  const api = useStore((state) => state.api);
+  const api = useApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const tools = [];
@@ -379,7 +379,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (downloadFiles && sample && api?.download_file) {
+  if (downloadFiles && sample && api.download_file) {
     const sampleId = sample.id ?? "sample";
     tools.push(
       <ToolDropdownButton
