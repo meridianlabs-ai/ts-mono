@@ -631,6 +631,19 @@ export const useLogListColumns = (
         },
       },
       {
+        field: "sampleLimits",
+        headerName: "Sample Limits",
+        initialWidth: 140,
+        minWidth: 80,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
+          if (!params.value) return <EmptyCell />;
+          return <div>{params.value}</div>;
+        },
+      },
+      {
         field: "errorMessage",
         headerName: "Error",
         initialWidth: 300,
@@ -825,6 +838,7 @@ export const useLogListColumns = (
         "completedSamples",
         "percentCompleted",
         "sampleErrors",
+        "sampleLimits",
         "totalTokens",
         "duration",
         "errorMessage",
@@ -860,6 +874,16 @@ export const useLogListColumns = (
     return allCols;
   }, [scorerMap, mode]);
 
+  // Auto-promote `sampleLimits` to default-visible when any in-scope log
+  // has a sample that ended with a limit.
+  const hasSampleLimits = useMemo(() => {
+    for (const [logName, details] of Object.entries(logDetails)) {
+      if (scopePrefix && !logName.startsWith(scopePrefix)) continue;
+      if (details.sampleSummaries?.some((s) => s.limit)) return true;
+    }
+    return false;
+  }, [logDetails, scopePrefix]);
+
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {
     const hidden = new Set<string>();
@@ -880,9 +904,10 @@ export const useLogListColumns = (
     // New columns default to hidden in both views
     hidden.add("percentCompleted");
     hidden.add("sampleErrors");
+    if (!hasSampleLimits) hidden.add("sampleLimits");
     hidden.add("errorMessage");
     return hidden;
-  }, [mode]);
+  }, [mode, hasSampleLimits]);
 
   // Determine whether a column belongs to the active scores view mode. Base
   // columns (neither prefix) always match. Per-scorer and by-metric columns
