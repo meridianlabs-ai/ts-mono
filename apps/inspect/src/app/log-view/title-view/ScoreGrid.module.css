@@ -22,8 +22,9 @@
 }
 
 .table thead th.groupHeader {
+  border: none;
   border-bottom: solid 1px var(--bs-light-border-subtle);
-  padding-bottom: 0.1em;
+  padding: 0 0 0.1em;
 }
 
 .scorer {

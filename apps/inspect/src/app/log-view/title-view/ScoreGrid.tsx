@@ -44,13 +44,14 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
     const groupCells: ReactNode[] = [];
     if (showGroups) {
       runs.forEach((run, ri) => {
+        const isGroup = isGroupRun(run);
         groupCells.push(
           <th
             key={`g-${ri}`}
             colSpan={run.metrics.length}
-            className={clsx(labelClass, run.group ? styles.groupHeader : null)}
+            className={clsx(labelClass, isGroup ? styles.groupHeader : null)}
           >
-            {run.group ?? ""}
+            {isGroup ? run.group : ""}
           </th>
         );
       });
