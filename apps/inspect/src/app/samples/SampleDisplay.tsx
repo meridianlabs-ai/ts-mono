@@ -456,7 +456,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }
 
   // Transcript search toggle — lifted to the toolbar so the button sits
-  // alongside Print/Collapse. Scope follows the active tab.
+  // at the right end of the tools row. Scope follows the active tab.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchScope: SearchScope | undefined =
     effectiveSelectedTab === kSampleTranscriptTabId
@@ -503,19 +503,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (canSearch) {
-    tools.push(
-      <ToolButton
-        key="sample-search-toggle"
-        label="Search"
-        icon={ApplicationIcons.search}
-        onClick={() => setSearchOpen((prev) => !prev)}
-        latched={searchOpen}
-        subtle
-      />
-    );
-  }
-
   tools.push(
     <ToolButton
       key="options-button"
@@ -535,6 +522,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label="Print"
         icon={ApplicationIcons.copy}
         onClick={handlePrintClick}
+        subtle
+      />
+    );
+  }
+
+  if (canSearch) {
+    tools.push(
+      <ToolButton
+        key="sample-search-toggle"
+        label="Search"
+        icon={ApplicationIcons.search}
+        onClick={() => setSearchOpen((prev) => !prev)}
+        latched={searchOpen}
         subtle
       />
     );
