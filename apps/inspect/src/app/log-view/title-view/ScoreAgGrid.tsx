@@ -161,7 +161,7 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
 
   return (
     <div className={styles.groupGrid}>
-      <div style={{ width: naturalWidth, maxWidth: "100%" }}>
+      <div style={{ width: naturalWidth }}>
         <AgGridReact<ScoreGridRow>
           rowData={rowData}
           columnDefs={columnDefs}
