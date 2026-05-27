@@ -21,6 +21,11 @@
   padding-right: 1em;
 }
 
+.table thead th.groupHeader {
+  border-bottom: solid 1px var(--bs-light-border-subtle);
+  padding-bottom: 0.1em;
+}
+
 .scorer {
   font-weight: 400;
 }
@@ -34,12 +39,12 @@
   border-top-color: var(--bs-light-border-subtle);
 }
 
-thead,
-thead tr,
-thead td,
-thead th {
-  border: none !important;
-  padding: 0 !important;
+.table thead,
+.table thead tr,
+.table thead td,
+.table thead th:not(.groupHeader) {
+  border: none;
+  padding: 0;
 }
 
 .tableSeparator,

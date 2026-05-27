@@ -1,5 +1,6 @@
 export interface MetricSummary {
   name: string;
+  group?: string | null;
   params?: {};
   value: number;
 }

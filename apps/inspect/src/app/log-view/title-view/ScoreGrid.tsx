@@ -3,6 +3,7 @@ import { FC, Fragment, ReactNode } from "react";
 
 import { formatPrettyDecimal } from "@tsmono/util";
 
+import { groupMetricRuns, isGroupRun } from "../../../scoring/scores";
 import { ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ScoreGrid.module.css";
@@ -30,22 +31,39 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
   let index = 0;
   for (const scoreGroup of scoreGroups) {
     const metrics = scoreGroup[0].metrics;
+    const runs = groupMetricRuns(metrics);
+    const showGroups = runs.some(isGroupRun);
 
-    // Add header row
+    const labelClass = clsx(
+      "text-style-label",
+      "text-style-secondary",
+      "text-size-small",
+      styles.label
+    );
+
+    const groupCells: ReactNode[] = [];
+    if (showGroups) {
+      runs.forEach((run, ri) => {
+        groupCells.push(
+          <th
+            key={`g-${ri}`}
+            colSpan={run.metrics.length}
+            className={clsx(labelClass, run.group ? styles.groupHeader : null)}
+          >
+            {run.group ?? ""}
+          </th>
+        );
+      });
+      for (let i = metrics.length; i < columnCount; i++) {
+        groupCells.push(<td key={`g-pad-${i}`}></td>);
+      }
+    }
 
     const cells: ReactNode[] = [];
     for (let i = 0; i < columnCount; i++) {
       if (metrics.length > i) {
         cells.push(
-          <th
-            key={i}
-            className={clsx(
-              "text-style-label",
-              "text-style-secondary",
-              "text-size-small",
-              styles.label
-            )}
-          >
+          <th key={i} className={labelClass}>
             {metrics[i].name}
           </th>
         );
@@ -56,6 +74,12 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
 
     const headerRow = (
       <thead>
+        {showGroups ? (
+          <tr className={clsx(styles.headerRow)}>
+            <td></td>
+            {groupCells}
+          </tr>
+        ) : null}
         <tr className={clsx(styles.headerRow)}>
           <td></td>
           {cells}
