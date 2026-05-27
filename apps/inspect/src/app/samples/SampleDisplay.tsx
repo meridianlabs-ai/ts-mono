@@ -529,6 +529,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   if (canSearch) {
     tools.push(
+      <span
+        key="search-separator"
+        className={styles.toolSeparator}
+        aria-hidden="true"
+      />,
       <ToolButton
         key="sample-search-toggle"
         label="Search"

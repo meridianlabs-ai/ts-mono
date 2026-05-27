@@ -92,6 +92,19 @@
   overflow-y: visible;
 }
 
+/* Thin vertical divider used between groups in the sample toolbar. The
+   inline-block ensures it lays out alongside ToolButtons in TabSet's
+   flex/wrap tools row, and the negative margin tightens the column-gap
+   on either side so it reads as a separator rather than another tool. */
+.toolSeparator {
+  display: inline-block;
+  width: 1px;
+  align-self: center;
+  height: 1.1em;
+  background-color: var(--bs-border-color);
+  margin: 0 0.3rem;
+}
+
 .retriedErrors {
   /* Full-bleed (no card), with a small uniform inset from the tab edges. */
   margin: 0;
