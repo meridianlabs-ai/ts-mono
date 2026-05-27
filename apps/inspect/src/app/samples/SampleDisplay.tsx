@@ -376,10 +376,75 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const api = useApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
-  const tools = [];
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
+  // Transcript search toggle — lifted to the toolbar so the button sits
+  // at the right end of the tools row. Scope follows the active tab.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchScope: SearchScope | undefined =
+    effectiveSelectedTab === kSampleTranscriptTabId
+      ? "events"
+      : effectiveSelectedTab === kSampleMessagesTabId
+        ? "messages"
+        : undefined;
+  const searchContext = useInspectSearchContext(sample);
+  const canSearch = searchContext !== null && searchScope !== undefined;
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // Build the toolbar in left-to-right groups separated by thin dividers:
+  //   [tab-specific view controls] | [shared sample actions] | [Search]
+  const tools: ReactNode[] = [];
+
+  if (effectiveSelectedTab === kSampleTranscriptTabId) {
+    const label = isNoneFilter
+      ? "None"
+      : isDebugFilter
+        ? "Debug"
+        : isDefaultFilter
+          ? "Default"
+          : "Custom";
+
+    tools.push(
+      <ToolButton
+        key="sample-filter-transcript"
+        label={`Events: ${label}`}
+        icon={ApplicationIcons.filter}
+        onClick={toggleFilter}
+        ref={setFilterButtonEl}
+        subtle
+      />,
+      <ToolButton
+        key="sample-collapse-transcript"
+        label={isCollapsed(collapsedMode) ? "Expand" : "Collapse"}
+        icon={
+          isCollapsed(collapsedMode)
+            ? ApplicationIcons.expand.all
+            : ApplicationIcons.collapse.all
+        }
+        onClick={toggleCollapsedMode}
+        subtle
+      />
+    );
+  }
+
   tools.push(
+    <ToolButton
+      key="options-button"
+      label={"Raw"}
+      icon={ApplicationIcons.display}
+      onClick={toggleDisplayMode}
+      ref={optionsRef}
+      latched={displayMode === "raw"}
+      subtle
+    />
+  );
+
+  tools.push(
+    <span
+      key="actions-separator"
+      className={styles.toolSeparator}
+      aria-hidden="true"
+    />,
     <ToolDropdownButton
       key="sample-copy"
       label="Copy"
@@ -454,66 +519,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       />
     );
   }
-
-  // Transcript search toggle — lifted to the toolbar so the button sits
-  // at the right end of the tools row. Scope follows the active tab.
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchScope: SearchScope | undefined =
-    effectiveSelectedTab === kSampleTranscriptTabId
-      ? "events"
-      : effectiveSelectedTab === kSampleMessagesTabId
-        ? "messages"
-        : undefined;
-  const searchContext = useInspectSearchContext(sample);
-  const canSearch = searchContext !== null && searchScope !== undefined;
-  const closeSearch = useCallback(() => setSearchOpen(false), []);
-
-  if (effectiveSelectedTab === kSampleTranscriptTabId) {
-    const label = isNoneFilter
-      ? "None"
-      : isDebugFilter
-        ? "Debug"
-        : isDefaultFilter
-          ? "Default"
-          : "Custom";
-
-    tools.push(
-      <ToolButton
-        key="sample-filter-transcript"
-        label={`Events: ${label}`}
-        icon={ApplicationIcons.filter}
-        onClick={toggleFilter}
-        ref={setFilterButtonEl}
-        subtle
-      />
-    );
-
-    tools.push(
-      <ToolButton
-        key="sample-collapse-transcript"
-        label={isCollapsed(collapsedMode) ? "Expand" : "Collapse"}
-        icon={
-          isCollapsed(collapsedMode)
-            ? ApplicationIcons.expand.all
-            : ApplicationIcons.collapse.all
-        }
-        onClick={toggleCollapsedMode}
-        subtle
-      />
-    );
-  }
-
-  tools.push(
-    <ToolButton
-      key="options-button"
-      label={"Raw"}
-      icon={ApplicationIcons.display}
-      onClick={toggleDisplayMode}
-      ref={optionsRef}
-      latched={displayMode === "raw"}
-      subtle
-    />
-  );
 
   if (!isVscode() && printLogPath && printSampleId && printEpoch) {
     tools.push(
