@@ -633,10 +633,15 @@ export interface ForkNavOption {
   rowKey: string;
 }
 
-export interface ForkNavData {
+/** One group within a fork navigator — the options forked at a single anchor. */
+export interface ForkNavGroup {
   anchorId: string;
   options: ForkNavOption[];
   selectedIndex: number;
+}
+
+export interface ForkNavData {
+  groups: ForkNavGroup[];
 }
 
 interface PathSegment {
@@ -733,8 +738,13 @@ function emitSyntheticSpan(events: Event[], opts: SyntheticSpanOpts): void {
   } satisfies SpanEndEvent);
 }
 
-/** Outline label for a fork navigator: list children, capped to keep it short. */
-function forkNavLabel(children: ForkNavOption[]): string {
+/**
+ * Outline label for a fork navigator. Flattens all groups' child options
+ * (excluding the leading stay-on-segment entry, which is always groups[*].options[0])
+ * and caps at "first, second +N".
+ */
+function forkNavLabel(groups: ForkNavGroup[]): string {
+  const children = groups.flatMap((g) => g.options.slice(1));
   if (children.length <= 2) return children.map((c) => c.label).join(", ");
   return `${children[0]!.label} +${children.length - 1}`;
 }
@@ -754,6 +764,11 @@ export function collectPathWithNavigators(
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   const path = buildPath(rows, selectedRowKey);
+  // Track which segment emitted the most recent fork-nav so navs from
+  // different segments never collapse — even if their parent_ids happen to
+  // coincide (e.g., both null when a cut anchor has a null span_id and the
+  // child segment opens with a restart-style fork).
+  let lastNavSegIdx: number | null = null;
 
   for (let segIdx = 0; segIdx < path.length; segIdx++) {
     const seg = path[segIdx]!;
@@ -775,20 +790,51 @@ export function collectPathWithNavigators(
       ];
       const isCut = anchorId === seg.cutAnchor;
       const sel = isCut ? options.findIndex((o) => o.rowKey === nextRowKey) : 0;
+      const group: ForkNavGroup = {
+        anchorId,
+        options,
+        selectedIndex: Math.max(0, sel),
+      };
+
+      // Collapse strictly-adjacent fork navs (same parent_id) into one row.
+      // Anchors are structural markers (hidden by default) — the user
+      // perceives two fork navs separated only by anchors as adjacent — so
+      // skip them when checking adjacency.
+      let i = events.length - 1;
+      while (i >= 0 && events[i]!.event === "anchor") i--;
+      const last = events[i];
+      const prev = events[i - 1];
+      if (
+        lastNavSegIdx === segIdx &&
+        last &&
+        prev &&
+        last.event === "span_end" &&
+        prev.event === "span_begin" &&
+        prev.type === "fork_nav" &&
+        last.span_id === prev.span_id &&
+        prev.parent_id === parentId
+      ) {
+        const data = (
+          prev.metadata as { fork_nav?: ForkNavData } | null | undefined
+        )?.fork_nav;
+        if (data) {
+          data.groups.push(group);
+          prev.name = forkNavLabel(data.groups);
+          return isCut;
+        }
+      }
+
       emitSyntheticSpan(events, {
         id: `forknav-${seg.span.id}-${anchorId || "restart"}`,
-        name: forkNavLabel(children),
+        name: forkNavLabel([group]),
         type: "fork_nav",
         parentId,
         start: ts,
         metadata: {
-          fork_nav: {
-            anchorId,
-            options,
-            selectedIndex: Math.max(0, sel),
-          } satisfies ForkNavData,
+          fork_nav: { groups: [group] } satisfies ForkNavData,
         },
       });
+      lastNavSegIdx = segIdx;
       return isCut;
     };
 

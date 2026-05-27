@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import type { CompactionEvent, InfoEvent } from "@tsmono/inspect-common/types";
+import type {
+  AnchorEvent,
+  CompactionEvent,
+  InfoEvent,
+  ModelEvent,
+  SpanBeginEvent,
+} from "@tsmono/inspect-common/types";
 
-import { TimelineEvent } from "./core";
-import { ts } from "./testHelpers";
+import { TimelineEvent, TimelineSpan } from "./core";
+import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
+import { makeSpan, ts } from "./testHelpers";
 import {
   buildSelectionKey,
+  collectPathWithNavigators,
   computeCompactionRegions,
   getParentKeyFromBranch,
   parseSelection,
+  type ForkNavData,
 } from "./timelineEventNodes";
 
 // =============================================================================
@@ -49,6 +58,69 @@ function makeTimelineEvent(
         } satisfies InfoEvent);
 
   return new TimelineEvent(event);
+}
+
+function makeAnchor(
+  anchorId: string,
+  sec: number,
+  spanId: string | null = null
+): TimelineEvent {
+  return new TimelineEvent({
+    event: "anchor",
+    anchor_id: anchorId,
+    source: null,
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    metadata: null,
+    pending: null,
+    span_id: spanId,
+    uuid: `anchor-${anchorId}`,
+  } satisfies AnchorEvent);
+}
+
+function makeModel(sec: number, label = "m"): TimelineEvent {
+  return new TimelineEvent({
+    event: "model",
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    pending: null,
+    span_id: null,
+    uuid: `model-${label}-${sec}`,
+    metadata: null,
+    model: "synthetic",
+    role: null,
+    input: [],
+    tools: [],
+    tool_choice: null,
+    config: {} as ModelEvent["config"],
+    output: {} as ModelEvent["output"],
+    error: null,
+    cache: null,
+    call: null,
+    completed: ts(sec).toISOString(),
+    working_time: 0,
+    retries: null,
+    traceback: null,
+    traceback_ansi: null,
+  } as unknown as ModelEvent);
+}
+
+/** A branch span that forks from the given anchor. */
+function makeBranch(
+  name: string,
+  branchedFrom: string,
+  startSec: number,
+  _endSec: number
+): TimelineSpan {
+  return new TimelineSpan({
+    id: name.toLowerCase(),
+    name,
+    spanType: "branch",
+    content: [makeModel(startSec)],
+    branches: [],
+    branchedFrom,
+    utility: false,
+  });
 }
 
 // =============================================================================
@@ -296,5 +368,155 @@ describe("getParentKeyFromBranch", () => {
         "solvers/agent/branch-550e8400-e29b-41d4-a716-446655440000-1"
       )
     ).toBe("solvers/agent");
+  });
+});
+
+describe("collectPathWithNavigators — adjacent fork merge", () => {
+  // Root span with two back-to-back anchors and one branch off each.
+  // No non-anchor event sits between the two anchors, so the two
+  // fork-navs should collapse into a single node with two groups.
+  function rowsWithTwoAdjacentForks() {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    return computeSwimlaneRows(transcript);
+  }
+
+  it("merges two anchor forks at the same parent into one fork_nav node", () => {
+    const rows = rowsWithTwoAdjacentForks();
+    const { events } = collectPathWithNavigators(rows, "root");
+
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(1);
+
+    const data = (forkBegins[0]!.metadata as { fork_nav: ForkNavData })
+      .fork_nav;
+    expect(data.groups).toHaveLength(2);
+    expect(data.groups.map((g) => g.anchorId)).toEqual(["A1", "A2"]);
+  });
+
+  it("does not merge when a non-fork event sits between two anchors", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 6, 7);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [
+        makeAnchor("A1", 2),
+        makeModel(4, "between"),
+        makeAnchor("A2", 5),
+      ],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+
+  it("does not merge across differing parent_ids", () => {
+    // Restart-style fork emits with parent_id = null; anchor fork emits with
+    // parent_id = stripped anchor span_id. The anchor must carry a non-null
+    // span_id so the two parent_ids differ and the merge is skipped.
+    const restartBranch = makeBranch("BR", "", 0, 1);
+    const anchorBranch = makeBranch("BA", "A1", 3, 4);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2, "root")],
+      branches: [restartBranch, anchorBranch],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+
+  it("merged groups carry independent selectedIndex values", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A2-2";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+
+    const forkBegin = events.find(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    if (!forkBegin) throw new Error("expected a fork_nav span_begin");
+    const data = (forkBegin.metadata as { fork_nav: ForkNavData }).fork_nav;
+
+    expect(data.groups[0]!.selectedIndex).toBe(0);
+    expect(data.groups[1]!.selectedIndex).toBe(1);
+  });
+
+  it("does not merge across segment boundaries", () => {
+    // Multi-segment path where the cut anchor has span_id=null and the
+    // selected branch opens with a restart-style fork. Both navs end up
+    // with parent_id=null, so the parent_id guard alone would merge them
+    // — the segIdx guard must prevent that.
+    const restartBranchOnB1 = makeBranch("BR", "", 4, 5);
+    const branchB1 = new TimelineSpan({
+      id: "b1",
+      name: "B1",
+      spanType: "branch",
+      content: [makeModel(3, "b1tail")],
+      branches: [restartBranchOnB1],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2)],
+      branches: [branchB1],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A1-1/branch--1";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
   });
 });

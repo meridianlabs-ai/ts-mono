@@ -5,7 +5,7 @@ import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
 
 import styles from "./ForkNavigatorView.module.css";
 import { TranscriptIcons } from "./icons";
-import type { ForkNavData } from "./timeline/timelineEventNodes";
+import type { ForkNavData, ForkNavGroup } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { EventNode } from "./types";
 
@@ -21,13 +21,44 @@ export const ForkNavigatorView: FC<ForkNavigatorViewProps> = ({
   const data = (eventNode.event.metadata as Record<string, unknown> | null)
     ?.fork_nav as ForkNavData | undefined;
   const selectRow = useTimelineRowSelect();
-  if (!data || data.options.length < 2) return null;
+  if (!data || data.groups.length === 0) return null;
 
-  const { options, selectedIndex } = data;
+  // Skip groups that only have the stay-on-segment pseudo-option.
+  const renderable = data.groups.filter((g) => g.options.length >= 2);
+  if (renderable.length === 0) return null;
 
   return (
     <div className={clsx(styles.nav, className)}>
       <i className={clsx(TranscriptIcons.fork, styles.icon)} />
+      {renderable.map((group, gi) => (
+        <ForkNavGroupView
+          key={`${group.anchorId}-${gi}`}
+          group={group}
+          showDivider={gi > 0}
+          onSelect={(rowKey, el) => selectRow?.(rowKey, el)}
+        />
+      ))}
+    </div>
+  );
+};
+
+interface ForkNavGroupViewProps {
+  group: ForkNavGroup;
+  showDivider: boolean;
+  onSelect: (rowKey: string, anchor: HTMLElement) => void;
+}
+
+const ForkNavGroupView: FC<ForkNavGroupViewProps> = ({
+  group,
+  showDivider,
+  onSelect,
+}) => {
+  const { options, selectedIndex } = group;
+  return (
+    <>
+      {showDivider ? (
+        <span className={styles.divider} aria-hidden="true" />
+      ) : null}
       {options.map((opt, i) => (
         <button
           key={opt.rowKey}
@@ -36,7 +67,7 @@ export const ForkNavigatorView: FC<ForkNavigatorViewProps> = ({
           onClick={(e) =>
             i === selectedIndex
               ? undefined
-              : selectRow?.(
+              : onSelect(
                   opt.rowKey,
                   e.currentTarget.closest<HTMLElement>("[data-index]") ??
                     e.currentTarget
@@ -47,6 +78,6 @@ export const ForkNavigatorView: FC<ForkNavigatorViewProps> = ({
           {opt.label}
         </button>
       ))}
-    </div>
+    </>
   );
 };

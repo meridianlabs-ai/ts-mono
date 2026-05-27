@@ -41,3 +41,12 @@
 .selected:hover {
   border-color: var(--bs-border-color);
 }
+
+.divider {
+  display: inline-block;
+  width: 1px;
+  align-self: stretch;
+  background: var(--bs-border-color);
+  opacity: 0.5;
+  margin: 2px 4px;
+}
