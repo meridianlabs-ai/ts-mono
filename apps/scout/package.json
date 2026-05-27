@@ -4,6 +4,10 @@
   "private": true,
   "description": "Inspect Scout viewer for evaluation logs.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meridianlabs-ai/inspect_scout.git"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "module": "./lib/index.js",
