@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  CSSProperties,
   FC,
   Fragment,
   MouseEvent,
@@ -158,24 +159,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Navigation hook for URL updates
   const navigate = useNavigate();
 
-  // Ref for the sample tab control bar (the sticky `<ul>`). Its
-  // current height feeds `stickyOffsetTop` for inner stickies (the
-  // transcript timeline, the message list scroll-track, etc.) so they
-  // pin just beneath it. ResizeObserver is the only reliable trigger:
-  // the bar's height can change for non-resize reasons (font load,
-  // text wrapping, tools added/removed).
   const tabsRef: RefObject<HTMLUListElement | null> = useRef(null);
-  const [tabsHeight, setTabsHeight] = useState(-1);
-
-  useEffect(() => {
-    const el = tabsRef.current;
-    if (!el) return;
-    const apply = () => setTabsHeight(el.getBoundingClientRect().height);
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const [tabsHeight, setTabsHeight] = useState(0);
 
   const selectedSampleSummary = useSelectedSampleSummary();
 
@@ -205,6 +190,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sample !== undefined ||
     sampleEvents !== undefined ||
     sampleMessages !== undefined;
+
+  useEffect(() => {
+    if (!hasSampleData) {
+      setTabsHeight(0);
+      return;
+    }
+
+    const el = tabsRef.current;
+    if (!el) return;
+    const apply = () => setTabsHeight(el.getBoundingClientRect().height);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasSampleData]);
 
   // Get all URL parameters at component level
   const {
@@ -575,24 +575,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }, []);
   const headerCollapsed = isHeaderSticky && headroomHidden;
 
-  // Track the header's current height (it changes between full / compact)
-  // and publish it as `--inspect-sample-header-height` on the tabs
-  // container so the sticky tab controls pin just beneath whatever
-  // height the header currently is. The tabs slide up automatically
-  // when the header collapses and back down when it expands. The same
-  // height feeds the inner StickyScroll offsets (timeline, scoring
-  // stickies) below.
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
-  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
+    if (!selectedSampleSummary) {
+      setHeaderHeight(0);
+      return;
+    }
+
     const wrapper = headerWrapperRef.current;
-    const container = tabsContainerRef.current;
-    if (!wrapper || !container) return;
+    if (!wrapper) return;
     const apply = () => {
-      const h = wrapper.getBoundingClientRect().height;
-      setHeaderHeight(h);
-      container.style.setProperty("--inspect-sample-header-height", `${h}px`);
+      setHeaderHeight(wrapper.getBoundingClientRect().height);
     };
     apply();
     const ro = new ResizeObserver(apply);
@@ -600,43 +594,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     return () => ro.disconnect();
   }, [selectedSampleSummary]);
 
-  // Effective offset for sticky elements inside the tabs (e.g. the
-  // transcript timeline). They sit beneath both the (dynamic-height)
-  // header and the tab controls.
   const stickyOffsetTop = tabsHeight + headerHeight;
+  const [scrollerHeight, setScrollerHeight] = useState(0);
 
-  // Publish stickyOffsetTop as a CSS variable so the search sidebar can
-  // pin itself just under the (variable-height) header + tab bar in
-  // pure CSS, tracking headroom collapse without prop drilling.
   useEffect(() => {
-    const container = tabsContainerRef.current;
-    if (!container) return;
-    container.style.setProperty(
-      "--inspect-sticky-offset-top",
-      `${stickyOffsetTop}px`
-    );
-  }, [stickyOffsetTop]);
+    if (!hasSampleData) {
+      setScrollerHeight(0);
+      return;
+    }
 
-  // Publish the outer scroller's height so the sticky search sidebar can
-  // size itself to the available vertical space. The scroller sits below
-  // the outer page chrome (breadcrumb, log title, scores row, top-level
-  // tab bar), so 100vh would overestimate — we want only the slice of
-  // viewport this scroller actually occupies, minus the sticky offset.
-  useEffect(() => {
     const scroller = scrollRef.current;
-    const container = tabsContainerRef.current;
-    if (!scroller || !container) return;
-    const apply = () => {
-      container.style.setProperty(
-        "--inspect-sample-scroller-height",
-        `${scroller.clientHeight}px`
-      );
-    };
+    if (!scroller) return;
+    const apply = () => setScrollerHeight(scroller.clientHeight);
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(scroller);
     return () => ro.disconnect();
-  }, [scrollRef]);
+  }, [hasSampleData, scrollRef]);
+
+  const tabsContainerStyle = useMemo(
+    () =>
+      ({
+        "--inspect-sample-header-height": `${headerHeight}px`,
+      }) as CSSProperties,
+    [headerHeight]
+  );
+  const searchSidebarHeight =
+    scrollerHeight > 0
+      ? Math.max(0, scrollerHeight - stickyOffsetTop)
+      : `calc(100vh - ${stickyOffsetTop}px)`;
 
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
@@ -660,7 +646,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         <ActivityBar animating={showActivity} progress={progress} />
 
         {hasSampleData && (
-          <div ref={tabsContainerRef}>
+          <div style={tabsContainerStyle}>
             <TabSet
               id={tabsetId}
               tabsRef={tabsRef}
@@ -704,6 +690,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 ) : (
                   <TabSearchHost
                     open={searchOpen && searchScope === "events"}
+                    sidebarTop={stickyOffsetTop}
+                    sidebarHeight={searchSidebarHeight}
                     sidebar={
                       searchContext && (
                         <SearchPanelSlot
@@ -747,6 +735,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <TabSearchHost
                   contentClassName={styles.chat}
                   open={searchOpen && searchScope === "messages"}
+                  sidebarTop={stickyOffsetTop}
+                  sidebarHeight={searchSidebarHeight}
                   sidebar={
                     searchContext && (
                       <SearchPanelSlot
@@ -905,21 +895,18 @@ interface TabSearchHostProps {
   open: boolean;
   /** The rendered search sidebar (or falsy when no context is available). */
   sidebar: ReactNode;
+  sidebarTop: number;
+  sidebarHeight: number | string;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
 }
 
-/**
- * Lays out a tab's main content next to the search sidebar. The outer
- * sample scroller stays in charge — header headroom-collapse and tab
- * stickiness keep working — and the sidebar pins itself just under the
- * sticky tab bar via `position: sticky`, with its own internal scroll
- * for the search panel.
- */
 const TabSearchHost: FC<TabSearchHostProps> = ({
   open,
   sidebar,
+  sidebarTop,
+  sidebarHeight,
   contentClassName,
   children,
 }) => {
@@ -935,7 +922,9 @@ const TabSearchHost: FC<TabSearchHostProps> = ({
       <div className={clsx(styles.tabContent, contentClassName)}>
         {children}
       </div>
-      <SearchSidebar>{sidebar}</SearchSidebar>
+      <SearchSidebar top={sidebarTop} height={sidebarHeight}>
+        {sidebar}
+      </SearchSidebar>
     </div>
   );
 };
@@ -944,10 +933,12 @@ const SEARCH_SIDEBAR_DEFAULT_WIDTH = 360;
 const SEARCH_SIDEBAR_MIN_WIDTH = 240;
 const SEARCH_SIDEBAR_MAX_WIDTH = 720;
 
-const SearchSidebar: FC<{ children: ReactNode }> = ({ children }) => {
+const SearchSidebar: FC<{
+  children: ReactNode;
+  top: number;
+  height: number | string;
+}> = ({ children, top, height }) => {
   const [width, setWidth] = useState(SEARCH_SIDEBAR_DEFAULT_WIDTH);
-  // Drag state lives in a ref so the listeners read live values without
-  // re-attaching whenever width changes.
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const onHandleMouseDown = useCallback(
@@ -978,7 +969,7 @@ const SearchSidebar: FC<{ children: ReactNode }> = ({ children }) => {
   );
 
   return (
-    <aside className={styles.searchSidebar} style={{ width }}>
+    <aside className={styles.searchSidebar} style={{ width, top, height }}>
       <div
         role="separator"
         aria-orientation="vertical"
