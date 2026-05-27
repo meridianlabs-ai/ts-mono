@@ -17,7 +17,10 @@ export const sampleStatus = (
   if (error) {
     return errorType(error) === "CancelledError" ? "cancelled" : "error";
   }
-  return completed ? "ok" : "running";
+  // Only an explicit `false` indicates running. Omitted/undefined is
+  // treated as completed: older logs (pre-Apr 2025) and stale buffer
+  // entries may lack the field but represent finished samples.
+  return completed === false ? "running" : "ok";
 };
 
 export const isCancelled = (sample: SampleSummary | EvalSample): boolean => {

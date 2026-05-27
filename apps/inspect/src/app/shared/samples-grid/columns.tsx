@@ -191,6 +191,28 @@ export function buildSampleColumns(
         resizable: true,
         valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
           filename(params.value),
+      },
+      {
+        colId: "completed_at",
+        headerName: "Completed",
+        initialWidth: 140,
+        minWidth: 80,
+        maxWidth: 160,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        cellDataType: "date",
+        valueGetter: (params: ValueGetterParams<SampleRow>) =>
+          params.data?.data?.completed_at ?? undefined,
+        filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
+          const v = params.data?.data?.completed_at;
+          if (!v) return undefined;
+          const d = new Date(v);
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        },
+        valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
+          params.value ? formatDateTime(new Date(params.value)) : "",
+        comparator: comparators.date,
       }
     );
   }
@@ -398,10 +420,10 @@ export function buildSampleColumns(
     cols.push({
       colId: "created",
       field: "created",
-      headerName: "Created",
-      initialWidth: 130,
+      headerName: "Eval Created",
+      initialWidth: 140,
       minWidth: 80,
-      maxWidth: 140,
+      maxWidth: 160,
       sortable: true,
       filter: true,
       resizable: true,
