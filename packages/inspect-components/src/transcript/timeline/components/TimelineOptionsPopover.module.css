@@ -25,3 +25,17 @@
 .row:hover {
   background-color: var(--bs-secondary-bg);
 }
+
+.groupHeader {
+  font-weight: 600;
+  margin-top: 0.9em;
+  padding-bottom: 0.1em;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85em;
+}
+
+.groupHeader:first-child {
+  margin-top: 0;
+}

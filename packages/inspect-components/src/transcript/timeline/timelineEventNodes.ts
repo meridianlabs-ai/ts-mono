@@ -17,6 +17,7 @@ import { EventNode } from "../types";
 
 import {
   createBranchSpan,
+  isEmptyBranch,
   stripSuffix,
   type TimelineEvent,
   type TimelineSpan,
@@ -644,6 +645,16 @@ export interface ForkNavData {
   groups: ForkNavGroup[];
 }
 
+export interface EmptyBranchData {
+  /** Branch (trajectory) name, for display. */
+  branchName: string;
+  /**
+   * Function name of the last tool event observed inside the trajectory's
+   * span range. Null when no tool was found or no events array was given.
+   */
+  terminator: string | null;
+}
+
 interface PathSegment {
   span: TimelineSpan;
   rowKey: string;
@@ -759,7 +770,8 @@ function forkNavLabel(groups: ForkNavGroup[]): string {
  */
 export function collectPathWithNavigators(
   rows: SwimlaneRow[],
-  selectedRowKey: string
+  selectedRowKey: string,
+  rawEvents?: ReadonlyArray<Event>
 ): CollectedEvents {
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
@@ -870,6 +882,32 @@ export function collectPathWithNavigators(
       }
     }
   }
+
+  // Defensive: empty branches are pruned at convert time, but a stale URL
+  // can still target one. Surface an explanation in that case.
+  const leaf = path[path.length - 1];
+  if (leaf && leaf.span.spanType === "branch") {
+    if (isEmptyBranch(leaf.span)) {
+      const terminator = rawEvents
+        ? findTerminatorTool(rawEvents, leaf.span.id)
+        : null;
+      const startTs = leaf.span.startTime().toISOString();
+      emitSyntheticSpan(events, {
+        id: `emptybranch-${leaf.span.id}`,
+        name: `${leaf.span.name} (empty)`,
+        type: "empty_branch",
+        parentId: null,
+        start: startTs,
+        metadata: {
+          empty_branch: {
+            branchName: leaf.span.name,
+            terminator,
+          } satisfies EmptyBranchData,
+        },
+      });
+    }
+  }
+
   return { events, sourceSpans };
 }
 
@@ -916,6 +954,31 @@ export function buildSpanSelectKeys(
 // =============================================================================
 // Source span attachment
 // =============================================================================
+
+/**
+ * Find the most recent tool event whose position sits inside the given
+ * trajectory's span_begin/span_end range. Returns the tool's function name,
+ * or null when no tool is found in range.
+ */
+export function findTerminatorTool(
+  events: ReadonlyArray<Event>,
+  trajectorySpanId: string
+): string | null {
+  let begin = -1;
+  let end = -1;
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.span_id !== trajectorySpanId) continue;
+    if (e.event === "span_begin" && begin === -1) begin = i;
+    else if (e.event === "span_end") end = i;
+  }
+  if (begin === -1 || end === -1) return null;
+  for (let i = end - 1; i > begin; i--) {
+    const e = events[i]!;
+    if (e.event === "tool") return e.function;
+  }
+  return null;
+}
 
 /**
  * Walks the EventNode tree and attaches sourceSpan to any span_begin node
