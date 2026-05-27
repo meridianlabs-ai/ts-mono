@@ -4,23 +4,17 @@
   --bp-segmented-border: var(--bs-border-color, #d1d5db);
   --bp-segmented-bg: var(--bs-body-bg, #ffffff);
   --bp-label: var(--bs-secondary-color, #6b7280);
-  --bp-l: 0.52;
-  --bp-c: 0.16;
+  --bp-active-bg: var(--bs-secondary-bg, #e5e7eb);
 
   background: var(--bp-bg);
   border-top: 1px solid var(--bp-hairline);
   border-bottom: 1px solid var(--bp-hairline);
-  padding: 10px 18px;
+  padding: 6px 18px;
 
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-:global([data-bs-theme="dark"]) .branchPoint {
-  --bp-l: 0.78;
-  --bp-c: 0.14;
 }
 
 .label {
@@ -56,13 +50,12 @@
 }
 
 .segment {
-  --bp-color: oklch(var(--bp-l) var(--bp-c) var(--bp-hue, 210));
   all: unset;
-  padding: 5px 12px;
+  padding: 3px 12px;
   background: var(--bp-segmented-bg);
-  color: var(--bp-color);
+  color: var(--bp-label);
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -74,19 +67,20 @@
   border-left: 0;
 }
 .segment:hover:not([aria-pressed="true"]):not(:disabled) {
-  background: color-mix(in oklab, var(--bp-color) 8%, var(--bp-segmented-bg));
+  background: var(--bp-active-bg);
+  color: var(--bs-body-color, inherit);
 }
 .segment[aria-pressed="true"] {
-  background: var(--bp-color);
-  color: var(--bs-body-bg, #ffffff);
-  font-weight: 700;
+  background: var(--bp-active-bg);
+  color: var(--bs-body-color, inherit);
+  font-weight: 600;
   cursor: default;
 }
 .segment:disabled:not([aria-pressed="true"]) {
   cursor: default;
 }
 .segment:focus-visible {
-  outline: 2px solid var(--bp-color);
+  outline: 2px solid var(--bp-segmented-border);
   outline-offset: 2px;
 }
 

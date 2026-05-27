@@ -139,22 +139,6 @@ describe("BranchPoint", () => {
     );
     expect(container.innerHTML).toBe("");
   });
-
-  it("respects branchHue override", () => {
-    const { container } = render(
-      <BranchPoint
-        parent="branch 1"
-        spawned={["branch 2"]}
-        viewing="branch 1"
-        branchHue={{ "branch 2": 42 }}
-      />
-    );
-    const b2 = container.querySelector(
-      '[data-testid="bp-segment"][data-branch="branch 2"]'
-    ) as HTMLElement;
-    expect(b2).not.toBeNull();
-    expect(b2.style.getPropertyValue("--bp-hue")).toBe("42");
-  });
 });
 
 function makeGroup(

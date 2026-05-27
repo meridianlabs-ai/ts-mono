@@ -1,7 +1,6 @@
 import clsx from "clsx";
-import { CSSProperties, FC, MouseEvent } from "react";
+import { FC, MouseEvent } from "react";
 
-import { hueForBranch } from "./branchColor";
 import styles from "./BranchPoint.module.css";
 import { TranscriptIcons } from "./icons";
 import type { ForkNavData } from "./timeline/timelineEventNodes";
@@ -19,8 +18,6 @@ export interface BranchPointProps {
    * position after the selection change re-renders the transcript list).
    */
   onSelect?: (branch: string, anchorEl: HTMLElement) => void;
-  /** Optional explicit hue (0..360) per branch label. */
-  branchHue?: Record<string, number>;
   className?: string;
 }
 
@@ -29,15 +26,9 @@ export const BranchPoint: FC<BranchPointProps> = ({
   spawned,
   viewing,
   onSelect,
-  branchHue,
   className,
 }) => {
   if (spawned.length === 0) return null;
-
-  const hueOf = (b: string): number => {
-    const override = branchHue?.[b];
-    return override != null ? override : hueForBranch(b);
-  };
 
   const options = [parent, ...spawned];
 
@@ -63,7 +54,6 @@ export const BranchPoint: FC<BranchPointProps> = ({
           <Segment
             key={b}
             branch={b}
-            hue={hueOf(b)}
             isCurrent={b === viewing}
             isParent={b === parent}
             onSelect={onSelect}
@@ -76,7 +66,6 @@ export const BranchPoint: FC<BranchPointProps> = ({
 
 interface SegmentProps {
   branch: string;
-  hue: number;
   isCurrent: boolean;
   isParent: boolean;
   onSelect?: (branch: string, anchorEl: HTMLElement) => void;
@@ -84,7 +73,6 @@ interface SegmentProps {
 
 const Segment: FC<SegmentProps> = ({
   branch,
-  hue,
   isCurrent,
   isParent,
   onSelect,
@@ -95,13 +83,11 @@ const Segment: FC<SegmentProps> = ({
       onSelect(branch, e.currentTarget);
     }
   };
-  const style = { "--bp-hue": hue } as CSSProperties;
   return (
     <button
       type="button"
       role="radio"
       className={styles.segment}
-      style={style}
       data-testid="bp-segment"
       data-branch={branch}
       aria-checked={isCurrent}
