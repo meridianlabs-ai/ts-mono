@@ -17,6 +17,7 @@ import { EventNode } from "../types";
 
 import {
   createBranchSpan,
+  isEmptyBranch,
   stripSuffix,
   type TimelineEvent,
   type TimelineSpan,
@@ -882,16 +883,11 @@ export function collectPathWithNavigators(
     }
   }
 
-  // Empty-leaf marker: if the user selected a leaf branch whose content
-  // produced nothing visible, surface an explanation.
+  // Defensive: empty branches are pruned at convert time, but a stale URL
+  // can still target one. Surface an explanation in that case.
   const leaf = path[path.length - 1];
   if (leaf && leaf.span.spanType === "branch") {
-    const hasVisible = leaf.span.content.some((item) => {
-      if (item.type === "span") return true;
-      const evt = item.event.event;
-      return evt !== "anchor" && evt !== "branch";
-    });
-    if (!hasVisible) {
+    if (isEmptyBranch(leaf.span)) {
       const terminator = rawEvents
         ? findTerminatorTool(rawEvents, leaf.span.id)
         : null;

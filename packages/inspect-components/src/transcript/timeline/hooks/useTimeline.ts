@@ -86,6 +86,8 @@ export interface TimelineOptions {
   showBranches?: boolean;
   /** Position branches at their fork point instead of wall-clock time. Default: false. */
   forkRelative?: boolean;
+  /** Show branches whose content is only structural events. Default: false. */
+  showEmptyBranches?: boolean;
 }
 
 export interface SelectOptions {

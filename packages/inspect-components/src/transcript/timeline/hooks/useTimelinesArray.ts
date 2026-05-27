@@ -17,6 +17,7 @@ import type { Timeline } from "../core";
 import {
   buildTimeline,
   convertServerTimeline,
+  filterEmptyBranches,
   TimelineEvent,
   TimelineSpan,
 } from "../core";
@@ -296,10 +297,18 @@ function attachOrphanedEvents(
 // Hook
 // =============================================================================
 
+export interface UseTimelinesArrayOptions {
+  /** Show branches whose content is only structural events. Default: false. */
+  showEmptyBranches?: boolean;
+}
+
 export function useTimelinesArray(
   events: Event[],
-  serverTimelines?: ServerTimeline[]
+  serverTimelines?: ServerTimeline[],
+  options?: UseTimelinesArrayOptions
 ): Timeline[] {
+  const showEmptyBranches = options?.showEmptyBranches ?? false;
+
   const builtTimeline = useMemo(() => buildTimeline(events), [events]);
   const convertedTimelines = useMemo(
     () =>
@@ -315,5 +324,12 @@ export function useTimelinesArray(
         : null,
     [convertedTimelines, events]
   );
-  return withOrphans ?? [builtTimeline];
+  const resolved = useMemo(
+    () => withOrphans ?? [builtTimeline],
+    [withOrphans, builtTimeline]
+  );
+  return useMemo(
+    () => (showEmptyBranches ? resolved : resolved.map(filterEmptyBranches)),
+    [resolved, showEmptyBranches]
+  );
 }

@@ -128,7 +128,10 @@ export function useTranscriptTimeline(
   const includeUtility = timelineOptions?.includeUtility ?? false;
   const showBranches = timelineOptions?.showBranches ?? false;
   const forkRelative = timelineOptions?.forkRelative ?? false;
-  const timelines = useTimelinesArray(events, serverTimelines);
+  const showEmptyBranches = timelineOptions?.showEmptyBranches ?? false;
+  const timelines = useTimelinesArray(events, serverTimelines, {
+    showEmptyBranches,
+  });
 
   const {
     active: activeTimeline,
