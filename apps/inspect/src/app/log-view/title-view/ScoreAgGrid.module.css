@@ -9,6 +9,10 @@
   min-height: unset;
 }
 
+.gridContainer :global(.ag-body-horizontal-scroll.ag-scrollbar-invisible) {
+  display: none;
+}
+
 /* Breathing room at the edges so values don't sit flush with the modal border
    (and so the last column doesn't get overlapped by the vertical scroll bar).
    The extra specificity via `:global(.ag-cell)` / `:global(.ag-header-cell)`
