@@ -617,6 +617,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }, [stickyOffsetTop]);
 
+  // Publish the outer scroller's height so the sticky search sidebar can
+  // size itself to the available vertical space. The scroller sits below
+  // the outer page chrome (breadcrumb, log title, scores row, top-level
+  // tab bar), so 100vh would overestimate — we want only the slice of
+  // viewport this scroller actually occupies, minus the sticky offset.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    const container = tabsContainerRef.current;
+    if (!scroller || !container) return;
+    const apply = () => {
+      container.style.setProperty(
+        "--inspect-sample-scroller-height",
+        `${scroller.clientHeight}px`
+      );
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, [scrollRef]);
+
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>

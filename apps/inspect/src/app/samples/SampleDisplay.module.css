@@ -71,10 +71,16 @@
      position the element without it being forced to flex-row height. */
   align-self: flex-start;
   flex: 0 0 auto;
-  /* Definite height — fills the available viewport space below the sticky
-     header + tab bar — so the inner SearchPanel can stretch to fill it and
-     scroll its own results section, instead of collapsing to its content. */
-  height: calc(100vh - var(--inspect-sticky-offset-top, 0px));
+  /* Definite height — fills the available space below the sticky header +
+     tab bar — so the inner SearchPanel can stretch and scroll its own
+     results section instead of collapsing to its content. Sized against the
+     outer scroller's height, not 100vh: the scroller sits below the page
+     chrome, so 100vh would overshoot. Falls back to 100vh on first render
+     before the ResizeObserver publishes the scroller height. */
+  height: calc(
+    var(--inspect-sample-scroller-height, 100vh) -
+      var(--inspect-sticky-offset-top, 0px)
+  );
   display: flex;
   flex-direction: row;
   background-color: var(--bs-body-bg);
