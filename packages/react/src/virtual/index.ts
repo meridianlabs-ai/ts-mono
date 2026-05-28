@@ -1,3 +1,4 @@
+export { VirtualList } from "./VirtualList";
 export type {
   VirtualListComponents,
   VirtualListHandle,
@@ -5,4 +6,3 @@ export type {
   VirtualListProps,
   VirtualListStateSnapshot,
 } from "./types";
-// VirtualList component re-export added in Task 1.E.
