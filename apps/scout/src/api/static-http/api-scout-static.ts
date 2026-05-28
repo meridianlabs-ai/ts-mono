@@ -133,6 +133,7 @@ export const apiScoutStatic = (
 
   return {
     capability: "workbench",
+    readOnly: true,
 
     getConfig: (): Promise<AppConfig> =>
       fetchJson<AppConfig>(joinUrl(baseUrl, "config.json")),
