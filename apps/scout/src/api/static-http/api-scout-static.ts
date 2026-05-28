@@ -1,13 +1,18 @@
+import type { Event } from "@tsmono/inspect-common/types";
+import { expandEvents } from "@tsmono/inspect-common/utils";
+
 import type { Condition, OrderByModel } from "../../query";
 import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  MessagesEventsResponse,
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
   Result,
   ScanJobConfig,
+  ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
   SearchInputListResponse,
@@ -15,6 +20,7 @@ import {
   SearchResponse,
   Status,
   Transcript,
+  TranscriptInfo,
   TranscriptsResponse,
   ValidationCase,
   ValidationCaseRequest,
@@ -27,6 +33,8 @@ import {
   SearchResultScope,
   TopicVersions,
 } from "../api";
+import { resolveAttachments } from "../attachmentsHelpers";
+import { expandInputEvents } from "../expandInputEvents";
 
 export class StaticBundleError extends Error {
   constructor(operation: string) {
@@ -62,13 +70,60 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   return (await res.json()) as T;
 };
 
+const fetchOk = async (url: string): Promise<Response> => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  }
+  return res;
+};
+
 const unsupported = <T>(op: string): Promise<T> =>
   Promise.reject(new StaticBundleError(op));
+
+/** Mirror the Python bundler's filesystem-safe transcript id encoding. */
+const sanitizeTranscriptId = (id: string): string =>
+  id.replace(/\//g, "_").replace(/\\/g, "_");
+
+/** Base64url-encode a UTF-8 string (no `=` padding), matching the bundler. */
+const base64UrlEncode = (input: string): string => {
+  const bytes = new TextEncoder().encode(input);
+  let binary = "";
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+};
 
 export const apiScoutStatic = (
   context: StaticBundleContext = {}
 ): ScoutApiV2 => {
   const baseUrl = context.bundleBaseUrl ?? "./api";
+
+  // Cached listings — fetched lazily, reused across method calls.
+  let transcriptsListing: Promise<TranscriptsResponse> | undefined;
+  let scansListing: Promise<ScansResponse> | undefined;
+
+  const getTranscriptsListing = (): Promise<TranscriptsResponse> => {
+    if (!transcriptsListing) {
+      transcriptsListing = fetchJson<TranscriptsResponse>(
+        joinUrl(baseUrl, "transcripts", "listing.json")
+      );
+    }
+    return transcriptsListing;
+  };
+
+  const getScansListing = (): Promise<ScansResponse> => {
+    if (!scansListing) {
+      scansListing = fetchJson<ScansResponse>(
+        joinUrl(baseUrl, "scans", "listing.json")
+      );
+    }
+    return scansListing;
+  };
 
   return {
     capability: "workbench",
@@ -88,93 +143,169 @@ export const apiScoutStatic = (
     connectTopicUpdates: (
       onUpdate: (topVersions: TopicVersions) => void
     ): (() => void) => {
-      // Fire once with frozen topic versions from the bundle, then never update.
       fetchJson<TopicVersions>(joinUrl(baseUrl, "topics.json"))
         .then(onUpdate)
-        .catch(() => {
-          // Bundle may omit topics.json; that's fine — caller will use stale data.
-        });
+        .catch(() => {});
       return () => {};
     },
 
-    // --- Stubs to be implemented in subsequent commits ---
+    // --- Listings (filter/sort/paginate applied client-side in commit #8) ---
 
-    getTranscripts: (
+    getTranscripts: async (
       _transcriptsDir: string,
       _filter?: Condition,
       _orderBy?: OrderByModel | OrderByModel[],
       _pagination?: Pagination
-    ): Promise<TranscriptsResponse> => unsupported("getTranscripts"),
+    ): Promise<TranscriptsResponse> => getTranscriptsListing(),
 
-    hasTranscript: (_transcriptsDir: string, _id: string): Promise<boolean> =>
-      unsupported("hasTranscript"),
-
-    getTranscript: (
-      _transcriptsDir: string,
-      _id: string
-    ): Promise<Transcript> => unsupported("getTranscript"),
-
-    getTranscriptsColumnValues: (
-      _transcriptsDir: string,
-      _column: string,
-      _filter: Condition | undefined
-    ): Promise<ScalarValue[]> => unsupported("getTranscriptsColumnValues"),
-
-    getScans: (
+    getScans: async (
       _scansDir: string,
       _filter?: Condition,
       _orderBy?: OrderByModel | OrderByModel[],
       _pagination?: Pagination
-    ): Promise<ScansResponse> => unsupported("getScans"),
+    ): Promise<ScansResponse> => getScansListing(),
 
-    getScansColumnValues: (
-      _scansDir: string,
-      _column: string,
+    getTranscriptsColumnValues: async (
+      _transcriptsDir: string,
+      column: string,
       _filter: Condition | undefined
-    ): Promise<ScalarValue[]> => unsupported("getScansColumnValues"),
+    ): Promise<ScalarValue[]> => {
+      const { items } = await getTranscriptsListing();
+      return collectDistinct(items, column);
+    },
 
-    getScan: (_scansDir: string, _scanPath: string): Promise<Status> =>
-      unsupported("getScan"),
-
-    getScannerDataframe: (
+    getScansColumnValues: async (
       _scansDir: string,
-      _scanPath: string,
-      _scanner: string,
+      column: string,
+      _filter: Condition | undefined
+    ): Promise<ScalarValue[]> => {
+      const { items } = await getScansListing();
+      return collectDistinct(items, column);
+    },
+
+    // --- Single-item reads ---
+
+    hasTranscript: async (
+      _transcriptsDir: string,
+      id: string
+    ): Promise<boolean> => {
+      const { items } = await getTranscriptsListing();
+      return items.some((info) => info.transcript_id === id);
+    },
+
+    getTranscript: async (
+      _transcriptsDir: string,
+      id: string
+    ): Promise<Transcript> => {
+      const safe = sanitizeTranscriptId(id);
+      const transcriptUrl = joinUrl(baseUrl, "transcripts", safe);
+      const [info, parsed] = await Promise.all([
+        fetchJson<TranscriptInfo>(joinUrl(transcriptUrl, "info.json")),
+        fetchJson<MessagesEventsResponse>(
+          joinUrl(transcriptUrl, "messages-events.json")
+        ),
+      ]);
+
+      const { messages, timelines, attachments } = parsed;
+      const events = expandEvents(parsed.events, parsed.events_data ?? null);
+
+      return {
+        ...info,
+        ...(attachments && Object.keys(attachments).length > 0
+          ? {
+              messages: resolveAttachments(messages, attachments),
+              events: resolveAttachments(events, attachments),
+              timelines,
+            }
+          : { messages, events, timelines }),
+      };
+    },
+
+    getScan: (_scansDir: string, scanPath: string): Promise<Status> =>
+      fetchJson<Status>(joinUrl(baseUrl, "scans", scanPath, "status.json")),
+
+    getScannerDataframe: async (
+      _scansDir: string,
+      scanPath: string,
+      scanner: string,
       _excludeColumns?: string[]
-    ): Promise<ArrayBuffer | Uint8Array> => unsupported("getScannerDataframe"),
+    ): Promise<ArrayBuffer> => {
+      const res = await fetchOk(
+        joinUrl(baseUrl, "scans", scanPath, "scanners", `${scanner}.arrow`)
+      );
+      return res.arrayBuffer();
+    },
 
-    getScannerDataframeDetail: (
+    getScannerDataframeDetail: async (
       _scansDir: string,
-      _scanPath: string,
-      _scanner: string,
-      _uuid: string
-    ): Promise<ScanResultDetail> => unsupported("getScannerDataframeDetail"),
+      scanPath: string,
+      scanner: string,
+      uuid: string
+    ): Promise<ScanResultDetail> => {
+      const parsed = await fetchJson<
+        ScannerInputResponse & { scan_events: Event[] }
+      >(
+        joinUrl(baseUrl, "scans", scanPath, "details", scanner, `${uuid}.json`)
+      );
+      return {
+        input: {
+          input_type: parsed.input_type,
+          input: expandInputEvents(
+            parsed.input,
+            parsed.input_type,
+            parsed.input_data
+          ),
+        },
+        scanEvents: parsed.scan_events ?? [],
+      };
+    },
+
+    downloadScan: async (
+      _scansDir: string,
+      scanPath: string
+    ): Promise<Blob> => {
+      const res = await fetchOk(
+        joinUrl(baseUrl, "scans", scanPath, "archive.zip")
+      );
+      const data = await res.arrayBuffer();
+      return new Blob([data], { type: "application/zip" });
+    },
+
+    // --- Validations ---
 
     getValidationSets: (): Promise<string[]> =>
-      unsupported("getValidationSets"),
+      fetchJson<string[]>(joinUrl(baseUrl, "validations", "sets.json")),
 
-    getValidationCases: (_uri: string): Promise<ValidationCase[]> =>
-      unsupported("getValidationCases"),
+    getValidationCases: (uri: string): Promise<ValidationCase[]> =>
+      fetchJson<ValidationCase[]>(
+        joinUrl(baseUrl, "validations", base64UrlEncode(uri), "cases.json")
+      ),
 
-    getValidationCase: (
-      _uri: string,
-      _caseId: string
-    ): Promise<ValidationCase> => unsupported("getValidationCase"),
+    getValidationCase: async (
+      uri: string,
+      caseId: string
+    ): Promise<ValidationCase> => {
+      const cases = await fetchJson<ValidationCase[]>(
+        joinUrl(baseUrl, "validations", base64UrlEncode(uri), "cases.json")
+      );
+      const found = cases.find((c) => c.id === caseId);
+      if (!found) {
+        throw new Error(`Validation case '${caseId}' not found in ${uri}`);
+      }
+      return found;
+    },
 
-    getSearches: (
-      _searchType: SearchRequest["type"],
-      _count: number
-    ): Promise<SearchInputListResponse> => unsupported("getSearches"),
+    // --- Search / recent (cached results only) ---
+
+    getSearches: (): Promise<SearchInputListResponse> =>
+      Promise.resolve({ items: [] }),
 
     getSearchResult: (
       _transcriptDir: string,
       _transcriptId: string,
       _searchId: string,
       _scope: SearchResultScope
-    ): Promise<Result | null> => unsupported("getSearchResult"),
-
-    downloadScan: (_scansDir: string, _scanPath: string): Promise<Blob> =>
-      unsupported("downloadScan"),
+    ): Promise<Result | null> => Promise.resolve(null),
 
     // --- Mutation methods: always throw in static mode ---
 
@@ -217,4 +348,30 @@ export const apiScoutStatic = (
 
     storage: NoPersistence,
   };
+};
+
+/** Compute distinct sorted scalar values for a column across a row collection. */
+const collectDistinct = (
+  rows: readonly object[],
+  column: string
+): ScalarValue[] => {
+  const seen = new Set<string>();
+  const out: ScalarValue[] = [];
+  for (const row of rows) {
+    const raw = (row as Record<string, unknown>)[column];
+    if (raw === undefined) continue;
+    const value = raw as ScalarValue;
+    const key =
+      value === null ? "__null__" : `${typeof value}:${String(value)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  out.sort((a, b) => {
+    if (a === b) return 0;
+    if (a === null) return -1;
+    if (b === null) return 1;
+    return a < b ? -1 : 1;
+  });
+  return out;
 };
