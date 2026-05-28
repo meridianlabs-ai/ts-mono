@@ -868,9 +868,9 @@ export interface components {
          * @description A successful checkpoint commit.
          *
          *     Emitted by the checkpointer immediately after the per-checkpoint
-         *     sidecar JSON is written — see working.md §8a. Carries the full
-         *     sidecar payload flattened into top-level fields (via multiple
-         *     inheritance from :class:`CheckpointDetails`), so a consumer of
+         *     file JSON is written — see working.md §8a. Carries the full
+         *     checkpoint payload flattened into top-level fields (via multiple
+         *     inheritance from :class:`Checkpoint`), so a consumer of
          *     ``transcript().events`` (or the ``.eval`` log) reads
          *     ``event.checkpoint_id`` / ``event.trigger`` / ``event.host`` etc.
          *     directly — same data as someone reading
@@ -3260,7 +3260,7 @@ export interface components {
         };
         /**
          * SnapshotDetails
-         * @description Per-backup stats captured in the sidecar.
+         * @description Per-backup stats captured in the checkpoint file.
          *
          *     One per repo (host repo + one per active sandbox repo). Values come
          *     from restic's backup summary — see :class:`ResticBackupSummary`.

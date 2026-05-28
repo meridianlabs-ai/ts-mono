@@ -26,15 +26,17 @@ export const resolveToolInput = (
   const functionCall =
     args.length > 0 ? `${toolName}(${args.join(", ")})` : toolName;
 
-  // For Task tool, use the subagent_type as the display name
+  // For subagent-dispatch tools, use the subagent_type as the display name.
+  // "Task"/"task" predate Claude Code v2.1.70 and Inspect deepagent's rename;
+  // "Agent"/"agent" are the post-rename names.
   if (
-    (fn === "Task" || fn === "task") &&
+    (fn === "Task" || fn === "task" || fn === "Agent" || fn === "agent") &&
     typeof toolArgs.subagent_type === "string"
   ) {
     const subagentType = toolArgs.subagent_type;
     return {
       name: fn,
-      functionCall: `Task: ${subagentType}`,
+      functionCall: `${fn}: ${subagentType}`,
       title: `${fn}: ${subagentType}`,
       input,
       description,
@@ -114,13 +116,13 @@ const extractInputMetadata = (
       inputArg: "todos",
       contentType: kToolTodoContentType,
     };
-  } else if (toolName === "Task") {
+  } else if (toolName === "Task" || toolName === "Agent") {
     return {
       inputArg: "prompt",
       descriptionArg: "description",
       contentType: "markdown",
     };
-  } else if (toolName === "task") {
+  } else if (toolName === "task" || toolName === "agent") {
     return {
       inputArg: "prompt",
       descriptionArg: "task_description",

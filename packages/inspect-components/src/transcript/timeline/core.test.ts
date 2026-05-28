@@ -17,6 +17,8 @@ import type {
 
 import {
   convertServerTimeline,
+  filterEmptyBranches,
+  isEmptyBranch,
   spanHasBranches,
   TimelineEvent,
   TimelineSpan,
@@ -470,6 +472,156 @@ describe("convertServerTimeline", () => {
         ],
       });
       expect(spanHasBranches(span)).toBe(true);
+    });
+  });
+
+  describe("isEmptyBranch", () => {
+    const anchor = new TimelineEvent(makeEvent("a", "anchor", 0));
+    const branchEvt = new TimelineEvent(makeEvent("b", "branch", 0));
+    const stepEvt = new TimelineEvent(makeEvent("s", "step", 0));
+    const model = new TimelineEvent(makeEvent("m", "model", 0, 1, 10));
+
+    it("returns true for an empty span", () => {
+      const span = new TimelineSpan({
+        id: "x",
+        name: "branch",
+        spanType: "branch",
+      });
+      expect(isEmptyBranch(span)).toBe(true);
+    });
+
+    it("returns true when content is only anchor/branch/step events", () => {
+      const span = new TimelineSpan({
+        id: "x",
+        name: "branch",
+        spanType: "branch",
+        content: [anchor, branchEvt, stepEvt],
+      });
+      expect(isEmptyBranch(span)).toBe(true);
+    });
+
+    it("returns false when content contains a model event", () => {
+      const span = new TimelineSpan({
+        id: "x",
+        name: "branch",
+        spanType: "branch",
+        content: [anchor, model],
+      });
+      expect(isEmptyBranch(span)).toBe(false);
+    });
+
+    it("returns false when content contains a sub-span", () => {
+      const sub = new TimelineSpan({
+        id: "s",
+        name: "agent",
+        spanType: "agent",
+      });
+      const span = new TimelineSpan({
+        id: "x",
+        name: "branch",
+        spanType: "branch",
+        content: [sub],
+      });
+      expect(isEmptyBranch(span)).toBe(false);
+    });
+
+    it("returns false when a non-empty nested branch survives", () => {
+      const nested = new TimelineSpan({
+        id: "n",
+        name: "branch",
+        spanType: "branch",
+        content: [model],
+      });
+      const span = new TimelineSpan({
+        id: "x",
+        name: "branch",
+        spanType: "branch",
+        content: [anchor],
+        branches: [nested],
+      });
+      expect(isEmptyBranch(span)).toBe(false);
+    });
+  });
+
+  describe("filterEmptyBranches", () => {
+    const anchor = new TimelineEvent(makeEvent("a", "anchor", 0));
+    const stepEvt = new TimelineEvent(makeEvent("s", "step", 0));
+    const branchEvt = new TimelineEvent(makeEvent("b", "branch", 0));
+    const model = new TimelineEvent(makeEvent("m", "model", 0, 1, 10));
+
+    function branch(
+      id: string,
+      content: (TimelineEvent | TimelineSpan)[] = [],
+      branches: TimelineSpan[] = []
+    ): TimelineSpan {
+      return new TimelineSpan({
+        id,
+        name: "branch",
+        spanType: "branch",
+        content,
+        branches,
+      });
+    }
+
+    it("prunes top-level branches that only carry structural events", () => {
+      const root = new TimelineSpan({
+        id: "root",
+        name: "main",
+        spanType: "agent",
+        content: [model],
+        branches: [
+          branch("empty-1", [anchor, anchor]),
+          branch("empty-2", [branchEvt, stepEvt]),
+          branch("has-model", [anchor, model]),
+        ],
+      });
+      const result = filterEmptyBranches({
+        name: "t",
+        description: "",
+        root,
+      });
+      expect(result.root.branches.map((b) => b.id)).toEqual(["has-model"]);
+    });
+
+    it("prunes empty nested branches but keeps an ancestor that wraps a non-empty one", () => {
+      const root = new TimelineSpan({
+        id: "root",
+        name: "main",
+        spanType: "agent",
+        content: [model],
+        branches: [branch("outer", [anchor], [branch("inner", [model])])],
+      });
+      const result = filterEmptyBranches({
+        name: "t",
+        description: "",
+        root,
+      });
+      expect(result.root.branches).toHaveLength(1);
+      expect(result.root.branches[0]!.id).toBe("outer");
+      expect(result.root.branches[0]!.branches[0]!.id).toBe("inner");
+    });
+
+    it("recurses into content sub-spans", () => {
+      const child = new TimelineSpan({
+        id: "child",
+        name: "agent",
+        spanType: "agent",
+        content: [model],
+        branches: [branch("dead", [anchor])],
+      });
+      const root = new TimelineSpan({
+        id: "root",
+        name: "main",
+        spanType: "agent",
+        content: [child],
+      });
+      const result = filterEmptyBranches({
+        name: "t",
+        description: "",
+        root,
+      });
+      const newChild = result.root.content[0] as TimelineSpan;
+      expect(newChild.branches).toHaveLength(0);
     });
   });
 

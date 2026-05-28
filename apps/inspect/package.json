@@ -1,5 +1,5 @@
 {
-  "name": "inspect",
+  "name": "@meridianlabs/log-viewer",
   "version": "0.0.11",
   "description": "Log viewer for inspect_ai logs.",
   "license": "MIT",
@@ -12,12 +12,9 @@
     "lib/styles",
     "lib/assets"
   ],
-  "publishConfig": {
-    "name": "@meridianlabs/log-viewer"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/UKGovernmentBEIS/inspect_ai",
+    "url": "git+https://github.com/UKGovernmentBEIS/inspect_ai.git",
     "directory": "src/inspect_ai/_view/ts-mono/apps/inspect"
   },
   "scripts": {

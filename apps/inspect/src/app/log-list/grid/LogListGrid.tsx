@@ -186,6 +186,20 @@ export const LogListGrid: FC<LogListGridProps> = ({
         sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
       }
 
+      // Distinct limit types across samples in this task, comma-joined.
+      // Empty when no sample ended with a limit. Sorted for stable
+      // text-filtering and predictable display order.
+      let sampleLimits: string | undefined;
+      if (details?.sampleSummaries) {
+        const limits = new Set<string>();
+        for (const s of details.sampleSummaries) {
+          if (s.limit) limits.add(s.limit);
+        }
+        if (limits.size > 0) {
+          sampleLimits = Array.from(limits).sort().join(", ");
+        }
+      }
+
       const row: LogListRow = {
         id: item.id,
         name: item.name,
@@ -223,6 +237,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         tags: details?.tags,
         percentCompleted,
         sampleErrors,
+        sampleLimits,
         errorMessage: details?.error?.message,
       };
 

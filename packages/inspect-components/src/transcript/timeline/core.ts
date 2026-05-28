@@ -163,6 +163,53 @@ export class TimelineSpan {
 }
 
 /**
+ * True if `span` has no visible content and no non-empty nested branches.
+ * `anchor`, `branch`, and `step` events are structural and don't count.
+ */
+export function isEmptyBranch(span: TimelineSpan): boolean {
+  const hasVisibleContent = span.content.some((item) => {
+    if (item.type === "span") return true;
+    const evt = item.event.event;
+    return evt !== "anchor" && evt !== "branch" && evt !== "step";
+  });
+  return !hasVisibleContent && span.branches.length === 0;
+}
+
+/**
+ * Return a copy of `timeline` with empty branches pruned recursively.
+ * Walks the span tree, pruning empty branches bottom-up so that branches
+ * which only carry other (empty) branches are themselves dropped.
+ */
+export function filterEmptyBranches(timeline: Timeline): Timeline {
+  return {
+    name: timeline.name,
+    description: timeline.description,
+    root: pruneEmptyBranches(timeline.root),
+  };
+}
+
+function pruneEmptyBranches(span: TimelineSpan): TimelineSpan {
+  const content = span.content.map((item) =>
+    item.type === "span" ? pruneEmptyBranches(item) : item
+  );
+  const branches = span.branches
+    .map(pruneEmptyBranches)
+    .filter((b) => !isEmptyBranch(b));
+  return new TimelineSpan({
+    id: span.id,
+    name: span.name,
+    spanType: span.spanType,
+    content,
+    branches,
+    branchedFrom: span.branchedFrom,
+    description: span.description,
+    utility: span.utility,
+    agentResult: span.agentResult,
+    outline: span.outline,
+  });
+}
+
+/**
  * True if `span` (or any descendant span in its content tree) has branches.
  */
 export function spanHasBranches(span: TimelineSpan): boolean {

@@ -29,7 +29,9 @@ export function useTranscriptTimeline(
   serverTimelines?: ServerTimeline[]
 ): TranscriptTimelineResult {
   const timelineProps = useTimelineSearchParams();
-  const timelines = useTimelinesArray(events, serverTimelines);
+  const timelines = useTimelinesArray(events, serverTimelines, {
+    showEmptyBranches: timelineOptions?.showEmptyBranches,
+  });
   const activeTimelineProps = useActiveTimelineSearchParams(timelines);
 
   return useTranscriptTimelineShared({

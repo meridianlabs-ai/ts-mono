@@ -26,6 +26,7 @@ export interface LogListRow {
   tags?: string[];
   percentCompleted?: number;
   sampleErrors?: number;
+  sampleLimits?: string;
   errorMessage?: string;
   [key: string]: any; // For dynamic score columns
 }
