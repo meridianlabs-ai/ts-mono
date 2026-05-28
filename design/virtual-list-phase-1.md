@@ -41,7 +41,7 @@ All work happens on a single branch (`virtual-list-phase-1`) as a sequence of co
 1. **Milestone 1 — Foundation + Chat.** Land `VirtualList` + characterization test harness + the five Playwright e2e tests + synthetic-data fixtures. Migrate `ChatViewVirtualList` to use `VirtualList`. Fix the per-sample `persistenceKey` bug at the same time.
 2. **Milestone 2 — Transcript.** Migrate `TranscriptVirtualListComponent`.
 3. **Milestone 3 — Scout.** Migrate `ScannerResultsList` and `ScannerSidebar`.
-4. **Milestone 4 — Cleanup.** Delete `LiveVirtualList`, `useVirtuosoState`. Remove `react-virtuoso` from `@tsmono/react`, `@tsmono/inspect-components`, `apps/inspect`, `apps/scout`. `RecordTree` and `TranscriptOutline` retain their direct dependency in `@tsmono/inspect-components`.
+4. **Milestone 4 — Cleanup.** Delete `LiveVirtualList`, `useVirtuosoState`. Remove `react-virtuoso` from `@tsmono/react` (and from `apps/inspect`, `apps/scout` if they have no remaining direct imports — audit at cleanup time). The dependency stays in `@tsmono/inspect-components` because `RecordTree` and `TranscriptOutline` continue to use `react-virtuoso` directly there.
 
 Each milestone consists of one or more granular commits — typically a foundation commit (no behavior change), an implementation commit, and a migration commit per consumer. The branch must build, lint, and pass `pnpm check` at every milestone boundary so that bisect remains useful and any milestone can be reviewed independently of later ones.
 
@@ -385,7 +385,7 @@ Branch `virtual-list-phase-1` is ready to merge when:
 3. Five new Playwright e2e specs landed in `apps/inspect/e2e/`.
 4. Synthetic-data fixture factory in `apps/inspect/e2e/fixtures/`.
 5. All four migration milestones complete on the branch: `ChatViewVirtualList` (with per-sample `persistenceKey` fix), `TranscriptVirtualListComponent`, `ScannerResultsList` + `ScannerSidebar`, cleanup.
-6. Cleanup milestone has deleted `LiveVirtualList`, `useVirtuosoState`; removed `react-virtuoso` from `@tsmono/react`, `@tsmono/inspect-components`, `apps/inspect`, `apps/scout`. `RecordTree` and `TranscriptOutline` retain direct `react-virtuoso` dependency in `@tsmono/inspect-components`.
+6. Cleanup milestone has deleted `LiveVirtualList`, `useVirtuosoState`; removed `react-virtuoso` from `@tsmono/react` (and from `apps/inspect` / `apps/scout` if those have no remaining direct imports — audit decides). `@tsmono/inspect-components` keeps the `react-virtuoso` dependency because `RecordTree` and `TranscriptOutline` continue to use it directly.
 7. Manual checklist signed off for each migration milestone (in the corresponding commit message).
 8. `pnpm check` clean at every milestone boundary (per ts-mono convention).
 9. Branch builds, lints, and passes all tests at every milestone boundary so `git bisect` remains useful.
