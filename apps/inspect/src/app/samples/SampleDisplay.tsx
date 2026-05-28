@@ -745,11 +745,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )
                 ) : (
                   <TabSidebarHost
-                    open={searchScope === "events" && rightDock !== "none"}
+                    open={
+                      searchScope === "events" &&
+                      ((rightDock === "scans" && scans.hasScans) ||
+                        (rightDock === "search" && !!searchContext))
+                    }
                     sidebarTop={stickyOffsetTop}
                     sidebarHeight={sidebarHeight}
                     sidebar={
-                      rightDock === "scans" ? (
+                      rightDock === "scans" && scans.hasScans ? (
                         <ScansSidebarPanel
                           scores={scans.scores}
                           events={sampleEvents}
