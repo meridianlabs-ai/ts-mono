@@ -38,7 +38,7 @@
   padding: 0.5rem;
 }
 
-.tabSearchHost {
+.tabSidebarHost {
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -53,7 +53,7 @@
   min-height: 0;
 }
 
-.searchSidebar {
+.dockedSidebar {
   position: sticky;
   align-self: flex-start;
   flex: 0 0 auto;
@@ -62,7 +62,7 @@
   background-color: var(--bs-body-bg);
 }
 
-.searchSidebarHandle {
+.dockedSidebarHandle {
   flex: 0 0 4px;
   cursor: col-resize;
   background-color: transparent;
@@ -70,12 +70,12 @@
   transition: background-color 0.12s ease;
 }
 
-.searchSidebarHandle:hover,
-.searchSidebarHandle:active {
+.dockedSidebarHandle:hover,
+.dockedSidebarHandle:active {
   background-color: var(--bs-primary, var(--bs-border-color));
 }
 
-.searchSidebarContent {
+.dockedSidebarContent {
   flex: 1;
   min-width: 0;
   min-height: 0;

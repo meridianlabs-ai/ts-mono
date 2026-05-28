@@ -89,6 +89,8 @@ import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
 import { SampleSummaryView } from "./SampleSummaryView";
+import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
+import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
@@ -378,9 +380,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
-  // Transcript search toggle — lifted to the toolbar so the button sits
-  // at the right end of the tools row. Scope follows the active tab.
-  const [searchOpen, setSearchOpen] = useState(false);
+  // Right-docked sidebar — search and scans share a single slot (one at a
+  // time), each toggled from the toolbar. Scope follows the active tab.
+  const [rightDock, setRightDock] = useState<"none" | "search" | "scans">(
+    "none"
+  );
   const searchScope: SearchScope | undefined =
     effectiveSelectedTab === kSampleTranscriptTabId
       ? "events"
@@ -389,7 +393,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         : undefined;
   const searchContext = useInspectSearchContext(sample);
   const canSearch = searchContext !== null && searchScope !== undefined;
-  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const closeDock = useCallback(() => setRightDock("none"), []);
+
+  // Scanner scores power the docked Scans panel (and the transcript cite
+  // labels). `open` gates the label computation to when the panel is showing.
+  const scans = useSampleScans({
+    allScores: sample?.scores ?? null,
+    sampleId: sample?.id ?? undefined,
+    sampleEpoch: sample?.epoch ?? undefined,
+    open: rightDock === "scans",
+  });
+
+  // Open the Scans panel by default the first time a sample with scans loads.
+  // A one-shot guard leaves later user toggles (and opening Search) intact.
+  const scansDefaultedRef = useRef(false);
+  useEffect(() => {
+    if (scans.hasScans && !scansDefaultedRef.current) {
+      scansDefaultedRef.current = true;
+      setRightDock((prev) => (prev === "none" ? "scans" : prev));
+    }
+  }, [scans.hasScans]);
 
   // Build the toolbar in left-to-right groups separated by thin dividers:
   //   [tab-specific view controls] | [shared sample actions] | [Search]
@@ -532,22 +555,45 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (canSearch) {
+  // Scans button shows only on the Transcript tab and only when the sample
+  // has scanner scores. Search stays rightmost, so Scans sits to its left.
+  const showScansButton = scans.hasScans && searchScope === "events";
+  if (showScansButton || canSearch) {
     tools.push(
       <span
         key="search-separator"
         className={styles.toolSeparator}
         aria-hidden="true"
-      />,
-      <ToolButton
-        key="sample-search-toggle"
-        label="Search"
-        icon={ApplicationIcons.search}
-        onClick={() => setSearchOpen((prev) => !prev)}
-        latched={searchOpen}
-        subtle
       />
     );
+    if (showScansButton) {
+      tools.push(
+        <ToolButton
+          key="sample-scans-toggle"
+          label="Scans"
+          icon={ApplicationIcons.scoringSidebar}
+          onClick={() =>
+            setRightDock((prev) => (prev === "scans" ? "none" : "scans"))
+          }
+          latched={rightDock === "scans"}
+          subtle
+        />
+      );
+    }
+    if (canSearch) {
+      tools.push(
+        <ToolButton
+          key="sample-search-toggle"
+          label="Search"
+          icon={ApplicationIcons.search}
+          onClick={() =>
+            setRightDock((prev) => (prev === "search" ? "none" : "search"))
+          }
+          latched={rightDock === "search"}
+          subtle
+        />
+      );
+    }
   }
 
   // Is the sample running?
@@ -629,7 +675,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       }) as CSSProperties,
     [headerHeight]
   );
-  const searchSidebarHeight =
+  const sidebarHeight =
     scrollerHeight > 0
       ? Math.max(0, scrollerHeight - stickyOffsetTop)
       : `calc(100vh - ${stickyOffsetTop}px)`;
@@ -698,18 +744,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     />
                   )
                 ) : (
-                  <TabSearchHost
-                    open={searchOpen && searchScope === "events"}
+                  <TabSidebarHost
+                    open={searchScope === "events" && rightDock !== "none"}
                     sidebarTop={stickyOffsetTop}
-                    sidebarHeight={searchSidebarHeight}
+                    sidebarHeight={sidebarHeight}
                     sidebar={
-                      searchContext && (
+                      rightDock === "scans" ? (
+                        <ScansSidebarPanel
+                          scores={scans.scores}
+                          events={sampleEvents}
+                          makeCiteUrl={scans.makeCiteUrl}
+                          selected={scans.selected}
+                          onSelectedChange={scans.setSelected}
+                          onClose={closeDock}
+                        />
+                      ) : rightDock === "search" && searchContext ? (
                         <SearchPanelSlot
                           scope="events"
                           context={searchContext}
-                          onClose={closeSearch}
+                          onClose={closeDock}
                         />
-                      )
+                      ) : null
                     }
                   >
                     <TranscriptPanel
@@ -717,16 +772,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                       key={`${baseId}-transcript-display-${id}`}
                       scrollRef={scrollRef}
                       offsetTop={stickyOffsetTop}
-                      sampleId={sample?.id ?? undefined}
-                      sampleEpoch={sample?.epoch ?? undefined}
                       running={running}
                       events={sampleEvents}
                       timelines={sample?.timelines ?? undefined}
-                      scans={sample?.scores ?? undefined}
+                      eventNodeContext={scans.eventNodeContext}
                       initialEventId={sampleDetailNavigation.event}
                       initialMessageId={sampleDetailNavigation.message}
                     />
-                  </TabSearchHost>
+                  </TabSidebarHost>
                 )}
               </TabPanel>
               <TabPanel
@@ -742,17 +795,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleMessagesTabId}
                 scrollable={false}
               >
-                <TabSearchHost
+                <TabSidebarHost
                   contentClassName={styles.chat}
-                  open={searchOpen && searchScope === "messages"}
+                  open={rightDock === "search" && searchScope === "messages"}
                   sidebarTop={stickyOffsetTop}
-                  sidebarHeight={searchSidebarHeight}
+                  sidebarHeight={sidebarHeight}
                   sidebar={
                     searchContext && (
                       <SearchPanelSlot
                         scope="messages"
                         context={searchContext}
-                        onClose={closeSearch}
+                        onClose={closeDock}
                       />
                     )
                   }
@@ -771,7 +824,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     running={running}
                     className={styles.fullWidth}
                   />
-                </TabSearchHost>
+                </TabSidebarHost>
               </TabPanel>
               <TabPanel
                 key={kSampleScoringTabId}
@@ -900,10 +953,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
-interface TabSearchHostProps {
-  /** True when the search sidebar should be visible for this tab. */
+interface TabSidebarHostProps {
+  /** True when the docked sidebar should be visible for this tab. */
   open: boolean;
-  /** The rendered search sidebar (or falsy when no context is available). */
+  /** The rendered sidebar (or falsy when no panel applies). */
   sidebar: ReactNode;
   sidebarTop: number;
   sidebarHeight: number | string;
@@ -912,7 +965,7 @@ interface TabSearchHostProps {
   children: ReactNode;
 }
 
-const TabSearchHost: FC<TabSearchHostProps> = ({
+const TabSidebarHost: FC<TabSidebarHostProps> = ({
   open,
   sidebar,
   sidebarTop,
@@ -928,27 +981,27 @@ const TabSearchHost: FC<TabSearchHostProps> = ({
     );
   }
   return (
-    <div className={styles.tabSearchHost}>
+    <div className={styles.tabSidebarHost}>
       <div className={clsx(styles.tabContent, contentClassName)}>
         {children}
       </div>
-      <SearchSidebar top={sidebarTop} height={sidebarHeight}>
+      <DockedSidebar top={sidebarTop} height={sidebarHeight}>
         {sidebar}
-      </SearchSidebar>
+      </DockedSidebar>
     </div>
   );
 };
 
-const SEARCH_SIDEBAR_DEFAULT_WIDTH = 360;
-const SEARCH_SIDEBAR_MIN_WIDTH = 240;
-const SEARCH_SIDEBAR_MAX_WIDTH = 720;
+const DOCKED_SIDEBAR_DEFAULT_WIDTH = 360;
+const DOCKED_SIDEBAR_MIN_WIDTH = 240;
+const DOCKED_SIDEBAR_MAX_WIDTH = 720;
 
-const SearchSidebar: FC<{
+const DockedSidebar: FC<{
   children: ReactNode;
   top: number;
   height: number | string;
 }> = ({ children, top, height }) => {
-  const [width, setWidth] = useState(SEARCH_SIDEBAR_DEFAULT_WIDTH);
+  const [width, setWidth] = useState(DOCKED_SIDEBAR_DEFAULT_WIDTH);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const onHandleMouseDown = useCallback(
@@ -962,8 +1015,8 @@ const SearchSidebar: FC<{
         const next = dragRef.current.startWidth + delta;
         setWidth(
           Math.max(
-            SEARCH_SIDEBAR_MIN_WIDTH,
-            Math.min(SEARCH_SIDEBAR_MAX_WIDTH, next)
+            DOCKED_SIDEBAR_MIN_WIDTH,
+            Math.min(DOCKED_SIDEBAR_MAX_WIDTH, next)
           )
         );
       };
@@ -979,15 +1032,15 @@ const SearchSidebar: FC<{
   );
 
   return (
-    <aside className={styles.searchSidebar} style={{ width, top, height }}>
+    <aside className={styles.dockedSidebar} style={{ width, top, height }}>
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize search panel"
-        className={styles.searchSidebarHandle}
+        aria-label="Resize sidebar"
+        className={styles.dockedSidebarHandle}
         onMouseDown={onHandleMouseDown}
       />
-      <div className={styles.searchSidebarContent}>{children}</div>
+      <div className={styles.dockedSidebarContent}>{children}</div>
     </aside>
   );
 };

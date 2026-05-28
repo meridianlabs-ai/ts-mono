@@ -7,28 +7,21 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import type {
-  Score,
-  Timeline as ServerTimeline,
-} from "@tsmono/inspect-common/types";
+import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
   clearDeepLinkParams,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
+  type EventNodeContext,
   type SelectOptions,
   type TranscriptCollapseState,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
-import {
-  isScannerScore,
-  readScannerReferences,
-} from "@tsmono/scout-components/sentinels";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
@@ -40,9 +33,6 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
-import { SampleScansSidebar } from "../scans/SampleScansSidebar";
-import { useMakeCiteUrl } from "../scans/scanReferences";
-
 import { useTranscriptFilter } from "./hooks";
 
 interface TranscriptPanelProps {
@@ -51,14 +41,14 @@ interface TranscriptPanelProps {
   offsetTop?: number;
 
   // The sample
-  sampleId?: string | number;
-  sampleEpoch?: number;
   running?: boolean;
 
   // The transcript data
   events: Events;
   timelines?: ServerTimeline[];
-  scans?: Record<string, Score> | null;
+
+  /** Extra event-node context (e.g. scan cite labels) merged by the layout. */
+  eventNodeContext?: Partial<EventNodeContext>;
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
@@ -78,28 +68,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     initialMessageId,
     offsetTop,
     timelines: serverTimelines,
-    scans: allScores,
-    sampleId,
-    sampleEpoch,
+    eventNodeContext,
   } = props;
-
-  // Narrow to scanner-produced scores only. The sidebar is a scans sidebar,
-  // not a scoring sidebar — non-scanner scores belong in the Scoring tab.
-  const scores = useMemo(() => {
-    if (!allScores) return null;
-    const filtered: Record<string, Score> = {};
-    for (const [key, score] of Object.entries(allScores)) {
-      if (isScannerScore(score.metadata)) {
-        filtered[key] = score;
-      }
-    }
-    return filtered;
-  }, [allScores]);
-
-  // Cite-URL builder for the scoring sidebar. TranscriptPanel already has
-  // events / sample identifiers, so construct the URL fn here and hand it
-  // down — SampleScansSidebar doesn't need to know about navigation.
-  const makeCiteUrl = useMakeCiteUrl({ sampleId, sampleEpoch });
 
   // ---------------------------------------------------------------------------
   // Event type filtering
@@ -224,13 +194,12 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Headroom: collapse swimlanes on scroll-down, expand on scroll-up
   // ---------------------------------------------------------------------------
 
-  // Refs to the outline / rightPane sticky scroll containers so their
-  // internal scrolling also participates in headroom-direction detection.
+  // Ref to the outline sticky scroll container so its internal scrolling
+  // also participates in headroom-direction detection.
   const outlineScrollRef = useRef<HTMLDivElement | null>(null);
-  const rightPaneScrollRef = useRef<HTMLDivElement | null>(null);
 
   const scrollRefs = useMemo(
-    () => [scrollRef, outlineScrollRef, rightPaneScrollRef],
+    () => [scrollRef, outlineScrollRef],
     [scrollRef]
   );
 
@@ -267,76 +236,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [setPropertyValue, outlineKey]
   );
   const outlineCollapsed = outlineCollapsedRaw ?? false;
-
-  // ---------------------------------------------------------------------------
-  // Scores sidebar collapse state
-  // ---------------------------------------------------------------------------
-
-  const scoresKey = `transcript-scores-${logPath || "na"}`;
-  const scoresCollapsedRaw = useStore((state) => {
-    const bag = state.app.propertyBags["collapse-state-scope"];
-    return bag?.[scoresKey] as boolean | undefined;
-  });
-  const setScoresCollapsed = useCallback(
-    (value: boolean) => {
-      setPropertyValue("collapse-state-scope", scoresKey, value);
-    },
-    [setPropertyValue, scoresKey]
-  );
-  const scoresCollapsed = scoresCollapsedRaw ?? false;
-
-  // Scores sidebar width (global preference, persisted across samples).
-  const scoresWidthRaw = useStore((state) => {
-    const bag = state.app.propertyBags["sidebar-widths"];
-    return bag?.["scores"] as number | undefined;
-  });
-  const scoresWidth = scoresWidthRaw ?? 380;
-  const setScoresWidth = useCallback(
-    (value: number) => {
-      setPropertyValue("sidebar-widths", "scores", value);
-    },
-    [setPropertyValue]
-  );
-
-  const hasScores = !!scores && Object.keys(scores).length > 0;
-
-  // ---------------------------------------------------------------------------
-  // Selected scanner
-  // ---------------------------------------------------------------------------
-
-  const [selectedScanner, setSelectedScanner] = useState<string>("");
-
-  useEffect(() => {
-    const scanners = scores ? Object.keys(scores) : [];
-    if (scanners.length === 0) {
-      if (selectedScanner !== "") setSelectedScanner("");
-    } else if (!scanners.includes(selectedScanner)) {
-      setSelectedScanner(scanners[0]);
-    }
-  }, [scores, selectedScanner]);
-
-  // ---------------------------------------------------------------------------
-  // Message-label map for the currently-selected scanner.
-  // ---------------------------------------------------------------------------
-
-  const messageLabels = useMemo(() => {
-    if (!hasScores || scoresCollapsed) return {};
-    const score = selectedScanner ? scores?.[selectedScanner] : undefined;
-    const refs = readScannerReferences(score?.metadata);
-    const map: Record<string, string> = {};
-    for (const r of refs) {
-      if (r.type === "message" && r.id && r.cite) {
-        map[r.id] = r.cite;
-      }
-    }
-    return map;
-  }, [hasScores, scoresCollapsed, scores, selectedScanner]);
-
-  const eventNodeContext = useMemo(
-    () =>
-      Object.keys(messageLabels).length > 0 ? { messageLabels } : undefined,
-    [messageLabels]
-  );
 
   const selectedOutlineId = useStore((state) => state.sample.selectedOutlineId);
   const setSelectedOutlineId = useStore(
@@ -424,30 +323,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Render
   // ---------------------------------------------------------------------------
 
-  const rightPane =
-    hasScores && scores
-      ? {
-          collapsed: scoresCollapsed,
-          onCollapsedChange: setScoresCollapsed,
-          toggleIcon: ApplicationIcons.scoringSidebar,
-          toggleTitle: scoresCollapsed
-            ? "Show scan results"
-            : "Hide scan results",
-          label: "scans",
-          width: scoresWidth,
-          onWidthChange: setScoresWidth,
-          content: (
-            <SampleScansSidebar
-              scores={scores}
-              events={events}
-              makeCiteUrl={makeCiteUrl}
-              selected={selectedScanner}
-              onSelectedChange={setSelectedScanner}
-            />
-          ),
-        }
-      : undefined;
-
   return (
     <TranscriptLayout
       events={events}
@@ -473,7 +348,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       collapseState={collapseState}
       eventsListRef={eventsListRef}
       outlineScrollRef={outlineScrollRef}
-      rightPaneScrollRef={rightPaneScrollRef}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
@@ -486,7 +360,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
       }}
-      rightPane={rightPane}
       emptyText={
         running && isDefaultFilter
           ? "Sample is starting"
