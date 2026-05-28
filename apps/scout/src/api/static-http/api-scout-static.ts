@@ -36,6 +36,12 @@ import {
 import { resolveAttachments } from "../attachmentsHelpers";
 import { expandInputEvents } from "../expandInputEvents";
 
+import {
+  applyOrderBy,
+  applyPagination,
+  evaluateCondition,
+} from "./condition-eval";
+
 export class StaticBundleError extends Error {
   constructor(operation: string) {
     super(
@@ -149,38 +155,56 @@ export const apiScoutStatic = (
       return () => {};
     },
 
-    // --- Listings (filter/sort/paginate applied client-side in commit #8) ---
+    // --- Listings (filter/sort/paginate applied client-side) ---
 
     getTranscripts: async (
       _transcriptsDir: string,
-      _filter?: Condition,
-      _orderBy?: OrderByModel | OrderByModel[],
-      _pagination?: Pagination
-    ): Promise<TranscriptsResponse> => getTranscriptsListing(),
+      filter?: Condition,
+      orderBy?: OrderByModel | OrderByModel[],
+      pagination?: Pagination
+    ): Promise<TranscriptsResponse> => {
+      const listing = await getTranscriptsListing();
+      return applyListingQuery(
+        listing.items,
+        filter,
+        orderBy,
+        pagination,
+        "transcript_id"
+      ) as TranscriptsResponse;
+    },
 
     getScans: async (
       _scansDir: string,
-      _filter?: Condition,
-      _orderBy?: OrderByModel | OrderByModel[],
-      _pagination?: Pagination
-    ): Promise<ScansResponse> => getScansListing(),
+      filter?: Condition,
+      orderBy?: OrderByModel | OrderByModel[],
+      pagination?: Pagination
+    ): Promise<ScansResponse> => {
+      const listing = await getScansListing();
+      return applyListingQuery(
+        listing.items,
+        filter,
+        orderBy,
+        pagination,
+        "scan_id"
+      ) as ScansResponse;
+    },
 
     getTranscriptsColumnValues: async (
       _transcriptsDir: string,
       column: string,
-      _filter: Condition | undefined
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const { items } = await getTranscriptsListing();
-      return collectDistinct(items, column);
+      return collectDistinct(filterItems(items, filter), column);
     },
 
     getScansColumnValues: async (
       _scansDir: string,
       column: string,
-      _filter: Condition | undefined
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const { items } = await getScansListing();
-      return collectDistinct(items, column);
+      return collectDistinct(filterItems(items, filter), column);
     },
 
     // --- Single-item reads ---
@@ -348,6 +372,40 @@ export const apiScoutStatic = (
 
     storage: NoPersistence,
   };
+};
+
+/** Apply filter + orderBy + cursor pagination matching the server semantics. */
+const applyListingQuery = (
+  rows: readonly object[],
+  filter: Condition | undefined,
+  orderBy: OrderByModel | OrderByModel[] | undefined,
+  pagination: Pagination | undefined,
+  idColumn: string
+): { items: object[]; total_count: number; next_cursor: object | null } => {
+  const filtered = filterItems(rows, filter);
+  const ordered = applyOrderBy(filtered as Record<string, unknown>[], orderBy);
+  const { items, nextCursor } = applyPagination(
+    ordered,
+    orderBy,
+    pagination,
+    idColumn
+  );
+  return {
+    items,
+    total_count: filtered.length,
+    next_cursor: nextCursor,
+  };
+};
+
+/** Filter row collection by a Condition; returns all rows if no filter. */
+const filterItems = (
+  rows: readonly object[],
+  filter: Condition | undefined
+): object[] => {
+  if (!filter) return [...rows];
+  return rows.filter((row) =>
+    evaluateCondition(row as Record<string, unknown>, filter)
+  );
 };
 
 /** Compute distinct sorted scalar values for a column across a row collection. */
