@@ -25,7 +25,13 @@ declare global {
   interface Window {
     __SCOUT_BASE_PATH__?: string;
     __SCOUT_DISABLE_SSE__?: boolean;
+    __SCOUT_STATIC_BUNDLE__?: boolean;
   }
+}
+
+// Set the static-bundle flag before any module reads it (e.g. router activities).
+if (document.getElementById("scout_context")) {
+  window.__SCOUT_STATIC_BUNDLE__ = true;
 }
 
 // Find the root element and render into it
