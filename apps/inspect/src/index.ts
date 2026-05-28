@@ -38,3 +38,11 @@ export {
 // Selection-related types
 export type { SampleSummary } from "./client/api/types";
 export type { ScoreLabel } from "./app/types";
+
+// Scroll-direction hook — used by embedders to drive their own chrome
+// collapse with the same hysteresis behaviour the viewer uses internally.
+export {
+  useScrollDirection,
+  type UseScrollDirectionOptions,
+  type UseScrollDirectionResult,
+} from "@tsmono/react/hooks";
