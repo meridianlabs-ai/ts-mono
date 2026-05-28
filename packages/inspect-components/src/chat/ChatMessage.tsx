@@ -43,10 +43,12 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   const [mouseOver, setMouseOver] = useState(false);
 
-  const isNonTaskTool =
+  const isNonSubagentTool =
     message.role === "tool" &&
     message.function !== "Task" &&
-    message.function !== "task";
+    message.function !== "task" &&
+    message.function !== "Agent" &&
+    message.function !== "agent";
   const collapse =
     message.role === "system" ||
     message.role === "user" ||
@@ -136,7 +138,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                   : 25
           }
         >
-          {isNonTaskTool ? (
+          {isNonSubagentTool ? (
             <ToolOutput
               output={
                 typeof message.content === "string"
