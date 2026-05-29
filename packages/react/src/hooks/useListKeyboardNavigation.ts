@@ -1,9 +1,11 @@
 import { RefObject, useEffect } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import type { VirtualListHandle } from "../virtual/types";
+
 interface ListKeyboardNavigationOptions {
-  /** Virtuoso list handle — used when the list is virtualized. */
-  listHandle: RefObject<VirtuosoHandle | null>;
+  /** Virtuoso or VirtualList handle — used when the list is virtualized. */
+  listHandle: RefObject<VirtuosoHandle | VirtualListHandle | null>;
   /** Scroll container — used as fallback when the list is not virtualized. */
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
