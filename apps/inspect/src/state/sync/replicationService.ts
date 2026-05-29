@@ -358,15 +358,7 @@ export class ReplicationService {
         // Activate the current log handles
         this._applicationContext?.setLogHandles(logFiles);
 
-        // Schedule sync of missing previews or details
-        const previewTasks: LogHandle[] = [];
-        const previews = await this._database.findMissingPreviews(logFiles);
-        for (const p of previews) {
-          if (!previewTasks.find((t) => t.name === p.name)) {
-            previewTasks.push(p);
-          }
-        }
-        this.queueLogPreviews(previewTasks);
+        await this.queueMissingOrStartedPreviews(logFiles);
 
         const detailTasks: LogHandle[] = [];
         const details = await this._database.findMissingDetails(logFiles);
@@ -436,32 +428,7 @@ export class ReplicationService {
     const allLogHandles = (await this._database.readLogs()) || [];
     this._applicationContext?.setLogHandles(allLogHandles);
 
-    // Schedule any missing previews
-    const previewTasks = [...toInvalidate];
-    const previews = await this._database.findMissingPreviews(allLogHandles);
-    for (const p of previews) {
-      if (!previewTasks.find((t) => t.name === p.name)) {
-        previewTasks.push(p);
-      }
-    }
-
-    // Re-fetch previews for running evals whose mtime didn't advance
-    // past the watermark. The server's incremental response won't
-    // include them, and findMissingPreviews won't either since their
-    // preview is already cached — but the cached preview is stale.
-    const cachedPreviews = await this._database.readLogPreviews(allLogHandles);
-    for (const handle of allLogHandles) {
-      const preview = cachedPreviews[handle.name];
-      if (preview?.status === "started") {
-        if (!previewTasks.find((t) => t.name === handle.name)) {
-          this._database?.clearCacheForFile(handle.name);
-          previewTasks.push(handle);
-        }
-      }
-    }
-
-    this.queueLogPreviews(previewTasks.slice(0, 25), WorkPriority.High);
-    this.queueLogPreviews(previewTasks.slice(25), WorkPriority.Medium);
+    await this.queueMissingOrStartedPreviews(allLogHandles, toInvalidate);
 
     // Schedule detail fetching for new/changed logs
     const detailTasks = [...toInvalidate];
@@ -526,11 +493,45 @@ export class ReplicationService {
     this.updateDbStats();
   }
 
+  private async queueMissingOrStartedPreviews(
+    logHandles: LogHandle[],
+    extraHandles: LogHandle[] = [],
+    priority: WorkPriority = WorkPriority.High
+  ) {
+    if (!this._database) return;
+
+    const tasks = [...extraHandles];
+    const seen = new Set(tasks.map((t) => t.name));
+
+    const missing = await this._database.findMissingPreviews(logHandles);
+    for (const m of missing) {
+      if (!seen.has(m.name)) {
+        seen.add(m.name);
+        tasks.push(m);
+      }
+    }
+
+    const cached = await this._database.readLogPreviews(logHandles);
+    for (const handle of logHandles) {
+      if (seen.has(handle.name)) continue;
+      const preview = cached[handle.name];
+      if (preview?.status === "started") {
+        seen.add(handle.name);
+        await this._database.clearPreviewForFile(handle.name);
+        tasks.push(handle);
+      }
+    }
+
+    if (tasks.length > 0) {
+      this.queueLogPreviews(tasks.slice(0, 25), priority);
+      this.queueLogPreviews(tasks.slice(25), WorkPriority.Medium);
+    }
+  }
+
   queueLogPreviews(
     logs: LogHandle[],
     priority: WorkPriority = WorkPriority.Medium
   ) {
-    // Add to queue
     this._previewQueue.enqueue(logs, priority);
   }
 

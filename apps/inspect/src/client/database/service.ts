@@ -406,6 +406,11 @@ export class DatabaseService {
     ]);
   }
 
+  async clearPreviewForFile(filePath: string): Promise<void> {
+    const db = this.getDb();
+    await db.log_previews.where("file_path").equals(filePath).delete();
+  }
+
   /**
    * Get cache statistics.
    */
