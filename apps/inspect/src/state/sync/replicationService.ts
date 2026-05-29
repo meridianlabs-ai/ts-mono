@@ -444,10 +444,26 @@ export class ReplicationService {
         previewTasks.push(p);
       }
     }
+
+    // Re-fetch previews for running evals whose mtime didn't advance
+    // past the watermark. The server's incremental response won't
+    // include them, and findMissingPreviews won't either since their
+    // preview is already cached — but the cached preview is stale.
+    const cachedPreviews = await this._database.readLogPreviews(allLogHandles);
+    for (const handle of allLogHandles) {
+      const preview = cachedPreviews[handle.name];
+      if (preview?.status === "started") {
+        if (!previewTasks.find((t) => t.name === handle.name)) {
+          this._database?.clearCacheForFile(handle.name);
+          previewTasks.push(handle);
+        }
+      }
+    }
+
     this.queueLogPreviews(previewTasks.slice(0, 25), WorkPriority.High);
     this.queueLogPreviews(previewTasks.slice(25), WorkPriority.Medium);
 
-    // Schedule preview fetching for new logs
+    // Schedule detail fetching for new/changed logs
     const detailTasks = [...toInvalidate];
     const details = await this._database.findMissingDetails(allLogHandles);
     for (const d of details) {
