@@ -141,44 +141,51 @@ export function VirtualList<T>({
     });
   }, [contentTotal, followOutput, live, getScrollElement]);
 
+  // Re-arm the one-shot initial-scroll when the persistence key changes
+  // (e.g., user switches to a different sample). Without this, the
+  // scroll container — which may be owned by the parent and not unmount —
+  // keeps the previous sample's scrollTop.
   const hasInitialScrolledRef = useRef(false);
+  const lastInitialKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    if (lastInitialKeyRef.current !== persistenceKey) {
+      hasInitialScrolledRef.current = false;
+      lastInitialKeyRef.current = persistenceKey;
+    }
     if (hasInitialScrolledRef.current) return;
-    if (initialIndex == null) return;
-    requestAnimationFrame(() => {
-      virtualizer.scrollToIndex(initialIndex, {
-        align: "start",
-        behavior: "auto",
-      });
-      if (stickyHeaderOffset) {
-        const el = getScrollElement();
-        if (el) el.scrollTop -= stickyHeaderOffset;
-      }
-      hasInitialScrolledRef.current = true;
-    });
-  }, [initialIndex, stickyHeaderOffset, virtualizer, getScrollElement]);
-
-  useEffect(() => {
-    if (hasInitialScrolledRef.current) return;
-    const snapshot = getRestoreSnapshot();
     const el = getScrollElement();
-    if (!snapshot || !el) return;
+    if (!el) return;
+    const snapshot = getRestoreSnapshot();
     requestAnimationFrame(() => {
-      if (snapshot.totalCount === data.length) {
-        el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
+      if (snapshot) {
+        if (snapshot.totalCount === data.length) {
+          el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
+        } else {
+          const maxScroll = Math.max(0, contentTotal - el.clientHeight);
+          const clamped = Math.min(snapshot.scrollOffset, maxScroll);
+          el.scrollTop = toSpacerScroll(clamped);
+        }
+      } else if (initialIndex != null) {
+        virtualizer.scrollToIndex(initialIndex, {
+          align: "start",
+          behavior: "auto",
+        });
+        if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
       } else {
-        const maxScroll = Math.max(0, contentTotal - el.clientHeight);
-        const clamped = Math.min(snapshot.scrollOffset, maxScroll);
-        el.scrollTop = toSpacerScroll(clamped);
+        el.scrollTop = 0;
       }
       hasInitialScrolledRef.current = true;
     });
   }, [
+    persistenceKey,
+    initialIndex,
+    stickyHeaderOffset,
     contentTotal,
     data.length,
     getRestoreSnapshot,
     getScrollElement,
     toSpacerScroll,
+    virtualizer,
   ]);
 
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
