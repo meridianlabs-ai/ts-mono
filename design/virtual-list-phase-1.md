@@ -132,10 +132,7 @@ Per-consumer migration PR is a mechanical rewrite — import renames, prop renam
 
 ### Scaled Coordinate Mapping (the actually-hard part)
 
-> **⚠ Known limitation — scaling is disabled in Phase 1.**
-> During implementation we discovered the spec's coordinate-mapping math is incomplete: compressing item *positions* without compressing item *heights* produces visible overlap between adjacent rendered rows. To do real scaling correctly, TanStack's `scrollTop` reads must be intercepted via a scroll proxy so the virtualizer sees content-space coordinates while the browser sees spacer-space. That's a meaningful chunk of additional work and is tracked as a follow-up (see "Known Limitations" near the end of this doc). Phase 1 ships with `scale = 1` always — `contentTotal` simply maps 1:1 to spacer height, and the browser's native max element height is the real ceiling (~33M px Chromium, ~17M px Firefox).
-
-The remaining design below describes the original scaling intent and is preserved for the follow-up.
+> **✓ Implemented.** Scaled scrolling is active via a TanStack scroll proxy. The original spec described compressing item *positions* in a single tall spacer, which produced overlap when item heights stayed natural. The shipped version takes a different approach: TanStack works entirely in *content space* (via intercepted scroll-offset reads), and the *padding* divs around the rendered band are compressed instead of the items themselves. Items in the visible band keep natural heights and natural content-space gaps, so adjacent rows never overlap.
 
 **The math.** Two coordinate spaces:
 
@@ -412,27 +409,24 @@ These were committed during brainstorming with sensible defaults; revisit during
 - **Smooth-scroll fallback threshold:** `s > 10`. Lower = safer/less polished; higher = more polish, accept more visual weirdness.
 - **Telemetry:** single `console.debug` per instance on first `s===1 → s>1` transition. No external metrics infrastructure.
 
-## Known Limitations (Follow-ups)
+## Implementation Notes
 
-### Scaled scrolling past the browser cap — not shipped in Phase 1
+### Scaled scrolling — shipped
 
-**Status:** Open. `scale = 1` always; effective ceiling is the browser's native max element height (~33M px Chromium, ~17M px Firefox).
+The browser's max element height is no longer the rendering ceiling. The shipped approach:
 
-**Symptom of the design as originally specified:** compressing item positions in the spacer without also compressing item visual heights produces overlapping adjacent rows. A 78k-message sample at avg ~400px (~31M content) hits this immediately. The spec's claim that "the gap math works out" was incorrect.
+- **Spacer is clamped** to `SAFE_MAX_SPACER = 16M px` (Firefox-safe) when content total exceeds it; otherwise unscaled.
+- **TanStack works entirely in content space.** A custom `observeElementOffset` multiplies the browser's spacer-space `scrollTop` by `scale` before reporting to the virtualizer. A custom `scrollToFn` divides by `scale` before writing back.
+- **Padding divs are scaled** to spacer space (each chunk capped at 5M px to stay below browser limits, regardless of total). This is what the user actually scrolls through.
+- **Visible items render in content space** at `vItem.start - topPaddingContent` relative to the rendered-band container. Content-space *deltas* between items are preserved unchanged — items keep natural heights with natural gaps, so adjacent rows never overlap (the bug from the original spec).
 
-**Why disabling was the right Phase 1 choice:**
-- For typical eval transcripts under ~33M content (Chromium), the unmodified TanStack virtualizer works correctly — items render at natural heights, the spacer is the real content total, scroll works.
-- Firefox users with content past ~17M still see the original Virtuoso symptom (unscrollable bottom). Acceptable trade-off for a Phase 1 ship.
+`scale = 1` when content fits within `SAFE_MAX_SPACER` — the hot path is unchanged from a plain TanStack virtualizer, zero overhead for normal-sized samples. Above the cap, `scale = contentTotal / SAFE_MAX_SPACER`.
 
-**Real fix sketch (for the follow-up):**
-- Spacer is clamped to a safe size (e.g., 16M px) — independent of content total.
-- A scroll proxy intercepts what TanStack's `useVirtualizer` sees as `scrollTop`: `tanstackScrollTop = realScrollTop * (contentTotal / spacerHeight)`. The proxy also forwards scroll events from the real DOM element.
-- Items render at content-space positions `vItem.start`, but the inner row container is shifted via `transform: translateY(-scrollTop * (scale - 1))` so items appear in the visible viewport at the correct relative positions despite the compressed spacer.
-- The `scale-coordinate-space.ts` math (`computeScale`, `toContent`, `toSpacer`, `shouldRequantize`) is already in the tree and unit-tested — it's the *integration* that needs the additional work.
+The total rendered spacer is approximately `SAFE_MAX_SPACER + renderedBandHeight × (1 - 1/scale)` — a small overshoot from the unscaled visible band that's bounded by viewport size (a few KB), well within browser caps.
 
-**Estimated effort:** several hours plus real cross-browser testing (Chrome + Firefox + Safari).
+### Open: optional jump-to-index navigator at extreme scale
 
-**When to do it:** triggered by either (a) a real eval that routinely exceeds Chrome's cap, or (b) a Firefox-using user reporting unscrollable bottoms. Until then, this stays a follow-up.
+At very high scale factors (s > ~10, i.e., content > 160M px), the native scrollbar becomes a coarse navigator — one pixel of drag corresponds to many items. Keyboard navigation, search, and Cmd+Up/Down still work correctly. A future enhancement could add an explicit "jump to index N" input as documented in the spec's scope. Not blocking.
 
 ## References
 
