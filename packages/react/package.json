@@ -10,7 +10,8 @@
     "./hooks": "./src/hooks/index.ts",
     "./components": "./src/components/index.ts",
     "./icons": "./src/icons/index.ts",
-    "./state": "./src/state/index.ts"
+    "./state": "./src/state/index.ts",
+    "./virtual": "./src/virtual/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
