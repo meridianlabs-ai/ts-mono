@@ -28,6 +28,7 @@ import {
 } from "@tsmono/react/components";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
+import { useStaticBundle } from "../../api/useStaticBundle";
 import { ApplicationIcons } from "../../icons";
 import {
   getSearchParam,
@@ -130,7 +131,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     transcriptDir: resolvedTranscriptsDir,
     transcriptId: transcript.transcript_id,
   });
-  const searchAvailable = searchScope !== undefined;
+  const staticBundle = useStaticBundle();
+  const searchAvailable = searchScope !== undefined && !staticBundle;
+  const validationAvailable = !staticBundle;
 
   const handleTabChange = useCallback(
     (tabId: string) => {
@@ -218,8 +221,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Sidebars - URL is the source of truth. When a split layout is open, its
   // start pane becomes the actual scroll container (not the outer
   // transcriptContainer), so we swap the ref.
-  const validationSidebarOpen = getValidationParam(searchParams);
-  const searchSidebarOpen = getSearchParam(searchParams);
+  const validationSidebarOpen =
+    !staticBundle && getValidationParam(searchParams);
+  const searchSidebarOpen = !staticBundle && getSearchParam(searchParams);
   const searchSplitEnabled =
     searchSidebarOpen && searchScope !== undefined && resolvedTranscriptsDir;
   const activeScrollRef = searchSplitEnabled
@@ -335,21 +339,23 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     );
   }
 
-  tabTools.push(
-    <ToolButton
-      key="validation-sidebar-toggle"
-      label="Validation"
-      icon={ApplicationIcons.edit}
-      onClick={toggleValidationSidebar}
-      className={styles.tabTool}
-      subtle={true}
-      title={
-        validationSidebarOpen
-          ? "Hide validation editor"
-          : "Show validation editor"
-      }
-    />
-  );
+  if (validationAvailable) {
+    tabTools.push(
+      <ToolButton
+        key="validation-sidebar-toggle"
+        label="Validation"
+        icon={ApplicationIcons.edit}
+        onClick={toggleValidationSidebar}
+        className={styles.tabTool}
+        subtle={true}
+        title={
+          validationSidebarOpen
+            ? "Hide validation editor"
+            : "Show validation editor"
+        }
+      />
+    );
+  }
 
   const renderWithSearchSplit = (
     content: ReactNode,
