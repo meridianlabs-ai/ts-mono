@@ -28,63 +28,47 @@ export function useListKeyboardNavigation({
   itemCount,
 }: ListKeyboardNavigationOptions): void {
   useEffect(() => {
-    const jumpTo = (top: number) => {
-      const el = scrollRef?.current;
-      if (!el) return false;
-      // Force-disable any scroll-behavior: smooth that would let Firefox
-      // animate the jump and let subsequent key presses interrupt it.
-      const prev = el.style.scrollBehavior;
-      el.style.scrollBehavior = "auto";
-      el.scrollTop = top;
-      el.style.scrollBehavior = prev;
-      return true;
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Some macOS Firefox configurations remap Cmd+Down to End / Cmd+Up
-      // to Home. Accept both.
       const isUp =
         (event.key === "ArrowUp" && (event.metaKey || event.ctrlKey)) ||
-        (event.key === "Home" && (event.metaKey || event.ctrlKey));
+        event.key === "Home";
       const isDown =
         (event.key === "ArrowDown" && (event.metaKey || event.ctrlKey)) ||
-        (event.key === "End" && (event.metaKey || event.ctrlKey));
+        event.key === "End";
       if (!isUp && !isDown) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
 
+      const handle = listHandle.current;
+
       if (isUp) {
-        if (!jumpTo(0) && listHandle.current) {
-          listHandle.current.scrollToIndex({
-            index: 0,
-            align: "start",
-            behavior: "auto",
-          });
+        if (handle && "jumpToStart" in handle) {
+          (handle as { jumpToStart(): void }).jumpToStart();
+        } else if (handle) {
+          handle.scrollToIndex({ index: 0, align: "start", behavior: "auto" });
+        } else {
+          scrollRef?.current?.scrollTo({ top: 0 });
         }
       } else {
-        const el = scrollRef?.current;
-        if (el) {
-          jumpTo(el.scrollHeight);
-        } else if (listHandle.current) {
-          listHandle.current.scrollToIndex({
+        if (handle && "jumpToEnd" in handle) {
+          (handle as { jumpToEnd(): void }).jumpToEnd();
+        } else if (handle) {
+          handle.scrollToIndex({
             index: Math.max(itemCount - 1, 0),
             align: "end",
             behavior: "auto",
           });
+        } else {
+          const el = scrollRef?.current;
+          if (el) el.scrollTop = el.scrollHeight;
         }
       }
     };
 
-    // Attach to both window and document, capture phase, so Firefox's
-    // built-in "Cmd+Down → page-down" gets intercepted no matter which
-    // node first sees the event. Window is the outermost target; capture
-    // there means we fire before any default action.
     window.addEventListener("keydown", handleKeyDown, { capture: true });
-    document.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-      document.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [listHandle, scrollRef, itemCount]);
 }

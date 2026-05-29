@@ -254,6 +254,14 @@ export function VirtualList<T>({
           totalCount: data.length,
         });
       },
+      jumpToStart() {
+        const el = getScrollElement();
+        if (el) el.scrollTop = 0;
+      },
+      jumpToEnd() {
+        const el = getScrollElement();
+        if (el) el.scrollTop = virtualizer.getTotalSize();
+      },
     }),
     [
       virtualizer,

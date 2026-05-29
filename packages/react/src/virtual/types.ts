@@ -21,6 +21,8 @@ export interface VirtualListHandle {
   }): void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
   getState(callback: (snapshot: VirtualListStateSnapshot) => void): void;
+  jumpToStart(): void;
+  jumpToEnd(): void;
 }
 
 export interface VirtualListItemProps {
