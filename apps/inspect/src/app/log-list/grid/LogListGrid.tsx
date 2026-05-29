@@ -68,13 +68,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const { gridStateByScope, setGridState, setFilteredCount } = useLogsListing();
   const gridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
 
-  const { loadLogOverviews, loadAllLogOverviews } = useLogs();
+  const { loadAllLogOverviews } = useLogs();
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
   const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
-  const logPreviews = useStore((state) => state.logs.logPreviews);
   const logDetails = useStore((state) => state.logs.logDetails);
   const navigate = useNavigate();
   const internalGridRef = useRef<AgGridReact<LogListRow>>(null);
@@ -334,15 +333,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
 
   useEffect(() => {
-    const loadHeaders = async () => {
-      const filesToLoad = logFiles.filter((file) => !logPreviews[file.name]);
-      if (filesToLoad.length > 0) {
-        await loadLogOverviews(filesToLoad);
-      }
-      setWatchedLogs(logFiles);
-    };
-    loadHeaders();
-  }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
+    setWatchedLogs(logFiles);
+  }, [logFiles, setWatchedLogs]);
 
   const applyVisibility = useApplyColumnVisibility(
     gridRef,

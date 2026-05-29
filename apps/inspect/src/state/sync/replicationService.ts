@@ -227,7 +227,10 @@ export class ReplicationService {
     this._api = api;
     this._applicationContext = context;
 
-    // Preload any data
+    // Preload cached data so the UI can render immediately while
+    // sync() confirms what still exists on the server. We only push
+    // data into the store here — no fetches for missing data, since
+    // those handles haven't been validated yet.
     const logHandles = await database.readLogs();
     if (logHandles) {
       context.setLogHandles(logHandles);
