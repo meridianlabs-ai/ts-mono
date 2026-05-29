@@ -1,5 +1,7 @@
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
-import { useCallback } from "react";
+import { useCallback, useMemo, useRef } from "react";
+
+import { computeScale, SAFE_MAX_SPACER } from "./scale-coordinate-space";
 
 export type ScaledVirtualizerOptions = {
   count: number;
@@ -16,32 +18,88 @@ export type ScaledVirtualizerResult = {
   toSpacerScroll: (contentScroll: number) => number;
 };
 
-// Phase 1 ships scale fixed at 1 (no compression). The spec's coordinate-
-// mapping design produces visible item overlap: it shrinks item positions in
-// the spacer without shrinking item heights, so adjacent items collide.
-// Real compression past the browser's max element height needs a custom
-// scroll-position proxy intercepting TanStack's reads — tracked in the spec's
-// Known Limitations section. For now, contentTotal under ~33M (Chrome) is
-// supported; Firefox caps lower at ~17M.
 export function useScaledVirtualizer(
   opts: ScaledVirtualizerOptions
 ): ScaledVirtualizerResult {
-  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack's useVirtualizer is a known external library hook
+  const scaleRef = useRef(1);
+
+  // Intercept scroll-offset reads: the browser reports spacer-space
+  // scrollTop, we multiply by scale so TanStack sees content-space.
+  const scaledObserveElementOffset = useMemo(
+    () =>
+      (
+        instance: Virtualizer<HTMLElement, Element>,
+        cb: (offset: number, isScrolling: boolean) => void
+      ) => {
+        const el = instance.scrollElement;
+        if (!el) return;
+
+        const onScroll = () => {
+          cb(el.scrollTop * scaleRef.current, true);
+        };
+        const onScrollEnd = () => {
+          cb(el.scrollTop * scaleRef.current, false);
+        };
+
+        // Fire immediately to set initial offset
+        cb(el.scrollTop * scaleRef.current, false);
+
+        el.addEventListener("scroll", onScroll, { passive: true });
+        el.addEventListener("scrollend", onScrollEnd, { passive: true });
+        return () => {
+          el.removeEventListener("scroll", onScroll);
+          el.removeEventListener("scrollend", onScrollEnd);
+        };
+      },
+    []
+  );
+
+  // Intercept scroll-to writes: TanStack provides content-space offset,
+  // we divide by scale before setting the browser's scrollTop.
+  const scaledScrollToFn = useCallback(
+    (
+      offset: number,
+      {
+        adjustments,
+        behavior,
+      }: { adjustments?: number; behavior?: ScrollBehavior },
+      instance: Virtualizer<HTMLElement, Element>
+    ) => {
+      const el = instance.scrollElement;
+      if (!el) return;
+      const adjusted = offset + (adjustments ?? 0);
+      el.scrollTo({
+        top: adjusted / scaleRef.current,
+        behavior,
+      });
+    },
+    []
+  );
+
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: opts.count,
     estimateSize: opts.estimateSize,
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
+    observeElementOffset: scaledObserveElementOffset,
+    scrollToFn: scaledScrollToFn,
   });
 
-  const spacerHeight = virtualizer.getTotalSize();
-  const passthrough = useCallback((x: number) => x, []);
+  const contentTotal = virtualizer.getTotalSize();
+  const scale = computeScale(contentTotal, SAFE_MAX_SPACER);
+  scaleRef.current = scale;
 
-  return {
-    virtualizer,
-    scale: 1,
-    spacerHeight,
-    toContentScroll: passthrough,
-    toSpacerScroll: passthrough,
-  };
+  const spacerHeight = scale === 1 ? contentTotal : SAFE_MAX_SPACER;
+
+  const toContentScroll = useCallback(
+    (spacerScroll: number) => spacerScroll * scale,
+    [scale]
+  );
+  const toSpacerScroll = useCallback(
+    (contentScroll: number) => contentScroll / scale,
+    [scale]
+  );
+
+  return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };
 }

@@ -303,12 +303,13 @@ export function VirtualList<T>({
       },
       jumpToEnd() {
         const el = getScrollElement();
-        if (el) el.scrollTop = virtualizer.getTotalSize();
+        if (el) el.scrollTop = spacerHeight;
       },
     }),
     [
       virtualizer,
       scale,
+      spacerHeight,
       smoothScroll,
       getScrollElement,
       toContentScroll,
@@ -398,21 +399,22 @@ export function VirtualList<T>({
   const FooterSlot = components?.Footer;
   const ownsScroll = !externalScrollRef;
 
-  // Firefox silently zeroes element heights above ~17M px. Chunk the
-  // scroll area into multiple divs so no single element exceeds the cap.
-  // The middle container gets an explicit height equal to the rendered
-  // band so it contributes to normal flow — without it, scrollHeight
-  // is off by the rendered window and bottom-detection breaks.
+  // TanStack works in content space (via intercepted scroll offset).
+  // Padding divs are in SPACER space (divided by scale) so no single
+  // element exceeds the browser's max height cap (~17M Firefox).
+  // The rendered band stays in content space (natural item heights).
   const firstItem = items.length > 0 ? items[0] : undefined;
   const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
-  const topPadding = firstItem?.start ?? 0;
+  const topPaddingContent = firstItem?.start ?? 0;
+  const topPaddingSpacer = topPaddingContent / scale;
   const renderedBandHeight =
     firstItem && lastItem
       ? lastItem.start + lastItem.size - firstItem.start
       : 0;
-  const bottomPadding = lastItem
-    ? Math.max(0, spacerHeight - (lastItem.start + lastItem.size))
-    : spacerHeight;
+  const bottomPaddingContent = lastItem
+    ? Math.max(0, virtualizer.getTotalSize() - (lastItem.start + lastItem.size))
+    : virtualizer.getTotalSize();
+  const bottomPaddingSpacer = bottomPaddingContent / scale;
 
   return (
     <div
@@ -426,12 +428,12 @@ export function VirtualList<T>({
           : { width: "100%" }
       }
     >
-      <PaddingChunks height={topPadding} prefix="top" />
+      <PaddingChunks height={topPaddingSpacer} prefix="top" />
       <div style={{ position: "relative", height: renderedBandHeight }}>
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;
-          const top = vItem.start - topPadding;
+          const top = vItem.start - topPaddingContent;
           const child = renderRow(vItem.index, item);
           if (ItemSlot) {
             return (
@@ -466,7 +468,7 @@ export function VirtualList<T>({
           );
         })}
       </div>
-      <PaddingChunks height={bottomPadding} prefix="bot" />
+      <PaddingChunks height={bottomPaddingSpacer} prefix="bot" />
       {showProgress &&
         (FooterSlot ? (
           <FooterSlot />
