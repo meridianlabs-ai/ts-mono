@@ -4,6 +4,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  type ReactNode,
   type Ref,
 } from "react";
 
@@ -29,6 +30,21 @@ const BOTTOM_THRESHOLD_PX = 30;
 const SMOOTH_SCROLL_MAX_S = 10;
 const PERSIST_DEBOUNCE_MS = 250;
 const DEFAULT_ITEM_HEIGHT_PX = 400;
+const MAX_CHUNK_HEIGHT = 5_000_000;
+
+function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
+  if (height <= 0) return null;
+  const chunks: ReactNode[] = [];
+  let remaining = height;
+  let i = 0;
+  while (remaining > 0) {
+    const h = Math.min(remaining, MAX_CHUNK_HEIGHT);
+    chunks.push(<div key={`${prefix}-${i}`} style={{ height: h }} />);
+    remaining -= h;
+    i++;
+  }
+  return <>{chunks}</>;
+}
 
 type PreparedSearchTerms = {
   simple: string;
@@ -345,9 +361,58 @@ export function VirtualList<T>({
     countMatchesInData,
   ]);
 
+  // DEBUG: remove after investigation
+  const spacerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = getScrollElement();
+    const sp = spacerRef.current;
+    console.log("[VirtualList] mount diagnostics:", {
+      persistenceKey,
+      dataLength: data.length,
+      totalSize: virtualizer.getTotalSize(),
+      spacerHeight,
+      scrollElement: el?.tagName,
+      scrollElementClass: el?.className,
+      scrollHeight: el?.scrollHeight,
+      clientHeight: el?.clientHeight,
+      overflowY: el ? getComputedStyle(el).overflowY : null,
+      spacerOffsetHeight: sp?.offsetHeight,
+      spacerScrollHeight: sp?.scrollHeight,
+      spacerStyleHeight: sp?.style.height,
+      spacerComputedHeight: sp ? getComputedStyle(sp).height : null,
+      // Walk up from spacer to scroll element, check for clipping
+      parentChain: (() => {
+        const chain: string[] = [];
+        let node = sp?.parentElement;
+        while (node && node !== el?.parentElement) {
+          const s = getComputedStyle(node);
+          chain.push(
+            `${node.tagName}.${node.className.slice(0, 30)} overflow:${s.overflow}/${s.overflowY} h:${s.height} maxH:${s.maxHeight}`
+          );
+          node = node.parentElement;
+        }
+        return chain;
+      })(),
+    });
+  }, [
+    persistenceKey,
+    data.length,
+    getScrollElement,
+    spacerHeight,
+    virtualizer,
+  ]);
+
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
   const ownsScroll = !externalScrollRef;
+
+  // Firefox silently zeroes element heights above ~17M px. Chunk the
+  // scroll area into multiple divs so no single element exceeds the cap.
+  const topPadding = items.length > 0 ? (items[0]?.start ?? 0) : 0;
+  const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
+  const bottomPadding = lastItem
+    ? Math.max(0, spacerHeight - (lastItem.start + lastItem.size))
+    : spacerHeight;
 
   return (
     <div
@@ -361,31 +426,20 @@ export function VirtualList<T>({
           : { width: "100%" }
       }
     >
-      <div
-        className={styles.spacer}
-        style={{ height: spacerHeight, position: "relative" }}
-      >
+      <PaddingChunks height={topPadding} prefix="top" />
+      <div ref={spacerRef} style={{ position: "relative" }}>
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;
-          const top = vItem.start / scale;
-          const positionStyle = {
-            position: "absolute" as const,
-            top,
-            left: 0,
-            right: 0,
-          };
+          const top = vItem.start - topPadding;
           const child = renderRow(vItem.index, item);
           if (ItemSlot) {
-            // Outer wrapper holds the measureElement ref so TanStack can
-            // observe row size; ItemSlot renders inside without overriding
-            // the positioning the virtualizer needs.
             return (
               <div
                 key={vItem.key}
                 ref={virtualizer.measureElement}
                 data-index={vItem.index}
-                style={positionStyle}
+                style={{ position: "absolute", top, left: 0, right: 0 }}
               >
                 <ItemSlot
                   data-index={vItem.index}
@@ -405,13 +459,14 @@ export function VirtualList<T>({
               data-index={vItem.index}
               data-item-index={vItem.index}
               data-known-size={vItem.size}
-              style={positionStyle}
+              style={{ position: "absolute", top, left: 0, right: 0 }}
             >
               {child}
             </div>
           );
         })}
       </div>
+      <PaddingChunks height={bottomPadding} prefix="bot" />
       {showProgress && FooterSlot && <FooterSlot />}
     </div>
   );
