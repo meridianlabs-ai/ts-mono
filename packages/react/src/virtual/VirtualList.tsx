@@ -4,6 +4,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type ReactNode,
   type Ref,
 } from "react";
@@ -80,10 +81,28 @@ export function VirtualList<T>({
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
+  // Resolve externalScrollRef into state so TanStack gets a non-null
+  // scroll element even when the ref target mounts after us. Without
+  // this, the first trackpad swipe goes to the wrong scroll ancestor.
   const internalScrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!externalScrollRef) return;
+    const sync = () => {
+      setScrollParent((prev) =>
+        prev === externalScrollRef.current
+          ? prev
+          : (externalScrollRef.current ?? null)
+      );
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [externalScrollRef]);
   const getScrollElement = useCallback(
-    () => externalScrollRef?.current ?? internalScrollRef.current,
-    [externalScrollRef]
+    () => scrollParent ?? internalScrollRef.current,
+    [scrollParent]
   );
 
   const { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll } =
