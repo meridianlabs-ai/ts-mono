@@ -182,10 +182,15 @@ export function VirtualList<T>({
   // keeps the previous sample's scrollTop.
   const hasInitialScrolledRef = useRef(false);
   const lastInitialKeyRef = useRef<string | null>(null);
+  const lastInitialIndexRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (lastInitialKeyRef.current !== persistenceKey) {
+    if (
+      lastInitialKeyRef.current !== persistenceKey ||
+      lastInitialIndexRef.current !== initialIndex
+    ) {
       hasInitialScrolledRef.current = false;
       lastInitialKeyRef.current = persistenceKey;
+      lastInitialIndexRef.current = initialIndex ?? undefined;
     }
     if (hasInitialScrolledRef.current) return;
     const el = getScrollElement();
@@ -386,8 +391,16 @@ export function VirtualList<T>({
 
   // Firefox silently zeroes element heights above ~17M px. Chunk the
   // scroll area into multiple divs so no single element exceeds the cap.
-  const topPadding = items.length > 0 ? (items[0]?.start ?? 0) : 0;
+  // The middle container gets an explicit height equal to the rendered
+  // band so it contributes to normal flow — without it, scrollHeight
+  // is off by the rendered window and bottom-detection breaks.
+  const firstItem = items.length > 0 ? items[0] : undefined;
   const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
+  const topPadding = firstItem?.start ?? 0;
+  const renderedBandHeight =
+    firstItem && lastItem
+      ? lastItem.start + lastItem.size - firstItem.start
+      : 0;
   const bottomPadding = lastItem
     ? Math.max(0, spacerHeight - (lastItem.start + lastItem.size))
     : spacerHeight;
@@ -405,7 +418,7 @@ export function VirtualList<T>({
       }
     >
       <PaddingChunks height={topPadding} prefix="top" />
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", height: renderedBandHeight }}>
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;
