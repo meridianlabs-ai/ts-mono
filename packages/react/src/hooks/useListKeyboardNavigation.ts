@@ -41,15 +41,20 @@ export function useListKeyboardNavigation({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey)) return;
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      // Some macOS Firefox configurations remap Cmd+Down to End / Cmd+Up
+      // to Home. Accept both.
+      const isUp =
+        (event.key === "ArrowUp" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "Home" && (event.metaKey || event.ctrlKey));
+      const isDown =
+        (event.key === "ArrowDown" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "End" && (event.metaKey || event.ctrlKey));
+      if (!isUp && !isDown) return;
 
-      // Capture phase + stopImmediatePropagation so Firefox's default
-      // Cmd+Down "scroll one page" never gets a chance to fire.
       event.preventDefault();
       event.stopImmediatePropagation();
 
-      if (event.key === "ArrowUp") {
+      if (isUp) {
         if (!jumpTo(0) && listHandle.current) {
           listHandle.current.scrollToIndex({
             index: 0,
@@ -71,8 +76,14 @@ export function useListKeyboardNavigation({
       }
     };
 
+    // Attach to both window and document, capture phase, so Firefox's
+    // built-in "Cmd+Down → page-down" gets intercepted no matter which
+    // node first sees the event. Window is the outermost target; capture
+    // there means we fire before any default action.
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
     document.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
       document.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [listHandle, scrollRef, itemCount]);
