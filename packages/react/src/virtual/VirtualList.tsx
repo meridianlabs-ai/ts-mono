@@ -361,47 +361,6 @@ export function VirtualList<T>({
     countMatchesInData,
   ]);
 
-  // DEBUG: remove after investigation
-  const spacerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = getScrollElement();
-    const sp = spacerRef.current;
-    console.log("[VirtualList] mount diagnostics:", {
-      persistenceKey,
-      dataLength: data.length,
-      totalSize: virtualizer.getTotalSize(),
-      spacerHeight,
-      scrollElement: el?.tagName,
-      scrollElementClass: el?.className,
-      scrollHeight: el?.scrollHeight,
-      clientHeight: el?.clientHeight,
-      overflowY: el ? getComputedStyle(el).overflowY : null,
-      spacerOffsetHeight: sp?.offsetHeight,
-      spacerScrollHeight: sp?.scrollHeight,
-      spacerStyleHeight: sp?.style.height,
-      spacerComputedHeight: sp ? getComputedStyle(sp).height : null,
-      // Walk up from spacer to scroll element, check for clipping
-      parentChain: (() => {
-        const chain: string[] = [];
-        let node = sp?.parentElement;
-        while (node && node !== el?.parentElement) {
-          const s = getComputedStyle(node);
-          chain.push(
-            `${node.tagName}.${node.className.slice(0, 30)} overflow:${s.overflow}/${s.overflowY} h:${s.height} maxH:${s.maxHeight}`
-          );
-          node = node.parentElement;
-        }
-        return chain;
-      })(),
-    });
-  }, [
-    persistenceKey,
-    data.length,
-    getScrollElement,
-    spacerHeight,
-    virtualizer,
-  ]);
-
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
   const ownsScroll = !externalScrollRef;
@@ -427,7 +386,7 @@ export function VirtualList<T>({
       }
     >
       <PaddingChunks height={topPadding} prefix="top" />
-      <div ref={spacerRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;
