@@ -394,10 +394,10 @@ export class ReplicationService {
         this._database?.clearCacheForFile(file.name);
       }
 
-      // Drop any queued fetches for files that no longer exist
       if (deletedFiles.length > 0) {
-        this._previewQueue.clear();
-        this._detailQueue.clear();
+        const deletedNames = deletedFiles.map((f) => f.name);
+        this._previewQueue.removeByIds(deletedNames);
+        this._detailQueue.removeByIds(deletedNames);
       }
     }
 

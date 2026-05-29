@@ -1,43 +1,31 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { LogPreview } from "../client/api/types";
-
 import { clientEventsService } from "./clientEventsService";
 import { useLogs } from "./hooks";
-import { useApi, useStore } from "./store";
+import { storeImplementation, useApi, useStore } from "./store";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-  const currentLogs = useStore((state) => state.logs.logs);
   const api = useApi();
   const { loadLogOverviews } = useLogs();
-
-  // Refs so the callback always sees the latest values without
-  // re-creating itself (which would restart polling).
-  const logPreviewsRef = useRef<Record<string, LogPreview>>(logPreviews);
-  logPreviewsRef.current = logPreviews;
-
-  const currentLogsRef = useRef<LogHandle[]>(currentLogs);
-  currentLogsRef.current = currentLogs;
 
   const refreshCallback = useCallback(
     async (_reason: "event" | "periodic") => {
       log.debug(`Refresh Log Files (${_reason})`);
-      await syncLogs();
+      const currentLogs = await syncLogs();
 
-      // Read current state *after* sync completes
-      const logs = currentLogsRef.current;
-      const previews = logPreviewsRef.current;
+      // Read previews from the store *after* sync so we see the
+      // latest state rather than a stale closure capture.
+      const logPreviews = storeImplementation?.getState()?.logs.logPreviews;
 
       const toRefresh: LogHandle[] = [];
-      for (const logHandle of logs) {
-        const header = previews[logHandle.name];
+      for (const logHandle of currentLogs) {
+        const header = logPreviews?.[logHandle.name];
         if (!header || header.status === "started") {
           toRefresh.push(logHandle);
         }
