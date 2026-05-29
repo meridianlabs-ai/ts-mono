@@ -20,6 +20,12 @@ function isEditableTarget(el: Element | null): boolean {
   return false;
 }
 
+function isVirtualListHandle(
+  handle: VirtuosoHandle | VirtualListHandle
+): handle is VirtualListHandle {
+  return "jumpToStart" in handle;
+}
+
 export function useListKeyboardNavigation({
   listHandle,
   scrollRef,
@@ -36,7 +42,6 @@ export function useListKeyboardNavigation({
         (event.key === "End" && hasModifier);
       if (!isUp && !isDown) return;
 
-      // Don't hijack cursor navigation in editable elements
       if (isEditableTarget(document.activeElement)) return;
 
       event.preventDefault();
@@ -45,22 +50,29 @@ export function useListKeyboardNavigation({
       const handle = listHandle.current;
 
       if (isUp) {
-        if (handle && "jumpToStart" in handle) {
-          (handle as { jumpToStart(): void }).jumpToStart();
+        if (handle && isVirtualListHandle(handle)) {
+          handle.jumpToStart();
         } else if (handle) {
-          handle.scrollToIndex({ index: 0, align: "start", behavior: "auto" });
+          handle.scrollToIndex({ index: 0, align: "center" });
         } else {
           scrollRef?.current?.scrollTo({ top: 0 });
         }
       } else {
-        if (handle && "jumpToEnd" in handle) {
-          (handle as { jumpToEnd(): void }).jumpToEnd();
+        if (handle && isVirtualListHandle(handle)) {
+          handle.jumpToEnd();
         } else if (handle) {
+          // Virtuoso two-pass: scroll near bottom first so it measures
+          // the last rows, then land on the actual last item.
           handle.scrollToIndex({
-            index: Math.max(itemCount - 1, 0),
-            align: "end",
-            behavior: "auto",
+            index: Math.max(itemCount - 5, 0),
+            align: "center",
           });
+          setTimeout(() => {
+            listHandle.current?.scrollToIndex({
+              index: Math.max(itemCount - 1, 0),
+              align: "end",
+            });
+          }, 250);
         } else {
           const el = scrollRef?.current;
           if (el) el.scrollTop = el.scrollHeight;

@@ -130,7 +130,9 @@ test.describe("chat virtualization", () => {
     await openSample(page, network, messages);
 
     const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("message-0")).toBeVisible();
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible();
 
     // Virtualization: far fewer DOM nodes than total messages
     const renderedItems = await messagesArea.locator("[data-index]").count();
@@ -146,8 +148,12 @@ test.describe("chat virtualization", () => {
     await openSample(page, network, messages);
 
     const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("message-0")).toBeVisible();
-    await expect(messagesArea.getByText("message-1")).toBeVisible();
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible();
+    await expect(
+      messagesArea.getByText("message-1", { exact: true })
+    ).toBeVisible();
   });
 });
 
@@ -161,12 +167,14 @@ test.describe("keyboard navigation", () => {
     await openSample(page, network, messages);
 
     const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("message-0")).toBeVisible();
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible();
 
     await page.keyboard.press("Meta+ArrowDown");
-    await expect(messagesArea.getByText("message-199")).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(
+      messagesArea.getByText("message-199", { exact: true })
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("Cmd+ArrowUp jumps back to the first message", async ({
@@ -176,18 +184,21 @@ test.describe("keyboard navigation", () => {
     const messages = generateMessages(200);
     await openSample(page, network, messages);
 
-    // Jump to bottom first
-    await page.keyboard.press("Meta+ArrowDown");
     const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("message-199")).toBeVisible({
-      timeout: 5000,
-    });
+    // Wait for initial render before sending keyboard input
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible();
 
-    // Jump back to top
+    await page.keyboard.press("Meta+ArrowDown");
+    await expect(
+      messagesArea.getByText("message-199", { exact: true })
+    ).toBeVisible({ timeout: 5000 });
+
     await page.keyboard.press("Meta+ArrowUp");
-    await expect(messagesArea.getByText("message-0")).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -208,11 +219,15 @@ test.describe("scroll position", () => {
       `/#/logs/${encodedFile}/samples/sample/sample-a/1/messages`
     );
     const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("message-0")).toBeVisible();
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible();
 
     // Scroll sample A down
     await page.keyboard.press("Meta+ArrowDown");
-    await expect(messagesArea.getByText("message-199")).toBeVisible({
+    await expect(
+      messagesArea.getByText("message-199", { exact: true })
+    ).toBeVisible({
       timeout: 5000,
     });
 
@@ -221,7 +236,9 @@ test.describe("scroll position", () => {
       `/#/logs/${encodedFile}/samples/sample/sample-b/1/messages`
     );
     // Sample B should start at top, not at sample A's scroll position
-    await expect(messagesArea.getByText("message-0")).toBeVisible({
+    await expect(
+      messagesArea.getByText("message-0", { exact: true })
+    ).toBeVisible({
       timeout: 5000,
     });
   });
