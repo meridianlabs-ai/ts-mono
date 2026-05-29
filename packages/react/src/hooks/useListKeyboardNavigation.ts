@@ -6,7 +6,7 @@ import type { VirtualListHandle } from "../virtual/types";
 interface ListKeyboardNavigationOptions {
   /** Virtuoso or VirtualList handle — used when the list is virtualized. */
   listHandle: RefObject<VirtuosoHandle | VirtualListHandle | null>;
-  /** Scroll container — used as fallback when the list is not virtualized. */
+  /** Scroll container — required for jump-to-top/bottom (preferred path). */
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
   itemCount: number;
@@ -16,8 +16,11 @@ interface ListKeyboardNavigationOptions {
  * Registers Cmd/Ctrl+ArrowUp/Down keyboard shortcuts on `document` to jump
  * to the top or bottom of a virtualized (or plain-DOM) list.
  *
- * When the Virtuoso handle is available it delegates to `scrollToIndex`;
- * otherwise it falls back to `scrollTo` on the scroll container.
+ * Jumps use direct scrollTo on the scroll container, not virtualizer-aware
+ * positioning — virtualizers either need pre-measurement (which would
+ * require an extra round-trip) or animate across the full distance, which
+ * is visibly janky on huge lists. Direct scrollTo to scrollHeight/0 is
+ * instant regardless of measurement state.
  */
 export function useListKeyboardNavigation({
   listHandle,
@@ -30,32 +33,27 @@ export function useListKeyboardNavigation({
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        if (listHandle.current) {
-          listHandle.current.scrollToIndex({ index: 0, align: "center" });
-        } else {
-          scrollRef?.current?.scrollTo({ top: 0, behavior: "instant" });
+        const el = scrollRef?.current;
+        if (el) {
+          el.scrollTo({ top: 0, behavior: "instant" });
+        } else if (listHandle.current) {
+          listHandle.current.scrollToIndex({
+            index: 0,
+            align: "start",
+            behavior: "auto",
+          });
         }
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
-        if (listHandle.current) {
+        const el = scrollRef?.current;
+        if (el) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
+        } else if (listHandle.current) {
           listHandle.current.scrollToIndex({
-            index: Math.max(itemCount - 5, 0),
-            align: "center",
+            index: Math.max(itemCount - 1, 0),
+            align: "end",
+            behavior: "auto",
           });
-
-          // Virtuoso needs to measure the near-bottom items before it can
-          // accurately scroll to the very last item.
-          setTimeout(() => {
-            listHandle.current?.scrollToIndex({
-              index: Math.max(itemCount - 1, 0),
-              align: "end",
-            });
-          }, 250);
-        } else {
-          const el = scrollRef?.current;
-          if (el) {
-            el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
-          }
         }
       }
     };
