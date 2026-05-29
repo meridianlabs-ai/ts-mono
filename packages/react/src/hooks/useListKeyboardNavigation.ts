@@ -28,26 +28,39 @@ export function useListKeyboardNavigation({
   itemCount,
 }: ListKeyboardNavigationOptions): void {
   useEffect(() => {
+    const jumpTo = (top: number) => {
+      const el = scrollRef?.current;
+      if (!el) return false;
+      // Force-disable any scroll-behavior: smooth that would let Firefox
+      // animate the jump and let subsequent key presses interrupt it.
+      const prev = el.style.scrollBehavior;
+      el.style.scrollBehavior = "auto";
+      el.scrollTop = top;
+      el.style.scrollBehavior = prev;
+      return true;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+
+      // Capture phase + stopImmediatePropagation so Firefox's default
+      // Cmd+Down "scroll one page" never gets a chance to fire.
+      event.preventDefault();
+      event.stopImmediatePropagation();
 
       if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const el = scrollRef?.current;
-        if (el) {
-          el.scrollTo({ top: 0, behavior: "instant" });
-        } else if (listHandle.current) {
+        if (!jumpTo(0) && listHandle.current) {
           listHandle.current.scrollToIndex({
             index: 0,
             align: "start",
             behavior: "auto",
           });
         }
-      } else if (event.key === "ArrowDown") {
-        event.preventDefault();
+      } else {
         const el = scrollRef?.current;
         if (el) {
-          el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
+          jumpTo(el.scrollHeight);
         } else if (listHandle.current) {
           listHandle.current.scrollToIndex({
             index: Math.max(itemCount - 1, 0),
@@ -58,9 +71,9 @@ export function useListKeyboardNavigation({
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [listHandle, scrollRef, itemCount]);
 }
