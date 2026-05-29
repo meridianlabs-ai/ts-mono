@@ -112,7 +112,7 @@ export const SamplesPanel: FC = () => {
   // Polling for updated log files.
   const { startPolling, stopPolling } = useClientEvents();
   useEffect(() => {
-    startPolling([]);
+    startPolling();
     return () => {
       stopPolling();
     };

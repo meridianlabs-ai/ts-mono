@@ -1,4 +1,3 @@
-import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
 import { ClientAPI } from "../client/api/types";
@@ -14,40 +13,30 @@ class ClientEventsService {
   private currentPolling: ReturnType<typeof createPolling> | null = null;
   private abortController: AbortController | null = null;
   private isRefreshing = false;
-  private pendingLogs = new Set<LogHandle>();
-  private onRefreshCallback: ((logs: LogHandle[]) => Promise<void>) | null =
-    null;
+  private onRefreshCallback:
+    | ((reason: "event" | "periodic") => Promise<void>)
+    | null = null;
 
-  setRefreshCallback(callback: (logs: LogHandle[]) => Promise<void>) {
+  setRefreshCallback(
+    callback: (reason: "event" | "periodic") => Promise<void>
+  ) {
     this.onRefreshCallback = callback;
   }
 
-  private async refreshPendingLogFiles() {
+  private async refreshLogFiles(reason: "event" | "periodic") {
     if (this.isRefreshing || !this.onRefreshCallback) {
       return;
     }
 
-    do {
-      try {
-        const logFiles = [...this.pendingLogs];
-        this.pendingLogs.clear();
-        this.isRefreshing = true;
-
-        // Call the refresh callback
-        await this.onRefreshCallback(logFiles);
-      } finally {
-        this.isRefreshing = false;
-      }
-    } while (this.pendingLogs.size > 0);
+    this.isRefreshing = true;
+    try {
+      await this.onRefreshCallback(reason);
+    } finally {
+      this.isRefreshing = false;
+    }
   }
 
-  private async refreshLogFiles(logs: LogHandle[]) {
-    logs.forEach((file) => this.pendingLogs.add(file));
-    await this.refreshPendingLogFiles();
-  }
-
-  startPolling(logs: LogHandle[], api: ClientAPI) {
-    // Stop any existing polling
+  startPolling(api: ClientAPI) {
     this.stopPolling();
 
     this.abortController = new AbortController();
@@ -71,11 +60,11 @@ class ClientEventsService {
         }
 
         if ((events || []).includes(kRefreshEvent)) {
-          await this.refreshLogFiles(logs);
+          await this.refreshLogFiles("event");
         }
 
         if (pollingCount++ % 10 === 0) {
-          await this.refreshLogFiles(logs);
+          await this.refreshLogFiles("periodic");
         }
 
         return true;
@@ -103,7 +92,6 @@ class ClientEventsService {
   cleanup() {
     log.debug(`Cleanup`);
     this.stopPolling();
-    this.pendingLogs.clear();
     this.onRefreshCallback = null;
   }
 }

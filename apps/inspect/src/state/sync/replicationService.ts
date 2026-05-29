@@ -335,6 +335,10 @@ export class ReplicationService {
           this._database?.clearCacheForFile(file.name);
         }
 
+        // Drop stale queued work before scheduling new fetches
+        this._previewQueue.clear();
+        this._detailQueue.clear();
+
         // Apply the new list
         this._applicationContext?.setLogHandles(serverLogs.files);
 
@@ -382,13 +386,18 @@ export class ReplicationService {
     const response = await this._api.get_logs(mtime, clientFileCount);
     const updatedLogs = response.files;
 
-    // Find deleted file
     if (response.response_type === "full") {
       const deletedFiles = logFiles.filter((current) => {
         return !updatedLogs.find((f) => f.name === current.name);
       });
       for (const file of deletedFiles) {
         this._database?.clearCacheForFile(file.name);
+      }
+
+      // Drop any queued fetches for files that no longer exist
+      if (deletedFiles.length > 0) {
+        this._previewQueue.clear();
+        this._detailQueue.clear();
       }
     }
 

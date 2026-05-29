@@ -115,11 +115,10 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             .join(",") || "";
 
     if (current !== previous) {
-      // Always stop current polling first when logs change
       stopPolling();
 
       if (watchedLogs !== undefined) {
-        startPolling(watchedLogs);
+        startPolling();
       }
       previousWatchedLogs.current = watchedLogs;
     }
