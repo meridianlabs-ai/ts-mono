@@ -1,14 +1,5 @@
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import {
-  computeScale,
-  QUANTIZE_THRESHOLD,
-  SAFE_MAX_SPACER,
-  shouldRequantize,
-  toContent,
-  toSpacer,
-} from "./scale-coordinate-space";
+import { useCallback } from "react";
 
 export type ScaledVirtualizerOptions = {
   count: number;
@@ -25,6 +16,13 @@ export type ScaledVirtualizerResult = {
   toSpacerScroll: (contentScroll: number) => number;
 };
 
+// Phase 1 ships scale fixed at 1 (no compression). The spec's coordinate-
+// mapping design produces visible item overlap: it shrinks item positions in
+// the spacer without shrinking item heights, so adjacent items collide.
+// Real compression past the browser's max element height needs a custom
+// scroll-position proxy intercepting TanStack's reads — tracked in the spec's
+// Known Limitations section. For now, contentTotal under ~33M (Chrome) is
+// supported; Firefox caps lower at ~17M.
 export function useScaledVirtualizer(
   opts: ScaledVirtualizerOptions
 ): ScaledVirtualizerResult {
@@ -36,64 +34,14 @@ export function useScaledVirtualizer(
     overscan: opts.overscan ?? 5,
   });
 
-  const [scale, setScale] = useState(1);
-  const lastQuantizedTotalRef = useRef<number>(0);
-  const hasLoggedTelemetryRef = useRef(false);
+  const spacerHeight = virtualizer.getTotalSize();
+  const passthrough = useCallback((x: number) => x, []);
 
-  const contentTotal = virtualizer.getTotalSize();
-
-  useEffect(() => {
-    const lastTotal = lastQuantizedTotalRef.current;
-    if (shouldRequantize(scale, lastTotal, contentTotal, QUANTIZE_THRESHOLD)) {
-      const newScale = computeScale(contentTotal, SAFE_MAX_SPACER);
-      anchorScrollPositionAcrossScaleChange({
-        virtualizer,
-        oldScale: scale,
-        newScale,
-      });
-      setScale(newScale);
-      lastQuantizedTotalRef.current = contentTotal;
-      if (!hasLoggedTelemetryRef.current && newScale > 1) {
-        console.debug("[VirtualList] scaling engaged", {
-          contentTotal,
-          spacerHeight: contentTotal / newScale,
-          s: newScale,
-          itemCount: opts.count,
-        });
-        hasLoggedTelemetryRef.current = true;
-      }
-    }
-  }, [contentTotal, scale, virtualizer, opts.count]);
-
-  const spacerHeight = scale === 1 ? contentTotal : contentTotal / scale;
-
-  const toContentScroll = useCallback(
-    (spacerScroll: number) => toContent(spacerScroll, scale),
-    [scale]
-  );
-  const toSpacerScroll = useCallback(
-    (contentScroll: number) => toSpacer(contentScroll, scale),
-    [scale]
-  );
-
-  return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };
-}
-
-function anchorScrollPositionAcrossScaleChange(opts: {
-  virtualizer: Virtualizer<HTMLElement, Element>;
-  oldScale: number;
-  newScale: number;
-}) {
-  const { virtualizer, oldScale, newScale } = opts;
-  const scrollEl = virtualizer.scrollElement;
-  if (!scrollEl) return;
-
-  const items = virtualizer.getVirtualItems();
-  const topItem = items[0];
-  if (!topItem) return;
-
-  const oldSpacerTop = topItem.start / oldScale;
-  const viewportOffset = scrollEl.scrollTop - oldSpacerTop;
-  const newSpacerTop = topItem.start / newScale;
-  scrollEl.scrollTop = newSpacerTop + viewportOffset;
+  return {
+    virtualizer,
+    scale: 1,
+    spacerHeight,
+    toContentScroll: passthrough,
+    toSpacerScroll: passthrough,
+  };
 }
