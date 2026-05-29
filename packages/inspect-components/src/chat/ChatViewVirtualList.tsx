@@ -142,15 +142,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [id, display, labels, linking, tools, maxLabelLength]
     );
 
-    const resolvedClassName = Array.isArray(className)
-      ? className.join(" ")
-      : className;
-
     return (
       <VirtualList<ResolvedMessage>
         persistenceKey={`chat-${id}`}
         ref={listHandle}
-        className={resolvedClassName}
+        className={clsx(className)}
         scrollRef={scrollRef}
         data={collapsedMessages}
         renderRow={renderRow}
