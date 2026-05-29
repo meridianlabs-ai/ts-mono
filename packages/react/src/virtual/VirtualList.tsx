@@ -14,6 +14,7 @@ import {
   type ExtendedCountFn,
   type ExtendedFindFn,
 } from "../components/ExtendedFindContext";
+import { PulsingDots } from "../components/PulsingDots";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
 import { useRafThrottle } from "../hooks/useRafThrottle";
@@ -197,7 +198,15 @@ export function VirtualList<T>({
     if (!el) return;
     const snapshot = getRestoreSnapshot();
     requestAnimationFrame(() => {
-      if (snapshot) {
+      if (initialIndex != null) {
+        // Explicit navigation target (e.g., message deep link) always
+        // takes priority over persisted scroll state.
+        virtualizer.scrollToIndex(initialIndex, {
+          align: "start",
+          behavior: "auto",
+        });
+        if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
+      } else if (snapshot) {
         if (snapshot.totalCount === data.length) {
           el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
         } else {
@@ -205,12 +214,6 @@ export function VirtualList<T>({
           const clamped = Math.min(snapshot.scrollOffset, maxScroll);
           el.scrollTop = toSpacerScroll(clamped);
         }
-      } else if (initialIndex != null) {
-        virtualizer.scrollToIndex(initialIndex, {
-          align: "start",
-          behavior: "auto",
-        });
-        if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
       } else {
         el.scrollTop = 0;
       }
@@ -331,9 +334,15 @@ export function VirtualList<T>({
         if (item === undefined) continue;
         const texts = getText(item);
         const textArray = Array.isArray(texts) ? texts : [texts];
-        const hit = textArray.some((text) =>
-          text.toLowerCase().includes(prepared.simple)
-        );
+        const hit = textArray.some((text) => {
+          const lower = text.toLowerCase();
+          if (lower.includes(prepared.simple)) return true;
+          if (prepared.unquoted && lower.includes(prepared.unquoted))
+            return true;
+          if (prepared.jsonEscaped && lower.includes(prepared.jsonEscaped))
+            return true;
+          return false;
+        });
         if (hit) {
           virtualizer.scrollToIndex(i, { align: "center" });
           setTimeout(onContentReady, 200);
@@ -458,7 +467,20 @@ export function VirtualList<T>({
         })}
       </div>
       <PaddingChunks height={bottomPadding} prefix="bot" />
-      {showProgress && FooterSlot && <FooterSlot />}
+      {showProgress &&
+        (FooterSlot ? (
+          <FooterSlot />
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "1rem",
+            }}
+          >
+            <PulsingDots subtle={false} size="medium" />
+          </div>
+        ))}
     </div>
   );
 }

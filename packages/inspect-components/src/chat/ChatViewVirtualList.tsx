@@ -154,6 +154,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         stickyHeaderOffset={offsetTop}
         live={running}
         showProgress={running}
+        scrollToTopOnFinish={true}
         components={chatComponents}
         smoothScroll={false}
         itemSearchText={messageSearchText}
