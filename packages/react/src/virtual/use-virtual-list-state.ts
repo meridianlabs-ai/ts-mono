@@ -7,8 +7,8 @@ import type { VirtualListStateSnapshot } from "./types";
 const CURRENT_VERSION = 1 as const;
 
 export type UseVirtualListStateResult = {
-  getRestoreSnapshot(): VirtualListStateSnapshot | undefined;
-  recordSnapshot(snapshot: VirtualListStateSnapshot): void;
+  getRestoreSnapshot: () => VirtualListStateSnapshot | undefined;
+  recordSnapshot: (snapshot: VirtualListStateSnapshot) => void;
 };
 
 export function useVirtualListState(

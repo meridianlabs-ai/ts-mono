@@ -21,8 +21,8 @@ export type ScaledVirtualizerResult = {
   virtualizer: Virtualizer<HTMLElement, Element>;
   scale: number;
   spacerHeight: number;
-  toContentScroll(spacerScroll: number): number;
-  toSpacerScroll(contentScroll: number): number;
+  toContentScroll: (spacerScroll: number) => number;
+  toSpacerScroll: (contentScroll: number) => number;
 };
 
 export function useScaledVirtualizer(
