@@ -332,14 +332,19 @@ export function VirtualList<T>({
 
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
+  const ownsScroll = !externalScrollRef;
 
   return (
     <div
       ref={(el) => {
-        if (!externalScrollRef) internalScrollRef.current = el;
+        if (ownsScroll) internalScrollRef.current = el;
       }}
       className={clsx(styles.scroller, className)}
-      style={{ height: "100%", width: "100%", overflow: "auto" }}
+      style={
+        ownsScroll
+          ? { height: "100%", width: "100%", overflow: "auto" }
+          : { width: "100%" }
+      }
     >
       <div
         className={styles.spacer}
@@ -349,30 +354,43 @@ export function VirtualList<T>({
           const item = data[vItem.index];
           if (item === undefined) return null;
           const top = vItem.start / scale;
-          const slotProps = {
-            "data-index": vItem.index,
-            "data-item-index": vItem.index,
-            "data-known-size": vItem.size,
-            style: {
-              position: "absolute" as const,
-              top,
-              left: 0,
-              right: 0,
-            },
+          const positionStyle = {
+            position: "absolute" as const,
+            top,
+            left: 0,
+            right: 0,
           };
           const child = renderRow(vItem.index, item);
           if (ItemSlot) {
+            // Outer wrapper holds the measureElement ref so TanStack can
+            // observe row size; ItemSlot renders inside without overriding
+            // the positioning the virtualizer needs.
             return (
-              <ItemSlot key={vItem.key} {...slotProps}>
-                {child}
-              </ItemSlot>
+              <div
+                key={vItem.key}
+                ref={virtualizer.measureElement}
+                data-index={vItem.index}
+                style={positionStyle}
+              >
+                <ItemSlot
+                  data-index={vItem.index}
+                  data-item-index={vItem.index}
+                  data-known-size={vItem.size}
+                  style={{}}
+                >
+                  {child}
+                </ItemSlot>
+              </div>
             );
           }
           return (
             <div
               key={vItem.key}
-              {...slotProps}
               ref={virtualizer.measureElement}
+              data-index={vItem.index}
+              data-item-index={vItem.index}
+              data-known-size={vItem.size}
+              style={positionStyle}
             >
               {child}
             </div>
