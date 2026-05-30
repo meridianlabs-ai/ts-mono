@@ -20,7 +20,9 @@ import type {
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
+import { GeneratingIndicator } from "./GeneratingIndicator";
 import { computeMaxLabelLength } from "./labelLength";
+import { isLivePlaceholderMessage } from "./livePlaceholder";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {
@@ -124,8 +126,32 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [labels?.messageLabels]
     );
 
+    const lastIndex = collapsedMessages.length - 1;
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
+        if (
+          running &&
+          index === lastIndex &&
+          isLivePlaceholderMessage(item.message)
+        ) {
+          return (
+            <div className={styles.generatingRow}>
+              <div
+                className={clsx(
+                  "text-size-smaller",
+                  "text-style-secondary",
+                  styles.generatingLabel
+                )}
+                style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
+              >
+                {index + 1}
+              </div>
+              <div className={styles.generatingContent}>
+                <GeneratingIndicator />
+              </div>
+            </div>
+          );
+        }
         return (
           <ChatMessageRow
             index={index}
@@ -139,21 +165,20 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
           />
         );
       },
-      [id, display, labels, linking, tools, maxLabelLength]
+      [id, running, lastIndex, display, labels, linking, tools, maxLabelLength]
     );
 
     return (
       <VirtualList<ResolvedMessage>
         persistenceKey={`chat-${id}`}
         ref={listHandle}
-        className={clsx(className)}
+        className={clsx(styles.list, className)}
         scrollRef={scrollRef}
         data={collapsedMessages}
         renderRow={renderRow}
         initialIndex={initialMessageIndex}
         stickyHeaderOffset={offsetTop}
         live={running}
-        showProgress={running}
         scrollToTopOnFinish={true}
         components={chatComponents}
         smoothScroll={false}
