@@ -1,5 +1,4 @@
-import { StateSnapshot } from "react-virtuoso";
-
+import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 import { clearDocumentSelection } from "@tsmono/util";
 
 import { AppState } from "../app/types";
@@ -35,8 +34,8 @@ export interface AppSlice {
     getScrollPosition: (name: string) => number | undefined;
     setScrollPosition: (name: string, value: number) => void;
 
-    getListPosition: (name: string) => StateSnapshot | undefined;
-    setListPosition: (name: string, state: StateSnapshot) => void;
+    getListPosition: (name: string) => VirtualListStateSnapshot | undefined;
+    setListPosition: (name: string, state: VirtualListStateSnapshot) => void;
     clearListPosition: (name: string) => void;
 
     getVisibleRange: (name: string) => {
@@ -218,7 +217,7 @@ export const createAppSlice = (
           return undefined;
         }
       },
-      setListPosition: (name: string, position: StateSnapshot) => {
+      setListPosition: (name: string, position: VirtualListStateSnapshot) => {
         set((state) => {
           state.app.listPositions[name] = position;
         });

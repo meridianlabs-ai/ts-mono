@@ -1,5 +1,4 @@
 import { GridState } from "ag-grid-community";
-import { StateSnapshot } from "react-virtuoso";
 
 import {
   ApprovalEvent,
@@ -28,6 +27,7 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
 import {
   EvalHeader,
@@ -52,7 +52,7 @@ export interface AppState {
     options: boolean;
   };
   scrollPositions: Record<string, number>;
-  listPositions: Record<string, StateSnapshot>;
+  listPositions: Record<string, VirtualListStateSnapshot>;
   visibleRanges: Record<
     string,
     { startIndex: number; endIndex: number; totalCount: number }

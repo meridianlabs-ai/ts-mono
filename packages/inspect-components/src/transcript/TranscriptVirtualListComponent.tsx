@@ -10,9 +10,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { VirtuosoHandle } from "react-virtuoso";
 
-import { LiveVirtualList } from "@tsmono/react/components";
+import { VirtualList } from "@tsmono/react/virtual";
+import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
@@ -22,7 +22,7 @@ import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface TranscriptVirtualListComponentProps {
   id: string;
-  listHandle: RefObject<VirtuosoHandle | null>;
+  listHandle: RefObject<VirtualListHandle | null>;
   eventNodes: EventNode[];
   initialEventId?: string | null;
   offsetTop?: number;
@@ -209,19 +209,20 @@ export const TranscriptVirtualListComponent: FC<
 
   if (useVirtualization) {
     return (
-      <LiveVirtualList<EventNode>
-        listHandle={listHandle}
+      <VirtualList<EventNode>
+        ref={listHandle}
         className={className}
-        id={id}
+        persistenceKey={id}
         scrollRef={scrollRef}
         data={eventNodes}
-        initialTopMostItemIndex={initialEventIndex}
-        offsetTop={offsetTop}
+        initialIndex={initialEventIndex}
+        stickyHeaderOffset={offsetTop}
         renderRow={renderRow}
         live={running}
-        animation={!!running}
+        smoothScroll={!!running}
+        scrollToTopOnFinish={true}
         itemSearchText={eventSearchText}
-        disableFindRegistration={true}
+        findScope="none"
         onVisibleRangeChange={(range) => {
           if (visibleRangeRef) visibleRangeRef.current = range;
         }}

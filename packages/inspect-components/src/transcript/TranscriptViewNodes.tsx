@@ -15,11 +15,11 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { VirtuosoHandle } from "react-virtuoso";
 
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { StickyScrollProvider } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
+import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
   computeTurnMap,
@@ -141,7 +141,7 @@ function measureStickyBottom(container: HTMLElement, fallback: number): number {
 }
 
 interface ScrollToEventTargetOptions {
-  listHandle: VirtuosoHandle | null;
+  listHandle: VirtualListHandle | null;
   index: number;
   container: HTMLElement;
   /** CSS selector for the DOM element that should land at the top — either
@@ -253,7 +253,7 @@ export const TranscriptViewNodes = forwardRef<
   },
   ref
 ) {
-  const listHandle = useRef<VirtuosoHandle | null>(null);
+  const listHandle = useRef<VirtualListHandle | null>(null);
 
   const getCollapsed = useCallback(
     (nodeId: string) => {
