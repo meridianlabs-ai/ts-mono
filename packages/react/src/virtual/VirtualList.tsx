@@ -206,18 +206,25 @@ export function VirtualList<T>({
           behavior: "auto",
         });
         if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
+        hasInitialScrolledRef.current = true;
       } else if (snapshot) {
-        if (snapshot.totalCount === data.length) {
-          el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
-        } else {
-          const maxScroll = Math.max(0, contentTotal - el.clientHeight);
-          const clamped = Math.min(snapshot.scrollOffset, maxScroll);
-          el.scrollTop = toSpacerScroll(clamped);
+        // Restore from snapshot only if the user hasn't already
+        // scrolled (e.g. snapshot rehydrated late and they reached for
+        // the wheel before it arrived — don't fight them).
+        if (el.scrollTop === 0) {
+          if (snapshot.totalCount === data.length) {
+            el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
+          } else {
+            const maxScroll = Math.max(0, contentTotal - el.clientHeight);
+            const clamped = Math.min(snapshot.scrollOffset, maxScroll);
+            el.scrollTop = toSpacerScroll(clamped);
+          }
         }
-      } else {
-        el.scrollTop = 0;
+        hasInitialScrolledRef.current = true;
       }
-      hasInitialScrolledRef.current = true;
+      // No snapshot yet: leave scrollTop at 0 and don't commit the
+      // one-shot guard. The effect re-fires when the snapshot
+      // rehydrates from Zustand-persist (vscodeApi.setState backing).
     });
   }, [
     persistenceKey,
