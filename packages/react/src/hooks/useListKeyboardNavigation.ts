@@ -1,6 +1,8 @@
 import { RefObject, useEffect } from "react";
 import { VirtuosoHandle } from "react-virtuoso";
 
+import { isEditableTarget } from "@tsmono/util";
+
 import type { VirtualListHandle } from "../virtual/types";
 
 interface ListKeyboardNavigationOptions {
@@ -10,14 +12,6 @@ interface ListKeyboardNavigationOptions {
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
   itemCount: number;
-}
-
-function isEditableTarget(el: Element | null): boolean {
-  if (!el) return false;
-  const tag = el.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  if ((el as HTMLElement).isContentEditable) return true;
-  return false;
 }
 
 function isVirtualListHandle(
