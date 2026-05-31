@@ -115,13 +115,23 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const [showAllMessages, setShowAllMessages] = useState(false);
 
   const summaryMessages = useMemo(() => {
-    const outputs = (outputMessages || []).filter(
-      (m) => !isLivePlaceholderMessage(m)
-    );
+    // Filter the synthetic empty-assistant placeholder only while the
+    // event is in flight — once it completes, the same predicate would
+    // also drop legitimate tool_use-only outputs, since
+    // isLivePlaceholderMessage treats those as "no visible content".
+    const outputs = event.pending
+      ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+      : outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
-  }, [showAllMessages, event.input, outputMessages, userMessages]);
+  }, [
+    showAllMessages,
+    event.input,
+    event.pending,
+    outputMessages,
+    userMessages,
+  ]);
 
   const summaryLabels = useMemo(() => {
     const map = context?.messageLabels;
