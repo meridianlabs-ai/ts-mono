@@ -411,7 +411,12 @@ export function VirtualList<T>({
   return (
     <div
       ref={(el) => {
-        if (ownsScroll) internalScrollRef.current = el;
+        if (!ownsScroll) return;
+        internalScrollRef.current = el;
+        // Push the mounted element into state so getScrollElement gets a
+        // fresh identity and TanStack re-polls — without this, the first
+        // render passes a null scroll element and TanStack caches that.
+        setScrollParent((prev) => (prev === el ? prev : el));
       }}
       className={clsx(styles.scroller, className)}
       style={
