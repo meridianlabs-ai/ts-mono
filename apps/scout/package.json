@@ -97,6 +97,7 @@
     "zstd-codec": "^0.1.5"
   },
   "dependencies": {
+    "@duckdb/duckdb-wasm": "1.33.1-dev45.0",
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.3",
