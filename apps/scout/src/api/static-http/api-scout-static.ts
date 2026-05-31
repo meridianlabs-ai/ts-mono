@@ -1,5 +1,8 @@
+import { decompress as decompressZstd } from "fzstd";
+
 import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
+import { asyncJsonParse } from "@tsmono/util";
 
 import type { Condition, OrderByModel } from "../../query";
 import {
@@ -12,6 +15,7 @@ import {
   ProjectConfigInput,
   Result,
   ScanJobConfig,
+  ScanRow,
   ScannerInputResponse,
   ScannersResponse,
   ScansResponse,
@@ -37,10 +41,13 @@ import { resolveAttachments } from "../attachmentsHelpers";
 import { expandInputEvents } from "../expandInputEvents";
 
 import {
-  applyOrderBy,
-  applyPagination,
-  evaluateCondition,
-} from "./condition-eval";
+  buildListingSql,
+  conditionToSql,
+  limitParams,
+  quoteIdentifier,
+  quoteLiteral,
+} from "./condition-sql";
+import { StaticDuckDB } from "./duckdb-engine";
 
 export class StaticBundleError extends Error {
   constructor(operation: string) {
@@ -60,6 +67,15 @@ export interface StaticBundleContext {
   scansDir?: string;
 }
 
+interface ScanCatalogRow {
+  bundleId: string;
+  statusPath: string;
+  scannerPaths: Record<string, string>;
+}
+
+const TRANSCRIPTS_CATALOG = "transcripts_catalog.parquet";
+const SCANS_CATALOG = "scans_catalog.parquet";
+
 const joinUrl = (base: string, ...parts: string[]): string => {
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
   const cleaned = parts
@@ -73,23 +89,20 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
-  return (await res.json()) as T;
+  return asyncJsonParse<T>(await res.text());
 };
 
-const fetchOk = async (url: string): Promise<Response> => {
+const fetchZstdJson = async <T>(url: string): Promise<T> => {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
-  return res;
+  const decompressed = decompressZstd(new Uint8Array(await res.arrayBuffer()));
+  return asyncJsonParse<T>(new TextDecoder().decode(decompressed));
 };
 
 const unsupported = <T>(op: string): Promise<T> =>
   Promise.reject(new StaticBundleError(op));
-
-/** Mirror the Python bundler's filesystem-safe transcript id encoding. */
-const sanitizeTranscriptId = (id: string): string =>
-  id.replace(/\//g, "_").replace(/\\/g, "_");
 
 /** Base64url-encode a UTF-8 string (no `=` padding), matching the bundler. */
 const base64UrlEncode = (input: string): string => {
@@ -108,28 +121,19 @@ export const apiScoutStatic = (
   context: StaticBundleContext = {}
 ): ScoutApiV2 => {
   const baseUrl = context.bundleBaseUrl ?? "./api";
+  const db = new StaticDuckDB();
 
-  // Cached listings — fetched lazily, reused across method calls.
-  let transcriptsListing: Promise<TranscriptsResponse> | undefined;
-  let scansListing: Promise<ScansResponse> | undefined;
+  const registerTranscriptsCatalog = (): Promise<void> =>
+    db.registerHttpFile(
+      TRANSCRIPTS_CATALOG,
+      joinUrl(baseUrl, "transcripts", "catalog.parquet")
+    );
 
-  const getTranscriptsListing = (): Promise<TranscriptsResponse> => {
-    if (!transcriptsListing) {
-      transcriptsListing = fetchJson<TranscriptsResponse>(
-        joinUrl(baseUrl, "transcripts", "listing.json")
-      );
-    }
-    return transcriptsListing;
-  };
-
-  const getScansListing = (): Promise<ScansResponse> => {
-    if (!scansListing) {
-      scansListing = fetchJson<ScansResponse>(
-        joinUrl(baseUrl, "scans", "listing.json")
-      );
-    }
-    return scansListing;
-  };
+  const registerScansCatalog = (): Promise<void> =>
+    db.registerHttpFile(
+      SCANS_CATALOG,
+      joinUrl(baseUrl, "scans", "catalog.parquet")
+    );
 
   return {
     capability: "workbench",
@@ -156,22 +160,21 @@ export const apiScoutStatic = (
       return () => {};
     },
 
-    // --- Listings (filter/sort/paginate applied client-side) ---
-
     getTranscripts: async (
       _transcriptsDir: string,
       filter?: Condition,
       orderBy?: OrderByModel | OrderByModel[],
       pagination?: Pagination
     ): Promise<TranscriptsResponse> => {
-      const listing = await getTranscriptsListing();
-      return applyListingQuery(
-        listing.items,
+      await registerTranscriptsCatalog();
+      return queryCatalogListing<TranscriptInfo>(
+        db,
+        TRANSCRIPTS_CATALOG,
+        "transcript_id",
         filter,
         orderBy,
-        pagination,
-        "transcript_id"
-      ) as TranscriptsResponse;
+        pagination
+      );
     },
 
     getScans: async (
@@ -180,14 +183,15 @@ export const apiScoutStatic = (
       orderBy?: OrderByModel | OrderByModel[],
       pagination?: Pagination
     ): Promise<ScansResponse> => {
-      const listing = await getScansListing();
-      return applyListingQuery(
-        listing.items,
+      await registerScansCatalog();
+      return queryCatalogListing<ScanRow>(
+        db,
+        SCANS_CATALOG,
+        "scan_id",
         filter,
         orderBy,
-        pagination,
-        "scan_id"
-      ) as ScansResponse;
+        pagination
+      );
     },
 
     getTranscriptsColumnValues: async (
@@ -195,8 +199,8 @@ export const apiScoutStatic = (
       column: string,
       filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
-      const { items } = await getTranscriptsListing();
-      return collectDistinct(filterItems(items, filter), column);
+      await registerTranscriptsCatalog();
+      return queryDistinct(db, TRANSCRIPTS_CATALOG, column, filter);
     },
 
     getScansColumnValues: async (
@@ -204,32 +208,42 @@ export const apiScoutStatic = (
       column: string,
       filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
-      const { items } = await getScansListing();
-      return collectDistinct(filterItems(items, filter), column);
+      await registerScansCatalog();
+      return queryDistinct(db, SCANS_CATALOG, column, filter);
     },
-
-    // --- Single-item reads ---
 
     hasTranscript: async (
       _transcriptsDir: string,
       id: string
     ): Promise<boolean> => {
-      const { items } = await getTranscriptsListing();
-      return items.some((info) => info.transcript_id === id);
+      await registerTranscriptsCatalog();
+      const rows = await db.queryObjects(
+        `SELECT COUNT(*) AS total_count FROM ${catalogTable(
+          TRANSCRIPTS_CATALOG
+        )} WHERE "transcript_id" = ?`,
+        [id]
+      );
+      return numberField(firstRow(rows), "total_count") > 0;
     },
 
     getTranscript: async (
       _transcriptsDir: string,
       id: string
     ): Promise<Transcript> => {
-      const safe = sanitizeTranscriptId(id);
-      const transcriptUrl = joinUrl(baseUrl, "transcripts", safe);
-      const [info, parsed] = await Promise.all([
-        fetchJson<TranscriptInfo>(joinUrl(transcriptUrl, "info.json")),
-        fetchJson<MessagesEventsResponse>(
-          joinUrl(transcriptUrl, "messages-events.json")
-        ),
-      ]);
+      await registerTranscriptsCatalog();
+      const rows = await db.queryObjects(
+        `SELECT row_json, content_path FROM ${catalogTable(
+          TRANSCRIPTS_CATALOG
+        )} WHERE "transcript_id" = ? LIMIT 1`,
+        [id]
+      );
+      const row = firstRow(rows, `Transcript '${id}' not found`);
+      const info = await asyncJsonParse<TranscriptInfo>(
+        stringField(row, "row_json")
+      );
+      const parsed = await fetchZstdJson<MessagesEventsResponse>(
+        joinUrl(baseUrl, stringField(row, "content_path"))
+      );
 
       const { messages, timelines, attachments } = parsed;
       const events = expandEvents(parsed.events, parsed.events_data ?? null);
@@ -246,19 +260,29 @@ export const apiScoutStatic = (
       };
     },
 
-    getScan: (_scansDir: string, scanPath: string): Promise<Status> =>
-      fetchJson<Status>(joinUrl(baseUrl, "scans", scanPath, "status.json")),
+    getScan: async (_scansDir: string, scanPath: string): Promise<Status> => {
+      await registerScansCatalog();
+      const row = await lookupScanCatalogRow(db, scanPath);
+      return fetchJson<Status>(joinUrl(baseUrl, row.statusPath));
+    },
 
     getScannerDataframe: async (
       _scansDir: string,
       scanPath: string,
       scanner: string,
-      _excludeColumns?: string[]
-    ): Promise<ArrayBuffer> => {
-      const res = await fetchOk(
-        joinUrl(baseUrl, "scans", scanPath, "scanners", `${scanner}.arrow`)
+      excludeColumns?: string[]
+    ): Promise<Uint8Array> => {
+      await registerScansCatalog();
+      const parquetName = await registerScannerParquet(
+        db,
+        baseUrl,
+        await lookupScanCatalogRow(db, scanPath),
+        scanner
       );
-      return res.arrayBuffer();
+      const projection = scannerProjection(excludeColumns);
+      return db.queryArrowIpc(
+        `SELECT ${projection} FROM ${catalogTable(parquetName)}`
+      );
     },
 
     getScannerDataframeDetail: async (
@@ -267,36 +291,36 @@ export const apiScoutStatic = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
-      const parsed = await fetchJson<
-        ScannerInputResponse & { scan_events: Event[] }
-      >(
-        joinUrl(baseUrl, "scans", scanPath, "details", scanner, `${uuid}.json`)
+      await registerScansCatalog();
+      const parquetName = await registerScannerParquet(
+        db,
+        baseUrl,
+        await lookupScanCatalogRow(db, scanPath),
+        scanner
       );
+      const rows = await db.queryObjects(
+        `SELECT * FROM ${catalogTable(parquetName)} WHERE "uuid" = ? LIMIT 1`,
+        [uuid]
+      );
+      const row = firstRow(rows, `No row found for uuid: ${uuid}`);
+      const inputType = scannerInputType(row);
+      const input = await asyncJsonParse<ScannerInputResponse["input"]>(
+        stringField(row, "input")
+      );
+      const inputData = await parseOptionalJson<
+        ScannerInputResponse["input_data"]
+      >(row, "input_data");
+      const scanEvents =
+        (await parseOptionalJson<Event[]>(row, "scan_events")) ?? [];
+
       return {
         input: {
-          input_type: parsed.input_type,
-          input: expandInputEvents(
-            parsed.input,
-            parsed.input_type,
-            parsed.input_data
-          ),
+          input_type: inputType,
+          input: expandInputEvents(input, inputType, inputData ?? null),
         },
-        scanEvents: parsed.scan_events ?? [],
+        scanEvents,
       };
     },
-
-    downloadScan: async (
-      _scansDir: string,
-      scanPath: string
-    ): Promise<Blob> => {
-      const res = await fetchOk(
-        joinUrl(baseUrl, "scans", scanPath, "archive.zip")
-      );
-      const data = await res.arrayBuffer();
-      return new Blob([data], { type: "application/zip" });
-    },
-
-    // --- Validations ---
 
     getValidationSets: (): Promise<string[]> =>
       fetchJson<string[]>(joinUrl(baseUrl, "validations", "sets.json")),
@@ -320,8 +344,6 @@ export const apiScoutStatic = (
       return found;
     },
 
-    // --- Search / recent (cached results only) ---
-
     getSearches: (): Promise<SearchInputListResponse> =>
       Promise.resolve({ items: [] }),
 
@@ -331,8 +353,6 @@ export const apiScoutStatic = (
       _searchId: string,
       _scope: SearchResultScope
     ): Promise<Result | null> => Promise.resolve(null),
-
-    // --- Mutation methods: always throw in static mode ---
 
     postCode: (_condition: Condition): Promise<Record<string, string>> =>
       unsupported("postCode"),
@@ -375,62 +395,201 @@ export const apiScoutStatic = (
   };
 };
 
-/** Apply filter + orderBy + cursor pagination matching the server semantics. */
-const applyListingQuery = (
-  rows: readonly object[],
+const queryCatalogListing = async <T extends object>(
+  db: StaticDuckDB,
+  catalogName: string,
+  idColumn: string,
   filter: Condition | undefined,
   orderBy: OrderByModel | OrderByModel[] | undefined,
-  pagination: Pagination | undefined,
-  idColumn: string
-): { items: object[]; total_count: number; next_cursor: object | null } => {
-  const filtered = filterItems(rows, filter);
-  const ordered = applyOrderBy(filtered as Record<string, unknown>[], orderBy);
-  const { items, nextCursor } = applyPagination(
-    ordered,
-    orderBy,
-    pagination,
-    idColumn
+  pagination: Pagination | undefined
+): Promise<{
+  items: T[];
+  total_count: number;
+  next_cursor: Record<string, ScalarValue> | null;
+}> => {
+  const listingSql = buildListingSql(filter, orderBy, pagination, idColumn);
+  const table = catalogTable(catalogName);
+  const countWhere = listingSql.countWhere
+    ? ` WHERE ${listingSql.countWhere.sql}`
+    : "";
+  const rowsWhere = listingSql.where ? ` WHERE ${listingSql.where.sql}` : "";
+
+  const [countRows, rows] = await Promise.all([
+    db.queryObjects(
+      `SELECT COUNT(*) AS total_count FROM ${table}${countWhere}`,
+      listingSql.countWhere?.params ?? []
+    ),
+    db.queryObjects(
+      `SELECT row_json FROM ${table}${rowsWhere}${listingSql.orderBy}${listingSql.limit}`,
+      [...(listingSql.where?.params ?? []), ...limitParams(pagination)]
+    ),
+  ]);
+
+  const items = await Promise.all(
+    rows.map((row) => asyncJsonParse<T>(stringField(row, "row_json")))
   );
+  if (listingSql.needsReverse) {
+    items.reverse();
+  }
+
+  const edgeItem =
+    pagination && items.length === pagination.limit
+      ? pagination.direction === "forward"
+        ? items.at(-1)
+        : items[0]
+      : undefined;
+  const nextCursor = edgeItem
+    ? buildCursor(edgeItem, listingSql.orderColumns)
+    : null;
+
   return {
     items,
-    total_count: filtered.length,
+    total_count: numberField(firstRow(countRows), "total_count"),
     next_cursor: nextCursor,
   };
 };
 
-/** Filter row collection by a Condition; returns all rows if no filter. */
-const filterItems = (
-  rows: readonly object[],
+const queryDistinct = async (
+  db: StaticDuckDB,
+  catalogName: string,
+  column: string,
   filter: Condition | undefined
-): object[] => {
-  if (!filter) return [...rows];
-  return rows.filter((row) =>
-    evaluateCondition(row as Record<string, unknown>, filter)
+): Promise<ScalarValue[]> => {
+  const table = catalogTable(catalogName);
+  const where = filter ? buildListingWhere(filter) : null;
+  const whereClause = where ? ` WHERE ${where.sql}` : "";
+  const columnSql = quoteIdentifier(column);
+  const rows = await db.queryObjects(
+    `SELECT DISTINCT ${columnSql} AS value FROM ${table}${whereClause} ORDER BY ${columnSql} ASC`,
+    where?.params ?? []
   );
+  return rows.map((row) => scalarValue(objectField(row, "value")));
 };
 
-/** Compute distinct sorted scalar values for a column across a row collection. */
-const collectDistinct = (
-  rows: readonly object[],
-  column: string
-): ScalarValue[] => {
-  const seen = new Set<string>();
-  const out: ScalarValue[] = [];
-  for (const row of rows) {
-    const raw = (row as Record<string, unknown>)[column];
-    if (raw === undefined) continue;
-    const value = raw as ScalarValue;
-    const key =
-      value === null ? "__null__" : `${typeof value}:${String(value)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(value);
+const buildListingWhere = (filter: Condition) => conditionToSql(filter);
+
+const lookupScanCatalogRow = async (
+  db: StaticDuckDB,
+  scanPath: string
+): Promise<ScanCatalogRow> => {
+  const rows = await db.queryObjects(
+    `SELECT bundle_id, status_path, scanner_paths_json FROM ${catalogTable(
+      SCANS_CATALOG
+    )} WHERE "static_path" = ? OR "scan_id" = ? OR "location" = ? LIMIT 1`,
+    [scanPath, scanPath, scanPath]
+  );
+  const row = firstRow(rows, `Scan '${scanPath}' not found`);
+  return {
+    bundleId: stringField(row, "bundle_id"),
+    statusPath: stringField(row, "status_path"),
+    scannerPaths: await asyncJsonParse<Record<string, string>>(
+      stringField(row, "scanner_paths_json")
+    ),
+  };
+};
+
+const registerScannerParquet = async (
+  db: StaticDuckDB,
+  baseUrl: string,
+  scan: ScanCatalogRow,
+  scanner: string
+): Promise<string> => {
+  const scannerPath = scan.scannerPaths[scanner];
+  if (!scannerPath) {
+    throw new Error(`Scanner '${scanner}' not found in scan '${scan.bundleId}'`);
   }
-  out.sort((a, b) => {
-    if (a === b) return 0;
-    if (a === null) return -1;
-    if (b === null) return 1;
-    return a < b ? -1 : 1;
-  });
-  return out;
+  const parquetName = `scan_${scan.bundleId}_${base64UrlEncode(scanner)}.parquet`;
+  await db.registerHttpFile(parquetName, joinUrl(baseUrl, scannerPath));
+  return parquetName;
+};
+
+const scannerProjection = (excludeColumns: string[] | undefined): string => {
+  const excluded = (excludeColumns ?? [])
+    .map((column) => column.trim())
+    .filter((column) => column.length > 0);
+  if (excluded.length === 0) return "*";
+  return `* EXCLUDE (${excluded.map(quoteIdentifier).join(", ")})`;
+};
+
+const catalogTable = (catalogName: string): string =>
+  `read_parquet(${quoteLiteral(catalogName)})`;
+
+const buildCursor = <T extends object>(
+  row: T,
+  orderColumns: OrderByModel[]
+): Record<string, ScalarValue> => {
+  const cursor: Record<string, ScalarValue> = {};
+  for (const ob of orderColumns) {
+    cursor[ob.column] = scalarValue(objectField(row, ob.column));
+  }
+  return cursor;
+};
+
+const parseOptionalJson = async <T>(
+  row: object,
+  column: string
+): Promise<T | null> => {
+  const raw = objectField(row, column);
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw !== "string") {
+    throw new Error(`Expected JSON string column '${column}'`);
+  }
+  return asyncJsonParse<T>(raw);
+};
+
+const firstRow = (rows: object[], error = "Expected at least one row"): object => {
+  const row = rows[0];
+  if (!row) throw new Error(error);
+  return row;
+};
+
+const objectField = (row: object, field: string): unknown => {
+  for (const [key, value] of Object.entries(row)) {
+    if (key === field) return value;
+  }
+  return undefined;
+};
+
+const stringField = (row: object, field: string): string => {
+  const value = objectField(row, field);
+  if (typeof value !== "string") {
+    throw new Error(`Expected string field '${field}'`);
+  }
+  return value;
+};
+
+const numberField = (row: object, field: string): number => {
+  const value = objectField(row, field);
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
+  throw new Error(`Expected numeric field '${field}'`);
+};
+
+const scalarValue = (value: unknown): ScalarValue => {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+  if (value === undefined) return null;
+  throw new Error(`Expected scalar value, received ${typeof value}`);
+};
+
+const scannerInputType = (row: object): ScannerInputResponse["input_type"] => {
+  const value = stringField(row, "input_type");
+  if (
+    value === "transcript" ||
+    value === "event" ||
+    value === "events" ||
+    value === "message" ||
+    value === "messages" ||
+    value === "timeline" ||
+    value === "timelines"
+  ) {
+    return value;
+  }
+  throw new Error(`Unsupported scanner input type: ${value}`);
 };
