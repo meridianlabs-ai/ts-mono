@@ -18,11 +18,12 @@ import type {
   VirtualListItemProps,
 } from "@tsmono/react/virtual";
 
+import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
+import { isLivePlaceholderMessage } from "../indicators/livePlaceholder";
+
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
-import { GeneratingIndicator } from "./GeneratingIndicator";
 import { computeMaxLabelLength } from "./labelLength";
-import { isLivePlaceholderMessage } from "./livePlaceholder";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {

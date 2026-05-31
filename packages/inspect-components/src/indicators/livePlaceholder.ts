@@ -1,12 +1,12 @@
-import type { Message } from "./messages";
+import type { ChatMessage } from "@tsmono/inspect-common/types";
 
-export function isLivePlaceholderMessage(message: Message): boolean {
+export function isLivePlaceholderMessage(message: ChatMessage): boolean {
   if (message.role !== "assistant") return false;
   if (message.tool_calls && message.tool_calls.length > 0) return false;
   return !messageHasVisibleContent(message);
 }
 
-function messageHasVisibleContent(message: Message): boolean {
+function messageHasVisibleContent(message: ChatMessage): boolean {
   const content = message.content;
   if (typeof content === "string") {
     return content.trim().length > 0;
