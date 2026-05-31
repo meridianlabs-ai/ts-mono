@@ -14,6 +14,7 @@ import {
   type ExtendedCountFn,
   type ExtendedFindFn,
 } from "../components/ExtendedFindContext";
+import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
@@ -46,22 +47,6 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
     i++;
   }
   return <>{chunks}</>;
-}
-
-type PreparedSearchTerms = {
-  simple: string;
-  unquoted?: string;
-  jsonEscaped?: string;
-};
-
-function prepareSearchTerm(term: string): PreparedSearchTerms {
-  const lower = term.toLowerCase();
-  if (!term.includes('"') && !term.includes(":")) return { simple: lower };
-  return {
-    simple: lower,
-    unquoted: lower.replace(/"/g, ""),
-    jsonEscaped: lower.replace(/"/g, '\\"'),
-  };
 }
 
 export function VirtualList<T>({

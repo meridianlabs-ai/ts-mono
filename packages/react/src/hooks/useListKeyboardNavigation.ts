@@ -1,23 +1,15 @@
 import { RefObject, useEffect } from "react";
-import { VirtuosoHandle } from "react-virtuoso";
 
 import { isEditableTarget } from "@tsmono/util";
 
 import type { VirtualListHandle } from "../virtual/types";
 
 interface ListKeyboardNavigationOptions {
-  /** Virtuoso or VirtualList handle — used when the list is virtualized. */
-  listHandle: RefObject<VirtuosoHandle | VirtualListHandle | null>;
+  listHandle: RefObject<VirtualListHandle | null>;
   /** Scroll container — required for jump-to-top/bottom (preferred path). */
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
   itemCount: number;
-}
-
-function isVirtualListHandle(
-  handle: VirtuosoHandle | VirtualListHandle
-): handle is VirtualListHandle {
-  return "jumpToStart" in handle;
 }
 
 export function useListKeyboardNavigation({
@@ -44,29 +36,14 @@ export function useListKeyboardNavigation({
       const handle = listHandle.current;
 
       if (isUp) {
-        if (handle && isVirtualListHandle(handle)) {
+        if (handle) {
           handle.jumpToStart();
-        } else if (handle) {
-          handle.scrollToIndex({ index: 0, align: "center" });
         } else {
           scrollRef?.current?.scrollTo({ top: 0 });
         }
       } else {
-        if (handle && isVirtualListHandle(handle)) {
+        if (handle) {
           handle.jumpToEnd();
-        } else if (handle) {
-          // Virtuoso two-pass: scroll near bottom first so it measures
-          // the last rows, then land on the actual last item.
-          handle.scrollToIndex({
-            index: Math.max(itemCount - 5, 0),
-            align: "center",
-          });
-          setTimeout(() => {
-            listHandle.current?.scrollToIndex({
-              index: Math.max(itemCount - 1, 0),
-              align: "end",
-            });
-          }, 250);
         } else {
           const el = scrollRef?.current;
           if (el) el.scrollTop = el.scrollHeight;
