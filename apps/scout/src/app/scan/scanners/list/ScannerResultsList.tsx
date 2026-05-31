@@ -2,13 +2,10 @@ import { ColumnTable } from "arquero";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { VirtuosoHandle } from "react-virtuoso";
 
-import {
-  LiveVirtualList,
-  LoadingBar,
-  NoContentsPanel,
-} from "@tsmono/react/components";
+import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
+import { VirtualList } from "@tsmono/react/virtual";
+import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { basename } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
@@ -72,7 +69,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     useScanResultSummaries(columnTable);
 
   // Options / State
-  const listHandle = useRef<VirtuosoHandle | null>(null);
+  const listHandle = useRef<VirtualListHandle | null>(null);
   const selectedScanResult = useStore((state) => state.selectedScanResult);
   const selectedFilter = useStore((state) => state.selectedFilter);
   const groupResultsBy = useStore((state) => state.groupResultsBy);
@@ -414,13 +411,13 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       <LoadingBar loading={isLoading} />
       {noContentMessage && <NoContentsPanel text={noContentMessage} />}
       {!isLoading && filteredSummaries.length > 0 && (
-        <LiveVirtualList<ScanResultSummary | ResultGroup>
-          id={id}
-          listHandle={listHandle}
+        <VirtualList<ScanResultSummary | ResultGroup>
+          persistenceKey={id}
+          ref={listHandle}
           data={rows}
           renderRow={renderRow}
           className={clsx(styles.list)}
-          animation={false}
+          smoothScroll={false}
         />
       )}
     </div>
