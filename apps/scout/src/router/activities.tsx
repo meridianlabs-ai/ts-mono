@@ -72,7 +72,10 @@ const isStaticBundle = window.__SCOUT_STATIC_BUNDLE__ === true;
 
 export const activities = allActivities.filter((a) => {
   if (a.id === "runScan" && !__SCOUT_RUN_SCAN__) return false;
-  if (isStaticBundle && (a.id === "runScan" || a.id === "project")) {
+  if (
+    isStaticBundle &&
+    (a.id === "runScan" || a.id === "project" || a.id === "validation")
+  ) {
     return false;
   }
   if (a.id === "settings" && isVscodeWebview) return false;

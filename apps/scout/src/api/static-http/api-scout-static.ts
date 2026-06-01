@@ -322,26 +322,16 @@ export const apiScoutStatic = (
       };
     },
 
-    getValidationSets: (): Promise<string[]> =>
-      fetchJson<string[]>(joinUrl(baseUrl, "validations", "sets.json")),
+    getValidationSets: (): Promise<string[]> => Promise.resolve([]),
 
-    getValidationCases: (uri: string): Promise<ValidationCase[]> =>
-      fetchJson<ValidationCase[]>(
-        joinUrl(baseUrl, "validations", base64UrlEncode(uri), "cases.json")
-      ),
+    getValidationCases: (_uri: string): Promise<ValidationCase[]> =>
+      unsupported("getValidationCases"),
 
     getValidationCase: async (
-      uri: string,
-      caseId: string
+      _uri: string,
+      _caseId: string
     ): Promise<ValidationCase> => {
-      const cases = await fetchJson<ValidationCase[]>(
-        joinUrl(baseUrl, "validations", base64UrlEncode(uri), "cases.json")
-      );
-      const found = cases.find((c) => c.id === caseId);
-      if (!found) {
-        throw new Error(`Validation case '${caseId}' not found in ${uri}`);
-      }
-      return found;
+      return unsupported("getValidationCase");
     },
 
     getSearches: (): Promise<SearchInputListResponse> =>
