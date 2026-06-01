@@ -103,7 +103,7 @@ export interface LogsState {
         gridState?: GridState;
       };
     };
-    /** Per-log SamplesView descriptors keyed by log file path. Missing
+    /** Per-log TaskSamplesView descriptors keyed by log file path. Missing
      *  entries fall through to the eval-author default and then the
      *  built-in default — see `useSamplesView`. */
     byLog: Record<string, SamplesViewState>;

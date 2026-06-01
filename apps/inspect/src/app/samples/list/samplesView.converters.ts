@@ -1,5 +1,5 @@
 /**
- * Pure converters between the on-the-wire `SamplesView`, the runtime
+ * Pure converters between the on-the-wire `TaskSamplesView`, the runtime
  * `SamplesViewState`, and ag-grid's `GridState`.
  *
  * No runtime imports — every function here is referentially transparent
@@ -8,7 +8,7 @@
  */
 import type { FilterModel, GridState } from "ag-grid-community";
 
-import type { SamplesView } from "@tsmono/inspect-common/types";
+import type { TaskSamplesView } from "@tsmono/inspect-common/types";
 
 import { defaultSamplesView, type SamplesViewState } from "./samplesView";
 
@@ -17,7 +17,7 @@ import { defaultSamplesView, type SamplesViewState } from "./samplesView";
 // ---------------------------------------------------------------------------
 
 /**
- * Lift a wire `SamplesView` into the runtime `SamplesViewState`.
+ * Lift a wire `TaskSamplesView` into the runtime `SamplesViewState`.
  *
  * - Nullable wire fields collapse to defaults from `defaultSamplesView()`.
  * - Sort entries map `column` → `colId` to match ag-grid naming on the
@@ -27,7 +27,7 @@ import { defaultSamplesView, type SamplesViewState } from "./samplesView";
  *   the DSL can't express.
  */
 export const liftEvalView = (
-  wire: SamplesView | undefined | null
+  wire: TaskSamplesView | undefined | null
 ): SamplesViewState => {
   const fallback = defaultSamplesView();
   if (!wire) return fallback;
@@ -39,7 +39,7 @@ export const liftEvalView = (
     sort: wire.sort
       ? wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
       : fallback.sort,
-    filters: { dsl: wire.filter ?? "", extraColumnFilters: {} },
+    filters: { dsl: "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,
     compactScores: wire.compact_scores ?? fallback.compactScores,
     colorScalesEnabled:
@@ -53,11 +53,12 @@ export const liftEvalView = (
  * dropped — that field is TS-only and never crosses the wire. Used to
  * compare a stored view against an eval default for override detection.
  */
-export const flattenToEvalView = (state: SamplesViewState): SamplesView => ({
+export const flattenToEvalView = (
+  state: SamplesViewState
+): TaskSamplesView => ({
   name: state.name,
   columns: state.columns.map((c) => ({ id: c.id, visible: c.visible })),
   sort: state.sort.map((s) => ({ column: s.colId, dir: s.dir })),
-  filter: state.filters.dsl ? state.filters.dsl : null,
   multiline: state.multiline,
   compact_scores: state.compactScores,
   color_scales_enabled: state.colorScalesEnabled,
@@ -68,8 +69,8 @@ export const flattenToEvalView = (state: SamplesViewState): SamplesView => ({
  * For Phase 0–2 we honour only the first entry of a list.
  */
 export const pickActiveView = (
-  field: SamplesView | SamplesView[] | undefined | null
-): SamplesView | undefined => {
+  field: TaskSamplesView | TaskSamplesView[] | undefined | null
+): TaskSamplesView | undefined => {
   if (!field) return undefined;
   if (Array.isArray(field)) return field[0];
   return field;
@@ -88,7 +89,7 @@ export const pickActiveView = (
  */
 export const resolveSamplesView = (
   stored: SamplesViewState | undefined,
-  evalDefault: SamplesView | undefined | null
+  evalDefault: TaskSamplesView | undefined | null
 ): SamplesViewState => {
   if (!stored) return liftEvalView(evalDefault);
   const lifted = liftEvalView(evalDefault);
@@ -282,7 +283,7 @@ export const partitionFilterModel = (
 // ---------------------------------------------------------------------------
 
 /**
- * Pre-refactor scope state from before the SamplesView descriptor
+ * Pre-refactor scope state from before the TaskSamplesView descriptor
  * existed (gridState + columnVisibility in one bag). Kept as a converter
  * for safety; no live caller reads from this slot today — the per-log
  * refactor migrates older state via the persist `migrate` hook instead.

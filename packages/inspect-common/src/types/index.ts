@@ -116,9 +116,9 @@ export type ScannerResultField = S["ScannerResultField"];
 export type MetadataField = S["MetadataField"];
 export type SampleScoreView = S["SampleScoreView"];
 export type SampleScoreViewSort = S["SampleScoreViewSort"];
-export type SamplesView = S["SamplesView"];
-export type SamplesColumn = S["SamplesColumn"];
-export type SamplesSort = S["SamplesSort"];
+export type TaskSamplesView = S["TaskSamplesView"];
+export type TaskSamplesColumn = S["TaskSamplesColumn"];
+export type TaskSamplesSort = S["TaskSamplesSort"];
 
 // Timeline types
 export type Timeline = S["Timeline"];
