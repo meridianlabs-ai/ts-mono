@@ -2506,7 +2506,7 @@ export interface components {
         };
         /**
          * MetadataField
-         * @description A metadata key promoted out of metadata into a top level value.
+         * @description Identifies a field in metadata.
          */
         MetadataField: {
             /**
@@ -2890,9 +2890,9 @@ export interface components {
          * @description How the sample-header score panel should render when there are 3 or more scores.
          */
         SampleScoreView: {
+            /** Default */
+            default?: ("chips" | "grid") | null;
             sort?: components["schemas"]["SampleScoreViewSort"] | null;
-            /** View */
-            view?: ("chips" | "grid") | null;
         };
         /**
          * SampleScoreViewSort
@@ -2918,72 +2918,6 @@ export interface components {
             refresh: number;
             /** Samples */
             samples: components["schemas"]["EvalSampleSummary"][];
-        };
-        /**
-         * SamplesColumn
-         * @description A column entry in the task's Sample List view.
-         */
-        SamplesColumn: {
-            /** Id */
-            id: string;
-            /**
-             * Visible
-             * @default true
-             */
-            visible: boolean;
-        };
-        /**
-         * SamplesSort
-         * @description A single sort entry for the task's Sample List grid.
-         */
-        SamplesSort: {
-            /** Column */
-            column: string;
-            /**
-             * Dir
-             * @default asc
-             * @enum {string}
-             */
-            dir: "asc" | "desc";
-        };
-        /**
-         * SamplesView
-         * @description Default configuration for the task's Sample List grid.
-         *
-         *     Configures the list of samples shown in a task's eval-log view —
-         *     distinct from `sample_score_view`, which configures the score panel
-         *     within an individual sample's detail view.
-         *
-         *     The viewer applies `SamplesView` only when the user has not
-         *     explicitly overridden the view in their browser. User overrides
-         *     shadow the eval-author default; the resolution priority is
-         *     `user > eval default > built-in`.
-         */
-        SamplesView: {
-            /** Color Scales Enabled */
-            color_scales_enabled?: boolean | null;
-            /** Columns */
-            columns?: components["schemas"]["SamplesColumn"][] | null;
-            /** Compact Scores */
-            compact_scores?: boolean | null;
-            /** Filter */
-            filter?: string | null;
-            /** Multiline */
-            multiline?: boolean | null;
-            /** Name */
-            name: string;
-            /** Score Color Scales */
-            score_color_scales?: {
-                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | components["schemas"]["ScoreColorScale"] | {
-                    [key: string]: "good" | "bad" | "warn" | "info" | "muted";
-                };
-            } | null;
-            /** Score Labels */
-            score_labels?: {
-                [key: string]: string;
-            } | null;
-            /** Sort */
-            sort?: components["schemas"]["SamplesSort"][] | null;
         };
         /**
          * SandboxEnvironmentSpec
@@ -3068,7 +3002,7 @@ export interface components {
         };
         /**
          * ScannerResultView
-         * @description Customizes the rendering of scanner results.
+         * @description Customizes the rendering of the sample scanner results.
          */
         ScannerResultView: {
             /** Exclude Fields */
@@ -3501,6 +3435,68 @@ export interface components {
             value?: number | null;
         };
         /**
+         * TaskSamplesColumn
+         * @description A column entry in the task's Sample List view.
+         */
+        TaskSamplesColumn: {
+            /** Id */
+            id: ("sampleStatus" | "sampleId" | "sampleUuid" | "epoch" | "input" | "target" | "answer" | "tokens" | "duration" | "retries" | "error" | "limit") | string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        };
+        /**
+         * TaskSamplesSort
+         * @description A single sort entry for the task's Sample List grid.
+         */
+        TaskSamplesSort: {
+            /** Column */
+            column: ("sampleStatus" | "sampleId" | "sampleUuid" | "epoch" | "input" | "target" | "answer" | "tokens" | "duration" | "retries" | "error" | "limit") | string;
+            /**
+             * Dir
+             * @default asc
+             * @enum {string}
+             */
+            dir: "asc" | "desc";
+        };
+        /**
+         * TaskSamplesView
+         * @description Default configuration for the task's Sample List grid.
+         *
+         *     Configures the list of samples shown in a task's eval-log view.
+         *
+         *     The viewer applies `TaskSamplesView` only when the user has not
+         *     explicitly overridden the view in their browser. User overrides
+         *     shadow the eval-author default; the resolution priority is
+         *     `user > eval default > built-in`.
+         */
+        TaskSamplesView: {
+            /** Color Scales Enabled */
+            color_scales_enabled?: boolean | null;
+            /** Columns */
+            columns?: components["schemas"]["TaskSamplesColumn"][] | null;
+            /** Compact Scores */
+            compact_scores?: boolean | null;
+            /** Multiline */
+            multiline?: boolean | null;
+            /** Name */
+            name: string;
+            /** Score Color Scales */
+            score_color_scales?: {
+                [key: string]: ("good-high" | "good-low" | "neutral" | "diverging") | components["schemas"]["ScoreColorScale"] | {
+                    [key: string]: "good" | "bad" | "warn" | "info" | "muted";
+                };
+            } | null;
+            /** Score Labels */
+            score_labels?: {
+                [key: string]: string;
+            } | null;
+            /** Sort */
+            sort?: components["schemas"]["TaskSamplesSort"][] | null;
+        };
+        /**
          * TimeInterval
          * @description Fire after a wall-clock interval.
          *
@@ -3863,9 +3859,8 @@ export interface components {
          * ViewerConfig
          * @description Top-level viewer configuration.
          *
-         *     `scanner_result_view` keys are fnmatch-style glob patterns (`"*"`,
-         *     ``"audit_*"``, exact names). Pass a ScannerResultView to apply a single
-         *     configuration to every scanner.
+         *     This allows per task customization of the
+         *     Task's sample list and each sample's score and scanner result display.
          */
         ViewerConfig: {
             sample_score_view?: components["schemas"]["SampleScoreView"] | null;
@@ -3874,7 +3869,7 @@ export interface components {
                 [key: string]: components["schemas"]["ScannerResultView"];
             };
             /** Task Samples View */
-            task_samples_view?: components["schemas"]["SamplesView"] | components["schemas"]["SamplesView"][] | null;
+            task_samples_view?: components["schemas"]["TaskSamplesView"] | components["schemas"]["TaskSamplesView"][] | null;
         };
     };
     responses: never;
