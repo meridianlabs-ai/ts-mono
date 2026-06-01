@@ -139,11 +139,21 @@ export const viewToGridState = (
     .filter(([colId]) => availableColIds.has(colId))
     .map(([colId, width]) => ({ colId, width }));
   return {
+    // Flag this as a *partial* column state. Without it ag-grid (34.x)
+    // applies the restore with `defaultState.flex = null`, which strips
+    // the colDef `initialFlex` off input/target/answer so they freeze at
+    // their fixed fallback width instead of filling the grid. The same
+    // reset also fires whenever a `columnSizing` facet is present — even
+    // an empty one — so we omit that facet entirely until the user has
+    // actually resized a column.
+    partialColumnState: true,
     columnVisibility: {
       hiddenColIds: knownColumns.filter((c) => !c.visible).map((c) => c.id),
     },
     columnOrder: { orderedColIds: knownColumns.map((c) => c.id) },
-    columnSizing: { columnSizingModel },
+    ...(columnSizingModel.length > 0
+      ? { columnSizing: { columnSizingModel } }
+      : {}),
     sort: { sortModel },
     filter: { filterModel },
   };

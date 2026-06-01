@@ -318,9 +318,16 @@ describe("viewToGridState", () => {
     ]);
   });
 
-  test("emits an empty columnSizing model when no widths are recorded", () => {
+  test("omits the columnSizing facet when no widths are recorded", () => {
     const gs = viewToGridState(sampleState({}), cols("input"));
-    expect(gs.columnSizing?.columnSizingModel).toEqual([]);
+    // Emitting the facet — even empty — makes ag-grid reset flex on every
+    // column; leaving it off lets colDef `initialFlex` survive the restore.
+    expect(gs.columnSizing).toBeUndefined();
+  });
+
+  test("marks the state partial so ag-grid preserves colDef flex", () => {
+    const gs = viewToGridState(sampleState({}), cols("input"));
+    expect(gs.partialColumnState).toBe(true);
   });
 });
 
