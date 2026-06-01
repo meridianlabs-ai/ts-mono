@@ -10,8 +10,9 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { useScrollTrack, useVirtuosoState } from "@tsmono/react/hooks";
+import { useScrollTrack } from "@tsmono/react/hooks";
 
+import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
 import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";

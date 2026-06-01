@@ -14,6 +14,7 @@ import {
   type ExtendedCountFn,
   type ExtendedFindFn,
 } from "../components/ExtendedFindContext";
+import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
@@ -46,22 +47,6 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
     i++;
   }
   return <>{chunks}</>;
-}
-
-type PreparedSearchTerms = {
-  simple: string;
-  unquoted?: string;
-  jsonEscaped?: string;
-};
-
-function prepareSearchTerm(term: string): PreparedSearchTerms {
-  const lower = term.toLowerCase();
-  if (!term.includes('"') && !term.includes(":")) return { simple: lower };
-  return {
-    simple: lower,
-    unquoted: lower.replace(/"/g, ""),
-    jsonEscaped: lower.replace(/"/g, '\\"'),
-  };
 }
 
 export function VirtualList<T>({
@@ -426,7 +411,12 @@ export function VirtualList<T>({
   return (
     <div
       ref={(el) => {
-        if (ownsScroll) internalScrollRef.current = el;
+        if (!ownsScroll) return;
+        internalScrollRef.current = el;
+        // Push the mounted element into state so getScrollElement gets a
+        // fresh identity and TanStack re-polls — without this, the first
+        // render passes a null scroll element and TanStack caches that.
+        setScrollParent((prev) => (prev === el ? prev : el));
       }}
       className={clsx(styles.scroller, className)}
       style={

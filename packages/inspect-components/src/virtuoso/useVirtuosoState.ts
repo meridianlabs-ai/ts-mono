@@ -1,9 +1,8 @@
 import { RefObject, useCallback, useEffect, useRef } from "react";
 import { StateCallback, StateSnapshot, VirtuosoHandle } from "react-virtuoso";
 
+import { useProperty } from "@tsmono/react/hooks";
 import { createLogger, debounce } from "@tsmono/util";
-
-import { useProperty } from "./useProperty";
 
 const log = createLogger("scrolling");
 

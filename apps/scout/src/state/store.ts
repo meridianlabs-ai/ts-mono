@@ -5,11 +5,11 @@ import {
 } from "@tanstack/react-table";
 import { GridState } from "ag-grid-community";
 import { createContext, useContext } from "react";
-import { StateSnapshot } from "react-virtuoso";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 import { debounce } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
@@ -103,7 +103,7 @@ interface StoreState {
   // general UI state
   properties: Record<string, Record<string, unknown> | undefined>;
   scrollPositions: Record<string, number>;
-  listPositions: Record<string, StateSnapshot>;
+  listPositions: Record<string, VirtualListStateSnapshot>;
   visibleRanges: Record<
     string,
     { startIndex: number; endIndex: number; totalCount: number }
@@ -197,7 +197,7 @@ interface StoreState {
   getScrollPosition: (path: string) => number | undefined;
   setScrollPosition: (path: string, position: number) => void;
 
-  setListPosition: (name: string, position: StateSnapshot) => void;
+  setListPosition: (name: string, position: VirtualListStateSnapshot) => void;
   clearListPosition: (name: string) => void;
   clearListPositionsWithPrefix: (prefix: string) => void;
 
@@ -513,7 +513,10 @@ export const createStore = (api: ScoutApiV2) =>
               state.scrollPositions[path] = position;
             });
           },
-          setListPosition: (name: string, position: StateSnapshot) => {
+          setListPosition: (
+            name: string,
+            position: VirtualListStateSnapshot
+          ) => {
             set((state) => {
               state.listPositions[name] = position;
             });
