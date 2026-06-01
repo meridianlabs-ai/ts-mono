@@ -6,6 +6,7 @@ import {
   CopyButton,
   ExpandablePanel,
   LabeledValue,
+  MarkdownDiv,
   type MarkdownReference,
 } from "@tsmono/react/components";
 
@@ -14,7 +15,14 @@ import { RecordTree } from "../content/RecordTree";
 import styles from "./ChatMessage.module.css";
 import { MessageContents } from "./MessageContents";
 import { Message } from "./messages";
+import {
+  codexToolMarkdown,
+  formatSubagentNotifications,
+  parseToolSearchCatalog,
+  type ToolSearchNamespaceEntry,
+} from "./tools/tool";
 import { ToolOutput } from "./tools/ToolOutput";
+import { ToolSearchView } from "./tools/ToolSearchView";
 import { ChatViewDisplayOptions, ChatViewLinkingOptions } from "./types";
 
 interface ChatMessageProps {
@@ -43,16 +51,39 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   const [mouseOver, setMouseOver] = useState(false);
 
-  const isNonTaskTool =
+  const isNonSubagentTool =
     message.role === "tool" &&
     message.function !== "Task" &&
-    message.function !== "task";
+    message.function !== "task" &&
+    message.function !== "Agent" &&
+    message.function !== "agent";
   const collapse =
     message.role === "system" ||
     message.role === "user" ||
     message.role === "assistant" ||
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
+
+  // Codex tool results get friendlier rendering than the raw JSON/text dump:
+  // tool_search → a collapsible catalog component; sub-agent management answers
+  // → markdown. The raw content stays available in the JSON tab.
+  let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
+  let toolMarkdown: string | undefined;
+  if (isNonSubagentTool && message.role === "tool" && message.function) {
+    if (message.function === "tool_search") {
+      toolSearchNamespaces = parseToolSearchCatalog(message.content);
+    } else {
+      toolMarkdown = codexToolMarkdown(message.function, message.content);
+    }
+  }
+
+  // Codex sub-agent completion notifications (user messages) collapse to a
+  // compact status line — the answer itself is shown by the paired wait/close
+  // result; the raw notification stays in the JSON tab.
+  const subagentNotifications =
+    message.role === "user"
+      ? formatSubagentNotifications(message.content)
+      : undefined;
 
   // When the role header is hidden, skip rendering if there's no visible
   // text content (e.g. assistant messages with only tool_calls).
@@ -136,17 +167,25 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                   : 25
           }
         >
-          {isNonTaskTool ? (
-            <ToolOutput
-              output={
-                typeof message.content === "string"
-                  ? message.content
-                  : message.content.filter(
-                      (c): c is ContentText | ContentImage =>
-                        c.type === "text" || c.type === "image"
-                    )
-              }
-            />
+          {isNonSubagentTool ? (
+            toolSearchNamespaces ? (
+              <ToolSearchView namespaces={toolSearchNamespaces} />
+            ) : toolMarkdown !== undefined ? (
+              <MarkdownDiv markdown={toolMarkdown} />
+            ) : (
+              <ToolOutput
+                output={
+                  typeof message.content === "string"
+                    ? message.content
+                    : message.content.filter(
+                        (c): c is ContentText | ContentImage =>
+                          c.type === "text" || c.type === "image"
+                      )
+                }
+              />
+            )
+          ) : subagentNotifications !== undefined ? (
+            <MarkdownDiv markdown={subagentNotifications} />
           ) : (
             <MessageContents
               key={`${id}-contents`}

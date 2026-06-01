@@ -1,4 +1,8 @@
-import { EvalSample, LogFilesResponse } from "@tsmono/inspect-common/types";
+import {
+  EvalSample,
+  LogFilesResponse,
+  LogUpdate,
+} from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
@@ -11,6 +15,7 @@ import { FileSizeLimitError } from "../remote/remoteZipFile";
 
 import {
   ClientAPI,
+  EditLogResult,
   LogContents,
   LogDetails,
   LogPreview,
@@ -357,6 +362,25 @@ export const clientApi = (
   // bubble up.
   const sampleDataPathByLog = new Map<string, "direct" | "proxy">();
 
+  // Per-log cache of the most recent ETag observed for each log. The
+  // edit dialogs currently call `edit_log(file, update)` with no third
+  // argument, and without this cache we'd silently throw away
+  // `result.etag` — making the server's If-Match / 412 protection
+  // unreachable from the shipped UI (only tests and external callers
+  // would ever trigger it).
+  //
+  // The cache is fed from two places:
+  //   - `get_log_details` (below): seeds the entry on log open from
+  //     `LogDetails.etag`, which `openRemoteLogFile` lifts off the
+  //     S3 head_object response via `get_log_info`. This is what
+  //     protects the *first* edit in a session.
+  //   - `edit_log` (below): updates the entry from `result.etag` so
+  //     chained edits within a session keep the protection live.
+  //
+  // The middleware below re-supplies the cached etag whenever the
+  // caller doesn't pass one explicitly.
+  const editEtagByLog = new Map<string, string>();
+
   const get_log_sample_data = async (
     log_file: string,
     id: string | number,
@@ -447,7 +471,24 @@ export const clientApi = (
       return api.get_flow(dir);
     }),
     get_log_summaries: middleware("get_log_summaries", get_log_summaries),
-    get_log_details: middleware("get_log_details", get_log_details),
+    get_log_details: middleware(
+      "get_log_details",
+      async (log_file: string, cached?: boolean): Promise<LogDetails> => {
+        const result = await get_log_details(log_file, cached);
+        // Seed the per-log etag cache so the next `edit_log` for this
+        // file sends `If-Match` and the first save races safely
+        // against concurrent external edits. Local-filesystem logs and
+        // (currently) JSON-format logs leave `result.etag` undefined,
+        // in which case the cache stays empty and falls through to
+        // last-writer-wins on the first save — matching the previous
+        // behavior. S3-backed .eval files are the path that gets the
+        // protection.
+        if (result.etag) {
+          editEtagByLog.set(log_file, result.etag);
+        }
+        return result;
+      }
+    ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);
@@ -481,6 +522,49 @@ export const clientApi = (
       : undefined,
     get_log_sample_data: api.eval_log_sample_data
       ? middleware("get_log_sample_data", get_log_sample_data)
+      : undefined,
+    get_user_info: api.get_user_info
+      ? middleware("get_user_info", () => api.get_user_info!())
+      : undefined,
+    edit_log: api.edit_log
+      ? middleware(
+          "edit_log",
+          async (
+            log_file: string,
+            update: LogUpdate,
+            if_match_etag?: string
+          ): Promise<EditLogResult> => {
+            // Fall back to the etag returned by the previous successful
+            // edit for this log if the caller didn't pass one. See the
+            // `editEtagByLog` block above for why this exists.
+            const effective = if_match_etag ?? editEtagByLog.get(log_file);
+            const result = await api.edit_log!(log_file, update, effective);
+            // Remember the new etag for the next call. A response
+            // without an etag (e.g. local-filesystem edit) leaves the
+            // cache as-is so a subsequent S3-backed edit on the same
+            // path doesn't lose its `If-Match`.
+            if (result.etag) {
+              editEtagByLog.set(log_file, result.etag);
+            }
+            // The on-disk log just changed; drop both caches so the next
+            // read (typically a `refreshLog` triggered by the dialog's
+            // onSaved callback) re-fetches the new tags / log_updates.
+            //   - `current_log`: JSON-format path in `get_log()` above.
+            //   - `loadedEvalFile`: zip-backed reader used by .eval files
+            //     via `remoteEvalFile()`. Without clearing this, the
+            //     cached central-directory still points at the old
+            //     header.json bytes.
+            if (current_path === log_file) {
+              current_log = undefined;
+              current_path = undefined;
+            }
+            if (loadedEvalFile.file === log_file) {
+              loadedEvalFile.file = undefined;
+              loadedEvalFile.remoteLog = undefined;
+            }
+            return result;
+          }
+        )
       : undefined,
   };
 };

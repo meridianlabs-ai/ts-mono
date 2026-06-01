@@ -85,6 +85,8 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
           />
           Utility agents
         </div>
+
+        <div className={styles.groupHeader}>Branches</div>
         <div className={styles.row} onClick={onToggleBranches}>
           <input
             type="checkbox"
@@ -94,23 +96,41 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
               onToggleBranches();
             }}
           />
-          Branches
+          Show branches
         </div>
         {config.showBranches && (
-          <div
-            className={styles.row}
-            onClick={() => config.setForkRelative(!config.forkRelative)}
-          >
-            <input
-              type="checkbox"
-              checked={config.forkRelative}
-              onChange={(e) => {
-                e.stopPropagation();
-                config.setForkRelative(!config.forkRelative);
-              }}
-            />
-            Fork-relative branches
-          </div>
+          <>
+            <div
+              className={styles.row}
+              onClick={() => config.setForkRelative(!config.forkRelative)}
+            >
+              <input
+                type="checkbox"
+                checked={config.forkRelative}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  config.setForkRelative(!config.forkRelative);
+                }}
+              />
+              Fork-relative branches
+            </div>
+            <div
+              className={styles.row}
+              onClick={() =>
+                config.setShowEmptyBranches(!config.showEmptyBranches)
+              }
+            >
+              <input
+                type="checkbox"
+                checked={config.showEmptyBranches}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  config.setShowEmptyBranches(!config.showEmptyBranches);
+                }}
+              />
+              Show empty branches
+            </div>
+          </>
         )}
       </div>
     </PopOver>

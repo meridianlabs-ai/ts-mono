@@ -227,7 +227,10 @@ export class ReplicationService {
     this._api = api;
     this._applicationContext = context;
 
-    // Preload any data
+    // Preload cached data so the UI can render immediately while
+    // sync() confirms what still exists on the server. We only push
+    // data into the store here — no fetches for missing data, since
+    // those handles haven't been validated yet.
     const logHandles = await database.readLogs();
     if (logHandles) {
       context.setLogHandles(logHandles);
@@ -335,6 +338,10 @@ export class ReplicationService {
           this._database?.clearCacheForFile(file.name);
         }
 
+        // Drop stale queued work before scheduling new fetches
+        this._previewQueue.clear();
+        this._detailQueue.clear();
+
         // Apply the new list
         this._applicationContext?.setLogHandles(serverLogs.files);
 
@@ -351,15 +358,7 @@ export class ReplicationService {
         // Activate the current log handles
         this._applicationContext?.setLogHandles(logFiles);
 
-        // Schedule sync of missing previews or details
-        const previewTasks: LogHandle[] = [];
-        const previews = await this._database.findMissingPreviews(logFiles);
-        for (const p of previews) {
-          if (!previewTasks.find((t) => t.name === p.name)) {
-            previewTasks.push(p);
-          }
-        }
-        this.queueLogPreviews(previewTasks);
+        await this.queueMissingOrStartedPreviews(logFiles);
 
         const detailTasks: LogHandle[] = [];
         const details = await this._database.findMissingDetails(logFiles);
@@ -382,13 +381,18 @@ export class ReplicationService {
     const response = await this._api.get_logs(mtime, clientFileCount);
     const updatedLogs = response.files;
 
-    // Find deleted file
     if (response.response_type === "full") {
       const deletedFiles = logFiles.filter((current) => {
         return !updatedLogs.find((f) => f.name === current.name);
       });
       for (const file of deletedFiles) {
         this._database?.clearCacheForFile(file.name);
+      }
+
+      if (deletedFiles.length > 0) {
+        const deletedNames = deletedFiles.map((f) => f.name);
+        this._previewQueue.removeByIds(deletedNames);
+        this._detailQueue.removeByIds(deletedNames);
       }
     }
 
@@ -424,18 +428,9 @@ export class ReplicationService {
     const allLogHandles = (await this._database.readLogs()) || [];
     this._applicationContext?.setLogHandles(allLogHandles);
 
-    // Schedule any missing previews
-    const previewTasks = [...toInvalidate];
-    const previews = await this._database.findMissingPreviews(allLogHandles);
-    for (const p of previews) {
-      if (!previewTasks.find((t) => t.name === p.name)) {
-        previewTasks.push(p);
-      }
-    }
-    this.queueLogPreviews(previewTasks.slice(0, 25), WorkPriority.High);
-    this.queueLogPreviews(previewTasks.slice(25), WorkPriority.Medium);
+    await this.queueMissingOrStartedPreviews(allLogHandles, toInvalidate);
 
-    // Schedule preview fetching for new logs
+    // Schedule detail fetching for new/changed logs
     const detailTasks = [...toInvalidate];
     const details = await this._database.findMissingDetails(allLogHandles);
     for (const d of details) {
@@ -498,11 +493,45 @@ export class ReplicationService {
     this.updateDbStats();
   }
 
+  private async queueMissingOrStartedPreviews(
+    logHandles: LogHandle[],
+    extraHandles: LogHandle[] = [],
+    priority: WorkPriority = WorkPriority.High
+  ) {
+    if (!this._database) return;
+
+    const tasks = [...extraHandles];
+    const seen = new Set(tasks.map((t) => t.name));
+
+    const missing = await this._database.findMissingPreviews(logHandles);
+    for (const m of missing) {
+      if (!seen.has(m.name)) {
+        seen.add(m.name);
+        tasks.push(m);
+      }
+    }
+
+    const cached = await this._database.readLogPreviews(logHandles);
+    for (const handle of logHandles) {
+      if (seen.has(handle.name)) continue;
+      const preview = cached[handle.name];
+      if (preview?.status === "started") {
+        seen.add(handle.name);
+        await this._database.clearPreviewForFile(handle.name);
+        tasks.push(handle);
+      }
+    }
+
+    if (tasks.length > 0) {
+      this.queueLogPreviews(tasks.slice(0, 25), priority);
+      this.queueLogPreviews(tasks.slice(25), WorkPriority.Medium);
+    }
+  }
+
   queueLogPreviews(
     logs: LogHandle[],
     priority: WorkPriority = WorkPriority.Medium
   ) {
-    // Add to queue
     this._previewQueue.enqueue(logs, priority);
   }
 

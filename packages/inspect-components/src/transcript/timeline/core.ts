@@ -15,6 +15,8 @@ import type {
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
+import { codexToolMarkdown } from "../../chat/tools/tool";
+
 // =============================================================================
 // Span Tree Types (internal)
 // =============================================================================
@@ -102,6 +104,12 @@ export class TimelineSpan {
   branchedFrom: string | null;
   description?: string;
   utility: boolean;
+  // True if this agent span was invoked as a tool (via the agent tool /
+  // task / as_tool / handoff). Tool-invoked subagents are explicit
+  // user-intended sub-trajectories and are never classified as `utility`,
+  // even when single-turn (e.g. a cancelled background subagent). Mirrors
+  // the Python `TimelineSpan.tool_invoked` flag.
+  toolInvoked: boolean;
   agentResult?: string;
   outline?: Outline;
 
@@ -114,6 +122,7 @@ export class TimelineSpan {
     branchedFrom?: string | null;
     description?: string;
     utility?: boolean;
+    toolInvoked?: boolean;
     agentResult?: string;
     outline?: Outline;
   }) {
@@ -125,6 +134,7 @@ export class TimelineSpan {
     this.branchedFrom = props.branchedFrom ?? null;
     this.description = props.description;
     this.utility = props.utility ?? false;
+    this.toolInvoked = props.toolInvoked ?? false;
     this.agentResult = props.agentResult;
     this.outline = props.outline;
   }
@@ -163,6 +173,54 @@ export class TimelineSpan {
 }
 
 /**
+ * True if `span` has no visible content and no non-empty nested branches.
+ * `anchor`, `branch`, and `step` events are structural and don't count.
+ */
+export function isEmptyBranch(span: TimelineSpan): boolean {
+  const hasVisibleContent = span.content.some((item) => {
+    if (item.type === "span") return true;
+    const evt = item.event.event;
+    return evt !== "anchor" && evt !== "branch" && evt !== "step";
+  });
+  return !hasVisibleContent && span.branches.length === 0;
+}
+
+/**
+ * Return a copy of `timeline` with empty branches pruned recursively.
+ * Walks the span tree, pruning empty branches bottom-up so that branches
+ * which only carry other (empty) branches are themselves dropped.
+ */
+export function filterEmptyBranches(timeline: Timeline): Timeline {
+  return {
+    name: timeline.name,
+    description: timeline.description,
+    root: pruneEmptyBranches(timeline.root),
+  };
+}
+
+function pruneEmptyBranches(span: TimelineSpan): TimelineSpan {
+  const content = span.content.map((item) =>
+    item.type === "span" ? pruneEmptyBranches(item) : item
+  );
+  const branches = span.branches
+    .map(pruneEmptyBranches)
+    .filter((b) => !isEmptyBranch(b));
+  return new TimelineSpan({
+    id: span.id,
+    name: span.name,
+    spanType: span.spanType,
+    content,
+    branches,
+    branchedFrom: span.branchedFrom,
+    description: span.description,
+    utility: span.utility,
+    toolInvoked: span.toolInvoked,
+    agentResult: span.agentResult,
+    outline: span.outline,
+  });
+}
+
+/**
  * True if `span` (or any descendant span in its content tree) has branches.
  */
 export function spanHasBranches(span: TimelineSpan): boolean {
@@ -195,6 +253,7 @@ export function createBranchSpan(
     branchedFrom: branch.branchedFrom,
     description: branch.description,
     utility: branch.utility,
+    toolInvoked: branch.toolInvoked,
     agentResult: branch.agentResult,
     outline: branch.outline,
   });
@@ -315,6 +374,7 @@ function convertServerSpan(
     branches,
     description: server.description ?? undefined,
     utility: server.utility,
+    toolInvoked: server.tool_invoked,
     agentResult: server.agent_result ?? undefined,
     outline: server.outline ?? undefined,
   });
@@ -733,10 +793,19 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
           "agent",
           nestedContent
         );
-        // Capture agent result from the spawning ToolEvent
+        // Spawned by a ToolEvent — explicit user-intended subagent.
+        span.toolInvoked = true;
+        // Capture agent result from the spawning ToolEvent. (Codex sub-agents
+        // are span-based — they don't reach this ToolEvent path — but apply the
+        // Codex reshape defensively so any tool-spawned Codex result is handled
+        // consistently rather than rendered as raw JSON.)
         const agentResult = extractToolEventResult(event.result);
         if (agentResult) {
-          span.agentResult = agentResult;
+          span.agentResult = codexResultText(
+            event.function,
+            event.result,
+            agentResult
+          );
         }
         return span;
       }
@@ -998,6 +1067,12 @@ function unrollSpan(
   // Emit span begin event
   into.push(createTimelineEvent(span.beginEvent));
 
+  // An agent span discovered as a direct child of a tool span being
+  // unrolled was invoked as a tool (the agent tool / task / as_tool /
+  // handoff). Mark it so classifyUtilityAgents leaves it alone — tool-invoked
+  // subagents are explicit user intent, not internal helper calls.
+  const parentIsTool = span.type === "tool";
+
   // Process children: recurse into non-agent spans, keep agent spans
   for (const child of span.children) {
     if (isSpanNode(child)) {
@@ -1005,6 +1080,9 @@ function unrollSpan(
         const node = treeItemToNode(child);
         if (node === null) continue;
         if (node.type === "span" && node.content.length === 0) continue;
+        if (parentIsTool && node.type === "span") {
+          node.toolInvoked = true;
+        }
         into.push(node);
       } else {
         unrollSpan(child, into);
@@ -1420,8 +1498,16 @@ function classifyUtilityAgents(
 ): void {
   const agentSystemPrompt = getSystemPrompt(node);
 
-  // Classify this node (root agent is never utility)
-  if (parentSystemPrompt !== null && agentSystemPrompt !== null) {
+  // Classify this node (root agent is never utility). Tool-invoked subagents
+  // (the agent tool / task / as_tool / handoff) are explicit user-intended
+  // sub-trajectories — never utility — even when single-turn (e.g. a cancelled
+  // background subagent). Foreign-prompt helper calls are handled separately
+  // by wrapUtilityEvents.
+  if (
+    parentSystemPrompt !== null &&
+    agentSystemPrompt !== null &&
+    !node.toolInvoked
+  ) {
     if (agentSystemPrompt !== parentSystemPrompt && isSingleTurn(node)) {
       node.utility = true;
     }
@@ -1485,6 +1571,25 @@ export function getSpanToolResult(span: TimelineSpan): string | undefined {
 }
 
 /**
+ * Reshape a Codex sub-agent tool result into nicer markdown when applicable
+ * (e.g. `spawn_agent`'s `{agent_id, nickname}` → a compact name line); falls
+ * back to the raw extracted text for non-Codex tools.
+ */
+function codexResultText(
+  fn: string | undefined,
+  content: unknown,
+  fallback: string
+): string {
+  if (fn) {
+    const markdown = codexToolMarkdown(fn, content);
+    if (markdown !== undefined) {
+      return markdown;
+    }
+  }
+  return fallback;
+}
+
+/**
  * Extract a string result from a ToolEvent result field.
  */
 function extractToolEventResult(result: unknown): string | undefined {
@@ -1533,7 +1638,11 @@ function extractAgentResults(parent: TimelineSpan): void {
       ) {
         const resultText = extractToolEventResult(sibling.event.result);
         if (resultText) {
-          item.agentResult = resultText;
+          item.agentResult = codexResultText(
+            sibling.event.function,
+            sibling.event.result,
+            resultText
+          );
         }
         break;
       }
@@ -1558,7 +1667,11 @@ function extractAgentResults(parent: TimelineSpan): void {
               ) {
                 const text = extractToolEventResult(msg.content);
                 if (text) {
-                  item.agentResult = text;
+                  item.agentResult = codexResultText(
+                    (msg as { function?: string }).function,
+                    msg.content,
+                    text
+                  );
                 }
               }
             }

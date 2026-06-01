@@ -11,7 +11,7 @@ import {
   resolveSample,
   synthesizeErroredSampleFromSummary,
 } from "./sampleUtils";
-import { useStore } from "./store";
+import { useApi, useStore } from "./store";
 
 // List of virtuoso list keys that should be cleared when sample changes
 const SAMPLE_LIST_KEYS = ["transcript-tree"];
@@ -30,7 +30,7 @@ export function useLoadSample() {
   const logSelection = useLogSelection();
 
   // Get store state and actions
-  const api = useStore((state) => state.api);
+  const api = useApi();
   const sampleActions = useStore((state) => state.sampleActions);
   const clearListPosition = useStore(
     (state) => state.appActions.clearListPosition
@@ -103,7 +103,7 @@ export function useLoadSample() {
           };
 
           const sample: EvalSample | undefined =
-            (await api?.get_log_sample(logFile, id, epoch, onProgress)) ??
+            (await api.get_log_sample(logFile, id, epoch, onProgress)) ??
             (summary?.error
               ? synthesizeErroredSampleFromSummary(summary)
               : undefined);

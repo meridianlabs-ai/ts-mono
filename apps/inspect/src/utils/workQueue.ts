@@ -169,6 +169,12 @@ export class WorkQueue<TInput, TOutput> {
     this.itemsById.clear();
   }
 
+  removeByIds(ids: string[]) {
+    for (const id of ids) {
+      this.itemsById.delete(id);
+    }
+  }
+
   get size() {
     return this.itemsById.size;
   }

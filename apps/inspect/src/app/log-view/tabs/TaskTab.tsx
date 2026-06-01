@@ -11,7 +11,9 @@ import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
 import { kLogViewTaskTabId } from "../../../constants";
+import { useApi } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
+import { TagsField } from "../title-view/TagsField";
 
 import styles from "./TaskTab.module.css";
 
@@ -51,6 +53,13 @@ export const TaskTab: FC<TaskTabProps> = ({
   earlyStopping,
   tags,
 }) => {
+  // Only used to decide whether to include the "tags" row in the
+  // metadata grid for an empty log — TagsField owns the actual gating
+  // (in-progress, dialog state, save flow, refresh).
+  const api = useApi();
+  const canEditTags = Boolean(api.edit_log);
+  const tagList = tags ?? [];
+
   const config: Record<string, unknown> = {};
   Object.entries(evalSpec?.config || {}).forEach((entry) => {
     const key = entry[0];
@@ -88,8 +97,14 @@ export const TaskTab: FC<TaskTabProps> = ({
       taskInformation["Inspect"] = names;
     }
   }
-  if (tags && tags.length > 0) {
-    taskInformation["tags"] = tags.join(", ");
+  // Mirror the header's chip strip in the Task Info card — saving from
+  // either surface refreshes the log so both views stay in sync.
+  // `MetaDataGrid` renders the `_html` payload as raw JSX, bypassing its
+  // default string formatting.
+  if (tagList.length > 0 || canEditTags) {
+    taskInformation["tags"] = {
+      _html: <TagsField tags={tagList} className={styles.tagPillAlign} />,
+    };
   }
 
   if (evalSpec?.sandbox) {

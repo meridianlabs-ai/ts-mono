@@ -1,10 +1,5 @@
-import {
-  Codec,
-  compressionRegistry,
-  CompressionType,
-  tableFromIPC,
-  tableToIPC,
-} from "apache-arrow";
+import { CompressionType, setCompressionCodec } from "@uwdata/flechette";
+import type { Codec } from "@uwdata/flechette";
 import type { ColumnTable } from "arquero";
 import { table as arqueroTable, escape, fromArrow } from "arquero";
 import * as lz4js from "lz4js";
@@ -22,20 +17,13 @@ export const decodeArrowBase64 = (base64: string) => {
 };
 
 export const decodeArrowBytes = (bytes: ArrayBuffer | Uint8Array) => {
-  // Register LZ4 codec before first use
+  // Register LZ4 codec before first use. Arquero's `fromArrow` calls
+  // flechette's `tableFromIPC` internally, which honors this registry —
+  // so LZ4-compressed IPC bytes decode directly without a re-encode hop.
   ensureLZ4CodecRegistered();
 
-  // Use Apache Arrow to parse and decompress the data
-  // We do this as `fromArrow` doesn't support compressed
-  // codecs, which is _extremely_ space inefficient over
-  // the wire
-  const arrowTable = tableFromIPC(bytes);
-
-  // Convert to uncompressed Arrow IPC format
-  const uncompressedBytes = tableToIPC(arrowTable);
-
-  // Now Arquero can read the uncompressed Arrow data
-  let table = fromArrow(uncompressedBytes);
+  const input = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let table = fromArrow(input);
 
   // Cast columns to appropriate types
   // (Mixed-type columns get converted to strings by Arrow/Pandas)
@@ -77,7 +65,7 @@ function ensureLZ4CodecRegistered(): void {
         return lz4js.decompress(data);
       },
     };
-    compressionRegistry.set(CompressionType.LZ4_FRAME, lz4Codec);
+    setCompressionCodec(CompressionType.LZ4_FRAME, lz4Codec);
     codecRegistered = true;
   }
 }

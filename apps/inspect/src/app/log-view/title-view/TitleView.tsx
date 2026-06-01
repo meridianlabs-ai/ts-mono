@@ -24,6 +24,7 @@ interface TitleViewProps {
   evalPlan?: EvalPlan;
   evalStats?: EvalStats;
   status?: EvalLogStatus;
+  tags?: string[];
   collapsed?: boolean;
 }
 
@@ -37,6 +38,7 @@ export const TitleView: FC<TitleViewProps> = ({
   evalStats,
   status,
   runningMetrics,
+  tags,
   collapsed,
 }) => {
   const totalSampleCount = useTotalSampleCount();
@@ -58,6 +60,7 @@ export const TitleView: FC<TitleViewProps> = ({
             status={status}
             runningMetrics={runningMetrics}
             sampleCount={totalSampleCount}
+            tags={tags}
           />
           <SecondaryBar
             evalSpec={evalSpec}

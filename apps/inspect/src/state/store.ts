@@ -1,4 +1,5 @@
 import { enableMapSet } from "immer";
+import { createContext, useContext } from "react";
 import { create, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
@@ -11,6 +12,7 @@ import { createDatabaseService, DatabaseService } from "../client/database";
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
+import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,
   handleRehydrate,
@@ -23,9 +25,6 @@ import { ReplicationService } from "./sync/replicationService";
 const log = createLogger("store");
 
 export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
-  // The shared api
-  api?: ClientAPI | null;
-
   // The shared database service
   databaseService?: DatabaseService | null;
 
@@ -33,7 +32,7 @@ export interface StoreState extends AppSlice, LogsSlice, LogSlice, SampleSlice {
   replicationService?: ReplicationService | null;
 
   // Global actions
-  initialize: (api: ClientAPI, capabilities: Capabilities) => void;
+  initialize: (capabilities: Capabilities) => void;
   cleanup: () => void;
 }
 
@@ -101,12 +100,14 @@ export const initializeStore = (
           const [logsSlice, logsCleanup] = createLogsSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store
+            store,
+            api
           );
           const [logSlice, logCleanup] = createLogSlice(
             set as (fn: (state: StoreState) => void) => void,
             get,
-            store
+            store,
+            api
           );
           const [sampleSlice, sampleCleanup] = createSampleSlice(
             set as (fn: (state: StoreState) => void) => void,
@@ -122,14 +123,12 @@ export const initializeStore = (
 
           return {
             // Shared state
-            api: null,
             databaseService,
             replicationService,
 
             // Initialize
-            initialize: (api, capabilities) => {
+            initialize: (capabilities) => {
               set((state) => {
-                state.api = api;
                 state.databaseService = databaseService;
                 state.replicationService = replicationService;
               });
@@ -196,5 +195,16 @@ export const initializeStore = (
 
   // Set the implementation and initialize it
   storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
-  store.getState().initialize(api, capabilities);
+  setSamplePollingApi(api);
+  store.getState().initialize(capabilities);
+};
+
+const ApiContext = createContext<ClientAPI | null>(null);
+
+export const ApiProvider = ApiContext.Provider;
+
+export const useApi = (): ClientAPI => {
+  const api = useContext(ApiContext);
+  if (!api) throw new Error("useApi must be used within ApiProvider");
+  return api;
 };

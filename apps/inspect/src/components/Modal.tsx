@@ -12,6 +12,12 @@ interface ModalProps {
   className?: string | string[];
   overflow?: "auto" | "hidden" | "scroll" | "visible";
   padded?: boolean;
+  // When provided, replaces the default "Close" footer with the given
+  // node. Useful for dialogs that need their own action buttons.
+  footer?: ReactNode;
+  // When provided, overrides modal-dialog width (e.g. "580px" or
+  // "var(--width-edit-metadata)").
+  width?: string;
 }
 
 export const Modal: FC<ModalProps> = ({
@@ -23,6 +29,8 @@ export const Modal: FC<ModalProps> = ({
   className,
   overflow = "visible",
   padded = true,
+  footer,
+  width,
 }) => {
   return (
     <>
@@ -35,7 +43,10 @@ export const Modal: FC<ModalProps> = ({
         tabIndex={-1}
         style={{ display: showing ? "block" : "none" }}
       >
-        <div className={clsx("modal-dialog", styles.modal)}>
+        <div
+          className={clsx("modal-dialog", styles.modal)}
+          style={width ? { maxWidth: width } : undefined}
+        >
           <div className="modal-content">
             <div className={clsx("modal-header", styles.header)}>
               <div
@@ -76,17 +87,19 @@ export const Modal: FC<ModalProps> = ({
             >
               {children}
             </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                data-bs-dismiss="modal"
-                onClick={() => {
-                  setShowing(!showing);
-                }}
-              >
-                Close
-              </button>
+            <div className={clsx("modal-footer", footer && styles.footerSlot)}>
+              {footer ?? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                  onClick={() => {
+                    setShowing(!showing);
+                  }}
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -191,6 +191,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/log-edit/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Api Log Edit */
+        post: operations["api_log_edit_log_edit__log__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/log-files": {
         parameters: {
             query?: never;
@@ -432,6 +449,23 @@ export interface paths {
         };
         /** Tool Choice */
         get: operations["_tool_choice_tool_choice_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api User Info */
+        get: operations["api_user_info_user_info_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -834,9 +868,9 @@ export interface components {
          * @description A successful checkpoint commit.
          *
          *     Emitted by the checkpointer immediately after the per-checkpoint
-         *     sidecar JSON is written — see working.md §8a. Carries the full
-         *     sidecar payload flattened into top-level fields (via multiple
-         *     inheritance from :class:`CheckpointDetails`), so a consumer of
+         *     file JSON is written — see working.md §8a. Carries the full
+         *     checkpoint payload flattened into top-level fields (via multiple
+         *     inheritance from :class:`Checkpoint`), so a consumer of
          *     ``transcript().events`` (or the ``.eval`` log) reads
          *     ``event.checkpoint_id`` / ``event.trigger`` / ``event.host`` etc.
          *     directly — same data as someone reading
@@ -1318,6 +1352,8 @@ export interface components {
             max_tasks?: number | null;
             /** Message Limit */
             message_limit?: number | null;
+            /** Notification */
+            notification?: boolean | string | null;
             /** Retry On Error */
             retry_on_error?: number | null;
             /** Sample Id */
@@ -2098,20 +2134,30 @@ export interface components {
          * @description Input screen interaction.
          */
         InputEvent: {
+            /** Content */
+            content?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Event
              * @default input
              * @constant
              */
             event: "input";
+            /** Fields */
+            fields?: components["schemas"]["InputField"][] | null;
             /** Input */
             input: string;
             /** Input Ansi */
             input_ansi: string;
+            /** Message */
+            message?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Outcome */
+            outcome?: ("accepted" | "declined" | "cancelled") | null;
             /** Pending */
             pending?: boolean | null;
             /** Span Id */
@@ -2122,6 +2168,21 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * InputField
+         * @description One field of an `ask_user` request.
+         */
+        InputField: {
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "string" | "integer" | "number" | "boolean" | "array";
         };
         /**
          * InterruptEvent
@@ -2303,6 +2364,8 @@ export interface components {
         LogInfo: {
             /** Direct Url */
             direct_url?: string | null;
+            /** Etag */
+            etag?: string | null;
             /** Size */
             size: number;
         };
@@ -3197,7 +3260,7 @@ export interface components {
         };
         /**
          * SnapshotDetails
-         * @description Per-backup stats captured in the sidecar.
+         * @description Per-backup stats captured in the checkpoint file.
          *
          *     One per repo (host repo + one per active sandbox repo). Values come
          *     from restic's backup summary — see :class:`ResticBackupSummary`.
@@ -3773,6 +3836,16 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * UserInfo
+         * @description Best-effort identity for the user running the view server.
+         */
+        UserInfo: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -4047,6 +4120,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    api_log_edit_log_edit__log__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalLog"];
                 };
             };
         };
@@ -4390,6 +4489,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolChoice"];
+                };
+            };
+        };
+    };
+    api_user_info_user_info_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
                 };
             };
         };

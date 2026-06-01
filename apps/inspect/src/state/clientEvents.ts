@@ -1,56 +1,31 @@
 import { useCallback, useEffect } from "react";
 
-import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
 import { clientEventsService } from "./clientEventsService";
-import { useLogs } from "./hooks";
-import { useStore } from "./store";
+import { useApi, useStore } from "./store";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-  const api = useStore((state) => state.api);
-  const { loadLogOverviews } = useLogs();
+  const api = useApi();
 
-  // Set up the refresh callback for the service
   const refreshCallback = useCallback(
-    async (logs: LogHandle[]) => {
-      // Refresh the list of log files
-      log.debug("Refresh Log Files");
+    async (_reason: "event" | "periodic") => {
+      log.debug(`Refresh Log Files (${_reason})`);
       await syncLogs();
-
-      const toRefresh: LogHandle[] = [];
-      for (const log of logs) {
-        const header = logPreviews[log.name];
-        if (!header || header.status === "started") {
-          toRefresh.push(log);
-        }
-      }
-
-      // Refresh any logFiles that are currently being watched
-      if (toRefresh.length > 0) {
-        log.debug(`Refreshing ${toRefresh.length} log files`, toRefresh);
-        await loadLogOverviews(toRefresh);
-      }
     },
-    [logPreviews, syncLogs, loadLogOverviews]
+    [syncLogs]
   );
 
-  // Update the service's refresh callback when dependencies change
   useEffect(() => {
     clientEventsService.setRefreshCallback(refreshCallback);
   }, [refreshCallback]);
 
-  // Wrapper functions that call the service
-  const startPolling = useCallback(
-    (logs: LogHandle[]) => {
-      clientEventsService.startPolling(logs, api);
-    },
-    [api]
-  );
+  const startPolling = useCallback(() => {
+    clientEventsService.startPolling(api);
+  }, [api]);
 
   const stopPolling = useCallback(() => {
     clientEventsService.stopPolling();
@@ -60,7 +35,6 @@ export function useClientEvents() {
     clientEventsService.cleanup();
   }, []);
 
-  // Cleanup when hook unmounts
   useEffect(() => {
     return () => {
       cleanup();

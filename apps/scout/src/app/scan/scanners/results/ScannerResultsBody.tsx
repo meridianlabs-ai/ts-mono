@@ -1,4 +1,3 @@
-import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { ColumnTable } from "arquero";
 import clsx from "clsx";
 import { FC, useMemo } from "react";
@@ -19,9 +18,6 @@ import { defaultColumns } from "../types";
 import styles from "./ScannerResultsBody.module.css";
 
 const columnOrder = ["transcript_id", "value", "explanation", "metadata"];
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const ScannerResultsBody: FC<{
   selectedScan: Status;

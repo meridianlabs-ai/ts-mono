@@ -1,7 +1,13 @@
 .headerContainer {
-  display: grid;
-  grid-template-columns: max-content auto;
-  column-gap: 0rem;
+  /* Flex (not grid) so an optional `children` action node sits inline
+     beside the label rather than wrapping onto a new row. The previous
+     2-column grid (`max-content auto`) treated icon / label-text /
+     children as three grid items in two columns, forcing the third
+     onto its own row. With flex, icon + label sit at the start and
+     any actions trailing in `children` flow inline (and can push
+     themselves to the far edge with `margin-left: auto`). */
+  display: flex;
+  align-items: center;
   padding: 0.5rem 0.5rem 0.5rem 0.5rem;
   font-size: var(--inspect-font-size-small);
   font-weight: 600;

@@ -18,6 +18,7 @@ import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
 import { getDefaultCustomToolView } from "./customToolRendering";
+import { codexToolMarkdown } from "./tool";
 import styles from "./ToolCallView.module.css";
 import { ToolInput } from "./ToolInput";
 import { ToolTitle } from "./ToolTitle";
@@ -106,7 +107,13 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   const collapse = Array.isArray(output)
     ? output.every((item) => !isContentImage(item))
     : !isContentImage(output);
-  const normalizedContent = useMemo(() => normalizeContent(output), [output]);
+  // Render-time reshape of tool output (e.g. surface Codex sub-agent answers /
+  // tool_search catalog). Does not mutate stored data — the raw output remains
+  // visible in the JSON tab.
+  const normalizedContent = useMemo(() => {
+    const markdown = codexToolMarkdown(tool, output);
+    return normalizeContent(markdown !== undefined ? markdown : output);
+  }, [tool, output]);
 
   const hasContent = normalizedContent.find((c) => {
     if (c.type === "tool") {

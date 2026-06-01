@@ -9,15 +9,20 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { ContextProp, ItemProps, VirtuosoHandle } from "react-virtuoso";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
-import { LiveVirtualList } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
+import { VirtualList } from "@tsmono/react/virtual";
+import type {
+  VirtualListHandle,
+  VirtualListItemProps,
+} from "@tsmono/react/virtual";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
+import { GeneratingIndicator } from "./GeneratingIndicator";
 import { computeMaxLabelLength } from "./labelLength";
+import { isLivePlaceholderMessage } from "./livePlaceholder";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {
@@ -27,20 +32,14 @@ import {
   ChatViewToolOptions,
 } from "./types";
 
-// Stable Virtuoso Item wrapper. Defined at module scope so its identity
-// doesn't change across renders of ChatViewVirtualList — Virtuoso
-// re-mounts every row when `components.Item` is a new ref, which detaches
-// the text node any active find selection is anchored to and silently
-// collapses the highlight after about a second of settling.
-const ChatVirtuosoItem = ({
-  children,
-  ...props
-}: ItemProps<unknown> & ContextProp<unknown>) => {
+// Stable Item wrapper defined at module scope so its identity is constant
+// across re-renders — a new component identity each render forces the
+// virtualizer to re-mount every row and detaches any active find-selection.
+const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
   return (
     <div
       className={clsx(styles.item)}
       data-index={props["data-index"]}
-      data-item-group-index={props["data-item-group-index"]}
       data-item-index={props["data-item-index"]}
       data-known-size={props["data-known-size"]}
       style={props.style}
@@ -50,7 +49,7 @@ const ChatVirtuosoItem = ({
   );
 };
 
-const chatVirtuosoComponents = { Item: ChatVirtuosoItem };
+const chatComponents = { Item: ChatItem };
 
 export interface ChatViewVirtualListProps {
   id: string;
@@ -82,7 +81,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     linking,
     tools,
   }: ChatViewVirtualListProps) {
-    const listHandle = useRef<VirtuosoHandle>(null);
+    const listHandle = useRef<VirtualListHandle>(null);
 
     useEffect(() => {
       onNativeFindChanged?.(false);
@@ -127,8 +126,32 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [labels?.messageLabels]
     );
 
+    const lastIndex = collapsedMessages.length - 1;
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
+        if (
+          running &&
+          index === lastIndex &&
+          isLivePlaceholderMessage(item.message)
+        ) {
+          return (
+            <div className={styles.generatingRow}>
+              <div
+                className={clsx(
+                  "text-size-smaller",
+                  "text-style-secondary",
+                  styles.generatingLabel
+                )}
+                style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
+              >
+                {index + 1}
+              </div>
+              <div className={styles.generatingContent}>
+                <GeneratingIndicator />
+              </div>
+            </div>
+          );
+        }
         return (
           <ChatMessageRow
             index={index}
@@ -142,23 +165,23 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
           />
         );
       },
-      [id, display, labels, linking, tools, maxLabelLength]
+      [id, running, lastIndex, display, labels, linking, tools, maxLabelLength]
     );
 
     return (
-      <LiveVirtualList<ResolvedMessage>
-        id="chat-virtual-list"
-        listHandle={listHandle}
-        className={className}
+      <VirtualList<ResolvedMessage>
+        persistenceKey={`chat-${id}`}
+        ref={listHandle}
+        className={clsx(styles.list, className)}
         scrollRef={scrollRef}
         data={collapsedMessages}
         renderRow={renderRow}
-        initialTopMostItemIndex={initialMessageIndex}
-        offsetTop={offsetTop}
+        initialIndex={initialMessageIndex}
+        stickyHeaderOffset={offsetTop}
         live={running}
-        showProgress={running}
-        components={chatVirtuosoComponents}
-        animation={false}
+        scrollToTopOnFinish={true}
+        components={chatComponents}
+        smoothScroll={false}
         itemSearchText={messageSearchText}
       />
     );

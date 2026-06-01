@@ -10,7 +10,7 @@ import {
 const asArray = <T>(v: T | ReadonlyArray<T>): ReadonlyArray<T> =>
   Array.isArray(v) ? (v as ReadonlyArray<T>) : [v as T];
 
-interface UseScrollDirectionOptions {
+export interface UseScrollDirectionOptions {
   /** Minimum px delta before recognizing a direction change. Default: 15 */
   threshold?: number;
   /** Lock duration (ms) after a state change, matching the CSS transition.
@@ -29,7 +29,7 @@ interface UseScrollDirectionOptions {
   stayHiddenOnUpScroll?: boolean;
 }
 
-interface UseScrollDirectionResult {
+export interface UseScrollDirectionResult {
   /** True when scrolling down past threshold while scrollTop > 10px */
   hidden: boolean;
   /** Call before a programmatic scroll or layout change that will shift

@@ -112,7 +112,7 @@ export const SamplesPanel: FC = () => {
   // Polling for updated log files.
   const { startPolling, stopPolling } = useClientEvents();
   useEffect(() => {
-    startPolling([]);
+    startPolling();
     return () => {
       stopPolling();
     };
@@ -246,15 +246,25 @@ export const SamplesPanel: FC = () => {
   // prior directory isn't. Pure: state mutations live in the effects
   // below.
   const initialState = useMemo<GridState | undefined>(() => {
-    if (
-      previousSamplesPath !== undefined &&
-      previousSamplesPath !== samplesPath
-    ) {
-      const result = { ...gridState };
-      delete result?.filter;
-      return result;
+    const base =
+      previousSamplesPath !== undefined && previousSamplesPath !== samplesPath
+        ? (() => {
+            const result = { ...gridState };
+            delete result?.filter;
+            return result;
+          })()
+        : gridState;
+
+    // Default sort: completed desc when nothing is persisted. Once the
+    // user changes it, the new sort gets persisted into gridState and
+    // takes over from here.
+    if (!base?.sort?.sortModel?.length) {
+      return {
+        ...base,
+        sort: { sortModel: [{ colId: "completed_at", sort: "desc" }] },
+      };
     }
-    return gridState;
+    return base;
   }, [previousSamplesPath, samplesPath, gridState]);
 
   useEffect(() => {
@@ -308,7 +318,7 @@ export const SamplesPanel: FC = () => {
           error: sample.error,
           limit: sample.limit,
           retries: sample.retries,
-          completed: sample.completed ?? false,
+          completed: sample.completed,
           tokens,
           duration: sample.total_time ?? undefined,
         };

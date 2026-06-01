@@ -3,6 +3,11 @@ import { baseApplicationIcons } from "@tsmono/react/icons";
 export const ApplicationIcons = {
   ...baseApplicationIcons,
   // overrides
+  // Edit-dialog affordances added with the log-editing UI; not (yet)
+  // in baseApplicationIcons. `edit` is already provided by the base
+  // export ("bi bi-pencil-square") so it doesn't need an override.
+  pencil: "bi bi-pencil",
+  trash: "bi bi-trash",
   fork: "bi bi-signpost-split",
   pendingTask: "bi bi-clock",
   // inspect-specific

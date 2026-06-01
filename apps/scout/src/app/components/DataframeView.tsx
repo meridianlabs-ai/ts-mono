@@ -1,10 +1,8 @@
 import {
-  AllCommunityModule,
   FilterChangedEvent,
   FirstDataRenderedEvent,
   GridApi,
   GridReadyEvent,
-  ModuleRegistry,
   themeBalham,
   type ColDef,
   type StateUpdatedEvent,
@@ -18,10 +16,9 @@ import { centerTruncate } from "@tsmono/util";
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
 
-import styles from "./DataframeView.module.css";
+import "./agGridSetup";
 
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule]);
+import styles from "./DataframeView.module.css";
 
 // Grid state holder
 export const GRID_STATE_NAME = "DataframeView";

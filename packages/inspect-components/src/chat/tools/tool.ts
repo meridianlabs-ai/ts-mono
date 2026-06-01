@@ -26,16 +26,62 @@ export const resolveToolInput = (
   const functionCall =
     args.length > 0 ? `${toolName}(${args.join(", ")})` : toolName;
 
-  // For Task tool, use the subagent_type as the display name
+  // For subagent-dispatch tools, use the subagent_type as the display name.
+  // "Task"/"task" predate Claude Code v2.1.70 and Inspect deepagent's rename;
+  // "Agent"/"agent" are the post-rename names.
   if (
-    (fn === "Task" || fn === "task") &&
+    (fn === "Task" || fn === "task" || fn === "Agent" || fn === "agent") &&
     typeof toolArgs.subagent_type === "string"
   ) {
     const subagentType = toolArgs.subagent_type;
     return {
       name: fn,
-      functionCall: `Task: ${subagentType}`,
+      functionCall: `${fn}: ${subagentType}`,
       title: `${fn}: ${subagentType}`,
+      input,
+      description,
+      contentType: "markdown",
+    };
+  }
+
+  // Codex CLI's sub-agent spawn tool — mirror the Task/Agent treatment, keyed
+  // on `agent_type` (Codex's analog of `subagent_type`).
+  if (fn === "spawn_agent" && typeof toolArgs.agent_type === "string") {
+    const agentType = toolArgs.agent_type;
+    return {
+      name: fn,
+      functionCall: `${fn}: ${agentType}`,
+      title: `${fn}: ${agentType}`,
+      input,
+      description,
+      contentType: "markdown",
+    };
+  }
+
+  // Inspect deepagent background lifecycle tools return markdown status blocks
+  // (the call-line title is supplied by their server-side ToolCallViewer).
+  if (
+    fn === "agent_status" ||
+    fn === "agent_wait" ||
+    fn === "agent_cancel" ||
+    fn === "agent_list"
+  ) {
+    return {
+      name: fn,
+      functionCall,
+      input,
+      description,
+      contentType: "markdown",
+    };
+  }
+
+  // Codex CLI's sub-agent management tools return JSON-wrapped status containing
+  // the sub-agent's (markdown) final answer; render as markdown so
+  // `transformToolOutput` can surface that answer instead of an escaped blob.
+  if (fn === "wait_agent" || fn === "close_agent" || fn === "resume_agent") {
+    return {
+      name: fn,
+      functionCall,
       input,
       description,
       contentType: "markdown",
@@ -114,22 +160,360 @@ const extractInputMetadata = (
       inputArg: "todos",
       contentType: kToolTodoContentType,
     };
-  } else if (toolName === "Task") {
+  } else if (toolName === "Task" || toolName === "Agent") {
     return {
       inputArg: "prompt",
       descriptionArg: "description",
       contentType: "markdown",
     };
-  } else if (toolName === "task") {
+  } else if (toolName === "task" || toolName === "agent") {
     return {
       inputArg: "prompt",
       descriptionArg: "task_description",
+      contentType: "markdown",
+    };
+  } else if (toolName === "exec_command") {
+    // Codex CLI shell tool
+    return {
+      inputArg: "cmd",
+      contentType: "bash",
+    };
+  } else if (toolName === "spawn_agent") {
+    return {
+      inputArg: "message",
+      contentType: "markdown",
+    };
+  } else if (toolName === "send_input") {
+    return {
+      inputArg: "message",
+      contentType: "markdown",
+    };
+  } else if (toolName === "tool_search") {
+    // Codex CLI tool-catalog search. Leave the input (query) to the default
+    // function-call rendering; `contentType: "markdown"` only routes the
+    // *output* (the catalog) through the markdown renderer, where
+    // transformToolOutput has reshaped it into a compact namespace/signature list.
+    return {
       contentType: "markdown",
     };
   } else {
     return undefined;
   }
 };
+
+const kCodexAgentResultTools = new Set([
+  "wait_agent",
+  "close_agent",
+  "resume_agent",
+]);
+
+/**
+ * Reshapes a Codex sub-agent tool *result* into markdown, or returns undefined
+ * when no reshape applies (caller renders the raw output).
+ *
+ * `spawn_agent` returns `{"agent_id": …, "nickname": …}` — we surface a compact
+ * line naming the spawned sub-agent. `wait_agent` / `close_agent` /
+ * `resume_agent` return JSON-wrapped status whose `completed` fields hold the
+ * sub-agent's markdown final answer — we surface those answers. Accepts a raw
+ * string output or structured content (the viewer wraps tool results as
+ * `Content[]`), extracting the underlying text either way. The raw output
+ * remains in the JSON tab.
+ *
+ * (`tool_search` is handled separately by `parseToolSearchCatalog` +
+ * `ToolSearchView`, which needs real collapsible `<details>` elements that the
+ * HTML-escaping markdown pipeline can't produce from a string.)
+ */
+export const codexToolMarkdown = (
+  fn: string,
+  output: unknown
+): string | undefined => {
+  const text = toolOutputText(output);
+  if (text === undefined) {
+    return undefined;
+  }
+  if (fn === "spawn_agent") {
+    return formatSpawnAgentResult(text);
+  }
+  if (kCodexAgentResultTools.has(fn)) {
+    return extractCodexAgentAnswers(text);
+  }
+  return undefined;
+};
+
+// Reshape a `spawn_agent` result (`{"agent_id": …, "nickname": …}`) into a
+// compact markdown line: the nickname, then the agent id in code font.
+const formatSpawnAgentResult = (text: string): string | undefined => {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!data || typeof data !== "object") {
+    return undefined;
+  }
+  const record = data as Record<string, unknown>;
+  const nickname =
+    typeof record.nickname === "string" ? record.nickname : undefined;
+  const agentId =
+    typeof record.agent_id === "string" ? record.agent_id : undefined;
+  const parts: string[] = [];
+  if (nickname) {
+    parts.push(nickname);
+  }
+  if (agentId) {
+    parts.push(`\`${agentId}\``);
+  }
+  return parts.length > 0 ? parts.join(" — ") : undefined;
+};
+
+// Extract the underlying text from a tool output that may be a raw string or
+// structured content (text items, optionally wrapped in a `tool` content item).
+const toolOutputText = (output: unknown): string | undefined => {
+  if (typeof output === "string") {
+    return output;
+  }
+  if (Array.isArray(output)) {
+    const parts: string[] = [];
+    for (const item of output) {
+      collectContentText(item, parts);
+    }
+    return parts.length > 0 ? parts.join("") : undefined;
+  }
+  return undefined;
+};
+
+const collectContentText = (item: unknown, parts: string[]): void => {
+  if (!item || typeof item !== "object") {
+    return;
+  }
+  const record = item as Record<string, unknown>;
+  if (record.type === "text" && typeof record.text === "string") {
+    parts.push(record.text);
+  } else if (record.type === "tool" && Array.isArray(record.content)) {
+    for (const child of record.content) {
+      collectContentText(child, parts);
+    }
+  }
+};
+
+// Codex injects `<subagent_notification>{…}</subagent_notification>` as a user
+// message to tell a parent that a sub-agent finished. The `completed` answer is
+// already surfaced by the paired wait_agent/close_agent result, so we collapse
+// the (duplicated, raw-JSON) notification to a one-line status:
+// `agent <status>: <agent_path>`. Returns undefined when no notification is
+// present (caller renders the message normally); the raw text stays in the JSON
+// tab. Accepts a string or structured content.
+export const formatSubagentNotifications = (
+  content: unknown
+): string | undefined => {
+  const text = toolOutputText(content);
+  if (text === undefined || !text.includes("<subagent_notification>")) {
+    return undefined;
+  }
+  const lines: string[] = [];
+  const regex = /<subagent_notification>([\s\S]*?)<\/subagent_notification>/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const line = formatSubagentNotification(match[1]!);
+    if (line) {
+      lines.push(line);
+    }
+  }
+  return lines.length > 0 ? lines.join("\n\n") : undefined;
+};
+
+const formatSubagentNotification = (payload: string): string | undefined => {
+  let data: unknown;
+  try {
+    data = JSON.parse(payload.trim());
+  } catch {
+    return undefined;
+  }
+  if (!data || typeof data !== "object") {
+    return undefined;
+  }
+  const record = data as Record<string, unknown>;
+  const agentPath =
+    typeof record.agent_path === "string" ? record.agent_path : undefined;
+  const status =
+    record.status && typeof record.status === "object"
+      ? Object.keys(record.status)[0]
+      : undefined;
+  if (agentPath === undefined && status === undefined) {
+    return undefined;
+  }
+  const statusWord = status ?? "notified";
+  return agentPath
+    ? `agent ${statusWord}: \`${agentPath}\``
+    : `agent ${statusWord}`;
+};
+
+export interface ToolSearchToolEntry {
+  /** `name(param1, param2, …)` */
+  signature: string;
+  /** dedented description (markdown), or "" when absent */
+  description: string;
+}
+
+export interface ToolSearchNamespaceEntry {
+  name?: string;
+  description: string;
+  tools: ToolSearchToolEntry[];
+}
+
+// Parse Codex's `tool_search` result into a structured form for `ToolSearchView`
+// to render (each tool as a collapsible <details>). The result is a serde-tagged
+// `ToolSpec` list whose entries are either `{type:"namespace", tools:[…]}` or a
+// bare `{type:"function", name, parameters, …}` (e.g. `read_file`) — the latter
+// are gathered into a single nameless group so their signatures still render.
+// Returns undefined (pass through to default rendering) if the shape is
+// unexpected. Accepts a raw string or structured content (Content[]).
+export const parseToolSearchCatalog = (
+  output: unknown
+): ToolSearchNamespaceEntry[] | undefined => {
+  const text = toolOutputText(output);
+  if (text === undefined) {
+    return undefined;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(data)) {
+    return undefined;
+  }
+
+  const namespaces: ToolSearchNamespaceEntry[] = [];
+  const looseTools: ToolSearchToolEntry[] = [];
+  for (const entry of data) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    const rawTools = Array.isArray(record.tools) ? record.tools : undefined;
+
+    // A top-level function tool (no nested `tools`) — render it directly rather
+    // than mistaking it for an empty namespace that drops the signature.
+    if (
+      record.type === "function" ||
+      (rawTools === undefined && "parameters" in record)
+    ) {
+      const tool = parseToolEntry(record);
+      if (tool) {
+        looseTools.push(tool);
+      }
+      continue;
+    }
+
+    const name = typeof record.name === "string" ? record.name : undefined;
+    const description =
+      typeof record.description === "string" ? record.description : "";
+    const toolList = rawTools ?? [];
+    if (name === undefined && toolList.length === 0) {
+      continue;
+    }
+
+    const tools: ToolSearchToolEntry[] = [];
+    for (const tool of toolList) {
+      if (!tool || typeof tool !== "object") {
+        continue;
+      }
+      const parsed = parseToolEntry(tool as Record<string, unknown>);
+      if (parsed) {
+        tools.push(parsed);
+      }
+    }
+    namespaces.push({ name, description, tools });
+  }
+
+  if (looseTools.length > 0) {
+    namespaces.push({ name: undefined, description: "", tools: looseTools });
+  }
+
+  return namespaces.length > 0 ? namespaces : undefined;
+};
+
+// Parse a single function entry (`{name, parameters, description}`) into a
+// `name(param, …)` signature + dedented description.
+const parseToolEntry = (
+  tool: Record<string, unknown>
+): ToolSearchToolEntry | undefined => {
+  const name = typeof tool.name === "string" ? tool.name : undefined;
+  if (name === undefined) {
+    return undefined;
+  }
+  return {
+    signature: `${name}(${toolParamNames(tool).join(", ")})`,
+    description:
+      typeof tool.description === "string"
+        ? dedentDescription(tool.description)
+        : "",
+  };
+};
+
+const toolParamNames = (tool: Record<string, unknown>): string[] => {
+  const parameters = tool.parameters;
+  if (parameters && typeof parameters === "object") {
+    const properties = (parameters as Record<string, unknown>).properties;
+    if (properties && typeof properties === "object") {
+      return Object.keys(properties);
+    }
+  }
+  return [];
+};
+
+// Dedent each line: the source descriptions mix 8-space-indented lines with
+// flush-left markdown, and the indented lines would otherwise render as code
+// blocks. (No HTML escaping needed — these render via MarkdownDiv, which escapes
+// HTML, so `<...>` placeholders show literally and markdown structure is kept.)
+const dedentDescription = (description: string): string =>
+  description
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .trim();
+
+const extractCodexAgentAnswers = (output: unknown): string | undefined => {
+  if (typeof output !== "string") {
+    return undefined;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(output);
+  } catch {
+    return undefined;
+  }
+
+  const answers: string[] = [];
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+    } else if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) {
+        if (
+          (key === "completed" || key === "failed" || key === "cancelled") &&
+          typeof value === "string"
+        ) {
+          answers.push(cleanCodexAnswer(value));
+        } else {
+          visit(value);
+        }
+      }
+    }
+  };
+  visit(data);
+
+  const nonEmpty = answers.filter((answer) => answer.length > 0);
+  return nonEmpty.length > 0 ? nonEmpty.join("\n\n---\n\n") : undefined;
+};
+
+// Strip Codex's internal `<content-internal>…</content-internal>` bookkeeping
+// tag (base64 message metadata) that trails the visible answer text.
+const cleanCodexAnswer = (text: string): string =>
+  text.replace(/<content-internal>[\s\S]*?<\/content-internal>/g, "").trimEnd();
 
 /**
  * Substitutes `{{param_name}}` placeholders in tool call content

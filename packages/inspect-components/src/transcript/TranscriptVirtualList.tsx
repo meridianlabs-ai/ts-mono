@@ -28,10 +28,15 @@ import type {
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
 import { BranchEventView } from "./BranchEventView";
+import {
+  BranchPoint,
+  findRowKeyForLabel,
+  forkNavToBranchPointProps,
+} from "./BranchPoint";
 import { CheckpointEventView } from "./CheckpointEventView";
 import { CompactionEventView } from "./CompactionEventView";
+import { EmptyBranchView } from "./EmptyBranchView";
 import { ErrorEventView } from "./ErrorEventView";
-import { ForkNavigatorView } from "./ForkNavigatorView";
 import { InfoEventView } from "./InfoEventView";
 import { InputEventView } from "./InputEventView";
 import { InterruptEventView } from "./InterruptEventView";
@@ -46,6 +51,8 @@ import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { StepEventView } from "./StepEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
+import type { ForkNavData } from "./timeline/timelineEventNodes";
+import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { ToolEventView } from "./ToolEventView";
 import { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
@@ -75,6 +82,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
   renderAgentCard,
   eventCallbacks,
 }) => {
+  const selectRow = useTimelineRowSelect();
   switch (node.event.event) {
     case "sample_init":
       return (
@@ -171,8 +179,25 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
 
     case "span_begin": {
       if (node.event.type === "fork_nav") {
+        const data = (node.event.metadata as { fork_nav?: ForkNavData } | null)
+          ?.fork_nav;
+        if (!data) return null;
+        const props = forkNavToBranchPointProps(data);
+        if (!props) return null;
         return (
-          <ForkNavigatorView
+          <BranchPoint
+            {...props}
+            className={className}
+            onSelect={(label, anchorEl) => {
+              const rowKey = findRowKeyForLabel(data, label);
+              if (rowKey) selectRow?.(rowKey, anchorEl);
+            }}
+          />
+        );
+      }
+      if (node.event.type === "empty_branch") {
+        return (
+          <EmptyBranchView
             eventNode={node as EventNode<SpanBeginEvent>}
             className={className}
           />

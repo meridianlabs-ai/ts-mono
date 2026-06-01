@@ -69,6 +69,12 @@ export interface LogDetails {
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
   sampleSummaries: SampleSummary[];
+  // S3 ETag captured at fetch time. Used by the `edit_log` middleware
+  // to prime an `If-Match` on the *first* save so concurrent-modification
+  // protection covers the initial edit, not just chained edits.
+  // Populated for S3-backed .eval logs; undefined for local files and
+  // (currently) JSON-format logs.
+  etag?: string;
 }
 
 export interface PendingSampleResponse {
@@ -231,6 +237,28 @@ export interface LogViewAPI {
     last_message_pool?: number,
     last_call_pool?: number
   ) => Promise<SampleDataResponse | undefined>;
+  // POSTs a LogUpdate (tag/metadata edits + provenance) to the server,
+  // which read-modifies-writes the log header. Returns the updated EvalLog
+  // along with the new ETag (S3 only) for chained edits.
+  edit_log?: (
+    log_file: string,
+    update: LogUpdate,
+    if_match_etag?: string
+  ) => Promise<EditLogResult>;
+  // Best-effort identity of the user running the view server (git
+  // user.name/user.email, falling back to the OS login). Used to prefill
+  // the Author field on edit dialogs. Optional — not all backends.
+  get_user_info?: () => Promise<UserInfo>;
+}
+
+export interface EditLogResult {
+  log: EvalLog;
+  etag?: string;
+}
+
+export interface UserInfo {
+  name?: string;
+  email?: string;
 }
 
 export interface ClientAPI {
@@ -292,6 +320,16 @@ export interface ClientAPI {
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
   open_log_file: (log_file: string, log_dir: string) => Promise<void>;
+
+  // Edit a log's tags / metadata. Optional — only backends that support
+  // server-side mutation (today: the view server) expose this.
+  edit_log?: (
+    log_file: string,
+    update: LogUpdate,
+    if_match_etag?: string
+  ) => Promise<EditLogResult>;
+  // Best-effort identity for prefilling provenance.author on edits.
+  get_user_info?: () => Promise<UserInfo>;
 }
 
 export interface ClientStorage {

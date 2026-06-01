@@ -1,4 +1,4 @@
-import { LogInfo } from "@tsmono/inspect-common/types";
+import { EvalLog, LogInfo, LogUpdate } from "@tsmono/inspect-common/types";
 
 import { EvalScores } from "../../../@types/extraInspect";
 import { asyncJsonParse } from "../../../utils/json-worker";
@@ -6,6 +6,7 @@ import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleDa
 import { download_file } from "../shared/api-shared";
 import {
   Capabilities,
+  EditLogResult,
   EvalHeader,
   LogContents,
   LogPreview,
@@ -15,9 +16,16 @@ import {
   PendingSampleUrls,
   SampleData,
   SampleDataResponse,
+  UserInfo,
 } from "../types";
 
-import { ApiError, HeaderProvider, Request, serverRequestApi } from "./request";
+import {
+  ApiError,
+  HeaderProvider,
+  Request,
+  serverRequestApi,
+  unwrapFastapiDetail,
+} from "./request";
 
 // The time that the view was initially loaded
 const LOADED_TIME = Date.now();
@@ -440,6 +448,70 @@ export function viewServerApi(
     };
   };
 
+  const edit_log = async (
+    log_file: string,
+    update: LogUpdate,
+    if_match_etag?: string
+  ): Promise<EditLogResult> => {
+    // fetch directly (rather than via serverRequestApi) so we can read the
+    // ETag response header alongside the JSON body — fetchType only surfaces
+    // the parsed body.
+    const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
+    const path = `/log-edit/${encodeURIComponent(log_file)}`;
+    const url = baseUrl ? `${baseUrl.replace(/\/$/, "")}${path}` : path;
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (if_match_etag) {
+      headers["If-Match"] = if_match_etag;
+    }
+    if (headerProvider) {
+      Object.assign(headers, await headerProvider());
+    }
+
+    const isCrossOrigin = Boolean(
+      apiBaseUrl &&
+      (() => {
+        try {
+          return new URL(apiBaseUrl).origin !== window.location.origin;
+        } catch {
+          return false;
+        }
+      })()
+    );
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(update),
+      credentials: isCrossOrigin ? "include" : "same-origin",
+    });
+
+    if (!response.ok) {
+      // FastAPI wire-encodes `HTTPException(detail=...)` as
+      // `{"detail": "..."}`. Unwrap so the dialog's `formatEditError`
+      // (and any other ApiError consumer) sees the human-readable
+      // message instead of the JSON envelope or an "API Error N:"
+      // prefix — status-specific server responses (400 validation,
+      // 409 in-progress, 412 stale ETag) need to render as themselves.
+      const rawText = await response.text();
+      const message = unwrapFastapiDetail(rawText) || response.statusText;
+      throw new ApiError(response.status, message);
+    }
+
+    const text = await response.text();
+    const log = (await asyncJsonParse<EvalLog>(text)) as EvalLog;
+    const etag = response.headers.get("ETag") ?? undefined;
+    return { log, etag };
+  };
+
+  const get_user_info = async (): Promise<UserInfo> => {
+    const result = await requestApi.fetchString("GET", "/user-info");
+    return (result.parsed as UserInfo) ?? {};
+  };
+
   const download_log = async (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
@@ -470,5 +542,7 @@ export function viewServerApi(
     eval_pending_samples,
     eval_log_sample_data,
     eval_log_sample_data_direct,
+    edit_log,
+    get_user_info,
   };
 }

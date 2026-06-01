@@ -17,6 +17,7 @@ import styles from "./PrimaryBar.module.css";
 import { displayScorersFromRunningMetrics, ResultsPanel } from "./ResultsPanel";
 import { RunningStatusPanel } from "./RunningStatusPanel";
 import { CancelledPanel, ErroredPanel } from "./StatusPanel";
+import { TagsField } from "./TagsField";
 
 interface PrimaryBarProps {
   status?: EvalLogStatus;
@@ -24,6 +25,7 @@ interface PrimaryBarProps {
   runningMetrics?: RunningMetric[];
   evalSpec?: EvalSpec;
   sampleCount?: number;
+  tags?: string[];
 }
 
 export const PrimaryBar: FC<PrimaryBarProps> = ({
@@ -32,6 +34,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   runningMetrics,
   evalSpec,
   sampleCount,
+  tags,
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
@@ -40,6 +43,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   const logDir = useStore((state) => state.logs.logDir);
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
+  const tagList = tags ?? [];
 
   const copyValue = (() => {
     if (!absLogDir || !selectedLogFile || !logDir) return selectedLogFile;
@@ -66,7 +70,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
           <div className={styles.bodyContainer}>
             <div
               id="task-title"
-              className={clsx("task-title", "text-truncate", styles.taskTitle)}
+              className={clsx("task-title", styles.taskTitle)}
               title={evalSpec?.task}
             >
               {evalSpec?.task}
@@ -87,6 +91,11 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             ) : (
               ""
             )}
+            <TagsField
+              tags={tagList}
+              className={styles.tagRowHeader}
+              collapseOnWrap
+            />
           </div>
           {evalSpec?.model_roles ? (
             <ModelRolesView roles={evalSpec.model_roles} />

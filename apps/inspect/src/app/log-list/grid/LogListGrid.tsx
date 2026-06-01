@@ -68,13 +68,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const { gridStateByScope, setGridState, setFilteredCount } = useLogsListing();
   const gridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
 
-  const { loadLogOverviews, loadAllLogOverviews } = useLogs();
+  const { loadAllLogOverviews } = useLogs();
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
   const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
-  const logPreviews = useStore((state) => state.logs.logPreviews);
   const logDetails = useStore((state) => state.logs.logDetails);
   const navigate = useNavigate();
   const internalGridRef = useRef<AgGridReact<LogListRow>>(null);
@@ -186,6 +185,20 @@ export const LogListGrid: FC<LogListGridProps> = ({
         sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
       }
 
+      // Distinct limit types across samples in this task, comma-joined.
+      // Empty when no sample ended with a limit. Sorted for stable
+      // text-filtering and predictable display order.
+      let sampleLimits: string | undefined;
+      if (details?.sampleSummaries) {
+        const limits = new Set<string>();
+        for (const s of details.sampleSummaries) {
+          if (s.limit) limits.add(s.limit);
+        }
+        if (limits.size > 0) {
+          sampleLimits = Array.from(limits).sort().join(", ");
+        }
+      }
+
       const row: LogListRow = {
         id: item.id,
         name: item.name,
@@ -223,6 +236,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         tags: details?.tags,
         percentCompleted,
         sampleErrors,
+        sampleLimits,
         errorMessage: details?.error?.message,
       };
 
@@ -319,15 +333,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
 
   useEffect(() => {
-    const loadHeaders = async () => {
-      const filesToLoad = logFiles.filter((file) => !logPreviews[file.name]);
-      if (filesToLoad.length > 0) {
-        await loadLogOverviews(filesToLoad);
-      }
-      setWatchedLogs(logFiles);
-    };
-    loadHeaders();
-  }, [logFiles, loadLogOverviews, setWatchedLogs, logPreviews]);
+    setWatchedLogs(logFiles);
+  }, [logFiles, setWatchedLogs]);
 
   const applyVisibility = useApplyColumnVisibility(
     gridRef,

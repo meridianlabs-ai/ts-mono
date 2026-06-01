@@ -1,4 +1,21 @@
 .list {
   width: 100%;
   margin-top: 1em;
+  padding-bottom: 0.5rem;
+}
+
+.generatingRow {
+  display: grid;
+  grid-template-columns: max-content auto;
+  align-items: center;
+  row-gap: 0;
+  margin-bottom: 0.75rem;
+}
+
+.generatingLabel {
+  margin-left: 0.4em;
+}
+
+.generatingContent {
+  padding-left: 0;
 }

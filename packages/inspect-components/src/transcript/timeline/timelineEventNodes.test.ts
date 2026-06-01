@@ -1,14 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import type { CompactionEvent, InfoEvent } from "@tsmono/inspect-common/types";
+import type {
+  AnchorEvent,
+  CompactionEvent,
+  Event,
+  InfoEvent,
+  ModelEvent,
+  SpanBeginEvent,
+  SpanEndEvent,
+  ToolEvent,
+} from "@tsmono/inspect-common/types";
 
-import { TimelineEvent } from "./core";
-import { ts } from "./testHelpers";
+import { TimelineEvent, TimelineSpan } from "./core";
+import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
+import { makeSpan, ts } from "./testHelpers";
 import {
   buildSelectionKey,
+  collectPathWithNavigators,
   computeCompactionRegions,
+  findTerminatorTool,
   getParentKeyFromBranch,
   parseSelection,
+  type EmptyBranchData,
+  type ForkNavData,
 } from "./timelineEventNodes";
 
 // =============================================================================
@@ -49,6 +63,69 @@ function makeTimelineEvent(
         } satisfies InfoEvent);
 
   return new TimelineEvent(event);
+}
+
+function makeAnchor(
+  anchorId: string,
+  sec: number,
+  spanId: string | null = null
+): TimelineEvent {
+  return new TimelineEvent({
+    event: "anchor",
+    anchor_id: anchorId,
+    source: null,
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    metadata: null,
+    pending: null,
+    span_id: spanId,
+    uuid: `anchor-${anchorId}`,
+  } satisfies AnchorEvent);
+}
+
+function makeModel(sec: number, label = "m"): TimelineEvent {
+  return new TimelineEvent({
+    event: "model",
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    pending: null,
+    span_id: null,
+    uuid: `model-${label}-${sec}`,
+    metadata: null,
+    model: "synthetic",
+    role: null,
+    input: [],
+    tools: [],
+    tool_choice: null,
+    config: {} as ModelEvent["config"],
+    output: {} as ModelEvent["output"],
+    error: null,
+    cache: null,
+    call: null,
+    completed: ts(sec).toISOString(),
+    working_time: 0,
+    retries: null,
+    traceback: null,
+    traceback_ansi: null,
+  } as unknown as ModelEvent);
+}
+
+/** A branch span that forks from the given anchor. */
+function makeBranch(
+  name: string,
+  branchedFrom: string,
+  startSec: number,
+  _endSec: number
+): TimelineSpan {
+  return new TimelineSpan({
+    id: name.toLowerCase(),
+    name,
+    spanType: "branch",
+    content: [makeModel(startSec)],
+    branches: [],
+    branchedFrom,
+    utility: false,
+  });
 }
 
 // =============================================================================
@@ -296,5 +373,440 @@ describe("getParentKeyFromBranch", () => {
         "solvers/agent/branch-550e8400-e29b-41d4-a716-446655440000-1"
       )
     ).toBe("solvers/agent");
+  });
+});
+
+describe("collectPathWithNavigators — adjacent fork merge", () => {
+  // Root span with two back-to-back anchors and one branch off each.
+  // No non-anchor event sits between the two anchors, so the two
+  // fork-navs should collapse into a single node with two groups.
+  function rowsWithTwoAdjacentForks() {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    return computeSwimlaneRows(transcript);
+  }
+
+  it("merges two anchor forks at the same parent into one fork_nav node", () => {
+    const rows = rowsWithTwoAdjacentForks();
+    const { events } = collectPathWithNavigators(rows, "root");
+
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(1);
+
+    const data = (forkBegins[0]!.metadata as { fork_nav: ForkNavData })
+      .fork_nav;
+    expect(data.groups).toHaveLength(2);
+    expect(data.groups.map((g) => g.anchorId)).toEqual(["A1", "A2"]);
+  });
+
+  it("does not merge when a non-fork event sits between two anchors", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 6, 7);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [
+        makeAnchor("A1", 2),
+        makeModel(4, "between"),
+        makeAnchor("A2", 5),
+      ],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+
+  it("does not merge across differing parent_ids", () => {
+    // Restart-style fork emits with parent_id = null; anchor fork emits with
+    // parent_id = stripped anchor span_id. The anchor must carry a non-null
+    // span_id so the two parent_ids differ and the merge is skipped.
+    const restartBranch = makeBranch("BR", "", 0, 1);
+    const anchorBranch = makeBranch("BA", "A1", 3, 4);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2, "root")],
+      branches: [restartBranch, anchorBranch],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeSwimlaneRows(transcript);
+
+    const { events } = collectPathWithNavigators(rows, "root");
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+
+  it("merged groups carry independent selectedIndex values", () => {
+    const branchA1 = makeBranch("B1", "A1", 2, 3);
+    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeAnchor("A2", 3), makeModel(4, "tail")],
+      branches: [branchA1, branchA2],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A2-2";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+
+    const forkBegin = events.find(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    if (!forkBegin) throw new Error("expected a fork_nav span_begin");
+    const data = (forkBegin.metadata as { fork_nav: ForkNavData }).fork_nav;
+
+    expect(data.groups[0]!.selectedIndex).toBe(0);
+    expect(data.groups[1]!.selectedIndex).toBe(1);
+  });
+
+  it("does not merge across segment boundaries", () => {
+    // Multi-segment path where the cut anchor has span_id=null and the
+    // selected branch opens with a restart-style fork. Both navs end up
+    // with parent_id=null, so the parent_id guard alone would merge them
+    // — the segIdx guard must prevent that.
+    const restartBranchOnB1 = makeBranch("BR", "", 4, 5);
+    const branchB1 = new TimelineSpan({
+      id: "b1",
+      name: "B1",
+      spanType: "branch",
+      content: [makeModel(3, "b1tail")],
+      branches: [restartBranchOnB1],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2)],
+      branches: [branchB1],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+
+    const branchRowKey = "transcript/root/branch-A1-1/branch--1";
+    const { events } = collectPathWithNavigators(rows, branchRowKey);
+    const forkBegins = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "fork_nav"
+    );
+    expect(forkBegins).toHaveLength(2);
+  });
+});
+
+// =============================================================================
+// findTerminatorTool
+// =============================================================================
+
+function makeTool(spanId: string, fn: string, sec: number): TimelineEvent {
+  return new TimelineEvent({
+    event: "tool",
+    type: "function",
+    function: fn,
+    id: `call-${fn}-${sec}`,
+    arguments: {},
+    result: "",
+    events: [],
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+    agent: null,
+    agent_span_id: null,
+    completed: ts(sec).toISOString(),
+    error: null,
+    failed: null,
+    message_id: null,
+    metadata: null,
+    pending: null,
+    span_id: spanId,
+    truncated: null,
+    uuid: `tool-${spanId}-${sec}`,
+    view: null,
+  } satisfies ToolEvent);
+}
+
+describe("findTerminatorTool", () => {
+  it("returns the function name of the last tool event inside the trajectory range", () => {
+    const events: Event[] = [
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(0).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      makeTool("inner-1", "send_message", 1).event,
+      makeTool("inner-2", "rollback_conversation", 2).event,
+      makeTool("inner-3", "restart_conversation", 3).event,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(4).toISOString(),
+        pending: false,
+        working_start: 4,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBe("restart_conversation");
+  });
+
+  it("returns null when no tool sits inside the trajectory range", () => {
+    const events: Event[] = [
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(0).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 0,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(1).toISOString(),
+        pending: false,
+        working_start: 1,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBeNull();
+  });
+
+  it("returns null when the trajectory span is not present", () => {
+    expect(findTerminatorTool([], "missing")).toBeNull();
+  });
+
+  it("ignores tools outside the trajectory range", () => {
+    const events: Event[] = [
+      makeTool("outside-1", "before_tool", 0).event,
+      {
+        event: "span_begin",
+        name: "trajectory",
+        id: "traj-1",
+        span_id: "traj-1",
+        type: "trajectory",
+        timestamp: ts(1).toISOString(),
+        parent_id: null,
+        pending: false,
+        working_start: 1,
+        uuid: "traj-1",
+        metadata: null,
+      } satisfies SpanBeginEvent,
+      {
+        event: "span_end",
+        id: "traj-1",
+        span_id: "traj-1",
+        timestamp: ts(2).toISOString(),
+        pending: false,
+        working_start: 2,
+        uuid: null,
+        metadata: null,
+      } satisfies SpanEndEvent,
+      makeTool("outside-2", "after_tool", 3).event,
+    ];
+    expect(findTerminatorTool(events, "traj-1")).toBeNull();
+  });
+});
+
+describe("collectPathWithNavigators — empty leaf marker", () => {
+  function rowsWithEmptyLeafBranch() {
+    // Parent span has an anchor; one branch forks from that anchor and
+    // contains nothing visible (just structural events / empty content).
+    const emptyBranch = new TimelineSpan({
+      id: "empty",
+      name: "Branch 2",
+      spanType: "branch",
+      content: [],
+      branches: [],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeModel(4, "tail")],
+      branches: [emptyBranch],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    return computeFlatSwimlaneRows(transcript, { showBranches: true });
+  }
+
+  it("emits an empty_branch synthetic span when the leaf segment has no visible content", () => {
+    const rows = rowsWithEmptyLeafBranch();
+    const { events } = collectPathWithNavigators(
+      rows,
+      "transcript/root/branch-A1-1"
+    );
+    const markers = events.filter(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "empty_branch"
+    );
+    expect(markers).toHaveLength(1);
+    const data = (markers[0]!.metadata as { empty_branch: EmptyBranchData })
+      .empty_branch;
+    expect(data.branchName).toBe("Branch 2");
+    expect(data.terminator).toBeNull();
+  });
+
+  it("passes terminator name into the marker when rawEvents is supplied", () => {
+    const rows = rowsWithEmptyLeafBranch();
+    const trajBegin = {
+      event: "span_begin",
+      name: "trajectory",
+      id: "empty",
+      span_id: "empty",
+      type: "trajectory",
+      timestamp: ts(2).toISOString(),
+      parent_id: null,
+      pending: false,
+      working_start: 2,
+      uuid: "empty",
+      metadata: null,
+    } satisfies SpanBeginEvent;
+    const tool = makeTool("inner-tool", "restart_conversation", 3).event;
+    const trajEnd = {
+      event: "span_end",
+      id: "empty",
+      span_id: "empty",
+      timestamp: ts(4).toISOString(),
+      pending: false,
+      working_start: 4,
+      uuid: null,
+      metadata: null,
+    } satisfies SpanEndEvent;
+    const raw: Event[] = [trajBegin, tool, trajEnd];
+
+    const { events } = collectPathWithNavigators(
+      rows,
+      "transcript/root/branch-A1-1",
+      raw
+    );
+    const marker = events.find(
+      (e): e is SpanBeginEvent =>
+        e.event === "span_begin" && e.type === "empty_branch"
+    );
+    expect(marker).toBeDefined();
+    const data = (marker!.metadata as { empty_branch: EmptyBranchData })
+      .empty_branch;
+    expect(data.terminator).toBe("restart_conversation");
+  });
+
+  it("does NOT emit an empty_branch marker when the leaf segment has visible content", () => {
+    const branchWithContent = new TimelineSpan({
+      id: "filled",
+      name: "Branch 2",
+      spanType: "branch",
+      content: [makeModel(3, "inside")],
+      branches: [],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeModel(4, "tail")],
+      branches: [branchWithContent],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+    const { events } = collectPathWithNavigators(
+      rows,
+      "transcript/root/branch-A1-1"
+    );
+    const markers = events.filter(
+      (e) => e.event === "span_begin" && e.type === "empty_branch"
+    );
+    expect(markers).toHaveLength(0);
+  });
+
+  it("does NOT emit an empty_branch marker for empty NON-leaf segments", () => {
+    // Intermediate branch is empty (only an anchor); its child branch has
+    // content. The leaf is the child, which is non-empty → no marker.
+    const leaf = new TimelineSpan({
+      id: "leaf",
+      name: "Branch 3",
+      spanType: "branch",
+      content: [makeModel(4, "leafmodel")],
+      branches: [],
+      branchedFrom: "A2",
+      utility: false,
+    });
+    const empty = new TimelineSpan({
+      id: "empty",
+      name: "Branch 2",
+      spanType: "branch",
+      content: [makeAnchor("A2", 3)],
+      branches: [leaf],
+      branchedFrom: "A1",
+      utility: false,
+    });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "Root",
+      spanType: "agent",
+      content: [makeAnchor("A1", 2), makeModel(5, "tail")],
+      branches: [empty],
+      utility: false,
+    });
+    const transcript = makeSpan("Transcript", 0, 10, 0, [root]);
+    const rows = computeFlatSwimlaneRows(transcript, { showBranches: true });
+    const { events } = collectPathWithNavigators(
+      rows,
+      "transcript/root/branch-A1-1/branch-A2-1"
+    );
+    const markers = events.filter(
+      (e) => e.event === "span_begin" && e.type === "empty_branch"
+    );
+    expect(markers).toHaveLength(0);
   });
 });

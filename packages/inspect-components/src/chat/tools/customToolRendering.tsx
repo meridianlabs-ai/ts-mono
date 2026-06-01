@@ -2,7 +2,9 @@ import { FC, ReactNode } from "react";
 
 import { SourceCodePanel } from "@tsmono/react/components";
 
+import { parseToolSearchCatalog } from "./tool";
 import type { ToolCallViewProps } from "./ToolCallView";
+import { ToolSearchView } from "./ToolSearchView";
 
 /**
  * Default custom tool views built into the shared package.
@@ -13,6 +15,12 @@ export const getDefaultCustomToolView = (
 ): ReactNode | undefined => {
   if (props.tool === "answer") {
     return <AnswerToolCallView {...props} />;
+  }
+  if (props.tool === "tool_search") {
+    const namespaces = parseToolSearchCatalog(props.output);
+    if (namespaces) {
+      return <ToolSearchView namespaces={namespaces} />;
+    }
   }
   return undefined;
 };

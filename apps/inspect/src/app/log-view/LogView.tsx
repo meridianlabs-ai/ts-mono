@@ -139,6 +139,7 @@ export const LogView: FC = () => {
           runningMetrics={runningMetrics}
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
+          tags={selectedLogDetails?.tags}
           collapsed={titleCollapsed}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>

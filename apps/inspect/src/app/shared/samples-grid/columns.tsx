@@ -191,6 +191,28 @@ export function buildSampleColumns(
         resizable: true,
         valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
           filename(params.value),
+      },
+      {
+        colId: "completed_at",
+        headerName: "Completed",
+        initialWidth: 140,
+        minWidth: 80,
+        maxWidth: 160,
+        sortable: true,
+        filter: true,
+        resizable: true,
+        cellDataType: "date",
+        valueGetter: (params: ValueGetterParams<SampleRow>) =>
+          params.data?.data?.completed_at ?? undefined,
+        filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
+          const v = params.data?.data?.completed_at;
+          if (!v) return undefined;
+          const d = new Date(v);
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        },
+        valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
+          params.value ? formatDateTime(new Date(params.value)) : "",
+        comparator: comparators.date,
       }
     );
   }
@@ -389,33 +411,10 @@ export function buildSampleColumns(
         : formatTime(params.value),
   });
 
-  // SCORE COLUMNS
-  cols.push(...buildScoreColumns(ctx));
-
-  // OPTIONAL columns — present in selector, default-visible only when data
-  // exists. Initial visibility is seeded by `useSampleGridState`.
-  if (multiLog) {
-    cols.push({
-      colId: "created",
-      field: "created",
-      headerName: "Created",
-      initialWidth: 130,
-      minWidth: 80,
-      maxWidth: 140,
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellDataType: "date",
-      filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
-        if (!params.data?.created) return undefined;
-        const d = new Date(params.data.created);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      },
-      valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-        params.value ? formatDateTime(new Date(params.value)) : "",
-    });
-  }
-
+  // OPTIONAL columns kept before scores so a scrolling user sees
+  // halted/limited/retried-sample signals without scrolling past the
+  // (often wide) score-column block. Default visibility is seeded by
+  // `useSampleGridState`.
   cols.push(
     {
       colId: "error",
@@ -477,6 +476,31 @@ export function buildSampleColumns(
         params.data?.retries ?? params.data?.data?.retries,
     }
   );
+
+  // SCORE COLUMNS
+  cols.push(...buildScoreColumns(ctx));
+
+  if (multiLog) {
+    cols.push({
+      colId: "created",
+      field: "created",
+      headerName: "Eval Created",
+      initialWidth: 140,
+      minWidth: 80,
+      maxWidth: 160,
+      sortable: true,
+      filter: true,
+      resizable: true,
+      cellDataType: "date",
+      filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
+        if (!params.data?.created) return undefined;
+        const d = new Date(params.data.created);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      },
+      valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
+        params.value ? formatDateTime(new Date(params.value)) : "",
+    });
+  }
 
   // Phantom spacer at the right end — only in compact mode. Compact
   // mode's rotated labels extend ~92px past the rightmost score

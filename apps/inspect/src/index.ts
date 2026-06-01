@@ -1,3 +1,13 @@
+/**
+ * Public entry point for embedding the Inspect log viewer into an external application
+ * by consuming this package's **source** directly — the `<App />` component, client
+ * APIs, store initializer, and selection hooks needed to host the viewer in-process.
+ *
+ * Disclaimer: semantic versioning is NOT used. This surface evolves with the host
+ * application's needs. Consumers pinning to a revision must expect breaking changes
+ * at any time and adapt accordingly.
+ */
+
 // Main React App Component
 export { App, type AppProps } from "./app/App";
 
@@ -38,3 +48,11 @@ export {
 // Selection-related types
 export type { SampleSummary } from "./client/api/types";
 export type { ScoreLabel } from "./app/types";
+
+// Scroll-direction hook — used by embedders to drive their own chrome
+// collapse with the same hysteresis behaviour the viewer uses internally.
+export {
+  useScrollDirection,
+  type UseScrollDirectionOptions,
+  type UseScrollDirectionResult,
+} from "@tsmono/react/hooks";

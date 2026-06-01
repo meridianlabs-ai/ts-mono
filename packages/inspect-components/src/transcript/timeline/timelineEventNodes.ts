@@ -17,6 +17,7 @@ import { EventNode } from "../types";
 
 import {
   createBranchSpan,
+  isEmptyBranch,
   stripSuffix,
   type TimelineEvent,
   type TimelineSpan,
@@ -633,10 +634,25 @@ export interface ForkNavOption {
   rowKey: string;
 }
 
-export interface ForkNavData {
+/** One group within a fork navigator — the options forked at a single anchor. */
+export interface ForkNavGroup {
   anchorId: string;
   options: ForkNavOption[];
   selectedIndex: number;
+}
+
+export interface ForkNavData {
+  groups: ForkNavGroup[];
+}
+
+export interface EmptyBranchData {
+  /** Branch (trajectory) name, for display. */
+  branchName: string;
+  /**
+   * Function name of the last tool event observed inside the trajectory's
+   * span range. Null when no tool was found or no events array was given.
+   */
+  terminator: string | null;
 }
 
 interface PathSegment {
@@ -733,8 +749,13 @@ function emitSyntheticSpan(events: Event[], opts: SyntheticSpanOpts): void {
   } satisfies SpanEndEvent);
 }
 
-/** Outline label for a fork navigator: list children, capped to keep it short. */
-function forkNavLabel(children: ForkNavOption[]): string {
+/**
+ * Outline label for a fork navigator. Flattens all groups' child options
+ * (excluding the leading stay-on-segment entry, which is always groups[*].options[0])
+ * and caps at "first, second +N".
+ */
+function forkNavLabel(groups: ForkNavGroup[]): string {
+  const children = groups.flatMap((g) => g.options.slice(1));
   if (children.length <= 2) return children.map((c) => c.label).join(", ");
   return `${children[0]!.label} +${children.length - 1}`;
 }
@@ -749,11 +770,17 @@ function forkNavLabel(children: ForkNavOption[]): string {
  */
 export function collectPathWithNavigators(
   rows: SwimlaneRow[],
-  selectedRowKey: string
+  selectedRowKey: string,
+  rawEvents?: ReadonlyArray<Event>
 ): CollectedEvents {
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
   const path = buildPath(rows, selectedRowKey);
+  // Track which segment emitted the most recent fork-nav so navs from
+  // different segments never collapse — even if their parent_ids happen to
+  // coincide (e.g., both null when a cut anchor has a null span_id and the
+  // child segment opens with a restart-style fork).
+  let lastNavSegIdx: number | null = null;
 
   for (let segIdx = 0; segIdx < path.length; segIdx++) {
     const seg = path[segIdx]!;
@@ -775,20 +802,51 @@ export function collectPathWithNavigators(
       ];
       const isCut = anchorId === seg.cutAnchor;
       const sel = isCut ? options.findIndex((o) => o.rowKey === nextRowKey) : 0;
+      const group: ForkNavGroup = {
+        anchorId,
+        options,
+        selectedIndex: Math.max(0, sel),
+      };
+
+      // Collapse strictly-adjacent fork navs (same parent_id) into one row.
+      // Anchors are structural markers (hidden by default) — the user
+      // perceives two fork navs separated only by anchors as adjacent — so
+      // skip them when checking adjacency.
+      let i = events.length - 1;
+      while (i >= 0 && events[i]!.event === "anchor") i--;
+      const last = events[i];
+      const prev = events[i - 1];
+      if (
+        lastNavSegIdx === segIdx &&
+        last &&
+        prev &&
+        last.event === "span_end" &&
+        prev.event === "span_begin" &&
+        prev.type === "fork_nav" &&
+        last.span_id === prev.span_id &&
+        prev.parent_id === parentId
+      ) {
+        const data = (
+          prev.metadata as { fork_nav?: ForkNavData } | null | undefined
+        )?.fork_nav;
+        if (data) {
+          data.groups.push(group);
+          prev.name = forkNavLabel(data.groups);
+          return isCut;
+        }
+      }
+
       emitSyntheticSpan(events, {
         id: `forknav-${seg.span.id}-${anchorId || "restart"}`,
-        name: forkNavLabel(children),
+        name: forkNavLabel([group]),
         type: "fork_nav",
         parentId,
         start: ts,
         metadata: {
-          fork_nav: {
-            anchorId,
-            options,
-            selectedIndex: Math.max(0, sel),
-          } satisfies ForkNavData,
+          fork_nav: { groups: [group] } satisfies ForkNavData,
         },
       });
+      lastNavSegIdx = segIdx;
       return isCut;
     };
 
@@ -824,6 +882,32 @@ export function collectPathWithNavigators(
       }
     }
   }
+
+  // Defensive: empty branches are pruned at convert time, but a stale URL
+  // can still target one. Surface an explanation in that case.
+  const leaf = path[path.length - 1];
+  if (leaf && leaf.span.spanType === "branch") {
+    if (isEmptyBranch(leaf.span)) {
+      const terminator = rawEvents
+        ? findTerminatorTool(rawEvents, leaf.span.id)
+        : null;
+      const startTs = leaf.span.startTime().toISOString();
+      emitSyntheticSpan(events, {
+        id: `emptybranch-${leaf.span.id}`,
+        name: `${leaf.span.name} (empty)`,
+        type: "empty_branch",
+        parentId: null,
+        start: startTs,
+        metadata: {
+          empty_branch: {
+            branchName: leaf.span.name,
+            terminator,
+          } satisfies EmptyBranchData,
+        },
+      });
+    }
+  }
+
   return { events, sourceSpans };
 }
 
@@ -870,6 +954,31 @@ export function buildSpanSelectKeys(
 // =============================================================================
 // Source span attachment
 // =============================================================================
+
+/**
+ * Find the most recent tool event whose position sits inside the given
+ * trajectory's span_begin/span_end range. Returns the tool's function name,
+ * or null when no tool is found in range.
+ */
+export function findTerminatorTool(
+  events: ReadonlyArray<Event>,
+  trajectorySpanId: string
+): string | null {
+  let begin = -1;
+  let end = -1;
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.span_id !== trajectorySpanId) continue;
+    if (e.event === "span_begin" && begin === -1) begin = i;
+    else if (e.event === "span_end") end = i;
+  }
+  if (begin === -1 || end === -1) return null;
+  for (let i = end - 1; i > begin; i--) {
+    const e = events[i]!;
+    if (e.event === "tool") return e.function;
+  }
+  return null;
+}
 
 /**
  * Walks the EventNode tree and attaches sourceSpan to any span_begin node

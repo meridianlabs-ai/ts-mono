@@ -11,8 +11,16 @@
   z-index: 1050;
 }
 
+/* Even vertical whitespace above and below the title across every
+   Modal consumer (tags, metadata, scoring detail, …). An earlier
+   `height: 2em` rule clamped the header below its natural padding-
+   based height; the title still rendered, but how much of the
+   padding survived varied by CSS load order, so some surfaces ended
+   up visibly tighter than others. Setting padding explicitly removes
+   that dependency. */
 .header {
-  height: 2em;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .modalTitle {
@@ -55,4 +63,13 @@
 
 .noPadding {
   padding: 0;
+}
+
+/* Used when a custom footer node is supplied via the `footer` prop —
+   provides the consistent padding for consumer-supplied buttons.
+   Background is left to the modal-content default (white) so this
+   footer matches other modals across the viewer rather than getting
+   the tinted rail look. */
+.footerSlot {
+  padding: 0.75rem 1.125rem;
 }

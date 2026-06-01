@@ -44,6 +44,14 @@ export const kMethodEvalLogHeaders = "eval_log_headers";
 export const kMethodPendingSamples = "eval_log_pending_samples";
 export const kMethodSampleData = "eval_log_sample_data";
 export const kMethodLogMessage = "log_message";
+// Log editing (Phase 1: tag + metadata edits) and best-effort author
+// identity for prefilling the edit dialog's Author field. Both require
+// a matching method on the VS Code extension side; older extensions
+// will report `kJsonRpcMethodNotFound`, which the api-vscode caller
+// translates into either an empty UserInfo (get_user_info) or a clear
+// "newer extension required" message (edit_log).
+export const kMethodEditLog = "edit_log";
+export const kMethodGetUserInfo = "get_user_info";
 
 export const kJsonRpcParseError = -32700;
 export const kJsonRpcInvalidRequest = -32600;
