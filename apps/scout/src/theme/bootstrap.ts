@@ -1,8 +1,8 @@
-import { createApplyTheme } from "@tsmono/inspect-common/theme/bootstrap";
+import { createApplyTheme, readThemePreference } from "@tsmono/theme/bootstrap";
 
-import { readThemePreference } from "./readPreference";
+import { SETTINGS_STORAGE_KEY } from "./constants";
 
 createApplyTheme({
   queryParamName: "inspectViewThemeCategory",
-  readPreference: readThemePreference,
+  readPreference: () => readThemePreference(localStorage, SETTINGS_STORAGE_KEY),
 })();

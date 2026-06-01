@@ -1,6 +1,6 @@
-import { createApplyTheme } from "@tsmono/inspect-common/theme/bootstrap";
+import { createApplyTheme, readThemePreference } from "@tsmono/theme/bootstrap";
 
-import { readThemePreference } from "./readPreference";
+import { SETTINGS_STORAGE_KEY } from "./constants";
 
 // Standalone, theme follows the in-app picker (persisted by the userSettings
 // store) or the OS color scheme; a host iframe (VS Code / hawk) can still
@@ -9,7 +9,7 @@ import { readThemePreference } from "./readPreference";
 // `--vscode-* → --bs-*` bridge instead of half-applying.
 const applyTheme = createApplyTheme({
   queryParamName: "inspectLogviewThemeCategory",
-  readPreference: readThemePreference,
+  readPreference: () => readThemePreference(localStorage, SETTINGS_STORAGE_KEY),
 });
 
 applyTheme();

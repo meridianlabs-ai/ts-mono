@@ -44,6 +44,35 @@ export const isThemePreference = (value: unknown): value is ThemePreference =>
   THEME_PREFERENCES.includes(value as ThemePreference);
 
 /**
+ * Read a persisted preference out of the zustand-persist-compatible settings
+ * blob both app-local stores write (`{ state: { themePreference } }`).
+ * Dependency-free so the inline bootstrap `<script>` can use it; apps pass
+ * their own `storageKey` (storage is an app concern — see `createApplyTheme`'s
+ * `readPreference` option) and wire it via
+ * `readPreference: () => readThemePreference(localStorage, KEY)`.
+ */
+export const readThemePreference = (
+  storage: Pick<Storage, "getItem">,
+  storageKey: string
+): ThemePreference => {
+  try {
+    const raw = storage.getItem(storageKey);
+    if (!raw) return "system";
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "state" in parsed) {
+      const state = parsed.state;
+      if (state && typeof state === "object" && "themePreference" in state) {
+        const value = state.themePreference;
+        if (isThemePreference(value)) return value;
+      }
+    }
+    return "system";
+  } catch {
+    return "system";
+  }
+};
+
+/**
  * Resolved dark/light for a preference — drives the toggle's icon and
  * flip direction. For `system` it reads the OS color scheme. (Host
  * query-param overrides are intentionally ignored: the in-app picker is

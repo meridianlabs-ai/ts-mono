@@ -25,6 +25,7 @@
   "dependencies": {
     "@tsmono/inspect-common": "workspace:*",
     "@tsmono/react": "workspace:*",
+    "@tsmono/theme": "workspace:*",
     "@tsmono/util": "workspace:*",
     "clsx": "^2.1.1"
   },

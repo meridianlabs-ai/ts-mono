@@ -83,6 +83,9 @@ importers:
       '@tsmono/scout-components':
         specifier: workspace:*
         version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -288,6 +291,9 @@ importers:
       '@tsmono/scout-components':
         specifier: workspace:*
         version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -415,9 +421,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.13(@types/node@25.9.0)(esbuild@0.28.0)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
-      esbuild:
-        specifier: 0.28.0
-        version: 0.28.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.4
@@ -512,6 +515,9 @@ importers:
       '@tsmono/react':
         specifier: workspace:*
         version: link:../react
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
@@ -752,6 +758,27 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.59.4
+        version: 8.59.4(eslint@9.39.4)(typescript@6.0.3)
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@types/node@25.9.0)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.13(@types/node@25.9.0)(esbuild@0.28.0)(less@4.5.1)(sass@1.97.3)(stylus@0.62.0)(yaml@2.8.3))
+
+  packages/theme:
+    devDependencies:
+      '@tsmono/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint-config
+      '@tsmono/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

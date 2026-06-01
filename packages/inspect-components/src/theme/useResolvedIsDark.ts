@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import {
   resolveIsDark,
   type ThemePreference,
-} from "@tsmono/inspect-common/theme/bootstrap";
+} from "@tsmono/theme/bootstrap";
 
 // Re-render trigger: watch the `data-bs-theme` attribute the theme bootstrap
 // writes to <html>. That's the single source of truth both the pre-paint

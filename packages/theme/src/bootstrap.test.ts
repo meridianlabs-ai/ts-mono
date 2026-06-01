@@ -1,9 +1,52 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createApplyTheme, resolveTheme, ThemePreference } from "./bootstrap";
+import {
+  createApplyTheme,
+  readThemePreference,
+  resolveTheme,
+  ThemePreference,
+} from "./bootstrap";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("readThemePreference", () => {
+  const KEY = "test-user-settings";
+  const fakeStorage = (raw: string | null): Pick<Storage, "getItem"> => ({
+    getItem: (key) => (key === KEY ? raw : null),
+  });
+  const readPref = (raw: string | null) =>
+    readThemePreference(fakeStorage(raw), KEY);
+  const persisted = (themePreference?: unknown): string =>
+    JSON.stringify({ state: { themePreference }, version: 0 });
+
+  it("defaults to 'system' when storage is empty", () => {
+    expect(readPref(null)).toBe("system");
+  });
+
+  it("defaults to 'system' when JSON is malformed", () => {
+    expect(readPref("{not json")).toBe("system");
+  });
+
+  it("defaults to 'system' when state is missing", () => {
+    expect(readPref("{}")).toBe("system");
+  });
+
+  it("defaults to 'system' when themePreference has unknown value", () => {
+    expect(readPref(persisted("solar"))).toBe("system");
+  });
+
+  it.each<ThemePreference>([
+    "system",
+    "light",
+    "dark",
+    "readable-system",
+    "readable-light",
+    "readable-dark",
+  ])("returns persisted value '%s'", (value) => {
+    expect(readPref(persisted(value))).toBe(value);
+  });
 });
 
 describe("resolveTheme", () => {

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { ThemePreference } from "@tsmono/inspect-common/theme/bootstrap";
+import type { ThemePreference } from "@tsmono/theme/bootstrap";
 
 import { SETTINGS_STORAGE_KEY } from "../theme/constants";
 

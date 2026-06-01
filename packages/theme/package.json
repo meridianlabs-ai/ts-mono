@@ -1,31 +1,33 @@
 {
-  "name": "@tsmono/inspect-common",
+  "name": "@tsmono/theme",
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/types/index.ts",
-  "types": "./src/types/index.ts",
   "exports": {
-    ".": "./src/types/index.ts",
-    "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./base": {
+      "types": "./src/base.d.ts",
+      "default": "./src/base.css"
+    },
+    "./vscode": {
+      "types": "./src/vscode.d.ts",
+      "default": "./src/vscode.css"
+    },
+    "./bootstrap": {
+      "types": "./src/bootstrap.ts",
+      "default": "./src/bootstrap.ts"
+    }
   },
   "scripts": {
-    "types:generate": "node scripts/generate-types.js",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@tsmono/util": "workspace:*"
-  },
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "eslint": "^9.39.4",
-    "openapi-typescript": "^7.10.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",
     "vitest": "^4.1.6"
