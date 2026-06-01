@@ -21,6 +21,7 @@ import {
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
+import { useStaticBundle } from "../../api/useStaticBundle";
 import { ApplicationIcons } from "../../icons";
 import {
   getScannerParam,
@@ -157,7 +158,9 @@ export const ScannerResultPanel: FC = () => {
   const appConfig = useAppConfig();
 
   // Validation sidebar - URL is the source of truth
-  const validationSidebarCollapsed = !getValidationParam(searchParams);
+  const validationAvailable = !useStaticBundle();
+  const validationSidebarCollapsed =
+    !validationAvailable || !getValidationParam(searchParams);
 
   const toggleValidationSidebar = useCallback(() => {
     setSearchParams((prevParams) => {
@@ -316,7 +319,7 @@ export const ScannerResultPanel: FC = () => {
     }
 
     // Validation button - only show when transcriptId is available
-    if (selectedResult?.transcriptId) {
+    if (validationAvailable && selectedResult?.transcriptId) {
       toolButtons.push(
         <ToolButton
           key="validation-sidebar-toggle"
@@ -341,6 +344,7 @@ export const ScannerResultPanel: FC = () => {
     selectedResult,
     toggleValidationSidebar,
     validationSidebarCollapsed,
+    validationAvailable,
     handleNavigateToTranscript,
     hasTranscript,
     resolvedTranscriptsDir,
