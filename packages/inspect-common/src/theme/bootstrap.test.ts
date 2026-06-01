@@ -1,55 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createApplyTheme,
-  readThemePreference,
-  resolveTheme,
-  ThemePreference,
-} from "./bootstrap";
-
-const SETTINGS_STORAGE_KEY = "test-user-settings";
-
-const fakeStorage = (raw: string | null): Pick<Storage, "getItem"> => ({
-  getItem: (key) => (key === SETTINGS_STORAGE_KEY ? raw : null),
-});
-
-const readPref = (raw: string | null) =>
-  readThemePreference(fakeStorage(raw), SETTINGS_STORAGE_KEY);
-
-const persisted = (themePreference?: unknown): string =>
-  JSON.stringify({ state: { themePreference }, version: 0 });
+import { createApplyTheme, resolveTheme, ThemePreference } from "./bootstrap";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe("readThemePreference", () => {
-  it("defaults to 'system' when storage is empty", () => {
-    expect(readPref(null)).toBe("system");
-  });
-
-  it("defaults to 'system' when JSON is malformed", () => {
-    expect(readPref("{not json")).toBe("system");
-  });
-
-  it("defaults to 'system' when state is missing", () => {
-    expect(readPref("{}")).toBe("system");
-  });
-
-  it("defaults to 'system' when themePreference has unknown value", () => {
-    expect(readPref(persisted("solar"))).toBe("system");
-  });
-
-  it.each<ThemePreference>([
-    "system",
-    "light",
-    "dark",
-    "readable-system",
-    "readable-light",
-    "readable-dark",
-  ])("returns persisted value '%s'", (value) => {
-    expect(readPref(persisted(value))).toBe(value);
-  });
 });
 
 describe("resolveTheme", () => {
@@ -63,7 +17,6 @@ describe("resolveTheme", () => {
   it("standalone + system + light OS → light", () => {
     expect(resolveTheme({ ...baseInput, prefersDark: false })).toEqual({
       kind: "apply",
-      theme: "light",
       isDark: false,
       variant: "default",
       toggleBodyClass: true,
@@ -73,7 +26,6 @@ describe("resolveTheme", () => {
   it("standalone + system + dark OS → dark", () => {
     expect(resolveTheme({ ...baseInput, prefersDark: true })).toEqual({
       kind: "apply",
-      theme: "dark",
       isDark: true,
       variant: "default",
       toggleBodyClass: true,
@@ -83,13 +35,13 @@ describe("resolveTheme", () => {
   it("standalone + light override wins regardless of OS", () => {
     expect(
       resolveTheme({ ...baseInput, preference: "light", prefersDark: true })
-    ).toMatchObject({ theme: "light", isDark: false });
+    ).toMatchObject({ isDark: false });
   });
 
   it("standalone + dark override wins regardless of OS", () => {
     expect(
       resolveTheme({ ...baseInput, preference: "dark", prefersDark: false })
-    ).toMatchObject({ theme: "dark", isDark: true });
+    ).toMatchObject({ isDark: true });
   });
 
   it("VS Code + system + no explicit param → clears variant only", () => {
@@ -109,7 +61,6 @@ describe("resolveTheme", () => {
       })
     ).toEqual({
       kind: "apply",
-      theme: "vscode-dark",
       isDark: true,
       variant: "default",
       toggleBodyClass: false,
@@ -178,9 +129,7 @@ describe("resolveTheme", () => {
 
   it("VS Code clears readable DOM variant when Event Colors is turned off", () => {
     const attrs = new Map<string, string>();
-    const storage = new Map<string, string>([
-      [SETTINGS_STORAGE_KEY, persisted("readable-system")],
-    ]);
+    let preference: ThemePreference = "readable-system";
     vi.stubGlobal("document", {
       documentElement: {
         setAttribute: (name: string, value: string) => attrs.set(name, value),
@@ -203,19 +152,15 @@ describe("resolveTheme", () => {
       addEventListener: vi.fn(),
       acquireVsCodeApi: vi.fn(),
     });
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => storage.get(key) ?? null,
-    });
-
     const applyTheme = createApplyTheme({
       queryParamName: "inspectLogviewThemeCategory",
-      storageKey: SETTINGS_STORAGE_KEY,
+      readPreference: () => preference,
     });
     applyTheme();
     expect(attrs.get("data-theme-variant")).toBe("readable");
     expect(attrs.get("data-bs-theme")).toBe("dark");
 
-    storage.set(SETTINGS_STORAGE_KEY, persisted("system"));
+    preference = "system";
     applyTheme();
     expect(attrs.has("data-theme-variant")).toBe(false);
     expect(attrs.get("data-bs-theme")).toBe("dark");
@@ -228,14 +173,14 @@ describe("resolveTheme", () => {
         preference: "readable-system",
         prefersDark: true,
       })
-    ).toMatchObject({ theme: "dark", isDark: true, variant: "readable" });
+    ).toMatchObject({ isDark: true, variant: "readable" });
     expect(
       resolveTheme({
         ...baseInput,
         preference: "readable-system",
         prefersDark: false,
       })
-    ).toMatchObject({ theme: "light", isDark: false, variant: "readable" });
+    ).toMatchObject({ isDark: false, variant: "readable" });
   });
 
   it("VS Code + explicit param applies when preference is not a readable override", () => {
@@ -246,13 +191,13 @@ describe("resolveTheme", () => {
         preference: "light",
         explicitParam: "vscode-dark",
       })
-    ).toMatchObject({ theme: "vscode-dark", isDark: true });
+    ).toMatchObject({ isDark: true });
   });
 
   it("standalone + explicit param + system → uses explicit param", () => {
     expect(
       resolveTheme({ ...baseInput, explicitParam: "light", prefersDark: true })
-    ).toMatchObject({ theme: "light", isDark: false });
+    ).toMatchObject({ isDark: false });
   });
 
   it("user override beats explicit param", () => {
@@ -262,7 +207,7 @@ describe("resolveTheme", () => {
         preference: "dark",
         explicitParam: "light",
       })
-    ).toMatchObject({ theme: "dark", isDark: true });
+    ).toMatchObject({ isDark: true });
   });
 
   it("readable-light → base light, readable variant", () => {
@@ -270,7 +215,6 @@ describe("resolveTheme", () => {
       resolveTheme({ ...baseInput, preference: "readable-light" })
     ).toEqual({
       kind: "apply",
-      theme: "light",
       isDark: false,
       variant: "readable",
       toggleBodyClass: true,
@@ -281,7 +225,6 @@ describe("resolveTheme", () => {
     expect(resolveTheme({ ...baseInput, preference: "readable-dark" })).toEqual(
       {
         kind: "apply",
-        theme: "dark",
         isDark: true,
         variant: "readable",
         toggleBodyClass: true,
@@ -296,7 +239,7 @@ describe("resolveTheme", () => {
         preference: "readable-dark",
         prefersDark: false,
       })
-    ).toMatchObject({ theme: "dark", isDark: true, variant: "readable" });
+    ).toMatchObject({ isDark: true, variant: "readable" });
   });
 
   it("VS Code honors an explicit readable-dark param", () => {
@@ -308,8 +251,6 @@ describe("resolveTheme", () => {
       })
     ).toEqual({
       kind: "apply",
-      // `readable-` stripped for prism; skin is on data-theme-variant.
-      theme: "dark",
       isDark: true,
       variant: "readable",
       toggleBodyClass: false,

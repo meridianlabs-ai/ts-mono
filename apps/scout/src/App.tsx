@@ -1,4 +1,4 @@
-import { createContext, FC, useEffect, useMemo } from "react";
+import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import "prismjs";
@@ -60,17 +60,21 @@ export const App: FC<AppProps> = (props) => {
 
 const useThemePreferenceSync = () => {
   const themePreference = useUserSettings((s) => s.themePreference);
-  useEffect(() => {
+  // useLayoutEffect (not useEffect): apply before the browser paints so an
+  // in-tab pick flips the CSS in the same frame the toggle re-renders.
+  // A post-paint effect updates the icon a frame before the colors, flashing
+  // the old theme.
+  useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
 
   // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
-  // another tab's write would leave this tab's React state stale. The shared
-  // bootstrap already re-applies CSS on its own storage listener; here we
-  // only need to pull the new state into zustand.
+  // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
+  // reads the freshly-written value) and pull the new preference into zustand.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {
+        window.__APPLY_BROWSER_THEME__?.();
         void useUserSettings.persist.rehydrate();
       }
     };

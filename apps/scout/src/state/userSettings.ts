@@ -3,9 +3,10 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { ThemePreference } from "@tsmono/inspect-common/theme/bootstrap";
 
-export type { ThemePreference };
+import { SETTINGS_STORAGE_KEY } from "../theme/constants";
 
-export const SETTINGS_STORAGE_KEY = "inspect-scout-user-settings";
+export type { ThemePreference };
+export { SETTINGS_STORAGE_KEY };
 
 export interface ColumnPreset {
   name: string;

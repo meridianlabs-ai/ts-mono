@@ -1,7 +1,9 @@
 import { FC } from "react";
 
-import { resolveIsDark } from "@tsmono/inspect-common/theme/bootstrap";
-import { ThemeToggle } from "@tsmono/inspect-components/theme";
+import {
+  ThemeToggle,
+  useResolvedIsDark,
+} from "@tsmono/inspect-components/theme";
 import { isVscode } from "@tsmono/util";
 
 import { useUserSettings } from "../state/userSettings";
@@ -14,10 +16,11 @@ import { useUserSettings } from "../state/userSettings";
 export const ThemeToggleControl: FC = () => {
   const value = useUserSettings((s) => s.themePreference);
   const setValue = useUserSettings((s) => s.setThemePreference);
+  const isDark = useResolvedIsDark(value);
   return (
     <ThemeToggle
       value={value}
-      isDark={resolveIsDark(value)}
+      isDark={isDark}
       onChange={setValue}
       // In VS Code the host owns base mode, but Event Colors (variant) is
       // still safe to flip from inside.

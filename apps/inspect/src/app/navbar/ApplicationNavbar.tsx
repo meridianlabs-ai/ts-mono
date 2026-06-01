@@ -1,11 +1,14 @@
 import { FC, ReactNode, useMemo, useRef } from "react";
 
-import { ThemeToggle } from "@tsmono/inspect-components/theme";
+import {
+  ThemeToggle,
+  useResolvedIsDark,
+} from "@tsmono/inspect-components/theme";
 import { isVscode } from "@tsmono/util";
 
 import { ActivityBar } from "../../components/ActivityBar";
 import { useStore } from "../../state/store";
-import { resolveIsDark, useThemePreference } from "../../theme/themePreference";
+import { useUserSettings } from "../../state/userSettings";
 import { ViewerOptionsButton } from "../log-list/ViewerOptionsButton";
 import { ViewerOptionsPopover } from "../log-list/ViewerOptionsPopover";
 
@@ -29,7 +32,9 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   breadcrumbsEnabled,
 }) => {
   const optionsRef = useRef<HTMLButtonElement>(null);
-  const [themePreference, setThemePreference] = useThemePreference();
+  const themePreference = useUserSettings((s) => s.themePreference);
+  const setThemePreference = useUserSettings((s) => s.setThemePreference);
+  const isDark = useResolvedIsDark(themePreference);
   const loading = useStore((state) => state.app.status.loading);
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
@@ -61,7 +66,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         {children}
         <ThemeToggle
           value={themePreference}
-          isDark={resolveIsDark(themePreference)}
+          isDark={isDark}
           onChange={setThemePreference}
           hideModeSwitch={isVscode()}
         />

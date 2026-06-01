@@ -65,46 +65,17 @@ export const resolveIsDark = (value: ThemePreference): boolean => {
 
 /**
  * Decompose any theme name (a preference, a host query param, or a
- * computed system value) into its base mode + variant. Tolerant of the
+ * computed system value) into its dark/light + variant axes. Tolerant of the
  * VS Code-style `vscode-dark`/`vscode-light` strings hosts may pass.
  */
 const parseThemeName = (
   name: string
-): { isDark: boolean; variant: ThemeVariant; base: string } => {
+): { isDark: boolean; variant: ThemeVariant } => {
   const variant: ThemeVariant = name.startsWith("readable-")
     ? "readable"
     : "default";
   const isDark = name === "dark" || name.endsWith("-dark");
-  const base = name.startsWith("readable-")
-    ? name.slice("readable-".length)
-    : name;
-  return { isDark, variant, base };
-};
-
-/**
- * Read a persisted `themePreference` out of a zustand-persisted settings
- * blob. Apps that have no preference store omit `storageKey` and always
- * resolve to `system`.
- */
-export const readThemePreference = (
-  storage: Pick<Storage, "getItem">,
-  storageKey: string
-): ThemePreference => {
-  try {
-    const raw = storage.getItem(storageKey);
-    if (!raw) return "system";
-    const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && "state" in parsed) {
-      const state = parsed.state;
-      if (state && typeof state === "object" && "themePreference" in state) {
-        const value = state.themePreference;
-        if (isThemePreference(value)) return value;
-      }
-    }
-    return "system";
-  } catch {
-    return "system";
-  }
+  return { isDark, variant };
 };
 
 export type ResolveInput = {
@@ -115,7 +86,6 @@ export type ResolveInput = {
 };
 
 export type ResolveOutput =
-  | { kind: "skip" }
   | {
       kind: "apply-variant-only";
       variant: ThemeVariant;
@@ -129,7 +99,6 @@ export type ResolveOutput =
     }
   | {
       kind: "apply";
-      theme: string;
       isDark: boolean;
       variant: ThemeVariant;
       toggleBodyClass: boolean;
@@ -167,9 +136,6 @@ export const resolveTheme = (input: ResolveInput): ResolveOutput => {
     const parsed = parseThemeName(input.explicitParam);
     return {
       kind: "apply",
-      // Strip `readable-` so prism gets a value it recognizes; the skin
-      // rides on the separate data-theme-variant attribute.
-      theme: parsed.base,
       isDark: parsed.isDark,
       variant: parsed.variant,
       toggleBodyClass: false,
@@ -191,13 +157,9 @@ export const resolveTheme = (input: ResolveInput): ResolveOutput => {
     name = `readable-${name}`;
   }
 
-  const { isDark, variant, base } = parseThemeName(name);
+  const { isDark, variant } = parseThemeName(name);
   return {
     kind: "apply",
-    // Strip the `readable-` prefix: `data-text-highlight` keys the prism
-    // syntax theme on plain light/dark, and the readable skin rides on the
-    // separate `data-theme-variant` attribute.
-    theme: base,
     isDark,
     variant,
     toggleBodyClass: true,
@@ -210,8 +172,12 @@ export type ApplyThemeOptions = {
    * `inspectLogviewThemeCategory`; scout/hawk use `inspectViewThemeCategory`.
    */
   queryParamName: string;
-  /** localStorage key for the persisted preference; omit if none. */
-  storageKey?: string;
+  /**
+   * Read the app's persisted preference. Storage shape/key is an app concern,
+   * so each app supplies its own (dependency-free) reader; omit when the app
+   * has no preference store and the theme should follow the host/OS only.
+   */
+  readPreference?: () => ThemePreference;
 };
 
 declare global {
@@ -224,18 +190,8 @@ declare global {
 // applyTheme, so repeated createApplyTheme calls (HMR, tests, an app that
 // re-inits) never accumulate listeners or leak.
 let currentApplyTheme: (() => void) | null = null;
-let currentStorageKey: string | null = null;
 let mediaListenerInstalled = false;
 let bodyClassObserverInstalled = false;
-let storageListenerInstalled = false;
-// Subscribers re-render React state that depends on the resolved theme (the
-// sun/moon icon, the "system" → host-dark/light resolution, etc.) when the
-// host swaps `vscode-dark` ↔ `vscode-light` on <body>.
-const hostThemeSubscribers = new Set<() => void>();
-export const subscribeHostTheme = (cb: () => void): (() => void) => {
-  hostThemeSubscribers.add(cb);
-  return () => hostThemeSubscribers.delete(cb);
-};
 
 const hostIsDarkFromBody = (): boolean | null => {
   if (typeof document === "undefined" || !document.body) return null;
@@ -268,8 +224,9 @@ const installBodyClassObserver = (): void => {
   new MutationObserver(() => {
     if (document.body.className === lastClass) return;
     lastClass = document.body.className;
+    // Re-apply so `data-bs-theme`/variant follow the host theme swap; the React
+    // icon updates by observing the resulting `data-bs-theme` change.
     currentApplyTheme?.();
-    hostThemeSubscribers.forEach((cb) => cb());
   }).observe(document.body, {
     attributes: true,
     attributeFilter: ["class"],
@@ -289,15 +246,11 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
 
     const params = new URLSearchParams(window.location.search);
     const result = resolveTheme({
-      preference: options.storageKey
-        ? readThemePreference(localStorage, options.storageKey)
-        : "system",
+      preference: options.readPreference ? options.readPreference() : "system",
       explicitParam: params.get(options.queryParamName),
       isVscodeWebview: isVscodeWebview(),
       prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
     });
-
-    if (result.kind === "skip") return;
 
     // Variant-only path: in a webview we never touch the host's base theme
     // (we can't re-skin `--vscode-*` reliably), but Event Colors is just a
@@ -314,39 +267,38 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
           result.hostIsDark ? "dark" : "light"
         );
       }
-      return;
-    }
+    } else if (result.kind === "apply") {
+      // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
+      // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
+      // Splitting elements here is deliberate — keep them in lockstep.
+      document.documentElement.setAttribute(
+        "data-bs-theme",
+        result.isDark ? "dark" : "light"
+      );
 
-    // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
-    // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
-    // Splitting elements here is deliberate — keep them in lockstep.
-    document.documentElement.setAttribute("data-text-highlight", result.theme);
-    document.documentElement.setAttribute(
-      "data-bs-theme",
-      result.isDark ? "dark" : "light"
-    );
+      // The readable skin is a small token-override block keyed on this
+      // attribute (see base.css); absent attribute = the design-consistent
+      // default, so we remove rather than set "default".
+      if (result.variant === "readable") {
+        document.documentElement.setAttribute("data-theme-variant", "readable");
+      } else {
+        document.documentElement.removeAttribute("data-theme-variant");
+      }
 
-    // The readable skin is a small token-override block keyed on this
-    // attribute (see base.css); absent attribute = the design-consistent
-    // default, so we remove rather than set "default".
-    if (result.variant === "readable") {
-      document.documentElement.setAttribute("data-theme-variant", "readable");
-    } else {
-      document.documentElement.removeAttribute("data-theme-variant");
+      // Only `vscode-dark` is toggled (never a `vscode-light` class): in light
+      // standalone the bridge stays OFF so the `:root` Bootstrap + light
+      // `--vscode-*` defaults apply, matching scout's long-shipped behavior.
+      // Adding `vscode-light` would activate the bridge in light mode and
+      // silently re-skin every `--bs-*` token.
+      if (result.toggleBodyClass) {
+        document.body?.classList.toggle("vscode-dark", result.isDark);
+      }
     }
-
-    // Only `vscode-dark` is toggled (never a `vscode-light` class): in light
-    // standalone the bridge stays OFF so the `:root` Bootstrap + light
-    // `--vscode-*` defaults apply, matching scout's long-shipped behavior.
-    // Adding `vscode-light` would activate the bridge in light mode and
-    // silently re-skin every `--bs-*` token.
-    if (result.toggleBodyClass) {
-      document.body?.classList.toggle("vscode-dark", result.isDark);
-    }
+    // No explicit React notification needed: the resolved theme lives in
+    // `<html data-bs-theme>`, and useResolvedIsDark observes that attribute.
   };
 
   currentApplyTheme = applyTheme;
-  currentStorageKey = options.storageKey ?? null;
   window.__APPLY_BROWSER_THEME__ = applyTheme;
 
   if (!mediaListenerInstalled) {
@@ -356,22 +308,14 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       .addEventListener("change", () => currentApplyTheme?.());
   }
 
-  // Cross-tab sync: another tab wrote a new preference. Re-apply CSS in this
-  // tab so its DOM matches. React stores still need their own listener to
-  // keep state in sync (the bootstrap doesn't know about them).
-  if (!storageListenerInstalled) {
-    storageListenerInstalled = true;
-    window.addEventListener("storage", (e) => {
-      if (currentStorageKey && e.key === currentStorageKey) {
-        currentApplyTheme?.();
-      }
-    });
-  }
+  // Cross-tab sync (another tab wrote a new preference) is the app's concern:
+  // it owns the storage key, so its keyed `storage` listener re-applies via
+  // `window.__APPLY_BROWSER_THEME__` and rehydrates its store. Keeping it out
+  // of here avoids re-applying on every unrelated localStorage write.
 
   // VS Code/Cursor swaps `vscode-dark` ↔ `vscode-light` on <body> when the
-  // user changes the host theme. Re-apply so `data-bs-theme` / variant
-  // tokens follow, and wake up React subscribers so the sun/moon icon and
-  // any `resolveIsDark("system")` reads update too.
+  // user changes the host theme. Re-apply so `data-bs-theme` / variant tokens
+  // follow; the React icon then updates by observing that `data-bs-theme`.
   installBodyClassObserver();
 
   return applyTheme;
