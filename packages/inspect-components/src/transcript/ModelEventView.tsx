@@ -11,13 +11,12 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import {
-  ExpandablePanel,
-  MarkdownDiv,
-  PulsingDots,
-} from "@tsmono/react/components";
+import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
+
+import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
+import { isLivePlaceholderMessage } from "../indicators/livePlaceholder";
 
 import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
@@ -115,13 +114,24 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);
 
-  const summaryMessages = useMemo(
-    () =>
-      showAllMessages
-        ? [...event.input, ...(outputMessages || [])]
-        : [...userMessages, ...(outputMessages || [])],
-    [showAllMessages, event.input, outputMessages, userMessages]
-  );
+  const summaryMessages = useMemo(() => {
+    // Filter the synthetic empty-assistant placeholder only while the
+    // event is in flight — once it completes, the same predicate would
+    // also drop legitimate tool_use-only outputs, since
+    // isLivePlaceholderMessage treats those as "no visible content".
+    const outputs = event.pending
+      ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+      : outputMessages || [];
+    return showAllMessages
+      ? [...event.input, ...outputs]
+      : [...userMessages, ...outputs];
+  }, [
+    showAllMessages,
+    event.input,
+    event.pending,
+    outputMessages,
+    userMessages,
+  ]);
 
   const summaryLabels = useMemo(() => {
     const map = context?.messageLabels;
@@ -200,7 +210,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           </EventSection>
         ) : event.pending ? (
           <div className={clsx(styles.progress)}>
-            <PulsingDots subtle={false} size="medium" />
+            <GeneratingIndicator />
           </div>
         ) : undefined}
       </div>
