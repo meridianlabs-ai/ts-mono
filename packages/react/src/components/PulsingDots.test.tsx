@@ -21,8 +21,24 @@ describe("PulsingDots", () => {
     expect(dotsContainer?.children).toHaveLength(5);
   });
 
-  it("includes accessible text", () => {
+  it("includes accessible text (screen-reader only by default)", () => {
     const { getByText } = render(<PulsingDots text="Fetching data..." />);
     expect(getByText("Fetching data...")).toBeInTheDocument();
+  });
+
+  it("renders visible text when showText is true", () => {
+    const { getByRole } = render(
+      <PulsingDots text="Loading..." showText={true} />
+    );
+    const status = getByRole("status");
+    const label = status.querySelector(".label");
+    expect(label).toBeInTheDocument();
+    expect(label).toHaveTextContent("Loading...");
+  });
+
+  it("does not render visuallyHidden span when showText is true", () => {
+    const { container } = render(<PulsingDots showText={true} />);
+    const hiddenSpan = container.querySelector("[class*='visuallyHidden']");
+    expect(hiddenSpan).not.toBeInTheDocument();
   });
 });

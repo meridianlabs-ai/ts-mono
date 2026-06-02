@@ -5,6 +5,8 @@ import styles from "./PulsingDots.module.css";
 
 interface PulsingDotsProps {
   text?: string;
+  /** Render the text visibly below the dots (default: screen-reader only). */
+  showText?: boolean;
   dotsCount?: number;
   subtle?: boolean;
   size?: "small" | "medium" | "large";
@@ -13,6 +15,7 @@ interface PulsingDotsProps {
 
 export const PulsingDots: FC<PulsingDotsProps> = ({
   text = "Loading...",
+  showText = false,
   dotsCount = 3,
   subtle = true,
   size = "small",
@@ -31,6 +34,7 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
       )}
       role="status"
     >
+      {showText && <span className={styles.label}>{text}</span>}
       <div className={styles.dotsContainer}>
         {Array.from({ length: dotsCount }, (_, index) => (
           <div
@@ -43,7 +47,7 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
           />
         ))}
       </div>
-      <span className={styles.visuallyHidden}>{text}</span>
+      {!showText && <span className={styles.visuallyHidden}>{text}</span>}
     </div>
   );
 };
