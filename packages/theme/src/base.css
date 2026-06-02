@@ -59,30 +59,30 @@
      always but only APPLIED under [data-theme-variant="readable"], so the
      default design-consistent look is untouched — this is the "one small
      override block per base mode" instead of a duplicated stylesheet. */
-  --inspect-readable-user-bg: #eef4ff;
-  --inspect-readable-user-border: #4a78c8;
-  --inspect-readable-assistant-bg: #eee5ff;
-  --inspect-readable-assistant-border: #7259b0;
+  --inspect-readable-user-bg: #f5f5f6;
+  --inspect-readable-user-border: #909299;
+  --inspect-readable-assistant-bg: #f7f0ff;
+  --inspect-readable-assistant-border: #754ba0;
   --inspect-readable-thinking-bg: #f7f2ff;
   --inspect-readable-thinking-border: #8a74c4;
-  --inspect-readable-tool-call-bg: #eef5f0;
-  --inspect-readable-tool-call-border: #4f8a63;
-  --inspect-readable-system-bg: #f1f1f1;
-  --inspect-readable-system-border: #8a8a8a;
+  --inspect-readable-tool-call-bg: #e9f4ff;
+  --inspect-readable-tool-call-border: #3261af;
+  --inspect-readable-system-bg: #f5f5f6;
+  --inspect-readable-system-border: #909299;
   --inspect-readable-body-color: #11181f;
 }
 
 :root[data-bs-theme="dark"] {
-  --inspect-readable-user-bg: #1a2740;
-  --inspect-readable-user-border: #5a86c8;
-  --inspect-readable-assistant-bg: #2e2545;
-  --inspect-readable-assistant-border: #9a86d4;
+  --inspect-readable-user-bg: #1d1d1f;
+  --inspect-readable-user-border: #7d8089;
+  --inspect-readable-assistant-bg: #261e2f;
+  --inspect-readable-assistant-border: #a278d1;
   --inspect-readable-thinking-bg: #241f31;
   --inspect-readable-thinking-border: #8c7fbf;
-  --inspect-readable-tool-call-bg: #15241a;
-  --inspect-readable-tool-call-border: #4f8a63;
-  --inspect-readable-system-bg: #232323;
-  --inspect-readable-system-border: #7a7a7a;
+  --inspect-readable-tool-call-bg: #182333;
+  --inspect-readable-tool-call-border: #5d8ee1;
+  --inspect-readable-system-bg: #1d1d1f;
+  --inspect-readable-system-border: #7d8089;
   --inspect-readable-body-color: #e6e8ea;
 }
 
@@ -145,7 +145,9 @@
   .tool-call-input
   pre[class*="language-"] {
   background-color: var(--inspect-tool-output-bg) !important;
-  border-left-color: transparent !important;
+  /* Replace the green accent with a uniform subtle left so the box border
+     below reads as an even outline (no leftover 3px accent slot). */
+  border-left: 1px solid var(--bs-light-border-subtle) !important;
 }
 
 /* Prototype: the un-embedded tool call renders as its own green box. */
@@ -154,9 +156,27 @@
   border-left: 3px solid var(--inspect-readable-tool-call-border);
 }
 
+/* Light subtle box around tool input code surfaces. The markdown/prism reset
+   strips pre borders with !important, so override per side; the left edge is
+   left to the role accent (green standalone, subtle when nested). */
+:root[data-theme-variant="readable"] pre.tool-call-input,
+:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
+  border-top: 1px solid var(--bs-light-border-subtle) !important;
+  border-right: 1px solid var(--bs-light-border-subtle) !important;
+  border-bottom: 1px solid var(--bs-light-border-subtle) !important;
+  border-radius: var(--bs-border-radius);
+}
+
+/* Light subtle box around tool output. */
+:root[data-theme-variant="readable"] .tool-output {
+  border: 1px solid var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+}
+
+/* System prompts are boilerplate — de-emphasize: no fill, just a subtle box. */
 :root[data-theme-variant="readable"] [data-message-role="system"] {
-  background-color: var(--inspect-readable-system-bg);
-  border-left-color: var(--inspect-readable-system-border);
+  background-color: transparent;
+  border: 1px solid var(--bs-light-border-subtle);
 }
 
 /* Agent thinking, nested inside an assistant turn, gets a subtle tint so
