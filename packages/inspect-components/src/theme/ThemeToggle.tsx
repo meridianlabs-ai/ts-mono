@@ -1,8 +1,8 @@
 import clsx from "clsx";
 import { useEffect, useId, useState } from "react";
 
-import type { ThemePreference } from "@tsmono/theme/bootstrap";
 import { PopOver } from "@tsmono/react/components";
+import type { ThemePreference } from "@tsmono/theme/bootstrap";
 
 import styles from "./ThemeToggle.module.css";
 
