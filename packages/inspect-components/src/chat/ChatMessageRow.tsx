@@ -55,6 +55,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
 
   const views: ReactNode[] = [];
   const viewLabels: Array<string | undefined> = [];
+  const viewKinds: Array<"message" | "tool"> = [];
   const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
 
   const hasToolCalls =
@@ -90,6 +91,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         references={references}
       />
     );
+    viewKinds.push("message");
   }
 
   // The tool messages associated with this chat message
@@ -152,6 +154,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
           />
         );
       }
+      viewKinds.push("tool");
 
       // If the tool call errored, render a dedicated error view as its own
       // row (with an empty label) so it visually attaches to the tool call.
@@ -165,6 +168,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             error={toolMessage.error}
           />
         );
+        viewKinds.push("tool");
       }
 
       idx++;
@@ -172,11 +176,16 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   }
 
   if (useLabels) {
+    // Prototype: when a row carries tool calls, un-embed them — render the
+    // assistant text in its band and each tool call as its own separate box
+    // instead of folding everything into one connected card.
+    const hasTools = viewKinds.includes("tool");
     return (
       <>
         <div className={clsx(styles.grid, className)}>
           {views.map((view, idx) => {
             const label = viewLabels[idx];
+            const isTool = viewKinds[idx] === "tool";
             return (
               <Fragment key={`chat-message-row-${index}-part-${idx}`}>
                 <div
@@ -191,15 +200,22 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
                   {label}
                 </div>
                 <div
-                  data-message-role={resolvedMessage.message.role}
+                  data-message-role={
+                    isTool ? undefined : resolvedMessage.message.role
+                  }
+                  data-message-kind={viewKinds[idx]}
                   className={clsx(
                     styles.container,
+                    hasTools ? styles.box : undefined,
+                    isTool ? styles.toolBox : undefined,
                     highlightUserMessage &&
                       resolvedMessage.message.role === "user"
                       ? styles.user
                       : undefined,
-                    idx === 0 ? styles.first : undefined,
-                    idx === views.length - 1 ? styles.last : undefined,
+                    !hasTools && idx === 0 ? styles.first : undefined,
+                    !hasTools && idx === views.length - 1
+                      ? styles.last
+                      : undefined,
                     highlightLabeled && label?.trim()
                       ? styles.highlight
                       : undefined

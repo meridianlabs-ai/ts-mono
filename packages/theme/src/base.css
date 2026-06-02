@@ -129,14 +129,29 @@
 /* When a tool call is nested inside a message band (the chatview folds tool
    calls into the assistant turn), the surrounding role band already frames it —
    the green call-out just competes with the band color. Drop the green surface
-   and accent there; standalone tool events in the transcript keep it. */
+   and accent there; standalone tool events in the transcript keep it. The same
+   applies inside the prototype separate tool box ([data-message-kind="tool"]):
+   the box itself carries the green, so the code surface stays neutral. */
 :root[data-theme-variant="readable"] [data-message-role] pre.tool-call-input,
 :root[data-theme-variant="readable"]
+  [data-message-kind="tool"]
+  pre.tool-call-input,
+:root[data-theme-variant="readable"]
   [data-message-role]
+  .tool-call-input
+  pre[class*="language-"],
+:root[data-theme-variant="readable"]
+  [data-message-kind="tool"]
   .tool-call-input
   pre[class*="language-"] {
   background-color: var(--inspect-tool-output-bg) !important;
   border-left-color: transparent !important;
+}
+
+/* Prototype: the un-embedded tool call renders as its own green box. */
+:root[data-theme-variant="readable"] [data-message-kind="tool"] {
+  background-color: var(--inspect-readable-tool-call-bg);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
 }
 
 :root[data-theme-variant="readable"] [data-message-role="system"] {
@@ -144,13 +159,11 @@
   border-left-color: var(--inspect-readable-system-border);
 }
 
-/* Agent thinking, nested inside an assistant turn, gets its own band so
-   reasoning is visually separable from the model's actual response. */
+/* Agent thinking, nested inside an assistant turn, gets a subtle tint so
+   reasoning is visually separable from the model's actual response. No left
+   accent — nested inside the assistant band it reads as a strong double gutter.*/
 :root[data-theme-variant="readable"] [data-content-kind="reasoning"] {
   background-color: var(--inspect-readable-thinking-bg);
-  border-left: 3px solid var(--inspect-readable-thinking-border);
-  padding-left: 0.6rem;
-  border-radius: var(--bs-border-radius);
 }
 
 body:not([class^="vscode-"]) button {

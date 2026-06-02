@@ -46,6 +46,20 @@
   background-color: rgba(var(--bs-info-rgb), 0.12);
 }
 
+/* Prototype: self-contained box (used when tool calls are un-embedded) so the
+   assistant message and each tool call read as separate cards rather than one
+   connected band. */
+.box {
+  border: solid 1px var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+  padding: 0.7rem;
+  margin-bottom: 0.4rem;
+}
+
+.toolBox {
+  margin-top: 0.4rem;
+}
+
 .bottomMargin {
   margin-bottom: 0.75rem;
 }
