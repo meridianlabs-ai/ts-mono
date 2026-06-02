@@ -4,7 +4,7 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
-import { ProgressBar } from "@tsmono/react/components";
+import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
@@ -68,6 +68,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const { filteredCount } = useLogsListing();
 
   const syncing = useStore((state) => state.app.status.syncing);
+  const error = useStore((state) => state.app.status.error);
 
   const watchedLogs = useStore((state) => state.logs.listing.watchedLogs);
   const navigate = useNavigate();
@@ -425,32 +426,39 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         onScoresViewModeChange={setScoresViewMode}
       />
 
-      <>
-        <div className={clsx(styles.list, "text-size-smaller")}>
-          <LogListGrid
-            items={logItems}
-            currentPath={currentDir}
-            scopeKey={scopeKey}
-            gridRef={gridRef}
-            mode={mode}
-          />
-        </div>
-        <LogListFooter
-          itemCount={logItems.length}
-          filteredCount={filteredCount}
-          progressText={syncing ? "Syncing data" : undefined}
-          progressBar={
-            progress.total !== progress.complete ? (
-              <ProgressBar
-                min={0}
-                max={progress.total}
-                value={progress.complete}
-                width="100px"
-              />
-            ) : undefined
-          }
+      {error ? (
+        <ErrorPanel
+          title="Error"
+          error={{ message: error.message, stack: error.stack }}
         />
-      </>
+      ) : (
+        <>
+          <div className={clsx(styles.list, "text-size-smaller")}>
+            <LogListGrid
+              items={logItems}
+              currentPath={currentDir}
+              scopeKey={scopeKey}
+              gridRef={gridRef}
+              mode={mode}
+            />
+          </div>
+          <LogListFooter
+            itemCount={logItems.length}
+            filteredCount={filteredCount}
+            progressText={syncing ? "Syncing data" : undefined}
+            progressBar={
+              progress.total !== progress.complete ? (
+                <ProgressBar
+                  min={0}
+                  max={progress.total}
+                  value={progress.complete}
+                  width="100px"
+                />
+              ) : undefined
+            }
+          />
+        </>
+      )}
     </div>
   );
 };
