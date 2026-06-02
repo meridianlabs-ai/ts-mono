@@ -646,6 +646,12 @@ importers:
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.2.14)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      bootstrap:
+        specifier: ^5.3.8
+        version: 5.3.8(@popperjs/core@2.11.8)
+      bootstrap-icons:
+        specifier: ^1.13.1
+        version: 1.13.1
       eslint:
         specifier: ^9.39.4
         version: 9.39.4

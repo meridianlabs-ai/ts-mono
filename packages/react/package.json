@@ -60,6 +60,8 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vscode-elements/react-elements": "^2.4.0",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "eslint": "^9.39.4",
     "jsdom": "^29.1.1",
     "json5": "^2.2.3",
