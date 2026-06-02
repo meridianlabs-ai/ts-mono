@@ -21,7 +21,7 @@ export const resolveToolInput = (
 ): ToolCallResult => {
   const toolName = fn;
 
-  const inputDescriptor = extractInputMetadata(toolName);
+  const inputDescriptor = extractInputMetadata(toolName, toolArgs);
   const { input, description, args } = extractInput(toolArgs, inputDescriptor);
   const functionCall =
     args.length > 0 ? `${toolName}(${args.join(", ")})` : toolName;
@@ -105,8 +105,17 @@ interface ToolInputDescriptor {
 }
 
 const extractInputMetadata = (
-  toolName: string
+  toolName: string,
+  toolArgs: Record<string, unknown>
 ): ToolInputDescriptor | undefined => {
+  // `text_editor` create writes a whole file — show its `file_text` as the
+  // body (highlighted by the target file's type) instead of an inline arg.
+  if (toolName === "text_editor" && toolArgs.command === "create") {
+    return {
+      inputArg: "file_text",
+      contentType: prismLanguageForPath(toolArgs.path),
+    };
+  }
   if (toolName === "bash") {
     return {
       inputArg: ["cmd", "command"],
@@ -198,6 +207,34 @@ const extractInputMetadata = (
     };
   } else {
     return undefined;
+  }
+};
+
+// Map a file path to a registered Prism language for body highlighting; returns
+// undefined (plain text) for extensions Prism isn't loaded for.
+const prismLanguageForPath = (path: unknown): string | undefined => {
+  if (typeof path !== "string") {
+    return undefined;
+  }
+  const ext = path.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "py":
+      return "python";
+    case "js":
+    case "jsx":
+    case "mjs":
+    case "cjs":
+      return "javascript";
+    case "json":
+      return "json";
+    case "sh":
+    case "bash":
+      return "bash";
+    case "yaml":
+    case "yml":
+      return "yaml";
+    default:
+      return undefined;
   }
 };
 

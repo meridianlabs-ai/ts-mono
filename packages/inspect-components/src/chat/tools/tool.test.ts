@@ -55,6 +55,38 @@ describe("resolveToolInput", () => {
       "markdown"
     );
   });
+
+  it("renders text_editor create file_text as the body, typed by extension", () => {
+    const result = resolveToolInput("text_editor", {
+      command: "create",
+      path: "/tmp/foo.py",
+      file_text: "print('hi')",
+    });
+    expect(result.input).toBe("print('hi')");
+    expect(result.contentType).toBe("python");
+    // file_text is the body, not an inline function arg
+    expect(result.functionCall).not.toContain("file_text");
+    expect(result.functionCall).toContain('command: "create"');
+    expect(result.functionCall).toContain('path: "/tmp/foo.py"');
+  });
+
+  it("falls back to plain body for unknown text_editor create extensions", () => {
+    const result = resolveToolInput("text_editor", {
+      command: "create",
+      path: "/tmp/notes.xyz",
+      file_text: "hello",
+    });
+    expect(result.input).toBe("hello");
+    expect(result.contentType).toBeUndefined();
+  });
+
+  it("does not special-case non-create text_editor commands", () => {
+    const result = resolveToolInput("text_editor", {
+      command: "view",
+      path: "/tmp/foo.py",
+    });
+    expect(result.input).toBeUndefined();
+  });
 });
 
 describe("codexToolMarkdown", () => {
