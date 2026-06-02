@@ -211,6 +211,9 @@ export type ApplyThemeOptions = {
 
 declare global {
   interface Window {
+    // One hook per window, intentional: the theme is document-level (one
+    // <html data-bs-theme>), so co-resident viewers share it. Don't namespace
+    // per app — hosts like hawk call this exact name.
     __APPLY_BROWSER_THEME__?: () => void;
   }
 }
