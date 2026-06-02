@@ -9,6 +9,7 @@ export * from "./ConfirmationDialog";
 export * from "./EmptyPanel";
 export * from "./ErrorPanel";
 export * from "./ExtendedFindContext";
+export * from "./GridLoadingOverlay";
 export * from "./JsonPanel";
 export * from "./LabeledValue";
 export * from "./LoadingBar";
