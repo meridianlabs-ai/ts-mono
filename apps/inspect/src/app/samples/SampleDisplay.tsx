@@ -642,7 +642,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   offsetTop={stickyOffsetTop}
                   display={{
                     indented: true,
-                    unlabeledRoles: ["assistant"],
                     formatDateTime,
                   }}
                   linking={{

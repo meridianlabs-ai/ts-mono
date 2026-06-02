@@ -119,6 +119,26 @@
   border-radius: var(--bs-border-radius);
 }
 
+/* The toolView wrapper adds horizontal padding that insets the green code box,
+   pushing its accent rule right of the role bands. Drop the left padding so the
+   tool-call box's accent lines up with the role bands down the transcript. */
+:root[data-theme-variant="readable"] div.tool-call-input {
+  padding-left: 0 !important;
+}
+
+/* When a tool call is nested inside a message band (the chatview folds tool
+   calls into the assistant turn), the surrounding role band already frames it —
+   the green call-out just competes with the band color. Drop the green surface
+   and accent there; standalone tool events in the transcript keep it. */
+:root[data-theme-variant="readable"] [data-message-role] pre.tool-call-input,
+:root[data-theme-variant="readable"]
+  [data-message-role]
+  .tool-call-input
+  pre[class*="language-"] {
+  background-color: var(--inspect-tool-output-bg) !important;
+  border-left-color: transparent !important;
+}
+
 :root[data-theme-variant="readable"] [data-message-role="system"] {
   background-color: var(--inspect-readable-system-bg);
   border-left-color: var(--inspect-readable-system-border);
