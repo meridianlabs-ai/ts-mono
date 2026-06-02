@@ -130,12 +130,10 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         viewLabels.push(toolLabel);
       }
 
-      if (toolCallStyle === "compact") {
-        views.push(
+      const toolCall =
+        toolCallStyle === "compact" ? (
           <ToolCallViewCompact idx={idx} functionCall={functionCall} />
-        );
-      } else {
-        views.push(
+        ) : (
           <ToolCallView
             id={`${index}-tool-call-${idx}`}
             key={`tool-call-${idx}`}
@@ -153,23 +151,20 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             getCustomToolView={getCustomToolView}
           />
         );
-      }
-      viewKinds.push("tool");
 
-      // If the tool call errored, render a dedicated error view as its own
-      // row (with an empty label) so it visually attaches to the tool call.
-      if (toolMessage?.error) {
-        if (useLabels) {
-          viewLabels.push(undefined);
-        }
-        views.push(
-          <ToolCallErrorView
-            key={`tool-call-${idx}-error`}
-            error={toolMessage.error}
-          />
-        );
-        viewKinds.push("tool");
-      }
+      // Keep the error in the same view (and box) as its tool call rather than
+      // a detached row — the error replaces the tool's output.
+      views.push(
+        toolMessage?.error ? (
+          <Fragment key={`tool-call-${idx}-group`}>
+            {toolCall}
+            <ToolCallErrorView error={toolMessage.error} />
+          </Fragment>
+        ) : (
+          toolCall
+        )
+      );
+      viewKinds.push("tool");
 
       idx++;
     }
