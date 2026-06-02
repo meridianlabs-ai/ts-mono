@@ -27,8 +27,8 @@ export const LargeSize: Story = {
   args: { size: "large" },
 };
 
-export const CustomText: Story = {
-  args: { text: "Fetching data...", size: "medium" },
+export const WithVisibleText: Story = {
+  args: { text: "Fetching data...", size: "medium", showText: true },
 };
 
 export const PrimaryStyle: Story = {
