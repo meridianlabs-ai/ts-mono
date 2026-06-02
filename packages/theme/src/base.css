@@ -109,62 +109,48 @@
   border-left-color: var(--inspect-readable-assistant-border);
 }
 
-/* Tool calls/results are usually collapsed into the assistant turn. Tint the
-   former code-block surface for the call itself, while outputs stay neutral. */
+/* The boxed "surface" of a tool call is the raw-content pre
+   (pre.tool-call-input) or the eval-provided view container
+   (div.tool-call-input). Box the surface itself — a tinted call-out with a
+   colored left accent (standalone transcript) — so free-form custom views get
+   the same treatment as code views. */
 :root[data-theme-variant="readable"] pre.tool-call-input,
-:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
-  background-color: var(--inspect-readable-tool-call-bg) !important;
-  border-left: 3px solid var(--inspect-readable-tool-call-border) !important;
-  padding-left: 0.6rem;
-  border-radius: var(--bs-border-radius);
-}
-
-/* The toolView wrapper adds horizontal padding that insets the green code box,
-   pushing its accent rule right of the role bands. Drop the left padding so the
-   tool-call box's accent lines up with the role bands down the transcript. */
 :root[data-theme-variant="readable"] div.tool-call-input {
-  padding-left: 0 !important;
+  background-color: var(--inspect-readable-tool-call-bg);
+  border: 1px solid var(--bs-light-border-subtle);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5em !important;
 }
 
-/* When a tool call is nested inside a message band (the chatview folds tool
-   calls into the assistant turn), the surrounding role band already frames it —
-   the green call-out just competes with the band color. Drop the green surface
-   and accent there; standalone tool events in the transcript keep it. The same
-   applies inside the prototype separate tool box ([data-message-kind="tool"]):
-   the box itself carries the green, so the code surface stays neutral. */
+/* Flatten a fenced code block inside a view — the surface carries the box. */
+:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Nested in a message band (or the un-embed tool box): neutral surface with a
+   subtle (not colored) left, since the surrounding band/box already frames the
+   turn. Standalone tool events in the transcript keep the colored accent. */
 :root[data-theme-variant="readable"] [data-message-role] pre.tool-call-input,
+:root[data-theme-variant="readable"] [data-message-role] div.tool-call-input,
 :root[data-theme-variant="readable"]
   [data-message-kind="tool"]
   pre.tool-call-input,
 :root[data-theme-variant="readable"]
-  [data-message-role]
-  .tool-call-input
-  pre[class*="language-"],
-:root[data-theme-variant="readable"]
   [data-message-kind="tool"]
-  .tool-call-input
-  pre[class*="language-"] {
-  background-color: var(--inspect-tool-output-bg) !important;
-  /* Replace the green accent with a uniform subtle left so the box border
-     below reads as an even outline (no leftover 3px accent slot). */
-  border-left: 1px solid var(--bs-light-border-subtle) !important;
+  div.tool-call-input {
+  background-color: var(--inspect-tool-output-bg);
+  border-left: 1px solid var(--bs-light-border-subtle);
 }
 
 /* Prototype: the un-embedded tool call renders as its own green box. */
 :root[data-theme-variant="readable"] [data-message-kind="tool"] {
   background-color: var(--inspect-readable-tool-call-bg);
   border-left: 3px solid var(--inspect-readable-tool-call-border);
-}
-
-/* Light subtle box around tool input code surfaces. The markdown/prism reset
-   strips pre borders with !important, so override per side; the left edge is
-   left to the role accent (green standalone, subtle when nested). */
-:root[data-theme-variant="readable"] pre.tool-call-input,
-:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
-  border-top: 1px solid var(--bs-light-border-subtle) !important;
-  border-right: 1px solid var(--bs-light-border-subtle) !important;
-  border-bottom: 1px solid var(--bs-light-border-subtle) !important;
-  border-radius: var(--bs-border-radius);
 }
 
 /* Light subtle box around tool output. */
