@@ -119,6 +119,10 @@ export default defineConfig(({ mode }) => {
         outDir: "dist",
         emptyOutDir: true,
         minify: mode !== "development",
+        // Inline small assets (icons, decorative images) to save round trips
+        // but emit larger ones (icon fonts especially) as separate hashed
+        // files so they don't bloat the critical CSS payload.
+        assetsInlineLimit: 8192,
         rollupOptions: {
           output: {
             manualChunks(id) {

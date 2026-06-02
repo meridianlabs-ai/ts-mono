@@ -1,9 +1,9 @@
 import type { FilterModel } from "ag-grid-community";
 
 import type {
-  SamplesColumn,
-  SamplesSort,
-  SamplesView,
+  TaskSamplesColumn,
+  TaskSamplesSort,
+  TaskSamplesView,
 } from "@tsmono/inspect-common/types";
 
 /**
@@ -12,12 +12,10 @@ import type {
  * writes via `Task(viewer=ViewerConfig(task_samples_view=...))` and
  * what the eval log carries through to the frontend.
  *
- * `SamplesView.filter` is a raw DSL expression string.
- *
  * Re-exported here for convenience so SampleList code can import every
  * samples-view type from a single module.
  */
-export type { SamplesColumn, SamplesSort, SamplesView };
+export type { TaskSamplesColumn, TaskSamplesSort, TaskSamplesView };
 
 /**
  * Runtime descriptor — what the inspect app's SampleList store holds
@@ -27,7 +25,7 @@ export type { SamplesColumn, SamplesSort, SamplesView };
  *
  * `extraColumnFilters` is TS-only. It is never serialized to Python
  * and never appears on the wire; eval authors describe defaults via
- * `SamplesView.filter` (a DSL string).
+ * `TaskSamplesView.filter` (a DSL string).
  */
 export interface SamplesViewState {
   name: string;

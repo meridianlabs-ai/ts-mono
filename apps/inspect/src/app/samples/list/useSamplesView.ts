@@ -1,7 +1,7 @@
 import type { ColDef, GridState } from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 
-import { type SamplesView } from "@tsmono/inspect-common/types";
+import { type TaskSamplesView } from "@tsmono/inspect-common/types";
 
 import { useStore } from "../../../state/store";
 import { getFieldKey } from "../../shared/gridUtils";
@@ -19,7 +19,7 @@ import {
 /** Single subscription to the eval-author-supplied `task_samples_view`
  *  descriptor (after picking an active variant from a multi-view list).
  *  Backs every hook that reads from the wire side. */
-function useEvalDefaultSamplesView(): SamplesView | undefined {
+function useEvalDefaultSamplesView(): TaskSamplesView | undefined {
   const evalDefaultField = useStore(
     (state) =>
       state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
@@ -105,7 +105,7 @@ export interface UseSamplesViewResult {
 }
 
 /**
- * Window onto the SampleList scope's `SamplesView` descriptor. Resolves
+ * Window onto the SampleList scope's `TaskSamplesView` descriptor. Resolves
  * stored > eval-author default > built-in default; seeds visibility for
  * unseeded columns; folds ag-grid `GridState` updates back into the view.
  *

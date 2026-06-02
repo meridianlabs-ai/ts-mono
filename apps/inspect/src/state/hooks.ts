@@ -108,16 +108,27 @@ export const resolveScorePanelSort = (
   evalDefault: ScorePanelSortState | undefined
 ): ScorePanelSortState => stored ?? evalDefault ?? kDefaultScorePanelSort;
 
+// The eval-author default mode was serialized under `view` and is now
+// serialized under `default`; accept either so logs from either version
+// resolve. The value is advisory, so a miss falls through to the
+// count-based default downstream.
+export const readEvalScorePanelView = (
+  panel:
+    | { default?: ScoreView | null; view?: ScoreView | null }
+    | null
+    | undefined
+): ScoreView | undefined => panel?.default ?? panel?.view ?? undefined;
+
 /**
  * Read the eval-author-declared default score-panel view from
- * `Task(viewer=ViewerConfig(sample_score_view=ScorePanelView(view=...)))`.
+ * `Task(viewer=ViewerConfig(sample_score_view=SampleScoreView(default=...)))`.
  * Returns a primitive so Zustand's reference equality is stable.
  */
 export const useEvalScorePanelView = (): ScoreView | undefined =>
-  useStore(
-    (state) =>
-      (state.log.selectedLogDetails?.eval.viewer?.sample_score_view?.view ??
-        undefined) as ScoreView | undefined
+  useStore((state) =>
+    readEvalScorePanelView(
+      state.log.selectedLogDetails?.eval.viewer?.sample_score_view
+    )
   );
 
 /**

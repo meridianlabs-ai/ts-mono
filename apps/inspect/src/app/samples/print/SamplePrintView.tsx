@@ -1,6 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { VirtuosoHandle } from "react-virtuoso";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
@@ -17,6 +16,7 @@ import {
   CardHeader,
   NoContentsPanel,
 } from "@tsmono/react/components";
+import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
   kSampleJsonTabId,
@@ -97,7 +97,7 @@ export const SamplePrintView: FC = () => {
   const flattenedNodes = useMemo(() => {
     return flatTree(eventNodes, null);
   }, [eventNodes]);
-  const listHandle = useRef<VirtuosoHandle | null>(null);
+  const listHandle = useRef<VirtualListHandle | null>(null);
 
   // Auto-print once content has finished rendering.
   // Uses a MutationObserver to detect when the DOM stops changing,

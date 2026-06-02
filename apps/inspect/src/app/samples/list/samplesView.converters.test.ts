@@ -1,7 +1,7 @@
 import type { FilterModel, GridState } from "ag-grid-community";
 import { describe, expect, test } from "vitest";
 
-import type { SamplesView } from "@tsmono/inspect-common/types";
+import type { TaskSamplesView } from "@tsmono/inspect-common/types";
 
 import { defaultSamplesView, type SamplesViewState } from "./samplesView";
 import {
@@ -33,14 +33,13 @@ describe("liftEvalView", () => {
   });
 
   test("nullable wire fields collapse to defaults; explicit fields pass through", () => {
-    const wire: SamplesView = {
+    const wire: TaskSamplesView = {
       name: "Triage",
       columns: [
         { id: "input", visible: true },
         { id: "target", visible: false },
       ],
       sort: [{ column: "tokens", dir: "desc" }],
-      filter: "has_error",
       multiline: false,
     };
     expect(liftEvalView(wire)).toEqual({
@@ -50,7 +49,7 @@ describe("liftEvalView", () => {
         { id: "target", visible: false },
       ],
       sort: [{ colId: "tokens", dir: "desc" }],
-      filters: { dsl: "has_error", extraColumnFilters: {} },
+      filters: { dsl: "", extraColumnFilters: {} },
       multiline: false,
       compactScores: false,
       colorScalesEnabled: true,
@@ -59,7 +58,7 @@ describe("liftEvalView", () => {
   });
 
   test("missing columns / sort fall back to default (empty arrays today)", () => {
-    const wire: SamplesView = { name: "Default" };
+    const wire: TaskSamplesView = { name: "Default" };
     const lifted = liftEvalView(wire);
     expect(lifted.columns).toEqual([]);
     expect(lifted.sort).toEqual([]);
@@ -70,12 +69,15 @@ describe("liftEvalView", () => {
   });
 
   test("compact_scores wire field maps to compactScores runtime field", () => {
-    const wire: SamplesView = { name: "Triage", compact_scores: true };
+    const wire: TaskSamplesView = { name: "Triage", compact_scores: true };
     expect(liftEvalView(wire).compactScores).toBe(true);
   });
 
   test("color_scales_enabled wire field maps to colorScalesEnabled runtime field", () => {
-    const wire: SamplesView = { name: "Triage", color_scales_enabled: false };
+    const wire: TaskSamplesView = {
+      name: "Triage",
+      color_scales_enabled: false,
+    };
     expect(liftEvalView(wire).colorScalesEnabled).toBe(false);
   });
 
@@ -85,7 +87,7 @@ describe("liftEvalView", () => {
     // from a prior eval shadow the current one. Score labels are read
     // straight from the wire by `useSamplesViewScoreLabels` instead, so
     // the converter must not copy them into the runtime state.
-    const wire: SamplesView = {
+    const wire: TaskSamplesView = {
       name: "Triage",
       score_labels: { audit_situational_awareness: "Situational Awareness" },
     };
@@ -99,7 +101,7 @@ describe("liftEvalView", () => {
     // straight from the eval wire each render; the converter must not
     // copy them into the runtime state where they would survive across
     // evals.
-    const wire: SamplesView = {
+    const wire: TaskSamplesView = {
       name: "Triage",
       score_color_scales: {
         accuracy: "good-high",
@@ -128,22 +130,15 @@ describe("flattenToEvalView", () => {
       name: "Errors",
       columns: [{ id: "input", visible: true }],
       sort: [{ column: "tokens", dir: "asc" }],
-      filter: "has_error",
       multiline: false,
       compact_scores: false,
       color_scales_enabled: true,
     });
   });
-
-  test("empty dsl renders as filter: null on the wire", () => {
-    expect(
-      flattenToEvalView(sampleState({ name: "Default" })).filter
-    ).toBeNull();
-  });
 });
 
 describe("pickActiveView", () => {
-  const view: SamplesView = { name: "A" };
+  const view: TaskSamplesView = { name: "A" };
 
   test("undefined / null → undefined", () => {
     expect(pickActiveView(undefined)).toBeUndefined();
@@ -155,7 +150,7 @@ describe("pickActiveView", () => {
   });
 
   test("list returns the first entry", () => {
-    const second: SamplesView = { name: "B" };
+    const second: TaskSamplesView = { name: "B" };
     expect(pickActiveView([view, second])).toBe(view);
   });
 
@@ -165,13 +160,13 @@ describe("pickActiveView", () => {
 });
 
 describe("resolveSamplesView precedence", () => {
-  test("stored columns/sort/filter always win over eval default", () => {
+  test("stored columns/sort always win over eval default", () => {
     const stored = sampleState({
       name: "User",
       columns: [{ id: "input", visible: true }],
       sort: [{ colId: "tokens", dir: "desc" }],
     });
-    const evalDefault: SamplesView = {
+    const evalDefault: TaskSamplesView = {
       name: "Eval",
       columns: [{ id: "score", visible: true }],
     };
@@ -182,7 +177,7 @@ describe("resolveSamplesView precedence", () => {
   });
 
   test("eval default applies when no stored state is present", () => {
-    const evalDefault: SamplesView = { name: "Eval", multiline: false };
+    const evalDefault: TaskSamplesView = { name: "Eval", multiline: false };
     expect(resolveSamplesView(undefined, evalDefault)).toEqual(
       liftEvalView(evalDefault)
     );
@@ -199,7 +194,7 @@ describe("resolveSamplesView precedence", () => {
     // userOverrides is empty — so the current eval's `multiline: false`
     // should propagate through.
     const stored = sampleState({ multiline: true, userOverrides: {} });
-    const evalDefault: SamplesView = { name: "Eval", multiline: false };
+    const evalDefault: TaskSamplesView = { name: "Eval", multiline: false };
     expect(resolveSamplesView(stored, evalDefault).multiline).toBe(false);
   });
 
@@ -208,7 +203,7 @@ describe("resolveSamplesView precedence", () => {
       multiline: true,
       userOverrides: { multiline: true },
     });
-    const evalDefault: SamplesView = { name: "Eval", multiline: false };
+    const evalDefault: TaskSamplesView = { name: "Eval", multiline: false };
     expect(resolveSamplesView(stored, evalDefault).multiline).toBe(true);
   });
 
@@ -233,7 +228,7 @@ describe("resolveSamplesView precedence", () => {
       }),
     } as SamplesViewState;
     delete (legacy as Partial<SamplesViewState>).userOverrides;
-    const evalDefault: SamplesView = {
+    const evalDefault: TaskSamplesView = {
       name: "Eval",
       multiline: false,
       compact_scores: true,
@@ -323,9 +318,16 @@ describe("viewToGridState", () => {
     ]);
   });
 
-  test("emits an empty columnSizing model when no widths are recorded", () => {
+  test("omits the columnSizing facet when no widths are recorded", () => {
     const gs = viewToGridState(sampleState({}), cols("input"));
-    expect(gs.columnSizing?.columnSizingModel).toEqual([]);
+    // Emitting the facet — even empty — makes ag-grid reset flex on every
+    // column; leaving it off lets colDef `initialFlex` survive the restore.
+    expect(gs.columnSizing).toBeUndefined();
+  });
+
+  test("marks the state partial so ag-grid preserves colDef flex", () => {
+    const gs = viewToGridState(sampleState({}), cols("input"));
+    expect(gs.partialColumnState).toBe(true);
   });
 });
 

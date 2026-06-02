@@ -7,6 +7,7 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 
 import {
   computeLogsWithRetried,
+  readEvalScorePanelView,
   resolveScorePanelSort,
   resolveScorePanelView,
   ScorePanelSortState,
@@ -271,6 +272,38 @@ describe("resolveScorePanelView", () => {
     for (const [stored, evalDefault, count, expected] of cases) {
       expect(resolveScorePanelView(stored, evalDefault, count)).toBe(expected);
     }
+  });
+});
+
+// =============================================================================
+// readEvalScorePanelView
+//
+// The eval-author default field was renamed `view` → `default`; old logs
+// carry `view`, new logs carry `default`, and either must resolve.
+// =============================================================================
+
+describe("readEvalScorePanelView", () => {
+  it("reads the new `default` field", () => {
+    expect(readEvalScorePanelView({ default: "grid" })).toBe("grid");
+  });
+
+  it("reads the legacy `view` field from old logs", () => {
+    expect(readEvalScorePanelView({ view: "chips" })).toBe("chips");
+  });
+
+  it("prefers `default` when both are present", () => {
+    expect(readEvalScorePanelView({ default: "grid", view: "chips" })).toBe(
+      "grid"
+    );
+  });
+
+  it("returns undefined when unset, null, or empty", () => {
+    expect(readEvalScorePanelView(undefined)).toBeUndefined();
+    expect(readEvalScorePanelView(null)).toBeUndefined();
+    expect(readEvalScorePanelView({})).toBeUndefined();
+    expect(
+      readEvalScorePanelView({ default: null, view: null })
+    ).toBeUndefined();
   });
 });
 

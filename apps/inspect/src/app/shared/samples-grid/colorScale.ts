@@ -1,7 +1,7 @@
 /**
  * Pure colour-scale resolver for score-cell backgrounds.
  *
- * The wire shape (from the Python `SamplesView.score_color_scales`
+ * The wire shape (from the Python `TaskSamplesView.score_color_scales`
  * field) is one of:
  *
  *   - a named palette string (numeric scores) — `"good-high"` etc.

@@ -79,7 +79,6 @@
     "mathjax-full": "^3.2.2",
     "msw": "^2.14.6",
     "openapi-typescript": "^7.10.1",
-    "postcss-url": "^10.1.3",
     "prettier": "^3.8.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -121,7 +120,6 @@
     "prismjs": "^1.30.0",
     "react-popper": "^2.3.0",
     "react-router-dom": "^7.15.1",
-    "react-virtuoso": "^4.18.7",
     "zustand": "^5.0.13"
   }
 }

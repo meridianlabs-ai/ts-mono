@@ -120,7 +120,6 @@
     "react-dom": "^19.2.6",
     "react-popper": "^2.3.0",
     "react-router-dom": "^7.15.1",
-    "react-virtuoso": "^4.18.7",
     "zustand": "^5.0.13"
   },
   "peerDependencies": {

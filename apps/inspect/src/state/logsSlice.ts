@@ -72,7 +72,7 @@ export interface LogsSlice {
       visibility: Record<string, boolean>
     ) => void;
 
-    /** Persist a SamplesView descriptor for a specific log file. The
+    /** Persist a TaskSamplesView descriptor for a specific log file. The
      *  log path is captured by the caller at hook level so a navigation
      *  that races a pending effect can't redirect the write to a
      *  different log's bucket. */

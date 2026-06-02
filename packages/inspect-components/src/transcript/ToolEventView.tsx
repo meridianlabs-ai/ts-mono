@@ -10,9 +10,9 @@ import {
   ToolCallView,
   type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
-import { PulsingDots } from "@tsmono/react/components";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
+import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
@@ -177,7 +177,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         )}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
-            <PulsingDots subtle={false} size="medium" />
+            <GeneratingIndicator />
           </div>
         ) : undefined}
       </div>

@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { VirtuosoHandle } from "react-virtuoso";
 
-import { LabeledValue, LiveVirtualList } from "@tsmono/react/components";
+import { LabeledValue } from "@tsmono/react/components";
+import { VirtualList } from "@tsmono/react/virtual";
+import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { formatPercent, formatPrettyDecimal } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../../icons";
@@ -19,7 +20,7 @@ export const ScannerSidebar: FC<{ selectedScan: Status }> = ({
 }) => {
   const entries = toEntries(selectedScan);
 
-  const scanListHandle = useRef<VirtuosoHandle | null>(null);
+  const scanListHandle = useRef<VirtualListHandle | null>(null);
   const renderRow = useCallback(
     (index: number, entry: ScanResultsOutlineEntry) => {
       return <ScanResultsRow index={index} entry={entry} />;
@@ -29,9 +30,9 @@ export const ScannerSidebar: FC<{ selectedScan: Status }> = ({
 
   return (
     <div className={clsx(styles.container)}>
-      <LiveVirtualList<ScanResultsOutlineEntry>
-        id={"scans-toc-list"}
-        listHandle={scanListHandle}
+      <VirtualList<ScanResultsOutlineEntry>
+        persistenceKey={"scans-toc-list"}
+        ref={scanListHandle}
         data={entries}
         renderRow={renderRow}
       />
