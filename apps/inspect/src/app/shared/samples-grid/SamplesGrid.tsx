@@ -24,6 +24,8 @@ import {
   useRef,
 } from "react";
 
+import { GridLoadingOverlay } from "@tsmono/react/components";
+
 import "../agGrid";
 
 import { createGridKeyboardHandler } from "../gridKeyboardNavigation";
@@ -405,6 +407,7 @@ export const SamplesGrid = <TRow,>(
           onGridSizeChanged={handleGridSizeChanged}
           autoSizeStrategy={autoSizeStrategy}
           loading={loading}
+          loadingOverlayComponent={GridLoadingOverlay}
         />
       </div>
     </div>

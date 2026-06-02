@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
-import { NoContentsPanel, ToolButton } from "@tsmono/react/components";
+import { ErrorPanel, NoContentsPanel, ToolButton } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
@@ -163,6 +163,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const sampleSummaries = useFilteredSamples();
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const appError = useStore((state) => state.app.status.error);
 
   const evalSampleCount = useMemo(() => {
     const limit = selectedLogDetails?.eval.config.limit;
@@ -502,6 +503,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           })),
     [allColumns, columnFilteringAllowed]
   );
+
+  if (appError) {
+    return (
+      <ErrorPanel
+        title="Error"
+        error={{ message: appError.message, stack: appError.stack }}
+      />
+    );
+  }
 
   if (totalSampleCount === 0) {
     if (running) {

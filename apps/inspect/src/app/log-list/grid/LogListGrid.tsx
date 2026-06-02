@@ -24,6 +24,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { GridLoadingOverlay } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { LogDetails } from "../../../client/api/types";
@@ -610,6 +611,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onFilterChanged={handleFilterChanged}
           onModelUpdated={handleModelUpdated}
           loading={data.length === 0 && (loading > 0 || syncing)}
+          loadingOverlayComponent={GridLoadingOverlay}
         />
       </div>
     </div>
