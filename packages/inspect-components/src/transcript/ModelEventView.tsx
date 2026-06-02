@@ -22,7 +22,7 @@ import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { RetryChip } from "./event/RetryChip";
-import { formatTiming, formatTitle } from "./event/utils";
+import { formatTiming, formatTitle, isCancelError } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
 import { retryAttemptKey } from "./timeline/retryGrouping";
@@ -57,7 +57,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     attempts?.find((a) => retryAttemptKey(a) === selectedAttemptKey) ??
     successEvent;
   const event = selectedEvent;
-  const isFailed = !!event.error;
+  // An operator/limit/system cancel stamps a sentinel on `error`, but it isn't
+  // a genuine failure — surface it as "Cancelled", not a red "FAILED" error.
+  const isCancelled = isCancelError(event.error);
+  const isFailed = !!event.error && !isCancelled;
 
   const totalUsage = event.output?.usage?.total_tokens;
   const callTime = event.output?.time;
@@ -115,13 +118,15 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const [showAllMessages, setShowAllMessages] = useState(false);
 
   const summaryMessages = useMemo(() => {
-    // Filter the synthetic empty-assistant placeholder only while the
-    // event is in flight — once it completes, the same predicate would
-    // also drop legitimate tool_use-only outputs, since
-    // isLivePlaceholderMessage treats those as "no visible content".
-    const outputs = event.pending
-      ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
-      : outputMessages || [];
+    // Filter the synthetic empty-assistant placeholder while the event is in
+    // flight, or when it was cancelled (the interrupted generation produced no
+    // real output) — otherwise the same predicate would drop legitimate
+    // tool_use-only outputs, since isLivePlaceholderMessage treats those as
+    // "no visible content".
+    const outputs =
+      event.pending || isCancelled
+        ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+        : outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
@@ -129,6 +134,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     showAllMessages,
     event.input,
     event.pending,
+    isCancelled,
     outputMessages,
     userMessages,
   ]);
@@ -145,7 +151,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
   const titleString = isFailed
     ? `${panelTitle} · FAILED${formatFailureTime(event)}`
-    : formatTitle(panelTitle, totalUsage, callTime);
+    : isCancelled
+      ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
+      : formatTitle(panelTitle, totalUsage, callTime);
 
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
@@ -204,7 +212,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           }}
           labels={summaryLabels}
         />
-        {event.error ? (
+        {isCancelled ? (
+          <div className={styles.cancelled}>
+            <i className={TranscriptIcons.cancel} />
+            <span>{event.error}</span>
+          </div>
+        ) : event.error ? (
           <EventSection title="Error">
             <div className={styles.error}>{event.error}</div>
           </EventSection>

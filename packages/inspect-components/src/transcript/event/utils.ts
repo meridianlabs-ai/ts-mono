@@ -13,6 +13,19 @@ const sampleLimitTitles: Record<string, string> = {
   cost: "Cost Limit Exceeded",
 };
 
+// Sentinel strings stamped on `ModelEvent.error` when an in-flight generate
+// call is cancelled rather than failing. Mirrors Python's `CANCEL_ERRORS`
+// (inspect_ai.event._model) — fixed strings so they round-trip through the log.
+const cancelErrors = new Set([
+  "Cancelled by operator",
+  "Cancelled by limit",
+  "Cancelled by system",
+]);
+
+/** True when a model error is a cancel sentinel (not a genuine failure). */
+export const isCancelError = (error?: string | null): boolean =>
+  !!error && cancelErrors.has(error);
+
 const approvalDecisionLabels: Record<string, string> = {
   approve: "Approved",
   reject: "Rejected",
