@@ -184,17 +184,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             return (
               <Fragment key={`chat-message-row-${index}-part-${idx}`}>
                 <div
-                  className={clsx(
-                    "text-size-smaller",
-                    "text-style-secondary",
-                    styles.number,
-                    styles.label
-                  )}
-                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
-                >
-                  {label}
-                </div>
-                <div
                   data-message-role={
                     isTool ? undefined : resolvedMessage.message.role
                   }
@@ -217,6 +206,17 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
                   )}
                 >
                   {view}
+                </div>
+                <div
+                  className={clsx(
+                    "text-size-smaller",
+                    "text-style-secondary",
+                    styles.number,
+                    styles.label
+                  )}
+                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
+                >
+                  {label}
                 </div>
               </Fragment>
             );

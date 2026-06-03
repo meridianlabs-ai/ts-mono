@@ -140,6 +140,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           </>
         ) : (
           <div className={styles.labeledToolCall}>
+            <div className={styles.labeledToolContent}>
+              {toolCallView}
+              {toolCallError}
+            </div>
             <div
               className={clsx(
                 "text-size-smaller",
@@ -149,10 +153,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
               style={{ minWidth: `${maxLabelLength}ch` }}
             >
               {toolLabel}
-            </div>
-            <div className={styles.labeledToolContent}>
-              {toolCallView}
-              {toolCallError}
             </div>
           </div>
         )}

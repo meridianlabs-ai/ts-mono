@@ -5,7 +5,7 @@
 
 .labeledToolCall {
   display: grid;
-  grid-template-columns: max-content auto;
+  grid-template-columns: auto max-content;
   row-gap: 0;
 }
 

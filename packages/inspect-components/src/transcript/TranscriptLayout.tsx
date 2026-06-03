@@ -238,6 +238,37 @@ const buildToolLabels = (
   return Object.keys(toolLabels).length > 0 ? toolLabels : undefined;
 };
 
+// Restrict the message-label map to messages actually present in `events`.
+// The map is shared across the whole sample, but timelines (e.g. auditor vs
+// target) show different events — without this an unlabeled timeline would
+// reserve label-column space just because another timeline is labeled.
+const scopeMessageLabels = (
+  events: Event[],
+  messageLabels: Record<string, string> | undefined
+): Record<string, string> | undefined => {
+  if (!messageLabels) return undefined;
+
+  const present = new Set<string>();
+  for (const event of events) {
+    if (event.event === "model") {
+      for (const message of event.input ?? []) {
+        if (message.id) present.add(message.id);
+      }
+      for (const choice of event.output?.choices ?? []) {
+        if (choice.message?.id) present.add(choice.message.id);
+      }
+    } else if (event.event === "tool" && event.message_id) {
+      present.add(event.message_id);
+    }
+  }
+
+  const scoped: Record<string, string> = {};
+  for (const [id, label] of Object.entries(messageLabels)) {
+    if (present.has(id)) scoped[id] = label;
+  }
+  return Object.keys(scoped).length > 0 ? scoped : undefined;
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -386,12 +417,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
-    const toolLabels = buildToolLabels(
+    const messageLabels = scopeMessageLabels(
       eventsForNodes,
       eventNodeContext?.messageLabels
     );
+    const toolLabels = buildToolLabels(eventsForNodes, messageLabels);
     return {
       ...eventNodeContext,
+      messageLabels,
       retryAttempts,
       ...(toolLabels ? { toolLabels } : {}),
     };
