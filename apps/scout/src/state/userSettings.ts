@@ -29,7 +29,8 @@ export const useUserSettings = create<UserSettingsState>()(
   persist(
     (set) => ({
       dataframeColumnPresets: [],
-      themePreference: "system",
+      // Default to the readable (Event Colors) variant per product decision.
+      themePreference: "readable-system",
       searchModelHistory: [],
       setDataframeColumnPresets: (presets: ColumnPreset[]) => {
         set({ dataframeColumnPresets: presets });

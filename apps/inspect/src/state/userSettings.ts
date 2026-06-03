@@ -21,7 +21,8 @@ interface UserSettingsState {
 export const useUserSettings = create<UserSettingsState>()(
   persist(
     (set) => ({
-      themePreference: "system",
+      // Default to the readable (Event Colors) variant per product decision.
+      themePreference: "readable-system",
       setThemePreference: (themePreference: ThemePreference) => {
         set({ themePreference });
       },

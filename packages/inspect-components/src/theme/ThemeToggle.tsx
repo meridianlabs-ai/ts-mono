@@ -107,7 +107,8 @@ export const ThemeToggle = ({
           <button
             type="button"
             className={styles.resetButton}
-            onClick={() => onChange("system")}
+            // Reset returns to the default, which includes Event Colors.
+            onClick={() => onChange("readable-system")}
           >
             Reset
           </button>
