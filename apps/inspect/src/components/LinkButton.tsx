@@ -3,7 +3,7 @@ import { FC } from "react";
 
 import styles from "./LinkButton.module.css";
 
-interface LinkButtonProps {
+export interface LinkButtonProps {
   id?: string;
   text?: string;
   icon?: string;
