@@ -39,7 +39,7 @@ const withInspectStore: Decorator = (Story) => {
 };
 
 const meta = {
-  title: "Components/DownloadButton",
+  title: "Inspect/DownloadButton",
   component: DownloadButton,
   decorators: [withInspectStore],
   parameters: {

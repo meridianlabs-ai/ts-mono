@@ -57,7 +57,7 @@ const ModalWithFooterDemo: FC<DemoProps> = ({ title, padded }) => {
 };
 
 const meta = {
-  title: "Components/Modal",
+  title: "Inspect/Modal",
   component: ModalDemo,
   parameters: {
     layout: "padded",

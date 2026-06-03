@@ -35,7 +35,7 @@ const LargeModalDemo: FC<DemoProps> = ({
 };
 
 const meta = {
-  title: "Components/LargeModal",
+  title: "Inspect/LargeModal",
   component: LargeModalDemo,
   parameters: {
     layout: "fullscreen",

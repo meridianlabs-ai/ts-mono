@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { ActivityBar } from "./ActivityBar";
 
 const meta = {
-  title: "Components/ActivityBar",
+  title: "Inspect/ActivityBar",
   component: ActivityBar,
   parameters: {
     layout: "padded",

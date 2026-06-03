@@ -39,7 +39,7 @@ const withInspectStore: Decorator = (Story) => {
 };
 
 const meta = {
-  title: "Components/MessageBand",
+  title: "Inspect/MessageBand",
   component: MessageBand,
   decorators: [withInspectStore],
   parameters: {
