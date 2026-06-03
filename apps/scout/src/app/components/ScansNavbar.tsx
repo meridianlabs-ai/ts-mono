@@ -1,11 +1,13 @@
-import { FC, ReactNode, useMemo } from "react";
+import { FC, ReactNode, useContext, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { dirname } from "@tsmono/util";
 
+import { AppModeContext } from "../../App";
 import { ApplicationIcons } from "../../icons";
 import { scanRoute, scansRoute } from "../../router/url";
 import { useStore } from "../../state/store";
+import { ThemeToggleControl } from "../../theme/ThemeToggleControl";
 import { useScanRoute } from "../hooks/useScanRoute";
 
 import { EditablePath } from "./EditablePath";
@@ -35,6 +37,11 @@ export const ScansNavbar: FC<ScansNavbarProps> = ({
   } = useScanRoute();
   const singleFileMode = useStore((state) => state.singleFileMode);
   const [searchParams] = useSearchParams();
+  // In workbench the ProjectBar already hosts the theme toggle; when embedded
+  // (scans mode, e.g. in hawk) there's no ProjectBar, so surface the toggle in
+  // this breadcrumb navbar instead.
+  const appMode = useContext(AppModeContext);
+  const showThemeToggle = appMode !== "workbench";
 
   // Check if we're on a scan result page and calculate the appropriate back URL
   const resolvedScansDir = routeScansDir || scansDir;
@@ -73,7 +80,16 @@ export const ScansNavbar: FC<ScansNavbarProps> = ({
   return (
     <Navbar
       bordered={bordered}
-      right={children}
+      right={
+        showThemeToggle ? (
+          <>
+            {children}
+            <ThemeToggleControl />
+          </>
+        ) : (
+          children
+        )
+      }
       leftButtons={navButtons.length > 0 ? navButtons : undefined}
       left={
         scansDir ? (

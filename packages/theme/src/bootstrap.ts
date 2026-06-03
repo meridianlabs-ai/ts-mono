@@ -55,9 +55,11 @@ export const readThemePreference = (
   storage: Pick<Storage, "getItem">,
   storageKey: string
 ): ThemePreference => {
+  // Default (no/invalid stored value) is the readable "Event Colors" variant
+  // per product decision; keep in sync with the app userSettings defaults.
   try {
     const raw = storage.getItem(storageKey);
-    if (!raw) return "system";
+    if (!raw) return "readable-system";
     const parsed: unknown = JSON.parse(raw);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
       const state = parsed.state;
@@ -66,9 +68,9 @@ export const readThemePreference = (
         if (isThemePreference(value)) return value;
       }
     }
-    return "system";
+    return "readable-system";
   } catch {
-    return "system";
+    return "readable-system";
   }
 };
 

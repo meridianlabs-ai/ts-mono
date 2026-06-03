@@ -5,6 +5,7 @@ import type {
   EvalSampleLimit,
   SampleLimitEvent,
 } from "@tsmono/inspect-common/types";
+import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { TranscriptIcons } from "./icons";
@@ -31,7 +32,7 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
       case "token":
         return "Token Limit Exceeded";
       case "operator":
-        return "Operator Canceled";
+        return "Operator Cancelled";
       case "working":
         return "Execution Time Limit Exceeded";
       case "cost":
@@ -58,7 +59,10 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
     }
   };
 
-  const title = resolve_title(eventNode.event.type);
+  const baseTitle = resolve_title(eventNode.event.type);
+  const title = eventNode.event.timestamp
+    ? `${baseTitle} — ${formatDateTime(new Date(eventNode.event.timestamp))}`
+    : baseTitle;
   const icon = resolve_icon(eventNode.event.type);
 
   return (

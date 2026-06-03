@@ -306,7 +306,7 @@ const formatSpawnAgentResult = (text: string): string | undefined => {
 
 // Extract the underlying text from a tool output that may be a raw string or
 // structured content (text items, optionally wrapped in a `tool` content item).
-const toolOutputText = (output: unknown): string | undefined => {
+export const toolOutputText = (output: unknown): string | undefined => {
   if (typeof output === "string") {
     return output;
   }
