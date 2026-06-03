@@ -15,6 +15,7 @@ import { inputString } from "@tsmono/inspect-common/utils";
 import { ErrorPanel, NoContentsPanel, ToolButton } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
+import { ActivityBar } from "../../../components/ActivityBar.tsx";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import {
@@ -164,6 +165,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const appError = useStore((state) => state.app.status.error);
+  const loading = useStore((state) => state.app.status.loading);
 
   const evalSampleCount = useMemo(() => {
     const limit = selectedLogDetails?.eval.config.limit;
@@ -526,6 +528,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
 
   return (
     <Fragment>
+      <ActivityBar animating={!!loading} />
       {inlineDisplay ? (
         <InlineSampleDisplay
           showActivity={
