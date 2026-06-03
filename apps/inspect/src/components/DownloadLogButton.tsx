@@ -8,7 +8,7 @@ import styles from "./DownloadLogButton.module.css";
 
 type DownloadState = "idle" | "downloading" | "success" | "error";
 
-interface DownloadLogButtonProps {
+export interface DownloadLogButtonProps {
   log_file: string;
   className?: string;
   ariaLabel?: string;
