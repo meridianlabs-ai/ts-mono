@@ -1,3 +1,14 @@
+// Bundle the app-level CSS the embedded library needs into the lib build. The
+// standalone app imports these in main.tsx, which the lib build does NOT
+// include — so without them, embedded scout (e.g. in hawk) lost its icon
+// glyphs (Bootstrap Icons) and, more subtly, the Bootstrap `--bs-*` design
+// tokens its panels rely on (which made light mode render dark panels).
+// Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
+// theme overrides Bootstrap's defaults.
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "@vscode/codicons/dist/codicon.css";
+
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router-dom";
 
