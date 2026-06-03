@@ -1,18 +1,15 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
-import { fromArrow } from "arquero";
-
 import duckdbEhWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
-import duckdbEhWasm from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import duckdbMvpWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
+import duckdbEhWasm from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import duckdbMvpWasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
+import { fromArrow } from "arquero";
 
 import type { SqlParam } from "./condition-sql";
 
 export class StaticDuckDB {
   private dbPromise: Promise<duckdb.AsyncDuckDB> | undefined;
-  private connectionPromise:
-    | Promise<duckdb.AsyncDuckDBConnection>
-    | undefined;
+  private connectionPromise: Promise<duckdb.AsyncDuckDBConnection> | undefined;
   private readonly registeredFiles = new Set<string>();
 
   async queryObjects(sql: string, params: SqlParam[] = []): Promise<object[]> {
