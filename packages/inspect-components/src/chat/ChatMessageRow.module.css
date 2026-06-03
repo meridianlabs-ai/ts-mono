@@ -60,6 +60,28 @@
   padding: 0.7rem;
 }
 
+/* An assistant turn rendered as one connected stack: the message, its tool
+   call(s), and output(s) sit flush so they read as a single card with a
+   continuous left gutter. */
+.attachedGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.attachedBottom {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  /* Drop the divider so the call/output pair reads as one seamless card —
+     only the background color shifts (blue call → gray output). */
+  border-bottom: 0;
+}
+
+.attachedTop {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 0;
+}
+
 /* Tool-call number chip, pinned to the top-right of its box to mirror the
    position chip on a message's role line. */
 .toolLabel {

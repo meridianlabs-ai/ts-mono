@@ -152,12 +152,31 @@
   border-left: 1px solid var(--bs-light-border-subtle);
 }
 
-/* The tool call is its own peer block: the whole box is the blue call surface
-   (header + input), so the inner input surface is flattened to avoid a box in
-   a box. */
+/* The tool call is its own peer block: under readable the whole box is the blue
+   call surface (header + input). */
 :root[data-theme-variant="readable"] [data-message-kind="tool"] {
   background-color: var(--inspect-readable-tool-call-bg);
   border-left: 3px solid var(--inspect-readable-tool-call-border);
+}
+
+/* Flush the call input AND the output to the box padding edge in EVERY theme so
+   they line up. The input otherwise carries ToolInput's .toolView padding (and,
+   under readable, the .tool-call-input padding) plus the prism code block's own
+   padding/margin, over-indenting it relative to the output. The `:root` prefix
+   lifts specificity above the readable .tool-call-input rule. */
+:root [data-message-kind="tool"] pre.tool-call-input,
+:root [data-message-kind="tool"] div.tool-call-input {
+  border: 0;
+  border-radius: 0;
+  padding: 0 !important;
+}
+:root [data-message-kind="tool"] .tool-call-input pre[class*="language-"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+:root [data-message-kind="tool-result"] .tool-output {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 :root[data-theme-variant="readable"]
   [data-message-kind="tool"]
@@ -166,15 +185,13 @@
   [data-message-kind="tool"]
   div.tool-call-input {
   background-color: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0 !important;
 }
 
-/* The tool output is its own peer block — a light-gray bordered box (matching
-   the transcript tool output), so the inner output surface renders plainly. */
+/* The tool output attaches beneath its call — a light-gray box that shares the
+   call's blue left gutter so the pair reads as one connected card. */
 :root[data-theme-variant="readable"] [data-message-kind="tool-result"] {
   background-color: var(--inspect-tool-output-bg);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
 }
 :root[data-theme-variant="readable"]
   [data-message-kind="tool-result"]

@@ -20,6 +20,32 @@
   min-width: 0;
 }
 
+/* The call/output attached pair (colors + inner flatten come from the shared
+   [data-message-kind] theme rules; here we supply the box structure). */
+.attachedGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.toolBox {
+  position: relative;
+  border: 1px solid var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+  padding: 0.7rem;
+}
+
+.attachedBottom {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 0;
+}
+
+.attachedTop {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 0;
+}
+
 .approvalWrap {
   margin-top: 0.5rem;
 }

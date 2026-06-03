@@ -218,43 +218,67 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     // Each row part is a peer block: the message in its role band, the tool
     // call in the blue tool box, and the tool output in a plain bordered box.
     const hasTools = viewKinds.some((k) => k !== "message");
-    return (
-      <div className={clsx(styles.grid, className)}>
-        {views.map((view, idx) => {
-          const kind = viewKinds[idx];
-          const isMessage = kind === "message";
-          const chip = viewChips[idx];
-          return (
-            <div
-              key={`chat-message-row-${index}-part-${idx}`}
-              data-message-role={
-                isMessage ? resolvedMessage.message.role : undefined
-              }
-              data-message-kind={kind}
-              className={clsx(
-                isMessage && styles.container,
-                hasTools ? styles.box : undefined,
-                isMessage &&
-                  highlightUserMessage &&
-                  resolvedMessage.message.role === "user"
-                  ? styles.user
-                  : undefined,
-                isMessage && !hasTools && idx === 0 ? styles.first : undefined,
-                isMessage && !hasTools && idx === views.length - 1
-                  ? styles.last
-                  : undefined,
-                highlightLabeled && isMessage && messageChip
-                  ? styles.highlight
-                  : undefined
-              )}
-            >
-              {chip ? <div className={styles.toolLabel}>{chip}</div> : null}
-              {view}
-            </div>
-          );
-        })}
-      </div>
-    );
+
+    const renderPart = (
+      idx: number,
+      attached?: { top?: boolean; bottom?: boolean }
+    ) => {
+      const kind = viewKinds[idx];
+      const isMessage = kind === "message";
+      const chip = viewChips[idx];
+      return (
+        <div
+          key={`chat-message-row-${index}-part-${idx}`}
+          data-message-role={
+            isMessage ? resolvedMessage.message.role : undefined
+          }
+          data-message-kind={kind}
+          className={clsx(
+            isMessage && styles.container,
+            hasTools ? styles.box : undefined,
+            isMessage &&
+              highlightUserMessage &&
+              resolvedMessage.message.role === "user"
+              ? styles.user
+              : undefined,
+            isMessage && !hasTools && idx === 0 ? styles.first : undefined,
+            isMessage && !hasTools && idx === views.length - 1
+              ? styles.last
+              : undefined,
+            attached?.bottom ? styles.attachedBottom : undefined,
+            attached?.top ? styles.attachedTop : undefined,
+            highlightLabeled && isMessage && messageChip
+              ? styles.highlight
+              : undefined
+          )}
+        >
+          {chip ? <div className={styles.toolLabel}>{chip}</div> : null}
+          {views[idx]}
+        </div>
+      );
+    };
+
+    // Attach a tool output to the bottom of its call so the call/output read as
+    // one connected card; the assistant message stays a separate peer above.
+    const items: ReactNode[] = [];
+    for (let idx = 0; idx < views.length; idx++) {
+      if (viewKinds[idx] === "tool" && viewKinds[idx + 1] === "tool-result") {
+        items.push(
+          <div
+            key={`chat-message-row-${index}-toolgroup-${idx}`}
+            className={styles.attachedGroup}
+          >
+            {renderPart(idx, { bottom: true })}
+            {renderPart(idx + 1, { top: true })}
+          </div>
+        );
+        idx++;
+      } else {
+        items.push(renderPart(idx));
+      }
+    }
+
+    return <div className={clsx(styles.grid, className)}>{items}</div>;
   } else {
     return views.map((view, idx) => {
       return (
