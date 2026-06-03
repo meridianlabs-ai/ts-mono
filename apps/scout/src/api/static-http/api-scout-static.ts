@@ -15,9 +15,9 @@ import {
   ProjectConfigInput,
   Result,
   ScanJobConfig,
-  ScanRow,
   ScannerInputResponse,
   ScannersResponse,
+  ScanRow,
   ScansResponse,
   SearchInputListResponse,
   SearchRequest,
@@ -486,7 +486,9 @@ const registerScannerParquet = async (
 ): Promise<string> => {
   const scannerPath = scan.scannerPaths[scanner];
   if (!scannerPath) {
-    throw new Error(`Scanner '${scanner}' not found in scan '${scan.bundleId}'`);
+    throw new Error(
+      `Scanner '${scanner}' not found in scan '${scan.bundleId}'`
+    );
   }
   const parquetName = `scan_${scan.bundleId}_${base64UrlEncode(scanner)}.parquet`;
   await db.registerHttpFile(parquetName, joinUrl(baseUrl, scannerPath));
@@ -527,7 +529,10 @@ const parseOptionalJson = async <T>(
   return asyncJsonParse<T>(raw);
 };
 
-const firstRow = (rows: object[], error = "Expected at least one row"): object => {
+const firstRow = (
+  rows: object[],
+  error = "Expected at least one row"
+): object => {
   const row = rows[0];
   if (!row) throw new Error(error);
   return row;
