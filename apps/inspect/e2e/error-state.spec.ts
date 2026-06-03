@@ -1,11 +1,3 @@
-/**
- * E2E tests for error state display in the log-list grid.
- *
- * Covers two scenarios:
- * 1. A plain server 500 replaces the grid with an ErrorPanel.
- * 2. A slow 500 exercises the full ActivityBar → "Loading" → ErrorPanel → idle
- *    sequence, which only works when syncLogs always calls setLoading(true).
- */
 import { http, HttpResponse, delay } from "msw";
 
 import { expect, test } from "./fixtures/app";
@@ -27,7 +19,7 @@ test.describe("Server error state", () => {
     await page.goto("/");
 
     // The ErrorPanel should appear with the error message
-    const errorPanel = page.locator("[class*='errorPanel']");
+    const errorPanel = page.locator("[data-testid='error-panel']");
     await expect(errorPanel).toBeVisible({ timeout: 10_000 });
 
     // The AG Grid should NOT be visible
@@ -50,7 +42,7 @@ test.describe("Server error state", () => {
     );
 
     await page.goto("/");
-    const errorPanel = page.locator("[class*='errorPanel']");
+    const errorPanel = page.locator("[data-testid='error-panel']");
     await expect(errorPanel).toBeVisible({ timeout: 10_000 });
 
     // Second load: restore default (empty success)
@@ -63,6 +55,7 @@ test.describe("Server error state", () => {
     // Navigate away and back to trigger a fresh load
     await page.goto("/");
     await expect(errorPanel).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".ag-root")).toBeVisible({ timeout: 10_000 });
   });
 
   test("shows ActivityBar, Loading..., then ErrorPanel after a delayed 500", async ({
@@ -104,7 +97,7 @@ test.describe("Server error state", () => {
     await expect(page.getByText("Loading")).toBeVisible();
 
     // After the delayed 500 resolves the error panel must appear
-    await expect(page.locator("[class*='errorPanel']")).toBeVisible({
+    await expect(page.locator("[data-testid='error-panel']")).toBeVisible({
       timeout: 10_000,
     });
 

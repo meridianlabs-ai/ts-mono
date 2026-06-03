@@ -21,7 +21,10 @@ export const ErrorPanel: FC<ErrorPanelProps> = ({ title, error }) => {
   const stack = error.stack;
 
   return (
-    <div className={clsx(styles.errorPanel, styles.centeredFlex)}>
+    <div
+      data-testid="error-panel"
+      className={clsx(styles.errorPanel, styles.centeredFlex)}
+    >
       <div className={clsx(styles.heading, styles.centeredFlex)}>
         <div>
           <i className={clsx(icons.error, styles.errorIcon)}></i>
