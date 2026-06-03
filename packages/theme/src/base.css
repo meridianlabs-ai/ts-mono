@@ -1096,6 +1096,19 @@ pre[class*="language-"].tool-output,
   background-color: #333333;
 }
 
+/* PrismJS's stock theme (prismjs/themes/prism.css) hardcodes a light-blue
+   `#b3d4fc` selection on code blocks, which is washed out on the dark code
+   background above. Override it in dark with the editor selection token (same
+   as CodeMirror's selection) so highlighted code matches. Scoped to .vscode-dark
+   and mirroring Prism's selector set so it wins on specificity regardless of
+   stylesheet order; light mode keeps Prism's default. */
+.vscode-dark code[class*="language-"]::selection,
+.vscode-dark code[class*="language-"] ::selection,
+.vscode-dark pre[class*="language-"]::selection,
+.vscode-dark pre[class*="language-"] ::selection {
+  background: var(--vscode-editor-selectionBackground);
+}
+
 .model-call pre[class*="language-"],
 .markdown-content pre[class*="language-"],
 pre[class*="language-"].tool-output {
