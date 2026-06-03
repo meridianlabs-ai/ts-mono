@@ -138,7 +138,7 @@ export interface ScoutApiV2 {
    * reject with StaticBundleError; live-update methods are no-ops. UI surfaces
    * should disable scan/config/validation editing.
    */
-  readOnly?: boolean;
+  readOnly: boolean;
 }
 
 export const NoPersistence: ClientStorage = {
