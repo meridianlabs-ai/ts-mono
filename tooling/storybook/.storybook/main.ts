@@ -2,15 +2,8 @@ import type { StorybookConfig } from "@storybook/react-vite";
 
 const config: StorybookConfig = {
   stories: [
-    {
-      directory: "../../../packages/react/src",
-      files: "**/*.stories.@(ts|tsx)",
-    },
-    {
-      directory: "../../../apps/inspect/src",
-      files: "**/*.stories.@(ts|tsx)",
-      titlePrefix: "Inspect",
-    },
+    "../../../packages/react/src/**/*.stories.@(ts|tsx)",
+    "../../../apps/inspect/src/**/*.stories.@(ts|tsx)",
   ],
   framework: "@storybook/react-vite",
   async viteFinal(config) {
