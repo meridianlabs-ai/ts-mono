@@ -3200,8 +3200,12 @@ export interface components {
          *     from restic's backup summary — see :class:`ResticBackupSummary`.
          */
         SnapshotDetails: {
+            /** Additional Files */
+            additional_files?: number | null;
             /** Duration Ms */
             duration_ms: number;
+            /** Files */
+            files?: string[] | null;
             /** Size Bytes */
             size_bytes: number;
             /** Snapshot Id */
