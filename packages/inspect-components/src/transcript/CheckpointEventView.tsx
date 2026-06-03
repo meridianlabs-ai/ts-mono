@@ -29,6 +29,29 @@ const SizeAndDuration: FC<{ size_bytes: number; duration_ms: number }> = ({
   </>
 );
 
+const Files: FC<{
+  files?: string[] | null;
+  additionalFiles?: number | null;
+}> = ({ files, additionalFiles }) => {
+  if (!files || files.length === 0) {
+    return null;
+  }
+  return (
+    <LabeledValue label="Files" layout="column">
+      <div className={styles.files}>
+        {files.map((file) => (
+          <div key={file} className={styles.file}>
+            {file}
+          </div>
+        ))}
+        {additionalFiles ? (
+          <div className={styles.fileOverflow}>+{additionalFiles} more</div>
+        ) : null}
+      </div>
+    </LabeledValue>
+  );
+};
+
 export const CheckpointEventView: FC<CheckpointEventViewProps> = ({
   eventNode,
   className,
@@ -59,6 +82,10 @@ export const CheckpointEventView: FC<CheckpointEventViewProps> = ({
             size_bytes={details.size_bytes}
             duration_ms={details.duration_ms}
           />
+          <Files
+            files={details.files}
+            additionalFiles={details.additional_files}
+          />
         </div>
       </div>
     );
@@ -74,6 +101,10 @@ export const CheckpointEventView: FC<CheckpointEventViewProps> = ({
                 <SizeAndDuration
                   size_bytes={details.size_bytes}
                   duration_ms={details.duration_ms}
+                />
+                <Files
+                  files={details.files}
+                  additionalFiles={details.additional_files}
                 />
               </div>
             </div>
