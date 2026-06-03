@@ -1,7 +1,9 @@
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  row-gap: 0;
+  /* row-gap spaces blocks within a turn (message → tool box); margin-bottom
+     spaces turns. Keep them equal so every gap reads the same. */
+  row-gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
@@ -55,11 +57,6 @@
   border: solid 1px var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
   padding: 0.7rem;
-  margin-bottom: 0.4rem;
-}
-
-.toolBox {
-  margin-top: 0.4rem;
 }
 
 .bottomMargin {

@@ -182,7 +182,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
               className={clsx(
                 styles.container,
                 hasTools ? styles.box : undefined,
-                isTool ? styles.toolBox : undefined,
                 highlightUserMessage && resolvedMessage.message.role === "user"
                   ? styles.user
                   : undefined,
