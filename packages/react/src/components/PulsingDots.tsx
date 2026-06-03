@@ -39,6 +39,7 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
         {Array.from({ length: dotsCount }, (_, index) => (
           <div
             key={`dot-${index}`}
+            data-testid="pulsing-dot"
             className={clsx(
               styles.dot,
               subtle ? styles.subtle : styles.primary
@@ -47,7 +48,8 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
           />
         ))}
       </div>
-      {!showText && <span className={styles.visuallyHidden}>{text}</span>}
+      {/* role="status" is a live region — text content (not aria-label) triggers announcements */}
+      {!showText && <span data-testid="sr-text" className="visually-hidden">{text}</span>}
     </div>
   );
 };
