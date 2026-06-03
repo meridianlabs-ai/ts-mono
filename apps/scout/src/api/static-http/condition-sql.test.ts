@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { ConditionBuilder } from "../../query/conditionBuilder";
 import type { ScalarValue } from "../../query/types";
+import type { Pagination } from "../../types/api-types";
 
-import { conditionToSql } from "./condition-sql";
+import { buildListingSql, conditionToSql } from "./condition-sql";
 
 describe("conditionToSql IN / NOT IN null handling", () => {
   it("IN with only non-null values uses a single IN list", () => {
@@ -79,5 +80,90 @@ describe("conditionToSql IN / NOT IN null handling", () => {
       sql: `"score" IN (?, ?, ?)`,
       params: [1, 2, 3],
     });
+  });
+});
+
+describe("buildListingSql cursor pagination", () => {
+  const forward = (cursor: Pagination["cursor"]): Pagination => ({
+    direction: "forward",
+    cursor,
+    limit: 10,
+  });
+
+  it("forward cursor on a single column compares with >", () => {
+    const result = buildListingSql(
+      undefined,
+      { column: "id", direction: "ASC" },
+      forward({ id: 5 }),
+      "id"
+    );
+    expect(result.where).toEqual({ sql: `"id" > ?`, params: [5] });
+  });
+
+  it("backward cursor flips the comparison to <", () => {
+    const result = buildListingSql(
+      undefined,
+      { column: "id", direction: "ASC" },
+      { direction: "backward", cursor: { id: 5 }, limit: 10 },
+      "id"
+    );
+    expect(result.where).toEqual({ sql: `"id" < ?`, params: [5] });
+  });
+
+  it("multi-column order builds an OR-of-AND keyset condition", () => {
+    const result = buildListingSql(
+      undefined,
+      { column: "created", direction: "ASC" },
+      forward({ created: "t", id: 5 }),
+      "id"
+    );
+    expect(result.where).toEqual({
+      sql: `("created" > ?) OR (("created" = ?) AND ("id" > ?))`,
+      params: ["t", "t", 5],
+    });
+  });
+
+  it("DESC order column uses < for a forward cursor", () => {
+    const result = buildListingSql(
+      undefined,
+      { column: "id", direction: "DESC" },
+      forward({ id: 5 }),
+      "id"
+    );
+    expect(result.where).toEqual({ sql: `"id" < ?`, params: [5] });
+  });
+
+  it("combines filter and cursor with params in [filter, cursor] order", () => {
+    const result = buildListingSql(
+      ConditionBuilder.simple("model", "=", "gpt-4"),
+      { column: "id", direction: "ASC" },
+      forward({ id: 5 }),
+      "id"
+    );
+    expect(result.countWhere).toEqual({
+      sql: `"model" = ?`,
+      params: ["gpt-4"],
+    });
+    expect(result.where).toEqual({
+      sql: `("model" = ?) AND ("id" > ?)`,
+      params: ["gpt-4", 5],
+    });
+  });
+
+  it("filter without pagination yields where equal to countWhere", () => {
+    const result = buildListingSql(
+      ConditionBuilder.simple("model", "=", "gpt-4"),
+      undefined,
+      undefined,
+      "id"
+    );
+    expect(result.where).toEqual({ sql: `"model" = ?`, params: ["gpt-4"] });
+    expect(result.countWhere).toEqual(result.where);
+  });
+
+  it("no filter and no pagination yields null where/countWhere", () => {
+    const result = buildListingSql(undefined, undefined, undefined, "id");
+    expect(result.where).toBeNull();
+    expect(result.countWhere).toBeNull();
   });
 });
