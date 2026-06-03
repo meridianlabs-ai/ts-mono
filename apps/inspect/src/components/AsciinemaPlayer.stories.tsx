@@ -6,7 +6,6 @@ import { AsciinemaPlayer } from "./AsciinemaPlayer";
 const DEMO_CAST_URL = "https://asciinema.org/a/335480.cast";
 
 const meta = {
-  title: "Inspect/AsciinemaPlayer",
   component: AsciinemaPlayer,
 } satisfies Meta<typeof AsciinemaPlayer>;
 

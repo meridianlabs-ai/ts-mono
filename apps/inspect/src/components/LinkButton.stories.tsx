@@ -4,7 +4,6 @@ import { action } from "storybook/actions";
 import { LinkButton } from "./LinkButton";
 
 const meta = {
-  title: "Inspect/LinkButton",
   component: LinkButton,
   parameters: {
     layout: "padded",

@@ -5,7 +5,6 @@ import { FindBandUI } from "./FindBandUI";
 
 const meta: Meta<typeof FindBandUI> = {
   component: FindBandUI,
-  title: "Inspect/FindBandUI",
   tags: ["autodocs"],
   args: {
     onClose: action("onClose"),

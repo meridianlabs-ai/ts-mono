@@ -5,7 +5,6 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { CodePanel } from "./CodePanel";
 
 const meta = {
-  title: "Inspect/CodePanel",
   component: CodePanel,
   parameters: {
     layout: "padded",
