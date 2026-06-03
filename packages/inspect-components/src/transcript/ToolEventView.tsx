@@ -12,6 +12,7 @@ import {
 } from "@tsmono/inspect-components/chat";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
+import { MessageLabel } from "../chat/MessageLabel";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -145,14 +146,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
               {toolCallError}
             </div>
             <div
-              className={clsx(
-                "text-size-smaller",
-                "text-style-secondary",
-                styles.label
-              )}
+              className={styles.label}
               style={{ minWidth: `${maxLabelLength}ch` }}
             >
-              {toolLabel}
+              {toolLabel ? <MessageLabel label={toolLabel} /> : null}
             </div>
           </div>
         )}

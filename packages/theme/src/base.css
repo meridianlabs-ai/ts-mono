@@ -59,30 +59,41 @@
      always but only APPLIED under [data-theme-variant="readable"], so the
      default design-consistent look is untouched — this is the "one small
      override block per base mode" instead of a duplicated stylesheet. */
-  --inspect-readable-user-bg: #f5f5f6;
-  --inspect-readable-user-border: #909299;
-  --inspect-readable-assistant-bg: #f7f0ff;
-  --inspect-readable-assistant-border: #754ba0;
+  --inspect-readable-user-bg: #f1eeea;
+  --inspect-readable-user-border: #857f78;
+  --inspect-readable-assistant-bg: #f6f1fe;
+  --inspect-readable-assistant-border: #694a8a;
   --inspect-readable-thinking-bg: #f7f2ff;
   --inspect-readable-thinking-border: #8a74c4;
-  --inspect-readable-tool-call-bg: #e9f4ff;
-  --inspect-readable-tool-call-border: #3261af;
-  --inspect-readable-system-bg: #f5f5f6;
-  --inspect-readable-system-border: #909299;
+  --inspect-readable-tool-call-bg: #edf4fb;
+  --inspect-readable-tool-call-border: #415e79;
+  --inspect-readable-system-bg: #fdfdfd;
+  --inspect-readable-system-border: #a9abaf;
   --inspect-readable-body-color: #11181f;
+
+  /* Message-label chip. */
+  --inspect-msg-label-bg: #f3f3f6;
+  --inspect-msg-label-bg-hover: #ebebef;
+  --inspect-msg-label-border: #e4e4e9;
+  --inspect-msg-label-text: #5f5f68;
 }
 
 :root[data-bs-theme="dark"] {
-  --inspect-readable-user-bg: #1d1d1f;
-  --inspect-readable-user-border: #7d8089;
-  --inspect-readable-assistant-bg: #261e2f;
-  --inspect-readable-assistant-border: #a278d1;
+  --inspect-msg-label-bg: #2a2a2e;
+  --inspect-msg-label-bg-hover: #33333a;
+  --inspect-msg-label-border: #3a3a40;
+  --inspect-msg-label-text: #b4b4bd;
+
+  --inspect-readable-user-bg: #262421;
+  --inspect-readable-user-border: #8e8881;
+  --inspect-readable-assistant-bg: #251f2c;
+  --inspect-readable-assistant-border: #9575b9;
   --inspect-readable-thinking-bg: #241f31;
   --inspect-readable-thinking-border: #8c7fbf;
-  --inspect-readable-tool-call-bg: #182333;
-  --inspect-readable-tool-call-border: #5d8ee1;
-  --inspect-readable-system-bg: #1d1d1f;
-  --inspect-readable-system-border: #7d8089;
+  --inspect-readable-tool-call-bg: #1c232a;
+  --inspect-readable-tool-call-border: #6c8aa7;
+  --inspect-readable-system-bg: #0a0b0d;
+  --inspect-readable-system-border: #67696f;
   --inspect-readable-body-color: #e6e8ea;
 }
 
@@ -159,10 +170,9 @@
   border-radius: var(--bs-border-radius);
 }
 
-/* System prompts are boilerplate — de-emphasize: no fill, just a subtle box. */
 :root[data-theme-variant="readable"] [data-message-role="system"] {
-  background-color: transparent;
-  border: 1px solid var(--bs-light-border-subtle);
+  background-color: var(--inspect-readable-system-bg);
+  border-left-color: var(--inspect-readable-system-border);
 }
 
 /* Agent thinking, nested inside an assistant turn, gets a subtle tint so

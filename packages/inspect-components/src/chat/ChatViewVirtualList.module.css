@@ -6,13 +6,15 @@
 
 .generatingRow {
   display: grid;
-  grid-template-columns: max-content auto;
+  grid-template-columns: auto max-content;
   align-items: center;
   row-gap: 0;
   margin-bottom: 0.75rem;
 }
 
 .generatingLabel {
+  display: flex;
+  justify-content: flex-end;
   margin-left: 0.4em;
 }
 

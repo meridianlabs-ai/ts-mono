@@ -1,6 +1,6 @@
 .grid {
   display: grid;
-  grid-template-columns: auto max-content;
+  grid-template-columns: minmax(0, 1fr);
   row-gap: 0;
   margin-bottom: 0.75rem;
 }
@@ -38,6 +38,8 @@
 }
 
 .label {
+  display: flex;
+  justify-content: flex-end;
   padding-top: 0.7rem;
   margin-left: 0.4em;
 }

@@ -6,6 +6,7 @@ import type { MarkdownReference } from "@tsmono/react/components";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
+import { MessageLabel } from "./MessageLabel";
 import { Message, ResolvedMessage } from "./messages";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallErrorView } from "./tools/ToolCallErrorView";
@@ -42,7 +43,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   className,
   display,
   labels,
-  maxLabelLength,
   linking,
   tools,
 }) => {
@@ -54,7 +54,6 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   const getCustomToolView = tools?.renderToolCall;
 
   const views: ReactNode[] = [];
-  const viewLabels: Array<string | undefined> = [];
   const viewKinds: Array<"message" | "tool"> = [];
   const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
 
@@ -77,11 +76,14 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       : String(index + 1)
     : undefined;
 
-  if (!skipChatMessage) {
-    if (useLabels) {
-      viewLabels.push(rowLabel);
-    }
+  // The position label renders as a chip on the right of the message's role
+  // line (inside the card), not as a separate column.
+  const messageChip =
+    !skipChatMessage && rowLabel?.trim() ? (
+      <MessageLabel label={rowLabel} />
+    ) : undefined;
 
+  if (!skipChatMessage) {
     views.push(
       <ChatMessage
         id={`${parentName}-chat-messages-${index}`}
@@ -89,6 +91,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         display={display}
         linking={linking}
         references={references}
+        label={messageChip}
       />
     );
     viewKinds.push("message");
@@ -117,18 +120,8 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         toolMessage = toolMessages[idx];
       }
 
-      // The label (if any). When we've skipped the assistant chat message,
-      // hoist its numeric/row label onto the first tool call so the row
-      // isn't left unlabeled.
-      const toolLabel =
-        labelValues?.[toolMessage?.id || ""] ||
-        (skipChatMessage && idx === 0 ? rowLabel : undefined);
-
       // Resolve the tool output
       const resolvedToolOutput = resolveToolMessage(toolMessage);
-      if (useLabels) {
-        viewLabels.push(toolLabel);
-      }
 
       const toolCall =
         toolCallStyle === "compact" ? (
@@ -176,53 +169,35 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     // instead of folding everything into one connected card.
     const hasTools = viewKinds.includes("tool");
     return (
-      <>
-        <div className={clsx(styles.grid, className)}>
-          {views.map((view, idx) => {
-            const label = viewLabels[idx];
-            const isTool = viewKinds[idx] === "tool";
-            return (
-              <Fragment key={`chat-message-row-${index}-part-${idx}`}>
-                <div
-                  data-message-role={
-                    isTool ? undefined : resolvedMessage.message.role
-                  }
-                  data-message-kind={viewKinds[idx]}
-                  className={clsx(
-                    styles.container,
-                    hasTools ? styles.box : undefined,
-                    isTool ? styles.toolBox : undefined,
-                    highlightUserMessage &&
-                      resolvedMessage.message.role === "user"
-                      ? styles.user
-                      : undefined,
-                    !hasTools && idx === 0 ? styles.first : undefined,
-                    !hasTools && idx === views.length - 1
-                      ? styles.last
-                      : undefined,
-                    highlightLabeled && label?.trim()
-                      ? styles.highlight
-                      : undefined
-                  )}
-                >
-                  {view}
-                </div>
-                <div
-                  className={clsx(
-                    "text-size-smaller",
-                    "text-style-secondary",
-                    styles.number,
-                    styles.label
-                  )}
-                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
-                >
-                  {label}
-                </div>
-              </Fragment>
-            );
-          })}
-        </div>
-      </>
+      <div className={clsx(styles.grid, className)}>
+        {views.map((view, idx) => {
+          const isTool = viewKinds[idx] === "tool";
+          return (
+            <div
+              key={`chat-message-row-${index}-part-${idx}`}
+              data-message-role={
+                isTool ? undefined : resolvedMessage.message.role
+              }
+              data-message-kind={viewKinds[idx]}
+              className={clsx(
+                styles.container,
+                hasTools ? styles.box : undefined,
+                isTool ? styles.toolBox : undefined,
+                highlightUserMessage && resolvedMessage.message.role === "user"
+                  ? styles.user
+                  : undefined,
+                !hasTools && idx === 0 ? styles.first : undefined,
+                !hasTools && idx === views.length - 1 ? styles.last : undefined,
+                highlightLabeled && !isTool && messageChip
+                  ? styles.highlight
+                  : undefined
+              )}
+            >
+              {view}
+            </div>
+          );
+        })}
+      </div>
     );
   } else {
     return views.map((view, idx) => {
