@@ -131,6 +131,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
+  // Per-tab scroll positions persist while tabbing within a sample (each tab's
+  // VirtualList snapshot is keyed by sample id). Clear them when leaving this
+  // sample so re-entering starts at the top rather than a stale offset.
+  const removeBagsByPrefix = useStore(
+    (state) => state.appActions.removeBagsByPrefix
+  );
+  useEffect(() => {
+    // Prefixes cover the dynamic suffixes on these bag names (the transcript's
+    // `:<timeline>` selection, branch ids, etc.).
+    const snapshotBagPrefixes = [
+      `chat-${baseId}-chat-${id}`,
+      `${baseId}-transcript-display-${id}`,
+    ];
+    return () => {
+      for (const prefix of snapshotBagPrefixes) {
+        removeBagsByPrefix(prefix);
+      }
+    };
+  }, [baseId, id, removeBagsByPrefix]);
+
   // Navigation hook for URL updates
   const navigate = useNavigate();
 
