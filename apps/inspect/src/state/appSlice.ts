@@ -124,7 +124,7 @@ export const createAppSlice = (
             state.app.status.loading + (loading ? 1 : -1),
             0
           );
-          state.app.status.error = error;
+          state.app.status.error = loading ? undefined : error;
         }),
 
       setShowFind: (show: boolean) =>
