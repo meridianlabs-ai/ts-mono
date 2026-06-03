@@ -1,7 +1,7 @@
 import { FC } from "react";
 
-import { PulsingDots } from "./PulsingDots";
+import { PulsingEllipsis } from "./PulsingEllipsis";
 
 export const GridLoadingOverlay: FC = () => {
-  return <PulsingDots size="medium" text="Loading..." showText />;
+  return <PulsingEllipsis text="Loading" />;
 };
