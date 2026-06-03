@@ -1,10 +1,9 @@
 import { Decorator } from "@storybook/react";
 
-import { ComponentIconProvider } from "../src/components/ComponentIconContext";
-import { testIcons } from "../src/components/__testing__/icons";
+import { IconsWrapper } from "../src/components/__testing__/providers";
 
 export const withIcons: Decorator = (Story) => (
-  <ComponentIconProvider icons={testIcons}>
+  <IconsWrapper>
     <Story />
-  </ComponentIconProvider>
+  </IconsWrapper>
 );

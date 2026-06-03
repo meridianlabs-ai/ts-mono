@@ -10,15 +10,13 @@ describe("PulsingDots", () => {
   });
 
   it("renders 3 dots by default", () => {
-    const { container } = render(<PulsingDots />);
-    const dotsContainer = container.querySelector("[class*='dotsContainer']");
-    expect(dotsContainer?.children).toHaveLength(3);
+    const { getAllByTestId } = render(<PulsingDots />);
+    expect(getAllByTestId("pulsing-dot")).toHaveLength(3);
   });
 
   it("renders custom dot count", () => {
-    const { container } = render(<PulsingDots dotsCount={5} />);
-    const dotsContainer = container.querySelector("[class*='dotsContainer']");
-    expect(dotsContainer?.children).toHaveLength(5);
+    const { getAllByTestId } = render(<PulsingDots dotsCount={5} />);
+    expect(getAllByTestId("pulsing-dot")).toHaveLength(5);
   });
 
   it("includes accessible text (screen-reader only by default)", () => {
@@ -27,18 +25,12 @@ describe("PulsingDots", () => {
   });
 
   it("renders visible text when showText is true", () => {
-    const { getByRole } = render(
-      <PulsingDots text="Loading..." showText={true} />
-    );
-    const status = getByRole("status");
-    const label = status.querySelector(".label");
-    expect(label).toBeInTheDocument();
-    expect(label).toHaveTextContent("Loading...");
+    const { getByText } = render(<PulsingDots text="Loading..." showText={true} />);
+    expect(getByText("Loading...")).toBeInTheDocument();
   });
 
-  it("does not render visuallyHidden span when showText is true", () => {
-    const { container } = render(<PulsingDots showText={true} />);
-    const hiddenSpan = container.querySelector("[class*='visuallyHidden']");
-    expect(hiddenSpan).not.toBeInTheDocument();
+  it("does not render sr-text span when showText is true", () => {
+    const { queryByTestId } = render(<PulsingDots showText={true} />);
+    expect(queryByTestId("sr-text")).not.toBeInTheDocument();
   });
 });

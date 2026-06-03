@@ -8,16 +8,15 @@ const meta: Meta<typeof NoContentsPanel> = {
   component: NoContentsPanel,
   title: "Feedback/NoContentsPanel",
   decorators: [withIcons],
+  args: {
+    text: "No samples",
+  },
 };
 
 export default meta;
 type Story = StoryObj<typeof NoContentsPanel>;
 
-export const Default: Story = {
-  args: {
-    text: "No samples",
-  },
-};
+export const Default: Story = {};
 
 export const CustomText: Story = {
   args: {

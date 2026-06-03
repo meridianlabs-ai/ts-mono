@@ -1,14 +1,11 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { ComponentIconProvider } from "./ComponentIconContext";
+import { IconsWrapper } from "./__testing__/providers";
 import { ErrorPanel } from "./ErrorPanel";
-import { testIcons } from "./__testing__/icons";
 
 const renderWithIcons = (ui: React.ReactElement) =>
-  render(
-    <ComponentIconProvider icons={testIcons}>{ui}</ComponentIconProvider>
-  );
+  render(<IconsWrapper>{ui}</IconsWrapper>);
 
 describe("ErrorPanel", () => {
   it("renders the title", () => {
