@@ -6,7 +6,7 @@ import { useMessageVisibility } from "../state/hooks";
 
 import "./MessageBand.css";
 
-interface MessageBandProps {
+export interface MessageBandProps {
   id: string;
   message: string;
   scope?: "sample" | "eval";

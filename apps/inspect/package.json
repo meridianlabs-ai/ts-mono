@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@storybook/react": "^10.4.0",
-    "storybook": "^10.4.0",
     "@eslint/js": "^9.39.2",
     "@msw/playwright": "^0.6.7",
     "@playwright/test": "^1.60.0",
@@ -84,6 +83,7 @@
     "vite": "^8.0.13",
     "storybook": "^10.4.0",
     "vite-plugin-dts": "^5.0.0",
+    "storybook": "^10.4.0",
     "vitest": "^4.1.6"
   },
   "dependencies": {
