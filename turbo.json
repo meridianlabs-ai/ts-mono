@@ -2,15 +2,24 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", "lib/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "lib/**"
+      ]
     },
     "lint": {},
     "typecheck": {},
     "format": {},
     "format:check": {},
     "check": {
-      "dependsOn": ["lint", "typecheck", "format:check"]
+      "dependsOn": [
+        "lint",
+        "typecheck",
+        "format:check"
+      ]
     },
     "test": {
       "cache": false
@@ -30,10 +39,11 @@
       "inputs": [
         ".storybook/**",
         "package.json",
-        "../../packages/react/src/**/*.stories.{ts,tsx}",
-        "../../apps/inspect/src/**/*.stories.{ts,tsx}"
+        "../../**/*.stories.{ts,tsx}"
       ],
-      "outputs": ["storybook-static/**"]
+      "outputs": [
+        "storybook-static/**"
+      ]
     }
   }
 }
