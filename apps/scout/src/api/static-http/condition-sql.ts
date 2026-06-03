@@ -1,4 +1,5 @@
 import type { Condition, OrderByModel, ScalarValue } from "../../query";
+import { ConditionBuilder } from "../../query";
 import { isCompoundCondition, isScalarArray, isTuple } from "../../query/types";
 import type { Pagination } from "../../types/api-types";
 
@@ -75,8 +76,7 @@ export const buildListingSql = (
   pagination: Pagination | undefined,
   idColumn: string
 ): ListingSql => {
-  const countWhere = filter ? conditionToSql(filter) : null;
-  const conditions: SqlFragment[] = countWhere ? [countWhere] : [];
+  const conditions: Condition[] = filter ? [filter] : [];
   let orderColumns: OrderByModel[] = [];
   let dbOrderColumns: OrderByModel[] = [];
   let limit = "";
@@ -96,7 +96,7 @@ export const buildListingSql = (
 
     if (pagination.cursor) {
       conditions.push(
-        cursorToSql(pagination.cursor, orderColumns, pagination.direction)
+        cursorToCondition(pagination.cursor, orderColumns, pagination.direction)
       );
     }
     limit = " LIMIT ?";
@@ -104,7 +104,14 @@ export const buildListingSql = (
     dbOrderColumns = normalizeOrderBy(orderBy);
   }
 
-  const where = andSql(conditions);
+  const countWhere = filter ? conditionToSql(filter) : null;
+  const where = conditions.length
+    ? conditionToSql(
+        conditions.reduce((left, right) =>
+          ConditionBuilder.compound("AND", left, right)
+        )
+      )
+    : null;
   const orderClause =
     dbOrderColumns.length > 0
       ? ` ORDER BY ${dbOrderColumns
@@ -205,18 +212,6 @@ const binarySql = (
   params: [...left.params, ...right.params],
 });
 
-const andSql = (conditions: SqlFragment[]): SqlFragment | null => {
-  if (conditions.length === 0) return null;
-  return conditions.reduce((left, right) => binarySql("AND", left, right));
-};
-
-const orSql = (conditions: SqlFragment[]): SqlFragment => {
-  if (conditions.length === 0) {
-    return { sql: "FALSE", params: [] };
-  }
-  return conditions.reduce((left, right) => binarySql("OR", left, right));
-};
-
 const normalizeOrderBy = (
   orderBy: OrderByModel | OrderByModel[]
 ): OrderByModel[] => (Array.isArray(orderBy) ? orderBy : [orderBy]);
@@ -237,27 +232,39 @@ const reverseOrderColumns = (orderColumns: OrderByModel[]): OrderByModel[] =>
     direction: ob.direction === "ASC" ? "DESC" : "ASC",
   }));
 
-const cursorToSql = (
+const cursorToCondition = (
   cursor: { [key: string]: unknown },
   orderColumns: OrderByModel[],
   direction: "forward" | "backward"
-): SqlFragment => {
-  const orConditions = orderColumns.map((ob, index) => {
-    const equalities = orderColumns.slice(0, index).map((prefix) => ({
-      sql: `${quoteIdentifier(prefix.column)} = ?`,
-      params: [scalar(cursor[prefix.column])],
-    }));
-    const operator = cursorOperator(ob.direction, direction);
-    return andSql([
-      ...equalities,
-      {
-        sql: `${quoteIdentifier(ob.column)} ${operator} ?`,
-        params: [scalar(cursor[ob.column])],
-      },
-    ]);
+): Condition => {
+  // Keyset pagination: OR of, for each order column, (prefix columns equal AND
+  // this column past the cursor). scalar() narrows the untyped cursor values;
+  // conditionToSql serializes the resulting AST. Mirrors the Python
+  // cursor_to_condition helper.
+  const orConditions = orderColumns.map((ob, index): Condition => {
+    const equalities = orderColumns
+      .slice(0, index)
+      .map((prefix) =>
+        ConditionBuilder.simple(
+          prefix.column,
+          "=",
+          scalar(cursor[prefix.column])
+        )
+      );
+    const comparison = ConditionBuilder.simple(
+      ob.column,
+      cursorOperator(ob.direction, direction),
+      scalar(cursor[ob.column])
+    );
+    const andParts: Condition[] = [...equalities, comparison];
+    return andParts.reduce((left, right) =>
+      ConditionBuilder.compound("AND", left, right)
+    );
   });
 
-  return orSql(orConditions.filter((condition) => condition !== null));
+  return orConditions.reduce((left, right) =>
+    ConditionBuilder.compound("OR", left, right)
+  );
 };
 
 const cursorOperator = (
