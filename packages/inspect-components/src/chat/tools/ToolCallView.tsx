@@ -141,6 +141,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     description,
     contentType,
     output,
+    mode,
   };
   const customView =
     getCustomToolView?.(props) ?? getDefaultCustomToolView(props);

@@ -1736,6 +1736,21 @@ export function buildTimeline(events: Event[]): Timeline {
   const hasPhaseSpans =
     topSpans.has("init") || topSpans.has("solvers") || topSpans.has("scorers");
 
+  // Top-level items that don't belong to a phase span — e.g. a SampleLimitEvent
+  // (span_id=null) recorded when an eval is interrupted. The phase-span branch
+  // below partitions events strictly by init/solvers/scorers, so these would
+  // otherwise be dropped from the tree and stay invisible in swimlane views
+  // (ts-mono#178). The no-phase-spans branch already keeps them via
+  // buildAgentFromTree(tree).
+  const orphanNodes = hasPhaseSpans
+    ? tree
+        .filter(
+          (item) => !(isSpanNode(item) && topSpans.get(item.name) === item)
+        )
+        .map(treeItemToNode)
+        .filter((n): n is TimelineEvent | TimelineSpan => n !== null)
+    : [];
+
   let root: TimelineSpan;
 
   if (hasPhaseSpans) {
@@ -1833,6 +1848,15 @@ export function buildTimeline(events: Event[]): Timeline {
         spanType: null,
       });
     }
+  }
+
+  // Slot orphan top-level events into the root chronologically. Root content is
+  // already in timestamp order and JS sort is stable, so existing items keep
+  // their relative order and orphans land at the right point.
+  if (orphanNodes.length > 0) {
+    root.content = [...root.content, ...orphanNodes].sort(
+      (a, b) => a.startTime().getTime() - b.startTime().getTime()
+    );
   }
 
   return { name: "Default", description: "", root };
