@@ -11,7 +11,7 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
-import { ActivityBar } from "../../components/ActivityBar";
+
 import { useClientEvents } from "../../state/clientEvents";
 import {
   LogHandleWithretried,
@@ -462,7 +462,6 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={!!loading} />
       {error ? (
         <ErrorPanel
           title="Error"
