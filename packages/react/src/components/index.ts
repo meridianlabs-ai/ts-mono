@@ -23,6 +23,7 @@ export * from "./prepareSearchTerm";
 export * from "./Preformatted";
 export * from "./ProgressBar";
 export * from "./PulsingDots";
+export * from "./PulsingEllipsis";
 export * from "./SegmentedControl";
 export * from "./SourceCodePanel";
 export * from "./StickyScroll";

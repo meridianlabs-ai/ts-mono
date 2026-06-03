@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { PulsingEllipsis } from "@tsmono/react/components";
+
 import styles from "./GeneratingIndicator.module.css";
 
 interface GeneratingIndicatorProps {
@@ -18,7 +20,6 @@ export const GeneratingIndicator: FC<GeneratingIndicatorProps> = ({
 }) => {
   return (
     <div
-      role="status"
       aria-live="polite"
       className={clsx(
         styles.bar,
@@ -26,14 +27,7 @@ export const GeneratingIndicator: FC<GeneratingIndicatorProps> = ({
         className
       )}
     >
-      <span className={styles.label}>
-        {label}
-        <span className={styles.ell} aria-hidden="true">
-          <i>.</i>
-          <i>.</i>
-          <i>.</i>
-        </span>
-      </span>
+      <PulsingEllipsis text={label} />
       {attempt !== undefined && (
         <span className={styles.attempt}>attempt {attempt}</span>
       )}
