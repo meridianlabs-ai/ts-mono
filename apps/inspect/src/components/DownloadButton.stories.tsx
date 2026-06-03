@@ -1,17 +1,9 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
 
-import type { Capabilities, ClientAPI } from "../client/api/types";
-import { initializeStore } from "../state/store";
+import type { ClientAPI } from "../client/api/types";
+import { ApiProvider } from "../state/store";
 
 import { DownloadButton } from "./DownloadButton";
-
-const stubCapabilities: Capabilities = {
-  downloadFiles: false,
-  downloadLogs: false,
-  webWorkers: false,
-  streamSamples: false,
-  streamSampleData: false,
-};
 
 const stubApi: ClientAPI = {
   get_log_dir: async () => undefined,
@@ -28,19 +20,15 @@ const stubApi: ClientAPI = {
   open_log_file: async () => {},
 };
 
-let initialized = false;
-
-const withInspectStore: Decorator = (Story) => {
-  if (!initialized) {
-    initializeStore(stubApi, stubCapabilities);
-    initialized = true;
-  }
-  return <Story />;
-};
+const withApiProvider: Decorator = (Story) => (
+  <ApiProvider value={stubApi}>
+    <Story />
+  </ApiProvider>
+);
 
 const meta = {
   component: DownloadButton,
-  decorators: [withInspectStore],
+  decorators: [withApiProvider],
   parameters: {
     layout: "padded",
   },
