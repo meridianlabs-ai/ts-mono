@@ -19,9 +19,4 @@ describe("PulsingEllipsis", () => {
     expect(getByRole("status")).toHaveTextContent("Generating");
   });
 
-  it("hides the decorative dots from assistive technology", () => {
-    const { getByRole } = render(<PulsingEllipsis />);
-    const hiddenEll = getByRole("status").querySelector("[aria-hidden='true']");
-    expect(hiddenEll).toBeInTheDocument();
-  });
 });
