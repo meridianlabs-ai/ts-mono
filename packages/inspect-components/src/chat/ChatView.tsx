@@ -4,7 +4,7 @@ import { FC, useMemo } from "react";
 import type { ChatMessage as ChatMessageType } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
 
-import { ChatMessageRow } from "./ChatMessageRow";
+import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import { computeMaxLabelLength } from "./labelLength";
 import { resolveMessages } from "./messages";
 import {
@@ -51,6 +51,16 @@ export const ChatView: FC<ChatViewProps> = ({
     () => computeMaxLabelLength(labels?.messageLabels),
     [labels?.messageLabels]
   );
+  const toolCallStyle = tools?.callStyle ?? "complete";
+  const rowStartNumbers = useMemo(() => {
+    const starts: number[] = [];
+    let next = 1;
+    for (const msg of collapsedMessages) {
+      starts.push(next);
+      next += countRowBlocks(msg, toolCallStyle);
+    }
+    return starts;
+  }, [collapsedMessages, toolCallStyle]);
   return (
     <div className={clsx(className)}>
       {collapsedMessages.map((msg, index) => {
@@ -65,6 +75,7 @@ export const ChatView: FC<ChatViewProps> = ({
             linking={linking}
             tools={tools}
             maxLabelLength={maxLabelLength}
+            startNumber={rowStartNumbers[index]}
             references={references}
           />
         );

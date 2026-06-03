@@ -21,7 +21,7 @@ import type {
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import { isLivePlaceholderMessage } from "../indicators/livePlaceholder";
 
-import { ChatMessageRow } from "./ChatMessageRow";
+import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { MessageLabel } from "./MessageLabel";
@@ -128,6 +128,17 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [labels?.messageLabels]
     );
 
+    const toolCallStyle = tools?.callStyle ?? "complete";
+    const rowStartNumbers = useMemo(() => {
+      const starts: number[] = [];
+      let next = 1;
+      for (const msg of collapsedMessages) {
+        starts.push(next);
+        next += countRowBlocks(msg, toolCallStyle);
+      }
+      return starts;
+    }, [collapsedMessages, toolCallStyle]);
+
     const lastIndex = collapsedMessages.length - 1;
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
@@ -160,10 +171,21 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
             linking={linking}
             tools={tools}
             maxLabelLength={maxLabelLength}
+            startNumber={rowStartNumbers[index]}
           />
         );
       },
-      [id, running, lastIndex, display, labels, linking, tools, maxLabelLength]
+      [
+        id,
+        running,
+        lastIndex,
+        display,
+        labels,
+        linking,
+        tools,
+        maxLabelLength,
+        rowStartNumbers,
+      ]
     );
 
     return (

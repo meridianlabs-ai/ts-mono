@@ -409,7 +409,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             initialMessageId={messageParam}
             scrollRef={activeScrollRef}
             display={{
-              unlabeledRoles: ["assistant"],
               formatDateTime,
             }}
             linking={{

@@ -54,9 +54,19 @@
    assistant message and each tool call read as separate cards rather than one
    connected band. */
 .box {
+  position: relative;
   border: solid 1px var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
   padding: 0.7rem;
+}
+
+/* Tool-call number chip, pinned to the top-right of its box to mirror the
+   position chip on a message's role line. */
+.toolLabel {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  z-index: 1;
 }
 
 .bottomMargin {
