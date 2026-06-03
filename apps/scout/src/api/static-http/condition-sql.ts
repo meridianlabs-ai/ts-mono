@@ -54,7 +54,10 @@ export const conditionToSql = (condition: Condition): SqlFragment => {
     case "NOT LIKE":
     case "ILIKE":
     case "NOT ILIKE":
-      return { sql: `${column} ${condition.operator} ?`, params: [scalar(value)] };
+      return {
+        sql: `${column} ${condition.operator} ?`,
+        params: [scalar(value)],
+      };
     case "IN":
       return inSql(column, value, false);
     case "NOT IN":
@@ -148,14 +151,29 @@ const inSql = (
   if (!isScalarArray(value)) {
     throw new Error("IN operator requires an array value");
   }
-  if (value.length === 0) {
+
+  // SQL NULL never matches inside an IN list, so split nulls into an explicit
+  // IS NULL / IS NOT NULL term (mirrors the Python condition_sql implementation).
+  const vals = value.filter((v) => v !== null);
+  const hasNull = vals.length !== value.length;
+
+  if (vals.length === 0 && !hasNull) {
     return { sql: negated ? "TRUE" : "FALSE", params: [] };
   }
 
-  const placeholders = value.map(() => "?").join(", ");
+  const parts: string[] = [];
+  if (vals.length > 0) {
+    const placeholders = vals.map(() => "?").join(", ");
+    parts.push(`${column} ${negated ? "NOT IN" : "IN"} (${placeholders})`);
+  }
+  if (hasNull) {
+    parts.push(`${column} IS ${negated ? "NOT NULL" : "NULL"}`);
+  }
+
+  const sql = parts.join(negated ? " AND " : " OR ");
   return {
-    sql: `${column} ${negated ? "NOT IN" : "IN"} (${placeholders})`,
-    params: value,
+    sql: parts.length > 1 ? `(${sql})` : sql,
+    params: vals,
   };
 };
 
