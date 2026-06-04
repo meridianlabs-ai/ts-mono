@@ -24,7 +24,6 @@ import { isLivePlaceholderMessage } from "../indicators/livePlaceholder";
 import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
-import { MessageLabel } from "./MessageLabel";
 import { ResolvedMessage, resolveMessages } from "./messages";
 import { messageSearchText } from "./messageSearchText";
 import {
@@ -149,15 +148,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         ) {
           return (
             <div className={styles.generatingRow}>
-              <div className={styles.generatingContent}>
-                <GeneratingIndicator />
-              </div>
-              <div
-                className={styles.generatingLabel}
-                style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
-              >
-                <MessageLabel label={`${index + 1}`} />
-              </div>
+              <GeneratingIndicator />
             </div>
           );
         }

@@ -6,18 +6,6 @@
 
 .generatingRow {
   display: grid;
-  grid-template-columns: auto max-content;
-  align-items: center;
-  row-gap: 0;
+  grid-template-columns: minmax(0, 1fr);
   margin-bottom: 0.75rem;
-}
-
-.generatingLabel {
-  display: flex;
-  justify-content: flex-end;
-  margin-left: 0.4em;
-}
-
-.generatingContent {
-  padding-left: 0;
 }
