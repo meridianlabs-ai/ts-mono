@@ -144,6 +144,55 @@
   padding-bottom: 1rem;
 }
 
+/* Right rail: an always-visible activity bar with an optional panel column to
+   its left. Grid columns are supplied inline (see TranscriptLayout.tsx) so
+   these rules only handle the per-cell sizing/scroll behavior. */
+.railPanel {
+  padding-top: 0;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  align-self: start;
+  position: relative;
+}
+
+.container.hasRightRail > .railPanel {
+  max-height: calc(var(--scroller-height, 100vh) - var(--outline-top, 0px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.railPanelResizer {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+  background-color: transparent;
+  transition: background-color 120ms ease;
+}
+
+.railPanelResizer:hover,
+.railPanelResizer:active {
+  background-color: var(--bs-primary-border-subtle);
+}
+
+.railSeparator {
+  background-color: var(--bs-border-color);
+}
+
+.rightRail {
+  align-self: stretch;
+  background-color: var(--bs-body-bg);
+}
+
+.rightRailSticky {
+  position: sticky;
+}
+
 .sidebarHeader {
   display: flex;
   flex-direction: row;

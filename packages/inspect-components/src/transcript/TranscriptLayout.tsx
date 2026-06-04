@@ -121,6 +121,23 @@ export interface TranscriptLayoutRightPaneProps {
   label?: string;
 }
 
+export interface TranscriptLayoutRightRailProps {
+  /** Always-visible rail content (the vertical activity bar). */
+  rail: ReactNode;
+  /** Panel content shown in a column to the LEFT of the rail. Null = no panel open. */
+  panel?: ReactNode;
+  /** Fixed rail width in px. Defaults to 72. */
+  railWidth?: number;
+  /** Panel width (px) when open. Defaults to 360. */
+  panelWidth?: number;
+  /** When provided, the panel is resizable: callback fires with the new width during drag. */
+  onPanelWidthChange?: (width: number) => void;
+  panelMinWidth?: number;
+  panelMaxWidth?: number;
+  /** aria-label root for the panel region. */
+  label?: string;
+}
+
 export interface TranscriptLayoutProps {
   // --- Events ---
   events: Event[];
@@ -188,6 +205,12 @@ export interface TranscriptLayoutProps {
   rightPane?: TranscriptLayoutRightPaneProps;
   /** Optional ref to the right pane's sticky scroll container. */
   rightPaneScrollRef?: RefObject<HTMLDivElement | null>;
+
+  // --- Right rail ---
+  /** Optional always-visible right rail + optional panel. Independent of `rightPane`. */
+  rightRail?: TranscriptLayoutRightRailProps;
+  /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
+  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
 
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
@@ -316,6 +339,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   outlineScrollRef,
   rightPane,
   rightPaneScrollRef,
+  rightRail,
+  rightRailPanelScrollRef,
   eventNodeContext,
   emptyText = "No events match the current filter",
   emptyBusy,
@@ -919,6 +944,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // settled to force them to re-measure.
   const outlineCollapsedFlag = outline?.collapsed ?? null;
   const rightPaneCollapsedFlag = rightPane?.collapsed ?? null;
+  const railPanelOpenFlag = rightRail?.panel != null;
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -926,7 +952,12 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       el.dispatchEvent(new Event("scroll"));
     }, 0);
     return () => clearTimeout(timer);
-  }, [outlineCollapsedFlag, rightPaneCollapsedFlag, scrollRef]);
+  }, [
+    outlineCollapsedFlag,
+    rightPaneCollapsedFlag,
+    railPanelOpenFlag,
+    scrollRef,
+  ]);
 
   // Forward wheel events from the sidebars to the main scroll container
   // only while the header above the tabs is still visible. Once the sidebar
@@ -941,6 +972,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     const main = scrollRef.current;
     const outlineEl = outlineScrollRef?.current ?? null;
     const rightEl = rightPaneScrollRef?.current ?? null;
+    const railPanelEl = rightRailPanelScrollRef?.current ?? null;
     if (!main) return;
 
     const makeHandler = (sidebar: HTMLDivElement) => (e: WheelEvent) => {
@@ -974,7 +1006,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       // Otherwise let the sidebar's native wheel scroll proceed.
     };
 
-    const targets = [outlineEl, rightEl].filter(
+    const targets = [outlineEl, rightEl, railPanelEl].filter(
       (el): el is HTMLDivElement => el != null
     );
     const entries = targets.map((t) => {
@@ -992,10 +1024,12 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     scrollRef,
     outlineScrollRef,
     rightPaneScrollRef,
+    rightRailPanelScrollRef,
     // Re-attach when collapse state changes (the scroll elements may have
     // unmounted/remounted via the conditional render).
     outlineCollapsedFlag,
     rightPaneCollapsedFlag,
+    railPanelOpenFlag,
   ]);
 
   // Track the scroll container's visible height so sticky sidebars can cap
@@ -1090,6 +1124,83 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
+  // Right rail panel resize (mirror of the right pane; panel sits left of rail)
+  // ---------------------------------------------------------------------------
+
+  const railWidth = rightRail?.railWidth ?? 72;
+  const railPanelWidth = rightRail?.panelWidth ?? 360;
+  const railPanelMinWidth = rightRail?.panelMinWidth ?? 240;
+  const railPanelMaxWidth = rightRail?.panelMaxWidth ?? 800;
+  const railPanelOnWidthChange = rightRail?.onPanelWidthChange;
+  const railPanelDragRef = useRef<{
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  const handleRailPanelPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!railPanelOnWidthChange) return;
+      e.preventDefault();
+      (e.target as HTMLDivElement).setPointerCapture(e.pointerId);
+      railPanelDragRef.current = {
+        startX: e.clientX,
+        startWidth: railPanelWidth,
+      };
+    },
+    [railPanelOnWidthChange, railPanelWidth]
+  );
+
+  const handleRailPanelPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!railPanelOnWidthChange || !railPanelDragRef.current) return;
+      const { startX, startWidth } = railPanelDragRef.current;
+      const next = startWidth - (e.clientX - startX);
+      const clamped = Math.max(
+        railPanelMinWidth,
+        Math.min(railPanelMaxWidth, next)
+      );
+      railPanelOnWidthChange(clamped);
+    },
+    [railPanelOnWidthChange, railPanelMinWidth, railPanelMaxWidth]
+  );
+
+  const handleRailPanelPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      railPanelDragRef.current = null;
+      try {
+        (e.target as HTMLDivElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // pointer may already be released
+      }
+    },
+    []
+  );
+
+  // ---------------------------------------------------------------------------
+  // Right rail grid template
+  // ---------------------------------------------------------------------------
+  //
+  // The class-based grid templates already enumerate outline × rightPane
+  // combinations; adding an always-present rail plus an optional resizable
+  // panel would multiply them. Instead, when the rail is active we compute the
+  // whole `grid-template-columns` inline — inline style wins over the
+  // stylesheet, so the existing class templates (and `rightPane`) stay intact.
+
+  const railActive = !!rightRail;
+  const railPanelOpen = railActive && rightRail?.panel != null;
+  const outlineColumns = !outline
+    ? ""
+    : isOutlineCollapsed
+      ? "22px 1px"
+      : "var(--outline-width, 180px) 1px";
+  const railColumns = railPanelOpen
+    ? "1px var(--right-rail-panel-width, 360px) 1px var(--right-rail-width, 72px)"
+    : "1px var(--right-rail-width, 72px)";
+  const railGridTemplate = railActive
+    ? [outlineColumns, "1fr", railColumns].filter(Boolean).join(" ")
+    : undefined;
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -1129,15 +1240,21 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               !outline && styles.noOutline,
               outline && isOutlineCollapsed && styles.outlineCollapsed,
               !rightPane && styles.noRightPane,
-              rightPane && rightPane.collapsed && styles.rightPaneCollapsed
+              rightPane && rightPane.collapsed && styles.rightPaneCollapsed,
+              railActive && styles.hasRightRail
             )}
             style={
               {
                 "--outline-top": `${effectiveOffsetTop}px`,
                 "--right-pane-width": `${rightPaneWidth}px`,
+                "--right-rail-width": `${railWidth}px`,
+                "--right-rail-panel-width": `${railPanelWidth}px`,
                 "--scroller-height": scrollerHeight
                   ? `${scrollerHeight}px`
                   : "100vh",
+                ...(railGridTemplate
+                  ? { gridTemplateColumns: railGridTemplate }
+                  : {}),
               } as CSSProperties
             }
           >
@@ -1322,6 +1439,44 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     </button>
                   )}
                 </StickyScroll>
+              </>
+            )}
+            {railActive && rightRail && (
+              <>
+                {railPanelOpen && (
+                  <>
+                    <div className={styles.rightSeparator} />
+                    <StickyScroll
+                      ref={rightRailPanelScrollRef}
+                      scrollRef={scrollRef}
+                      className={styles.railPanel}
+                      offsetTop={effectiveOffsetTop}
+                    >
+                      {railPanelOnWidthChange && (
+                        <div
+                          className={styles.railPanelResizer}
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={`Resize ${rightRail.label ?? "panel"}`}
+                          onPointerDown={handleRailPanelPointerDown}
+                          onPointerMove={handleRailPanelPointerMove}
+                          onPointerUp={handleRailPanelPointerUp}
+                          onPointerCancel={handleRailPanelPointerUp}
+                        />
+                      )}
+                      {rightRail.panel}
+                    </StickyScroll>
+                  </>
+                )}
+                <div className={styles.railSeparator} />
+                <div className={styles.rightRail}>
+                  <div
+                    className={styles.rightRailSticky}
+                    style={{ top: effectiveOffsetTop }}
+                  >
+                    {rightRail.rail}
+                  </div>
+                </div>
               </>
             )}
           </div>

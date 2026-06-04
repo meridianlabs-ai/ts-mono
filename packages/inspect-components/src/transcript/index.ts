@@ -101,6 +101,7 @@ export {
   TranscriptLayout,
   type TranscriptLayoutProps,
   type TranscriptLayoutOutlineProps,
+  type TranscriptLayoutRightRailProps,
 } from "./TranscriptLayout";
 
 // Icons
