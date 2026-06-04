@@ -98,7 +98,7 @@ const createDuckDB = async (): Promise<duckdb.AsyncDuckDB> => {
   return db;
 };
 
-const absoluteUrl = (url: string): string => {
+export const absoluteUrl = (url: string): string => {
   if (typeof window === "undefined") return url;
   return new URL(url, window.location.href).href;
 };
@@ -114,6 +114,12 @@ const configureBundledExtensions = async (
         extensionRepositoryUrl()
       )}`
     );
+    // Load httpfs so that read_parquet('http://…') reads via HTTP range
+    // requests (footer + only the needed column chunks) instead of the JS
+    // runtime's whole-file buffering. The extension is vendored alongside
+    // parquet under the custom repository.
+    await runSql(connection, "INSTALL httpfs");
+    await runSql(connection, "LOAD httpfs");
   } finally {
     await connection.close();
   }
