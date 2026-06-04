@@ -102,7 +102,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
-        inlineThemeBootstrap(resolve(__dirname, "src/theme/bootstrap.ts")),
+        inlineThemeBootstrap(resolve(__dirname, "src/theme/apply-theme.ts")),
         warnIfWatchingWithoutSubmodule("inspect_scout"),
         copyToPythonRepo(),
       ],

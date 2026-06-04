@@ -1,0 +1,224 @@
+/**
+ * Bootstrap compatibility layer — the ONLY place this package authors `--bs-*`.
+ *
+ * base.css is the semantic source of truth (`--inspect-*`). Bootstrap's own
+ * components still read `--bs-*` internally, so this file feeds them FROM our
+ * tokens: every shim is `--bs-<x>: var(--inspect-<y>)`. That keeps the whole
+ * design system on `--inspect-*` while Bootstrap components stay themed, in
+ * standalone light/dark AND inside the VS Code webview (where base.css points
+ * the `--inspect-*` tokens at the editor palette and these shims carry that
+ * through to Bootstrap).
+ *
+ * Load order matters: import AFTER bootstrap's own CSS (so these win) and
+ * alongside base.css. If Bootstrap is ever dropped, this file goes with it.
+ *
+ * Declared on `:root, body` (not `:root` alone): the VS Code overrides set
+ * `--inspect-*` on `body`, and a `var(--inspect-*)` substitution resolves
+ * against the element it's declared on — so the `body` copy re-resolves with
+ * the editor palette while the `:root` copy covers standalone light/dark.
+ */
+
+:root,
+body {
+  /* Foreground / text */
+  --bs-body-color: var(--inspect-foreground);
+  --bs-emphasis-color: var(--inspect-emphasis-foreground);
+  --bs-secondary-color: var(--inspect-muted-foreground);
+  --bs-tertiary-color: var(--inspect-faint-foreground);
+  --bs-secondary: var(--inspect-muted);
+
+  /* Background / surface */
+  --bs-body-bg: var(--inspect-background);
+  --bs-light: var(--inspect-surface);
+  --bs-light-bg-subtle: var(--inspect-surface-raised);
+  --bs-secondary-bg: var(--inspect-surface-muted);
+  --bs-secondary-bg-subtle: var(--inspect-surface-muted-subtle);
+  --bs-tertiary-bg: var(--inspect-surface-hover);
+  --bs-card-bg: var(--inspect-background);
+  --bs-table-bg: var(--inspect-background);
+  --bs-table-color: var(--inspect-foreground);
+  --bs-accordion-btn-color: var(--inspect-foreground);
+
+  /* Border / shape */
+  --bs-border-color: var(--inspect-border);
+  --bs-card-border-color: var(--inspect-border);
+  --bs-light-border-subtle: var(--inspect-border-subtle);
+  --bs-border-radius: var(--inspect-radius);
+  --bs-border-radius-lg: 4px;
+  --bs-box-shadow: var(--inspect-shadow);
+  --bs-focus-ring-color: var(--inspect-focus-ring);
+  --bs-popover-max-width: 50%;
+
+  /* Typography */
+  --bs-font-monospace: var(--inspect-font-mono);
+
+  /* Links */
+  --bs-link-color: var(--inspect-link);
+  --bs-link-hover-color: var(--inspect-link-hover);
+
+  /* Status roles */
+  --bs-primary: var(--inspect-primary);
+  --bs-primary-bg-subtle: var(--inspect-primary-surface);
+  --bs-primary-border-subtle: var(--inspect-primary-border);
+  --bs-primary-text-emphasis: var(--inspect-primary-emphasis);
+  --bs-danger: var(--inspect-danger);
+  --bs-danger-bg-subtle: var(--inspect-danger-surface);
+  --bs-danger-border-subtle: var(--inspect-danger-border);
+  --bs-danger-text-emphasis: var(--inspect-danger-emphasis);
+  --bs-success: var(--inspect-success);
+  --bs-success-bg-subtle: var(--inspect-success-surface);
+  --bs-success-border-subtle: var(--inspect-success-border);
+  --bs-success-text-emphasis: var(--inspect-success-emphasis);
+  --bs-warning: var(--inspect-warning);
+  --bs-warning-bg-subtle: var(--inspect-warning-surface);
+  --bs-warning-border-subtle: var(--inspect-warning-border);
+  --bs-warning-text-emphasis: var(--inspect-warning-emphasis);
+  --bs-info-bg-subtle: var(--inspect-info-surface);
+
+  /* Misc */
+  --bs-code-color: var(--inspect-code-foreground);
+  --bs-modal-margin: var(--inspect-modal-margin);
+  --bs-navbar-padding-y: 0;
+  --bs-navbar-brand-padding-y: 0;
+  --bs-accordion-active-bg: var(--inspect-accordion-active);
+}
+
+/* ── Bootstrap component theming ──────────────────────────────────────────
+   Configures Bootstrap's own components through their --bs-<component>-*
+   variable API (unavoidable while Bootstrap renders these), fed from
+   --inspect-* where a concept exists and the editor palette otherwise.
+   Relocated here from base.css so base.css authors no --bs-*. */
+
+/* Standalone */
+body:not([class^="vscode-"]) button {
+  --bs-nav-pills-link-active-bg: var(--inspect-nav-pills-active-bg);
+  --bs-nav-pills-link-active-color: var(--inspect-nav-pills-active-color);
+  --bs-nav-link-color: black;
+}
+
+.modal-backdrop {
+  --bs-backdrop-opacity: 0.4;
+}
+
+.btn-tools {
+  --bs-btn-bg: var(--inspect-surface-muted-subtle);
+  --bs-btn-hover-bg: var(--inspect-surface-muted-subtle);
+  --bs-btn-border-color: var(--inspect-surface-muted-subtle);
+  --bs-btn-hover-border-color: var(--inspect-surface-muted-subtle);
+}
+
+.sidebar .list-group {
+  --bs-list-group-active-color: var(--bs-gray-700);
+  --bs-list-group-active-bg: var(--bs-gray-200);
+  --bs-list-group-active-border-color: var(--bs-gray-200);
+}
+
+[data-bs-theme="dark"] .sidebar .list-group {
+  --bs-list-group-active-color: var(--bs-gray-300);
+  --bs-list-group-active-bg: var(--bs-gray-800);
+  --bs-list-group-active-border-color: var(--bs-gray-800);
+}
+
+/* VS Code webview — component skins from the editor palette. */
+body[class^="vscode-"] .modal-backdrop {
+  --bs-backdrop-opacity: 0.15;
+  --bs-backdrop-bg: var(--vscode-editor-foreground);
+}
+
+body[class^="vscode-"] .accordion-button::after {
+  --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='black'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+  background: white;
+  mask-image: var(--bs-accordion-btn-icon);
+}
+
+body[class^="vscode-"] .btn-tools {
+  --bs-btn-hover-bg: var(--vscode-peekViewTitle-background);
+  --bs-btn-bg: var(--vscode-peekViewTitle-background);
+  --bs-btn-border-color: var(--vscode-peekViewTitle-background);
+  --bs-btn-hover-border-color: var(--vscode-peekViewTitle-background);
+  --bs-btn-color: var(--vscode-peekViewTitleDescription-foreground);
+  --bs-btn-hover-color: var(--vscode-peekViewTitleDescription-foreground);
+}
+
+body[class^="vscode-"] .btn-primary {
+  --bs-btn-bg: var(--vscode-button-background);
+  --bs-btn-border-color: var(--vscode-button-background);
+  --bs-btn-hover-bg: var(--vscode-button-hoverBackground);
+  --bs-btn-hover-border-color: var(--vscode-button-hoverBackground);
+  --bs-btn-color: var(--vscode-button-foreground);
+  --bs-btn-hover-color: var(--vscode-button-foreground);
+  --bs-btn-disabled-color: var(--vscode-button-foreground);
+  --bs-btn-disabled-bg: var(--vscode-button-background);
+  --bs-btn-disabled-border-color: var(--vscode-button-background);
+  --bs-btn-disabled-opacity: 0.8;
+}
+
+/* Bootstrap components inside dialogs inherit modal-scoped semantic tokens
+   from base.css; bridge those local values back into Bootstrap's API. */
+body[class^="vscode-"] .modal {
+  --bs-border-color: var(--inspect-border);
+  --bs-danger: var(--inspect-danger);
+  --bs-danger-bg-subtle: var(--inspect-danger-surface);
+  --bs-danger-text-emphasis: var(--inspect-danger-emphasis);
+  --bs-danger-border-subtle: var(--inspect-danger-border);
+  --bs-secondary-color: var(--inspect-muted-foreground);
+  --bs-success-text-emphasis: var(--inspect-success-emphasis);
+  --bs-warning-text-emphasis: var(--inspect-warning-emphasis);
+}
+
+body[class^="vscode-"] .btn-secondary {
+  --bs-btn-bg: var(--vscode-button-secondaryBackground);
+  --bs-btn-border-color: var(--vscode-button-secondaryBackground);
+  --bs-btn-hover-bg: var(--vscode-button-secondaryHoverBackground);
+  --bs-btn-hover-border-color: var(--vscode-button-secondaryHoverBackground);
+  --bs-btn-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-hover-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-disabled-color: var(--vscode-button-secondaryForeground);
+  --bs-btn-disabled-bg: var(--vscode-button-secondaryBackground);
+  --bs-btn-disabled-border-color: var(--vscode-button-secondaryBackground);
+  --bs-btn-disabled-opacity: 0.8;
+}
+
+body[class^="vscode-"] .navbar-brand {
+  --bs-navbar-brand-color: var(--vscode-sideBarSectionHeader-foreground);
+  --bs-navbar-brand-hover-color: var(--vscode-sideBarSectionHeader-foreground);
+}
+
+body[class^="vscode-"] .navbar-text {
+  --bs-navbar-color: var(--vscode-sideBarSectionHeader-foreground);
+}
+
+body[class^="vscode-"] .nav-pills {
+  --bs-nav-pills-link-active-bg: var(--vscode-notifications-background);
+  --bs-nav-pills-link-active-color: var(--vscode-notifications-foreground);
+}
+
+body[class^="vscode-"] .nav-link {
+  --bs-nav-link-color: var(--vscode-notificationLink-foreground);
+  --bs-link-hover-color: var(--vscode-notificationLink-foreground);
+}
+
+body[class^="vscode-"] .nav-link:hover {
+  --bs-nav-link-color: var(--vscode-notificationLink-foreground);
+  --bs-nav-link-hover-color: var(--vscode-notificationLink-foreground);
+  --bs-nav-tabs-link-hover-border-color: var(
+    --vscode-notificationLink-foreground
+  );
+}
+
+body[class^="vscode-"] .sidebar .list-group {
+  --bs-tertiary-bg: var(--vscode-list-hoverBackground);
+  --bs-secondary-color: var(--vscode-foreground);
+  --bs-list-group-active-bg: var(--vscode-sideBarSectionHeader-background);
+  --bs-list-group-active-border-color: var(
+    --vscode-sideBarSectionHeader-background
+  );
+  --bs-list-group-action-active-bg: var(
+    --vscode-sideBarSectionHeader-background
+  );
+  --bs-list-group-active-color: var(--vscode-sideBarSectionHeader-foreground);
+}
+
+body[class^="vscode-"] .breadcrumb-item {
+  --bs-breadcrumb-divider-color: var(--vscode-foreground);
+}

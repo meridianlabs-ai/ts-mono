@@ -8,13 +8,17 @@
       "types": "./src/base.d.ts",
       "default": "./src/base.css"
     },
+    "./bootstrap-compat": {
+      "types": "./src/bootstrap-compat.d.ts",
+      "default": "./src/bootstrap-compat.css"
+    },
     "./vscode": {
       "types": "./src/vscode.d.ts",
       "default": "./src/vscode.css"
     },
-    "./bootstrap": {
-      "types": "./src/bootstrap.ts",
-      "default": "./src/bootstrap.ts"
+    "./apply-theme": {
+      "types": "./src/apply-theme.ts",
+      "default": "./src/apply-theme.ts"
     }
   },
   "scripts": {

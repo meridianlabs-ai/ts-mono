@@ -5,7 +5,7 @@ import {
   readThemePreference,
   resolveTheme,
   ThemePreference,
-} from "./bootstrap";
+} from "./apply-theme";
 
 afterEach(() => {
   vi.unstubAllGlobals();

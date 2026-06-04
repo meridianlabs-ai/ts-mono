@@ -1,10 +1,7 @@
 .pager {
   --bs-pagination-padding-x: 0.5em;
-  --bs-pagination-padding-y: 0.15em;
-  --bs-pagination-font-size: 0.8rem;
-  --bs-pagination-padding-x: 0.5em;
   --bs-pagination-padding-y: 0;
-  --bs-pagination-border-radius: var(--bs-border-radius);
+  --bs-pagination-font-size: 0.8rem;
   margin-bottom: 0;
 }
 

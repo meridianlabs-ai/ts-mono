@@ -12,6 +12,7 @@ import "prismjs/components/prism-python";
 import "prismjs/components/prism-yaml";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
+import "@tsmono/theme/bootstrap-compat";
 import "@tsmono/theme/vscode";
 import "./App.css";
 

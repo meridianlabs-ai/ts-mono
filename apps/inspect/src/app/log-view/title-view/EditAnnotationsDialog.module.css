@@ -20,27 +20,26 @@
 
 .label {
   font-weight: 600;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   margin: 0;
 }
 
 .hint {
-  /* `--inspect-hint-foreground` defaults to --bs-secondary-color but
-     resolves to --vscode-descriptionForeground inside VS Code so the
-     italic "optional" stays readable against dark editor themes. */
-  color: var(--inspect-hint-foreground);
+  /* Muted (not body) text so the italic "optional" stays readable, including
+     against dark VS Code editor themes. */
+  color: var(--inspect-muted-foreground);
   font-weight: 400;
   font-style: italic;
 }
 
 .required {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
   margin-left: 0.15rem;
 }
 
 .divider {
   border: none;
-  border-top: 1px solid var(--bs-border-color);
+  border-top: 1px solid var(--inspect-border);
   margin: 0.15rem 0;
 }
 
@@ -52,10 +51,10 @@
 
 .error {
   padding: 0.4rem 0.6rem;
-  background: var(--bs-danger-bg-subtle);
-  color: var(--bs-danger-text-emphasis);
-  border: 1px solid var(--bs-danger-border-subtle);
-  border-radius: var(--bs-border-radius);
+  background: var(--inspect-danger-surface);
+  color: var(--inspect-danger-emphasis);
+  border: 1px solid var(--inspect-danger-border);
+  border-radius: var(--inspect-radius);
 }
 
 /* Footer layout: optional change-summary on the left, action buttons

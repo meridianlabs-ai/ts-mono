@@ -9,10 +9,10 @@
   gap: 14px;
   width: 100%;
   padding: 11px 15px;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   overflow: hidden;
-  border: 1px solid var(--bs-light-border-subtle);
-  background: var(--bs-body-bg);
+  border: 1px solid var(--inspect-border-subtle);
+  background: var(--inspect-background);
 }
 
 .bar::before {
@@ -63,12 +63,16 @@
 
 .attempt {
   position: relative;
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 11px;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   padding: 2px 7px;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--bs-secondary-color) 15%, transparent);
+  background: color-mix(
+    in oklab,
+    var(--inspect-muted-foreground) 15%,
+    transparent
+  );
 }
 
 @keyframes gen-sweep {

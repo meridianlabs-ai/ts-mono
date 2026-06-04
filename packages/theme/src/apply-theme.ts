@@ -1,11 +1,11 @@
 /**
- * Framework-agnostic theme bootstrap shared by every viewer.
+ * Framework-agnostic theme application shared by every viewer.
  *
  * Two CSS contracts this module has to satisfy together:
  *  - `data-bs-theme` on <html> drives Bootstrap's own light/dark tokens and
  *    the dark `--vscode-*` overrides in vscode.css (light defaults are
  *    ungated `:root`).
- *  - `body.vscode-dark` activates the `--vscode-* → --bs-*` bridge in
+ *  - `body.vscode-dark` activates the `--vscode-* → --inspect-*` bridge in
  *    base.css (`body[class^="vscode-"]`). We deliberately set only
  *    `vscode-dark` (never `vscode-light`) so light standalone stays on
  *    pure Bootstrap — see the comment at the toggle call below.
