@@ -23,7 +23,10 @@ import {
   DisplayModeContext,
   RecordTree,
 } from "@tsmono/inspect-components/content";
-import { eventsToStr } from "@tsmono/inspect-components/transcript";
+import {
+  eventsToStr,
+  type TranscriptLayoutRightRailProps,
+} from "@tsmono/inspect-components/transcript";
 import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
 import {
   buildArgsByModel,
@@ -81,6 +84,11 @@ import {
 } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
+import {
+  ActivityRail,
+  type ActivityRailItem,
+  type ActivityRailItemId,
+} from "./ActivityRail";
 import {
   messagesFromEvents,
   type MessagesFromEventsState,
@@ -394,6 +402,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const searchContext = useInspectSearchContext(sample);
   const canSearch = searchContext !== null && searchScope !== undefined;
   const closeDock = useCallback(() => setRightDock("none"), []);
+  // Rail entries toggle their panel: re-selecting the active one closes it,
+  // selecting another switches directly (panels are mutually exclusive).
+  const onRailSelect = useCallback(
+    (id: ActivityRailItemId) =>
+      setRightDock((prev) => (prev === id ? "none" : id)),
+    []
+  );
+  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Scanner scores power the docked Scans panel (and the transcript cite
   // labels). `open` gates the label computation to when the panel is showing.
@@ -555,46 +571,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  // Scans button shows only on the Transcript tab and only when the sample
-  // has scanner scores. Search stays rightmost, so Scans sits to its left.
-  const showScansButton = scans.hasScans && searchScope === "events";
-  if (showScansButton || canSearch) {
-    tools.push(
-      <span
-        key="search-separator"
-        className={styles.toolSeparator}
-        aria-hidden="true"
-      />
-    );
-    if (showScansButton) {
-      tools.push(
-        <ToolButton
-          key="sample-scans-toggle"
-          label="Scans"
-          icon={ApplicationIcons.scoringSidebar}
-          onClick={() =>
-            setRightDock((prev) => (prev === "scans" ? "none" : "scans"))
-          }
-          latched={rightDock === "scans"}
-          subtle
-        />
-      );
-    }
-    if (canSearch) {
-      tools.push(
-        <ToolButton
-          key="sample-search-toggle"
-          label="Search"
-          icon={ApplicationIcons.search}
-          onClick={() =>
-            setRightDock((prev) => (prev === "search" ? "none" : "search"))
-          }
-          latched={rightDock === "search"}
-          subtle
-        />
-      );
-    }
-  }
+  // Search and Scans are no longer toolbar buttons — the always-visible
+  // activity rail (rendered below the timeline) is the sole entry point.
 
   // Is the sample running?
   const running = useMemo(() => {
@@ -680,6 +658,90 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ? Math.max(0, scrollerHeight - stickyOffsetTop)
       : `calc(100vh - ${stickyOffsetTop}px)`;
 
+  // Which rail entry (if any) is showing its panel. Scans only applies on the
+  // Transcript tab and only when the sample actually has scans.
+  const activeRailId: ActivityRailItemId | null =
+    rightDock === "scans" && scans.hasScans
+      ? "scans"
+      : rightDock === "search" && searchContext
+        ? "search"
+        : null;
+
+  // Transcript rail: Search on top, Scans below (per design). Scans is always
+  // listed but disabled with a "No scans" label when the sample has none.
+  const transcriptRailItems = useMemo<ActivityRailItem[]>(() => {
+    const items: ActivityRailItem[] = [];
+    if (canSearch) {
+      items.push({
+        id: "search",
+        label: "Search",
+        icon: ApplicationIcons.search,
+      });
+    }
+    items.push({
+      id: "scans",
+      label: scans.hasScans ? "Scans" : "No scans",
+      icon: ApplicationIcons.scoringSidebar,
+      disabled: !scans.hasScans,
+    });
+    return items;
+  }, [canSearch, scans.hasScans]);
+
+  const transcriptRail = useMemo<TranscriptLayoutRightRailProps>(() => {
+    const panel =
+      activeRailId === "scans" ? (
+        <ScansSidebarPanel
+          scores={scans.scores}
+          events={sampleEvents}
+          makeCiteUrl={scans.makeCiteUrl}
+          selected={scans.selected}
+          onSelectedChange={scans.setSelected}
+          onClose={closeDock}
+        />
+      ) : activeRailId === "search" && searchContext ? (
+        <SearchPanelSlot
+          scope="events"
+          context={searchContext}
+          onClose={closeDock}
+        />
+      ) : null;
+    return {
+      rail: (
+        <ActivityRail
+          items={transcriptRailItems}
+          active={activeRailId}
+          onSelect={onRailSelect}
+        />
+      ),
+      panel,
+      label: activeRailId === "scans" ? "Scans" : "Search",
+    };
+  }, [
+    activeRailId,
+    scans.scores,
+    scans.makeCiteUrl,
+    scans.selected,
+    scans.setSelected,
+    sampleEvents,
+    searchContext,
+    transcriptRailItems,
+    onRailSelect,
+    closeDock,
+  ]);
+
+  // Messages rail: Search only (no swimlane timeline / scans here).
+  const messagesRailItems = useMemo<ActivityRailItem[]>(
+    () => [
+      {
+        id: "search",
+        label: "Search",
+        icon: ApplicationIcons.search,
+        disabled: !canSearch,
+      },
+    ],
+    [canSearch]
+  );
+
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>
@@ -744,33 +806,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     />
                   )
                 ) : (
-                  <TabSidebarHost
-                    open={
-                      searchScope === "events" &&
-                      ((rightDock === "scans" && scans.hasScans) ||
-                        (rightDock === "search" && !!searchContext))
-                    }
-                    sidebarTop={stickyOffsetTop}
-                    sidebarHeight={sidebarHeight}
-                    sidebar={
-                      rightDock === "scans" && scans.hasScans ? (
-                        <ScansSidebarPanel
-                          scores={scans.scores}
-                          events={sampleEvents}
-                          makeCiteUrl={scans.makeCiteUrl}
-                          selected={scans.selected}
-                          onSelectedChange={scans.setSelected}
-                          onClose={closeDock}
-                        />
-                      ) : rightDock === "search" && searchContext ? (
-                        <SearchPanelSlot
-                          scope="events"
-                          context={searchContext}
-                          onClose={closeDock}
-                        />
-                      ) : null
-                    }
-                  >
+                  <div className={styles.tabContent}>
                     <TranscriptPanel
                       id={`${baseId}-transcript-display-${id}`}
                       key={`${baseId}-transcript-display-${id}`}
@@ -782,8 +818,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                       eventNodeContext={scans.eventNodeContext}
                       initialEventId={sampleDetailNavigation.event}
                       initialMessageId={sampleDetailNavigation.message}
+                      rightRail={transcriptRail}
+                      rightRailPanelScrollRef={railPanelScrollRef}
                     />
-                  </TabSidebarHost>
+                  </div>
                 )}
               </TabPanel>
               <TabPanel
@@ -799,19 +837,31 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleMessagesTabId}
                 scrollable={false}
               >
-                <TabSidebarHost
+                <RailSidebarHost
                   contentClassName={styles.chat}
-                  open={rightDock === "search" && searchScope === "messages"}
-                  sidebarTop={stickyOffsetTop}
-                  sidebarHeight={sidebarHeight}
-                  sidebar={
-                    searchContext && (
+                  panelTop={stickyOffsetTop}
+                  panelHeight={sidebarHeight}
+                  rail={
+                    <ActivityRail
+                      items={messagesRailItems}
+                      active={
+                        rightDock === "search" && searchScope === "messages"
+                          ? "search"
+                          : null
+                      }
+                      onSelect={onRailSelect}
+                    />
+                  }
+                  panel={
+                    rightDock === "search" &&
+                    searchScope === "messages" &&
+                    searchContext ? (
                       <SearchPanelSlot
                         scope="messages"
                         context={searchContext}
                         onClose={closeDock}
                       />
-                    )
+                    ) : null
                   }
                 >
                   <ChatViewVirtualList
@@ -828,7 +878,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     running={running}
                     className={styles.fullWidth}
                   />
-                </TabSidebarHost>
+                </RailSidebarHost>
               </TabPanel>
               <TabPanel
                 key={kSampleScoringTabId}
@@ -957,50 +1007,48 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 };
 
-interface TabSidebarHostProps {
-  /** True when the docked sidebar should be visible for this tab. */
-  open: boolean;
-  /** The rendered sidebar (or falsy when no panel applies). */
-  sidebar: ReactNode;
-  sidebarTop: number;
-  sidebarHeight: number | string;
+interface RailSidebarHostProps {
+  /** The always-visible activity rail. */
+  rail: ReactNode;
+  /** The open panel, or null when no panel is active. */
+  panel: ReactNode;
+  panelTop: number;
+  panelHeight: number | string;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
 }
 
-const TabSidebarHost: FC<TabSidebarHostProps> = ({
-  open,
-  sidebar,
-  sidebarTop,
-  sidebarHeight,
+/**
+ * Flex host for tabs without a swimlane timeline (Messages): main content, an
+ * optional resizable panel column, and an always-visible rail pinned right.
+ */
+const RailSidebarHost: FC<RailSidebarHostProps> = ({
+  rail,
+  panel,
+  panelTop,
+  panelHeight,
   contentClassName,
   children,
-}) => {
-  if (!open || !sidebar) {
-    return (
-      <div className={clsx(styles.tabContent, contentClassName)}>
-        {children}
-      </div>
-    );
-  }
-  return (
-    <div className={styles.tabSidebarHost}>
-      <div className={clsx(styles.tabContent, contentClassName)}>
-        {children}
-      </div>
-      <DockedSidebar top={sidebarTop} height={sidebarHeight}>
-        {sidebar}
-      </DockedSidebar>
+}) => (
+  <div className={styles.railHost}>
+    <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
+    {panel && (
+      <RailPanelColumn top={panelTop} height={panelHeight}>
+        {panel}
+      </RailPanelColumn>
+    )}
+    <div className={styles.railColumn} style={{ top: panelTop }}>
+      {rail}
     </div>
-  );
-};
+  </div>
+);
 
 const DOCKED_SIDEBAR_DEFAULT_WIDTH = 360;
 const DOCKED_SIDEBAR_MIN_WIDTH = 240;
 const DOCKED_SIDEBAR_MAX_WIDTH = 720;
 
-const DockedSidebar: FC<{
+const RailPanelColumn: FC<{
   children: ReactNode;
   top: number;
   height: number | string;

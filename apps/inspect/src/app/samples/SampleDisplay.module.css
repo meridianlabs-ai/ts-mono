@@ -38,12 +38,19 @@
   padding: 0.5rem;
 }
 
-.tabSidebarHost {
+.railHost {
   display: flex;
   flex-direction: row;
   align-items: stretch;
   width: 100%;
   min-width: 0;
+}
+
+.railColumn {
+  position: sticky;
+  align-self: flex-start;
+  flex: 0 0 72px;
+  background-color: var(--bs-body-bg);
 }
 
 .tabContent {
