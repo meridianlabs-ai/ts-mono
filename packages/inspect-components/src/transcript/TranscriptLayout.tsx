@@ -863,6 +863,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Use getBoundingClientRect().height — this matches what's actually on
   // screen (clientHeight can report slightly different values depending on
   // scrollbar / box-sizing quirks).
+  // Capture the outline's own scroll container (the StickyScroll div, which
+  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
+  // its scroll parent. Resolving into state (rather than reading a ref during
+  // render) guarantees a re-render once the element mounts. Also mirror it
+  // into the optional external ref callers pass for wheel forwarding.
+  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
+    null
+  );
+  const handleOutlineScrollRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setOutlineScrollEl(el);
+      if (outlineScrollRef) {
+        outlineScrollRef.current = el;
+      }
+    },
+    [outlineScrollRef]
+  );
+
   const [scrollerHeight, setScrollerHeight] = useState<number>(0);
   useEffect(() => {
     const el = scrollRef.current;
@@ -984,7 +1002,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
             {outline && (
               <>
                 <StickyScroll
-                  ref={outlineScrollRef}
+                  ref={handleOutlineScrollRef}
                   scrollRef={scrollRef}
                   className={styles.outline}
                   offsetTop={effectiveOffsetTop}
@@ -1018,6 +1036,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         eventNodes={eventNodes}
                         defaultCollapsedIds={defaultCollapsedIds}
                         scrollRef={scrollRef}
+                        outlineScrollEl={outlineScrollEl}
                         running={running}
                         agentName={
                           outline.name ??
