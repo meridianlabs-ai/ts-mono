@@ -47,7 +47,7 @@ import {
   quoteIdentifier,
   quoteLiteral,
 } from "./condition-sql";
-import { StaticDuckDB } from "./duckdb-engine";
+import { absoluteUrl, StaticDuckDB } from "./duckdb-engine";
 
 export class StaticBundleError extends Error {
   constructor(operation: string) {
@@ -103,19 +103,6 @@ const fetchZstdJson = async <T>(url: string): Promise<T> => {
 
 const unsupported = <T>(op: string): Promise<T> =>
   Promise.reject(new StaticBundleError(op));
-
-/** Base64url-encode a UTF-8 string (no `=` padding), matching the bundler. */
-const base64UrlEncode = (input: string): string => {
-  const bytes = new TextEncoder().encode(input);
-  let binary = "";
-  for (const b of bytes) {
-    binary += String.fromCharCode(b);
-  }
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-};
 
 export const apiScoutStatic = (
   context: StaticBundleContext = {}
@@ -273,15 +260,14 @@ export const apiScoutStatic = (
       excludeColumns?: string[]
     ): Promise<Uint8Array> => {
       await registerScansCatalog();
-      const parquetName = await registerScannerParquet(
-        db,
+      const parquetUrl = scannerParquetUrl(
         baseUrl,
         await lookupScanCatalogRow(db, scanPath),
         scanner
       );
       const projection = scannerProjection(excludeColumns);
       return db.queryArrowIpc(
-        `SELECT ${projection} FROM ${catalogTable(parquetName)}`
+        `SELECT ${projection} FROM ${catalogTable(parquetUrl)}`
       );
     },
 
@@ -292,14 +278,13 @@ export const apiScoutStatic = (
       uuid: string
     ): Promise<ScanResultDetail> => {
       await registerScansCatalog();
-      const parquetName = await registerScannerParquet(
-        db,
+      const parquetUrl = scannerParquetUrl(
         baseUrl,
         await lookupScanCatalogRow(db, scanPath),
         scanner
       );
       const rows = await db.queryObjects(
-        `SELECT * FROM ${catalogTable(parquetName)} WHERE "uuid" = ? LIMIT 1`,
+        `SELECT * FROM ${catalogTable(parquetUrl)} WHERE "uuid" = ? LIMIT 1`,
         [uuid]
       );
       const row = firstRow(rows, `No row found for uuid: ${uuid}`);
@@ -478,21 +463,21 @@ const lookupScanCatalogRow = async (
   };
 };
 
-const registerScannerParquet = async (
-  db: StaticDuckDB,
+const scannerParquetUrl = (
   baseUrl: string,
   scan: ScanCatalogRow,
   scanner: string
-): Promise<string> => {
+): string => {
   const scannerPath = scan.scannerPaths[scanner];
   if (!scannerPath) {
     throw new Error(
       `Scanner '${scanner}' not found in scan '${scan.bundleId}'`
     );
   }
-  const parquetName = `scan_${scan.bundleId}_${base64UrlEncode(scanner)}.parquet`;
-  await db.registerHttpFile(parquetName, joinUrl(baseUrl, scannerPath));
-  return parquetName;
+  // Use the fully-qualified URL so DuckDB reads it via httpfs (HTTP range
+  // requests) rather than registering it as a whole-file buffer. This lets
+  // column-pruning (SELECT … EXCLUDE) skip unneeded column chunks over the wire.
+  return absoluteUrl(joinUrl(baseUrl, scannerPath));
 };
 
 const scannerProjection = (excludeColumns: string[] | undefined): string => {
