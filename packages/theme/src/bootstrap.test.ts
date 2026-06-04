@@ -21,20 +21,20 @@ describe("readThemePreference", () => {
   const persisted = (themePreference?: unknown): string =>
     JSON.stringify({ state: { themePreference }, version: 0 });
 
-  it("defaults to 'system' when storage is empty", () => {
-    expect(readPref(null)).toBe("system");
+  it("defaults to 'readable-system' when storage is empty", () => {
+    expect(readPref(null)).toBe("readable-system");
   });
 
-  it("defaults to 'system' when JSON is malformed", () => {
-    expect(readPref("{not json")).toBe("system");
+  it("defaults to 'readable-system' when JSON is malformed", () => {
+    expect(readPref("{not json")).toBe("readable-system");
   });
 
-  it("defaults to 'system' when state is missing", () => {
-    expect(readPref("{}")).toBe("system");
+  it("defaults to 'readable-system' when state is missing", () => {
+    expect(readPref("{}")).toBe("readable-system");
   });
 
-  it("defaults to 'system' when themePreference has unknown value", () => {
-    expect(readPref(persisted("solar"))).toBe("system");
+  it("defaults to 'readable-system' when themePreference has unknown value", () => {
+    expect(readPref(persisted("solar"))).toBe("readable-system");
   });
 
   it.each<ThemePreference>([
