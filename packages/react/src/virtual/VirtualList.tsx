@@ -274,6 +274,13 @@ export function VirtualList<T>({
         if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
         hasInitialScrolledRef.current = true;
         release();
+      } else if (followOutput && live) {
+        // Auto-following a live sample: the follow effect owns the scroll
+        // position (pins to bottom). Commit the one-shot guard so this effect
+        // stops re-firing and resetting scrollTop to 0 on every new event —
+        // which would otherwise fight follow until the user scrolled manually.
+        hasInitialScrolledRef.current = true;
+        release();
       } else if (snapshot) {
         // Restore from snapshot unless the user has already scrolled this
         // list (e.g. snapshot rehydrated late and they reached for the wheel
@@ -308,6 +315,8 @@ export function VirtualList<T>({
     stickyHeaderOffset,
     contentTotal,
     data.length,
+    followOutput,
+    live,
     getRestoreSnapshot,
     getScrollElement,
     toSpacerScroll,
