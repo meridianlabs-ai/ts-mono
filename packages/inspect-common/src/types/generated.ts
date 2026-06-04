@@ -4,6 +4,23 @@
  */
 import { JsonValue } from "@tsmono/util";
 export interface paths {
+    "/app-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api App Config */
+        get: operations["api_app_config_app_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat-message": {
         parameters: {
             query?: never;
@@ -555,6 +572,16 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * AppConfig
+         * @description Application configuration returned by GET /app-config.
+         */
+        AppConfig: {
+            /** Inspect Version */
+            inspect_version: string;
+            /** Scout Version */
+            scout_version?: string | null;
         };
         /**
          * ApprovalEvent
@@ -3884,6 +3911,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    api_app_config_app_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppConfig"];
+                };
+            };
+        };
+    };
     _chat_message_chat_message_get: {
         parameters: {
             query?: never;
