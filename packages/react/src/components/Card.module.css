@@ -11,14 +11,14 @@
   padding: 0.5rem 0.5rem 0.5rem 0.5rem;
   font-size: var(--inspect-font-size-small);
   font-weight: 600;
-  border-bottom: solid 1px var(--bs-light-border-subtle);
+  border-bottom: solid 1px var(--inspect-border-subtle);
 }
 
 .headerContainer.headerModern {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   padding: 0.25rem 0.5rem 0rem 0.5rem;
   border-bottom: none;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .headerIcon:not(.headerIconEmpty) {
@@ -26,14 +26,14 @@
 }
 
 .body {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   padding: 0.5rem !important;
 }
 
 .card {
-  background-color: var(--bs-body-bg);
-  border: solid 1px var(--bs-light-border-subtle);
-  border-radius: var(--bs-border-radius);
+  background-color: var(--inspect-background);
+  border: solid 1px var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
   overflow: hidden;
 }
 

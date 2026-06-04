@@ -5,7 +5,7 @@
   padding: 0.5em 0.5em 0.5em 0.5em;
   font-size: var(--inspect-font-size-small);
   font-weight: 600;
-  border-bottom: solid 1px var(--bs-light-border-subtle);
+  border-bottom: solid 1px var(--inspect-border-subtle);
 }
 
 .card-header-icon {
@@ -13,15 +13,15 @@
 }
 
 .card-body {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 
   padding: 0.5em;
 }
 
 .card {
-  background-color: var(--bs-light-bg-subtle);
-  border: solid 1px var(--bs-light-border-subtle);
-  border-radius: var(--bs-border-radius);
+  background-color: var(--inspect-surface-raised);
+  border: solid 1px var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
 }
 
 .card-collaping-header {

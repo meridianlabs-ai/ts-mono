@@ -85,7 +85,7 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
         closeOnMouseLeave={false}
         styles={{
           padding: "0.4rem",
-          backgroundColor: "var(--bs-light)",
+          backgroundColor: "var(--inspect-surface)",
         }}
       >
         <ColumnFilterEditor

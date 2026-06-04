@@ -31,7 +31,7 @@
 }
 
 .tableBody {
-  border-top-color: var(--bs-light-border-subtle);
+  border-top-color: var(--inspect-border-subtle);
 }
 
 thead,

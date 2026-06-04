@@ -70,5 +70,5 @@
 
 .ansiDisplayToggle {
   padding: 0 0.2rem;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }

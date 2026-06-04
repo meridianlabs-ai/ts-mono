@@ -1,7 +1,7 @@
 .wrapper {
   font-variant-numeric: tabular-nums;
   font-size: 0.8125rem;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .table {
@@ -12,12 +12,12 @@
 .table thead th {
   text-align: left;
   font-weight: 600;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   font-size: 0.7rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 0 0.75rem 0.5rem 0;
-  border-bottom: 1px solid var(--bs-light-border-subtle);
+  border-bottom: 1px solid var(--inspect-border-subtle);
   white-space: nowrap;
 }
 
@@ -28,7 +28,7 @@
 .table tbody tr.modelRow td {
   padding-top: 22px;
   padding-bottom: 18px;
-  border-top: 1px solid var(--bs-light-border-subtle);
+  border-top: 1px solid var(--inspect-border-subtle);
   vertical-align: top;
 }
 
@@ -61,7 +61,7 @@
   display: block;
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   margin-top: 0.1rem;
   word-break: break-word;
 }
@@ -70,24 +70,24 @@
   display: block;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   margin-top: 0.4rem;
 }
 
 .configSection {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px dashed var(--bs-light-border-subtle);
+  border-top: 1px dashed var(--inspect-border-subtle);
   max-width: 240px;
 }
 
 .configSectionLabel {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 10px;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   margin-top: 10px;
 }
 
@@ -101,28 +101,28 @@
   gap: 2px 14px;
   align-items: baseline;
   margin: 2px 0 0;
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .configKey {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   font-weight: 400;
   white-space: nowrap;
 }
 
 .configVal {
   margin: 0;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   font-weight: 400;
 }
 
 .modelTotal small {
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   margin-left: 0.25rem;
   text-transform: none;
   letter-spacing: 0;
@@ -142,7 +142,7 @@
   width: 100%;
   border-radius: 999px;
   overflow: hidden;
-  background: var(--bs-light-border-subtle);
+  background: var(--inspect-border-subtle);
   margin-top: 7px;
 }
 
@@ -156,7 +156,7 @@
   justify-content: space-between;
   margin-top: 0.4rem;
   font-size: 0.7rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .breakdown {
@@ -172,11 +172,11 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.7rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .breakdownLeader {
-  border-bottom: 1px dotted var(--bs-tertiary-color);
+  border-bottom: 1px dotted var(--inspect-faint-foreground);
   height: 0.6em;
   transform: translateY(-2px);
   margin: 0;
@@ -185,7 +185,7 @@
 .breakdownValue {
   margin: 0;
   font-size: 0.8125rem;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   text-align: right;
 }
 
@@ -193,18 +193,18 @@
   vertical-align: top;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .perSampleCell {
   vertical-align: top;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .perSampleSub {
   display: block;
   font-size: 0.65rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 0.15rem;

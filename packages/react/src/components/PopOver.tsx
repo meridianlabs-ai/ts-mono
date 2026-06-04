@@ -455,11 +455,11 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Popper container styles
   const defaultPopperStyles: CSSProperties = {
-    backgroundColor: "var(--bs-body-bg)",
+    backgroundColor: "var(--inspect-background)",
     padding: "12px",
-    borderRadius: "var(--bs-border-radius)",
+    borderRadius: "var(--inspect-radius)",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    border: "solid 1px var(--bs-border-color)",
+    border: "solid 1px var(--inspect-border)",
     zIndex: 1200,
     position: "relative",
     // Apply opacity transition to smooth the appearance

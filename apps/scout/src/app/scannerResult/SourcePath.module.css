@@ -7,7 +7,7 @@
 }
 
 .pathText {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 0.9em;
   white-space: nowrap;
   overflow: hidden;

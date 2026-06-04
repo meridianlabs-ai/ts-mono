@@ -8,5 +8,5 @@
 }
 
 .rejected {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }

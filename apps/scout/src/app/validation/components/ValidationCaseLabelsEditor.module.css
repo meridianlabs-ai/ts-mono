@@ -7,7 +7,7 @@
   align-items: center;
   align-content: flex-start;
   background-color: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, var(--bs-border-color));
+  border: 1px solid var(--vscode-input-border, var(--inspect-border));
   border-radius: 2px;
 }
 

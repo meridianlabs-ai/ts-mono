@@ -12,30 +12,30 @@
 }
 
 .user {
-  background-color: var(--bs-secondary-bg);
-  border-radius: var(--bs-border-radius);
-  border: solid 1px var(--bs-light-border-subtle);
+  background-color: var(--inspect-surface-muted);
+  border-radius: var(--inspect-radius);
+  border: solid 1px var(--inspect-border-subtle);
 }
 
 .container {
   padding-left: 0.7rem;
   padding-right: 0.7rem;
   padding-top: 0.5rem;
-  border-left: solid 1px var(--bs-light-border-subtle);
-  border-right: solid 1px var(--bs-light-border-subtle);
+  border-left: solid 1px var(--inspect-border-subtle);
+  border-right: solid 1px var(--inspect-border-subtle);
 }
 
 .first {
-  border-top-left-radius: var(--bs-border-radius);
-  border-top-right-radius: var(--bs-border-radius);
-  border-top: solid 1px var(--bs-light-border-subtle);
+  border-top-left-radius: var(--inspect-radius);
+  border-top-right-radius: var(--inspect-radius);
+  border-top: solid 1px var(--inspect-border-subtle);
   padding-top: 0.7rem;
 }
 
 .last {
-  border-bottom-left-radius: var(--bs-border-radius);
-  border-bottom-right-radius: var(--bs-border-radius);
-  border-bottom: solid 1px var(--bs-light-border-subtle);
+  border-bottom-left-radius: var(--inspect-radius);
+  border-bottom-right-radius: var(--inspect-radius);
+  border-bottom: solid 1px var(--inspect-border-subtle);
   padding-bottom: 0.7rem;
 }
 
@@ -47,7 +47,7 @@
 }
 
 .highlight {
-  background-color: rgba(var(--bs-info-rgb), 0.12);
+  background-color: rgba(var(--inspect-info-rgb), 0.12);
 }
 
 /* Prototype: self-contained box (used when tool calls are un-embedded) so the
@@ -55,8 +55,8 @@
    connected band. */
 .box {
   position: relative;
-  border: solid 1px var(--bs-light-border-subtle);
-  border-radius: var(--bs-border-radius);
+  border: solid 1px var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
   padding: 0.7rem;
 }
 

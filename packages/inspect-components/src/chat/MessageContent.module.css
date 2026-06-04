@@ -1,19 +1,19 @@
 .contentImage {
   max-width: 800px;
-  border: solid var(--bs-border-color) 1px;
+  border: solid var(--inspect-border) 1px;
 }
 
 .reasoning {
-  border: solid var(--bs-light-border-subtle) 1px;
+  border: solid var(--inspect-border-subtle) 1px;
   padding: 1em;
   margin-bottom: 0.5em;
-  background-color: var(--bs-light-bg-subtle);
-  border-radius: var(--bs-border-radius);
+  background-color: var(--inspect-surface-raised);
+  border-radius: var(--inspect-radius);
   overflow-wrap: anywhere;
 }
 
 .data {
-  border: solid var(--bs-light-border-subtle) 1px;
+  border: solid var(--inspect-border-subtle) 1px;
   padding: 1em;
   margin-bottom: 0.5em;
 }

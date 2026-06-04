@@ -27,12 +27,12 @@
 }
 
 .summary::marker {
-  color: var(--bs-secondary, #6c757d);
+  color: var(--inspect-muted-foreground, #6c757d);
   font-size: 0.8em;
 }
 
 .summary::-webkit-details-marker {
-  color: var(--bs-secondary, #6c757d);
+  color: var(--inspect-muted-foreground, #6c757d);
 }
 
 .toolNoDetails {

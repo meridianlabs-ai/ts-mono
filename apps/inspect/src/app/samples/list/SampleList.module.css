@@ -8,7 +8,7 @@
  * cell renderers into shared/samples-grid/cells.tsx and this file goes
  * away entirely. */
 .cell {
-  line-height: var(--bs-body-line-height);
+  line-height: var(--inspect-line-height);
 }
 
 .wrapAnywhere {

@@ -1,10 +1,10 @@
 .branchPoint {
-  --bp-bg: var(--bs-tertiary-bg, #fafbfd);
-  --bp-hairline: var(--bs-border-color, #e5e7eb);
-  --bp-segmented-border: var(--bs-border-color, #d1d5db);
-  --bp-segmented-bg: var(--bs-body-bg, #ffffff);
-  --bp-label: var(--bs-secondary-color, #6b7280);
-  --bp-active-bg: var(--bs-secondary-bg, #e5e7eb);
+  --bp-bg: var(--inspect-surface-hover, #fafbfd);
+  --bp-hairline: var(--inspect-border, #e5e7eb);
+  --bp-segmented-border: var(--inspect-border, #d1d5db);
+  --bp-segmented-bg: var(--inspect-background, #ffffff);
+  --bp-label: var(--inspect-muted-foreground, #6b7280);
+  --bp-active-bg: var(--inspect-surface-muted, #e5e7eb);
 
   background: var(--bp-bg);
   border-top: 1px solid var(--bp-hairline);
@@ -68,11 +68,11 @@
 }
 .segment:hover:not([aria-pressed="true"]):not(:disabled) {
   background: var(--bp-active-bg);
-  color: var(--bs-body-color, inherit);
+  color: var(--inspect-foreground, inherit);
 }
 .segment[aria-pressed="true"] {
   background: var(--bp-active-bg);
-  color: var(--bs-body-color, inherit);
+  color: var(--inspect-foreground, inherit);
   font-weight: 600;
   cursor: default;
 }

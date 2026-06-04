@@ -1,5 +1,5 @@
 .textarea {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   padding: 0.4rem 0.625rem;
@@ -24,5 +24,5 @@
   /* Subtle tinted background as the focus indicator — replaces the
      form-control blue ring with something that doesn't visually
      interrupt the grid. */
-  background: var(--bs-tertiary-bg);
+  background: var(--inspect-surface-hover);
 }

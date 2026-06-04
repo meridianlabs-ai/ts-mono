@@ -1,8 +1,8 @@
 .projectBar {
   display: flex;
   flex-direction: column;
-  background: var(--bs-light);
-  border-bottom: solid 1px var(--bs-border-color);
+  background: var(--inspect-surface);
+  border-bottom: solid 1px var(--inspect-border);
   min-height: 2em;
   padding: 0.1rem 0.3rem;
   row-gap: 0;
@@ -57,12 +57,12 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   padding: 0.12rem 0.3rem;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
 }
 
 .navButton:hover,
 .navButton:focus-visible {
-  background-color: var(--bs-secondary-bg-subtle);
+  background-color: var(--inspect-surface-muted-subtle);
 }

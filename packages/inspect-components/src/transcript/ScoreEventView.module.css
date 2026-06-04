@@ -12,7 +12,7 @@
 
 .separator {
   grid-column: 1 / -1;
-  border-bottom: solid 1px var(--bs-light-border-subtle);
+  border-bottom: solid 1px var(--inspect-border-subtle);
 }
 
 .metadata {

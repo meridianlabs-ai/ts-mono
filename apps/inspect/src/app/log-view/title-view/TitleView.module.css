@@ -52,7 +52,7 @@
   padding: 0;
   position: sticky;
   overflow: hidden;
-  background-color: var(--bs-light-bg-subtle);
+  background-color: var(--inspect-surface-raised);
 }
 .navbarInnerWrapper {
   display: grid;

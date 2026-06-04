@@ -3,7 +3,7 @@
   margin-top: 2em;
   margin-bottom: 2em;
   padding: 0.25em 0.75em;
-  border-left: solid 5px var(--bs-border-color);
+  border-left: solid 5px var(--inspect-border);
 }
 
 .title {
@@ -12,7 +12,7 @@
   grid-template-columns: auto 1fr auto;
   column-gap: 0.3em;
   align-items: baseline;
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 .titleText {

@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--bs-light-bg-subtle);
-  border-bottom: solid 1px var(--bs-border-color);
+  background-color: var(--inspect-surface-raised);
+  border-bottom: solid 1px var(--inspect-border);
   width: 100%;
   padding-left: 0.5rem;
 }

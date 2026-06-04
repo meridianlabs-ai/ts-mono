@@ -2,15 +2,15 @@
   display: grid;
   grid-template-columns: 1fr max-content;
   column-gap: 0.3em;
-  border: solid var(--bs-border-color) 1px;
-  border-radius: var(--bs-border-radius);
+  border: solid var(--inspect-border) 1px;
+  border-radius: var(--inspect-radius);
   background-color: var(--inspect-input-background);
   align-items: center;
   overflow: hidden;
 }
 
 .container:focus-within {
-  outline: 2px solid var(--bs-primary);
+  outline: 2px solid var(--inspect-primary);
   outline-offset: 2px;
 }
 
@@ -18,7 +18,7 @@
   border: none;
   outline: none;
   background: transparent;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   min-width: 0;
 }
 

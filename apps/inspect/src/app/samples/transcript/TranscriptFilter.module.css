@@ -10,13 +10,13 @@
   align-items: center;
   gap: 0.5em;
   cursor: pointer;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   padding: 0.1em 0.4em;
   margin: 0 -0.4em;
 }
 
 .row:hover {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .links {
@@ -24,17 +24,17 @@
   padding-bottom: 0.2em;
   margin-bottom: 0.4em;
   column-gap: 0.3em;
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 .links a {
   cursor: pointer;
   text-decoration: none;
-  color: var(--bs-link-color);
+  color: var(--inspect-link);
 }
 
 .links a:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .selected {

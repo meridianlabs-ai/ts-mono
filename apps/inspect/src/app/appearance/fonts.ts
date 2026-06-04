@@ -31,9 +31,9 @@ export const TextStyle = {
     textTransform: "uppercase",
   },
   secondary: {
-    color: "var(--bs-secondary)",
+    color: "var(--inspect-muted-foreground)",
   },
   tertiary: {
-    color: "var(--bs-tertiary-color)",
+    color: "var(--inspect-faint-foreground)",
   },
 };

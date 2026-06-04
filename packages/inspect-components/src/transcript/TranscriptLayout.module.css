@@ -84,11 +84,11 @@
 }
 
 .separator {
-  background-color: var(--bs-border-color);
+  background-color: var(--inspect-border);
 }
 
 .rightSeparator {
-  background-color: var(--bs-border-color);
+  background-color: var(--inspect-border);
 }
 
 .rightPane {
@@ -122,7 +122,7 @@
 
 .rightPaneResizer:hover,
 .rightPaneResizer:active {
-  background-color: var(--bs-primary-border-subtle);
+  background-color: var(--inspect-primary-border);
 }
 
 .rightPaneToggle {
@@ -191,7 +191,7 @@
   position: absolute;
   top: -0.25em;
   right: 0;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .sidebarHeaderClose:hover {

@@ -16,20 +16,20 @@
   font-size: 12px;
   padding: 4px 6px;
   border-radius: 4px;
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  border: 1px solid var(--inspect-border);
+  background: var(--inspect-background);
+  color: var(--inspect-foreground);
 }
 
 .filterInput:disabled,
 .filterSelect:disabled {
-  background: var(--bs-light);
-  color: var(--bs-secondary);
+  background: var(--inspect-surface);
+  color: var(--inspect-muted-foreground);
 }
 
 .columnId {
   font-weight: 600;
-  font-family: var(--bs-monospace);
+  font-family: var(--inspect-font-mono);
 }
 
 .columnIdText {
@@ -50,12 +50,12 @@
 
 .durationHelper {
   font-size: 11px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   padding-left: 2px;
 }
 
 .rangeLabel {
   font-size: 11px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   padding-left: 2px;
 }

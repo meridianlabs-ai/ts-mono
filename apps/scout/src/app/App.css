@@ -12,7 +12,7 @@
 }
 
 pre > code {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 /* SVG Icon styles - following Bootstrap Icons pattern */

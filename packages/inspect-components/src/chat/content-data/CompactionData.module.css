@@ -4,8 +4,8 @@
   grid-template-columns: auto 1fr auto;
   column-gap: 0.3em;
   align-items: baseline;
-  color: var(--bs-secondary) !important;
-  font-weight: var(--bs-body-font-weight) !important;
+  color: var(--inspect-muted-foreground) !important;
+  font-weight: var(--inspect-font-weight) !important;
 }
 
 .content {
@@ -14,8 +14,8 @@
 }
 
 .grid {
-  border: solid var(--bs-border-color) 1px;
-  border-radius: var(--bs-border-radius);
+  border: solid var(--inspect-border) 1px;
+  border-radius: var(--inspect-radius);
   padding: 0.5em;
 }
 

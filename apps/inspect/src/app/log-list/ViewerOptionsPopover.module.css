@@ -20,7 +20,7 @@
   height: 1px;
   margin-top: 0.2em;
   margin-bottom: 0.2em;
-  background-color: var(--bs-light-border-subtle);
+  background-color: var(--inspect-border-subtle);
 }
 
 .content {

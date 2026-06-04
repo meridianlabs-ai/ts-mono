@@ -6,7 +6,7 @@
   justify-content: center;
   max-width: 90vw;
   margin-top: 3rem;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   position: relative;
   z-index: 1050;
 }

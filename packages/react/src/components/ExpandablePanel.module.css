@@ -10,7 +10,7 @@
 }
 
 .expandableBordered {
-  border: solid var(--bs-light-border-subtle) 1px;
+  border: solid var(--inspect-border-subtle) 1px;
   padding: 0.5em;
 }
 
@@ -47,14 +47,14 @@
   display: flex;
   margin-top: 0;
   height: 20px;
-  background-color: var(--bs-tertiary-bg);
+  background-color: var(--inspect-surface-hover);
   border-radius: 5px;
-  border: solid var(--bs-light-border-subtle) 1px;
-  color: var(--bs-link-color);
+  border: solid var(--inspect-border-subtle) 1px;
+  color: var(--inspect-link);
 }
 
 .moreToggle.bordered {
-  border-top: solid var(--bs-light-border-subtle) 1px;
+  border-top: solid var(--inspect-border-subtle) 1px;
 }
 
 .moreToggleButton {
@@ -62,12 +62,12 @@
   border: none;
   padding: 0rem 0.5rem;
   background-color: transparent;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .separator {
   height: 1px;
-  background-color: var(--bs-light-border-subtle);
+  background-color: var(--inspect-border-subtle);
   margin-top: -1px;
 }
 

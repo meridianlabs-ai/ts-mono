@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   font-family: var(
-    --bs-font-monospace,
+    --inspect-font-mono,
     ui-monospace,
     "SF Mono",
     "JetBrains Mono",

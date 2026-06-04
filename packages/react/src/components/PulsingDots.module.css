@@ -34,11 +34,11 @@
 }
 
 .subtle {
-  background-color: var(--bs-secondary-bg-subtle);
+  background-color: var(--inspect-surface-muted-subtle);
 }
 
 .primary {
-  background-color: var(--bs-secondary);
+  background-color: var(--inspect-muted);
 }
 
 .small .dot {

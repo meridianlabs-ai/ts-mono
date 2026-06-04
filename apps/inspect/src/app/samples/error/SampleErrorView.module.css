@@ -1,5 +1,5 @@
 .body {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
   display: grid;
   grid-template-columns: 1fr;
   align-content: baseline;
@@ -7,7 +7,7 @@
 }
 
 .body.safe {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .iconSmall {

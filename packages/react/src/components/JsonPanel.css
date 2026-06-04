@@ -4,8 +4,8 @@
 }
 
 .json-panel:not(.simple) {
-  background: var(--bs-light);
-  border-radius: var(--bs-border-radius);
+  background: var(--inspect-surface);
+  border-radius: var(--inspect-radius);
 }
 
 .json-panel .source-code {

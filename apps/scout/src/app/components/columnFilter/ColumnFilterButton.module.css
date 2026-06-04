@@ -5,10 +5,10 @@
   padding: 2px;
   border: none;
   background: transparent;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
 }
 
 .filterButtonActive {
-  color: var(--bs-primary);
+  color: var(--inspect-primary);
 }

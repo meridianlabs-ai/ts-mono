@@ -9,7 +9,7 @@
   gap: 24px;
   flex-wrap: wrap;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--bs-light-border-subtle);
+  border-bottom: 1px solid var(--inspect-border-subtle);
   margin-bottom: 14px;
 }
 
@@ -31,7 +31,7 @@
   align-items: baseline;
   gap: 14px;
   flex-wrap: wrap;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .metaItem {
@@ -45,19 +45,19 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .metaValue {
   font-size: 13px;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   font-variant-numeric: tabular-nums;
 }
 
 .metaSep {
   width: 1px;
   align-self: stretch;
-  background: var(--bs-light-border-subtle);
+  background: var(--inspect-border-subtle);
   margin: 2px 4px;
 }
 

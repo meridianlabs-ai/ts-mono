@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
   /* When placed in the dialog footer next to the action buttons, the
      summary needs to absorb the leftover horizontal space and shrink
@@ -27,17 +27,17 @@
 }
 
 .items {
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
 }
 
 .accentAdding {
-  color: var(--bs-success-text-emphasis);
+  color: var(--inspect-success-emphasis);
 }
 
 .accentEditing {
-  color: var(--bs-warning-text-emphasis);
+  color: var(--inspect-warning-emphasis);
 }
 
 .accentRemoving {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }

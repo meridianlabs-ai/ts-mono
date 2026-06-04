@@ -15,7 +15,7 @@
   height: 15px;
   width: 14px;
   border-width: 2px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
 }
 
 .text {

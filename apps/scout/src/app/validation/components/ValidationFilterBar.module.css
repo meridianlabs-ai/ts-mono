@@ -3,7 +3,7 @@
   align-items: center;
   gap: 12px;
   padding: 0.5rem 1rem;
-  border-bottom: solid var(--bs-light-border-subtle) 1px;
+  border-bottom: solid var(--inspect-border-subtle) 1px;
 }
 
 .searchInput {

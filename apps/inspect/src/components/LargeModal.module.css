@@ -24,7 +24,7 @@
 }
 
 .modal {
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   display: block;
 }
 
@@ -34,8 +34,8 @@
 
 .modalBody {
   max-width: 100%;
-  margin-left: var(--bs-modal-margin);
-  margin-right: var(--bs-modal-margin);
+  margin-left: var(--inspect-modal-margin);
+  margin-right: var(--inspect-modal-margin);
 }
 
 .content {
@@ -48,7 +48,7 @@
 .header {
   padding: 0 0 0 1em;
   display: flex;
-  background-color: var(--bs-light);
+  background-color: var(--inspect-surface);
 }
 
 .titleTool {

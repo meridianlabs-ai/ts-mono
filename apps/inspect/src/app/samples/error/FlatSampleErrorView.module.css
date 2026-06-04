@@ -1,5 +1,5 @@
 .flatBody {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
   display: grid;
   grid-template-columns: max-content max-content;
   column-gap: 0.2em;

@@ -14,15 +14,15 @@
 .tabSet {
   flex-wrap: nowrap;
   padding: 0.5rem 0.5rem 0.5rem 0.5rem;
-  border-bottom: solid 1px var(--bs-border-color);
-  background: var(--bs-light-bg-subtle);
+  border-bottom: solid 1px var(--inspect-border);
+  background: var(--inspect-surface-raised);
 }
 
 .tabs {
   padding: 0.3rem 0.3rem 0.3rem 0.3rem;
   width: 5rem;
   text-transform: uppercase;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   font-weight: 600;
 }
 

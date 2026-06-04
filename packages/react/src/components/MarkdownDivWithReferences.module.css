@@ -1,5 +1,5 @@
 .cite {
-  color: var(--bs-primary-text-emphasis);
+  color: var(--inspect-primary-emphasis);
   text-decoration: underline;
   text-decoration-style: dashed;
   cursor: pointer;
@@ -7,5 +7,5 @@
 
 .cite:hover {
   text-decoration-style: solid;
-  background-color: var(--bs-primary-bg-subtle);
+  background-color: var(--inspect-primary-surface);
 }

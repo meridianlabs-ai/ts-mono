@@ -32,19 +32,19 @@ export const ApplicationStyles = {
   },
   scoreFills: {
     green: {
-      backgroundColor: "var(--bs-success)",
-      borderColor: "var(--bs-success)",
-      color: "var(--bs-body-bg)",
+      backgroundColor: "var(--inspect-success)",
+      borderColor: "var(--inspect-success)",
+      color: "var(--inspect-background)",
     },
     red: {
-      backgroundColor: "var(--bs-danger)",
-      borderColor: "var(--bs-danger)",
-      color: "var(--bs-body-bg)",
+      backgroundColor: "var(--inspect-danger)",
+      borderColor: "var(--inspect-danger)",
+      color: "var(--inspect-background)",
     },
     orange: {
-      backgroundColor: "var(--bs-orange)",
-      borderColor: "var(--bs-orange)",
-      color: "var(--bs-body-bg)",
+      backgroundColor: "var(--inspect-orange)",
+      borderColor: "var(--inspect-orange)",
+      color: "var(--inspect-background)",
     },
   },
 };

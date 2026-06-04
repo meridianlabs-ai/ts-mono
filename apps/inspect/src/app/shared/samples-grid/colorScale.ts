@@ -65,11 +65,11 @@ export type ResolvedScale =
     };
 
 const ROLE_TO_VAR: Record<ScoreColorRole, string> = {
-  good: "var(--bs-success-bg-subtle)",
-  bad: "var(--bs-danger-bg-subtle)",
-  warn: "var(--bs-warning-bg-subtle)",
-  info: "var(--bs-info-bg-subtle)",
-  muted: "var(--bs-secondary-bg-subtle)",
+  good: "var(--inspect-success-surface)",
+  bad: "var(--inspect-danger-surface)",
+  warn: "var(--inspect-warning-surface)",
+  info: "var(--inspect-info-surface)",
+  muted: "var(--inspect-surface-muted-subtle)",
 };
 
 const PALETTE_STOPS: Record<
@@ -77,24 +77,24 @@ const PALETTE_STOPS: Record<
   { low: string; mid: string; high: string }
 > = {
   "good-high": {
-    low: "var(--bs-danger-bg-subtle)",
-    mid: "var(--bs-warning-bg-subtle)",
-    high: "var(--bs-success-bg-subtle)",
+    low: "var(--inspect-danger-surface)",
+    mid: "var(--inspect-warning-surface)",
+    high: "var(--inspect-success-surface)",
   },
   "good-low": {
-    low: "var(--bs-success-bg-subtle)",
-    mid: "var(--bs-warning-bg-subtle)",
-    high: "var(--bs-danger-bg-subtle)",
+    low: "var(--inspect-success-surface)",
+    mid: "var(--inspect-warning-surface)",
+    high: "var(--inspect-danger-surface)",
   },
   neutral: {
     low: "transparent",
-    mid: "color-mix(in srgb, var(--bs-info-bg-subtle) 50%, transparent)",
-    high: "var(--bs-info-bg-subtle)",
+    mid: "color-mix(in srgb, var(--inspect-info-surface) 50%, transparent)",
+    high: "var(--inspect-info-surface)",
   },
   diverging: {
-    low: "var(--bs-danger-bg-subtle)",
+    low: "var(--inspect-danger-surface)",
     mid: "transparent",
-    high: "var(--bs-success-bg-subtle)",
+    high: "var(--inspect-success-surface)",
   },
 };
 

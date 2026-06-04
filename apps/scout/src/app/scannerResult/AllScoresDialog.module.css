@@ -23,15 +23,15 @@
 /* ── Header ──────────────────────────────────────────────────── */
 
 .table thead {
-  background: var(--bs-light-bg-subtle);
-  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--inspect-surface-raised);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .table th {
   text-align: left;
   font-weight: 400;
   font-size: var(--inspect-font-size-small);
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   padding: 6px 8px;
   cursor: pointer;
   user-select: none;
@@ -54,7 +54,7 @@
 .table td {
   padding: 4px 8px;
   font-size: var(--inspect-font-size-small);
-  border-bottom: 1px dotted var(--bs-light-border-subtle);
+  border-bottom: 1px dotted var(--inspect-border-subtle);
 }
 
 .table tr:last-child td {
@@ -62,14 +62,14 @@
 }
 
 .nameCell {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-secondary);
+  color: var(--inspect-muted-foreground);
   white-space: nowrap;
 }
 
 .valueCell {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   font-feature-settings: "tnum";
   text-align: right;
 }

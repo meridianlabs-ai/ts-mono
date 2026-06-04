@@ -1,7 +1,7 @@
 .activityBar {
   width: 78px;
-  border-right: solid 1px var(--bs-border-color);
-  background-color: var(--bs-light);
+  border-right: solid 1px var(--inspect-border);
+  background-color: var(--inspect-surface);
 }
 
 .activityHost {
@@ -19,16 +19,16 @@
   align-items: center;
   flex-shrink: 1;
   padding: 0.3rem;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
 }
 
 .activity:hover {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   cursor: pointer;
 }
 
 .activity.selected {
-  background-color: var(--bs-primary-bg-subtle);
+  background-color: var(--inspect-primary-surface);
 }
 
 .icon {

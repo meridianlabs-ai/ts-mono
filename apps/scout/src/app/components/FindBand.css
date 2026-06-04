@@ -11,10 +11,10 @@
   grid-template-columns: auto auto auto auto auto;
   column-gap: 0.2em;
   padding: 0.2rem;
-  border-bottom: solid 1px var(--bs-light-border-subtle);
-  border-left: solid 1px var(--bs-light-border-subtle);
-  border-right: solid 1px var(--bs-light-border-subtle);
-  box-shadow: var(--bs-box-shadow);
+  border-bottom: solid 1px var(--inspect-border-subtle);
+  border-left: solid 1px var(--inspect-border-subtle);
+  border-right: solid 1px var(--inspect-border-subtle);
+  box-shadow: var(--inspect-shadow);
 }
 
 .findBand input {
@@ -38,7 +38,7 @@
 .findBand .btn.next,
 .findBand .btn.prev {
   padding: 0;
-  font-size: var(--inspect-fond-size-larger);
+  font-size: var(--inspect-font-size-larger);
 }
 
 .findBand .btn.close {

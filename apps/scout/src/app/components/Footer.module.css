@@ -1,6 +1,6 @@
 .footer {
-  border-top: solid var(--bs-light-border-subtle) 1px;
-  background: var(--bs-light-bg-subtle);
+  border-top: solid var(--inspect-border-subtle) 1px;
+  background: var(--inspect-surface-raised);
   display: grid;
   grid-template-columns: max-content 1fr max-content;
   justify-content: space-between;
@@ -18,7 +18,7 @@
 .spinner {
   height: 11px !important;
   width: 11px !important;
-  color: var(--bs-secondary) !important;
+  color: var(--inspect-muted-foreground) !important;
   border-width: 1px !important;
 }
 

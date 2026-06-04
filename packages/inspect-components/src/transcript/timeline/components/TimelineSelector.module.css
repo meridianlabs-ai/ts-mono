@@ -9,10 +9,10 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius-pill, 999px);
+  background-color: var(--inspect-background);
+  color: var(--inspect-foreground);
+  border: 1px solid var(--inspect-border);
+  border-radius: var(--inspect-radius-pill, 999px);
   padding: 0 8px;
   font-size: var(--inspect-font-size-smallest);
   font-weight: 500;
@@ -22,7 +22,7 @@
 }
 
 .selectorButton:hover {
-  background-color: var(--bs-tertiary-bg);
+  background-color: var(--inspect-surface-hover);
 }
 
 .chevron {
@@ -44,9 +44,9 @@
   top: 100%;
   left: 0;
   margin-top: 2px;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
+  background: var(--inspect-background);
+  border: 1px solid var(--inspect-border);
+  border-radius: var(--inspect-radius);
   box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
   z-index: 999;
   min-width: 100%;
@@ -62,13 +62,13 @@
   border: none;
   text-align: left;
   cursor: pointer;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   font-size: var(--inspect-font-size-smallest);
   white-space: nowrap;
 }
 
 .dropdownItem:hover {
-  background-color: var(--bs-tertiary-bg);
+  background-color: var(--inspect-surface-hover);
 }
 
 .dropdownItemActive {

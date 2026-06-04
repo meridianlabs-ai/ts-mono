@@ -27,7 +27,7 @@
 }
 
 .toolMessageGrid {
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 .headerEnd {

@@ -15,10 +15,10 @@
 }
 
 .tab {
-  color: "var(--bs-body-color)";
+  color: "var(--inspect-foreground)";
   padding: 0.25rem 0.5rem;
-  border-top-left-radius: var(--bs-border-radius);
-  border-top-right-radius: var(--bs-border-radius);
+  border-top-left-radius: var(--inspect-radius);
+  border-top-right-radius: var(--inspect-radius);
   font-weight: 500;
   margin-top: 2px;
   margin-bottom: -1px;

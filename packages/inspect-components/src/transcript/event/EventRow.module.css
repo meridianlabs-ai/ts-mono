@@ -7,8 +7,8 @@
 .contents {
   padding: 0.4em;
   margin-bottom: 0;
-  border: solid 1px var(--bs-light-border-subtle);
-  border-radius: var(--bs-border-radius);
+  border: solid 1px var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
 }
 
 .below {

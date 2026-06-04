@@ -2,7 +2,7 @@
   font-weight: 600;
   padding-bottom: 0.25em;
   margin-bottom: 0.25em;
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 .rows {
@@ -16,21 +16,21 @@
   align-items: center;
   gap: 0.5em;
   cursor: pointer;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   padding: 0.1em 0.4em;
   margin: 0 -0.4em;
   white-space: nowrap;
 }
 
 .row:hover {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .groupHeader {
   font-weight: 600;
   margin-top: 0.9em;
   padding-bottom: 0.1em;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 0.85em;
