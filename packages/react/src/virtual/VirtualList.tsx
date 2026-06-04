@@ -30,6 +30,16 @@ import { useVirtualListState } from "./use-virtual-list-state";
 import styles from "./VirtualList.module.css";
 
 const BOTTOM_THRESHOLD_PX = 30;
+const USER_INTERACTION_WINDOW_MS = 400;
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
 const SMOOTH_SCROLL_MAX_S = 10;
 const PERSIST_DEBOUNCE_MS = 250;
 const DEFAULT_ITEM_HEIGHT_PX = 400;
@@ -108,6 +118,22 @@ export function VirtualList<T>({
   );
   const isAutoScrollingRef = useRef(false);
 
+  // Follow is toggled ONLY by user-initiated scrolling. Programmatic
+  // auto-follow scrolls and content-growth reflow also emit scroll events, but
+  // inferring user intent from scroll-position deltas is unreliable while the
+  // bottom is a moving target during streaming. So we instead gate on real
+  // input events (wheel / touch / pointer-drag / scroll keys).
+  const userInteractingRef = useRef(false);
+  const pointerDownRef = useRef(false);
+  const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteUserInteraction = useCallback(() => {
+    userInteractingRef.current = true;
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    interactTimerRef.current = setTimeout(() => {
+      userInteractingRef.current = false;
+    }, USER_INTERACTION_WINDOW_MS);
+  }, []);
+
   useEffect(() => {
     if (followOutput === null) setFollowOutput(!!live);
   }, [followOutput, live, setFollowOutput]);
@@ -131,10 +157,12 @@ export function VirtualList<T>({
   ]);
 
   const handleScroll = useRafThrottle(() => {
-    if (isAutoScrollingRef.current) return;
     if (!live) return;
     const el = getScrollElement();
     if (!el) return;
+    // Ignore scroll events not caused by user input (programmatic auto-follow,
+    // content-growth reflow) — they must never flip follow state.
+    if (!userInteractingRef.current && !pointerDownRef.current) return;
     const atBottom =
       el.scrollHeight - el.scrollTop <= el.clientHeight + BOTTOM_THRESHOLD_PX;
     if (atBottom && !followOutput) setFollowOutput(true);
@@ -147,6 +175,37 @@ export function VirtualList<T>({
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
   }, [getScrollElement, handleScroll]);
+
+  useEffect(() => {
+    const el = getScrollElement();
+    if (!el) return;
+    const onWheel = () => noteUserInteraction();
+    const onTouchMove = () => noteUserInteraction();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
+    };
+    const onPointerDown = () => {
+      pointerDownRef.current = true;
+      noteUserInteraction();
+    };
+    const onPointerUp = () => {
+      pointerDownRef.current = false;
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("keydown", onKeyDown);
+    el.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("keydown", onKeyDown);
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [getScrollElement, noteUserInteraction]);
 
   const contentTotal = virtualizer.getTotalSize();
   useEffect(() => {
@@ -302,6 +361,10 @@ export function VirtualList<T>({
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
+      }
+      if (interactTimerRef.current) {
+        clearTimeout(interactTimerRef.current);
+        interactTimerRef.current = null;
       }
     },
     []
