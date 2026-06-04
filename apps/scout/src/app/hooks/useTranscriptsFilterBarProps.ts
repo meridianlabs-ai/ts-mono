@@ -2,6 +2,7 @@ import { skipToken } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { ScalarValue } from "../../api/api";
+import { useStaticBundle } from "../../api/useStaticBundle";
 import { Condition } from "../../query/types";
 import { useCode } from "../server/useCode";
 import { useTranscriptsColumnValues } from "../server/useTranscriptsColumnValues";
@@ -26,6 +27,7 @@ interface TranscriptsFilterBarProps {
 export const useTranscriptsFilterBarProps = (
   transcriptsDir: string | undefined
 ): TranscriptsFilterBarProps => {
+  const staticBundle = useStaticBundle();
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
 
   const condition = useFilterConditions();
@@ -49,7 +51,7 @@ export const useTranscriptsFilterBarProps = (
   );
 
   return {
-    filterCodeValues,
+    filterCodeValues: staticBundle ? undefined : filterCodeValues,
     filterSuggestions: filterSuggestions ?? [],
     onFilterColumnChange,
     condition,
