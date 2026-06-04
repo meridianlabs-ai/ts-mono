@@ -37,6 +37,10 @@ interface TranscriptOutlineProps {
   running?: boolean;
   className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
+  /** The element that actually scrolls the outline (its own overflow
+   *  container). Used as Virtuoso's scroll parent so virtualization tracks
+   *  the outline's internal scroll rather than the shared main scroller. */
+  outlineScrollEl?: HTMLDivElement | null;
   style?: CSSProperties;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */
   agentName?: string;
@@ -92,6 +96,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   running,
   className,
   scrollRef,
+  outlineScrollEl,
   style,
   agentName,
   onHasNodesChange,
@@ -305,8 +310,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       )}
       <Virtuoso
         ref={listHandle}
-        // eslint-disable-next-line react-hooks/refs -- Virtuoso accepts undefined for customScrollParent
-        customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
+        customScrollParent={outlineScrollEl ?? undefined}
         id={id}
         data={[...outlineNodeList, EventPaddingNode]}
         defaultItemHeight={50}
