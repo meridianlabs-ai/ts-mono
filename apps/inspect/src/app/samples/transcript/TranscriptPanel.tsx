@@ -19,6 +19,7 @@ import {
   type EventNodeContext,
   type SelectOptions,
   type TranscriptCollapseState,
+  type TranscriptLayoutRightRailProps,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
@@ -50,6 +51,10 @@ interface TranscriptPanelProps {
   /** Extra event-node context (e.g. scan cite labels) merged by the layout. */
   eventNodeContext?: Partial<EventNodeContext>;
 
+  /** Always-visible right rail + optional panel (Search / Scans). */
+  rightRail?: TranscriptLayoutRightRailProps;
+  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
+
   initialEventId?: string | null;
   initialMessageId?: string | null;
 }
@@ -69,6 +74,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     offsetTop,
     timelines: serverTimelines,
     eventNodeContext,
+    rightRail,
+    rightRailPanelScrollRef,
   } = props;
 
   // ---------------------------------------------------------------------------
@@ -348,6 +355,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       collapseState={collapseState}
       eventsListRef={eventsListRef}
       outlineScrollRef={outlineScrollRef}
+      rightRail={rightRail}
+      rightRailPanelScrollRef={rightRailPanelScrollRef}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
