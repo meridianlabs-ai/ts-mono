@@ -1,4 +1,4 @@
-import { FC, useEffect } from "react";
+import { FC, useEffect, useLayoutEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
@@ -109,6 +109,16 @@ export const LogViewContainer: FC = () => {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
+  // Clear the previous eval's data before paint when the route changes, so the
+  // old eval doesn't flash while the new one loads. A useEffect would run after
+  // the browser has already painted the stale eval.
+  useLayoutEffect(() => {
+    if (prevLogPath && logPath && logPath !== prevLogPath) {
+      clearSelectedSample();
+      clearSelectedLogSummary();
+    }
+  }, [logPath, prevLogPath, clearSelectedSample, clearSelectedLogSummary]);
+
   // Sync the workspace tab from the URL synchronously. Kept separate from
   // the async log-loading effect below so a tab click can't race with a
   // pending initLogDir() and snap the view back to an older tab.
@@ -123,26 +133,11 @@ export const LogViewContainer: FC = () => {
         await initLogDir();
         setSelectedLogFile(logPath);
         void syncLogs();
-
-        // Reset the sample
-        if (prevLogPath && logPath !== prevLogPath) {
-          clearSelectedSample();
-
-          clearSelectedLogSummary();
-        }
       }
     };
 
     loadLogFromPath();
-  }, [
-    logPath,
-    setSelectedLogFile,
-    initLogDir,
-    syncLogs,
-    prevLogPath,
-    clearSelectedSample,
-    clearSelectedLogSummary,
-  ]);
+  }, [logPath, setSelectedLogFile, initLogDir, syncLogs]);
 
   return <LogViewLayout />;
 };
