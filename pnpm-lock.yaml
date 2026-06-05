@@ -71,24 +71,6 @@ importers:
       '@popperjs/core':
         specifier: ^2.11.8
         version: 2.11.8
-      '@tsmono/inspect-common':
-        specifier: workspace:*
-        version: link:../../packages/inspect-common
-      '@tsmono/inspect-components':
-        specifier: workspace:*
-        version: link:../../packages/inspect-components
-      '@tsmono/react':
-        specifier: workspace:*
-        version: link:../../packages/react
-      '@tsmono/scout-components':
-        specifier: workspace:*
-        version: link:../../packages/scout-components
-      '@tsmono/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
-      '@tsmono/util':
-        specifier: workspace:*
-        version: link:../../packages/util
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.2.15)(@vscode/codicons@0.0.45)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -186,9 +168,27 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.1
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tsmono/inspect-common':
+        specifier: workspace:*
+        version: link:../../packages/inspect-common
+      '@tsmono/inspect-components':
+        specifier: workspace:*
+        version: link:../../packages/inspect-components
       '@tsmono/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier-config
+      '@tsmono/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@tsmono/scout-components':
+        specifier: workspace:*
+        version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      '@tsmono/util':
+        specifier: workspace:*
+        version: link:../../packages/util
       '@types/bootstrap':
         specifier: ^5.2.10
         version: 5.2.10
