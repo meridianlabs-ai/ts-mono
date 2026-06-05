@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, memo, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
@@ -37,7 +37,7 @@ interface ChatMessageRowProps {
 /**
  * Renders the ChatMessage component.
  */
-export const ChatMessageRow: FC<ChatMessageRowProps> = ({
+export const ChatMessageRow = memo(function ChatMessageRow({
   index,
   parentName,
   resolvedMessage,
@@ -48,7 +48,7 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   linking,
   tools,
   startNumber,
-}) => {
+}: ChatMessageRowProps) {
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
@@ -302,7 +302,38 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       );
     });
   }
-};
+}, chatMessageRowEqual);
+
+// Shallow-compare every prop by reference EXCEPT `resolvedMessage`: compare
+// that one through the wrapper to its `message`/`toolMessages` references,
+// because `resolveMessages` recreates the wrapper each call even when the
+// underlying turn is unchanged (so default memo would never hit). Iterating
+// the keys keeps this exhaustive by construction — a future prop is covered by
+// the generic `===` branch without editing this function. Callers must pass
+// stable option objects (and never mutate a message in place) for it to hit;
+// the actively-streaming turn gets a fresh message ref each poll, so it still
+// re-renders.
+function chatMessageRowEqual(
+  prev: ChatMessageRowProps,
+  next: ChatMessageRowProps
+): boolean {
+  const keys = Object.keys(prev) as (keyof ChatMessageRowProps)[];
+  if (keys.length !== Object.keys(next).length) return false;
+  for (const key of keys) {
+    if (key === "resolvedMessage") {
+      const a = prev.resolvedMessage;
+      const b = next.resolvedMessage;
+      if (a.message !== b.message) return false;
+      if (a.toolMessages.length !== b.toolMessages.length) return false;
+      if (!a.toolMessages.every((t, i) => t === b.toolMessages[i])) {
+        return false;
+      }
+    } else if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
   if (!toolMessage || toolMessage.error) {

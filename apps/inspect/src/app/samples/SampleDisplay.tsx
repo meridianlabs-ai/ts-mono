@@ -270,6 +270,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
 
+  // Stable option objects so memoized ChatMessageRow rows don't re-render on
+  // every streaming poll just because these were fresh literals each render.
+  const chatDisplay = useMemo(() => ({ indented: true, formatDateTime }), []);
+  const chatLinking = useMemo(
+    () => ({ enabled: isHostedEnvironment(), getMessageUrl }),
+    [getMessageUrl]
+  );
+  const chatTools = useMemo(() => ({ callStyle: "complete" as const }), []);
+
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
@@ -660,17 +669,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   messages={sampleMessages}
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
-                  display={{
-                    indented: true,
-                    formatDateTime,
-                  }}
-                  linking={{
-                    enabled: isHostedEnvironment(),
-                    getMessageUrl: getMessageUrl,
-                  }}
+                  display={chatDisplay}
+                  linking={chatLinking}
                   onNativeFindChanged={setNativeFind}
                   scrollRef={scrollRef}
-                  tools={{ callStyle: "complete" }}
+                  tools={chatTools}
                   running={running}
                   className={styles.fullWidth}
                 />
