@@ -1,6 +1,14 @@
 import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FC,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
@@ -65,6 +73,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const logFiles = useLogsWithretried();
   const evalSet = useStore((state) => state.logs.evalSet);
   const logPreviews = useStore((state) => state.logs.logPreviews);
+  // Defer previews so the burst of preview flushes during initial sync
+  // can't block input — see the matching note in LogListGrid.
+  const deferredLogPreviews = useDeferredValue(logPreviews);
   const { filteredCount } = useLogsListing();
 
   const syncing = useStore((state) => state.app.status.syncing);
@@ -153,7 +164,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: tasksUrl(decodedPath, logDir),
             log: logFile,
-            logPreview: logPreviews[logFile.name],
+            logPreview: deferredLogPreviews[logFile.name],
           });
         }
       }
@@ -175,6 +186,23 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     const processedFolders = new Set<string>();
     const existingLogTaskIds = new Set<string>();
     let _hasRetriedLogs = false;
+
+    // Count logs under a path prefix via binary search rather than a full
+    // scan per folder (which made folder counting O(folders × logs)). Names
+    // sort into contiguous ranges, so a prefix count is two bound lookups.
+    const sortedNames = logFiles.map((f) => f.name).sort();
+    const lowerBound = (target: string): number => {
+      let lo = 0;
+      let hi = sortedNames.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (sortedNames[mid] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+    const countWithPrefix = (prefix: string): number =>
+      lowerBound(prefix + "\uffff") - lowerBound(prefix);
 
     for (const logFile of logFiles) {
       if (logFile.task_id) {
@@ -212,7 +240,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: logsUrl(path, logDir),
             log: logFile,
-            logPreview: logPreviews[logFile.name],
+            logPreview: deferredLogPreviews[logFile.name],
           });
         }
       } else if (name.startsWith(dirWithSlash)) {
@@ -228,9 +256,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             name: dirName,
             type: "folder",
             url: logsUrl(url, logDir),
-            itemCount: logFiles.filter((file) =>
-              file.name.startsWith(dirname(name))
-            ).length,
+            itemCount: countWithPrefix(dirname(name)),
           });
           processedFolders.add(dirName);
         }
@@ -252,7 +278,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     logFiles,
     currentDir,
     logDir,
-    logPreviews,
+    deferredLogPreviews,
     showRetriedLogs,
   ]);
 

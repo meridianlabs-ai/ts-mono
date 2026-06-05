@@ -53,11 +53,11 @@ export class ReplicationService {
     this._throttledUpdateDbStats = throttle(() => this.updateDbStats(), 1000);
     this._throttledFlushPreviewBatch = throttle(
       () => this.flushPreviewBatch(),
-      100
+      250
     );
     this._throttledFlushDetailBatch = throttle(
       () => this.flushDetailBatch(),
-      100
+      250
     );
 
     this._previewQueue = new WorkQueue<LogHandle, LogPreview>({
