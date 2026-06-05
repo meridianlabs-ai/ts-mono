@@ -819,12 +819,19 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
  *
  * Agent spans are:
  * - Explicit agent spans (type="agent")
- * - Solver spans (type="solver")
+ * - Solver spans that wrap a genuine agent (e.g. an @agent run via as_solver)
  * - Tool spans containing model events (tool-spawned agents)
+ *
+ * Primitive solver spans (system_message, generate, use_tools, ...) wrap no
+ * agent of their own, so they are not agent trajectories — they get unrolled
+ * into their parent rather than occupying a swimlane.
  */
 function isAgentSpan(span: SpanNode): boolean {
-  if (span.type === "agent" || span.type === "solver") {
+  if (span.type === "agent") {
     return true;
+  }
+  if (span.type === "solver") {
+    return containsAgentSpan(span);
   }
   if (
     span.type === "tool" &&
@@ -1544,7 +1551,8 @@ function classifyUtilityAgents(
  *
  * Within the agent section, spans are classified as agents or unrolled:
  * - type="agent"                → TimelineSpan (spanType="agent")
- * - type="solver"               → TimelineSpan (spanType="agent")
+ * - type="solver" wrapping agent → TimelineSpan (spanType="agent")
+ * - type="solver" (primitive)   → Unrolled into parent
  * - type="tool" + ModelEvents   → TimelineSpan (spanType="agent")
  * - ToolEvent with agent field  → TimelineSpan (spanType="agent")
  * - type="tool" (no models)     → Unrolled into parent
