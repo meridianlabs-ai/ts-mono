@@ -199,10 +199,10 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     // message event arrives), and a finished one may be empty (e.g. an early
     // error, or messages cleared due to size limits).
     if (collapsedMessages.length === 0) {
-      return (
-        <NoContentsPanel
-          text={running ? "Waiting for messages…" : "No messages"}
-        />
+      return running ? (
+        <NoContentsPanel text="Waiting for messages" busy />
+      ) : (
+        <NoContentsPanel text="No messages" />
       );
     }
 

@@ -183,6 +183,8 @@ export interface TranscriptLayoutProps {
 
   /** Text shown when no events match the current filter. Pass null to disable empty state. */
   emptyText?: string | null;
+  /** Render the empty state as an in-progress placeholder (animated, no icon). */
+  emptyBusy?: boolean;
   className?: string;
 }
 
@@ -304,6 +306,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   rightPaneScrollRef,
   eventNodeContext,
   emptyText = "No events match the current filter",
+  emptyBusy,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -1109,7 +1112,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 eventNodeContext={mergedEventNodeContext}
               />
             ) : emptyText !== null ? (
-              <NoContentsPanel text={emptyText} />
+              <NoContentsPanel text={emptyText} busy={emptyBusy} />
             ) : null}
             {rightPane && (
               <>
