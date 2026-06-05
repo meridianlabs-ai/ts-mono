@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
+import { NoContentsPanel } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import type {
@@ -192,6 +193,18 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         rowStartNumbers,
       ]
     );
+
+    // Show a placeholder instead of a blank tab when there's nothing to
+    // render: a running sample may have no messages yet (before its first
+    // message event arrives), and a finished one may be empty (e.g. an early
+    // error, or messages cleared due to size limits).
+    if (collapsedMessages.length === 0) {
+      return (
+        <NoContentsPanel
+          text={running ? "Waiting for messages…" : "No messages"}
+        />
+      );
+    }
 
     return (
       <VirtualList<ResolvedMessage>
