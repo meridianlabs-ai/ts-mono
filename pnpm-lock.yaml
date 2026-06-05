@@ -279,21 +279,6 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.26
         version: 3.13.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tsmono/inspect-components':
-        specifier: workspace:*
-        version: link:../../packages/inspect-components
-      '@tsmono/react':
-        specifier: workspace:*
-        version: link:../../packages/react
-      '@tsmono/scout-components':
-        specifier: workspace:*
-        version: link:../../packages/scout-components
-      '@tsmono/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
-      '@tsmono/util':
-        specifier: workspace:*
-        version: link:../../packages/util
       '@uwdata/flechette':
         specifier: ^2.5.0
         version: 2.5.0
@@ -379,12 +364,27 @@ importers:
       '@tsmono/inspect-common':
         specifier: workspace:*
         version: link:../../packages/inspect-common
+      '@tsmono/inspect-components':
+        specifier: workspace:*
+        version: link:../../packages/inspect-components
       '@tsmono/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier-config
+      '@tsmono/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@tsmono/scout-components':
+        specifier: workspace:*
+        version: link:../../packages/scout-components
+      '@tsmono/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/util':
+        specifier: workspace:*
+        version: link:../../packages/util
       '@types/bootstrap':
         specifier: ^5.2.10
         version: 5.2.10
