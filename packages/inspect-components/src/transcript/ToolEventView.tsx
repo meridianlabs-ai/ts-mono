@@ -206,7 +206,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         )}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
-            <GeneratingIndicator />
+            <GeneratingIndicator label="running" />
           </div>
         ) : undefined}
       </div>

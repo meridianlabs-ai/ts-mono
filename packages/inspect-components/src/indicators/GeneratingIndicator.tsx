@@ -4,12 +4,15 @@ import { FC } from "react";
 import styles from "./GeneratingIndicator.module.css";
 
 interface GeneratingIndicatorProps {
+  /** Activity label. Defaults to "generating". */
+  label?: string;
   /** Agentic-loop attempt number. Omits the tag when not provided. */
   attempt?: number;
   className?: string;
 }
 
 export const GeneratingIndicator: FC<GeneratingIndicatorProps> = ({
+  label = "generating",
   attempt,
   className,
 }) => {
@@ -24,7 +27,7 @@ export const GeneratingIndicator: FC<GeneratingIndicatorProps> = ({
       )}
     >
       <span className={styles.label}>
-        Generating
+        {label}
         <span className={styles.ell} aria-hidden="true">
           <i>.</i>
           <i>.</i>
