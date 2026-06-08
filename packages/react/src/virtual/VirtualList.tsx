@@ -1,3 +1,4 @@
+import { type Range } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import {
   useCallback,
@@ -44,6 +45,10 @@ const SMOOTH_SCROLL_MAX_S = 10;
 const PERSIST_DEBOUNCE_MS = 250;
 const DEFAULT_ITEM_HEIGHT_PX = 400;
 const MAX_CHUNK_HEIGHT = 5_000_000;
+// Default: never window — render every row. Callers opt into windowing by
+// passing a finite virtualizeThreshold (e.g. to guard pathologically large
+// lists against the browser's max element height).
+const DEFAULT_VIRTUALIZE_THRESHOLD = Number.POSITIVE_INFINITY;
 
 function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
   if (height <= 0) return null;
@@ -72,6 +77,7 @@ export function VirtualList<T>({
   stickyHeaderOffset,
   components,
   smoothScroll = true,
+  virtualizeThreshold = DEFAULT_VIRTUALIZE_THRESHOLD,
   itemSearchText,
   findScope = "local",
   scrollToTopOnFinish = false,
@@ -101,11 +107,23 @@ export function VirtualList<T>({
     [scrollParent]
   );
 
+  // Below the threshold, render every row (no windowing). We keep the
+  // virtualizer driving measurement/scroll/find/persistence and only widen the
+  // painted range via rangeExtractor — top/bottom padding collapse to ~0 and
+  // scale stays 1, so the rest of the pipeline is a no-op. The default
+  // threshold is Infinity, so lists never window unless a caller opts in.
+  const virtualize = data.length >= virtualizeThreshold;
+  const renderAllRangeExtractor = useCallback(
+    (range: Range) => Array.from({ length: range.count }, (_, i) => i),
+    []
+  );
+
   const { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll } =
     useScaledVirtualizer({
       count: data.length,
       estimateSize: () => DEFAULT_ITEM_HEIGHT_PX,
       getScrollElement,
+      rangeExtractor: virtualize ? undefined : renderAllRangeExtractor,
     });
 
   const { getRestoreSnapshot, recordSnapshot } =

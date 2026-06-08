@@ -122,10 +122,12 @@ async function openTwoSamples(
 // ---------------------------------------------------------------------------
 
 test.describe("chat virtualization", () => {
-  test("renders a large message list without crashing", async ({
+  test("renders every message (virtualization off by default)", async ({
     page,
     network,
   }) => {
+    // The chat view doesn't opt into windowing, so the whole list is painted —
+    // the last message is mounted (though scrolled out of view) on load.
     const messages = generateMessages(500);
     await openSample(page, network, messages);
 
@@ -133,11 +135,9 @@ test.describe("chat virtualization", () => {
     await expect(
       messagesArea.getByText("message-0", { exact: true })
     ).toBeVisible();
-
-    // Virtualization: far fewer DOM nodes than total messages
-    const renderedItems = await messagesArea.locator("[data-index]").count();
-    expect(renderedItems).toBeLessThan(100);
-    expect(renderedItems).toBeGreaterThan(0);
+    await expect(
+      messagesArea.getByText("message-499", { exact: true })
+    ).toBeAttached();
   });
 
   test("first and early messages are visible on load", async ({

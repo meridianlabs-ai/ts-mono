@@ -1,4 +1,8 @@
-import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
+import {
+  useVirtualizer,
+  type Range,
+  type Virtualizer,
+} from "@tanstack/react-virtual";
 import { useCallback, useMemo, useRef } from "react";
 
 import { computeScale, SAFE_MAX_SPACER } from "./scale-coordinate-space";
@@ -8,6 +12,7 @@ export type ScaledVirtualizerOptions = {
   estimateSize: () => number;
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
+  rangeExtractor?: (range: Range) => number[];
 };
 
 export type ScaledVirtualizerResult = {
@@ -82,6 +87,7 @@ export function useScaledVirtualizer(
     estimateSize: opts.estimateSize,
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
+    rangeExtractor: opts.rangeExtractor,
     observeElementOffset: scaledObserveElementOffset,
     scrollToFn: scaledScrollToFn,
   });

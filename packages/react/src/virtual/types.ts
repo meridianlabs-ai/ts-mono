@@ -51,6 +51,12 @@ export interface VirtualListProps<T> {
   stickyHeaderOffset?: number;
   components?: VirtualListComponents;
   smoothScroll?: boolean;
+  /**
+   * Virtualize (window) the list only when item count is at or above this
+   * value. Below it, every row is rendered. Defaults to Infinity — i.e. no
+   * virtualization unless a caller opts in with a finite threshold.
+   */
+  virtualizeThreshold?: number;
   itemSearchText?: (item: T) => string | string[];
   findScope?: "local" | "none";
   scrollToTopOnFinish?: boolean;
