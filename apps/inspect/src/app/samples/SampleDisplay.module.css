@@ -51,6 +51,7 @@
   align-self: flex-start;
   flex: 0 0 72px;
   background-color: var(--bs-body-bg);
+  border-left: 1px solid var(--bs-border-color);
 }
 
 .tabContent {

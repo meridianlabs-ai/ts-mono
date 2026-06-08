@@ -1128,7 +1128,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // so dragging re-renders only this layout, not the (memoized) host content.
   // ---------------------------------------------------------------------------
 
-  const railWidth = rightRail?.railWidth ?? 72;
+  const railWidth = rightRail?.railWidth ?? 44;
   const railPanelMinWidth = rightRail?.panelMinWidth ?? 240;
   const railPanelMaxWidth = rightRail?.panelMaxWidth ?? 800;
   const railPanelOnWidthChange = rightRail?.onPanelWidthChange;
@@ -1197,8 +1197,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       ? "22px 1px"
       : "var(--outline-width, 180px) 1px";
   const railColumns = railPanelOpen
-    ? "1px var(--right-rail-panel-width, 360px) 1px var(--right-rail-width, 72px)"
-    : "1px var(--right-rail-width, 72px)";
+    ? `1px var(--right-rail-panel-width, 360px) 1px var(--right-rail-width, ${railWidth}px)`
+    : `1px var(--right-rail-width, ${railWidth}px)`;
   const railGridTemplate = railActive
     ? [outlineColumns, "1fr", railColumns].filter(Boolean).join(" ")
     : undefined;
