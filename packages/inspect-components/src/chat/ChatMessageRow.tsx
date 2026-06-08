@@ -214,11 +214,16 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
     }
   }
 
-  if (useLabels) {
+  const hasTools = viewKinds.some((k) => k !== "message");
+
+  // Use the peer-block layout (which emits the `data-message-kind` bands the
+  // theme colors, and the connected blue tool-call/output card) whenever the
+  // row has tools — even with labels off, e.g. model-event views — so tool
+  // rendering matches the messages tab. Label chips still only show when
+  // `useLabels`; here they're all undefined, so none render.
+  if (useLabels || hasTools) {
     // Each row part is a peer block: the message in its role band, the tool
     // call in the blue tool box, and the tool output in a plain bordered box.
-    const hasTools = viewKinds.some((k) => k !== "message");
-
     const renderPart = (
       idx: number,
       attached?: { top?: boolean; bottom?: boolean }
