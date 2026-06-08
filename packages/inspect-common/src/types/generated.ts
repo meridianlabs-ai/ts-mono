@@ -941,7 +941,7 @@ export interface components {
              * Trigger
              * @enum {string}
              */
-            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget";
+            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget" | "agent_complete";
             /** Turn */
             turn: number;
             /** Uuid */
