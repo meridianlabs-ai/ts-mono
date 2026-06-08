@@ -66,7 +66,9 @@ async function openMessages(
   messagesEvents: MessagesEventsResponse
 ) {
   await openTranscript(page, network, defaultInfo(), messagesEvents);
-  await page.getByRole("tab", { name: "Messages" }).click();
+  // Target the transcript's top-level Messages tab by id — model-call panels
+  // also have a "Messages" tab, so the accessible name alone is ambiguous.
+  await page.locator("#transcript-messages").click();
 }
 
 // ---------------------------------------------------------------------------

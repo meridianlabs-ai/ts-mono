@@ -84,12 +84,7 @@
 }
 
 .toolConfig {
-  display: grid;
-  grid-template-columns: max-content minmax(0, auto);
-  column-gap: 1em;
-  row-gap: 0.5em;
   padding-top: 0.5em;
-  overflow-wrap: anywhere;
 }
 
 .toolChoice {
