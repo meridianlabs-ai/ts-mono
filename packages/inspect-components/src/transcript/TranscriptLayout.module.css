@@ -148,9 +148,9 @@
    its left. Grid columns are supplied inline (see TranscriptLayout.tsx) so
    these rules only handle the per-cell sizing/scroll behavior. */
 .railPanel {
-  padding-top: 0;
-  padding-left: 0.4rem;
-  padding-right: 0.4rem;
+  /* No padding: the hosted panels (Search / Scans) own their internal padding
+     and render full-width header bars, so the column must be flush. */
+  padding: 0;
   align-self: start;
   position: relative;
 }

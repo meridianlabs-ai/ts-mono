@@ -1124,14 +1124,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Right rail panel resize (mirror of the right pane; panel sits left of rail)
+  // Right rail panel resize (drag the panel's left edge). Width is owned here
+  // so dragging re-renders only this layout, not the (memoized) host content.
   // ---------------------------------------------------------------------------
 
   const railWidth = rightRail?.railWidth ?? 72;
-  const railPanelWidth = rightRail?.panelWidth ?? 360;
   const railPanelMinWidth = rightRail?.panelMinWidth ?? 240;
   const railPanelMaxWidth = rightRail?.panelMaxWidth ?? 800;
   const railPanelOnWidthChange = rightRail?.onPanelWidthChange;
+  const [railPanelWidth, setRailPanelWidth] = useState(
+    rightRail?.panelWidth ?? 360
+  );
   const railPanelDragRef = useRef<{
     startX: number;
     startWidth: number;
@@ -1139,7 +1142,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const handleRailPanelPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!railPanelOnWidthChange) return;
       e.preventDefault();
       (e.target as HTMLDivElement).setPointerCapture(e.pointerId);
       railPanelDragRef.current = {
@@ -1147,21 +1149,22 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         startWidth: railPanelWidth,
       };
     },
-    [railPanelOnWidthChange, railPanelWidth]
+    [railPanelWidth]
   );
 
   const handleRailPanelPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!railPanelOnWidthChange || !railPanelDragRef.current) return;
+      if (!railPanelDragRef.current) return;
       const { startX, startWidth } = railPanelDragRef.current;
       const next = startWidth - (e.clientX - startX);
       const clamped = Math.max(
         railPanelMinWidth,
         Math.min(railPanelMaxWidth, next)
       );
-      railPanelOnWidthChange(clamped);
+      setRailPanelWidth(clamped);
+      railPanelOnWidthChange?.(clamped);
     },
-    [railPanelOnWidthChange, railPanelMinWidth, railPanelMaxWidth]
+    [railPanelMinWidth, railPanelMaxWidth, railPanelOnWidthChange]
   );
 
   const handleRailPanelPointerUp = useCallback(
@@ -1452,18 +1455,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                       className={styles.railPanel}
                       offsetTop={effectiveOffsetTop}
                     >
-                      {railPanelOnWidthChange && (
-                        <div
-                          className={styles.railPanelResizer}
-                          role="separator"
-                          aria-orientation="vertical"
-                          aria-label={`Resize ${rightRail.label ?? "panel"}`}
-                          onPointerDown={handleRailPanelPointerDown}
-                          onPointerMove={handleRailPanelPointerMove}
-                          onPointerUp={handleRailPanelPointerUp}
-                          onPointerCancel={handleRailPanelPointerUp}
-                        />
-                      )}
+                      <div
+                        className={styles.railPanelResizer}
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label={`Resize ${rightRail.label ?? "panel"}`}
+                        onPointerDown={handleRailPanelPointerDown}
+                        onPointerMove={handleRailPanelPointerMove}
+                        onPointerUp={handleRailPanelPointerUp}
+                        onPointerCancel={handleRailPanelPointerUp}
+                      />
                       {rightRail.panel}
                     </StickyScroll>
                   </>
