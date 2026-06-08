@@ -1448,13 +1448,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               <>
                 {railPanelOpen && (
                   <>
-                    <div className={styles.rightSeparator} />
-                    <StickyScroll
-                      ref={rightRailPanelScrollRef}
-                      scrollRef={scrollRef}
-                      className={styles.railPanel}
-                      offsetTop={effectiveOffsetTop}
-                    >
+                    {/* The divider is a full-row-height grid cell, so the
+                        resizer it hosts spans the panel's whole height and is
+                        grabbable anywhere along the edge — not just beside the
+                        (often short) panel content. */}
+                    <div className={styles.railPanelDivider}>
                       <div
                         className={styles.railPanelResizer}
                         role="separator"
@@ -1465,6 +1463,13 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         onPointerUp={handleRailPanelPointerUp}
                         onPointerCancel={handleRailPanelPointerUp}
                       />
+                    </div>
+                    <StickyScroll
+                      ref={rightRailPanelScrollRef}
+                      scrollRef={scrollRef}
+                      className={styles.railPanel}
+                      offsetTop={effectiveOffsetTop}
+                    >
                       {rightRail.panel}
                     </StickyScroll>
                   </>
