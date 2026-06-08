@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, useMemo, useRef, useState } from "react";
+import { FC, useMemo, useRef, useState } from "react";
 
 import type {
   ChatMessage,
@@ -11,7 +11,6 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -22,6 +21,7 @@ import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { RetryChip } from "./event/RetryChip";
+import { StopReasonBadge } from "./event/StopReasonBadge";
 import { formatTiming, formatTitle, isCancelError } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
@@ -81,16 +81,6 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const stopDetails = firstChoice?.stop_details;
   const showStopReason =
     !!firstChoice && (!!stopDetails || firstChoice.stop_reason !== "stop");
-  const stopEntries: Record<string, unknown> = {};
-  if (showStopReason) {
-    stopEntries["stop reason"] = firstChoice.stop_reason;
-    if (stopDetails?.category) {
-      stopEntries["category"] = stopDetails.category;
-    }
-    if (stopDetails?.explanation) {
-      stopEntries["explanation"] = stopDetails.explanation;
-    }
-  }
 
   // For any user messages which immediately preceded this model call, including a
   // panel and display those user messages (exclude tool_call messages as they
@@ -245,7 +235,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           </div>
         ) : undefined}
       </div>
-      <div data-name="All" className={styles.container}>
+      <div data-name="Info" className={styles.container}>
         <div className={styles.all}>
           {event.output.usage ? (
             <ModelUsagePanel
@@ -258,13 +248,11 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             />
           ) : undefined}
 
-          {Object.keys(stopEntries).length > 0 && (
-            <EventSection
-              title="Stop Reason"
-              className={clsx(styles.tableSelection, styles.config)}
-            >
-              <MetaDataGrid entries={stopEntries} options={{ plain: true }} />
-            </EventSection>
+          {showStopReason && (
+            <StopReasonBadge
+              reason={firstChoice.stop_reason}
+              details={stopDetails}
+            />
           )}
 
           {Object.keys(entries).length > 0 && (
@@ -276,19 +264,19 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             </EventSection>
           )}
         </div>
+      </div>
 
-        <EventSection title="Messages">
-          <ChatView
-            id={`${eventNode.id}-model-input-full`}
-            messages={[...event.input, ...(outputMessages || [])]}
-            tools={{
-              collapseToolMessages: context?.hasToolEvents !== false,
-            }}
-            labels={{
-              show: false,
-            }}
-          />
-        </EventSection>
+      <div data-name="Messages" className={styles.container}>
+        <ChatView
+          id={`${eventNode.id}-model-input-full`}
+          messages={[...event.input, ...(outputMessages || [])]}
+          tools={{
+            collapseToolMessages: context?.hasToolEvents !== false,
+          }}
+          labels={{
+            show: false,
+          }}
+        />
       </div>
 
       {event.tools.length > 1 && (
@@ -374,24 +362,24 @@ interface ToolConfigProps {
 }
 
 const ToolsConfig: FC<ToolConfigProps> = ({ tools, toolChoice }) => {
-  const toolEls = tools.map((tool, idx) => {
-    return (
-      <Fragment key={`${tool.name}-${idx}`}>
-        <div className={clsx("text-style-label", "text-style-secondary")}>
-          {tool.name}
-        </div>
-        <ExpandablePanel id={`config-${tool.name}-${idx}`} collapse={true}>
-          <MarkdownDiv markdown={tool.description} />
-        </ExpandablePanel>
-      </Fragment>
-    );
-  });
+  const toolEntries = useMemo<Record<string, unknown>>(() => {
+    const entries: Record<string, unknown> = {};
+    tools.forEach((tool, idx) => {
+      // Disambiguate the rare case of two tools sharing a name (keys must be unique).
+      const key =
+        entries[tool.name] === undefined ? tool.name : `${tool.name} (${idx})`;
+      entries[key] = tool.description;
+    });
+    return entries;
+  }, [tools]);
 
   return (
     <>
-      <div className={clsx(styles.toolConfig, "text-size-small")}>
-        {toolEls}
-      </div>
+      <MetaDataGrid
+        entries={toolEntries}
+        options={{ plain: true }}
+        className={styles.toolConfig}
+      />
       <div className={clsx(styles.toolChoice, "text-size-small")}>
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Tool Choice
