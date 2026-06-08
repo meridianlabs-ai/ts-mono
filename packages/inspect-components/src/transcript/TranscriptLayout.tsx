@@ -360,6 +360,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     sourceSpans,
     minimapSelection,
     hasTimeline,
+    hasAgentTimeline,
     timelines,
     activeTimelineIndex,
     setActiveTimeline,
@@ -398,8 +399,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     ) {
       return true;
     }
-    return hasTimeline ? false : undefined;
-  }, [showSwimlanesOption, hasTimeline, regionCounts]);
+    if (hasTimeline) {
+      // Expand by default only when there's agent sub-structure to drill into.
+      // A bare main + scoring (or init) timeline has nothing to expand, so
+      // default it collapsed.
+      return hasAgentTimeline ? false : true;
+    }
+    return undefined;
+  }, [showSwimlanesOption, hasTimeline, hasAgentTimeline, regionCounts]);
 
   // ---------------------------------------------------------------------------
   // Event nodes
