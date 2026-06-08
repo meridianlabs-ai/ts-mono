@@ -27,7 +27,7 @@
     "eslint": "^9.39.4",
     "openapi-typescript": "^7.10.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.8"
   }
 }

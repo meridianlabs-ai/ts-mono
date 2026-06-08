@@ -37,16 +37,16 @@
     "@types/css-modules": "^1.0.5",
     "@types/json5": "^2.2.0",
     "@types/picomatch": "^4.0.2",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vscode-elements/react-elements": "^2.4.0",
     "eslint": "^9.39.4",
     "jsdom": "^29.1.1",
     "json5": "^2.2.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.8"
   }
 }
