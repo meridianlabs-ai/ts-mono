@@ -169,21 +169,37 @@
 
 .railPanelResizer {
   position: absolute;
-  left: -3px;
   top: 0;
   bottom: 0;
-  width: 6px;
+  left: -3px;
+  width: 7px;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
-  z-index: 1;
+  /* Above the panel (a sticky StickyScroll at z-index 100) and content headers
+     so the hover highlight is one continuous line, but below the swimlanes
+     (z-index 500) and sample header so it never paints over them when scrolled. */
+  z-index: 200;
+  background-color: transparent;
+}
+
+/* Crisp highlight centered on the 1px divider, so hover reads as a clean line
+   instead of a fat bar bleeding raggedly over the neighboring header bars. */
+.railPanelResizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
   background-color: transparent;
   transition: background-color 120ms ease;
 }
 
-.railPanelResizer:hover,
-.railPanelResizer:active {
-  background-color: var(--bs-primary-border-subtle);
+.railPanelResizer:hover::after,
+.railPanelResizer:active::after {
+  background-color: var(--bs-primary);
 }
 
 .railSeparator {
