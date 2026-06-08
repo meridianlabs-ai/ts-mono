@@ -239,6 +239,12 @@ export function VirtualList<T>({
   const lastAutoScrollTopRef = useRef<number | null>(null);
   const lastInitialKeyRef = useRef<string | null>(null);
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
+  // The no-snapshot "reset to top" is a one-shot per (re)key: without this the
+  // effect re-fires on every `contentTotal` change (item measurement) and keeps
+  // slamming scrollTop back to 0, fighting an imperative deep-link scroll on the
+  // same (shared) container until that scroll's settle loop gives up. WebKit's
+  // rAF ordering loses that race every time. Re-armed alongside the key below.
+  const hasResetTopRef = useRef(false);
   useEffect(() => {
     if (
       lastInitialKeyRef.current !== persistenceKey ||
@@ -246,6 +252,7 @@ export function VirtualList<T>({
     ) {
       hasInitialScrolledRef.current = false;
       userScrolledRef.current = false;
+      hasResetTopRef.current = false;
       lastInitialKeyRef.current = persistenceKey;
       lastInitialIndexRef.current = initialIndex ?? undefined;
     }
@@ -299,11 +306,14 @@ export function VirtualList<T>({
           el.scrollTop = toSpacerScroll(offset);
         }
         release();
-      } else if (!userScrolledRef.current) {
-        // No snapshot: start at the top, clearing any offset carried over
+      } else if (!userScrolledRef.current && !hasResetTopRef.current) {
+        // No snapshot: start at the top once, clearing any offset carried over
         // from another view sharing this scroll container. Don't commit the
-        // one-shot guard — the effect re-fires if a snapshot rehydrates later.
+        // one-shot guard (the effect re-fires if a snapshot rehydrates later),
+        // but flag the reset so subsequent re-fires don't keep forcing 0 and
+        // fight an imperative deep-link scroll on this shared container.
         el.scrollTop = 0;
+        hasResetTopRef.current = true;
         release();
       } else {
         release();
