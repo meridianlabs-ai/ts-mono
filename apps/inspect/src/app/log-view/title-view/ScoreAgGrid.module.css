@@ -5,11 +5,32 @@
   padding: 0.5rem 1rem;
 }
 
-.gridContainer :global(.ag-layout-auto-height .ag-center-cols-viewport) {
+/* Title-region summary card: size to content, no inner scroll/padding. */
+.cardContainer {
+  max-width: 100%;
+  overflow: visible;
+}
+
+.gridContainer :global(.ag-cell),
+.cardContainer :global(.ag-cell) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scorer column reads as the row label — a touch heavier + higher contrast. */
+:global(.ag-cell).firstCell {
+  font-weight: 500;
+  color: var(--bs-emphasis-color);
+}
+
+.gridContainer :global(.ag-layout-auto-height .ag-center-cols-viewport),
+.cardContainer :global(.ag-layout-auto-height .ag-center-cols-viewport) {
   min-height: unset;
 }
 
-.gridContainer :global(.ag-body-horizontal-scroll.ag-scrollbar-invisible) {
+/* Hide ag-grid's reserved horizontal-scroll strip — otherwise it leaves empty
+   space below the rows (most visible in the short title-region card). */
+.gridContainer :global(.ag-body-horizontal-scroll.ag-scrollbar-invisible),
+.cardContainer :global(.ag-body-horizontal-scroll.ag-scrollbar-invisible) {
   display: none;
 }
 
@@ -30,6 +51,8 @@
 :global(.ag-header-group-cell).groupHeader
   :global(.ag-header-group-cell-label) {
   justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 :global(.ag-header-cell).noGroupBorder {

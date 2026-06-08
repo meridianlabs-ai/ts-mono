@@ -13,10 +13,35 @@ import { ScoreSummary } from "../../../scoring/types";
 import styles from "./ScoreAgGrid.module.css";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
+// "Refined Classic" look: hairline rows, no wrapper/column chrome, muted
+// headers, theme-driven colors so it tracks Bootstrap light/dark mode.
+const scoreGridTheme = themeBalham.withParams({
+  fontFamily: "inherit",
+  backgroundColor: "transparent",
+  foregroundColor: "var(--bs-body-color)",
+  headerBackgroundColor: "transparent",
+  headerTextColor: "var(--bs-secondary-color)",
+  oddRowBackgroundColor: "transparent",
+  borderColor: "var(--bs-border-color)",
+  rowBorder: { width: 1, color: "var(--bs-border-color-translucent)" },
+  headerRowBorder: { width: 1, color: "var(--bs-border-color)" },
+  wrapperBorder: false,
+  columnBorder: false,
+  headerColumnBorder: false,
+});
+
+const scoreGridThemeCompact = scoreGridTheme.withParams({
+  fontSize: 12,
+  headerFontSize: 11,
+  cellHorizontalPadding: 8,
+});
+
 interface ScoreAgGridProps {
   scoreGroups: ScoreSummary[][];
   showReducer?: boolean;
   className?: string | string[];
+  /** Tighter type/spacing for the title-region summary card. */
+  compact?: boolean;
 }
 
 interface ScoreGridRow {
@@ -28,16 +53,29 @@ interface ScoreGridRow {
 
 const kScorerColWidth = 180;
 const kMetricColWidth = 120;
+const kScorerColWidthCompact = 110;
+const kMetricColWidthCompact = 64;
 
 export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
   scoreGroups,
   showReducer,
   className,
+  compact,
 }) => {
   return (
-    <div className={clsx(className, styles.gridContainer)}>
+    <div
+      className={clsx(
+        className,
+        compact ? styles.cardContainer : styles.gridContainer
+      )}
+    >
       {scoreGroups.map((group, i) => (
-        <ScoreGroupGrid key={i} scoreGroup={group} showReducer={showReducer} />
+        <ScoreGroupGrid
+          key={i}
+          scoreGroup={group}
+          showReducer={showReducer}
+          compact={compact}
+        />
       ))}
     </div>
   );
@@ -46,12 +84,20 @@ export const ScoreAgGrid: FC<ScoreAgGridProps> = ({
 interface ScoreGroupGridProps {
   scoreGroup: ScoreSummary[];
   showReducer?: boolean;
+  compact?: boolean;
 }
 
 const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
   scoreGroup,
   showReducer,
+  compact,
 }) => {
+  const scorerColWidth = compact ? kScorerColWidthCompact : kScorerColWidth;
+  const metricColWidth = compact ? kMetricColWidthCompact : kMetricColWidth;
+  // Card stays sortable but not resizable — resizing a tight 3-column
+  // summary just breaks its layout.
+  const resizable = !compact;
+
   const { rowData, columnDefs, hasGroups, naturalWidth } = useMemo(() => {
     // All scorers in a scoreGroup share the same metric signature, so the
     // first scorer's metrics define the column set and metrics align by
@@ -86,8 +132,8 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
       headerName: name,
       field: field(i),
       sortable: true,
-      resizable: true,
-      width: kMetricColWidth,
+      resizable: resizable,
+      width: metricColWidth,
       cellClass: clsx(
         "ag-right-aligned-cell",
         i === lastIdx && styles.lastCell
@@ -126,9 +172,9 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
       headerName: "Scorer",
       field: "scorer",
       sortable: true,
-      resizable: true,
-      width: kScorerColWidth,
-      minWidth: 150,
+      resizable: resizable,
+      width: scorerColWidth,
+      minWidth: compact ? 90 : 150,
       cellClass: styles.firstCell,
       headerClass: clsx(styles.firstHeader, grouped && styles.noGroupBorder),
       cellRenderer: (params: { data: ScoreGridRow | undefined }) => {
@@ -150,14 +196,21 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
       ...metricColumns,
     ];
 
-    const naturalWidth = kScorerColWidth + metrics.length * kMetricColWidth;
+    const naturalWidth = scorerColWidth + metrics.length * metricColWidth;
     return {
       rowData: rows,
       columnDefs: columns,
       hasGroups: grouped,
       naturalWidth,
     };
-  }, [scoreGroup, showReducer]);
+  }, [
+    scoreGroup,
+    showReducer,
+    compact,
+    resizable,
+    scorerColWidth,
+    metricColWidth,
+  ]);
 
   return (
     <div className={styles.groupGrid}>
@@ -165,12 +218,13 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
         <AgGridReact<ScoreGridRow>
           rowData={rowData}
           columnDefs={columnDefs}
-          theme={themeBalham}
+          theme={compact ? scoreGridThemeCompact : scoreGridTheme}
           domLayout="autoHeight"
-          headerHeight={28}
-          groupHeaderHeight={hasGroups ? 24 : 0}
-          rowHeight={32}
+          headerHeight={compact ? 24 : 28}
+          groupHeaderHeight={hasGroups ? (compact ? 20 : 24) : 0}
+          rowHeight={compact ? 26 : 32}
           suppressCellFocus={true}
+          suppressRowHoverHighlight={true}
           suppressFieldDotNotation={true}
           enableCellTextSelection={true}
           animateRows={false}
