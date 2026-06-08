@@ -961,7 +961,6 @@ export interface components {
             logprobs?: components["schemas"]["Logprobs"] | null;
             message: components["schemas"]["ChatMessageAssistant"];
             prompt_logprobs?: components["schemas"]["Logprobs"] | null;
-            stop_details?: components["schemas"]["StopDetails"] | null;
             /**
              * Stop Reason
              * @default unknown
@@ -3368,12 +3367,8 @@ export interface components {
          *     from restic's backup summary — see :class:`ResticBackupSummary`.
          */
         SnapshotDetails: {
-            /** Additional Files */
-            additional_files?: number | null;
             /** Duration Ms */
             duration_ms: number;
-            /** Files */
-            files?: string[] | null;
             /** Size Bytes */
             size_bytes: number;
             /** Snapshot Id */
@@ -3519,36 +3514,6 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
-        };
-        /**
-         * StopCategory
-         * @description A single refusal/safety category reported by (or derived for) a model stop.
-         */
-        StopCategory: {
-            /** Category */
-            category: string;
-            /** Level */
-            level?: string | null;
-        };
-        /**
-         * StopDetails
-         * @description Additional detail about why a model stopped generating (e.g. a content refusal).
-         *
-         *     `categories` is the canonical list (always iterable; a single-category provider
-         *     appears as one entry). `category` and `explanation` are a convenience high-level
-         *     summary derived from the same data — `category` is the primary category and
-         *     `explanation` is human-readable (synthesized from `categories` when the provider
-         *     supplies no text). Read either way; both describe the same stop.
-         */
-        StopDetails: {
-            /** Categories */
-            categories: components["schemas"]["StopCategory"][];
-            /** Category */
-            category?: string | null;
-            /** Explanation */
-            explanation?: string | null;
-            /** Type */
-            type?: string | null;
         };
         /**
          * StoreEvent
