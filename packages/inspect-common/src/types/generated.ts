@@ -775,6 +775,20 @@ export interface components {
             sample_id: string;
         };
         /**
+         * CategoricalSchema
+         * @description Value schema for categorical (StrEnum-valued) scores.
+         */
+        CategoricalSchema: {
+            /** Categories */
+            categories: string[];
+            /**
+             * Type
+             * @default categorical
+             * @constant
+             */
+            type: "categorical";
+        };
+        /**
          * ChatCompletionChoice
          * @description Choice generated for completion.
          */
@@ -1473,6 +1487,8 @@ export interface components {
          * @description Metric for evaluation score.
          */
         EvalMetric: {
+            /** Group */
+            group?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -1802,6 +1818,10 @@ export interface components {
             /** Options */
             options?: {
                 [key: string]: unknown;
+            } | null;
+            /** Value Schema */
+            value_schema?: components["schemas"]["CategoricalSchema"] | {
+                [key: string]: components["schemas"]["CategoricalSchema"];
             } | null;
         };
         /** EvalSet */

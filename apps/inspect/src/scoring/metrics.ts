@@ -90,6 +90,7 @@ export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
         const metric = score.metrics[key];
         return {
           name: metric.name,
+          group: metric.group,
           value: metric.value,
           params: metric.params,
         };
