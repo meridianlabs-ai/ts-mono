@@ -210,7 +210,12 @@ export interface AppStatus {
 
   // Background syncing data, show small form of activity
   syncing: boolean;
+
+  // Fatal error from initial load — replaces the full UI
   error?: Error;
+
+  // Non-fatal error from background sync — shown as adornment on the options button
+  syncError?: Error;
 }
 
 export interface CurrentLog {
