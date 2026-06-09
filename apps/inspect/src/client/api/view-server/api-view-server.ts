@@ -1,4 +1,9 @@
-import { EvalLog, LogInfo, LogUpdate } from "@tsmono/inspect-common/types";
+import {
+  AppConfig,
+  EvalLog,
+  LogInfo,
+  LogUpdate,
+} from "@tsmono/inspect-common/types";
 
 import { EvalScores } from "../../../@types/extraInspect";
 import { asyncJsonParse } from "../../../utils/json-worker";
@@ -512,6 +517,11 @@ export function viewServerApi(
     return (result.parsed as UserInfo) ?? {};
   };
 
+  const get_app_config = async (): Promise<AppConfig> => {
+    const result = await requestApi.fetchString("GET", "/app-config");
+    return result.parsed as AppConfig;
+  };
+
   const download_log = async (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
@@ -544,5 +554,6 @@ export function viewServerApi(
     eval_log_sample_data_direct,
     edit_log,
     get_user_info,
+    get_app_config,
   };
 }

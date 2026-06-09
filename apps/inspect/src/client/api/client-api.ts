@@ -526,6 +526,7 @@ export const clientApi = (
     get_user_info: api.get_user_info
       ? middleware("get_user_info", () => api.get_user_info!())
       : undefined,
+    get_app_config: middleware("get_app_config", () => api.get_app_config()),
     edit_log: api.edit_log
       ? middleware(
           "edit_log",

@@ -1,4 +1,5 @@
 import type {
+  AppConfig,
   ApprovalEvent,
   AttachmentData,
   BranchEvent,
@@ -249,6 +250,10 @@ export interface LogViewAPI {
   // user.name/user.email, falling back to the OS login). Used to prefill
   // the Author field on edit dialogs. Optional — not all backends.
   get_user_info?: () => Promise<UserInfo>;
+  // Installed inspect (and optional scout) versions. Fetched once at startup
+  // to gate rendering. Required — every backend supplies it (the view server
+  // serves it, vscode/static-http fall back when unavailable).
+  get_app_config: () => Promise<AppConfig>;
 }
 
 export interface EditLogResult {
@@ -330,6 +335,8 @@ export interface ClientAPI {
   ) => Promise<EditLogResult>;
   // Best-effort identity for prefilling provenance.author on edits.
   get_user_info?: () => Promise<UserInfo>;
+  // Installed inspect / scout versions, fetched once at startup to gate render.
+  get_app_config: () => Promise<AppConfig>;
 }
 
 export interface ClientStorage {

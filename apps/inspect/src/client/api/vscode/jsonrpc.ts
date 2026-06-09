@@ -52,6 +52,7 @@ export const kMethodLogMessage = "log_message";
 // "newer extension required" message (edit_log).
 export const kMethodEditLog = "edit_log";
 export const kMethodGetUserInfo = "get_user_info";
+export const kMethodAppConfig = "app_config";
 
 export const kJsonRpcParseError = -32700;
 export const kJsonRpcInvalidRequest = -32600;

@@ -1,4 +1,4 @@
-import { EvalSet } from "@tsmono/inspect-common/types";
+import { AppConfig, EvalSet } from "@tsmono/inspect-common/types";
 import { fetchRange } from "@tsmono/util";
 
 import { fetchSize } from "../../remote/remoteZipFile";
@@ -13,6 +13,12 @@ import {
   joinURI,
 } from "./fetch";
 
+// Versions aren't reachable without a server; older bundles don't embed them.
+const kFallbackAppConfig: AppConfig = {
+  inspect_version: "unknown",
+  scout_version: null,
+};
+
 /**
  * This provides an API implementation that will serve a single
  * file using an http parameter, designed to be deployed
@@ -22,7 +28,8 @@ import {
 export default function staticHttpApi(
   log_dir?: string,
   log_file?: string,
-  abs_log_dir?: string
+  abs_log_dir?: string,
+  app_config?: AppConfig
 ): LogViewAPI {
   const resolved_log_dir = log_dir?.replace(" ", "+");
   const resolved_log_path = log_file ? log_file.replace(" ", "+") : undefined;
@@ -30,6 +37,7 @@ export default function staticHttpApi(
     log_file: resolved_log_path,
     log_dir: resolved_log_dir,
     abs_log_dir,
+    app_config,
   });
 }
 
@@ -40,9 +48,11 @@ function staticHttpApiForLog(logInfo: {
   log_dir?: string;
   log_file?: string;
   abs_log_dir?: string;
+  app_config?: AppConfig;
 }): LogViewAPI {
   const log_dir = logInfo.log_dir;
   const abs_log_dir = logInfo.abs_log_dir;
+  const app_config = logInfo.app_config ?? kFallbackAppConfig;
   let manifest: Record<string, LogPreview> | undefined = undefined;
   let manifestPromise: Promise<Record<string, LogPreview>> | undefined =
     undefined;
@@ -201,6 +211,7 @@ function staticHttpApiForLog(logInfo: {
         `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`
       );
     },
+    get_app_config: async () => app_config,
     download_file,
     open_log_file,
   };

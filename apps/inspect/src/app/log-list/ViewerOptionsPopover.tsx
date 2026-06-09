@@ -5,12 +5,9 @@ import { PopOver } from "@tsmono/react/components";
 
 import { DB_VERSION } from "../../client/database/schema";
 import { useStore } from "../../state/store";
+import { useAppConfig } from "../server/useAppConfig";
 
 import styles from "./ViewerOptionsPopover.module.css";
-
-// Version info injected at build time
-declare const __VIEWER_VERSION__: string;
-declare const __VIEWER_COMMIT__: string;
 
 export interface ViewerOptionsPopoverProps {
   showing: boolean;
@@ -27,6 +24,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
   const [clearMessage, setClearMessage] = useState<string | null>(null);
   const replicationService = useStore((state) => state.replicationService);
   const dbStats = useStore((state) => state.logs.dbStats);
+  const appConfig = useAppConfig();
 
   const logDir = useStore((state) => state.logs.logDir);
 
@@ -81,9 +79,18 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         <div className={clsx(styles.spacer)}></div>
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
-          Version
+          Inspect Version
         </div>
-        <div className={clsx()}>{__VIEWER_VERSION__}</div>
+        <div className={clsx()}>{appConfig.inspect_version}</div>
+
+        {appConfig.scout_version && (
+          <>
+            <div className={clsx("text-style-label", "text-style-secondary")}>
+              Scout Version
+            </div>
+            <div className={clsx()}>{appConfig.scout_version}</div>
+          </>
+        )}
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Schema

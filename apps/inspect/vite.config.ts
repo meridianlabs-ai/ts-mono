@@ -13,8 +13,6 @@ import {
 } from "../../tooling/python-repo/index.js";
 import { inlineThemeBootstrap } from "../../tooling/vite-plugins/index.js";
 
-import getVersionInfo from "./scripts/get-version.js";
-
 function copyToPythonRepo(): Plugin {
   return {
     name: "copy-to-python-repo",
@@ -33,7 +31,6 @@ function copyToPythonRepo(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
-  const versionInfo = getVersionInfo();
 
   const baseConfig = {
     plugins: [
@@ -59,8 +56,6 @@ export default defineConfig(({ mode }) => {
       __VIEW_SERVER_API_URL__: JSON.stringify(
         process.env.VIEW_SERVER_API_URL || "/api"
       ),
-      __VIEWER_VERSION__: JSON.stringify(versionInfo.version),
-      __VIEWER_COMMIT__: JSON.stringify(versionInfo.commitHash),
     },
   };
 

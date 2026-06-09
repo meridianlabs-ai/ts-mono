@@ -1,6 +1,6 @@
 import JSON5 from "json5";
 
-import { LogUpdate } from "@tsmono/inspect-common/types";
+import { AppConfig, LogUpdate } from "@tsmono/inspect-common/types";
 import { getVscodeApi } from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
@@ -19,6 +19,7 @@ import { ApiError } from "../view-server/request";
 
 import {
   kJsonRpcMethodNotFound,
+  kMethodAppConfig,
   kMethodEditLog,
   kMethodEvalLog,
   kMethodEvalLogBytes,
@@ -286,6 +287,26 @@ async function get_user_info(): Promise<UserInfo> {
   }
 }
 
+/**
+ * Installed inspect / scout versions. Older extensions don't expose the
+ * method (kJsonRpcMethodNotFound) — fall back to a placeholder so the
+ * startup config gate still resolves and the app renders.
+ */
+async function get_app_config(): Promise<AppConfig> {
+  try {
+    const response = await vscodeClient(kMethodAppConfig, []);
+    if (!response) return { inspect_version: "unknown", scout_version: null };
+    return typeof response === "string"
+      ? (JSON5.parse(response) as AppConfig)
+      : (response as AppConfig);
+  } catch (e: any) {
+    if (e?.code === kJsonRpcMethodNotFound) {
+      return { inspect_version: "unknown", scout_version: null };
+    }
+    throw e;
+  }
+}
+
 async function open_log_file(log_file: string, log_dir: string) {
   const msg = {
     type: "displayLogFile",
@@ -313,6 +334,7 @@ const api: LogViewAPI = {
   eval_log_sample_data,
   edit_log,
   get_user_info,
+  get_app_config,
 };
 
 export default api;

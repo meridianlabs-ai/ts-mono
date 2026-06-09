@@ -42,6 +42,9 @@ const baseApi = (): LogViewAPI => ({
   log_message: vi.fn(),
   download_file: vi.fn(),
   open_log_file: vi.fn(),
+  get_app_config: vi
+    .fn()
+    .mockResolvedValue({ inspect_version: "test", scout_version: null }),
 });
 
 describe("clientApi.get_log_sample_data path selection", () => {

@@ -15,20 +15,24 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./App.css";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
+import { defaultRetry } from "@tsmono/react";
 import {
   ComponentIconProvider,
   ComponentIcons,
+  PulsingDots,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import { ApiProvider, useStore } from "../state/store.ts";
+import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
@@ -37,6 +41,12 @@ import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
+import { useAppConfigAsync } from "./server/useAppConfig.ts";
+
+// app-config (and future server data) flow through this client.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: defaultRetry } },
+});
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -88,13 +98,19 @@ const useThemePreferenceSync = () => {
 };
 
 /**
- * Renders the Main Application
+ * Renders the application content. Mounted below the providers in App so it
+ * can read the api context and drive the app-config query.
  */
-export const App: FC<AppProps> = ({ api }) => {
+const AppContent: FC = () => {
   useThemePreferenceSync();
+
+  const api = useApi();
 
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
+
+  // App config (inspect / scout versions) gates rendering below.
+  const appConfig = useAppConfigAsync();
 
   const logDir = useStore((state) => state.logs.logDir);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -264,13 +280,43 @@ export const App: FC<AppProps> = ({ api }) => {
     onMessage,
   ]);
 
+  // Gate rendering on the app config: the rest of the app reads it via
+  // useAppConfig (which throws if absent), so don't mount until it resolves.
+  if (appConfig.error) {
+    return (
+      <div className="app-config-gate">
+        Failed to load application configuration: {appConfig.error.message}
+      </div>
+    );
+  }
+  if (!appConfig.data) {
+    return (
+      <div className="app-config-gate">
+        <PulsingDots size="large" text="Loading application…" />
+      </div>
+    );
+  }
+
   return (
-    <ApiProvider value={api}>
-      <ComponentIconProvider icons={componentIcons}>
-        <ComponentStateProvider hooks={inspectStateHooks}>
-          <RouterProvider router={AppRouter} />
-        </ComponentStateProvider>
-      </ComponentIconProvider>
-    </ApiProvider>
+    <ComponentIconProvider icons={componentIcons}>
+      <ComponentStateProvider hooks={inspectStateHooks}>
+        <RouterProvider router={AppRouter} />
+      </ComponentStateProvider>
+    </ComponentIconProvider>
+  );
+};
+
+/**
+ * Renders the Main Application. Owns the query client + api providers so the
+ * exported <App> stays self-contained for external embedders.
+ */
+export const App: FC<AppProps> = ({ api }) => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ApiProvider value={api}>
+        <AppContent />
+      </ApiProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 };
