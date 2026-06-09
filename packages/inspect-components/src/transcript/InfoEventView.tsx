@@ -3,7 +3,7 @@ import { FC, ReactNode } from "react";
 
 import type { InfoEvent } from "@tsmono/inspect-common/types";
 import { RenderedText } from "@tsmono/inspect-components/content";
-import { JSONPanel } from "@tsmono/react/components";
+import { ExpandablePanel, JSONPanel } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
@@ -43,7 +43,9 @@ export const InfoEventView: FC<InfoEventViewProps> = ({
       }
       icon={TranscriptIcons.info}
     >
-      {panels}
+      <ExpandablePanel id={`${eventNode.id}-info`} collapse={true}>
+        {panels}
+      </ExpandablePanel>
     </EventPanel>
   );
 };
