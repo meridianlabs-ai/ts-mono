@@ -959,12 +959,10 @@ export interface components {
          *     also accepted at the task and eval layers (where they participate in
          *     the per-field merge — precedence: eval > sample > task).
          *
-         *     The fields excluded from this base class — ``checkpoints_dir`` and
-         *     ``retention`` — are eval-wide concerns that the sample layer must
+         *     The fields excluded from this base class — ``checkpoints_location``
+         *     and ``retention`` — are eval-wide concerns that the sample layer must
          *     not influence. They live only on the derived :class:`CheckpointConfig`,
          *     which is the type used at the task and eval layers.
-         *
-         *     See ``design/plans/checkpointing-working.md`` §2.
          */
         CheckpointSampleConfig: {
             /** Max Consecutive Failures */
