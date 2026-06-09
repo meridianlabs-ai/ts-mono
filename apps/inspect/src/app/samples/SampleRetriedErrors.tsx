@@ -1,4 +1,4 @@
-import { FC, RefObject, useCallback, useState } from "react";
+import { FC, RefObject, useCallback, useEffect, useState } from "react";
 
 import { EvalRetryError } from "@tsmono/inspect-common";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
@@ -26,6 +26,13 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
     retries.length - 1,
   );
   const [viewByIndex, setViewByIndex] = useState<Record<number, RetryView>>({});
+
+  // Reset accordion/view state when switching to a different sample (the same
+  // component instance can be reused across samples on the inline display path).
+  useEffect(() => {
+    setExpandedIndex(retries.length - 1);
+    setViewByIndex({});
+  }, [id, retries.length]);
 
   const onToggleOpen = useCallback((index: number) => {
     setExpandedIndex((cur) => (cur === index ? null : index));

@@ -15,6 +15,7 @@
   color: #fff;
   flex: none;
   font-size: 10px;
+  position: relative;
   /* Sits above the container's absolutely-positioned timeline rail. */
   z-index: 1;
 }
