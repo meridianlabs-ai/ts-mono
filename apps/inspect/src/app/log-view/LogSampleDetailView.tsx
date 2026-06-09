@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { FC, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -5,6 +6,7 @@ import { kLogViewSamplesTabId } from "../../constants";
 import { useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
+import { logListingQueryKey } from "../../state/useLogListing";
 import { usePollSample } from "../../state/usePollSample";
 import { useLogSampleNavigation } from "../routing/sampleNavigation";
 import {
@@ -21,7 +23,7 @@ import { isSingleFileMode } from "../singleFileMode";
  * This is shown when navigating to /logs/path/to/file.eval/samples/sample/id/epoch
  *
  * This component handles:
- * - Log loading (initLogDir, setSelectedLogFile, syncLogs)
+ * - Log loading (initLogDir, setSelectedLogFile, listing invalidation)
  * - Sample selection and loading (useLoadSample, usePollSample)
  * - Navigation state via useLogSampleNavigation (respects log filters)
  *
@@ -55,7 +57,8 @@ export const LogSampleDetailView: FC = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const queryClient = useQueryClient();
+  const logDir = useStore((s) => s.logs.logDir);
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -80,8 +83,10 @@ export const LogSampleDetailView: FC = () => {
         // Set the selected log file
         setSelectedLogFile(routeLogPath);
 
-        // Sync logs to ensure we have the latest data
-        void syncLogs();
+        // Refresh the listing to ensure we have the latest data
+        void queryClient.invalidateQueries({
+          queryKey: logListingQueryKey(logDir),
+        });
 
         // Select the sample
         const targetEpoch = parseInt(routeEpoch, 10);
@@ -100,7 +105,8 @@ export const LogSampleDetailView: FC = () => {
     routeEpoch,
     initLogDir,
     setSelectedLogFile,
-    syncLogs,
+    queryClient,
+    logDir,
     selectSample,
   ]);
 

@@ -8,10 +8,10 @@ export interface SyncCursor {
 
 // staticList = files cached but no mtimes: incremental sync is impossible, so the caller must force a full fetch.
 export function computeSyncCursor(logFiles: LogHandle[]): SyncCursor {
-  let mtime = 0;
-  if (logFiles.length > 0) {
-    mtime = Math.max(...logFiles.map((file) => file.mtime || 0));
-  }
+  const mtime = logFiles.reduce(
+    (max, file) => Math.max(max, file.mtime || 0),
+    0
+  );
   return {
     mtime,
     clientFileCount: logFiles.length,

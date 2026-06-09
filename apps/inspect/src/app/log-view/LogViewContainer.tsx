@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { FC, useEffect, useLayoutEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -9,6 +10,7 @@ import {
 } from "../../state/hooks";
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
+import { logListingQueryKey } from "../../state/useLogListing";
 import {
   baseUrl,
   logSamplesUrl,
@@ -106,7 +108,8 @@ export const LogViewContainer: FC = () => {
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPath = usePrevious<string | undefined>(logPath);
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const queryClient = useQueryClient();
+  const logDir = useStore((s) => s.logs.logDir);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
   // Clear the previous eval's data before paint when the route changes, so the
@@ -132,12 +135,14 @@ export const LogViewContainer: FC = () => {
       if (logPath) {
         await initLogDir();
         setSelectedLogFile(logPath);
-        void syncLogs();
+        void queryClient.invalidateQueries({
+          queryKey: logListingQueryKey(logDir),
+        });
       }
     };
 
     loadLogFromPath();
-  }, [logPath, setSelectedLogFile, initLogDir, syncLogs]);
+  }, [logPath, setSelectedLogFile, initLogDir, queryClient, logDir]);
 
   return <LogViewLayout />;
 };

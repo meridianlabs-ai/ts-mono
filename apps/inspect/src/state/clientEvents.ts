@@ -1,22 +1,27 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 
 import { createLogger } from "@tsmono/util";
 
 import { clientEventsService } from "./clientEventsService";
 import { useApi, useStore } from "./store";
+import { logListingQueryKey } from "./useLogListing";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const queryClient = useQueryClient();
+  const logDir = useStore((state) => state.logs.logDir);
   const api = useApi();
 
   const refreshCallback = useCallback(
     async (_reason: "event" | "periodic") => {
       log.debug(`Refresh Log Files (${_reason})`);
-      await syncLogs();
+      await queryClient.invalidateQueries({
+        queryKey: logListingQueryKey(logDir),
+      });
     },
-    [syncLogs]
+    [queryClient, logDir]
   );
 
   useEffect(() => {

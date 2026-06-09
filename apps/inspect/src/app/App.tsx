@@ -15,7 +15,7 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./App.css";
 
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect } from "react";
@@ -33,6 +33,7 @@ import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
+import { logListingQueryKey, useLogListing } from "../state/useLogListing.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
@@ -112,7 +113,10 @@ const AppContent: FC = () => {
   const setInitialState = useStore((state) => state.appActions.setInitialState);
   const setLoading = useStore((state) => state.appActions.setLoading);
 
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const ensureReplicationReady = useStore(
+    (state) => state.logsActions.ensureReplicationReady
+  );
+  const queryClient = useQueryClient();
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
@@ -122,6 +126,12 @@ const AppContent: FC = () => {
 
   const loadLog = useStore((state) => state.logActions.syncLog);
   const pollLog = useStore((state) => state.logActions.pollLog);
+
+  useLogListing(logDir);
+
+  useEffect(() => {
+    void ensureReplicationReady();
+  }, [ensureReplicationReady]);
 
   // Load a specific log
   useEffect(() => {
@@ -201,7 +211,9 @@ const AppContent: FC = () => {
               api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            syncLogs();
+            queryClient.invalidateQueries({
+              queryKey: logListingQueryKey(logDir),
+            });
           }
           break;
         }
@@ -213,7 +225,7 @@ const AppContent: FC = () => {
       logDir,
       setSelectedLogFile,
       api,
-      syncLogs,
+      queryClient,
       rehydrated,
     ]
   );
@@ -263,14 +275,7 @@ const AppContent: FC = () => {
     };
 
     loadLogsAndState();
-  }, [
-    setLogDir,
-    setLogFiles,
-    setSelectedLogFile,
-    initLogDir,
-    syncLogs,
-    onMessage,
-  ]);
+  }, [setLogDir, setLogFiles, setSelectedLogFile, initLogDir, onMessage]);
 
   return (
     <ComponentIconProvider icons={componentIcons}>

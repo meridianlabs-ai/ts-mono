@@ -1,11 +1,11 @@
-import { LogHandle } from "@tsmono/inspect-common";
+import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
 import { throttle } from "@tsmono/util";
 
 import { ClientAPI, LogDetails, LogPreview } from "../../client/api/types";
 import { DatabaseService } from "../../client/database";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
 
-import { computeInvalidations, computeSyncCursor } from "./syncCursor";
+import { computeInvalidations } from "./syncCursor";
 
 export interface ApplicationContext {
   setLogHandles: (logs: LogHandle[]) => void;
@@ -36,10 +36,6 @@ export class ReplicationService {
   private _previewQueue: WorkQueue<LogHandle, LogPreview>;
   private _detailQueue: WorkQueue<LogHandle, LogDetails>;
   private _processingCount: number;
-
-  // Track sync requests (so we wait on already running requests before syncing again)
-  private _pendingSync: Promise<LogHandle[]> | null = null;
-  private _syncQueued: boolean = false;
 
   // Batched DB updates
   private _pendingPreviewUpdates: Record<string, LogPreview> = {};
@@ -260,128 +256,29 @@ export class ReplicationService {
     return !!this._api && !!this._database && !!this._applicationContext;
   }
 
-  public async sync(progress?: boolean): Promise<LogHandle[]> {
-    // If sync is running and another is already queued, just wait for the queued one
-    if (this._pendingSync && this._syncQueued) {
-      return this._pendingSync;
-    }
-
-    // If sync is running but none queued, queue this one
-    if (this._pendingSync) {
-      this._syncQueued = true;
-      await this._pendingSync;
-      this._syncQueued = false;
-      // After pending completes, run one more sync
-      return this.sync(progress);
-    }
-
-    // No sync running, execute immediately
-    this._pendingSync = this._syncImpl(progress);
-
-    try {
-      return await this._pendingSync;
-    } finally {
-      this._pendingSync = null;
-    }
-  }
-
-  private async _syncImpl(progress?: boolean): Promise<LogHandle[]> {
+  // Apply a server listing fetched by the caller (the useLogListing hook).
+  // Owns diffing, cache invalidation, persisting the handle list, and queueing
+  // preview/detail work. Returns the merged handle list now in the database.
+  public async applyServerListing(
+    response: LogFilesResponse,
+    logFiles: LogHandle[]
+  ): Promise<LogHandle[]> {
     if (!this._database) {
       throw new Error("No database available for replication.");
     }
-
-    if (!this._api) {
-      throw new Error("No API available for replication.");
-    }
-
     if (!this._applicationContext) {
-      throw new Error("No replication context available for replication.");
+      throw new Error("No replication context available.");
     }
 
-    if (progress) {
-      this._applicationContext.setLoading(true);
-    }
-
-    // First query the list of logs
-    const logFiles = (await this._database.readLogs()) || [];
-    const { mtime, clientFileCount, staticList } = computeSyncCursor(logFiles);
-    if (staticList) {
-      // There is no mtime data which means sync isn't possible
-      // check to ensure the file list hasn't changed (in which
-      // we will invlidate the whole thing)
-      const serverLogs = await this._api.get_logs(0, 0);
-      let invalidate = false;
-      if (serverLogs.files.length !== logFiles.length) {
-        // Quick check - if they're differing lengths, invalidate.
-        invalidate = true;
-      } else {
-        // Slower check - see if _any_ files are different
-        const localLogNames = new Set(logFiles.map((f) => f.name));
-        for (const serverLog of serverLogs.files) {
-          if (!localLogNames.has(serverLog.name)) {
-            invalidate = true;
-            break;
-          }
-        }
-      }
-
-      if (invalidate) {
-        // Invalidate everything
-        for (const file of logFiles) {
-          this._database?.clearCacheForFile(file.name);
-        }
-
-        // Drop stale queued work before scheduling new fetches
-        this._previewQueue.clear();
-        this._detailQueue.clear();
-
-        // Apply the new list
-        this._applicationContext?.setLogHandles(serverLogs.files);
-
-        // Schedule sync of missing previews or details
-        this.queueLogDetails(serverLogs.files);
-        this.queueLogPreviews(serverLogs.files);
-
-        if (progress) {
-          this._applicationContext.setLoading(false);
-        }
-
-        return serverLogs.files;
-      } else {
-        // Activate the current log handles
-        this._applicationContext?.setLogHandles(logFiles);
-
-        await this.queueMissingOrStartedPreviews(logFiles);
-
-        const detailTasks: LogHandle[] = [];
-        const details = await this._database.findMissingDetails(logFiles);
-        for (const d of details) {
-          if (!detailTasks.find((t) => t.name === d.name)) {
-            detailTasks.push(d);
-          }
-        }
-        this.queueLogDetails(detailTasks);
-
-        if (progress) {
-          this._applicationContext.setLoading(false);
-        }
-
-        return logFiles;
-      }
-    }
-
-    // Fetch the updated list of logs from the server
-    const response = await this._api.get_logs(mtime, clientFileCount);
     const updatedLogs = response.files;
 
     if (response.response_type === "full") {
-      const deletedFiles = logFiles.filter((current) => {
-        return !updatedLogs.find((f) => f.name === current.name);
-      });
+      const deletedFiles = logFiles.filter(
+        (current) => !updatedLogs.find((f) => f.name === current.name)
+      );
       for (const file of deletedFiles) {
         this._database?.clearCacheForFile(file.name);
       }
-
       if (deletedFiles.length > 0) {
         const deletedNames = deletedFiles.map((f) => f.name);
         this._previewQueue.removeByIds(deletedNames);
@@ -390,22 +287,17 @@ export class ReplicationService {
     }
 
     const toInvalidate = computeInvalidations(updatedLogs, logFiles);
-
-    // Invalidate summaries and overviews for deleted or updated files
     toInvalidate
       .map((file) => file.name)
       .map((name) => this._database?.clearCacheForFile(name));
 
-    // Cache the current list of files
     await this._database.writeLogs(updatedLogs);
 
-    // Update the log handles in the application state
     const allLogHandles = (await this._database.readLogs()) || [];
     this._applicationContext?.setLogHandles(allLogHandles);
 
     await this.queueMissingOrStartedPreviews(allLogHandles, toInvalidate);
 
-    // Schedule detail fetching for new/changed logs
     const detailTasks = [...toInvalidate];
     const details = await this._database.findMissingDetails(allLogHandles);
     for (const d of details) {
@@ -415,11 +307,16 @@ export class ReplicationService {
     }
     this.queueLogDetails(detailTasks, WorkPriority.High);
 
-    if (progress) {
-      this._applicationContext.setLoading(false);
-    }
-
     return allLogHandles;
+  }
+
+  // Warm-reentry preload; the useLogListing hook owns the server fetch.
+  public async preloadFromCache(): Promise<LogHandle[]> {
+    if (!this._database || !this._applicationContext) return [];
+    const logFiles = (await this._database.readLogs()) || [];
+    this._applicationContext.setLogHandles(logFiles);
+    await this.queueMissingOrStartedPreviews(logFiles);
+    return logFiles;
   }
 
   public async loadLogPreviews(context: {
@@ -510,12 +407,10 @@ export class ReplicationService {
     this._previewQueue.enqueue(logs, priority);
   }
 
-  private count = 0;
   queueLogDetails(
     logs: LogHandle[],
     priority: WorkPriority = WorkPriority.Medium
   ) {
-    this.count = this.count + logs.length;
     // Add to queue (deduplicated by name)
     this._detailQueue.enqueue(logs, priority);
   }
