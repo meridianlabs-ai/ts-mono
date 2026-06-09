@@ -9,19 +9,25 @@ const log = createLogger("Client-Events");
 
 export function useClientEvents() {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const setSyncError = useStore((state) => state.appActions.setSyncError);
   const api = useApi();
 
   const refreshCallback = useCallback(
     async (_reason: "event" | "periodic") => {
       log.debug(`Refresh Log Files (${_reason})`);
+      setSyncError(undefined);
       await syncLogs();
     },
-    [syncLogs]
+    [syncLogs, setSyncError]
   );
 
   useEffect(() => {
     clientEventsService.setRefreshCallback(refreshCallback);
   }, [refreshCallback]);
+
+  useEffect(() => {
+    clientEventsService.setSyncErrorCallback(setSyncError);
+  }, [setSyncError]);
 
   const startPolling = useCallback(() => {
     clientEventsService.startPolling(api);
