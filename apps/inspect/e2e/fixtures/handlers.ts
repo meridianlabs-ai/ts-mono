@@ -1,14 +1,23 @@
 import { http, HttpResponse } from "msw";
 
+import type { AppConfig } from "@tsmono/inspect-common/types";
+
 /**
  * Default handlers that let the inspect app boot cleanly.
  *
  * The view-server API prefixes all routes with /api (proxied via vite in dev).
- * On boot the app calls: /api/events, /api/log-dir, /api/log-files,
+ * On boot the app calls: /api/app-config, /api/events, /api/log-dir, /api/log-files,
  * /api/log-headers, and eventually /api/logs/{file}?header-only=100 for a
  * specific log.
  */
 export const defaultHandlers = [
+  http.get("*/api/app-config", () => {
+    return HttpResponse.json<AppConfig>({
+      inspect_version: "0.0.0-e2e",
+      scout_version: null,
+    });
+  }),
+
   // Client events — return empty array so polling doesn't block
   http.get("*/api/events*", () => {
     return HttpResponse.json([]);
