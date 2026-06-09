@@ -12,7 +12,11 @@ import {
 } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
-import { ErrorPanel, NoContentsPanel, ToolButton } from "@tsmono/react/components";
+import {
+  ErrorPanel,
+  NoContentsPanel,
+  ToolButton,
+} from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";

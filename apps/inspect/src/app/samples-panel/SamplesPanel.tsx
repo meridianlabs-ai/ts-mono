@@ -11,7 +11,6 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
-
 import { useClientEvents } from "../../state/clientEvents";
 import {
   LogHandleWithretried,
