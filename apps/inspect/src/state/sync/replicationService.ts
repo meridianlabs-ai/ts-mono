@@ -5,6 +5,8 @@ import { ClientAPI, LogDetails, LogPreview } from "../../client/api/types";
 import { DatabaseService } from "../../client/database";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
 
+import { computeInvalidations, computeSyncCursor } from "./syncCursor";
+
 export interface ApplicationContext {
   setLogHandles: (logs: LogHandle[]) => void;
   getSelectedLog: () => LogHandle | undefined;
@@ -302,16 +304,7 @@ export class ReplicationService {
 
     // First query the list of logs
     const logFiles = (await this._database.readLogs()) || [];
-    let mtime = 0;
-    let clientFileCount = 0;
-    if (logFiles && logFiles.length > 0) {
-      mtime = Math.max(...logFiles.map((file) => file.mtime || 0));
-      clientFileCount = logFiles.length;
-    }
-
-    // If there are logFiles, but no mtime, then no sync is possible
-    // this is just a static list.
-    const staticList = logFiles.length > 0 && mtime === 0;
+    const { mtime, clientFileCount, staticList } = computeSyncCursor(logFiles);
     if (staticList) {
       // There is no mtime data which means sync isn't possible
       // check to ensure the file list hasn't changed (in which
@@ -396,25 +389,7 @@ export class ReplicationService {
       }
     }
 
-    // Make a list of the files in current files that are missing
-    // from the files we just loaded or which have a lower mtime
-    // than the file in the files list.
-    const toInvalidate = updatedLogs.filter((remoteLog) => {
-      const localCopy = logFiles.find((f) => f.name === remoteLog.name);
-
-      // There isn't a local copy, so it's new
-      if (!localCopy) {
-        return true;
-      }
-
-      // If there is a local copy, but the remote mtime is newer, invalidate
-      if (remoteLog.mtime && localCopy.mtime) {
-        return remoteLog.mtime > localCopy.mtime;
-      }
-
-      // times are missing, so assume it's changed
-      return true;
-    });
+    const toInvalidate = computeInvalidations(updatedLogs, logFiles);
 
     // Invalidate summaries and overviews for deleted or updated files
     toInvalidate
