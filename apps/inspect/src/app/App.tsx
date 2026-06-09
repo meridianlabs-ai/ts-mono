@@ -109,7 +109,7 @@ const AppContent: FC = () => {
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 
-  // App config (inspect / scout versions) gates rendering below.
+  // App config is bootstrap state, fetched once and gated on below.
   const appConfig = useAppConfigAsync();
 
   const logDir = useStore((state) => state.logs.logDir);
@@ -280,8 +280,13 @@ const AppContent: FC = () => {
     onMessage,
   ]);
 
-  // Gate rendering on the app config: the rest of the app reads it via
-  // useAppConfig (which throws if absent), so don't mount until it resolves.
+  // Gate rendering on the app config. Today it only carries versions, but
+  // it's the app's bootstrap config and is expected to grow to hold
+  // operational data the viewer needs up front (e.g. log_dir, folding in the
+  // separate /log-dir request). Gating guarantees the value is present so the
+  // synchronous useAppConfig() (which throws if absent) is safe everywhere —
+  // the same pattern Scout uses. When log_dir lands here, seed it into the
+  // logs store at startup rather than fetching /log-dir separately.
   if (appConfig.error) {
     return (
       <div className="app-config-gate">
