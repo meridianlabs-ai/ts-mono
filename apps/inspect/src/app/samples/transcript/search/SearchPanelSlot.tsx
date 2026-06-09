@@ -5,6 +5,8 @@ import {
   type SearchScope,
 } from "@tsmono/inspect-components/transcript-search";
 
+import { useAppConfig } from "../../../server/useAppConfig";
+
 import {
   useInspectSearchApi,
   useInspectSearchModelHistory,
@@ -12,6 +14,7 @@ import {
   useInspectSearchPanelState,
   type InspectSearchContext,
 } from "./inspectSearchAdapters";
+import { SearchScoutUnavailable } from "./SearchScoutUnavailable";
 
 interface SearchPanelSlotProps {
   scope: SearchScope;
@@ -20,11 +23,29 @@ interface SearchPanelSlotProps {
 }
 
 /**
- * Bundles the four adapter hooks and renders the shared SearchPanel.
+ * Renders the shared SearchPanel, or an "install Inspect Scout" notice when
+ * the backend reports scout isn't installed (search endpoints proxy to it).
  * Callers obtain `context` from `useInspectSearchContext(sample)`, which
  * encapsulates the "is this sample searchable + can we build URLs?" decision.
  */
 export const SearchPanelSlot: FC<SearchPanelSlotProps> = ({
+  scope,
+  context,
+  onClose,
+}) => {
+  const appConfig = useAppConfig();
+
+  if (appConfig.scout_version == null) {
+    return <SearchScoutUnavailable onClose={onClose} />;
+  }
+
+  return (
+    <ConnectedSearchPanel scope={scope} context={context} onClose={onClose} />
+  );
+};
+
+/** Bundles the four adapter hooks and renders the shared SearchPanel. */
+const ConnectedSearchPanel: FC<SearchPanelSlotProps> = ({
   scope,
   context,
   onClose,
