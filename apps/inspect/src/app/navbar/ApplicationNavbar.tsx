@@ -81,6 +81,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
           positionEl={optionsRef.current}
           showing={isShowing}
           setShowing={setShowing}
+          syncError={syncError}
         />
       </Navbar>
       <ActivityBar animating={hasActivity} />

@@ -70,3 +70,12 @@
   background-color: #f8d7da;
   color: #721c24;
 }
+
+.syncErrorLabel {
+  color: var(--bs-danger, #dc3545);
+}
+
+.syncErrorMessage {
+  color: var(--bs-danger, #dc3545);
+  word-break: break-word;
+}
