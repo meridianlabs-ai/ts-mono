@@ -8,30 +8,35 @@ import styles from "./ViewerOptionsButton.module.css";
 export interface ViewerOptionsButtonProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
+  error?: Error;
 }
 
 export const ViewerOptionsButton = forwardRef<
   HTMLButtonElement,
   ViewerOptionsButtonProps
->(({ showing, setShowing }, ref) => {
+>(({ showing, setShowing, error }, ref) => {
   const toggleShowing = useCallback(() => {
     setShowing(!showing);
   }, [showing, setShowing]);
 
   return (
-    <div>
+    <div className={styles.wrapper}>
       <button
         ref={ref}
         type="button"
         className={clsx(styles.button)}
         onClick={toggleShowing}
-        title={"Viewer information and options"}
+        title={
+          error
+            ? `Sync error: ${error.message}`
+            : "Viewer information and options"
+        }
       >
-        <i
-          ref={ref}
-          className={clsx(ApplicationIcons.info, styles.viewerOptions)}
-        />
+        <i className={clsx(ApplicationIcons.config, styles.viewerOptions)} />
+        {error && <span className={styles.errorDot} aria-hidden="true" />}
       </button>
     </div>
   );
 });
+
+ViewerOptionsButton.displayName = "ViewerOptionsButton";

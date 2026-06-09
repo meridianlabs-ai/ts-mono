@@ -42,6 +42,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   const setShowing = useStore(
     (state) => state.appActions.setShowingOptionsDialog
   );
+  const syncError = useStore((state) => state.app.status.syncError);
 
   const hasActivity = useMemo(() => {
     if (showActivity === "all") {
@@ -73,12 +74,14 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         <ViewerOptionsButton
           showing={isShowing}
           setShowing={setShowing}
+          error={syncError}
           ref={optionsRef}
         />
         <ViewerOptionsPopover
           positionEl={optionsRef.current}
           showing={isShowing}
           setShowing={setShowing}
+          syncError={syncError}
         />
       </Navbar>
       <ActivityBar animating={hasActivity} />

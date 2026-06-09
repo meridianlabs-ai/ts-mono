@@ -5,6 +5,8 @@ import styles from "./PulsingDots.module.css";
 
 interface PulsingDotsProps {
   text?: string;
+  /** Render the text visibly below the dots (default: screen-reader only). */
+  showText?: boolean;
   dotsCount?: number;
   subtle?: boolean;
   size?: "small" | "medium" | "large";
@@ -13,6 +15,7 @@ interface PulsingDotsProps {
 
 export const PulsingDots: FC<PulsingDotsProps> = ({
   text = "Loading...",
+  showText = false,
   dotsCount = 3,
   subtle = true,
   size = "small",
@@ -31,10 +34,12 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
       )}
       role="status"
     >
+      {showText && <span className={styles.label}>{text}</span>}
       <div className={styles.dotsContainer}>
         {Array.from({ length: dotsCount }, (_, index) => (
           <div
             key={`dot-${index}`}
+            data-testid="pulsing-dot"
             className={clsx(
               styles.dot,
               subtle ? styles.subtle : styles.primary
@@ -43,7 +48,8 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
           />
         ))}
       </div>
-      <span className={styles.visuallyHidden}>{text}</span>
+      {/* role="status" is a live region — text content (not aria-label) triggers announcements */}
+      {!showText && <span data-testid="sr-text" className="visually-hidden">{text}</span>}
     </div>
   );
 };

@@ -1,3 +1,8 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
 .button {
   border: none;
   padding: 0;
@@ -6,4 +11,15 @@
 
 .viewerOptions {
   color: var(--bs-body-color);
+}
+
+.errorDot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--bs-danger);
+  pointer-events: none;
 }

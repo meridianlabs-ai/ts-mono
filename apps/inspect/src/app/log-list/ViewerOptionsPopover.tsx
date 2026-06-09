@@ -16,12 +16,14 @@ export interface ViewerOptionsPopoverProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
   positionEl: HTMLElement | null;
+  syncError?: Error;
 }
 
 export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
   showing,
   positionEl,
   setShowing,
+  syncError,
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
@@ -65,6 +67,17 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       showArrow={false}
     >
       <div className={clsx(styles.container, "text-size-smaller")}>
+        {syncError && (
+          <>
+            <div className={clsx("text-style-label", styles.syncErrorLabel)}>
+              Sync Error
+            </div>
+            <div className={clsx(styles.syncErrorMessage)}>
+              {syncError.message}
+            </div>
+            <div className={clsx(styles.spacer)}></div>
+          </>
+        )}
         <div
           className={clsx(
             "text-style-label",

@@ -31,6 +31,8 @@ class ClientEventsService {
     this.isRefreshing = true;
     try {
       await this.onRefreshCallback(reason);
+    } catch (e) {
+      log.debug(`Background sync error (${reason})`, e);
     } finally {
       this.isRefreshing = false;
     }

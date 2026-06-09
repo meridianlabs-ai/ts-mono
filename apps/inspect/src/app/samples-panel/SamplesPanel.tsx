@@ -9,9 +9,8 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
-import { ProgressBar } from "@tsmono/react/components";
+import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
-import { ActivityBar } from "../../components/ActivityBar";
 import { useClientEvents } from "../../state/clientEvents";
 import {
   LogHandleWithretried,
@@ -71,6 +70,7 @@ export const SamplesPanel: FC = () => {
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
+  const error = useStore((state) => state.app.status.error);
   const showRetriedLogs = useStore((state) => state.logs.showRetriedLogs);
   const setShowRetriedLogs = useStore(
     (state) => state.logsActions.setShowRetriedLogs
@@ -461,49 +461,57 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={!!loading} />
-      <div className={clsx(styles.list, "text-size-smaller")}>
-        <SamplesGrid<SampleRow>
-          rowData={sampleRows}
-          columnDefs={allColumns}
-          columnVisibility={visibilityForGrid}
-          defaultColDef={{ sortable: true, filter: true, resizable: true }}
-          viewMode="grid"
-          gridRef={gridRef}
-          getRowId={getRowId}
-          selectedRowId={selectedRowId}
-          onRowOpen={handleRowOpen}
-          initialState={initialState}
-          onStateUpdated={setGridState}
-          onFilterChanged={updateDisplayedFromApi}
-          onFirstDataRendered={handleFirstDataRendered}
-          loading={isEmptyAndLoading}
-          autoSizeStrategy={{
-            type: "fitGridWidth",
-          }}
+      {error ? (
+        <ErrorPanel
+          title="Error"
+          error={{ message: error.message, stack: error.stack }}
         />
-      </div>
-
-      <LogListFooter
-        itemCount={filteredSamplesCount ?? 0}
-        itemCountLabel={filteredSamplesCount === 1 ? "sample" : "samples"}
-        progressText={
-          syncing
-            ? `Syncing${filteredSamplesCount ? ` (${filteredSamplesCount.toLocaleString()} samples)` : ""}`
-            : undefined
-        }
-        progressBar={
-          totalTaskCount !== completedTaskCount ? (
-            <ProgressBar
-              min={0}
-              max={totalTaskCount}
-              value={completedTaskCount}
-              width="100px"
-              label={"tasks"}
+      ) : (
+        <>
+          <div className={clsx(styles.list, "text-size-smaller")}>
+            <SamplesGrid<SampleRow>
+              rowData={sampleRows}
+              columnDefs={allColumns}
+              columnVisibility={visibilityForGrid}
+              defaultColDef={{ sortable: true, filter: true, resizable: true }}
+              viewMode="grid"
+              gridRef={gridRef}
+              getRowId={getRowId}
+              selectedRowId={selectedRowId}
+              onRowOpen={handleRowOpen}
+              initialState={initialState}
+              onStateUpdated={setGridState}
+              onFilterChanged={updateDisplayedFromApi}
+              onFirstDataRendered={handleFirstDataRendered}
+              loading={isEmptyAndLoading}
+              autoSizeStrategy={{
+                type: "fitGridWidth",
+              }}
             />
-          ) : undefined
-        }
-      />
+          </div>
+
+          <LogListFooter
+            itemCount={filteredSamplesCount ?? 0}
+            itemCountLabel={filteredSamplesCount === 1 ? "sample" : "samples"}
+            progressText={
+              syncing
+                ? `Syncing${filteredSamplesCount ? ` (${filteredSamplesCount.toLocaleString()} samples)` : ""}`
+                : undefined
+            }
+            progressBar={
+              totalTaskCount !== completedTaskCount ? (
+                <ProgressBar
+                  min={0}
+                  max={totalTaskCount}
+                  value={completedTaskCount}
+                  width="100px"
+                  label={"tasks"}
+                />
+              ) : undefined
+            }
+          />
+        </>
+      )}
     </div>
   );
 };
