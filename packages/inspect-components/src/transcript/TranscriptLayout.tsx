@@ -31,7 +31,11 @@ import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
-import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
+import {
+  NoContentsPanel,
+  ResizablePanel,
+  StickyScroll,
+} from "@tsmono/react/components";
 import { useScrubberProgress } from "@tsmono/react/hooks";
 
 import {
@@ -1145,71 +1149,15 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Right rail panel resize (drag the panel's left edge). Width is owned here
-  // so dragging re-renders only this layout, not the (memoized) host content.
-  // ---------------------------------------------------------------------------
-
-  const railWidth = rightRail?.railWidth ?? 44;
-  const railPanelMinWidth = rightRail?.panelMinWidth ?? 240;
-  const railPanelMaxWidth = rightRail?.panelMaxWidth ?? 800;
-  const railPanelOnWidthChange = rightRail?.onPanelWidthChange;
-  const [railPanelWidth, setRailPanelWidth] = useState(
-    rightRail?.panelWidth ?? 360
-  );
-  const railPanelDragRef = useRef<{
-    startX: number;
-    startWidth: number;
-  } | null>(null);
-
-  const handleRailPanelPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      (e.target as HTMLDivElement).setPointerCapture(e.pointerId);
-      railPanelDragRef.current = {
-        startX: e.clientX,
-        startWidth: railPanelWidth,
-      };
-    },
-    [railPanelWidth]
-  );
-
-  const handleRailPanelPointerMove = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!railPanelDragRef.current) return;
-      const { startX, startWidth } = railPanelDragRef.current;
-      const next = startWidth - (e.clientX - startX);
-      const clamped = Math.max(
-        railPanelMinWidth,
-        Math.min(railPanelMaxWidth, next)
-      );
-      setRailPanelWidth(clamped);
-      railPanelOnWidthChange?.(clamped);
-    },
-    [railPanelMinWidth, railPanelMaxWidth, railPanelOnWidthChange]
-  );
-
-  const handleRailPanelPointerUp = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      railPanelDragRef.current = null;
-      try {
-        (e.target as HTMLDivElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // pointer may already be released
-      }
-    },
-    []
-  );
-
-  // ---------------------------------------------------------------------------
   // Right rail
   // ---------------------------------------------------------------------------
   //
   // The rail (and its optional resizable panel) render as a flex region to the
   // right of the timeline + content, so they run full height starting directly
-  // below the toolbar rather than below the swimlanes. Their widths come from
-  // CSS vars set on `.root` (see render below); the inner content grid keeps
-  // its class-based `grid-template-columns` untouched.
+  // below the toolbar rather than below the swimlanes. The panel + its resizer
+  // come from the shared <ResizablePanel>; the rail is a fixed-width column.
 
+  const railWidth = rightRail?.railWidth ?? 44;
   const railActive = !!rightRail;
   const railPanelOpen = railActive && rightRail?.panel != null;
 
@@ -1220,19 +1168,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   return (
     <TimelineSelectContext.Provider value={selectBySpanId}>
       <TimelineRowSelectContext.Provider value={selectByRowKey}>
-        <div
-          className={clsx(styles.root, className)}
-          style={
-            {
-              "--right-rail-width": `${railWidth}px`,
-              "--right-rail-panel-width": `${railPanelWidth}px`,
-              "--rail-top": `${offsetTop}px`,
-              "--scroller-height": scrollerHeight
-                ? `${scrollerHeight}px`
-                : "100vh",
-            } as CSSProperties
-          }
-        >
+        <div className={clsx(styles.root, className)}>
           <div className={styles.main}>
             {showSwimlanes && (
               <StickyScroll
@@ -1468,34 +1404,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
           {railActive && rightRail && (
             <>
               {railPanelOpen && (
-                <>
-                  {/* Full-height divider hosting the resizer, so the panel edge
-                      is grabbable anywhere along its height — not just beside
-                      the (often short) panel content. */}
-                  <div className={styles.railPanelDivider}>
-                    <div
-                      className={styles.railPanelResizer}
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label={`Resize ${rightRail.label ?? "panel"}`}
-                      onPointerDown={handleRailPanelPointerDown}
-                      onPointerMove={handleRailPanelPointerMove}
-                      onPointerUp={handleRailPanelPointerUp}
-                      onPointerCancel={handleRailPanelPointerUp}
-                    />
-                  </div>
-                  <StickyScroll
-                    ref={rightRailPanelScrollRef}
-                    scrollRef={scrollRef}
-                    className={styles.railPanel}
-                    offsetTop={offsetTop}
-                  >
-                    {rightRail.panel}
-                  </StickyScroll>
-                </>
+                <ResizablePanel
+                  scrollRef={scrollRef}
+                  offsetTop={offsetTop}
+                  panelScrollRef={rightRailPanelScrollRef}
+                  defaultWidth={rightRail.panelWidth}
+                  minWidth={rightRail.panelMinWidth}
+                  maxWidth={rightRail.panelMaxWidth}
+                  onWidthChange={rightRail.onPanelWidthChange}
+                  label={rightRail.label}
+                >
+                  {rightRail.panel}
+                </ResizablePanel>
               )}
               <div className={styles.railSeparator} />
-              <div className={styles.rightRail}>
+              <div
+                className={styles.rightRail}
+                style={{ flex: `0 0 ${railWidth}px` }}
+              >
                 <div
                   className={styles.rightRailSticky}
                   style={{ top: offsetTop }}

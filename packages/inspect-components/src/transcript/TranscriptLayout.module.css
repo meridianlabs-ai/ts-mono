@@ -154,71 +154,15 @@
   padding-bottom: 1rem;
 }
 
-/* Right rail: an always-visible activity bar with an optional panel column to
-   its left. Both are flex siblings of `.main` (see TranscriptLayout.tsx); their
-   widths come from CSS vars set on `.root`. */
-.railPanel {
-  /* No padding: the hosted panels (Search / Scans) own their internal padding
-     and render full-width header bars, so the column must be flush. */
-  padding: 0;
-  align-self: start;
-  flex: 0 0 var(--right-rail-panel-width, 360px);
-  /* Pin below the toolbar (--rail-top), alongside the timeline. */
-  max-height: calc(var(--scroller-height, 100vh) - var(--rail-top, 0px));
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-/* The 1px divider to the panel's left. It stretches to the full row height, so
-   the resizer it hosts spans the whole panel edge. */
-.railPanelDivider {
-  position: relative;
-  flex: 0 0 1px;
-  background-color: var(--bs-border-color);
-}
-
-.railPanelResizer {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -3px;
-  width: 7px;
-  cursor: col-resize;
-  touch-action: none;
-  user-select: none;
-  /* Above the panel (a sticky StickyScroll at z-index 100) and content headers
-     so the hover highlight is one continuous line, but below the swimlanes
-     (z-index 500) and sample header so it never paints over them when scrolled. */
-  z-index: 200;
-  background-color: transparent;
-}
-
-/* Crisp highlight centered on the 1px divider, so hover reads as a clean line
-   instead of a fat bar bleeding raggedly over the neighboring header bars. */
-.railPanelResizer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background-color: transparent;
-  transition: background-color 120ms ease;
-}
-
-.railPanelResizer:hover::after,
-.railPanelResizer:active::after {
-  background-color: var(--bs-primary);
-}
-
+/* Right rail: an always-visible activity bar. The optional panel column to its
+   left is the shared <ResizablePanel>; the rail itself is a fixed-width column
+   (width supplied inline) that stretches to the full row height. */
 .railSeparator {
   flex: 0 0 1px;
   background-color: var(--bs-border-color);
 }
 
 .rightRail {
-  flex: 0 0 var(--right-rail-width, 44px);
   align-self: stretch;
   background-color: var(--bs-body-bg);
 }

@@ -64,37 +64,6 @@
   min-height: 0;
 }
 
-.dockedSidebar {
-  position: sticky;
-  align-self: flex-start;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: row;
-  background-color: var(--bs-body-bg);
-}
-
-.dockedSidebarHandle {
-  flex: 0 0 4px;
-  cursor: col-resize;
-  background-color: transparent;
-  border-left: 1px solid var(--bs-border-color);
-  transition: background-color 0.12s ease;
-}
-
-.dockedSidebarHandle:hover,
-.dockedSidebarHandle:active {
-  background-color: var(--bs-primary, var(--bs-border-color));
-}
-
-.dockedSidebarContent {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .padded {
   padding: 1em;
 }

@@ -44,6 +44,7 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
+  ResizablePanel,
   StickyScroll,
   TabPanel,
   TabSet,
@@ -629,22 +630,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }, [selectedSampleSummary]);
 
   const stickyOffsetTop = tabsHeight + headerHeight;
-  const [scrollerHeight, setScrollerHeight] = useState(0);
-
-  useEffect(() => {
-    if (!hasSampleData) {
-      setScrollerHeight(0);
-      return;
-    }
-
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    const apply = () => setScrollerHeight(scroller.clientHeight);
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(scroller);
-    return () => ro.disconnect();
-  }, [hasSampleData, scrollRef]);
 
   const tabsContainerStyle = useMemo(
     () =>
@@ -653,10 +638,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       }) as CSSProperties,
     [headerHeight]
   );
-  const sidebarHeight =
-    scrollerHeight > 0
-      ? Math.max(0, scrollerHeight - stickyOffsetTop)
-      : `calc(100vh - ${stickyOffsetTop}px)`;
 
   // Which rail entry (if any) is showing its panel. Scans only applies on the
   // Transcript tab and only when the sample actually has scans.
@@ -827,8 +808,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               >
                 <RailSidebarHost
                   contentClassName={styles.chat}
+                  scrollRef={scrollRef}
                   panelTop={stickyOffsetTop}
-                  panelHeight={sidebarHeight}
                   rail={
                     <ActivityRail
                       items={railItems}
@@ -1003,8 +984,9 @@ interface RailSidebarHostProps {
   rail: ReactNode;
   /** The open panel, or null when no panel is active. */
   panel: ReactNode;
+  /** The outer scroll container the panel sticks within. */
+  scrollRef: RefObject<HTMLDivElement | null>;
   panelTop: number;
-  panelHeight: number | string;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
@@ -1012,22 +994,23 @@ interface RailSidebarHostProps {
 
 /**
  * Flex host for tabs without a swimlane timeline (Messages): main content, an
- * optional resizable panel column, and an always-visible rail pinned right.
+ * optional resizable panel (shared <ResizablePanel>), and an always-visible
+ * rail pinned right. Mirrors the transcript tab's rail layout.
  */
 const RailSidebarHost: FC<RailSidebarHostProps> = ({
   rail,
   panel,
+  scrollRef,
   panelTop,
-  panelHeight,
   contentClassName,
   children,
 }) => (
   <div className={styles.railHost}>
     <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
     {panel && (
-      <RailPanelColumn top={panelTop} height={panelHeight}>
+      <ResizablePanel scrollRef={scrollRef} offsetTop={panelTop} label="panel">
         {panel}
-      </RailPanelColumn>
+      </ResizablePanel>
     )}
     {/* Full-height column (border + bg run the whole content height, matching
         the transcript tab's rail); the items themselves stick below the
@@ -1039,60 +1022,6 @@ const RailSidebarHost: FC<RailSidebarHostProps> = ({
     </div>
   </div>
 );
-
-const DOCKED_SIDEBAR_DEFAULT_WIDTH = 360;
-const DOCKED_SIDEBAR_MIN_WIDTH = 240;
-// Matches the transcript tab's rail panel max width.
-const DOCKED_SIDEBAR_MAX_WIDTH = 800;
-
-const RailPanelColumn: FC<{
-  children: ReactNode;
-  top: number;
-  height: number | string;
-}> = ({ children, top, height }) => {
-  const [width, setWidth] = useState(DOCKED_SIDEBAR_DEFAULT_WIDTH);
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  const onHandleMouseDown = useCallback(
-    (e: MouseEvent) => {
-      e.preventDefault();
-      dragRef.current = { startX: e.clientX, startWidth: width };
-
-      const onMove = (ev: globalThis.MouseEvent) => {
-        if (!dragRef.current) return;
-        const delta = dragRef.current.startX - ev.clientX;
-        const next = dragRef.current.startWidth + delta;
-        setWidth(
-          Math.max(
-            DOCKED_SIDEBAR_MIN_WIDTH,
-            Math.min(DOCKED_SIDEBAR_MAX_WIDTH, next)
-          )
-        );
-      };
-      const onUp = () => {
-        dragRef.current = null;
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    },
-    [width]
-  );
-
-  return (
-    <aside className={styles.dockedSidebar} style={{ width, top, height }}>
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        className={styles.dockedSidebarHandle}
-        onMouseDown={onHandleMouseDown}
-      />
-      <div className={styles.dockedSidebarContent}>{children}</div>
-    </aside>
-  );
-};
 
 interface SampleUsagePanelProps {
   id: string;
