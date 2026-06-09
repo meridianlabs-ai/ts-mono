@@ -16,7 +16,11 @@ export function useClientEvents() {
     async (_reason: "event" | "periodic") => {
       log.debug(`Refresh Log Files (${_reason})`);
       setSyncError(undefined);
-      await syncLogs();
+      try {
+        await syncLogs();
+      } catch (e) {
+        setSyncError(e as Error);
+      }
     },
     [syncLogs, setSyncError]
   );
@@ -24,10 +28,6 @@ export function useClientEvents() {
   useEffect(() => {
     clientEventsService.setRefreshCallback(refreshCallback);
   }, [refreshCallback]);
-
-  useEffect(() => {
-    clientEventsService.setSyncErrorCallback(setSyncError);
-  }, [setSyncError]);
 
   const startPolling = useCallback(() => {
     clientEventsService.startPolling(api);

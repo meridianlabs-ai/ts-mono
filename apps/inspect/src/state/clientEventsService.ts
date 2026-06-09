@@ -16,16 +16,11 @@ class ClientEventsService {
   private onRefreshCallback:
     | ((reason: "event" | "periodic") => Promise<void>)
     | null = null;
-  private onSyncError: ((error: Error) => void) | null = null;
 
   setRefreshCallback(
     callback: (reason: "event" | "periodic") => Promise<void>
   ) {
     this.onRefreshCallback = callback;
-  }
-
-  setSyncErrorCallback(callback: (error: Error) => void) {
-    this.onSyncError = callback;
   }
 
   private async refreshLogFiles(reason: "event" | "periodic") {
@@ -38,7 +33,6 @@ class ClientEventsService {
       await this.onRefreshCallback(reason);
     } catch (e) {
       log.debug(`Background sync error (${reason})`, e);
-      this.onSyncError?.(e as Error);
     } finally {
       this.isRefreshing = false;
     }
@@ -101,7 +95,6 @@ class ClientEventsService {
     log.debug(`Cleanup`);
     this.stopPolling();
     this.onRefreshCallback = null;
-    this.onSyncError = null;
   }
 }
 
