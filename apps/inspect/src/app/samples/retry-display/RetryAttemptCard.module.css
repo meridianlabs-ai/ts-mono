@@ -1,0 +1,86 @@
+.card {
+  flex: 1;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.cardCollapsed {
+  background: var(--bs-tertiary-bg);
+}
+
+.cardOpen {
+  background: var(--bs-body-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+
+.attemptLabel {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+}
+
+.errorChip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--bs-font-monospace);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+  border: 1px solid var(--bs-danger-border-subtle);
+  white-space: nowrap;
+}
+
+.message {
+  font-size: 12.5px;
+  color: var(--bs-secondary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duration {
+  margin-left: auto;
+  font-family: var(--bs-font-monospace);
+  font-size: 12px;
+  color: var(--bs-tertiary-color);
+  white-space: nowrap;
+}
+
+/* When there's no duration, the chevron still anchors right. */
+.chevron {
+  margin-left: auto;
+  color: var(--bs-tertiary-color);
+  font-size: 14px;
+}
+
+.duration + .chevron {
+  margin-left: 0;
+}
+
+.body {
+  padding: 4px 14px 16px;
+}
+
+.toggle {
+  margin-bottom: 12px;
+}
+
+.ansi {
+  margin: 0.5em 0;
+  font-size: clamp(0.3rem, 1.1vw, 0.8rem) !important;
+}
