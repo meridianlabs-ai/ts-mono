@@ -22,11 +22,6 @@ describe("ClientEventsService", () => {
       });
       clientEventsService.setSyncErrorCallback(syncError);
 
-      // Trigger a refresh by accessing the private method via a public path:
-      // startPolling fires the refresh; we can also call it indirectly by
-      // invoking the internal path through a mock API that returns a refresh event.
-      // Simpler: reach refreshLogFiles via the stored callback indirectly by
-      // calling the public method with a mock API.
       const mockApi = {
         client_events: vi.fn().mockResolvedValue(["refresh-evals"]),
       };
@@ -34,9 +29,7 @@ describe("ClientEventsService", () => {
       vi.useFakeTimers();
       clientEventsService.startPolling(mockApi as never);
 
-      // Wait for the first poll cycle to execute
       await vi.waitFor(() => expect(mockApi.client_events).toHaveBeenCalled());
-      // The refresh callback throws — onSyncError should be called with the error
       await vi.waitFor(() => expect(syncError).toHaveBeenCalledWith(boom));
 
       clientEventsService.stopPolling();
@@ -68,8 +61,6 @@ describe("ClientEventsService", () => {
       clientEventsService.setSyncErrorCallback(syncError);
       clientEventsService.cleanup();
 
-      // After cleanup, setting a new throwing callback should not invoke the
-      // cleared onSyncError — the only way to observe this is via startPolling.
       const mockApi = {
         client_events: vi.fn().mockResolvedValue(["refresh-evals"]),
       };
