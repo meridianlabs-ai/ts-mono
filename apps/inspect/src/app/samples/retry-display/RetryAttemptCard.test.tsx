@@ -11,6 +11,18 @@ vi.mock("@tsmono/inspect-components/transcript", () => ({
   TranscriptLayout: () => <div data-testid="transcript-layout" />,
 }));
 
+vi.mock("@tsmono/react/components", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tsmono/react/components")>();
+  return {
+    ...actual,
+    // ANSIDisplay needs an icon-provider context that isn't present in jsdom;
+    // stub it so the card's own logic is what's under test.
+    ANSIDisplay: ({ output }: { output: string }) => (
+      <pre data-testid="ansi-display">{output}</pre>
+    ),
+  };
+});
+
 import { RetryAttemptCard } from "./RetryAttemptCard";
 
 const baseRetry: EvalRetryError = {
@@ -49,14 +61,14 @@ describe("RetryAttemptCard", () => {
 
   it("shows the traceback in the error view and no Events toggle when there are no events", () => {
     renderCard({ view: "error" });
-    expect(screen.queryByRole("button", { name: /events/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
     expect(screen.queryByTestId("transcript-layout")).toBeNull();
   });
 
   it("renders the Error/Events toggle when events exist", () => {
     renderCard({ retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] } });
-    expect(screen.getByRole("button", { name: /error/i })).toBeDefined();
-    expect(screen.getByRole("button", { name: /events/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Error" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Events" })).toBeDefined();
   });
 
   it("renders the transcript when view is events", () => {
@@ -76,6 +88,6 @@ describe("RetryAttemptCard", () => {
 
   it("hides the body when collapsed", () => {
     renderCard({ isOpen: false, retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] } });
-    expect(screen.queryByRole("button", { name: /events/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
   });
 });

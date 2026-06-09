@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Component, FC, ReactNode, RefObject, useMemo, useState } from "react";
+import { FC, RefObject, useMemo, useState } from "react";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
 import {
@@ -61,11 +61,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
         }}
       >
         <span className={styles.attemptLabel}>{`Attempt ${attemptNumber}`}</span>
-        {errorType && (
-          <span className={styles.errorChip} aria-hidden="true">
-            {errorType}
-          </span>
-        )}
+        {errorType && <span className={styles.errorChip}>{errorType}</span>}
         {retry.message && <span className={styles.message}>{retry.message}</span>}
         {durationSec != null && (
           <span className={styles.duration}>{formatTime(durationSec)}</span>
@@ -92,7 +88,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
             </div>
           )}
           {view === "error" || !hasEvents ? (
-            <TracebackDisplay output={retry.traceback_ansi} className={styles.ansi} />
+            <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
           ) : (
             <RetryEventsView retry={retry} listId={listId} scrollRef={scrollRef} />
           )}
@@ -101,36 +97,6 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
     </div>
   );
 };
-
-// ANSIDisplay requires ComponentIconProvider and ansi-output (not available in
-// jsdom). Wrap with an error boundary so the card renders in isolation during
-// unit tests — the boundary falls back to a plain <pre> on render errors.
-interface TracebackDisplayProps {
-  output: string;
-  className?: string;
-}
-
-class AnsiErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: { children: ReactNode; fallback: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    return this.state.hasError ? this.props.fallback : this.props.children;
-  }
-}
-
-const TracebackDisplay: FC<TracebackDisplayProps> = ({ output, className }) => (
-  <AnsiErrorBoundary fallback={<pre className={className}>{output}</pre>}>
-    <ANSIDisplay output={output} className={className} />
-  </AnsiErrorBoundary>
-);
 
 const RetryEventsView: FC<{
   retry: EvalRetryError;
