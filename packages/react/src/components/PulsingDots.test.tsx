@@ -25,7 +25,9 @@ describe("PulsingDots", () => {
   });
 
   it("renders visible text when showText is true", () => {
-    const { getByText } = render(<PulsingDots text="Loading..." showText={true} />);
+    const { getByText } = render(
+      <PulsingDots text="Loading..." showText={true} />
+    );
     expect(getByText("Loading...")).toBeInTheDocument();
   });
 

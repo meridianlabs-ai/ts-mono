@@ -10,7 +10,10 @@ const renderWithIcons = (ui: React.ReactElement) =>
 describe("ErrorPanel", () => {
   it("renders the title", () => {
     const { getByText } = renderWithIcons(
-      <ErrorPanel title="Server Error" error={{ message: "Connection failed" }} />
+      <ErrorPanel
+        title="Server Error"
+        error={{ message: "Connection failed" }}
+      />
     );
     expect(getByText("Server Error")).toBeInTheDocument();
   });

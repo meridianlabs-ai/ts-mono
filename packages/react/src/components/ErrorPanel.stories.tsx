@@ -25,7 +25,8 @@ export const WithStackTrace: Story = {
     title: "Internal Error",
     error: {
       message: "TypeError: Cannot read properties of undefined (reading 'map')",
-      stack: "Array.map (<anonymous>)\n    at processLogs (logsSlice.ts:142)\n    at syncLogs (logsSlice.ts:98)",
+      stack:
+        "Array.map (<anonymous>)\n    at processLogs (logsSlice.ts:142)\n    at syncLogs (logsSlice.ts:98)",
     },
   },
 };

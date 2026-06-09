@@ -49,7 +49,11 @@ export const PulsingDots: FC<PulsingDotsProps> = ({
         ))}
       </div>
       {/* role="status" is a live region — text content (not aria-label) triggers announcements */}
-      {!showText && <span data-testid="sr-text" className="visually-hidden">{text}</span>}
+      {!showText && (
+        <span data-testid="sr-text" className="visually-hidden">
+          {text}
+        </span>
+      )}
     </div>
   );
 };

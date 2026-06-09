@@ -18,5 +18,4 @@ describe("PulsingEllipsis", () => {
     const { getByRole } = render(<PulsingEllipsis text="Generating" />);
     expect(getByRole("status")).toHaveTextContent("Generating");
   });
-
 });

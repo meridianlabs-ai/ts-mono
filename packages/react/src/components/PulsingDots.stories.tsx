@@ -7,7 +7,9 @@ const meta: Meta<typeof PulsingDots> = {
   title: "Indicators/PulsingDots",
   decorators: [
     (Story) => (
-      <div style={{ padding: "40px", display: "flex", justifyContent: "center" }}>
+      <div
+        style={{ padding: "40px", display: "flex", justifyContent: "center" }}
+      >
         <Story />
       </div>
     ),
