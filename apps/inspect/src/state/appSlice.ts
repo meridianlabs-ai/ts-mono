@@ -13,6 +13,7 @@ export interface AppSlice {
   appActions: {
     setLoading: (loading: boolean, error?: Error) => void;
     setSyncError: (error?: Error) => void;
+    promoteErrorToSyncError: () => void;
     setShowFind: (show: boolean) => void;
     hideFind: () => void;
     setNativeFind: (nativeFind: boolean) => void;
@@ -132,6 +133,12 @@ export const createAppSlice = (
       setSyncError: (error?: Error) =>
         set((state) => {
           state.app.status.syncError = error;
+        }),
+
+      promoteErrorToSyncError: () =>
+        set((state) => {
+          state.app.status.syncError = state.app.status.error;
+          state.app.status.error = undefined;
         }),
 
       setShowFind: (show: boolean) =>
