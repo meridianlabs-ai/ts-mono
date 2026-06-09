@@ -24,6 +24,7 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
@@ -65,9 +66,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const columnButtonRef = useRef<HTMLButtonElement>(null);
 
-  const showRetriedLogs = useStore((state) => state.logs.showRetriedLogs);
-  const setShowRetriedLogs = useStore(
-    (state) => state.logsActions.setShowRetriedLogs
+  const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
+  const setShowRetriedLogs = useUserSettings(
+    (state) => state.setShowRetriedLogs
   );
   const logDir = useStore((state) => state.logs.logDir);
   const logFiles = useLogsWithretried();

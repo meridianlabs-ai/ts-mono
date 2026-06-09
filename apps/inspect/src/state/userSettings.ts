@@ -16,6 +16,8 @@ export { SETTINGS_STORAGE_KEY };
 interface UserSettingsState {
   themePreference: ThemePreference;
   setThemePreference: (themePreference: ThemePreference) => void;
+  showRetriedLogs: boolean;
+  setShowRetriedLogs: (showRetriedLogs: boolean) => void;
 }
 
 export const useUserSettings = create<UserSettingsState>()(
@@ -25,6 +27,10 @@ export const useUserSettings = create<UserSettingsState>()(
       themePreference: "readable-system",
       setThemePreference: (themePreference: ThemePreference) => {
         set({ themePreference });
+      },
+      showRetriedLogs: false,
+      setShowRetriedLogs: (showRetriedLogs: boolean) => {
+        set({ showRetriedLogs });
       },
     }),
     {

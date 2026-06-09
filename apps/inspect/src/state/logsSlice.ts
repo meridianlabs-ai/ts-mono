@@ -81,7 +81,6 @@ export interface LogsSlice {
     setDisplayedSamples: (samples: Array<DisplayedSample>) => void;
     clearDisplayedSamples: () => void;
     setPreviousSamplesPath: (path: string | undefined) => void;
-    setShowRetriedLogs: (showRetriedLogs: boolean) => void;
   };
 }
 
@@ -107,7 +106,6 @@ const initialState: LogsState = {
     },
     byLog: {},
   },
-  showRetriedLogs: false,
 };
 
 export const createLogsSlice = (
@@ -503,11 +501,6 @@ export const createLogsSlice = (
           log.debug("Sample query failed, returning empty results");
           return [];
         }
-      },
-      setShowRetriedLogs: (showRetriedLogs: boolean) => {
-        set((state) => {
-          state.logs.showRetriedLogs = showRetriedLogs;
-        });
       },
     },
   } as const;
