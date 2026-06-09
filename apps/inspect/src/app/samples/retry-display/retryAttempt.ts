@@ -41,5 +41,5 @@ export function attemptDuration(retry: EvalRetryError): number | null {
 
   if (times.length < 2) return null;
   const span = (Math.max(...times) - Math.min(...times)) / 1000;
-  return span > 0 ? span : null;
+  return span >= 0 ? span : null;
 }

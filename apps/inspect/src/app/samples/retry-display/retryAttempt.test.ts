@@ -64,4 +64,13 @@ describe("attemptDuration", () => {
     ] as unknown as EvalRetryError["events"];
     expect(attemptDuration(retry({ events }))).toBeNull();
   });
+
+  it("returns 0 when all events share the same timestamp", () => {
+    const ts = "2024-01-01T00:00:00.000Z";
+    const events = [
+      { event: "sample_init", timestamp: ts },
+      { event: "error", timestamp: ts },
+    ] as unknown as EvalRetryError["events"];
+    expect(attemptDuration(retry({ events }))).toBe(0);
+  });
 });
