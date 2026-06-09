@@ -58,6 +58,37 @@ test.describe("Server error state", () => {
     await expect(page.locator(".ag-root")).toBeVisible({ timeout: 10_000 });
   });
 
+  test("shows red error dot on gear icon when background sync fails", async ({
+    page,
+    network,
+  }) => {
+    // Boot cleanly so the initial load succeeds.
+    await page.goto("/");
+    await expect(page.locator(".ag-root")).toBeVisible({ timeout: 10_000 });
+
+    // Now make /api/events return a refresh-evals event and /api/log-files fail.
+    // The poller fires every 5s — using a short delay so the test doesn't time out.
+    network.use(
+      http.get("*/api/events*", () => {
+        return HttpResponse.json(["refresh-evals"]);
+      }),
+      http.get("*/api/log-files*", () => {
+        return HttpResponse.json(
+          { error: "Internal Server Error" },
+          { status: 500 }
+        );
+      })
+    );
+
+    // The error dot is a span inside the ViewerOptionsButton wrapper.
+    // CSS Modules mangle the class name, so target via the aria-hidden span
+    // inside the button that has a title starting with "Sync error:".
+    const errorDot = page.locator(
+      "button[title^='Sync error:'] span[aria-hidden='true']"
+    );
+    await expect(errorDot).toBeVisible({ timeout: 15_000 });
+  });
+
   test("shows ActivityBar, Loading..., then ErrorPanel after a delayed 500", async ({
     page,
     network,
