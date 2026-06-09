@@ -87,6 +87,7 @@ export interface SampleDataResponse {
   sampleData?: SampleData;
   status: "NotModified" | "NotFound" | "OK";
   has_more?: boolean;
+  complete?: boolean;
 }
 
 export interface SegmentRef {
