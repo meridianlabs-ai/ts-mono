@@ -33,7 +33,10 @@ export const InterruptEventView: FC<InterruptEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const title = SOURCE_TITLES[event.source];
+  const baseTitle = SOURCE_TITLES[event.source];
+  const title = event.timestamp
+    ? `${baseTitle} — ${formatDateTime(new Date(event.timestamp))}`
+    : baseTitle;
   const detail = INTERRUPTED_DESCRIPTIONS[event.interrupted];
 
   return (
@@ -42,9 +45,6 @@ export const InterruptEventView: FC<InterruptEventViewProps> = ({
       title={title}
       icon={TranscriptIcons.interrupt}
       className={className}
-      subTitle={
-        event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
-      }
     >
       <div className={clsx("text-size-smaller")}>{detail}</div>
     </EventPanel>

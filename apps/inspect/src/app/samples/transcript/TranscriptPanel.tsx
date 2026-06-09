@@ -43,6 +43,8 @@ import {
 import { SampleScansSidebar } from "../scans/SampleScansSidebar";
 import { useMakeCiteUrl } from "../scans/scanReferences";
 
+import { useTranscriptFilter } from "./hooks";
+
 interface TranscriptPanelProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -106,6 +108,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const filteredEventTypes = useStore(
     (state) => state.sample.eventFilter.filteredTypes
   );
+  const { isDefaultFilter } = useTranscriptFilter();
 
   // ---------------------------------------------------------------------------
   // Store-backed timeline selection adapters
@@ -484,10 +487,13 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
           : undefined
       }
       emptyText={
-        filteredEventTypes.length > 0
-          ? "The currently applied filter hides all events."
-          : undefined
+        running && isDefaultFilter
+          ? "Sample is starting"
+          : filteredEventTypes.length > 0
+            ? "The currently applied filter hides all events."
+            : undefined
       }
+      emptyBusy={running && isDefaultFilter}
     />
   );
 });

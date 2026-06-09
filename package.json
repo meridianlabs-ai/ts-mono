@@ -48,8 +48,9 @@
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@manypkg/cli": "^0.25.1",
     "@tsmono/prettier-config": "workspace:*",
+    "esbuild": "^0.28.0",
     "picocolors": "^1.1.1",
     "prettier": "^3.8.3",
-    "turbo": "^2.9.14"
+    "turbo": "^2.9.15"
   }
 }

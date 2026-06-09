@@ -4,6 +4,23 @@
  */
 import { JsonValue } from "@tsmono/util";
 export interface paths {
+    "/app-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api App Config */
+        get: operations["api_app_config_app_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat-message": {
         parameters: {
             query?: never;
@@ -557,6 +574,16 @@ export interface components {
             working_start: number;
         };
         /**
+         * AppConfig
+         * @description Application configuration returned by GET /app-config.
+         */
+        AppConfig: {
+            /** Inspect Version */
+            inspect_version: string;
+            /** Scout Version */
+            scout_version?: string | null;
+        };
+        /**
          * ApprovalEvent
          * @description Tool approval.
          */
@@ -755,6 +782,7 @@ export interface components {
             logprobs?: components["schemas"]["Logprobs"] | null;
             message: components["schemas"]["ChatMessageAssistant"];
             prompt_logprobs?: components["schemas"]["Logprobs"] | null;
+            stop_details?: components["schemas"]["StopDetails"] | null;
             /**
              * Stop Reason
              * @default unknown
@@ -913,7 +941,7 @@ export interface components {
              * Trigger
              * @enum {string}
              */
-            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget";
+            trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget" | "agent_complete";
             /** Turn */
             turn: number;
             /** Uuid */
@@ -3200,8 +3228,12 @@ export interface components {
          *     from restic's backup summary — see :class:`ResticBackupSummary`.
          */
         SnapshotDetails: {
+            /** Additional Files */
+            additional_files?: number | null;
             /** Duration Ms */
             duration_ms: number;
+            /** Files */
+            files?: string[] | null;
             /** Size Bytes */
             size_bytes: number;
             /** Snapshot Id */
@@ -3333,6 +3365,36 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * StopCategory
+         * @description A single refusal/safety category reported by (or derived for) a model stop.
+         */
+        StopCategory: {
+            /** Category */
+            category: string;
+            /** Level */
+            level?: string | null;
+        };
+        /**
+         * StopDetails
+         * @description Additional detail about why a model stopped generating (e.g. a content refusal).
+         *
+         *     `categories` is the canonical list (always iterable; a single-category provider
+         *     appears as one entry). `category` and `explanation` are a convenience high-level
+         *     summary derived from the same data — `category` is the primary category and
+         *     `explanation` is human-readable (synthesized from `categories` when the provider
+         *     supplies no text). Read either way; both describe the same stop.
+         */
+        StopDetails: {
+            /** Categories */
+            categories: components["schemas"]["StopCategory"][];
+            /** Category */
+            category?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Type */
+            type?: string | null;
         };
         /**
          * StoreEvent
@@ -3880,6 +3942,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    api_app_config_app_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppConfig"];
+                };
+            };
+        };
+    };
     _chat_message_chat_message_get: {
         parameters: {
             query?: never;

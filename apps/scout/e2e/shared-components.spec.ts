@@ -89,8 +89,9 @@ test.describe("shared components from @tsmono/inspect-components", () => {
         .first()
     ).toBeVisible();
 
-    // Switch to Messages tab — user message rendered via shared RenderedText
-    await page.getByRole("tab", { name: "Messages" }).click();
+    // Switch to the transcript's top-level Messages tab (by id — model-call
+    // panels also have a "Messages" tab, so the name alone is ambiguous).
+    await page.locator("#transcript-messages").click();
     await expect(page.getByText("Explain how caching works")).toBeVisible();
   });
 

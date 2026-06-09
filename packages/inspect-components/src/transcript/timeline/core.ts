@@ -819,12 +819,19 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
  *
  * Agent spans are:
  * - Explicit agent spans (type="agent")
- * - Solver spans (type="solver")
+ * - Solver spans that wrap a genuine agent (e.g. an @agent run via as_solver)
  * - Tool spans containing model events (tool-spawned agents)
+ *
+ * Primitive solver spans (system_message, generate, use_tools, ...) wrap no
+ * agent of their own, so they are not agent trajectories — they get unrolled
+ * into their parent rather than occupying a swimlane.
  */
 function isAgentSpan(span: SpanNode): boolean {
-  if (span.type === "agent" || span.type === "solver") {
+  if (span.type === "agent") {
     return true;
+  }
+  if (span.type === "solver") {
+    return containsAgentSpan(span);
   }
   if (
     span.type === "tool" &&
@@ -1544,7 +1551,8 @@ function classifyUtilityAgents(
  *
  * Within the agent section, spans are classified as agents or unrolled:
  * - type="agent"                → TimelineSpan (spanType="agent")
- * - type="solver"               → TimelineSpan (spanType="agent")
+ * - type="solver" wrapping agent → TimelineSpan (spanType="agent")
+ * - type="solver" (primitive)   → Unrolled into parent
  * - type="tool" + ModelEvents   → TimelineSpan (spanType="agent")
  * - ToolEvent with agent field  → TimelineSpan (spanType="agent")
  * - type="tool" (no models)     → Unrolled into parent
@@ -1736,6 +1744,21 @@ export function buildTimeline(events: Event[]): Timeline {
   const hasPhaseSpans =
     topSpans.has("init") || topSpans.has("solvers") || topSpans.has("scorers");
 
+  // Top-level items that don't belong to a phase span — e.g. a SampleLimitEvent
+  // (span_id=null) recorded when an eval is interrupted. The phase-span branch
+  // below partitions events strictly by init/solvers/scorers, so these would
+  // otherwise be dropped from the tree and stay invisible in swimlane views
+  // (ts-mono#178). The no-phase-spans branch already keeps them via
+  // buildAgentFromTree(tree).
+  const orphanNodes = hasPhaseSpans
+    ? tree
+        .filter(
+          (item) => !(isSpanNode(item) && topSpans.get(item.name) === item)
+        )
+        .map(treeItemToNode)
+        .filter((n): n is TimelineEvent | TimelineSpan => n !== null)
+    : [];
+
   let root: TimelineSpan;
 
   if (hasPhaseSpans) {
@@ -1833,6 +1856,15 @@ export function buildTimeline(events: Event[]): Timeline {
         spanType: null,
       });
     }
+  }
+
+  // Slot orphan top-level events into the root chronologically. Root content is
+  // already in timestamp order and JS sort is stable, so existing items keep
+  // their relative order and orphans land at the right point.
+  if (orphanNodes.length > 0) {
+    root.content = [...root.content, ...orphanNodes].sort(
+      (a, b) => a.startTime().getTime() - b.startTime().getTime()
+    );
   }
 
   return { name: "Default", description: "", root };

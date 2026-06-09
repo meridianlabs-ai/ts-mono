@@ -16,7 +16,7 @@ import "@tsmono/theme/vscode";
 import "./App.css";
 
 import ClipboardJS from "clipboard";
-import { FC, useCallback, useEffect } from "react";
+import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import {
@@ -29,6 +29,10 @@ import { basename, dirname } from "@tsmono/util";
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { ApiProvider, useStore } from "../state/store.ts";
+import {
+  SETTINGS_STORAGE_KEY,
+  useUserSettings,
+} from "../state/userSettings.ts";
 import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
@@ -55,10 +59,40 @@ export interface AppProps {
   api: ClientAPI;
 }
 
+// Keep the applied theme in lockstep with the persisted preference. The inline
+// bootstrap sets the theme before first paint from localStorage; here we
+// re-apply whenever the in-app picker changes it, and pull cross-tab writes
+// back into zustand (persist doesn't listen for `storage` events itself).
+const useThemePreferenceSync = () => {
+  const themePreference = useUserSettings((s) => s.themePreference);
+  // useLayoutEffect (not useEffect): apply before the browser paints so an
+  // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
+  // post-paint effect the icon updates a frame before the colors, flashing the
+  // old theme. (The old bespoke hook applied synchronously on write.)
+  useLayoutEffect(() => {
+    window.__APPLY_BROWSER_THEME__?.();
+  }, [themePreference]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SETTINGS_STORAGE_KEY) {
+        // Re-apply CSS for this tab (the bootstrap reads the freshly-written
+        // value) and pull the new preference into the store.
+        window.__APPLY_BROWSER_THEME__?.();
+        void useUserSettings.persist.rehydrate();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+};
+
 /**
  * Renders the Main Application
  */
 export const App: FC<AppProps> = ({ api }) => {
+  useThemePreferenceSync();
+
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 

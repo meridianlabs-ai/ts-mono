@@ -6,6 +6,17 @@ export function isLivePlaceholderMessage(message: ChatMessage): boolean {
   return !messageHasVisibleContent(message);
 }
 
+// True while an assistant message's tool calls are still executing — i.e. some
+// of its tool results have not yet come back.
+export function isToolExecutingMessage(
+  message: ChatMessage,
+  toolResultCount: number
+): boolean {
+  if (message.role !== "assistant") return false;
+  const callCount = message.tool_calls?.length ?? 0;
+  return callCount > 0 && toolResultCount < callCount;
+}
+
 function messageHasVisibleContent(message: ChatMessage): boolean {
   const content = message.content;
   if (typeof content === "string") {

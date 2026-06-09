@@ -31,6 +31,7 @@ import {
 } from "../../router/url";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
+import { useEnsureVisibleScannerResults } from "../hooks/useEnsureVisibleScannerResults";
 import { useScanRoute } from "../hooks/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useSelectedScanResultData } from "../hooks/useSelectedScanResultData";
@@ -119,6 +120,10 @@ export const ScannerResultPanel: FC = () => {
   // Url data
   const { scanResultUuid } = useScanRoute();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Seed the prev/next navigator list when this page is opened directly
+  // (deep link / reload) and the scan-list view never mounted to populate it.
+  useEnsureVisibleScannerResults();
 
   // Required server data
   const { loading: scanLoading, data: selectedScan } = useSelectedScan();

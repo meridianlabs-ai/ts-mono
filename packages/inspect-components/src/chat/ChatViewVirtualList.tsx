@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
+import { NoContentsPanel } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import type {
@@ -19,9 +20,12 @@ import type {
 } from "@tsmono/react/virtual";
 
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
-import { isLivePlaceholderMessage } from "../indicators/livePlaceholder";
+import {
+  isLivePlaceholderMessage,
+  isToolExecutingMessage,
+} from "../indicators/livePlaceholder";
 
-import { ChatMessageRow } from "./ChatMessageRow";
+import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { ResolvedMessage, resolveMessages } from "./messages";
@@ -127,6 +131,17 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [labels?.messageLabels]
     );
 
+    const toolCallStyle = tools?.callStyle ?? "complete";
+    const rowStartNumbers = useMemo(() => {
+      const starts: number[] = [];
+      let next = 1;
+      for (const msg of collapsedMessages) {
+        starts.push(next);
+        next += countRowBlocks(msg, toolCallStyle);
+      }
+      return starts;
+    }, [collapsedMessages, toolCallStyle]);
+
     const lastIndex = collapsedMessages.length - 1;
     const renderRow = useCallback(
       (index: number, item: ResolvedMessage): ReactNode => {
@@ -137,37 +152,59 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         ) {
           return (
             <div className={styles.generatingRow}>
-              <div
-                className={clsx(
-                  "text-size-smaller",
-                  "text-style-secondary",
-                  styles.generatingLabel
-                )}
-                style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
-              >
-                {index + 1}
-              </div>
-              <div className={styles.generatingContent}>
-                <GeneratingIndicator />
-              </div>
+              <GeneratingIndicator />
             </div>
           );
         }
+        const toolExecuting =
+          running &&
+          index === lastIndex &&
+          isToolExecutingMessage(item.message, item.toolMessages.length);
         return (
-          <ChatMessageRow
-            index={index}
-            parentName={id || "chat-virtual-list"}
-            resolvedMessage={item}
-            display={display}
-            labels={labels}
-            linking={linking}
-            tools={tools}
-            maxLabelLength={maxLabelLength}
-          />
+          <>
+            <ChatMessageRow
+              index={index}
+              parentName={id || "chat-virtual-list"}
+              resolvedMessage={item}
+              display={display}
+              labels={labels}
+              linking={linking}
+              tools={tools}
+              maxLabelLength={maxLabelLength}
+              startNumber={rowStartNumbers[index]}
+            />
+            {toolExecuting ? (
+              <div className={styles.generatingRow}>
+                <GeneratingIndicator label="running" />
+              </div>
+            ) : null}
+          </>
         );
       },
-      [id, running, lastIndex, display, labels, linking, tools, maxLabelLength]
+      [
+        id,
+        running,
+        lastIndex,
+        display,
+        labels,
+        linking,
+        tools,
+        maxLabelLength,
+        rowStartNumbers,
+      ]
     );
+
+    // Show a placeholder instead of a blank tab when there's nothing to
+    // render: a running sample may have no messages yet (before its first
+    // message event arrives), and a finished one may be empty (e.g. an early
+    // error, or messages cleared due to size limits).
+    if (collapsedMessages.length === 0) {
+      return running ? (
+        <NoContentsPanel text="Waiting for messages" busy />
+      ) : (
+        <NoContentsPanel text="No messages" />
+      );
+    }
 
     return (
       <VirtualList<ResolvedMessage>

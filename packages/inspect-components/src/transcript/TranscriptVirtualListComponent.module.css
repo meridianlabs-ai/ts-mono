@@ -28,6 +28,10 @@
   padding-bottom: 0.8rem;
 }
 
+.runningTool {
+  padding: 0 0.7em;
+}
+
 @media print {
   .node {
     break-inside: avoid;

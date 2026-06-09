@@ -1,11 +1,12 @@
 import clsx from "clsx";
-import { FC, Fragment, ReactNode } from "react";
+import { FC, memo, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
+import { MessageLabel } from "./MessageLabel";
 import { Message, ResolvedMessage } from "./messages";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import { ToolCallErrorView } from "./tools/ToolCallErrorView";
@@ -29,12 +30,14 @@ interface ChatMessageRowProps {
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
   maxLabelLength?: number;
+  /** Global sequential number of this row's first rendered block. */
+  startNumber?: number;
 }
 
 /**
  * Renders the ChatMessage component.
  */
-export const ChatMessageRow: FC<ChatMessageRowProps> = ({
+export const ChatMessageRow = memo(function ChatMessageRow({
   index,
   parentName,
   resolvedMessage,
@@ -42,10 +45,10 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   className,
   display,
   labels,
-  maxLabelLength,
   linking,
   tools,
-}) => {
+  startNumber,
+}: ChatMessageRowProps) {
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
@@ -54,8 +57,19 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   const getCustomToolView = tools?.renderToolCall;
 
   const views: ReactNode[] = [];
-  const viewLabels: Array<string | undefined> = [];
+  const viewKinds: Array<"message" | "tool" | "tool-result"> = [];
+  const viewChips: Array<ReactNode | undefined> = [];
   const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
+
+  // A block's label is its scanner citation (keyed by message id) when a label
+  // map is supplied, otherwise its global sequential number. Tools carry their
+  // own number but inherit the parent message's citation.
+  const baseNumber = startNumber ?? index + 1;
+  const labelForBlock = (
+    blockId: string | null | undefined,
+    blockNumber: number
+  ): string | undefined =>
+    labelValues && blockId ? labelValues[blockId] : String(blockNumber);
 
   const hasToolCalls =
     toolCallStyle !== "omit" &&
@@ -70,17 +84,20 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
   const skipChatMessage =
     hasToolCalls && !hasVisibleContent(resolvedMessage.message);
 
+  // The message occupies the first block number of the row (when rendered);
+  // its tool calls take the numbers that follow.
   const rowLabel = useLabels
-    ? labelValues && resolvedMessage.message.id
-      ? labelValues[resolvedMessage.message.id]
-      : String(index + 1)
+    ? labelForBlock(resolvedMessage.message.id, baseNumber)
     : undefined;
 
-  if (!skipChatMessage) {
-    if (useLabels) {
-      viewLabels.push(rowLabel);
-    }
+  // The position label renders as a chip on the right of the message's role
+  // line (inside the card), not as a separate column.
+  const messageChip =
+    !skipChatMessage && rowLabel?.trim() ? (
+      <MessageLabel label={rowLabel} />
+    ) : undefined;
 
+  if (!skipChatMessage) {
     views.push(
       <ChatMessage
         id={`${parentName}-chat-messages-${index}`}
@@ -88,9 +105,15 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         display={display}
         linking={linking}
         references={references}
+        label={messageChip}
       />
     );
+    viewKinds.push("message");
+    viewChips.push(undefined);
   }
+
+  // The first tool's number follows the message block (if rendered).
+  let toolNumber = baseNumber + (skipChatMessage ? 0 : 1);
 
   // The tool messages associated with this chat message
   if (
@@ -115,23 +138,21 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
         toolMessage = toolMessages[idx];
       }
 
-      // The label (if any). When we've skipped the assistant chat message,
-      // hoist its numeric/row label onto the first tool call so the row
-      // isn't left unlabeled.
-      const toolLabel =
-        labelValues?.[toolMessage?.id || ""] ||
-        (skipChatMessage && idx === 0 ? rowLabel : undefined);
-
       // Resolve the tool output
       const resolvedToolOutput = resolveToolMessage(toolMessage);
-      if (useLabels) {
-        viewLabels.push(toolLabel);
-      }
 
+      const resolvedToolView = tool_call.view
+        ? substituteToolCallContent(tool_call.view, tool_call.arguments)
+        : undefined;
+
+      // The call (title + input) is one peer block; its output (or error) is a
+      // separate peer block beneath it. Compact mode keeps the single line.
       if (toolCallStyle === "compact") {
         views.push(
           <ToolCallViewCompact idx={idx} functionCall={functionCall} />
         );
+        viewKinds.push("tool");
+        viewChips.push(undefined);
       } else {
         views.push(
           <ToolCallView
@@ -143,80 +164,132 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
             description={description}
             contentType={contentType}
             output={resolvedToolOutput}
-            view={
-              tool_call.view
-                ? substituteToolCallContent(tool_call.view, tool_call.arguments)
-                : undefined
-            }
+            view={resolvedToolView}
+            section="call"
             getCustomToolView={getCustomToolView}
           />
         );
-      }
-
-      // If the tool call errored, render a dedicated error view as its own
-      // row (with an empty label) so it visually attaches to the tool call.
-      if (toolMessage?.error) {
-        if (useLabels) {
-          viewLabels.push(undefined);
-        }
-        views.push(
-          <ToolCallErrorView
-            key={`tool-call-${idx}-error`}
-            error={toolMessage.error}
-          />
+        viewKinds.push("tool");
+        // The position chip sits on the call (the blue tool box). Tools inherit
+        // the parent message's citation when a label map is supplied.
+        const toolLabel = useLabels
+          ? labelForBlock(resolvedMessage.message.id, toolNumber)
+          : undefined;
+        viewChips.push(
+          toolLabel?.trim() ? <MessageLabel label={toolLabel} /> : undefined
         );
+
+        if (toolMessage?.error) {
+          views.push(
+            <ToolCallErrorView
+              key={`tool-call-${idx}-error`}
+              error={toolMessage.error}
+            />
+          );
+          viewKinds.push("tool-result");
+          viewChips.push(undefined);
+        } else if (hasOutputContent(resolvedToolOutput)) {
+          views.push(
+            <ToolCallView
+              id={`${index}-tool-call-${idx}`}
+              key={`tool-call-${idx}-output`}
+              tool={name}
+              functionCall={functionCall}
+              input={input}
+              description={description}
+              contentType={contentType}
+              output={resolvedToolOutput}
+              view={resolvedToolView}
+              section="output"
+              getCustomToolView={getCustomToolView}
+            />
+          );
+          viewKinds.push("tool-result");
+          viewChips.push(undefined);
+        }
       }
+      toolNumber++;
 
       idx++;
     }
   }
 
-  if (useLabels) {
-    return (
-      <>
-        <div className={clsx(styles.grid, className)}>
-          {views.map((view, idx) => {
-            const label = viewLabels[idx];
-            return (
-              <Fragment key={`chat-message-row-${index}-part-${idx}`}>
-                <div
-                  className={clsx(
-                    "text-size-smaller",
-                    "text-style-secondary",
-                    styles.number,
-                    styles.label
-                  )}
-                  style={{ minWidth: `${maxLabelLength ?? 3}ch` }}
-                >
-                  {label}
-                </div>
-                <div
-                  className={clsx(
-                    styles.container,
-                    highlightUserMessage &&
-                      resolvedMessage.message.role === "user"
-                      ? styles.user
-                      : undefined,
-                    idx === 0 ? styles.first : undefined,
-                    idx === views.length - 1 ? styles.last : undefined,
-                    highlightLabeled && label?.trim()
-                      ? styles.highlight
-                      : undefined
-                  )}
-                >
-                  {view}
-                </div>
-              </Fragment>
-            );
-          })}
+  const hasTools = viewKinds.some((k) => k !== "message");
+
+  // Use the peer-block layout (which emits the `data-message-kind` bands the
+  // theme colors, and the connected blue tool-call/output card) whenever the
+  // row has tools — even with labels off, e.g. model-event views — so tool
+  // rendering matches the messages tab. Label chips still only show when
+  // `useLabels`; here they're all undefined, so none render.
+  if (useLabels || hasTools) {
+    // Each row part is a peer block: the message in its role band, the tool
+    // call in the blue tool box, and the tool output in a plain bordered box.
+    const renderPart = (
+      idx: number,
+      attached?: { top?: boolean; bottom?: boolean }
+    ) => {
+      const kind = viewKinds[idx];
+      const isMessage = kind === "message";
+      const chip = viewChips[idx];
+      return (
+        <div
+          key={`chat-message-row-${index}-part-${idx}`}
+          data-message-role={
+            isMessage ? resolvedMessage.message.role : undefined
+          }
+          data-message-kind={kind}
+          className={clsx(
+            isMessage && styles.container,
+            hasTools ? styles.box : undefined,
+            isMessage &&
+              highlightUserMessage &&
+              resolvedMessage.message.role === "user"
+              ? styles.user
+              : undefined,
+            isMessage && !hasTools && idx === 0 ? styles.first : undefined,
+            isMessage && !hasTools && idx === views.length - 1
+              ? styles.last
+              : undefined,
+            attached?.bottom ? styles.attachedBottom : undefined,
+            attached?.top ? styles.attachedTop : undefined,
+            highlightLabeled && isMessage && messageChip
+              ? styles.highlight
+              : undefined
+          )}
+        >
+          {chip ? <div className={styles.toolLabel}>{chip}</div> : null}
+          {views[idx]}
         </div>
-      </>
-    );
+      );
+    };
+
+    // Attach a tool output to the bottom of its call so the call/output read as
+    // one connected card; the assistant message stays a separate peer above.
+    const items: ReactNode[] = [];
+    for (let idx = 0; idx < views.length; idx++) {
+      if (viewKinds[idx] === "tool" && viewKinds[idx + 1] === "tool-result") {
+        items.push(
+          <div
+            key={`chat-message-row-${index}-toolgroup-${idx}`}
+            className={styles.attachedGroup}
+          >
+            {renderPart(idx, { bottom: true })}
+            {renderPart(idx + 1, { top: true })}
+          </div>
+        );
+        idx++;
+      } else {
+        items.push(renderPart(idx));
+      }
+    }
+
+    return <div className={clsx(styles.grid, className)}>{items}</div>;
   } else {
     return views.map((view, idx) => {
       return (
         <div
           key={`chat-message-row-unlabeled-${index}-part-${idx}`}
+          data-message-role={resolvedMessage.message.role}
           className={clsx(
             styles.container,
             idx === 0 ? styles.first : undefined,
@@ -234,7 +307,38 @@ export const ChatMessageRow: FC<ChatMessageRowProps> = ({
       );
     });
   }
-};
+}, chatMessageRowEqual);
+
+// Shallow-compare every prop by reference EXCEPT `resolvedMessage`: compare
+// that one through the wrapper to its `message`/`toolMessages` references,
+// because `resolveMessages` recreates the wrapper each call even when the
+// underlying turn is unchanged (so default memo would never hit). Iterating
+// the keys keeps this exhaustive by construction — a future prop is covered by
+// the generic `===` branch without editing this function. Callers must pass
+// stable option objects (and never mutate a message in place) for it to hit;
+// the actively-streaming turn gets a fresh message ref each poll, so it still
+// re-renders.
+function chatMessageRowEqual(
+  prev: ChatMessageRowProps,
+  next: ChatMessageRowProps
+): boolean {
+  const keys = Object.keys(prev) as (keyof ChatMessageRowProps)[];
+  if (keys.length !== Object.keys(next).length) return false;
+  for (const key of keys) {
+    if (key === "resolvedMessage") {
+      const a = prev.resolvedMessage;
+      const b = next.resolvedMessage;
+      if (a.message !== b.message) return false;
+      if (a.toolMessages.length !== b.toolMessages.length) return false;
+      if (!a.toolMessages.every((t, i) => t === b.toolMessages[i])) {
+        return false;
+      }
+    } else if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
   if (!toolMessage || toolMessage.error) {
@@ -285,6 +389,15 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
   }
 };
 
+// Whether a resolved tool output has anything worth rendering in its own
+// result box (skip an empty box when the call produced no output).
+const hasOutputContent = (output: ContentTool[]): boolean =>
+  output.some((tool) =>
+    tool.content.some(
+      (item) => item.type !== "text" || item.text.trim().length > 0
+    )
+  );
+
 const hasVisibleContent = (message: Message): boolean => {
   const content = message.content;
   if (typeof content === "string") {
@@ -315,6 +428,25 @@ const hasVisibleContent = (message: Message): boolean => {
     }
     return true;
   });
+};
+
+/**
+ * Number of sequentially-numbered blocks a row renders. Only the full
+ * (un-embedded) layout numbers tool calls individually; every other style
+ * keeps the legacy one-number-per-row behavior.
+ */
+export const countRowBlocks = (
+  resolved: ResolvedMessage,
+  toolCallStyle: ChatViewToolOptions["callStyle"]
+): number => {
+  if (toolCallStyle !== "complete") return 1;
+  const message = resolved.message;
+  const hasToolCalls =
+    message.role === "assistant" && !!message.tool_calls?.length;
+  const skipChatMessage = hasToolCalls && !hasVisibleContent(message);
+  return (
+    (skipChatMessage ? 0 : 1) + (hasToolCalls ? message.tool_calls!.length : 0)
+  );
 };
 
 const ToolCallViewCompact: FC<{

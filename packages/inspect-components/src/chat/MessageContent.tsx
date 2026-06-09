@@ -206,7 +206,11 @@ const messageRenderers: Record<string, MessageRenderer> = {
         : text;
 
       return (
-        <div key={key} className={clsx(styles.reasoning, "text-size-small")}>
+        <div
+          key={key}
+          data-content-kind="reasoning"
+          className={clsx(styles.reasoning, "text-size-small")}
+        >
           <div
             className={clsx(
               "text-style-label",

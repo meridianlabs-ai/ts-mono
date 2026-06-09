@@ -1,7 +1,9 @@
 .grid {
   display: grid;
-  grid-template-columns: max-content auto;
-  row-gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  /* row-gap spaces blocks within a turn (message → tool box); margin-bottom
+     spaces turns. Keep them equal so every gap reads the same. */
+  row-gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
@@ -38,12 +40,55 @@
 }
 
 .label {
+  display: flex;
+  justify-content: flex-end;
   padding-top: 0.7rem;
   margin-left: 0.4em;
 }
 
 .highlight {
   background-color: rgba(var(--bs-info-rgb), 0.12);
+}
+
+/* Prototype: self-contained box (used when tool calls are un-embedded) so the
+   assistant message and each tool call read as separate cards rather than one
+   connected band. */
+.box {
+  position: relative;
+  border: solid 1px var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+  padding: 0.7rem;
+}
+
+/* An assistant turn rendered as one connected stack: the message, its tool
+   call(s), and output(s) sit flush so they read as a single card with a
+   continuous left gutter. */
+.attachedGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.attachedBottom {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  /* Drop the divider so the call/output pair reads as one seamless card —
+     only the background color shifts (blue call → gray output). */
+  border-bottom: 0;
+}
+
+.attachedTop {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 0;
+}
+
+/* Tool-call number chip, pinned to the top-right of its box to mirror the
+   position chip on a message's role line. */
+.toolLabel {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  z-index: 1;
 }
 
 .bottomMargin {

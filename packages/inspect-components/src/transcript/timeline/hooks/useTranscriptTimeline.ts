@@ -27,7 +27,7 @@ import {
   rowHasEvents,
   type RowLayout,
 } from "../swimlaneLayout";
-import { isSingleSpan, type SwimlaneRow } from "../swimlaneRows";
+import { getAgents, isSingleSpan, type SwimlaneRow } from "../swimlaneRows";
 import {
   collectPathWithNavigators,
   collectRawEvents,
@@ -52,6 +52,11 @@ import {
 } from "./useTimeline";
 import { useTimelinesArray } from "./useTimelinesArray";
 
+// Phase lanes synthesized from the eval lifecycle (init/scoring) rather than
+// agent activity. A timeline whose only child lanes are phases has no agent
+// sub-structure to drill into, so it shouldn't auto-expand.
+const PHASE_SPAN_TYPES = new Set(["init", "scorers"]);
+
 const emptySourceSpans: ReadonlyMap<string, TimelineSpan> = new Map();
 const emptyHighlightedKeys: ReadonlyMap<string, number> = new Map();
 
@@ -74,6 +79,9 @@ export interface TranscriptTimelineResult {
   minimapSelection: MinimapSelection | undefined;
   /** Whether the timeline has meaningful structure (non-empty root with children). */
   hasTimeline: boolean;
+  /** Whether the timeline has agent sub-structure worth expanding (a child lane
+   *  beyond the lifecycle phases init/scoring). */
+  hasAgentTimeline: boolean;
   /** All available timelines (may be 1 or more). */
   timelines: Timeline[];
   /** Index of the currently active timeline. */
@@ -329,6 +337,17 @@ export function useTranscriptTimeline(
     ) ||
       timeline.root.branches.length > 0);
 
+  // True when the timeline has agent sub-structure worth expanding — i.e. a
+  // child lane that isn't just a lifecycle phase (init/scoring). A bare
+  // main + scoring transcript is effectively flat and defaults to collapsed.
+  const hasAgentTimeline = visibleRows.some((row) => {
+    if (row.depth < 1) return false;
+    const rowSpan = row.spans[0];
+    if (!rowSpan) return false;
+    const span = getAgents(rowSpan)[0];
+    return !!span && !PHASE_SPAN_TYPES.has(span.spanType ?? "");
+  });
+
   // Compute the agent name for the outline header.
   // When a swimlane row is selected, show its name; otherwise show the root.
   const selectedRowName = useMemo(() => {
@@ -349,6 +368,7 @@ export function useTranscriptTimeline(
     sourceSpans,
     minimapSelection,
     hasTimeline,
+    hasAgentTimeline,
     timelines,
     activeTimelineIndex,
     setActiveTimeline,

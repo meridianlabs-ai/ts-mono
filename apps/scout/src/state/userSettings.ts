@@ -1,12 +1,17 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { ThemePreference } from "@tsmono/theme/bootstrap";
+
+import { SETTINGS_STORAGE_KEY } from "../theme/constants";
+
+export type { ThemePreference };
+export { SETTINGS_STORAGE_KEY };
+
 export interface ColumnPreset {
   name: string;
   columns: string[];
 }
-
-export type ThemePreference = "system" | "light" | "dark";
 
 const MAX_SEARCH_MODEL_HISTORY = 25;
 
@@ -24,7 +29,8 @@ export const useUserSettings = create<UserSettingsState>()(
   persist(
     (set) => ({
       dataframeColumnPresets: [],
-      themePreference: "system",
+      // Default to the readable (Event Colors) variant per product decision.
+      themePreference: "readable-system",
       searchModelHistory: [],
       setDataframeColumnPresets: (presets: ColumnPreset[]) => {
         set({ dataframeColumnPresets: presets });
@@ -54,7 +60,7 @@ export const useUserSettings = create<UserSettingsState>()(
       },
     }),
     {
-      name: "inspect-scout-user-settings",
+      name: SETTINGS_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
     }
   )

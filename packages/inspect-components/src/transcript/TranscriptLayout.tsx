@@ -183,6 +183,8 @@ export interface TranscriptLayoutProps {
 
   /** Text shown when no events match the current filter. Pass null to disable empty state. */
   emptyText?: string | null;
+  /** Render the empty state as an in-progress placeholder (animated, no icon). */
+  emptyBusy?: boolean;
   className?: string;
 }
 
@@ -238,6 +240,37 @@ const buildToolLabels = (
   return Object.keys(toolLabels).length > 0 ? toolLabels : undefined;
 };
 
+// Restrict the message-label map to messages actually present in `events`.
+// The map is shared across the whole sample, but timelines (e.g. auditor vs
+// target) show different events — without this an unlabeled timeline would
+// reserve label-column space just because another timeline is labeled.
+const scopeMessageLabels = (
+  events: Event[],
+  messageLabels: Record<string, string> | undefined
+): Record<string, string> | undefined => {
+  if (!messageLabels) return undefined;
+
+  const present = new Set<string>();
+  for (const event of events) {
+    if (event.event === "model") {
+      for (const message of event.input ?? []) {
+        if (message.id) present.add(message.id);
+      }
+      for (const choice of event.output?.choices ?? []) {
+        if (choice.message?.id) present.add(choice.message.id);
+      }
+    } else if (event.event === "tool" && event.message_id) {
+      present.add(event.message_id);
+    }
+  }
+
+  const scoped: Record<string, string> = {};
+  for (const [id, label] of Object.entries(messageLabels)) {
+    if (present.has(id)) scoped[id] = label;
+  }
+  return Object.keys(scoped).length > 0 ? scoped : undefined;
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -273,6 +306,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   rightPaneScrollRef,
   eventNodeContext,
   emptyText = "No events match the current filter",
+  emptyBusy,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -326,6 +360,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     sourceSpans,
     minimapSelection,
     hasTimeline,
+    hasAgentTimeline,
     timelines,
     activeTimelineIndex,
     setActiveTimeline,
@@ -364,8 +399,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     ) {
       return true;
     }
-    return hasTimeline ? false : undefined;
-  }, [showSwimlanesOption, hasTimeline, regionCounts]);
+    if (hasTimeline) {
+      // Expand by default only when there's agent sub-structure to drill into.
+      // A bare main + scoring (or init) timeline has nothing to expand, so
+      // default it collapsed.
+      return hasAgentTimeline ? false : true;
+    }
+    return undefined;
+  }, [showSwimlanesOption, hasTimeline, hasAgentTimeline, regionCounts]);
 
   // ---------------------------------------------------------------------------
   // Event nodes
@@ -386,12 +427,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
-    const toolLabels = buildToolLabels(
+    const messageLabels = scopeMessageLabels(
       eventsForNodes,
       eventNodeContext?.messageLabels
     );
+    const toolLabels = buildToolLabels(eventsForNodes, messageLabels);
     return {
       ...eventNodeContext,
+      messageLabels,
       retryAttempts,
       ...(toolLabels ? { toolLabels } : {}),
     };
@@ -830,6 +873,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Use getBoundingClientRect().height — this matches what's actually on
   // screen (clientHeight can report slightly different values depending on
   // scrollbar / box-sizing quirks).
+  // Capture the outline's own scroll container (the StickyScroll div, which
+  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
+  // its scroll parent. Resolving into state (rather than reading a ref during
+  // render) guarantees a re-render once the element mounts. Also mirror it
+  // into the optional external ref callers pass for wheel forwarding.
+  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
+    null
+  );
+  const handleOutlineScrollRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setOutlineScrollEl(el);
+      if (outlineScrollRef) {
+        outlineScrollRef.current = el;
+      }
+    },
+    [outlineScrollRef]
+  );
+
   const [scrollerHeight, setScrollerHeight] = useState<number>(0);
   useEffect(() => {
     const el = scrollRef.current;
@@ -951,7 +1012,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
             {outline && (
               <>
                 <StickyScroll
-                  ref={outlineScrollRef}
+                  ref={handleOutlineScrollRef}
                   scrollRef={scrollRef}
                   className={styles.outline}
                   offsetTop={effectiveOffsetTop}
@@ -985,6 +1046,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                         eventNodes={eventNodes}
                         defaultCollapsedIds={defaultCollapsedIds}
                         scrollRef={scrollRef}
+                        outlineScrollEl={outlineScrollEl}
                         running={running}
                         agentName={
                           outline.name ??
@@ -1057,7 +1119,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 eventNodeContext={mergedEventNodeContext}
               />
             ) : emptyText !== null ? (
-              <NoContentsPanel text={emptyText} />
+              <NoContentsPanel text={emptyText} busy={emptyBusy} />
             ) : null}
             {rightPane && (
               <>

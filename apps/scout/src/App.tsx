@@ -1,4 +1,15 @@
-import { createContext, FC, useEffect, useMemo } from "react";
+// Bundle the app-level CSS the embedded library needs into the lib build. The
+// standalone app imports these in main.tsx, which the lib build does NOT
+// include — so without them, embedded scout (e.g. in hawk) lost its icon
+// glyphs (Bootstrap Icons) and, more subtly, the Bootstrap `--bs-*` design
+// tokens its panels rely on (which made light mode render dark panels).
+// Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
+// theme overrides Bootstrap's defaults.
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "@vscode/codicons/dist/codicon.css";
+
+import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import "prismjs";
@@ -26,7 +37,7 @@ import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { createAppRouter } from "./AppRouter";
 import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";
-import { useUserSettings } from "./state/userSettings";
+import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -60,9 +71,27 @@ export const App: FC<AppProps> = (props) => {
 
 const useThemePreferenceSync = () => {
   const themePreference = useUserSettings((s) => s.themePreference);
-  useEffect(() => {
-    window.__SCOUT_APPLY_BROWSER_THEME__?.();
+  // useLayoutEffect (not useEffect): apply before the browser paints so an
+  // in-tab pick flips the CSS in the same frame the toggle re-renders.
+  // A post-paint effect updates the icon a frame before the colors, flashing
+  // the old theme.
+  useLayoutEffect(() => {
+    window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
+
+  // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
+  // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
+  // reads the freshly-written value) and pull the new preference into zustand.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SETTINGS_STORAGE_KEY) {
+        window.__APPLY_BROWSER_THEME__?.();
+        void useUserSettings.persist.rehydrate();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {

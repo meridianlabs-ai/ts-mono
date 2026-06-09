@@ -148,6 +148,13 @@ const transformers = () => {
       process: (node) => skipThisNode(node),
     },
     {
+      name: "collapse_same_name_spans",
+      matches: (node) =>
+        isAgentOrSolverSpan(node) &&
+        node.children.some((child) => isSameNameSpanChild(node, child)),
+      process: (node) => collapseSameNameSpans(node),
+    },
+    {
       name: "discard_solvers_span",
       matches: (Node) =>
         Node.event.event === SPAN_BEGIN && Node.event.type === TYPE_SOLVERS,
@@ -205,6 +212,36 @@ const elevateChildNode = (
   // and more importantly we drive children / transcripts using the tree structure itself
   // and notes rather than the event.events itself)
   return targetNode as EventNode;
+};
+
+const isAgentOrSolverSpan = (node: EventNode): boolean =>
+  node.event.event === SPAN_BEGIN &&
+  (node.event.type === TYPE_SOLVER || node.event.type === TYPE_AGENT);
+
+// Strip the package prefix so a solver span (named via registry_log_name, which
+// only strips the inspect_ai/ prefix, e.g. "inspect_swe/codex_cli") matches its
+// inner agent span (named via the unqualified registry name, e.g. "codex_cli").
+const unqualifiedSpanName = (name: string): string => {
+  const slash = name.indexOf("/");
+  return slash === -1 ? name : name.slice(slash + 1);
+};
+
+const isSameNameSpanChild = (parent: EventNode, child: EventNode): boolean =>
+  isAgentOrSolverSpan(child) &&
+  parent.event.event === SPAN_BEGIN &&
+  child.event.event === SPAN_BEGIN &&
+  unqualifiedSpanName(parent.event.name) ===
+    unqualifiedSpanName(child.event.name);
+
+// Collapse a same-named agent/solver child into its parent by hoisting the
+// child's children up one level (e.g. a react_agent span nested directly
+// inside another react_agent span). Runs depth-first, so chains of any length
+// flatten into the outermost span.
+const collapseSameNameSpans = (node: EventNode): EventNode => {
+  node.children = node.children.flatMap((child) =>
+    isSameNameSpanChild(node, child) ? reduceDepth(child.children, 1) : [child]
+  );
+  return node;
 };
 
 const unwrapNode = (node: EventNode): EventNode[] => {

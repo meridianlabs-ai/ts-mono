@@ -17,6 +17,17 @@
   max-width: 100%;
 }
 
+/* The `right` slot holds inline controls (e.g. the scanner-result prev/next
+   navigator and the theme toggle). Without an explicit layout its children are
+   block-level and stack onto a second row; keep them on one line. */
+.right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .leftButtons {
   display: flex;
   gap: 0.4rem;

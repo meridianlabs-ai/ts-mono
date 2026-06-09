@@ -44,6 +44,179 @@
   /* Inspect Glass */
   --inspect-glass-color: #000000;
   --inspect-glass-opacity: 0.3;
+
+  /* Tool messages — dedicated tokens so apps (and the vscode bridge) can
+     re-skin tool calls/outputs/errors without patching component CSS.
+     Defaults reproduce the previous hard-coded appearance. */
+  --inspect-tool-description-color: var(--bs-secondary-color);
+  --inspect-tool-output-bg: #f8f8f8;
+  --inspect-tool-output-color: inherit;
+  --inspect-tool-output-border: var(--bs-border-color);
+  --inspect-tool-error-color: var(--bs-danger);
+  --inspect-tool-error-bg: rgba(var(--bs-danger-rgb), 0.06);
+
+  /* Readable-variant role bands (light base). These tokens are DEFINED
+     always but only APPLIED under [data-theme-variant="readable"], so the
+     default design-consistent look is untouched — this is the "one small
+     override block per base mode" instead of a duplicated stylesheet. */
+  --inspect-readable-user-bg: #f1eeea;
+  --inspect-readable-user-border: #857f78;
+  --inspect-readable-assistant-bg: #f6f1fe;
+  --inspect-readable-assistant-border: #694a8a;
+  --inspect-readable-thinking-bg: #f7f2ff;
+  --inspect-readable-thinking-border: #8a74c4;
+  --inspect-readable-tool-call-bg: #edf4fb;
+  --inspect-readable-tool-call-border: #415e79;
+  --inspect-readable-system-bg: #fdfdfd;
+  --inspect-readable-system-border: #a9abaf;
+  --inspect-readable-body-color: #11181f;
+
+  /* Message-label chip. */
+  --inspect-msg-label-bg: #f3f3f6;
+  --inspect-msg-label-bg-hover: #ebebef;
+  --inspect-msg-label-border: #e4e4e9;
+  --inspect-msg-label-text: #5f5f68;
+}
+
+:root[data-bs-theme="dark"] {
+  --inspect-msg-label-bg: #2a2a2e;
+  --inspect-msg-label-bg-hover: #33333a;
+  --inspect-msg-label-border: #3a3a40;
+  --inspect-msg-label-text: #b4b4bd;
+
+  --inspect-readable-user-bg: #262421;
+  --inspect-readable-user-border: #8e8881;
+  --inspect-readable-assistant-bg: #251f2c;
+  --inspect-readable-assistant-border: #9575b9;
+  --inspect-readable-thinking-bg: #241f31;
+  --inspect-readable-thinking-border: #8c7fbf;
+  --inspect-readable-tool-call-bg: #1c232a;
+  --inspect-readable-tool-call-border: #6c8aa7;
+  --inspect-readable-system-bg: #0a0b0d;
+  --inspect-readable-system-border: #67696f;
+  --inspect-readable-body-color: #e6e8ea;
+}
+
+/* Readable variant: trade design consistency for transcript scannability —
+   each turn gets a distinct tinted band + accent rule, and the tool tokens
+   are pointed at the higher-contrast role colors. Roles are read off the
+   `data-message-role` / `data-content-kind` attributes the chat components
+   already emit (no per-role classes, no duplicated styles). */
+:root[data-theme-variant="readable"] {
+  --bs-body-color: var(--inspect-readable-body-color);
+}
+
+:root[data-theme-variant="readable"] [data-message-role] {
+  border-left: 3px solid transparent;
+}
+
+:root[data-theme-variant="readable"] [data-message-role="user"] {
+  background-color: var(--inspect-readable-user-bg);
+  border-left-color: var(--inspect-readable-user-border);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="assistant"] {
+  background-color: var(--inspect-readable-assistant-bg);
+  border-left-color: var(--inspect-readable-assistant-border);
+}
+
+/* The boxed "surface" of a tool call is the raw-content pre
+   (pre.tool-call-input) or the eval-provided view container
+   (div.tool-call-input). Box the surface itself — a tinted call-out with a
+   colored left accent (standalone transcript) — so free-form custom views get
+   the same treatment as code views. */
+:root[data-theme-variant="readable"] pre.tool-call-input,
+:root[data-theme-variant="readable"] div.tool-call-input {
+  background-color: var(--inspect-readable-tool-call-bg);
+  border: 1px solid var(--bs-light-border-subtle);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5em !important;
+}
+
+/* Flatten a fenced code block inside a view — the surface carries the box. */
+:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Nested in a message band: neutral surface with a subtle (not colored) left,
+   since the surrounding band already frames the turn. The un-embedded tool box
+   and standalone transcript tool events keep the colored call surface. */
+:root[data-theme-variant="readable"] [data-message-role] pre.tool-call-input,
+:root[data-theme-variant="readable"] [data-message-role] div.tool-call-input {
+  background-color: var(--inspect-tool-output-bg);
+  border-left: 1px solid var(--bs-light-border-subtle);
+}
+
+/* The tool call is its own peer block: under readable the whole box is the blue
+   call surface (header + input). */
+:root[data-theme-variant="readable"] [data-message-kind="tool"] {
+  background-color: var(--inspect-readable-tool-call-bg);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
+}
+
+/* Flush the call input AND the output to the box padding edge in EVERY theme so
+   they line up. The input otherwise carries ToolInput's .toolView padding (and,
+   under readable, the .tool-call-input padding) plus the prism code block's own
+   padding/margin, over-indenting it relative to the output. The `:root` prefix
+   lifts specificity above the readable .tool-call-input rule. */
+:root [data-message-kind="tool"] pre.tool-call-input,
+:root [data-message-kind="tool"] div.tool-call-input {
+  border: 0;
+  border-radius: 0;
+  padding: 0 !important;
+}
+:root [data-message-kind="tool"] .tool-call-input pre[class*="language-"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+:root [data-message-kind="tool-result"] .tool-output {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+:root[data-theme-variant="readable"]
+  [data-message-kind="tool"]
+  pre.tool-call-input,
+:root[data-theme-variant="readable"]
+  [data-message-kind="tool"]
+  div.tool-call-input {
+  background-color: transparent;
+}
+
+/* The tool output attaches beneath its call — a light-gray box that shares the
+   call's blue left gutter so the pair reads as one connected card. */
+:root[data-theme-variant="readable"] [data-message-kind="tool-result"] {
+  background-color: var(--inspect-tool-output-bg);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
+}
+:root[data-theme-variant="readable"]
+  [data-message-kind="tool-result"]
+  .tool-output {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Light subtle box around tool output (standalone transcript tool events). */
+:root[data-theme-variant="readable"] .tool-output {
+  border: 1px solid var(--bs-light-border-subtle);
+  border-radius: var(--bs-border-radius);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="system"] {
+  background-color: var(--inspect-readable-system-bg);
+  border-left-color: var(--inspect-readable-system-border);
+}
+
+/* Agent thinking, nested inside an assistant turn, gets a subtle tint so
+   reasoning is visually separable from the model's actual response. No left
+   accent — nested inside the assistant band it reads as a strong double gutter.*/
+:root[data-theme-variant="readable"] [data-content-kind="reasoning"] {
+  background-color: var(--inspect-readable-thinking-bg);
 }
 
 body:not([class^="vscode-"]) button {
@@ -168,8 +341,15 @@ a:hover {
 }
 
 body[class^="vscode-"] {
-  --bs-border-radius: 0;
-  --bs-border-radius-lg: 0;
+  /* Tool message tokens bridged to VS Code's editor widget palette so tool
+     calls read as embedded editor panels inside the IDE. */
+  --inspect-tool-description-color: var(--vscode-descriptionForeground);
+  --inspect-tool-output-bg: var(--vscode-textCodeBlock-background);
+  --inspect-tool-output-color: var(--vscode-editor-foreground);
+  --inspect-tool-output-border: var(--vscode-editorWidget-border);
+  --inspect-tool-error-color: var(--vscode-errorForeground);
+  --inspect-tool-error-bg: var(--vscode-inputValidation-errorBackground);
+
   --bs-body-bg: var(--vscode-editor-background);
   --bs-secondary-bg-subtle: var(--vscode-editorHoverWidget-background);
   --bs-tertiary-bg: var(--vscode-list-hoverBackground);
@@ -960,18 +1140,39 @@ table.table.table-sm td {
 }
 
 pre[class*="language-"],
-.markdown-content pre[class*="language-"],
+.markdown-content pre[class*="language-"] {
+  background-color: #f8f8f8;
+}
+
+/* The `.tool-output` family is the canonical styling hook for tool message
+   output (the CSS-module `.textOutput` also carries this class). Drive it
+   off the tokens so the vscode bridge / apps can re-skin it; defaults below
+   reproduce the previous #f8f8f8 / #333333 appearance. This rule must own
+   the color so the higher-specificity `.vscode-dark .tool-output` rule
+   that used to hard-code #333333 no longer shadows the token. */
 pre[class*="language-"].tool-output,
 .tool-output {
-  background-color: #f8f8f8;
+  background-color: var(--inspect-tool-output-bg);
+  color: var(--inspect-tool-output-color);
 }
 
 .vscode-dark pre[class*="language-"],
 .vscode-dark .model-call pre[class*="language-"],
-.vscode-dark .markdown-content pre[class*="language-"],
-.vscode-dark pre[class*="language-"].tool-output,
-.vscode-dark .tool-output {
+.vscode-dark .markdown-content pre[class*="language-"] {
   background-color: #333333;
+}
+
+/* PrismJS's stock theme (prismjs/themes/prism.css) hardcodes a light-blue
+   `#b3d4fc` selection on code blocks, which is washed out on the dark code
+   background above. Override it in dark with the editor selection token (same
+   as CodeMirror's selection) so highlighted code matches. Scoped to .vscode-dark
+   and mirroring Prism's selector set so it wins on specificity regardless of
+   stylesheet order; light mode keeps Prism's default. */
+.vscode-dark code[class*="language-"]::selection,
+.vscode-dark code[class*="language-"] ::selection,
+.vscode-dark pre[class*="language-"]::selection,
+.vscode-dark pre[class*="language-"] ::selection {
+  background: var(--vscode-editor-selectionBackground);
 }
 
 .model-call pre[class*="language-"],
@@ -1216,15 +1417,11 @@ pre[class*="language-"] {
   padding: 1em;
   margin: 0.5em 0;
   overflow: auto;
-  /* border: 0.3em solid #7a6651; */
   border-radius: 0.5em;
-  box-shadow: 1px 1px 0.5em #000 inset;
 }
 .vscode-dark :not(pre) > code[class*="language-"] {
   padding: 0.15em 0.2em 0.05em;
   border-radius: 0.3em;
-  /* border: 0.13em solid #7a6651; */
-  box-shadow: 1px 1px 0.3em -0.1em #000 inset;
   white-space: normal;
 }
 .vscode-dark .token.cdata,

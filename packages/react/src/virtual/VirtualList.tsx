@@ -30,6 +30,16 @@ import { useVirtualListState } from "./use-virtual-list-state";
 import styles from "./VirtualList.module.css";
 
 const BOTTOM_THRESHOLD_PX = 30;
+const USER_INTERACTION_WINDOW_MS = 400;
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
 const SMOOTH_SCROLL_MAX_S = 10;
 const PERSIST_DEBOUNCE_MS = 250;
 const DEFAULT_ITEM_HEIGHT_PX = 400;
@@ -108,6 +118,22 @@ export function VirtualList<T>({
   );
   const isAutoScrollingRef = useRef(false);
 
+  // Follow is toggled ONLY by user-initiated scrolling. Programmatic
+  // auto-follow scrolls and content-growth reflow also emit scroll events, but
+  // inferring user intent from scroll-position deltas is unreliable while the
+  // bottom is a moving target during streaming. So we instead gate on real
+  // input events (wheel / touch / pointer-drag / scroll keys).
+  const userInteractingRef = useRef(false);
+  const pointerDownRef = useRef(false);
+  const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteUserInteraction = useCallback(() => {
+    userInteractingRef.current = true;
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    interactTimerRef.current = setTimeout(() => {
+      userInteractingRef.current = false;
+    }, USER_INTERACTION_WINDOW_MS);
+  }, []);
+
   useEffect(() => {
     if (followOutput === null) setFollowOutput(!!live);
   }, [followOutput, live, setFollowOutput]);
@@ -131,10 +157,12 @@ export function VirtualList<T>({
   ]);
 
   const handleScroll = useRafThrottle(() => {
-    if (isAutoScrollingRef.current) return;
     if (!live) return;
     const el = getScrollElement();
     if (!el) return;
+    // Ignore scroll events not caused by user input (programmatic auto-follow,
+    // content-growth reflow) — they must never flip follow state.
+    if (!userInteractingRef.current && !pointerDownRef.current) return;
     const atBottom =
       el.scrollHeight - el.scrollTop <= el.clientHeight + BOTTOM_THRESHOLD_PX;
     if (atBottom && !followOutput) setFollowOutput(true);
@@ -148,6 +176,37 @@ export function VirtualList<T>({
     return () => el.removeEventListener("scroll", handleScroll);
   }, [getScrollElement, handleScroll]);
 
+  useEffect(() => {
+    const el = getScrollElement();
+    if (!el) return;
+    const onWheel = () => noteUserInteraction();
+    const onTouchMove = () => noteUserInteraction();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
+    };
+    const onPointerDown = () => {
+      pointerDownRef.current = true;
+      noteUserInteraction();
+    };
+    const onPointerUp = () => {
+      pointerDownRef.current = false;
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("keydown", onKeyDown);
+    el.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("keydown", onKeyDown);
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [getScrollElement, noteUserInteraction]);
+
   const contentTotal = virtualizer.getTotalSize();
   useEffect(() => {
     if (!followOutput || !live) return;
@@ -156,6 +215,7 @@ export function VirtualList<T>({
     requestAnimationFrame(() => {
       isAutoScrollingRef.current = true;
       el.scrollTo({ top: el.scrollHeight });
+      lastAutoScrollTopRef.current = el.scrollTop;
       requestAnimationFrame(() => {
         isAutoScrollingRef.current = false;
       });
@@ -167,14 +227,32 @@ export function VirtualList<T>({
   // scroll container — which may be owned by the parent and not unmount —
   // keeps the previous sample's scrollTop.
   const hasInitialScrolledRef = useRef(false);
+  // Whether the user has scrolled this list since (re)mount. Used to gate the
+  // restore: the scroll container may be shared across views (e.g. transcript
+  // vs messages tabs), so on a fresh mount it can carry another view's
+  // scrollTop. We must not treat that foreign offset as "the user scrolled".
+  const userScrolledRef = useRef(false);
+  // The scrollTop we last set programmatically (restore / auto-follow). Scroll
+  // events echoing that value are ignored so a restore isn't mistaken for a
+  // user scroll and re-persisted — which would otherwise drift the saved
+  // position on every tab flip.
+  const lastAutoScrollTopRef = useRef<number | null>(null);
   const lastInitialKeyRef = useRef<string | null>(null);
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
+  // The no-snapshot "reset to top" is a one-shot per (re)key: without this the
+  // effect re-fires on every `contentTotal` change (item measurement) and keeps
+  // slamming scrollTop back to 0, fighting an imperative deep-link scroll on the
+  // same (shared) container until that scroll's settle loop gives up. WebKit's
+  // rAF ordering loses that race every time. Re-armed alongside the key below.
+  const hasResetTopRef = useRef(false);
   useEffect(() => {
     if (
       lastInitialKeyRef.current !== persistenceKey ||
       lastInitialIndexRef.current !== initialIndex
     ) {
       hasInitialScrolledRef.current = false;
+      userScrolledRef.current = false;
+      hasResetTopRef.current = false;
       lastInitialKeyRef.current = persistenceKey;
       lastInitialIndexRef.current = initialIndex ?? undefined;
     }
@@ -183,6 +261,16 @@ export function VirtualList<T>({
     if (!el) return;
     const snapshot = getRestoreSnapshot();
     requestAnimationFrame(() => {
+      // Flag programmatic scrolls so the scroll listeners don't mistake them
+      // for user scrolls (which would block restore / persist a bogus offset).
+      isAutoScrollingRef.current = true;
+      // Release the guard a frame after the last programmatic scroll.
+      const release = () => {
+        lastAutoScrollTopRef.current = el.scrollTop;
+        requestAnimationFrame(() => {
+          isAutoScrollingRef.current = false;
+        });
+      };
       if (initialIndex != null) {
         // Explicit navigation target (e.g., message deep link) always
         // takes priority over persisted scroll state.
@@ -192,24 +280,44 @@ export function VirtualList<T>({
         });
         if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
         hasInitialScrolledRef.current = true;
-      } else if (snapshot) {
-        // Restore from snapshot only if the user hasn't already
-        // scrolled (e.g. snapshot rehydrated late and they reached for
-        // the wheel before it arrived — don't fight them).
-        if (el.scrollTop === 0) {
-          if (snapshot.totalCount === data.length) {
-            el.scrollTop = toSpacerScroll(snapshot.scrollOffset);
-          } else {
-            const maxScroll = Math.max(0, contentTotal - el.clientHeight);
-            const clamped = Math.min(snapshot.scrollOffset, maxScroll);
-            el.scrollTop = toSpacerScroll(clamped);
-          }
-        }
+        release();
+      } else if (followOutput && live) {
+        // Auto-following a live sample: the follow effect owns the scroll
+        // position (pins to bottom). Commit the one-shot guard so this effect
+        // stops re-firing and resetting scrollTop to 0 on every new event —
+        // which would otherwise fight follow until the user scrolled manually.
         hasInitialScrolledRef.current = true;
+        release();
+      } else if (snapshot) {
+        // Restore from snapshot unless the user has already scrolled this
+        // list (e.g. snapshot rehydrated late and they reached for the wheel
+        // before it arrived — don't fight them). A foreign scrollTop from a
+        // shared container is NOT a user scroll, so it doesn't block restore.
+        hasInitialScrolledRef.current = true;
+        if (!userScrolledRef.current) {
+          const maxScroll = Math.max(
+            0,
+            virtualizer.getTotalSize() - el.clientHeight
+          );
+          const offset =
+            snapshot.totalCount === data.length
+              ? snapshot.scrollOffset
+              : Math.min(snapshot.scrollOffset, maxScroll);
+          el.scrollTop = toSpacerScroll(offset);
+        }
+        release();
+      } else if (!userScrolledRef.current && !hasResetTopRef.current) {
+        // No snapshot: start at the top once, clearing any offset carried over
+        // from another view sharing this scroll container. Don't commit the
+        // one-shot guard (the effect re-fires if a snapshot rehydrates later),
+        // but flag the reset so subsequent re-fires don't keep forcing 0 and
+        // fight an imperative deep-link scroll on this shared container.
+        el.scrollTop = 0;
+        hasResetTopRef.current = true;
+        release();
+      } else {
+        release();
       }
-      // No snapshot yet: leave scrollTop at 0 and don't commit the
-      // one-shot guard. The effect re-fires when the snapshot
-      // rehydrates from Zustand-persist (vscodeApi.setState backing).
     });
   }, [
     persistenceKey,
@@ -217,25 +325,43 @@ export function VirtualList<T>({
     stickyHeaderOffset,
     contentTotal,
     data.length,
+    followOutput,
+    live,
     getRestoreSnapshot,
     getScrollElement,
     toSpacerScroll,
     virtualizer,
   ]);
 
+  const buildSnapshot = useCallback(
+    (el: HTMLElement): VirtualListStateSnapshot => ({
+      version: 1,
+      scrollOffset: toContentScroll(el.scrollTop),
+      totalCount: data.length,
+    }),
+    [toContentScroll, data.length]
+  );
+
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistOnScroll = useRafThrottle(() => {
     if (isAutoScrollingRef.current) return;
+    const elNow = getScrollElement();
+    // Ignore the scroll event echoed by a programmatic scroll (restore /
+    // auto-follow) — it isn't a user scroll, and persisting it would drift the
+    // saved position across tab flips.
+    if (
+      elNow &&
+      lastAutoScrollTopRef.current !== null &&
+      Math.abs(elNow.scrollTop - lastAutoScrollTopRef.current) <= 2
+    ) {
+      return;
+    }
+    userScrolledRef.current = true;
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
       const el = getScrollElement();
       if (!el) return;
-      const snapshot: VirtualListStateSnapshot = {
-        version: 1,
-        scrollOffset: toContentScroll(el.scrollTop),
-        totalCount: data.length,
-      };
-      recordSnapshot(snapshot);
+      recordSnapshot(buildSnapshot(el));
     }, PERSIST_DEBOUNCE_MS);
   });
 
@@ -245,6 +371,23 @@ export function VirtualList<T>({
     el.addEventListener("scroll", persistOnScroll);
     return () => el.removeEventListener("scroll", persistOnScroll);
   }, [getScrollElement, persistOnScroll]);
+
+  // Cancel any pending debounced save on unmount. Without this a queued timer
+  // fires after the list unmounts and reads the (shared) container at the next
+  // tab's scrollTop, persisting a bogus offset under this list's key.
+  useEffect(
+    () => () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+      if (interactTimerRef.current) {
+        clearTimeout(interactTimerRef.current);
+        interactTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const items = virtualizer.getVirtualItems();
   const startIndex = items[0]?.index ?? 0;

@@ -18,7 +18,6 @@ export const ApplicationIcons = {
   "play-circle": "bi bi-play-circle-fill",
   refuse: "bi bi-ban",
   scanner: "bi bi-radar",
-  settings: "bi bi-sliders",
   subagent: "bi bi-robot",
   successSubtle: "bi bi-check-circle",
   terminal: "bi bi-terminal",

@@ -60,6 +60,7 @@ export interface AppSlice {
     setPropertyValue: <T>(bagName: string, key: string, value: T) => void;
     removePropertyValue: (bagName: string, key: string) => void;
     removeAllProperties: (bagName: string) => void;
+    removeBagsByPrefix: (bagNamePrefix: string) => void;
     removeByPrefix: (bagName: string, prefix: string) => void;
 
     setUrlHash: (urlHash: string) => void;
@@ -321,6 +322,19 @@ export const createAppSlice = (
         set((state) => {
           const { [bagName]: _, ...rest } = state.app.propertyBags;
           state.app.propertyBags = rest;
+        });
+      },
+
+      // Remove every bag whose name starts with the prefix. Used to drop a
+      // sample's scroll snapshots on exit, where the bag name carries a dynamic
+      // suffix (e.g. the transcript's `:<timeline>` selection).
+      removeBagsByPrefix: (bagNamePrefix: string) => {
+        set((state) => {
+          for (const name of Object.keys(state.app.propertyBags)) {
+            if (name.startsWith(bagNamePrefix)) {
+              delete state.app.propertyBags[name];
+            }
+          }
         });
       },
 

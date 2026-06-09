@@ -5,7 +5,9 @@
      spans the entire card width, then re-apply padding internally. */
   margin: -5px -0.625rem -5px -0.625rem;
   padding: 5px 0.625rem;
-  background-color: transparent;
+  /* Opaque (matches the host card) even when unstuck so colored message bands
+     don't bleed through the header as it scrolls off during the push-off. */
+  background-color: inherit;
   z-index: 1;
   border-bottom: solid 1px transparent;
 }

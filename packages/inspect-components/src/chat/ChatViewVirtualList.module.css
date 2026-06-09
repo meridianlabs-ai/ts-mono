@@ -6,16 +6,6 @@
 
 .generatingRow {
   display: grid;
-  grid-template-columns: max-content auto;
-  align-items: center;
-  row-gap: 0;
+  grid-template-columns: minmax(0, 1fr);
   margin-bottom: 0.75rem;
-}
-
-.generatingLabel {
-  margin-left: 0.4em;
-}
-
-.generatingContent {
-  padding-left: 0;
 }

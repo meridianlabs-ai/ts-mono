@@ -55,6 +55,8 @@ export interface ToolCallViewProps {
       )[];
   mode?: "compact";
   collapsible?: boolean;
+  /** Render the whole view, just the call (title + input), or just the output. */
+  section?: "all" | "call" | "output";
   getCustomToolView?: (props: ToolCallViewProps) => React.ReactNode | undefined;
 }
 
@@ -72,6 +74,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   output,
   mode,
   collapsible = true,
+  section = "all",
   getCustomToolView,
 }) => {
   // don't collapse if output includes an image
@@ -141,63 +144,74 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     description,
     contentType,
     output,
+    mode,
   };
   const customView =
     getCustomToolView?.(props) ?? getDefaultCustomToolView(props);
   if (customView) {
-    return customView;
+    // A custom view renders the call and its result together, so it belongs to
+    // the call section; the output section then contributes nothing.
+    return section === "output" ? null : customView;
   }
 
   const contents = mode !== "compact" ? input : input || functionCall;
   const context = defaultContext();
+
+  const callSection = (
+    <div>
+      {mode !== "compact" && (!view || view.title) ? (
+        <ToolTitle
+          title={view?.title || functionCall}
+          description={description}
+        />
+      ) : (
+        ""
+      )}
+      <ExpandablePanel
+        id={`${id}-tool-input`}
+        collapse={true}
+        border={false}
+        lines={20}
+        className={clsx("text-size-small")}
+      >
+        <ToolInput
+          contentType={contentType}
+          contents={contents}
+          toolCallView={view}
+        />
+      </ExpandablePanel>
+    </div>
+  );
+
+  const outputSection =
+    contentType === "markdown" && hasContent ? (
+      <ExpandablePanel
+        id={`${id}-tool-content`}
+        collapse={collapse}
+        border={false}
+        lines={15}
+        className={clsx("text-size-small")}
+      >
+        <MarkdownToolOutput contents={normalizedContent} context={context} />
+      </ExpandablePanel>
+    ) : hasContent && collapsible ? (
+      <ExpandablePanel
+        id={`${id}-tool-content`}
+        collapse={collapse}
+        border={false}
+        lines={15}
+        className={clsx("text-size-small")}
+      >
+        <MessageContent contents={normalizedContent} context={context} />
+      </ExpandablePanel>
+    ) : hasContent ? (
+      <MessageContent contents={normalizedContent} context={context} />
+    ) : null;
+
   return (
     <div className={clsx(styles.toolCallView)}>
-      <div>
-        {mode !== "compact" && (!view || view.title) ? (
-          <ToolTitle
-            title={view?.title || functionCall}
-            description={description}
-          />
-        ) : (
-          ""
-        )}
-        <ExpandablePanel
-          id={`${id}-tool-input`}
-          collapse={true}
-          border={false}
-          lines={20}
-          className={clsx("text-size-small")}
-        >
-          <ToolInput
-            contentType={contentType}
-            contents={contents}
-            toolCallView={view}
-          />
-        </ExpandablePanel>
-      </div>
-      {contentType === "markdown" && hasContent ? (
-        <ExpandablePanel
-          id={`${id}-tool-content`}
-          collapse={collapse}
-          border={false}
-          lines={15}
-          className={clsx("text-size-small")}
-        >
-          <MarkdownToolOutput contents={normalizedContent} context={context} />
-        </ExpandablePanel>
-      ) : hasContent && collapsible ? (
-        <ExpandablePanel
-          id={`${id}-tool-content`}
-          collapse={collapse}
-          border={false}
-          lines={15}
-          className={clsx("text-size-small")}
-        >
-          <MessageContent contents={normalizedContent} context={context} />
-        </ExpandablePanel>
-      ) : hasContent ? (
-        <MessageContent contents={normalizedContent} context={context} />
-      ) : null}
+      {section !== "output" ? callSection : null}
+      {section !== "call" ? outputSection : null}
     </div>
   );
 };

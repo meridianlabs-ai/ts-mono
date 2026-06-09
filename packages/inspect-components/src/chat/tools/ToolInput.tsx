@@ -38,7 +38,7 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
       <RenderedText
         markdown={toolCallView.content || ""}
         ref={sourceCodeRef}
-        className={clsx(styles.toolView, className)}
+        className={clsx("tool-call-input", styles.toolView, className)}
       />
     );
   } else {
@@ -77,7 +77,7 @@ const RenderTool: FC<RenderToolProps> = ({
     <div ref={parentRef}>
       <pre
         className={clsx(
-          "tool-output",
+          "tool-call-input",
           styles.outputPre,
           styles.bottomMargin,
           className

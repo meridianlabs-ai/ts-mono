@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, memo, useState } from "react";
+import { FC, memo, ReactNode, useState } from "react";
 
 import type { ContentImage, ContentText } from "@tsmono/inspect-common/types";
 import {
@@ -31,6 +31,8 @@ interface ChatMessageProps {
   display?: ChatViewDisplayOptions;
   linking?: ChatViewLinkingOptions;
   references?: MarkdownReference[];
+  /** Optional position-label chip, rendered at the far right of the role line. */
+  label?: ReactNode;
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
@@ -39,6 +41,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   display,
   linking,
   references,
+  label,
 }) {
   const indented = display?.indented ?? false;
   const unlabeledRoles = display?.unlabeledRoles;
@@ -141,11 +144,16 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               ""
             )}
           </div>
-          {message.timestamp && formatDateTime && (
-            <span className={styles.timestamp} title={message.timestamp}>
-              {formatDateTime(new Date(message.timestamp))}
-            </span>
-          )}
+          {(message.timestamp && formatDateTime) || label ? (
+            <div className={styles.headerEnd}>
+              {message.timestamp && formatDateTime && (
+                <span className={styles.timestamp} title={message.timestamp}>
+                  {formatDateTime(new Date(message.timestamp))}
+                </span>
+              )}
+              {label}
+            </div>
+          ) : null}
         </div>
       )}
       <div

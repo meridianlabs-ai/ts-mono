@@ -14,6 +14,8 @@ import {
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
+import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
+
 import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
 import { RenderedEventNode } from "./TranscriptVirtualList";
@@ -207,6 +209,16 @@ export const TranscriptVirtualListComponent: FC<
     ]
   );
 
+  // Tools are executing when the latest model event requested tool calls that
+  // don't yet all have a (completed) tool event. Pending tool events aren't
+  // reliably streamed to the viewer, so we derive this from model events —
+  // matching each tool_call to its tool event by id.
+  const toolsRunning = useMemo(
+    () => running === true && transcriptToolsRunning(eventNodes),
+    [running, eventNodes]
+  );
+  const components = useMemo(() => ({ Footer: ToolRunningFooter }), []);
+
   if (useVirtualization) {
     return (
       <VirtualList<EventNode>
@@ -223,6 +235,8 @@ export const TranscriptVirtualListComponent: FC<
         scrollToTopOnFinish={true}
         itemSearchText={eventSearchText}
         findScope="none"
+        showProgress={toolsRunning}
+        components={components}
         onVisibleRangeChange={(range) => {
           if (visibleRangeRef) visibleRangeRef.current = range;
         }}
@@ -237,7 +251,37 @@ export const TranscriptVirtualListComponent: FC<
           });
           return row;
         })}
+        {toolsRunning ? <ToolRunningFooter /> : null}
       </div>
     );
   }
 };
+
+const ToolRunningFooter: FC = () => (
+  <div className={styles.runningTool}>
+    <GeneratingIndicator label="running" />
+  </div>
+);
+
+// True when the most recent model event requested tool calls that don't all
+// have a completed tool event yet (i.e. a tool is still executing).
+function transcriptToolsRunning(eventNodes: EventNode[]): boolean {
+  let lastModelIdx = -1;
+  for (let i = eventNodes.length - 1; i >= 0; i--) {
+    if (eventNodes[i]?.event.event === "model") {
+      lastModelIdx = i;
+      break;
+    }
+  }
+  if (lastModelIdx === -1) return false;
+  const modelEvent = eventNodes[lastModelIdx]!.event;
+  if (modelEvent.event !== "model" || modelEvent.pending) return false;
+  const toolCalls = modelEvent.output.choices[0]?.message.tool_calls ?? [];
+  if (toolCalls.length === 0) return false;
+  const completedToolIds = new Set<string>();
+  for (let i = lastModelIdx + 1; i < eventNodes.length; i++) {
+    const ev = eventNodes[i]!.event;
+    if (ev.event === "tool" && !ev.pending) completedToolIds.add(ev.id);
+  }
+  return toolCalls.some((call) => !completedToolIds.has(call.id));
+}

@@ -12,6 +12,7 @@ import {
 } from "@tsmono/inspect-components/chat";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
+import { MessageLabel } from "../chat/MessageLabel";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -95,24 +96,62 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [context?.messageLabels]
   );
 
-  const toolCallView = (
-    <ToolCallView
-      id={`${eventNode.id}-tool-call`}
-      tool={name}
-      functionCall={functionCall}
-      input={input}
-      description={description}
-      contentType={contentType}
-      output={event.error ? "" : event.result || ""}
-      mode="compact"
-      view={resolvedView}
-    />
-  );
+  const showError = !!event.error && event.error.type !== "approval";
+  const showResult = !showError && hasResultContent(event.result);
 
-  const toolCallError =
-    event.error && event.error.type !== "approval" ? (
-      <ToolCallErrorView error={event.error} />
-    ) : null;
+  // Render the call and its output as one attached pair (blue call box with the
+  // gray output box seamlessly beneath it), mirroring the messages view. The
+  // colors/flatten come from the shared [data-message-kind] rules in the theme.
+  const toolCallView = (
+    <div className={styles.attachedGroup}>
+      <div
+        data-message-kind="tool"
+        className={clsx(
+          styles.toolBox,
+          showError || showResult ? styles.attachedBottom : undefined
+        )}
+      >
+        <ToolCallView
+          id={`${eventNode.id}-tool-call`}
+          tool={name}
+          functionCall={functionCall}
+          input={input}
+          description={description}
+          contentType={contentType}
+          output=""
+          mode="compact"
+          view={resolvedView}
+          section="call"
+        />
+      </div>
+      {showError ? (
+        <div
+          data-message-kind="tool-result"
+          className={clsx(styles.toolBox, styles.attachedTop)}
+        >
+          <ToolCallErrorView error={event.error!} />
+        </div>
+      ) : showResult ? (
+        <div
+          data-message-kind="tool-result"
+          className={clsx(styles.toolBox, styles.attachedTop)}
+        >
+          <ToolCallView
+            id={`${eventNode.id}-tool-call`}
+            tool={name}
+            functionCall={functionCall}
+            input={input}
+            description={description}
+            contentType={contentType}
+            output={event.result || ""}
+            mode="compact"
+            view={resolvedView}
+            section="output"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 
   const toolLabel = toolLabels.messageLabels?.[event.id];
 
@@ -134,25 +173,15 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     >
       <div data-name="Summary" className={styles.summary}>
         {toolLabels.show === false ? (
-          <>
-            {toolCallView}
-            {toolCallError}
-          </>
+          toolCallView
         ) : (
           <div className={styles.labeledToolCall}>
+            <div className={styles.labeledToolContent}>{toolCallView}</div>
             <div
-              className={clsx(
-                "text-size-smaller",
-                "text-style-secondary",
-                styles.label
-              )}
+              className={styles.label}
               style={{ minWidth: `${maxLabelLength}ch` }}
             >
-              {toolLabel}
-            </div>
-            <div className={styles.labeledToolContent}>
-              {toolCallView}
-              {toolCallError}
+              {toolLabel ? <MessageLabel label={toolLabel} /> : null}
             </div>
           </div>
         )}
@@ -177,10 +206,18 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         )}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
-            <GeneratingIndicator />
+            <GeneratingIndicator label="running" />
           </div>
         ) : undefined}
       </div>
     </EventPanel>
   );
 };
+
+// Whether a tool event has output worth rendering in its own result box.
+function hasResultContent(result: ToolEvent["result"]): boolean {
+  if (result === null || result === undefined) return false;
+  if (typeof result === "string") return result.trim().length > 0;
+  if (Array.isArray(result)) return result.length > 0;
+  return true;
+}

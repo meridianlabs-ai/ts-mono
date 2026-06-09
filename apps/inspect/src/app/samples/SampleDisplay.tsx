@@ -131,6 +131,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
+  // Per-tab scroll positions persist while tabbing within a sample (each tab's
+  // VirtualList snapshot is keyed by sample id). Clear them when leaving this
+  // sample so re-entering starts at the top rather than a stale offset.
+  const removeBagsByPrefix = useStore(
+    (state) => state.appActions.removeBagsByPrefix
+  );
+  useEffect(() => {
+    // Prefixes cover the dynamic suffixes on these bag names (the transcript's
+    // `:<timeline>` selection, branch ids, etc.).
+    const snapshotBagPrefixes = [
+      `chat-${baseId}-chat-${id}`,
+      `${baseId}-transcript-display-${id}`,
+    ];
+    return () => {
+      for (const prefix of snapshotBagPrefixes) {
+        removeBagsByPrefix(prefix);
+      }
+    };
+  }, [baseId, id, removeBagsByPrefix]);
+
   // Navigation hook for URL updates
   const navigate = useNavigate();
 
@@ -249,6 +269,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     },
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );
+
+  // Stable option objects so memoized ChatMessageRow rows don't re-render on
+  // every streaming poll just because these were fresh literals each render.
+  const chatDisplay = useMemo(() => ({ indented: true, formatDateTime }), []);
+  const chatLinking = useMemo(
+    () => ({ enabled: isHostedEnvironment(), getMessageUrl }),
+    [getMessageUrl]
+  );
+  const chatTools = useMemo(() => ({ callStyle: "complete" as const }), []);
 
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
@@ -640,18 +669,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   messages={sampleMessages}
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
-                  display={{
-                    indented: true,
-                    unlabeledRoles: ["assistant"],
-                    formatDateTime,
-                  }}
-                  linking={{
-                    enabled: isHostedEnvironment(),
-                    getMessageUrl: getMessageUrl,
-                  }}
+                  display={chatDisplay}
+                  linking={chatLinking}
                   onNativeFindChanged={setNativeFind}
                   scrollRef={scrollRef}
-                  tools={{ callStyle: "complete" }}
+                  tools={chatTools}
                   running={running}
                   className={styles.fullWidth}
                 />

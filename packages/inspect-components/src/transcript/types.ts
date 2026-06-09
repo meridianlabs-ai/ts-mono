@@ -46,7 +46,11 @@ export const kCollapsibleEventTypes = [
 ];
 
 /** Event types whose *content* can be collapsed (panel-level collapse). */
-export const kContentCollapsibleEventTypes: string[] = ["state", "store"];
+export const kContentCollapsibleEventTypes: string[] = [
+  "model",
+  "state",
+  "store",
+];
 
 export type EventType =
   | SampleInitEvent

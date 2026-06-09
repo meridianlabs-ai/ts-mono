@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, useMemo, useRef, useState } from "react";
+import { FC, useMemo, useRef, useState } from "react";
 
 import type {
   ChatMessage,
@@ -11,7 +11,6 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -22,7 +21,8 @@ import { attemptDurationSec } from "./event/attemptDuration";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { RetryChip } from "./event/RetryChip";
-import { formatTiming, formatTitle } from "./event/utils";
+import { StopReasonBadge } from "./event/StopReasonBadge";
+import { formatTiming, formatTitle, isCancelError } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
 import { retryAttemptKey } from "./timeline/retryGrouping";
@@ -57,7 +57,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     attempts?.find((a) => retryAttemptKey(a) === selectedAttemptKey) ??
     successEvent;
   const event = selectedEvent;
-  const isFailed = !!event.error;
+  // An operator/limit/system cancel stamps a sentinel on `error`, but it isn't
+  // a genuine failure — surface it as "Cancelled", not a red "FAILED" error.
+  const isCancelled = isCancelError(event.error);
+  const isFailed = !!event.error && !isCancelled;
 
   const totalUsage = event.output?.usage?.total_tokens;
   const callTime = event.output?.time;
@@ -70,6 +73,14 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
   const entries: Record<string, unknown> = { ...event.config };
   delete entries["max_connections"];
+
+  // Stop reason / refusal detail for the (primary) generated choice. `category`
+  // and `explanation` are only present on a refusal/content-filter stop. Skip the
+  // panel for a plain "stop" with no details — otherwise it shows on every call.
+  const firstChoice = event.output?.choices?.[0];
+  const stopDetails = firstChoice?.stop_details;
+  const showStopReason =
+    !!firstChoice && (!!stopDetails || firstChoice.stop_reason !== "stop");
 
   // For any user messages which immediately preceded this model call, including a
   // panel and display those user messages (exclude tool_call messages as they
@@ -115,13 +126,15 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const [showAllMessages, setShowAllMessages] = useState(false);
 
   const summaryMessages = useMemo(() => {
-    // Filter the synthetic empty-assistant placeholder only while the
-    // event is in flight — once it completes, the same predicate would
-    // also drop legitimate tool_use-only outputs, since
-    // isLivePlaceholderMessage treats those as "no visible content".
-    const outputs = event.pending
-      ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
-      : outputMessages || [];
+    // Filter the synthetic empty-assistant placeholder while the event is in
+    // flight, or when it was cancelled (the interrupted generation produced no
+    // real output) — otherwise the same predicate would drop legitimate
+    // tool_use-only outputs, since isLivePlaceholderMessage treats those as
+    // "no visible content".
+    const outputs =
+      event.pending || isCancelled
+        ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+        : outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
@@ -129,6 +142,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     showAllMessages,
     event.input,
     event.pending,
+    isCancelled,
     outputMessages,
     userMessages,
   ]);
@@ -145,7 +159,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
   const titleString = isFailed
     ? `${panelTitle} · FAILED${formatFailureTime(event)}`
-    : formatTitle(panelTitle, totalUsage, callTime);
+    : isCancelled
+      ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
+      : formatTitle(panelTitle, totalUsage, callTime);
 
   const turnLabel = context?.turnInfo
     ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
@@ -204,7 +220,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           }}
           labels={summaryLabels}
         />
-        {event.error ? (
+        {isCancelled ? (
+          <div className={styles.cancelled}>
+            <i className={TranscriptIcons.cancel} />
+            <span>{event.error}</span>
+          </div>
+        ) : event.error ? (
           <EventSection title="Error">
             <div className={styles.error}>{event.error}</div>
           </EventSection>
@@ -214,7 +235,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           </div>
         ) : undefined}
       </div>
-      <div data-name="All" className={styles.container}>
+      <div data-name="Info" className={styles.container}>
         <div className={styles.all}>
           {event.output.usage ? (
             <ModelUsagePanel
@@ -227,6 +248,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             />
           ) : undefined}
 
+          {showStopReason && (
+            <StopReasonBadge
+              reason={firstChoice.stop_reason}
+              details={stopDetails}
+            />
+          )}
+
           {Object.keys(entries).length > 0 && (
             <EventSection
               title="Configuration"
@@ -236,19 +264,19 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
             </EventSection>
           )}
         </div>
+      </div>
 
-        <EventSection title="Messages">
-          <ChatView
-            id={`${eventNode.id}-model-input-full`}
-            messages={[...event.input, ...(outputMessages || [])]}
-            tools={{
-              collapseToolMessages: context?.hasToolEvents !== false,
-            }}
-            labels={{
-              show: false,
-            }}
-          />
-        </EventSection>
+      <div data-name="Messages" className={styles.container}>
+        <ChatView
+          id={`${eventNode.id}-model-input-full`}
+          messages={[...event.input, ...(outputMessages || [])]}
+          tools={{
+            collapseToolMessages: context?.hasToolEvents !== false,
+          }}
+          labels={{
+            show: false,
+          }}
+        />
       </div>
 
       {event.tools.length > 1 && (
@@ -334,24 +362,24 @@ interface ToolConfigProps {
 }
 
 const ToolsConfig: FC<ToolConfigProps> = ({ tools, toolChoice }) => {
-  const toolEls = tools.map((tool, idx) => {
-    return (
-      <Fragment key={`${tool.name}-${idx}`}>
-        <div className={clsx("text-style-label", "text-style-secondary")}>
-          {tool.name}
-        </div>
-        <ExpandablePanel id={`config-${tool.name}-${idx}`} collapse={true}>
-          <MarkdownDiv markdown={tool.description} />
-        </ExpandablePanel>
-      </Fragment>
-    );
-  });
+  const toolEntries = useMemo<Record<string, unknown>>(() => {
+    const entries: Record<string, unknown> = {};
+    tools.forEach((tool, idx) => {
+      // Disambiguate the rare case of two tools sharing a name (keys must be unique).
+      const key =
+        entries[tool.name] === undefined ? tool.name : `${tool.name} (${idx})`;
+      entries[key] = tool.description;
+    });
+    return entries;
+  }, [tools]);
 
   return (
     <>
-      <div className={clsx(styles.toolConfig, "text-size-small")}>
-        {toolEls}
-      </div>
+      <MetaDataGrid
+        entries={toolEntries}
+        options={{ plain: true }}
+        className={styles.toolConfig}
+      />
       <div className={clsx(styles.toolChoice, "text-size-small")}>
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Tool Choice

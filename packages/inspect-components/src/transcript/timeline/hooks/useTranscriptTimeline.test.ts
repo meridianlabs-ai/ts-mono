@@ -52,6 +52,40 @@ function makeModelEvent(uuid: string, startSec: number, endSec: number): Event {
   } as unknown as Event;
 }
 
+function spanBegin(
+  id: string,
+  name: string,
+  type: string | null,
+  parentId: string | null
+): Event {
+  return {
+    event: "span_begin",
+    id,
+    name,
+    type,
+    parent_id: parentId,
+    span_id: null,
+    timestamp: new Date(1705312800000).toISOString(),
+    working_start: 0,
+    pending: null,
+    uuid: null,
+    metadata: null,
+  } as unknown as Event;
+}
+
+function spanEnd(id: string): Event {
+  return {
+    event: "span_end",
+    id,
+    span_id: null,
+    timestamp: new Date(1705312800000).toISOString(),
+    working_start: 0,
+    pending: null,
+    uuid: null,
+    metadata: null,
+  } as unknown as Event;
+}
+
 function makeServerEvent(uuid: string): ServerTimelineEvent {
   return { type: "event", event: uuid };
 }
@@ -156,6 +190,51 @@ describe("useTranscriptTimeline", () => {
 
     // A single event with no child spans — no meaningful timeline
     expect(result.current.hasTimeline).toBe(false);
+  });
+
+  it("reports hasAgentTimeline false for a main + scoring transcript", () => {
+    // init/solvers/scorers phases with no agent sub-structure: the only
+    // child lanes are lifecycle phases (init/scoring), nothing to expand.
+    const phaseEvents: Event[] = [
+      spanBegin("init", "init", "init", null),
+      makeModelEvent("init-1", 0, 1),
+      spanEnd("init"),
+      spanBegin("solvers", "solvers", "solvers", null),
+      makeModelEvent("solve-1", 1, 3),
+      spanEnd("solvers"),
+      spanBegin("scorers", "scorers", "scorers", null),
+      makeModelEvent("score-1", 3, 4),
+      spanEnd("scorers"),
+    ];
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({ events: phaseEvents })
+    );
+
+    expect(result.current.hasTimeline).toBe(true);
+    expect(result.current.hasAgentTimeline).toBe(false);
+  });
+
+  it("reports hasAgentTimeline true when agent sub-lanes exist", () => {
+    const agentEvents: Event[] = [
+      spanBegin("solvers", "solvers", "solvers", null),
+      makeModelEvent("solve-1", 0, 1),
+      spanBegin("a1", "agent_one", "agent", "solvers"),
+      makeModelEvent("a1-1", 1, 2),
+      spanEnd("a1"),
+      spanBegin("a2", "agent_two", "agent", "solvers"),
+      makeModelEvent("a2-1", 2, 3),
+      spanEnd("a2"),
+      spanEnd("solvers"),
+      spanBegin("scorers", "scorers", "scorers", null),
+      makeModelEvent("score-1", 3, 4),
+      spanEnd("scorers"),
+    ];
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({ events: agentEvents })
+    );
+
+    expect(result.current.hasTimeline).toBe(true);
+    expect(result.current.hasAgentTimeline).toBe(true);
   });
 
   it("returns timelines array with server-provided timeline", () => {
