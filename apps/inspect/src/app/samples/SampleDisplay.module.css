@@ -47,11 +47,14 @@
 }
 
 .railColumn {
-  position: sticky;
-  align-self: flex-start;
-  flex: 0 0 72px;
+  align-self: stretch;
+  flex: 0 0 44px;
   background-color: var(--bs-body-bg);
   border-left: 1px solid var(--bs-border-color);
+}
+
+.railColumnSticky {
+  position: sticky;
 }
 
 .tabContent {

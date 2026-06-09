@@ -667,9 +667,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         ? "search"
         : null;
 
-  // Transcript rail: Search on top, Scans below (per design). Scans is always
-  // listed but disabled with a "No scans" label when the sample has none.
-  const transcriptRailItems = useMemo<ActivityRailItem[]>(() => {
+  // Shared rail entries for both the Transcript and Messages tabs: Search on
+  // top, Scans below (per design). Scans is always listed but disabled with a
+  // "No scans" label when the sample has none.
+  const railItems = useMemo<ActivityRailItem[]>(() => {
     const items: ActivityRailItem[] = [];
     if (canSearch) {
       items.push({
@@ -708,7 +709,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     return {
       rail: (
         <ActivityRail
-          items={transcriptRailItems}
+          items={railItems}
           active={activeRailId}
           onSelect={onRailSelect}
         />
@@ -724,23 +725,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     scans.setSelected,
     sampleEvents,
     searchContext,
-    transcriptRailItems,
+    railItems,
     onRailSelect,
     closeDock,
   ]);
-
-  // Messages rail: Search only (no swimlane timeline / scans here).
-  const messagesRailItems = useMemo<ActivityRailItem[]>(
-    () => [
-      {
-        id: "search",
-        label: "Search",
-        icon: ApplicationIcons.search,
-        disabled: !canSearch,
-      },
-    ],
-    [canSearch]
-  );
 
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
@@ -843,19 +831,22 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   panelHeight={sidebarHeight}
                   rail={
                     <ActivityRail
-                      items={messagesRailItems}
-                      active={
-                        rightDock === "search" && searchScope === "messages"
-                          ? "search"
-                          : null
-                      }
+                      items={railItems}
+                      active={activeRailId}
                       onSelect={onRailSelect}
                     />
                   }
                   panel={
-                    rightDock === "search" &&
-                    searchScope === "messages" &&
-                    searchContext ? (
+                    activeRailId === "scans" ? (
+                      <ScansSidebarPanel
+                        scores={scans.scores}
+                        events={sampleEvents}
+                        makeCiteUrl={scans.makeCiteUrl}
+                        selected={scans.selected}
+                        onSelectedChange={scans.setSelected}
+                        onClose={closeDock}
+                      />
+                    ) : activeRailId === "search" && searchContext ? (
                       <SearchPanelSlot
                         scope="messages"
                         context={searchContext}
@@ -1038,15 +1029,21 @@ const RailSidebarHost: FC<RailSidebarHostProps> = ({
         {panel}
       </RailPanelColumn>
     )}
-    <div className={styles.railColumn} style={{ top: panelTop }}>
-      {rail}
+    {/* Full-height column (border + bg run the whole content height, matching
+        the transcript tab's rail); the items themselves stick below the
+        toolbar. */}
+    <div className={styles.railColumn}>
+      <div className={styles.railColumnSticky} style={{ top: panelTop }}>
+        {rail}
+      </div>
     </div>
   </div>
 );
 
 const DOCKED_SIDEBAR_DEFAULT_WIDTH = 360;
 const DOCKED_SIDEBAR_MIN_WIDTH = 240;
-const DOCKED_SIDEBAR_MAX_WIDTH = 720;
+// Matches the transcript tab's rail panel max width.
+const DOCKED_SIDEBAR_MAX_WIDTH = 800;
 
 const RailPanelColumn: FC<{
   children: ReactNode;
