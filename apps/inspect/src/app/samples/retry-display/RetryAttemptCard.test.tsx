@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
+import { ComponentProps, createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
@@ -32,12 +32,11 @@ const baseRetry: EvalRetryError = {
   events: null,
 };
 
-function renderCard(props: Partial<React.ComponentProps<typeof RetryAttemptCard>> = {}) {
+function renderCard(props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}) {
   const scrollRef = createRef<HTMLDivElement>();
   return render(
     <RetryAttemptCard
       retry={baseRetry}
-      index={0}
       attemptNumber={1}
       isOpen={true}
       view="error"

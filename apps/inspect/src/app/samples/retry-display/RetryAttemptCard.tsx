@@ -21,7 +21,6 @@ const kViewSegments = [
 
 export interface RetryAttemptCardProps {
   retry: EvalRetryError;
-  index: number;
   attemptNumber: number;
   isOpen: boolean;
   view: RetryView;
