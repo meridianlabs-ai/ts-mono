@@ -450,6 +450,7 @@ export function viewServerApi(
       status: "OK",
       sampleData: direct.sampleData,
       has_more: direct.has_more,
+      complete: direct.complete,
     };
   };
 
