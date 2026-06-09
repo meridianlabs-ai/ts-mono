@@ -19,6 +19,7 @@ import {
   useLogsWithretried,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
@@ -71,9 +72,9 @@ export const SamplesPanel: FC = () => {
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
-  const showRetriedLogs = useStore((state) => state.logs.showRetriedLogs);
-  const setShowRetriedLogs = useStore(
-    (state) => state.logsActions.setShowRetriedLogs
+  const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
+  const setShowRetriedLogs = useUserSettings(
+    (state) => state.setShowRetriedLogs
   );
 
   const filteredSamplesCount = useStore(
