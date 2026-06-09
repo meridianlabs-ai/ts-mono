@@ -167,6 +167,51 @@ describe("createSamplePolling", () => {
     expect(sampleActions.setSampleError).not.toHaveBeenCalled();
   });
 
+  it("keeps streaming when buffer-complete sample is not flushed to the eval yet", async () => {
+    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+      status: "OK",
+      complete: true,
+      has_more: false,
+      sampleData: {
+        events: [],
+        attachments: [],
+        message_pool: [],
+        call_pool: [],
+      },
+    } satisfies SampleDataResponse);
+    const getLogSample = vi.fn().mockResolvedValue(undefined);
+
+    const sampleActions = {
+      setSelectedSample: vi.fn(),
+      setSampleStatus: vi.fn(),
+      setSampleError: vi.fn(),
+      setRunningEvents: vi.fn(),
+    };
+
+    const state = {
+      api: {
+        get_log_sample_data: getLogSampleData,
+        get_log_sample: getLogSample,
+      },
+      sample: { runningEvents: [] },
+      sampleActions,
+      log: { selectedLogDetails: { sampleSummaries: [] } },
+    } as unknown as StoreState;
+    const store = {
+      getState: () => state,
+    } as unknown as UseBoundStore<StoreApi<StoreState>>;
+
+    const polling = createSamplePolling(store);
+    polling.startPolling("log.eval", createSummary("sample-1"));
+    await flushPromises();
+    polling.stopPolling();
+
+    expect(getLogSample).toHaveBeenCalledWith("log.eval", "sample-1", 1);
+    expect(sampleActions.setSelectedSample).not.toHaveBeenCalled();
+    expect(sampleActions.setSampleStatus).not.toHaveBeenCalledWith("error");
+    expect(sampleActions.setSampleError).not.toHaveBeenCalled();
+  });
+
   it("does not let duplicate streamed pool rows shift refs", async () => {
     const inputSystem = chatMessage("input-system", "system", "Input system");
     const inputUser = chatMessage("input-user", "user", "Input user");

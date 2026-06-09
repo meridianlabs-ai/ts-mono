@@ -127,12 +127,10 @@ export function createSamplePolling(
         return false;
       }
 
-      const loadCompletedSample = async (message: string) => {
-        // A 404 from the server means that this sample has been flushed to the
-        // main eval file. We also take the same path when the log summary says
-        // the sample is complete but the buffer only returns empty deltas.
-        stopPollingTimer();
-
+      const loadCompletedSample = async (
+        message: string,
+        options: { missingSampleIsError: boolean }
+      ): Promise<PollingCallbackResult> => {
         try {
           log.debug(message);
           // The closure-captured `summary` is the stub {id, epoch} from
@@ -157,28 +155,37 @@ export function createSamplePolling(
           }
 
           if (sample) {
+            stopPollingTimer();
             const migratedSample = resolveSample(sample);
 
             sampleActions.setSelectedSample(migratedSample, logFile);
             sampleActions.setSampleStatus("ok");
             sampleActions.setRunningEvents([]);
-          } else {
-            sampleActions.setSampleStatus("error");
-            sampleActions.setSampleError(
-              new Error("Unable to load sample - an unknown error occurred")
-            );
-            sampleActions.setRunningEvents([]);
+            return false;
           }
+
+          if (!options.missingSampleIsError) {
+            sampleActions.setSampleStatus("streaming");
+            return true;
+          }
+
+          stopPollingTimer();
+          sampleActions.setSampleStatus("error");
+          sampleActions.setSampleError(
+            new Error("Unable to load sample - an unknown error occurred")
+          );
+          sampleActions.setRunningEvents([]);
+          return false;
         } catch (e) {
           if (localAbort.signal.aborted) {
             return false;
           }
+          stopPollingTimer();
           sampleActions.setSampleError(e as Error);
           sampleActions.setSampleStatus("error");
           sampleActions.setRunningEvents([]);
+          return false;
         }
-
-        return false;
       };
 
       // Snapshot cursors before the call so we can detect progress below.
@@ -202,18 +209,23 @@ export function createSamplePolling(
 
       if (sampleDataResponse?.status === "NotFound") {
         return await loadCompletedSample(
-          `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`
+          `LOADING COMPLETED SAMPLE AFTER FLUSH: ${summary.id}-${summary.epoch}`,
+          { missingSampleIsError: true }
         );
       }
 
-      if (
-        shouldFinalizeStreamingSample(
-          sampleDataResponse,
-          hasCompletedLogSummary(store.getState(), summary.id, summary.epoch)
-        )
-      ) {
+      const completedInLog = hasCompletedLogSummary(
+        store.getState(),
+        summary.id,
+        summary.epoch
+      );
+      if (shouldFinalizeStreamingSample(sampleDataResponse, completedInLog)) {
+        const completedByPendingBuffer = sampleDataResponse?.complete === true;
         return await loadCompletedSample(
-          `LOADING COMPLETED SAMPLE AFTER SUMMARY UPDATE: ${summary.id}-${summary.epoch}`
+          completedByPendingBuffer
+            ? `LOADING COMPLETED SAMPLE AFTER BUFFER COMPLETE: ${summary.id}-${summary.epoch}`
+            : `LOADING COMPLETED SAMPLE AFTER SUMMARY UPDATE: ${summary.id}-${summary.epoch}`,
+          { missingSampleIsError: !completedByPendingBuffer }
         );
       }
 
