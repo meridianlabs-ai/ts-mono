@@ -1,26 +1,56 @@
-.ansi {
-  margin: 0.5em 0;
-  font-size: clamp(0.3rem, 1.1vw, 0.8rem) !important;
-}
-
-.headerRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.headerControls {
-  display: flex;
-  align-items: center;
-  margin-left: 1rem;
-  gap: 0.5rem;
-}
-
 .card {
   width: 100%;
 }
 
-.attemptDropdown {
-  padding: 1px 0.25rem;
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.timeline {
+  position: relative;
+  margin-top: 18px;
+}
+
+/* Vertical rail behind the status dots. */
+.rail {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--bs-border-color);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+}
+
+/* Offsets the dot to align with the card header text; relative + z-index so it
+   paints above the absolutely-positioned rail. */
+.dotGutter {
+  position: relative;
+  z-index: 1;
+  padding-top: 14px;
+}
+
+/* Failed-attempt marker: a danger dot with a soft ring, sitting on the rail. */
+.statusDot {
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bs-danger);
+  box-shadow: 0 0 0 3px var(--bs-danger-bg-subtle);
 }
