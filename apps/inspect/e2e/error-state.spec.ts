@@ -1,4 +1,4 @@
-import { http, HttpResponse, delay } from "msw";
+import { delay, http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 
