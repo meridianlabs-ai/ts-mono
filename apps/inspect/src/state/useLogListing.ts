@@ -1,3 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+
 import { LogHandle } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
@@ -34,6 +37,17 @@ export async function fetchAndApplyListing(
 
 export function logListingQueryKey(logDir: string | undefined) {
   return ["log-files", logDir ?? "__default__"] as const;
+}
+
+// Prefix filter: TanStack does partial matching, so ["log-files"] hits any ["log-files", dir].
+export const logListingQueryFilter = { queryKey: ["log-files"] } as const;
+
+export function useRefreshLogListing(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return useCallback(
+    () => queryClient.invalidateQueries(logListingQueryFilter),
+    [queryClient]
+  );
 }
 
 // Mirrors useAppConfigAsync (app/server/useAppConfig.ts).

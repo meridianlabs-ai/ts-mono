@@ -20,7 +20,7 @@ import { isUri, join } from "../utils/uri";
 
 import { queryClient } from "./queryClient";
 import { StoreState } from "./store";
-import { logListingQueryKey } from "./useLogListing";
+import { logListingQueryFilter } from "./useLogListing";
 
 const log = createLogger("Log Slice");
 
@@ -388,9 +388,7 @@ export const createLogsSlice = (
 
         // Replication is wired up now; (re)fetch the listing — covers the case
         // where useLogListing's initial query ran before startReplication.
-        void queryClient.invalidateQueries({
-          queryKey: logListingQueryKey(get().logs.logDir),
-        });
+        void queryClient.invalidateQueries(logListingQueryFilter);
       },
       syncEvalSetInfo: async (logPath?: string) => {
         const info = await api.get_eval_set(logPath);
@@ -416,9 +414,7 @@ export const createLogsSlice = (
         if (!isInFileList) {
           if (state.replicationService?.isReplicating() && !isSingleFileMode) {
             await state.logsActions.ensureReplicationReady();
-            await queryClient.refetchQueries({
-              queryKey: logListingQueryKey(get().logs.logDir),
-            });
+            await queryClient.refetchQueries(logListingQueryFilter);
             const logHandle = get().logs.logs.find((val: { name: string }) =>
               val.name.endsWith(logFile)
             );

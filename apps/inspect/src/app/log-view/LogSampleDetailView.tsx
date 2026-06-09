@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { FC, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,7 +5,7 @@ import { kLogViewSamplesTabId } from "../../constants";
 import { useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
-import { logListingQueryKey } from "../../state/useLogListing";
+import { useRefreshLogListing } from "../../state/useLogListing";
 import { usePollSample } from "../../state/usePollSample";
 import { useLogSampleNavigation } from "../routing/sampleNavigation";
 import {
@@ -57,8 +56,7 @@ export const LogSampleDetailView: FC = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-  const queryClient = useQueryClient();
-  const logDir = useStore((s) => s.logs.logDir);
+  const refreshLogListing = useRefreshLogListing();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -84,9 +82,7 @@ export const LogSampleDetailView: FC = () => {
         setSelectedLogFile(routeLogPath);
 
         // Refresh the listing to ensure we have the latest data
-        void queryClient.invalidateQueries({
-          queryKey: logListingQueryKey(logDir),
-        });
+        void refreshLogListing();
 
         // Select the sample
         const targetEpoch = parseInt(routeEpoch, 10);
@@ -105,8 +101,7 @@ export const LogSampleDetailView: FC = () => {
     routeEpoch,
     initLogDir,
     setSelectedLogFile,
-    queryClient,
-    logDir,
+    refreshLogListing,
     selectSample,
   ]);
 

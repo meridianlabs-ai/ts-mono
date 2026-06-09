@@ -15,7 +15,7 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./App.css";
 
-import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect } from "react";
@@ -33,7 +33,7 @@ import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
-import { logListingQueryKey, useLogListing } from "../state/useLogListing.ts";
+import { useLogListing, useRefreshLogListing } from "../state/useLogListing.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
@@ -116,7 +116,7 @@ const AppContent: FC = () => {
   const ensureReplicationReady = useStore(
     (state) => state.logsActions.ensureReplicationReady
   );
-  const queryClient = useQueryClient();
+  const refreshLogListing = useRefreshLogListing();
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
@@ -211,9 +211,7 @@ const AppContent: FC = () => {
               api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            queryClient.invalidateQueries({
-              queryKey: logListingQueryKey(logDir),
-            });
+            void refreshLogListing();
           }
           break;
         }
@@ -225,7 +223,7 @@ const AppContent: FC = () => {
       logDir,
       setSelectedLogFile,
       api,
-      queryClient,
+      refreshLogListing,
       rehydrated,
     ]
   );

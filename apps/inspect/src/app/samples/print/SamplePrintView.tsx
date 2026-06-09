@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -29,7 +28,7 @@ import {
 import { useSampleData } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useLoadSample } from "../../../state/useLoadSample";
-import { logListingQueryKey } from "../../../state/useLogListing";
+import { useRefreshLogListing } from "../../../state/useLogListing";
 import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
@@ -58,8 +57,7 @@ export const SamplePrintView: FC = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-  const queryClient = useQueryClient();
-  const logDir = useStore((s) => s.logs.logDir);
+  const refreshLogListing = useRefreshLogListing();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   useEffect(() => {
@@ -67,9 +65,7 @@ export const SamplePrintView: FC = () => {
       if (logPath && sampleId && epoch) {
         await initLogDir();
         setSelectedLogFile(logPath);
-        void queryClient.invalidateQueries({
-          queryKey: logListingQueryKey(logDir),
-        });
+        void refreshLogListing();
 
         const targetEpoch = parseInt(epoch, 10);
         if (!isNaN(targetEpoch)) {
@@ -84,8 +80,7 @@ export const SamplePrintView: FC = () => {
     epoch,
     initLogDir,
     setSelectedLogFile,
-    queryClient,
-    logDir,
+    refreshLogListing,
     selectSample,
   ]);
 
