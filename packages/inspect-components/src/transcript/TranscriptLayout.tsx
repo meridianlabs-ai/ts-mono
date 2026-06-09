@@ -967,6 +967,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   useEffect(() => {
     effectiveOffsetTopRef.current = effectiveOffsetTop;
   }, [effectiveOffsetTop]);
+  const offsetTopRef = useRef(offsetTop);
+  useEffect(() => {
+    offsetTopRef.current = offsetTop;
+  }, [offsetTop]);
 
   useEffect(() => {
     const main = scrollRef.current;
@@ -975,49 +979,66 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     const railPanelEl = rightRailPanelScrollRef?.current ?? null;
     if (!main) return;
 
-    const makeHandler = (sidebar: HTMLDivElement) => (e: WheelEvent) => {
-      const mainMaxTop = main.scrollHeight - main.clientHeight;
-      // Is the sidebar currently stuck at its sticky top? If so, the header
-      // above the tabs has already scrolled off — don't chain further main
-      // scrolling or the transcript itself would move with the sidebar.
-      const mainRect = main.getBoundingClientRect();
-      const sidebarRect = sidebar.getBoundingClientRect();
-      const sidebarTopInScroller = sidebarRect.top - mainRect.top;
-      const sidebarIsSticky =
-        sidebarTopInScroller <= effectiveOffsetTopRef.current + 1;
+    const makeHandler =
+      (sidebar: HTMLDivElement, stickyTopRef: { current: number }) =>
+      (e: WheelEvent) => {
+        const mainMaxTop = main.scrollHeight - main.clientHeight;
+        // Is the sidebar currently stuck at its sticky top? If so, the header
+        // above the tabs has already scrolled off — don't chain further main
+        // scrolling or the transcript itself would move with the sidebar.
+        const mainRect = main.getBoundingClientRect();
+        const sidebarRect = sidebar.getBoundingClientRect();
+        const sidebarTopInScroller = sidebarRect.top - mainRect.top;
+        const sidebarIsSticky =
+          sidebarTopInScroller <= stickyTopRef.current + 1;
 
-      if (!sidebarIsSticky) {
-        // Header still visible — forward all wheel input to the main
-        // scroller so that the header collapses/expands. Suppress the
-        // sidebar's default scroll for this step.
-        const canMain =
-          (e.deltaY > 0 && main.scrollTop < mainMaxTop - 0.5) ||
-          (e.deltaY < 0 && main.scrollTop > 0.5);
-        if (canMain) {
+        if (!sidebarIsSticky) {
+          // Header still visible — forward all wheel input to the main
+          // scroller so that the header collapses/expands. Suppress the
+          // sidebar's default scroll for this step.
+          const canMain =
+            (e.deltaY > 0 && main.scrollTop < mainMaxTop - 0.5) ||
+            (e.deltaY < 0 && main.scrollTop > 0.5);
+          if (canMain) {
+            e.preventDefault();
+            main.scrollBy({ top: e.deltaY, behavior: "auto" });
+          }
+        } else if (
+          e.deltaY < 0 &&
+          sidebar.scrollTop <= 0 &&
+          main.scrollTop > 0
+        ) {
+          // Sidebar is sticky and already at its own top — wheeling up should
+          // bring the header back, so forward to main.
           e.preventDefault();
           main.scrollBy({ top: e.deltaY, behavior: "auto" });
         }
-      } else if (e.deltaY < 0 && sidebar.scrollTop <= 0 && main.scrollTop > 0) {
-        // Sidebar is sticky and already at its own top — wheeling up should
-        // bring the header back, so forward to main.
-        e.preventDefault();
-        main.scrollBy({ top: e.deltaY, behavior: "auto" });
-      }
-      // Otherwise let the sidebar's native wheel scroll proceed.
-    };
+        // Otherwise let the sidebar's native wheel scroll proceed.
+      };
 
-    const targets = [outlineEl, rightEl, railPanelEl].filter(
-      (el): el is HTMLDivElement => el != null
-    );
-    const entries = targets.map((t) => {
-      const handler = makeHandler(t);
+    // The rail panel pins directly below the toolbar (offsetTop), alongside
+    // the timeline; the outline and right pane pin below the swimlanes
+    // (effectiveOffsetTop). Each needs its own sticky-detection threshold.
+    const targets: {
+      el: HTMLDivElement;
+      stickyTopRef: { current: number };
+    }[] = [];
+    if (outlineEl)
+      targets.push({ el: outlineEl, stickyTopRef: effectiveOffsetTopRef });
+    if (rightEl)
+      targets.push({ el: rightEl, stickyTopRef: effectiveOffsetTopRef });
+    if (railPanelEl)
+      targets.push({ el: railPanelEl, stickyTopRef: offsetTopRef });
+
+    const entries = targets.map(({ el, stickyTopRef }) => {
+      const handler = makeHandler(el, stickyTopRef);
       // passive: false so we can preventDefault when taking over the scroll.
-      t.addEventListener("wheel", handler, { passive: false });
-      return { t, handler };
+      el.addEventListener("wheel", handler, { passive: false });
+      return { el, handler };
     });
     return () => {
-      for (const { t, handler } of entries) {
-        t.removeEventListener("wheel", handler);
+      for (const { el, handler } of entries) {
+        el.removeEventListener("wheel", handler);
       }
     };
   }, [
@@ -1180,28 +1201,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Right rail grid template
+  // Right rail
   // ---------------------------------------------------------------------------
   //
-  // The class-based grid templates already enumerate outline × rightPane
-  // combinations; adding an always-present rail plus an optional resizable
-  // panel would multiply them. Instead, when the rail is active we compute the
-  // whole `grid-template-columns` inline — inline style wins over the
-  // stylesheet, so the existing class templates (and `rightPane`) stay intact.
+  // The rail (and its optional resizable panel) render as a flex region to the
+  // right of the timeline + content, so they run full height starting directly
+  // below the toolbar rather than below the swimlanes. Their widths come from
+  // CSS vars set on `.root` (see render below); the inner content grid keeps
+  // its class-based `grid-template-columns` untouched.
 
   const railActive = !!rightRail;
   const railPanelOpen = railActive && rightRail?.panel != null;
-  const outlineColumns = !outline
-    ? ""
-    : isOutlineCollapsed
-      ? "22px 1px"
-      : "var(--outline-width, 180px) 1px";
-  const railColumns = railPanelOpen
-    ? `1px var(--right-rail-panel-width, 360px) 1px var(--right-rail-width, ${railWidth}px)`
-    : `1px var(--right-rail-width, ${railWidth}px)`;
-  const railGridTemplate = railActive
-    ? [outlineColumns, "1fr", railColumns].filter(Boolean).join(" ")
-    : undefined;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -1210,282 +1220,291 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   return (
     <TimelineSelectContext.Provider value={selectBySpanId}>
       <TimelineRowSelectContext.Provider value={selectByRowKey}>
-        <div className={clsx(styles.root, className)}>
-          {showSwimlanes && (
-            <StickyScroll
-              scrollRef={scrollRef}
-              offsetTop={offsetTop}
-              zIndex={500}
-              preserveHeight={true}
-              onStickyChange={handleSwimLaneStickyChange}
-            >
-              <div ref={swimLaneStickyContentRef}>
-                <TimelineSwimLanes
-                  layouts={timelineLayouts}
-                  timeline={timelineState}
-                  header={swimlaneHeader}
-                  onMarkerNavigate={onMarkerNavigate}
-                  isSticky={isSwimLaneSticky}
-                  headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
-                  onLayoutShift={handleLayoutShift}
-                  defaultCollapsed={swimlanesDefaultCollapsed}
-                  regionCounts={regionCounts}
-                  highlightedKeys={highlightedKeys}
-                  onPunchDown={handlePunchDown}
-                />
-              </div>
-            </StickyScroll>
-          )}
-          <div
-            className={clsx(
-              styles.container,
-              embedded && styles.embedded,
-              !outline && styles.noOutline,
-              outline && isOutlineCollapsed && styles.outlineCollapsed,
-              !rightPane && styles.noRightPane,
-              rightPane && rightPane.collapsed && styles.rightPaneCollapsed,
-              railActive && styles.hasRightRail
+        <div
+          className={clsx(styles.root, className)}
+          style={
+            {
+              "--right-rail-width": `${railWidth}px`,
+              "--right-rail-panel-width": `${railPanelWidth}px`,
+              "--rail-top": `${offsetTop}px`,
+              "--scroller-height": scrollerHeight
+                ? `${scrollerHeight}px`
+                : "100vh",
+            } as CSSProperties
+          }
+        >
+          <div className={styles.main}>
+            {showSwimlanes && (
+              <StickyScroll
+                scrollRef={scrollRef}
+                offsetTop={offsetTop}
+                zIndex={500}
+                preserveHeight={true}
+                onStickyChange={handleSwimLaneStickyChange}
+              >
+                <div ref={swimLaneStickyContentRef}>
+                  <TimelineSwimLanes
+                    layouts={timelineLayouts}
+                    timeline={timelineState}
+                    header={swimlaneHeader}
+                    onMarkerNavigate={onMarkerNavigate}
+                    isSticky={isSwimLaneSticky}
+                    headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
+                    onLayoutShift={handleLayoutShift}
+                    defaultCollapsed={swimlanesDefaultCollapsed}
+                    regionCounts={regionCounts}
+                    highlightedKeys={highlightedKeys}
+                    onPunchDown={handlePunchDown}
+                  />
+                </div>
+              </StickyScroll>
             )}
-            style={
-              {
-                "--outline-top": `${effectiveOffsetTop}px`,
-                "--right-pane-width": `${rightPaneWidth}px`,
-                "--right-rail-width": `${railWidth}px`,
-                "--right-rail-panel-width": `${railPanelWidth}px`,
-                "--scroller-height": scrollerHeight
-                  ? `${scrollerHeight}px`
-                  : "100vh",
-                ...(railGridTemplate
-                  ? { gridTemplateColumns: railGridTemplate }
-                  : {}),
-              } as CSSProperties
-            }
-          >
-            {outline && (
-              <>
-                <StickyScroll
-                  ref={handleOutlineScrollRef}
-                  scrollRef={scrollRef}
-                  className={styles.outline}
-                  offsetTop={effectiveOffsetTop}
-                >
-                  {!isOutlineCollapsed ? (
-                    <>
-                      {outline.title && (
-                        <div className={styles.sidebarHeader}>
-                          <span
-                            className={clsx(
-                              styles.sidebarHeaderTitle,
-                              "text-size-smaller"
-                            )}
+            <div
+              className={clsx(
+                styles.container,
+                embedded && styles.embedded,
+                !outline && styles.noOutline,
+                outline && isOutlineCollapsed && styles.outlineCollapsed,
+                !rightPane && styles.noRightPane,
+                rightPane && rightPane.collapsed && styles.rightPaneCollapsed
+              )}
+              style={
+                {
+                  "--outline-top": `${effectiveOffsetTop}px`,
+                  "--right-pane-width": `${rightPaneWidth}px`,
+                  "--scroller-height": scrollerHeight
+                    ? `${scrollerHeight}px`
+                    : "100vh",
+                } as CSSProperties
+              }
+            >
+              {outline && (
+                <>
+                  <StickyScroll
+                    ref={handleOutlineScrollRef}
+                    scrollRef={scrollRef}
+                    className={styles.outline}
+                    offsetTop={effectiveOffsetTop}
+                  >
+                    {!isOutlineCollapsed ? (
+                      <>
+                        {outline.title && (
+                          <div className={styles.sidebarHeader}>
+                            <span
+                              className={clsx(
+                                styles.sidebarHeaderTitle,
+                                "text-size-smaller"
+                              )}
+                            >
+                              {outline.title}
+                            </span>
+                          </div>
+                        )}
+                        <div className={styles.sidebarHeaderCloseAnchor}>
+                          <button
+                            type="button"
+                            className={styles.sidebarHeaderClose}
+                            onClick={() => outline.onCollapsedChange(true)}
+                            aria-label="Hide outline"
+                            title={outline.toggleTitle ?? "Hide outline"}
                           >
-                            {outline.title}
-                          </span>
+                            <i className="bi bi-x" />
+                          </button>
                         </div>
-                      )}
-                      <div className={styles.sidebarHeaderCloseAnchor}>
-                        <button
-                          type="button"
-                          className={styles.sidebarHeaderClose}
-                          onClick={() => outline.onCollapsedChange(true)}
-                          aria-label="Hide outline"
-                          title={outline.toggleTitle ?? "Hide outline"}
-                        >
-                          <i className="bi bi-x" />
-                        </button>
-                      </div>
-                      <TranscriptOutline
-                        eventNodes={eventNodes}
-                        defaultCollapsedIds={defaultCollapsedIds}
-                        scrollRef={scrollRef}
-                        outlineScrollEl={outlineScrollEl}
-                        running={running}
-                        agentName={
-                          outline.name ??
-                          (showSwimlanes ? selectedRowName : undefined)
-                        }
-                        scrollTrackOffset={effectiveOffsetTop}
-                        getCollapsed={
-                          collapseState?.outline
-                            ? (nodeId: string) =>
-                                collapseState.outline?.[nodeId] === true
+                        <TranscriptOutline
+                          eventNodes={eventNodes}
+                          defaultCollapsedIds={defaultCollapsedIds}
+                          scrollRef={scrollRef}
+                          outlineScrollEl={outlineScrollEl}
+                          running={running}
+                          agentName={
+                            outline.name ??
+                            (showSwimlanes ? selectedRowName : undefined)
+                          }
+                          scrollTrackOffset={effectiveOffsetTop}
+                          getCollapsed={
+                            collapseState?.outline
+                              ? (nodeId: string) =>
+                                  collapseState.outline?.[nodeId] === true
+                              : undefined
+                          }
+                          setCollapsed={collapseState?.onCollapseOutline}
+                          collapsedEvents={collapseState?.outline}
+                          setCollapsedEvents={
+                            collapseState?.onSetOutlineCollapsed
+                          }
+                          selectedOutlineId={outline.selectedId}
+                          setSelectedOutlineId={outline.setSelectedId}
+                          getEventUrl={getEventUrl}
+                          renderLink={outline.renderLink}
+                          onNavigateToEvent={outline.onNavigateToEvent}
+                          onHasNodesChange={handleOutlineHasNodesChange}
+                        />
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.outlineToggle}
+                        onClick={
+                          outlineHasNodes && !outline.toggleDisabled
+                            ? () => outline.onCollapsedChange(false)
                             : undefined
                         }
-                        setCollapsed={collapseState?.onCollapseOutline}
-                        collapsedEvents={collapseState?.outline}
-                        setCollapsedEvents={
-                          collapseState?.onSetOutlineCollapsed
+                        aria-disabled={
+                          outline.toggleDisabled || !outlineHasNodes
                         }
-                        selectedOutlineId={outline.selectedId}
-                        setSelectedOutlineId={outline.setSelectedId}
-                        getEventUrl={getEventUrl}
-                        renderLink={outline.renderLink}
-                        onNavigateToEvent={outline.onNavigateToEvent}
-                        onHasNodesChange={handleOutlineHasNodesChange}
-                      />
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.outlineToggle}
-                      onClick={
-                        outlineHasNodes && !outline.toggleDisabled
-                          ? () => outline.onCollapsedChange(false)
-                          : undefined
-                      }
-                      aria-disabled={outline.toggleDisabled || !outlineHasNodes}
-                      title={
-                        outline.toggleTitle ??
-                        (!outlineHasNodes
-                          ? "No outline available for the current filter"
-                          : undefined)
-                      }
-                      aria-label="Show outline"
-                    >
-                      <i className={outline.toggleIcon} />
-                    </button>
-                  )}
-                </StickyScroll>
-                <div className={styles.separator} />
-              </>
-            )}
-            {hasMatchingEvents ? (
-              <TranscriptViewNodes
-                key={effectiveListId}
-                ref={eventsListRef}
-                id={effectiveListId}
-                eventNodes={eventNodes}
-                defaultCollapsedIds={defaultCollapsedIds}
-                running={running}
-                initialEventId={effectiveInitialEventId}
-                initialMessageId={initialMessageId}
-                offsetTop={effectiveOffsetTop}
-                className={styles.eventsList}
-                scrollRef={scrollRef}
-                renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-                getEventUrl={getEventUrl}
-                linkingEnabled={linkingEnabled}
-                collapsedTranscript={collapseState?.transcript}
-                collapsedOutline={collapseState?.outline}
-                onCollapseTranscript={onCollapseTranscript}
-                onExpandNodes={
-                  onSetTranscriptCollapsed ? onExpandNodes : undefined
-                }
-                eventNodeContext={mergedEventNodeContext}
-              />
-            ) : emptyText !== null ? (
-              <NoContentsPanel text={emptyText} busy={emptyBusy} />
-            ) : null}
-            {rightPane && (
-              <>
-                <div className={styles.rightSeparator} />
-                <StickyScroll
-                  ref={rightPaneScrollRef}
-                  scrollRef={scrollRef}
-                  className={styles.rightPane}
+                        title={
+                          outline.toggleTitle ??
+                          (!outlineHasNodes
+                            ? "No outline available for the current filter"
+                            : undefined)
+                        }
+                        aria-label="Show outline"
+                      >
+                        <i className={outline.toggleIcon} />
+                      </button>
+                    )}
+                  </StickyScroll>
+                  <div className={styles.separator} />
+                </>
+              )}
+              {hasMatchingEvents ? (
+                <TranscriptViewNodes
+                  key={effectiveListId}
+                  ref={eventsListRef}
+                  id={effectiveListId}
+                  eventNodes={eventNodes}
+                  defaultCollapsedIds={defaultCollapsedIds}
+                  running={running}
+                  initialEventId={effectiveInitialEventId}
+                  initialMessageId={initialMessageId}
                   offsetTop={effectiveOffsetTop}
-                >
-                  {!rightPane.collapsed ? (
-                    <>
-                      {rightPaneOnWidthChange && (
-                        <div
-                          className={styles.rightPaneResizer}
-                          role="separator"
-                          aria-orientation="vertical"
-                          aria-label={`Resize ${rightPane.label ?? "pane"}`}
-                          onPointerDown={handleRightPanePointerDown}
-                          onPointerMove={handleRightPanePointerMove}
-                          onPointerUp={handleRightPanePointerUp}
-                          onPointerCancel={handleRightPanePointerUp}
-                        />
-                      )}
-                      {rightPane.title && (
-                        <div className={styles.sidebarHeader}>
-                          <span
-                            className={clsx(
-                              styles.sidebarHeaderTitle,
-                              "text-size-smaller"
-                            )}
-                          >
-                            {rightPane.title}
-                          </span>
-                        </div>
-                      )}
-                      <div className={styles.sidebarHeaderCloseAnchor}>
-                        <button
-                          type="button"
-                          className={styles.sidebarHeaderClose}
-                          onClick={() => rightPane.onCollapsedChange(true)}
-                          aria-label={`Hide ${rightPane.label ?? "pane"}`}
-                          title={
-                            rightPane.toggleTitle ??
-                            `Hide ${rightPane.label ?? "pane"}`
-                          }
-                        >
-                          <i className="bi bi-x" />
-                        </button>
-                      </div>
-                      {rightPane.content}
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.rightPaneToggle}
-                      onClick={() => rightPane.onCollapsedChange(false)}
-                      title={
-                        rightPane.toggleTitle ??
-                        `Show ${rightPane.label ?? "pane"}`
-                      }
-                      aria-label={`Show ${rightPane.label ?? "pane"}`}
-                    >
-                      <i className={rightPane.toggleIcon} />
-                    </button>
-                  )}
-                </StickyScroll>
-              </>
-            )}
-            {railActive && rightRail && (
-              <>
-                {railPanelOpen && (
-                  <>
-                    {/* The divider is a full-row-height grid cell, so the
-                        resizer it hosts spans the panel's whole height and is
-                        grabbable anywhere along the edge — not just beside the
-                        (often short) panel content. */}
-                    <div className={styles.railPanelDivider}>
-                      <div
-                        className={styles.railPanelResizer}
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label={`Resize ${rightRail.label ?? "panel"}`}
-                        onPointerDown={handleRailPanelPointerDown}
-                        onPointerMove={handleRailPanelPointerMove}
-                        onPointerUp={handleRailPanelPointerUp}
-                        onPointerCancel={handleRailPanelPointerUp}
-                      />
-                    </div>
-                    <StickyScroll
-                      ref={rightRailPanelScrollRef}
-                      scrollRef={scrollRef}
-                      className={styles.railPanel}
-                      offsetTop={effectiveOffsetTop}
-                    >
-                      {rightRail.panel}
-                    </StickyScroll>
-                  </>
-                )}
-                <div className={styles.railSeparator} />
-                <div className={styles.rightRail}>
-                  <div
-                    className={styles.rightRailSticky}
-                    style={{ top: effectiveOffsetTop }}
+                  className={styles.eventsList}
+                  scrollRef={scrollRef}
+                  renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
+                  getEventUrl={getEventUrl}
+                  linkingEnabled={linkingEnabled}
+                  collapsedTranscript={collapseState?.transcript}
+                  collapsedOutline={collapseState?.outline}
+                  onCollapseTranscript={onCollapseTranscript}
+                  onExpandNodes={
+                    onSetTranscriptCollapsed ? onExpandNodes : undefined
+                  }
+                  eventNodeContext={mergedEventNodeContext}
+                />
+              ) : emptyText !== null ? (
+                <NoContentsPanel text={emptyText} busy={emptyBusy} />
+              ) : null}
+              {rightPane && (
+                <>
+                  <div className={styles.rightSeparator} />
+                  <StickyScroll
+                    ref={rightPaneScrollRef}
+                    scrollRef={scrollRef}
+                    className={styles.rightPane}
+                    offsetTop={effectiveOffsetTop}
                   >
-                    {rightRail.rail}
-                  </div>
-                </div>
-              </>
-            )}
+                    {!rightPane.collapsed ? (
+                      <>
+                        {rightPaneOnWidthChange && (
+                          <div
+                            className={styles.rightPaneResizer}
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-label={`Resize ${rightPane.label ?? "pane"}`}
+                            onPointerDown={handleRightPanePointerDown}
+                            onPointerMove={handleRightPanePointerMove}
+                            onPointerUp={handleRightPanePointerUp}
+                            onPointerCancel={handleRightPanePointerUp}
+                          />
+                        )}
+                        {rightPane.title && (
+                          <div className={styles.sidebarHeader}>
+                            <span
+                              className={clsx(
+                                styles.sidebarHeaderTitle,
+                                "text-size-smaller"
+                              )}
+                            >
+                              {rightPane.title}
+                            </span>
+                          </div>
+                        )}
+                        <div className={styles.sidebarHeaderCloseAnchor}>
+                          <button
+                            type="button"
+                            className={styles.sidebarHeaderClose}
+                            onClick={() => rightPane.onCollapsedChange(true)}
+                            aria-label={`Hide ${rightPane.label ?? "pane"}`}
+                            title={
+                              rightPane.toggleTitle ??
+                              `Hide ${rightPane.label ?? "pane"}`
+                            }
+                          >
+                            <i className="bi bi-x" />
+                          </button>
+                        </div>
+                        {rightPane.content}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.rightPaneToggle}
+                        onClick={() => rightPane.onCollapsedChange(false)}
+                        title={
+                          rightPane.toggleTitle ??
+                          `Show ${rightPane.label ?? "pane"}`
+                        }
+                        aria-label={`Show ${rightPane.label ?? "pane"}`}
+                      >
+                        <i className={rightPane.toggleIcon} />
+                      </button>
+                    )}
+                  </StickyScroll>
+                </>
+              )}
+            </div>
           </div>
+          {railActive && rightRail && (
+            <>
+              {railPanelOpen && (
+                <>
+                  {/* Full-height divider hosting the resizer, so the panel edge
+                      is grabbable anywhere along its height — not just beside
+                      the (often short) panel content. */}
+                  <div className={styles.railPanelDivider}>
+                    <div
+                      className={styles.railPanelResizer}
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${rightRail.label ?? "panel"}`}
+                      onPointerDown={handleRailPanelPointerDown}
+                      onPointerMove={handleRailPanelPointerMove}
+                      onPointerUp={handleRailPanelPointerUp}
+                      onPointerCancel={handleRailPanelPointerUp}
+                    />
+                  </div>
+                  <StickyScroll
+                    ref={rightRailPanelScrollRef}
+                    scrollRef={scrollRef}
+                    className={styles.railPanel}
+                    offsetTop={offsetTop}
+                  >
+                    {rightRail.panel}
+                  </StickyScroll>
+                </>
+              )}
+              <div className={styles.railSeparator} />
+              <div className={styles.rightRail}>
+                <div
+                  className={styles.rightRailSticky}
+                  style={{ top: offsetTop }}
+                >
+                  {rightRail.rail}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </TimelineRowSelectContext.Provider>
     </TimelineSelectContext.Provider>

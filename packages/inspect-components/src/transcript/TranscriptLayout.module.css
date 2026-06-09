@@ -1,9 +1,19 @@
 .root {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   width: 100%;
   flex: 1;
   min-height: 0;
+}
+
+/* Timeline + content column. The rail/panel sit to its right as siblings, so
+   they run full height from below the toolbar rather than below the swimlanes. */
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .container {
@@ -145,25 +155,25 @@
 }
 
 /* Right rail: an always-visible activity bar with an optional panel column to
-   its left. Grid columns are supplied inline (see TranscriptLayout.tsx) so
-   these rules only handle the per-cell sizing/scroll behavior. */
+   its left. Both are flex siblings of `.main` (see TranscriptLayout.tsx); their
+   widths come from CSS vars set on `.root`. */
 .railPanel {
   /* No padding: the hosted panels (Search / Scans) own their internal padding
      and render full-width header bars, so the column must be flush. */
   padding: 0;
   align-self: start;
-}
-
-.container.hasRightRail > .railPanel {
-  max-height: calc(var(--scroller-height, 100vh) - var(--outline-top, 0px));
+  flex: 0 0 var(--right-rail-panel-width, 360px);
+  /* Pin below the toolbar (--rail-top), alongside the timeline. */
+  max-height: calc(var(--scroller-height, 100vh) - var(--rail-top, 0px));
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-/* The 1px divider column to the panel's left. It stretches to the full grid
-   row height, so the resizer it hosts spans the whole panel edge. */
+/* The 1px divider to the panel's left. It stretches to the full row height, so
+   the resizer it hosts spans the whole panel edge. */
 .railPanelDivider {
   position: relative;
+  flex: 0 0 1px;
   background-color: var(--bs-border-color);
 }
 
@@ -203,10 +213,12 @@
 }
 
 .railSeparator {
+  flex: 0 0 1px;
   background-color: var(--bs-border-color);
 }
 
 .rightRail {
+  flex: 0 0 var(--right-rail-width, 44px);
   align-self: stretch;
   background-color: var(--bs-body-bg);
 }
