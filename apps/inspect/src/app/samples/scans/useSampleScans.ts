@@ -60,7 +60,9 @@ export function useSampleScans(opts: {
 
   const makeCiteUrl = useMakeCiteUrl({ sampleId, sampleEpoch });
 
-  const eventNodeContext = useMemo<Partial<EventNodeContext> | undefined>(() => {
+  const eventNodeContext = useMemo<
+    Partial<EventNodeContext> | undefined
+  >(() => {
     if (!open || !hasScans) return undefined;
     const score = selected ? scores[selected] : undefined;
     const refs = readScannerReferences(score?.metadata);
@@ -70,8 +72,17 @@ export function useSampleScans(opts: {
         messageLabels[r.id] = r.cite;
       }
     }
-    return Object.keys(messageLabels).length > 0 ? { messageLabels } : undefined;
+    return Object.keys(messageLabels).length > 0
+      ? { messageLabels }
+      : undefined;
   }, [open, hasScans, scores, selected]);
 
-  return { scores, hasScans, selected, setSelected, makeCiteUrl, eventNodeContext };
+  return {
+    scores,
+    hasScans,
+    selected,
+    setSelected,
+    makeCiteUrl,
+    eventNodeContext,
+  };
 }

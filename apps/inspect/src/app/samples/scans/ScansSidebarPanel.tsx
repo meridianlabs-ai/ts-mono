@@ -6,8 +6,8 @@ import { SidebarHeader } from "@tsmono/react/components";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { SampleScansSidebar } from "./SampleScansSidebar";
-import styles from "./ScansSidebarPanel.module.css";
 import { type MakeCiteUrl } from "./scanReferences";
+import styles from "./ScansSidebarPanel.module.css";
 
 interface ScansSidebarPanelProps {
   scores: Record<string, Score>;

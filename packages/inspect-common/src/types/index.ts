@@ -179,9 +179,7 @@ export type SearchInput = S["SearchInput"];
 export type SearchInputListResponse = S["SearchInputListResponse"];
 export type GrepSearchRequest = S["GrepSearchRequest"];
 export type LlmSearchRequest = S["LlmSearchRequest"];
-export type SearchRequest =
-  | S["GrepSearchRequest"]
-  | S["LlmSearchRequest"];
+export type SearchRequest = S["GrepSearchRequest"] | S["LlmSearchRequest"];
 export type SearchResponse = S["SearchResponse"];
 export type Reference = S["Reference"];
 export type Result = S["Result"];

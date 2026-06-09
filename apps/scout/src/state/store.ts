@@ -9,12 +9,12 @@ import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 import {
   createInitialSearchPanelState,
   normalizeSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
+import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 import { debounce } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";

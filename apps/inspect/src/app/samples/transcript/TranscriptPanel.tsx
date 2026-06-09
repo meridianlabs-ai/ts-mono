@@ -34,6 +34,7 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
+
 import { useTranscriptFilter } from "./hooks";
 
 interface TranscriptPanelProps {
@@ -205,10 +206,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // also participates in headroom-direction detection.
   const outlineScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollRefs = useMemo(
-    () => [scrollRef, outlineScrollRef],
-    [scrollRef]
-  );
+  const scrollRefs = useMemo(() => [scrollRef, outlineScrollRef], [scrollRef]);
 
   const {
     hidden: headroomHidden,

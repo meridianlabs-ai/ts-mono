@@ -140,7 +140,7 @@ export const useInspectSearchPanelState = ({
     () => getInspectSearchPanelStateKey({ scope, logFile, transcriptId }),
     [scope, logFile, transcriptId]
   );
-  const state = useStore((s) => s.search.panelStates[key])
+  const state = useStore((s) => s.search.panelStates[key]);
   const setSearchPanelState = useStore(
     (s) => s.searchActions.setSearchPanelState
   );
@@ -199,4 +199,3 @@ export const useInspectSearchNavigation = ({
     [builder, logPath, sampleId, sampleEpoch]
   );
 };
-

@@ -26,11 +26,7 @@ import { ReplicationService } from "./sync/replicationService";
 const log = createLogger("store");
 
 export interface StoreState
-  extends AppSlice,
-    LogsSlice,
-    LogSlice,
-    SampleSlice,
-    SearchSlice {
+  extends AppSlice, LogsSlice, LogSlice, SampleSlice, SearchSlice {
   // The shared database service
   databaseService?: DatabaseService | null;
 

@@ -56,7 +56,7 @@ export const useScoutSearchPanelState = ({
     () => getSearchPanelStateKey({ scope, transcriptDir }),
     [scope, transcriptDir]
   );
-  const state = useStore((s) => s.searchPanelStates[key])
+  const state = useStore((s) => s.searchPanelStates[key]);
   const setSearchPanelState = useStore((s) => s.setSearchPanelState);
 
   const setState = useCallback<SearchPanelStateController["setState"]>(
@@ -85,4 +85,3 @@ export const useScoutSearchNavigation = (): SearchPanelNavigation => {
     [getMessageUrl, getEventUrl, getEventMessageUrl]
   );
 };
-
