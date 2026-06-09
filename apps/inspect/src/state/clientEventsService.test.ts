@@ -4,11 +4,13 @@ import { clientEventsService } from "./clientEventsService";
 
 describe("ClientEventsService", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     clientEventsService.cleanup();
   });
 
   afterEach(() => {
     clientEventsService.cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -22,12 +24,10 @@ describe("ClientEventsService", () => {
         client_events: vi.fn().mockResolvedValue(["refresh-evals"]),
       };
 
-      vi.useFakeTimers();
       clientEventsService.startPolling(mockApi as never);
 
       await vi.waitFor(() => expect(mockApi.client_events).toHaveBeenCalled());
       clientEventsService.stopPolling();
-      vi.useRealTimers();
     });
   });
 });

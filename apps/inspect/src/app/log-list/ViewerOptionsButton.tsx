@@ -33,8 +33,10 @@ export const ViewerOptionsButton = forwardRef<
         }
       >
         <i className={clsx(ApplicationIcons.config, styles.viewerOptions)} />
-        {error && <span className={styles.errorDot} aria-label="sync error" />}
+        {error && <span className={styles.errorDot} aria-hidden="true" />}
       </button>
     </div>
   );
 });
+
+ViewerOptionsButton.displayName = "ViewerOptionsButton";
