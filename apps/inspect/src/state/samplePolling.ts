@@ -370,16 +370,20 @@ export const hasSampleDataUpdates = (sampleData?: SampleData) => {
 export const shouldFinalizeStreamingSample = (
   sampleDataResponse: SampleDataResponse | undefined,
   completedInLog: boolean | undefined
-) => {
-  if (!completedInLog || !sampleDataResponse) {
+): boolean => {
+  if (!sampleDataResponse || sampleDataResponse.status !== "OK") {
     return false;
   }
 
-  return (
-    sampleDataResponse.status === "NotModified" ||
-    (sampleDataResponse.status === "OK" &&
-      !hasSampleDataUpdates(sampleDataResponse.sampleData))
-  );
+  if (sampleDataResponse.has_more === true) {
+    return false;
+  }
+
+  if (!completedInLog && sampleDataResponse.complete !== true) {
+    return false;
+  }
+
+  return !hasSampleDataUpdates(sampleDataResponse.sampleData);
 };
 
 const resetPollingState = (state: PollingState) => {

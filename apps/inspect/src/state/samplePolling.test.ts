@@ -87,9 +87,86 @@ describe("samplePolling helpers", () => {
 
     expect(shouldFinalizeStreamingSample(response, false)).toBe(false);
   });
+
+  it("finalizes when the pending buffer reports complete", () => {
+    const response: SampleDataResponse = {
+      status: "OK",
+      complete: true,
+      has_more: false,
+      sampleData: {
+        events: [],
+        attachments: [],
+        message_pool: [],
+        call_pool: [],
+      },
+    };
+
+    expect(shouldFinalizeStreamingSample(response, false)).toBe(true);
+  });
+
+  it("does not finalize a complete pending sample while more chunks remain", () => {
+    const response: SampleDataResponse = {
+      status: "OK",
+      complete: true,
+      has_more: true,
+      sampleData: {
+        events: [],
+        attachments: [],
+        message_pool: [],
+        call_pool: [],
+      },
+    };
+
+    expect(shouldFinalizeStreamingSample(response, false)).toBe(false);
+  });
 });
 
 describe("createSamplePolling", () => {
+  it("loads the completed sample when the pending buffer reports complete", async () => {
+    const completedSample = createEvalSample("sample-1");
+    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+      status: "OK",
+      complete: true,
+      has_more: false,
+      sampleData: {
+        events: [],
+        attachments: [],
+        message_pool: [],
+        call_pool: [],
+      },
+    } satisfies SampleDataResponse);
+    const getLogSample = vi.fn().mockResolvedValue(completedSample);
+
+    const sampleActions = {
+      setSelectedSample: vi.fn(),
+      setSampleStatus: vi.fn(),
+      setSampleError: vi.fn(),
+      setRunningEvents: vi.fn(),
+    };
+
+    const state = {
+      api: {
+        get_log_sample_data: getLogSampleData,
+        get_log_sample: getLogSample,
+      },
+      sample: { runningEvents: [] },
+      sampleActions,
+      log: { selectedLogDetails: { sampleSummaries: [] } },
+    } as unknown as StoreState;
+    const store = {
+      getState: () => state,
+    } as unknown as UseBoundStore<StoreApi<StoreState>>;
+
+    const polling = createSamplePolling(store);
+    polling.startPolling("log.eval", createSummary("sample-1"));
+    await flushPromises();
+
+    expect(getLogSample).toHaveBeenCalledWith("log.eval", "sample-1", 1);
+    expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("ok");
+    expect(sampleActions.setSampleError).not.toHaveBeenCalled();
+  });
+
   it("does not let duplicate streamed pool rows shift refs", async () => {
     const inputSystem = chatMessage("input-system", "system", "Input system");
     const inputUser = chatMessage("input-user", "user", "Input user");
