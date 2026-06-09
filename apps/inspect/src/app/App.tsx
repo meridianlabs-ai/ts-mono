@@ -99,7 +99,7 @@ const useThemePreferenceSync = () => {
 
 /**
  * Renders the application content. Mounted below the providers in App so it
- * can read the api context and drive the app-config query.
+ * can read the api context.
  */
 const AppContent: FC = () => {
   useThemePreferenceSync();
@@ -108,9 +108,6 @@ const AppContent: FC = () => {
 
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
-
-  // App config is bootstrap state, fetched once and gated on below.
-  const appConfig = useAppConfigAsync();
 
   const logDir = useStore((state) => state.logs.logDir);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -280,13 +277,18 @@ const AppContent: FC = () => {
     onMessage,
   ]);
 
-  // Gate rendering on the app config. Today it only carries versions, but
-  // it's the app's bootstrap config and is expected to grow to hold
-  // operational data the viewer needs up front (e.g. log_dir, folding in the
-  // separate /log-dir request). Gating guarantees the value is present so the
-  // synchronous useAppConfig() (which throws if absent) is safe everywhere —
-  // the same pattern Scout uses. When log_dir lands here, seed it into the
-  // logs store at startup rather than fetching /log-dir separately.
+  return (
+    <ComponentIconProvider icons={componentIcons}>
+      <ComponentStateProvider hooks={inspectStateHooks}>
+        <RouterProvider router={AppRouter} />
+      </ComponentStateProvider>
+    </ComponentIconProvider>
+  );
+};
+
+const AppConfigGate: FC = () => {
+  const appConfig = useAppConfigAsync();
+
   if (appConfig.error) {
     return (
       <div className="app-config-gate">
@@ -302,13 +304,7 @@ const AppContent: FC = () => {
     );
   }
 
-  return (
-    <ComponentIconProvider icons={componentIcons}>
-      <ComponentStateProvider hooks={inspectStateHooks}>
-        <RouterProvider router={AppRouter} />
-      </ComponentStateProvider>
-    </ComponentIconProvider>
-  );
+  return <AppContent />;
 };
 
 /**
@@ -319,7 +315,7 @@ export const App: FC<AppProps> = ({ api }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
-        <AppContent />
+        <AppConfigGate />
       </ApiProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
