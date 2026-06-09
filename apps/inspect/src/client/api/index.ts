@@ -28,8 +28,6 @@ const resolveApi = (): ClientAPI => {
         const data = JSON5.parse(context);
         if (data.log_dir || data.log_file) {
           const log_dir = data.log_dir || dirname(data.log_file);
-          // Versions are embedded at bundle time (see _bundle.py); absent in
-          // older bundles, where staticHttpApi falls back to a placeholder.
           const app_config: AppConfig | undefined =
             data.inspect_version !== undefined
               ? {
