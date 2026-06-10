@@ -53,10 +53,9 @@
 }
 
 .retriedErrors {
-  /* Full-bleed: the retries timeline spans the tab edge-to-edge (no card),
-     with only a little top breathing room from the tab strip. */
+  /* Full-bleed (no card), with a small uniform inset from the tab edges. */
   margin: 0;
-  padding-top: 0.5rem;
+  padding: 0.5rem;
   min-width: 0;
   overflow: hidden;
   align-self: stretch;
