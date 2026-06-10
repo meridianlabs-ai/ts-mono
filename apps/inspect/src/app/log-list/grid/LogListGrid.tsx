@@ -216,8 +216,18 @@ export const LogListGrid: FC<LogListGridProps> = ({
   // and catches up when the main thread is idle.
   const deferredLogDetails = useDeferredValue(logDetails);
   const navigate = useNavigate();
-  const internalGridRef = useRef<AgGridReact<LogListRow>>(null);
-  const gridRef = externalGridRef ?? internalGridRef;
+  const gridRef = useRef<AgGridReact<LogListRow>>(null);
+  // Bridge the grid instance to the optional external ref while keeping a
+  // true local ref. A conditional `external ?? internal` expression isn't
+  // recognized as a ref by the React Compiler, which would force
+  // `gridRef.current` into every callback's inferred dependencies.
+  const attachGridRef = useCallback(
+    (instance: AgGridReact<LogListRow> | null) => {
+      gridRef.current = instance;
+      if (externalGridRef) externalGridRef.current = instance;
+    },
+    [externalGridRef]
+  );
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Find functionality state - store row IDs instead of IRowNode references to avoid memory leaks
@@ -318,7 +328,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
     },
-    [navigate, gridRef]
+    [navigate]
   );
 
   const handleOpenRow = useCallback(
@@ -336,25 +346,22 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [navigate]
   );
 
-  const handleKeyDown = useMemo(
-    () =>
-      createGridKeyboardHandler<LogListRow>({
-        gridRef,
-        onOpenRow: handleOpenRow,
-      }),
-    [gridRef, handleOpenRow]
-  );
-
+  // The handler is created inside the effect because it closes over the
+  // grid ref, which render-phase code must not touch.
   useEffect(() => {
     const gridElement = gridContainerRef.current;
     if (!gridElement) return;
 
+    const handleKeyDown = createGridKeyboardHandler<LogListRow>({
+      gridRef,
+      onOpenRow: handleOpenRow,
+    });
     gridElement.addEventListener("keydown", handleKeyDown);
 
     return () => {
       gridElement.removeEventListener("keydown", handleKeyDown);
     };
-  }, [handleKeyDown]);
+  }, [handleOpenRow]);
 
   const handleCellMouseDown = useCallback(
     (_e: CellMouseDownEvent<LogListRow>) => {
@@ -408,7 +415,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const maxColCount = useRef(0);
 
-  const resizeGridColumns = useRef(createGridColumnResizer(gridRef)).current;
+  // Lazily created on first use: creating it during render would pass the
+  // grid ref into non-React code, and the single instance must survive
+  // re-renders so the debounce timer isn't reset.
+  const resizerRef = useRef<(() => void) | null>(null);
+  const resizeGridColumns = useCallback(() => {
+    resizerRef.current ??= createGridColumnResizer(gridRef);
+    resizerRef.current();
+  }, []);
 
   // Resize grid columns when columns prop changes (e.g., when columns are hidden/unhidden)
   useEffect(() => {
@@ -486,7 +500,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         }
       }
     },
-    [data, columns, gridRef]
+    [data, columns]
   );
 
   const goToMatch = useCallback(
@@ -504,7 +518,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         node.setSelected(true, true);
       }
     },
-    [matchIds, gridRef]
+    [matchIds]
   );
 
   const handleInputKeyDown = useCallback(
@@ -536,13 +550,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
       document.removeEventListener("keydown", handleFindKeyDown, true);
   }, [closeFind, showFind]);
 
+  // performSearch handles the empty term by clearing match state, so a
+  // single call covers both the search and reset paths.
   useEffect(() => {
-    if (findTerm) {
-      performSearch(findTerm);
-    } else {
-      setMatchIds([]);
-      setCurrentMatchIndex(0);
-    }
+    performSearch(findTerm);
   }, [findTerm, performSearch]);
 
   return (
@@ -572,7 +583,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           // slate. AG-Grid's `initialState` is one-shot at mount, so a key
           // change is the cleanest way to reset everything declaratively.
           key={scopeKey ?? "pending"}
-          ref={gridRef}
+          ref={attachGridRef}
           rowData={data}
           animateRows={false}
           suppressColumnMoveAnimation={true}

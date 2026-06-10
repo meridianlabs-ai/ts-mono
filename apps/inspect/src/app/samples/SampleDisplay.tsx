@@ -184,6 +184,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // processes the new tail. Diverging events trigger a rebuild.
   const messagesRef = useRef<MessagesFromEventsState | null>(null);
   const sampleMessages = useMemo(() => {
+    /* eslint-disable react-hooks/refs */
     if (sample?.messages) {
       messagesRef.current = null;
       return sample.messages;
@@ -193,6 +194,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       messagesRef.current = null;
       return [];
     }
+    /* eslint-enable react-hooks/refs */
   }, [sample?.messages, runningSampleData]);
 
   const hasSampleData =
@@ -282,6 +284,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
+    // The helper only forwards scrollRef into JSX props (RecordTree
+    // scrollRef={...}); it never reads .current during render.
+    // eslint-disable-next-line react-hooks/refs
     scrollRef,
     sample
   );
@@ -296,7 +301,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const displayMode = useStore((state) => state.app.displayMode);
   const setDisplayMode = useStore((state) => state.appActions.setDisplayMode);
 
-  const filterRef = useRef<HTMLButtonElement | null>(null);
+  const [filterButtonEl, setFilterButtonEl] =
+    useState<HTMLButtonElement | null>(null);
   const optionsRef = useRef<HTMLButtonElement | null>(null);
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
@@ -460,7 +466,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label={`Events: ${label}`}
         icon={ApplicationIcons.filter}
         onClick={toggleFilter}
-        ref={filterRef}
+        ref={setFilterButtonEl}
         subtle
       />
     );
@@ -619,7 +625,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <TranscriptFilterPopover
                   showing={isShowing}
                   setShowing={setShowing}
-                  positionEl={filterRef.current}
+                  positionEl={filterButtonEl}
                 />
 
                 {!sampleEvents || sampleEvents.length === 0 ? (

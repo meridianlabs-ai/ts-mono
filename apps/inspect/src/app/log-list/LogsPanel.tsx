@@ -64,7 +64,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const { loadLogs } = useLogs();
   const gridRef = useRef<AgGridReact<LogListRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
-  const columnButtonRef = useRef<HTMLButtonElement>(null);
+  const [columnButtonEl, setColumnButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
@@ -77,7 +78,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.
   const deferredLogPreviews = useDeferredValue(logPreviews);
-  const { filteredCount } = useLogsListing();
+  const { filteredCount, gridStateByScope } = useLogsListing();
 
   const syncing = useStore((state) => state.app.status.syncing);
   const error = useStore((state) => state.app.status.error);
@@ -376,8 +377,14 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     }
   };
 
-  const filterModel = gridRef.current?.api?.getFilterModel() || {};
-  const filteredFields = Object.keys(filterModel);
+  // Derived from the store's persisted grid state (kept fresh by the
+  // grid's onStateUpdated) rather than read off the grid api during
+  // render — the api read only appeared live because unrelated renders
+  // happened to coincide with filter changes.
+  const scopeGridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
+  const filteredFields = Object.keys(
+    scopeGridState?.filter?.filterModel ?? {}
+  );
   const hasFilter = filteredFields.length > 0;
 
   useEffect(() => {
@@ -422,7 +429,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
         <NavbarButton
           key="choose-columns"
-          ref={columnButtonRef}
+          ref={setColumnButtonEl}
           label="Columns"
           icon={ApplicationIcons.columns}
           dropdown
@@ -445,7 +452,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         columns={pickerColumns}
         visibility={visibility}
         onVisibilityChange={handleColumnVisibilityChange}
-        positionEl={columnButtonRef.current}
+        positionEl={columnButtonEl}
         filteredFields={filteredFields}
         scoresHeading="Metrics"
         groupableScores

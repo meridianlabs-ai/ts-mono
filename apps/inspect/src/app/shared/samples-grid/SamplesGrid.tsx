@@ -143,8 +143,18 @@ export const SamplesGrid = <TRow,>(
     className,
   } = props;
 
-  const internalGridRef = useRef<AgGridReact<TRow>>(null);
-  const gridRef = externalGridRef ?? internalGridRef;
+  const gridRef = useRef<AgGridReact<TRow>>(null);
+  // Bridge the grid instance to the optional external ref while keeping a
+  // true local ref. The previous `externalGridRef ?? internalGridRef`
+  // conditional isn't recognized as a ref by the React Compiler, which
+  // forced `gridRef.current` into every callback's inferred dependencies.
+  const attachGridRef = useCallback(
+    (instance: AgGridReact<TRow> | null) => {
+      gridRef.current = instance;
+      if (externalGridRef) externalGridRef.current = instance;
+    },
+    [externalGridRef]
+  );
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Focus the grid container on mount so keyboard nav works without a click.
@@ -152,17 +162,15 @@ export const SamplesGrid = <TRow,>(
     gridContainerRef.current?.focus();
   }, []);
 
-  // Keyboard nav.
-  const handleKeyDown = useMemo(
-    () => makeKeyboardHandler(gridRef, onRowOpen),
-    [gridRef, onRowOpen]
-  );
+  // Keyboard nav. The handler is created inside the effect because it
+  // closes over the grid ref, which render-phase code must not touch.
   useEffect(() => {
     const el = gridContainerRef.current;
     if (!el) return;
+    const handleKeyDown = makeKeyboardHandler(gridRef, onRowOpen);
     el.addEventListener("keydown", handleKeyDown);
     return () => el.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  }, [onRowOpen]);
 
   // Row click → select + open. Modifier keys / middle button open in new window.
   const handleRowClick = useCallback(
@@ -179,7 +187,7 @@ export const SamplesGrid = <TRow,>(
       );
       onRowOpen(e.data, { newWindow, via: "click" });
     },
-    [gridRef, onRowOpen]
+    [onRowOpen]
   );
 
   const handleCellMouseDown = useCallback(
@@ -202,7 +210,7 @@ export const SamplesGrid = <TRow,>(
       node.setSelected(true);
       gridRef.current.api.ensureNodeVisible(node, "middle");
     }
-  }, [gridRef, selectedRowId]);
+  }, [selectedRowId]);
   useEffect(() => {
     selectExternalRow();
   }, [selectExternalRow]);
@@ -224,7 +232,7 @@ export const SamplesGrid = <TRow,>(
       gridRef.current.api.ensureIndexVisible(rowData.length - 1, "bottom");
     }
     prevCountRef.current = rowData.length;
-  }, [rowData.length, followOutput, gridRef]);
+  }, [rowData.length, followOutput]);
 
   // When followOutput transitions from true → false (eval finished), scroll
   // to top so the user starts at the beginning of the now-static list.
@@ -237,7 +245,7 @@ export const SamplesGrid = <TRow,>(
       }, 100);
     }
     prevFollowRef.current = followOutput;
-  }, [followOutput, gridRef]);
+  }, [followOutput]);
 
   const effectiveRowHeight =
     rowHeight ??
@@ -254,7 +262,7 @@ export const SamplesGrid = <TRow,>(
     const totalH = api.getDisplayedRowCount() * effectiveRowHeight;
     const viewportH = v.bottom - v.top;
     followingRef.current = v.bottom >= totalH - viewportH * 0.1;
-  }, [followOutput, gridRef, effectiveRowHeight]);
+  }, [followOutput, effectiveRowHeight]);
 
   const applyVisibility = useApplyColumnVisibility(
     gridRef,
@@ -310,12 +318,19 @@ export const SamplesGrid = <TRow,>(
 
   const handleFilterChanged = useCallback(() => {
     if (gridRef.current?.api) onFilterChanged?.(gridRef.current.api);
-  }, [gridRef, onFilterChanged]);
+  }, [onFilterChanged]);
 
   // Re-fit columns when the grid is resized or new columns appear
   // (e.g. score columns discovered on first data load). Only active when
   // `refitOnSizeChange` is set.
-  const refitColumns = useRef(createGridColumnResizer(gridRef)).current;
+  // Lazily created on first use: creating it during render would pass the
+  // grid ref into non-React code, and the single instance must survive
+  // re-renders so the debounce timer isn't reset.
+  const resizerRef = useRef<(() => void) | null>(null);
+  const refitColumns = useCallback(() => {
+    resizerRef.current ??= createGridColumnResizer(gridRef);
+    resizerRef.current();
+  }, []);
   const maxColCount = useRef(0);
   const handleGridColumnsChanged = useCallback(
     (e: GridColumnsChangedEvent<TRow>) => {
@@ -354,13 +369,7 @@ export const SamplesGrid = <TRow,>(
     }
     selectExternalRow();
     if (gridRef.current?.api) onFirstDataRendered?.(gridRef.current.api);
-  }, [
-    followOutput,
-    rowData.length,
-    selectExternalRow,
-    gridRef,
-    onFirstDataRendered,
-  ]);
+  }, [followOutput, rowData.length, selectExternalRow, onFirstDataRendered]);
 
   return (
     <div className={clsx(styles.gridWrapper, className)}>
@@ -380,7 +389,7 @@ export const SamplesGrid = <TRow,>(
         tabIndex={0}
       >
         <AgGridReact<TRow>
-          ref={gridRef}
+          ref={attachGridRef}
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
