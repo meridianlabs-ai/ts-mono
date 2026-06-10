@@ -204,8 +204,13 @@ export interface LogViewAPI {
     start: number,
     end: number
   ) => Promise<Uint8Array>;
-  get_log_summary?: (log_file: string) => Promise<LogPreview>;
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
+  // Batched header + sample summaries (one entry per requested file,
+  // undefined for files that could not be read). When available it avoids
+  // opening each log archive over multiple range requests.
+  get_log_details_batch?: (
+    log_files: string[]
+  ) => Promise<(LogDetails | undefined)[]>;
   log_message: (log_file: string, message: string) => Promise<void>;
   download_file: (
     filename: string,
@@ -290,6 +295,9 @@ export interface ClientAPI {
 
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
   get_log_details: (log_file: string, cached?: boolean) => Promise<LogDetails>;
+  get_log_details_batch: (
+    log_files: string[]
+  ) => Promise<(LogDetails | undefined)[]>;
 
   // Sample retrieval
   get_log_sample: (

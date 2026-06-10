@@ -11,12 +11,10 @@ import { asyncJsonParseBytes } from "../../utils/json-worker";
 import {
   EvalHeader,
   LogDetails,
-  LogPreview,
   LogViewAPI,
   ProgressCallback,
   SampleSummary,
 } from "../api/types";
-import { toLogPreview } from "../utils/type-utils";
 
 import {
   CentralDirectoryEntry,
@@ -45,7 +43,6 @@ export class SampleNotFoundError extends Error {
   }
 }
 export interface RemoteLogFile {
-  readEvalBasicInfo: () => Promise<LogPreview>;
   readLogSummary: () => Promise<LogDetails>;
   readSample: (
     sampleId: string,
@@ -253,11 +250,6 @@ export const openRemoteLogFile = async (
     }
   };
 
-  const readEvalBasicInfo = async (): Promise<LogPreview> => {
-    const header = await readHeader();
-    return toLogPreview(header);
-  };
-
   /**
    * Reads individual summary files when summaries.json is not available.
    */
@@ -309,7 +301,6 @@ export const openRemoteLogFile = async (
   };
 
   return {
-    readEvalBasicInfo,
     readLogSummary: async () => {
       const [header, sampleSummaries] = await Promise.all([
         readHeader(),

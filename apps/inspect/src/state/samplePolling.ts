@@ -447,9 +447,13 @@ function processEvents(
     // Identify if this event id already has an event in the event list
     const existingIndex = pollingState.eventMapping[eventData.event_id];
 
-    // Resolve attachments within this event
-    const withAttachments = resolveAttachments<Event>(
-      eventData.event,
+    // Resolve pool refs for model events
+    const withPoolRefs = resolvePoolRefs(eventData.event, pollingState);
+
+    // Resolve attachments after pool expansion: a single pass covers both
+    // the event itself and any attachment:// URIs inside pool entries.
+    const resolvedEvent = resolveAttachments<Event>(
+      withPoolRefs,
       pollingState.attachments,
       (attachmentId: string) => {
         const snapshot = {
@@ -467,16 +471,6 @@ function processEvents(
         }
         console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
       }
-    );
-
-    // Resolve pool refs for model events
-    const withPoolRefs = resolvePoolRefs(withAttachments, pollingState);
-
-    // Resolve attachments again after pool expansion, since pool entries
-    // may contain attachment:// URIs that weren't visible before expansion.
-    const resolvedEvent = resolveAttachments<Event>(
-      withPoolRefs,
-      pollingState.attachments
     );
 
     if (existingIndex !== undefined) {

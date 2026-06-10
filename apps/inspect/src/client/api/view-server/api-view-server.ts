@@ -14,6 +14,7 @@ import {
   EditLogResult,
   EvalHeader,
   LogContents,
+  LogDetails,
   LogPreview,
   LogViewAPI,
   PendingSampleResponse,
@@ -21,6 +22,7 @@ import {
   PendingSampleUrls,
   SampleData,
   SampleDataResponse,
+  SampleSummary,
   UserInfo,
 } from "../types";
 
@@ -234,18 +236,94 @@ export function viewServerApi(
       `/log-bytes/${encodeURIComponent(file)}?start=${start}&end=${end}`
     );
 
-  const get_log_summaries = async (files: string[]) => {
-    const params = new URLSearchParams();
+  // Keep batched GET query strings comfortably under common request-line
+  // limits (proxies often cap at 8KB) by splitting on encoded length.
+  const MAX_BATCH_QUERY_CHARS = 6000;
+  const chunkFilesByQueryLength = (files: string[]): string[][] => {
+    const chunks: string[][] = [];
+    let current: string[] = [];
+    let currentLength = 0;
     for (const file of files) {
-      params.append("file", file);
+      const paramLength = encodeURIComponent(file).length + 6; // "&file="
+      if (
+        current.length > 0 &&
+        currentLength + paramLength > MAX_BATCH_QUERY_CHARS
+      ) {
+        chunks.push(current);
+        current = [];
+        currentLength = 0;
+      }
+      current.push(file);
+      currentLength += paramLength;
     }
-    const result = await requestApi.fetchString(
-      "GET",
-      `/log-headers?${params.toString()}`
-    );
-    const logHeaders: EvalHeader[] = result.parsed;
-    return logHeaders.map(toLogPreview);
+    if (current.length > 0) {
+      chunks.push(current);
+    }
+    return chunks;
   };
+
+  // Fetch a per-file batched endpoint, chunking the file list to keep each
+  // request's query string bounded. Results concatenate in input order.
+  const fetchFileBatches = async <TItem, TResult>(
+    endpoint: string,
+    files: string[],
+    mapItems: (items: TItem[]) => TResult[]
+  ): Promise<TResult[]> => {
+    const results = await Promise.all(
+      chunkFilesByQueryLength(files).map(async (chunk) => {
+        const params = new URLSearchParams();
+        for (const file of chunk) {
+          params.append("file", file);
+        }
+        const result = await requestApi.fetchString(
+          "GET",
+          `${endpoint}?${params.toString()}`
+        );
+        return mapItems(result.parsed as TItem[]);
+      })
+    );
+    return results.flat();
+  };
+
+  const get_log_summaries = async (files: string[]) =>
+    fetchFileBatches("/log-headers", files, (headers: EvalHeader[]) =>
+      headers.map(toLogPreview)
+    );
+
+  const get_log_details_batch = async (
+    files: string[]
+  ): Promise<(LogDetails | undefined)[]> =>
+    fetchFileBatches(
+      "/log-details",
+      files,
+      (
+        items: ({
+          header: EvalHeader;
+          sample_summaries: SampleSummary[];
+        } | null)[]
+      ) =>
+        // Pick fields explicitly rather than spreading: the server header
+        // is a full EvalLog and carries fields LogDetails doesn't declare
+        // (e.g. reductions, invalidated) that would otherwise leak into
+        // IndexedDB. Same pattern as toLogPreview and readLogSummary.
+        items.map((item) =>
+          item
+            ? {
+                version: item.header.version,
+                status: item.header.status,
+                eval: item.header.eval,
+                plan: item.header.plan,
+                results: item.header.results,
+                stats: item.header.stats,
+                error: item.header.error,
+                tags: item.header.tags,
+                metadata: item.header.metadata,
+                log_updates: item.header.log_updates,
+                sampleSummaries: item.sample_summaries ?? [],
+              }
+            : undefined
+        )
+    );
 
   const log_message = async (
     log_file: string,
@@ -545,6 +623,7 @@ export function viewServerApi(
     get_log_info,
     get_log_bytes,
     get_log_summaries,
+    get_log_details_batch,
     log_message,
     download_file,
     download_log,

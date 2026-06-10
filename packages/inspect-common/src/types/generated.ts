@@ -174,6 +174,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/log-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Api Log Details
+         * @description Batched header + sample summaries.
+         *
+         *     Returns one item per requested file (None for files that could not
+         *     be read) so the client can hydrate log details without opening each
+         *     log archive over multiple range requests. Authorization and mapping
+         *     failures fail the whole request (same contract as /log-headers).
+         */
+        get: operations["api_log_details_log_details_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/log-dir": {
         parameters: {
             query?: never;
@@ -2362,6 +2387,15 @@ export interface components {
              */
             type: "llm";
         };
+        /**
+         * LogDetailsItem
+         * @description Header plus sample summaries for a single log file.
+         */
+        LogDetailsItem: {
+            header: components["schemas"]["EvalLog"];
+            /** Sample Summaries */
+            sample_summaries: components["schemas"]["EvalSampleSummary"][];
+        };
         /** LogDirResponse */
         LogDirResponse: {
             /** Log Dir */
@@ -4153,6 +4187,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": boolean;
+                };
+            };
+        };
+    };
+    api_log_details_log_details_get: {
+        parameters: {
+            query?: {
+                file?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["LogDetailsItem"] | null)[];
                 };
             };
         };

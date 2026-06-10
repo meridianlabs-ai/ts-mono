@@ -234,70 +234,18 @@ export const clientApi = (
     return undefined;
   };
 
-  const read_eval_file_log_summary = async (log_file: string) => {
-    // If the API supports this, delegate to it
-    if (api.get_log_summary) {
-      return api.get_log_summary(log_file);
-    } else {
-      // Don't re-use the eval log file since we know these are all different log files
-      const remoteLogFile = await openRemoteLogFile(
-        api,
-        encodePathParts(log_file),
-        5
-      );
-      return remoteLogFile.readEvalBasicInfo();
-    }
-  };
-
   /**
    * Gets log headers
    */
   const get_log_summaries = async (
     log_files: string[]
   ): Promise<LogPreview[]> => {
-    const eval_files: Record<string, number> = {};
-    const json_files: Record<string, number> = {};
-    let index = 0;
-
-    // Separate files into eval_files and json_files
-    for (const file of log_files) {
-      if (isEvalFile(file)) {
-        eval_files[file] = index;
-      } else {
-        json_files[file] = index;
-      }
-      index++;
-    }
-
-    // Get the promises for eval log headers
-    const evalLogHeadersPromises = Object.keys(eval_files).map((file) =>
-      read_eval_file_log_summary(file).then((summary) => ({
-        index: eval_files[file], // Store original index
-        summary,
-      }))
-    );
-
-    // Get the promise for json log headers
-    const jsonLogHeadersPromise = api
-      .get_log_summaries(Object.keys(json_files))
-      .then((summaries) =>
-        summaries.map((summary, i) => ({
-          index: json_files[Object.keys(json_files)[i]], // Store original index
-          summary,
-        }))
-      );
-
-    // Wait for all promises to resolve
-    const summaries = await Promise.all([
-      ...evalLogHeadersPromises,
-      jsonLogHeadersPromise,
-    ]);
-
-    // Flatten the nested array and sort headers by their original index
-    const orderedSummaries = summaries.flat().sort((a, b) => a.index - b.index);
-
-    // Return only the header values in the correct order
-    return orderedSummaries.map(({ summary }) => summary);
+    // Delegate all formats to the API's batched implementation (the view
+    // server and VS Code both read .eval headers server-side; static
+    // deployments resolve from the manifest). Reading .eval headers
+    // client-side costs ~5 HTTP round-trips per file, which makes large
+    // log directories take minutes to hydrate.
+    return api.get_log_summaries(log_files);
   };
 
   const get_log_dir = async (): Promise<string | undefined> => {
@@ -487,6 +435,21 @@ export const clientApi = (
           editEtagByLog.set(log_file, result.etag);
         }
         return result;
+      }
+    ),
+    get_log_details_batch: middleware(
+      "get_log_details_batch",
+      async (log_files: string[]): Promise<(LogDetails | undefined)[]> => {
+        if (api.get_log_details_batch) {
+          try {
+            return await api.get_log_details_batch(log_files);
+          } catch {
+            // fall through to per-file reads
+          }
+        }
+        return Promise.all(
+          log_files.map((file) => get_log_details(file).catch(() => undefined))
+        );
       }
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),

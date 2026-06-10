@@ -32,7 +32,7 @@ export class ReplicationService {
 
   // The work queues
   private _previewQueue: WorkQueue<LogHandle, LogPreview>;
-  private _detailQueue: WorkQueue<LogHandle, LogDetails>;
+  private _detailQueue: WorkQueue<LogHandle, LogDetails | undefined>;
   private _processingCount: number;
 
   // Track sync requests (so we wait on already running requests before syncing again)
@@ -63,7 +63,7 @@ export class ReplicationService {
     this._previewQueue = new WorkQueue<LogHandle, LogPreview>({
       name: "Log-Preview-Queue",
       concurrency: 2,
-      batchSize: 6,
+      batchSize: 24,
       processingDelay: 20,
       onProcessingChanged: this.processingChanged,
       getId: (log) => log.name,
@@ -91,35 +91,34 @@ export class ReplicationService {
       },
     });
 
-    this._detailQueue = new WorkQueue<LogHandle, LogDetails>({
+    this._detailQueue = new WorkQueue<LogHandle, LogDetails | undefined>({
       name: "Log-Detail-Queue",
-      concurrency: 10,
-      batchSize: 1,
+      concurrency: 4,
+      batchSize: 12,
       processingDelay: 0,
       onProcessingChanged: this.processingChanged,
       getId: (log) => log.name,
       worker: async (logHandles: LogHandle[]) => {
         if (!this._api) throw new Error("API not available");
 
-        const details = await Promise.all(
-          logHandles.map(async (log) => {
-            try {
-              const result = await this._api!.get_log_details(log.name);
-              return result;
-            } catch {
-              return undefined;
-            }
-          })
+        // Batched fetch keeps results aligned with inputs (undefined for
+        // unreadable files) so onComplete can match details[i] to inputs[i].
+        // The ClientAPI wrapper never rejects here — a failed batch request
+        // falls back to per-file reads — so a transient error degrades to
+        // undefined entries rather than dropping the whole batch.
+        return this._api.get_log_details_batch(
+          logHandles.map((log) => log.name)
         );
-
-        const allResults = details.filter((d) => d !== undefined);
-        return allResults;
       },
-      onComplete: async (details: LogDetails[], inputs: LogHandle[]) => {
+      onComplete: async (
+        details: (LogDetails | undefined)[],
+        inputs: LogHandle[]
+      ) => {
         // Add to pending batch
         inputs.forEach((log, i) => {
-          if (details[i]) {
-            this._pendingDetailUpdates[log.name] = details[i];
+          const detail = details[i];
+          if (detail) {
+            this._pendingDetailUpdates[log.name] = detail;
           }
         });
 
