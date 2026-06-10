@@ -1,7 +1,6 @@
 import { FC, RefObject, useEffect, useState } from "react";
 
 import { EvalRetryError } from "@tsmono/inspect-common";
-import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
 import {
   RetryAttemptCard,
@@ -43,35 +42,31 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   };
 
   return (
-    <Card className={styles.card}>
-      <CardHeader>
-        <span className={styles.sectionLabel}>Retry Attempts</span>
-      </CardHeader>
-      <CardBody>
-        <div className={styles.timeline}>
-          <div className={styles.rail} aria-hidden="true" />
-          <div className={styles.items}>
-            {retries.map((retry, index) => (
-              <div className={styles.row} key={index}>
-                <div className={styles.dotGutter} aria-hidden="true">
-                  <span className={styles.statusDot} />
-                </div>
-                <RetryAttemptCard
-                  retry={retry}
-                  attemptNumber={index + 1}
-                  isOpen={expandedIndex === index}
-                  view={viewByIndex[index] ?? "error"}
-                  onToggleOpen={() => onToggleOpen(index)}
-                  onViewChange={(view) => onViewChange(index, view)}
-                  listId={`sample-error-retries-${id}-${index}`}
-                  scrollRef={scrollRef}
-                />
+    <div className={styles.panel}>
+      <div className={styles.sectionLabel}>Retry Attempts</div>
+      <div className={styles.timeline}>
+        <div className={styles.rail} aria-hidden="true" />
+        <div className={styles.items}>
+          {retries.map((retry, index) => (
+            <div className={styles.row} key={index}>
+              <div className={styles.dotGutter} aria-hidden="true">
+                <span className={styles.statusDot} />
               </div>
-            ))}
-            <RetryTerminalAnchor retryCount={retries.length} />
-          </div>
+              <RetryAttemptCard
+                retry={retry}
+                attemptNumber={index + 1}
+                isOpen={expandedIndex === index}
+                view={viewByIndex[index] ?? "error"}
+                onToggleOpen={() => onToggleOpen(index)}
+                onViewChange={(view) => onViewChange(index, view)}
+                listId={`sample-error-retries-${id}-${index}`}
+                scrollRef={scrollRef}
+              />
+            </div>
+          ))}
+          <RetryTerminalAnchor retryCount={retries.length} />
         </div>
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   );
 };

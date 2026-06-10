@@ -18,7 +18,7 @@ export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({ retryCount }
       <div className={styles.copy}>
         <span className={styles.success}>This run succeeded</span>
         <span className={styles.detail}>
-          {`after ${retriesLabel} — the sample you're viewing`}
+          {`after ${retriesLabel}`}
         </span>
       </div>
     </div>

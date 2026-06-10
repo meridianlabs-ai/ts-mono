@@ -9,12 +9,12 @@ describe("RetryTerminalAnchor", () => {
 
   it("uses singular copy for a single retry", () => {
     render(<RetryTerminalAnchor retryCount={1} />);
-    expect(screen.getByText(/after 1 retry —/)).toBeDefined();
+    expect(screen.getByText(/after 1 retry/)).toBeDefined();
     expect(screen.getByText("This run succeeded")).toBeDefined();
   });
 
   it("uses plural copy for multiple retries", () => {
     render(<RetryTerminalAnchor retryCount={3} />);
-    expect(screen.getByText(/after 3 retries —/)).toBeDefined();
+    expect(screen.getByText(/after 3 retries/)).toBeDefined();
   });
 });

@@ -48,7 +48,7 @@ describe("SampleRetriedErrors", () => {
     expect(screen.getByText("Attempt 1")).toBeDefined();
     expect(screen.getByText("Attempt 2")).toBeDefined();
     expect(screen.getByText("Attempt 3")).toBeDefined();
-    expect(screen.getByText(/after 3 retries —/)).toBeDefined();
+    expect(screen.getByText(/after 3 retries/)).toBeDefined();
   });
 
   it("opens the most recent attempt by default", () => {
