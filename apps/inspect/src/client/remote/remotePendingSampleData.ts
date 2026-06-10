@@ -72,8 +72,8 @@ export const fetchPendingSampleDataDirect = async (
         message_pool: [],
         call_pool: [],
       },
-      has_more: urls.has_more,
-      complete: urls.complete,
+      has_more: urls.has_more === true,
+      complete: urls.complete === true,
     };
   }
 
@@ -95,8 +95,8 @@ export const fetchPendingSampleDataDirect = async (
   };
   return {
     sampleData: applyCursorFilter(out, cursors),
-    has_more: urls.has_more,
-    complete: urls.complete,
+    has_more: urls.has_more === true,
+    complete: urls.complete === true,
   };
 };
 

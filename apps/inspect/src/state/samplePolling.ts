@@ -180,6 +180,12 @@ export function createSamplePolling(
           if (localAbort.signal.aborted) {
             return false;
           }
+
+          if (!options.missingSampleIsError) {
+            sampleActions.setSampleStatus("streaming");
+            return true;
+          }
+
           stopPollingTimer();
           sampleActions.setSampleError(e as Error);
           sampleActions.setSampleStatus("error");
@@ -383,7 +389,15 @@ export const shouldFinalizeStreamingSample = (
   sampleDataResponse: SampleDataResponse | undefined,
   completedInLog: boolean | undefined
 ): boolean => {
-  if (!sampleDataResponse || sampleDataResponse.status !== "OK") {
+  if (!sampleDataResponse) {
+    return false;
+  }
+
+  if (sampleDataResponse.status === "NotModified") {
+    return completedInLog === true;
+  }
+
+  if (sampleDataResponse.status !== "OK") {
     return false;
   }
 

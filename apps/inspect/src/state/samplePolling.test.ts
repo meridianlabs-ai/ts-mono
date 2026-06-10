@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
@@ -30,15 +30,20 @@ beforeEach(() => {
 });
 
 describe("samplePolling helpers", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const emptySampleData = {
+    events: [],
+    attachments: [],
+    message_pool: [],
+    call_pool: [],
+  };
+
   it("treats empty sample-data payloads as no-op updates", () => {
-    expect(
-      hasSampleDataUpdates({
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
-      })
-    ).toBe(false);
+    expect(hasSampleDataUpdates(emptySampleData)).toBe(false);
   });
 
   it("detects sample-data deltas across all streamed collections", () => {
@@ -88,87 +93,144 @@ describe("samplePolling helpers", () => {
     expect(shouldFinalizeStreamingSample(response, false)).toBe(false);
   });
 
-  it("finalizes when the pending buffer reports complete", () => {
-    const response: SampleDataResponse = {
-      status: "OK",
-      complete: true,
-      has_more: false,
-      sampleData: {
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
+  it.each([
+    ["missing response", undefined, true, false],
+    ["not found response", { status: "NotFound" }, true, false],
+    ["not modified incomplete log", { status: "NotModified" }, false, false],
+    ["not modified completed log", { status: "NotModified" }, true, true],
+    [
+      "complete response with empty data",
+      {
+        status: "OK",
+        complete: true,
+        has_more: false,
+        sampleData: emptySampleData,
       },
-    };
-
-    expect(shouldFinalizeStreamingSample(response, false)).toBe(true);
-  });
-
-  it("does not finalize a complete pending sample while more chunks remain", () => {
-    const response: SampleDataResponse = {
-      status: "OK",
-      complete: true,
-      has_more: true,
-      sampleData: {
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
+      false,
+      true,
+    ],
+    [
+      "complete response with more chunks",
+      {
+        status: "OK",
+        complete: true,
+        has_more: true,
+        sampleData: emptySampleData,
       },
-    };
-
-    expect(shouldFinalizeStreamingSample(response, false)).toBe(false);
+      false,
+      false,
+    ],
+    [
+      "complete response with data updates",
+      {
+        status: "OK",
+        complete: true,
+        has_more: false,
+        sampleData: {
+          ...emptySampleData,
+          events: [
+            {
+              id: 1,
+              event_id: "event-1",
+              sample_id: "sample-1",
+              epoch: 1,
+              event: {} as any,
+            },
+          ],
+        },
+      },
+      false,
+      false,
+    ],
+  ] satisfies Array<
+    [string, SampleDataResponse | undefined, boolean | undefined, boolean]
+  >)("returns %s = %s", (_name, response, completedInLog, expected) => {
+    expect(shouldFinalizeStreamingSample(response, completedInLog)).toBe(
+      expected
+    );
   });
 });
 
 describe("createSamplePolling", () => {
-  it("loads the completed sample when the pending buffer reports complete", async () => {
-    const completedSample = createEvalSample("sample-1");
-    const getLogSampleData = vi.fn().mockResolvedValueOnce({
-      status: "OK",
-      complete: true,
-      has_more: false,
-      sampleData: {
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
-      },
-    } satisfies SampleDataResponse);
-    const getLogSample = vi.fn().mockResolvedValue(completedSample);
-
-    const sampleActions = {
-      setSelectedSample: vi.fn(),
-      setSampleStatus: vi.fn(),
-      setSampleError: vi.fn(),
-      setRunningEvents: vi.fn(),
-    };
-
-    const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
-      sample: { runningEvents: [] },
-      sampleActions,
-      log: { selectedLogDetails: { sampleSummaries: [] } },
-    } as unknown as StoreState;
-    const store = {
-      getState: () => state,
-    } as unknown as UseBoundStore<StoreApi<StoreState>>;
-
-    const polling = createSamplePolling(store);
-    polling.startPolling("log.eval", createSummary("sample-1"));
-    await flushPromises();
-
-    expect(getLogSample).toHaveBeenCalledWith("log.eval", "sample-1", 1);
-    expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
-    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("ok");
-    expect(sampleActions.setSampleError).not.toHaveBeenCalled();
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
-  it("keeps streaming when buffer-complete sample is not flushed to the eval yet", async () => {
-    const getLogSampleData = vi.fn().mockResolvedValueOnce({
+  it("keeps polling until a buffer-complete sample is flushed to the eval", async () => {
+    vi.useFakeTimers();
+
+    const completedSample = createEvalSample("sample-1");
+    const completePendingResponse = {
+      status: "OK",
+      complete: true,
+      has_more: false,
+      sampleData: {
+        events: [],
+        attachments: [],
+        message_pool: [],
+        call_pool: [],
+      },
+    } satisfies SampleDataResponse;
+    mockApi.get_log_sample_data.mockResolvedValue(completePendingResponse);
+    mockApi.get_log_sample
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(completedSample);
+
+    const sampleActions = {
+      setSelectedSample: vi.fn(),
+      setSampleStatus: vi.fn(),
+      setSampleError: vi.fn(),
+      setRunningEvents: vi.fn(),
+    };
+
+    const state = {
+      sample: { runningEvents: [] },
+      sampleActions,
+      log: { selectedLogDetails: { sampleSummaries: [] } },
+    } as unknown as StoreState;
+    const store = {
+      getState: () => state,
+    } as unknown as UseBoundStore<StoreApi<StoreState>>;
+
+    const polling = createSamplePolling(store, api);
+    polling.startPolling("log.eval", createSummary("sample-1"));
+    await flushPromises();
+
+    expect(mockApi.get_log_sample).toHaveBeenCalledTimes(1);
+    expect(mockApi.get_log_sample).toHaveBeenCalledWith(
+      "log.eval",
+      "sample-1",
+      1
+    );
+    expect(sampleActions.setSelectedSample).not.toHaveBeenCalled();
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("streaming");
+    expect(sampleActions.setSampleStatus).not.toHaveBeenCalledWith("error");
+    expect(sampleActions.setSampleError).not.toHaveBeenCalled();
+    expect(sampleActions.setRunningEvents).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() =>
+      expect(mockApi.get_log_sample).toHaveBeenCalledTimes(2)
+    );
+
+    expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(2);
+    expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("ok");
+    expect(sampleActions.setRunningEvents).toHaveBeenCalledWith([]);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps polling after a transient buffer-complete sample load error", async () => {
+    vi.useFakeTimers();
+
+    const completedSample = createEvalSample("sample-1");
+    mockApi.get_log_sample_data.mockResolvedValue({
       status: "OK",
       complete: true,
       has_more: false,
@@ -179,7 +241,9 @@ describe("createSamplePolling", () => {
         call_pool: [],
       },
     } satisfies SampleDataResponse);
-    const getLogSample = vi.fn().mockResolvedValue(undefined);
+    mockApi.get_log_sample
+      .mockRejectedValueOnce(new Error("temporary read failure"))
+      .mockResolvedValueOnce(completedSample);
 
     const sampleActions = {
       setSelectedSample: vi.fn(),
@@ -189,10 +253,6 @@ describe("createSamplePolling", () => {
     };
 
     const state = {
-      api: {
-        get_log_sample_data: getLogSampleData,
-        get_log_sample: getLogSample,
-      },
       sample: { runningEvents: [] },
       sampleActions,
       log: { selectedLogDetails: { sampleSummaries: [] } },
@@ -201,14 +261,22 @@ describe("createSamplePolling", () => {
       getState: () => state,
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
-    const polling = createSamplePolling(store);
+    const polling = createSamplePolling(store, api);
     polling.startPolling("log.eval", createSummary("sample-1"));
     await flushPromises();
-    polling.stopPolling();
 
-    expect(getLogSample).toHaveBeenCalledWith("log.eval", "sample-1", 1);
-    expect(sampleActions.setSelectedSample).not.toHaveBeenCalled();
+    expect(mockApi.get_log_sample).toHaveBeenCalledTimes(1);
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("streaming");
     expect(sampleActions.setSampleStatus).not.toHaveBeenCalledWith("error");
+    expect(sampleActions.setSampleError).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.waitFor(() =>
+      expect(mockApi.get_log_sample).toHaveBeenCalledTimes(2)
+    );
+
+    expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("ok");
     expect(sampleActions.setSampleError).not.toHaveBeenCalled();
   });
 
