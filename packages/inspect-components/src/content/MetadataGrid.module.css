@@ -74,6 +74,31 @@
   color: var(--bs-success-text-emphasis, #198754);
 }
 
+/* ── Copy button (opt-in via copyButton option) ──────────────── */
+
+.rowsCopy {
+  grid-template-columns: auto 1fr max-content;
+}
+
+/* Wrapper carries the hover reveal so CopyButton's own opacity
+   styles still apply unchanged inside it. */
+.copyCell {
+  opacity: 0;
+  justify-self: end;
+  align-self: center;
+  transition: opacity 0.2s;
+}
+
+.copyCell button {
+  padding: 0;
+  line-height: 1;
+}
+
+.row:hover .copyCell,
+.copyCell:focus-within {
+  opacity: 1;
+}
+
 /* ── Sections (nested objects promoted to titled groups) ──────── */
 
 .group {

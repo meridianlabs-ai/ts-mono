@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useState } from "react";
 
-import { MarkdownReference } from "@tsmono/react/components";
+import { CopyButton, MarkdownReference } from "@tsmono/react/components";
 
+import { copyValueText } from "./copyText";
 import styles from "./MetadataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
@@ -19,6 +20,7 @@ interface MetadataGridProps {
     plain?: boolean;
     striped?: boolean;
     previewRefsOnHover?: boolean;
+    copyButton?: boolean;
   };
 }
 
@@ -84,7 +86,9 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
       style={depth === 0 ? style : undefined}
     >
       {visibleScalars.length > 0 && (
-        <div className={styles.rows}>
+        <div
+          className={clsx(styles.rows, options?.copyButton && styles.rowsCopy)}
+        >
           {visibleScalars.map((entry, index) => {
             const entryId = `${baseId}-value-${index}`;
             return (
@@ -110,6 +114,14 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
                     )}
                   />
                 </div>
+                {options?.copyButton && !hasHtmlEscape(entry.value) ? (
+                  <div className={styles.copyCell}>
+                    <CopyButton
+                      value={copyValueText(entry.value)}
+                      ariaLabel={`Copy ${entry.name}`}
+                    />
+                  </div>
+                ) : undefined}
               </div>
             );
           })}

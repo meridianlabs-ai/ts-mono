@@ -10,11 +10,12 @@ import {
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { ExpandablePanel } from "@tsmono/react/components";
+import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
 
 import { useVirtuosoState } from "../virtuoso/useVirtuosoState";
 
+import { copyValueText } from "./copyText";
 import { useContentIcons } from "./IconsContext";
 import { resolveStoreKeys } from "./record_processors/store";
 import { RecordProcessor } from "./record_processors/types";
@@ -31,6 +32,7 @@ interface RecordTreeProps {
   defaultExpandLevel?: number;
   processStore?: boolean;
   useBorders?: boolean;
+  copyButton?: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
   defaultExpandLevel = 1,
   processStore = false,
   useBorders = true,
+  copyButton = false,
 }) => {
   const icons = useContentIcons();
 
@@ -162,11 +165,15 @@ export const RecordTree: FC<RecordTreeProps> = ({
       return null;
     }
 
+    const showValue =
+      item.value !== null && (!item.hasChildren || item.isCollapsed);
+
     return (
       <div
         key={item.id}
         className={clsx(
           styles.keyPairContainer,
+          copyButton && styles.keyPairCopy,
           index < items.length - 1 && useBorders
             ? styles.keyPairBordered
             : undefined,
@@ -205,7 +212,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           <pre className={clsx(styles.pre)}>{item.key}:</pre>
         </div>
         <div>
-          {item.value !== null && (!item.hasChildren || item.isCollapsed) ? (
+          {showValue ? (
             <ExpandablePanel
               id={`${id}-collapse-${item.id}`}
               collapse={true}
@@ -223,6 +230,14 @@ export const RecordTree: FC<RecordTreeProps> = ({
             </ExpandablePanel>
           ) : undefined}
         </div>
+        {copyButton && showValue ? (
+          <div className={styles.copyCell}>
+            <CopyButton
+              value={copyValueText(item.rawValue)}
+              ariaLabel={`Copy ${item.key}`}
+            />
+          </div>
+        ) : undefined}
       </div>
     );
   };
@@ -279,6 +294,9 @@ interface MetadataItem {
   id: string;
   key: string;
   value: string | number | boolean | null;
+  /** Original (untruncated) value backing this row — objects and arrays
+   *  keep their full subtree here while `value` holds the display label. */
+  rawValue: unknown;
   depth: number;
   hasChildren: boolean;
   childCount?: number;
@@ -346,6 +364,7 @@ const processNodeRecursive = (
       id,
       key,
       value: value === undefined ? null : value,
+      rawValue: value,
       depth,
       hasChildren: false,
       isCollapsed: false,
@@ -388,6 +407,7 @@ const processNodeRecursive = (
     id,
     key,
     value: displayValue,
+    rawValue: value,
     depth,
     hasChildren: processChildren,
     childCount,
