@@ -77,8 +77,19 @@
   padding: 4px 14px 16px;
 }
 
+/* display:flex shrinks the SegmentedControl (a block-level flex root) to its
+   content width instead of stretching across the card body. */
 .toggle {
+  display: flex;
   margin-bottom: 12px;
+}
+
+/* Give the Error/Events segments a more generous, easier-to-hit target than
+   the SegmentedControl's default compact padding. Targets the segment buttons
+   structurally (aria-pressed) since the component's class names are hashed. */
+.toggle button[aria-pressed] {
+  padding-block: 4px;
+  padding-inline: 14px;
 }
 
 .ansi {
