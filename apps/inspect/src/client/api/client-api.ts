@@ -255,6 +255,18 @@ export const clientApi = (
   const get_log_summaries = async (
     log_files: string[]
   ): Promise<LogPreview[]> => {
+    // Prefer the API's batched endpoint for all formats: reading .eval
+    // headers client-side costs ~5 HTTP round-trips per file, which makes
+    // large log directories take minutes to hydrate.
+    try {
+      const summaries = await api.get_log_summaries(log_files);
+      if (summaries.length === log_files.length) {
+        return summaries;
+      }
+    } catch {
+      // fall through to per-file reads
+    }
+
     const eval_files: Record<string, number> = {};
     const json_files: Record<string, number> = {};
     let index = 0;
