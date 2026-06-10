@@ -1,7 +1,9 @@
+import clsx from "clsx";
 import { FC, RefObject, useEffect, useState } from "react";
 
 import { EvalRetryError } from "@tsmono/inspect-common";
 
+import { ApplicationIcons } from "../appearance/icons";
 import {
   RetryAttemptCard,
   RetryView,
@@ -50,7 +52,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
           {retries.map((retry, index) => (
             <div className={styles.row} key={index}>
               <div className={styles.dotGutter} aria-hidden="true">
-                <span className={styles.statusDot} />
+                <i className={clsx(ApplicationIcons.error, styles.statusIcon)} />
               </div>
               <RetryAttemptCard
                 retry={retry}
