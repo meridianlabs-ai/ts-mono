@@ -62,20 +62,18 @@ export const TagStrip: FC<TagStripProps> = ({
   // loop on unrelated re-renders. `selectedLogDetails.tags` is a
   // fresh array after every refresh, so reference equality is a
   // reliable change signal here.
-  const lastTagsRef = useRef<string[]>(tags);
+  const [lastTags, setLastTags] = useState<string[]>(tags);
   // The overflow pill only makes sense when there's also an Edit pill
   // to anchor it. Without edit, we let chips wrap normally.
   const enableCollapse = collapseOnWrap && showEdit;
 
-  // Whenever the tag set changes, restart from "all visible". This
-  // runs *during* commit, before the trim effect below, so trimming
-  // always measures against the full set first.
-  if (lastTagsRef.current !== tags) {
-    lastTagsRef.current = tags;
+  // Whenever the tag set changes, restart from "all visible". This is
+  // the render-adjust pattern: the update is scheduled before the trim
+  // effect below runs, so trimming always measures against the full
+  // set first.
+  if (lastTags !== tags) {
+    setLastTags(tags);
     if (visibleCount !== tags.length) {
-      // Schedule a state update; this render returns with the old
-      // count, but the immediately-following render has the reset
-      // value and the trim effect re-measures.
       setVisibleCount(tags.length);
     }
   }
@@ -95,6 +93,10 @@ export const TagStrip: FC<TagStripProps> = ({
     const tops = new Set<number>();
     for (const k of kids) tops.add(k.offsetTop);
     if (tops.size > MAX_ROWS && visibleCount > 0) {
+      // DOM measurement can only happen after layout, so this
+      // measure-and-converge loop genuinely needs setState in a layout
+      // effect; it terminates because visibleCount strictly decreases.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisibleCount((c) => Math.max(0, c - 1));
     }
   }, [enableCollapse, visibleCount, tags, showEdit]);

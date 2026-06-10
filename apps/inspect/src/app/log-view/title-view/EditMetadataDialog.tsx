@@ -165,24 +165,37 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  // Captures the most recently added key so a layout effect can scroll
-  // the new row into view and focus its value textarea once it's in
-  // the DOM. Reset to null after handling.
-  const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
+  // Captures the most recently added key so an effect can scroll the
+  // new row into view and focus its value textarea once it's in the
+  // DOM. A ref (not state): it never needs to trigger a render — the
+  // entries update from addKey re-runs the focus effect below.
+  const pendingFocusKeyRef = useRef<string | null>(null);
 
+  // Reset local state whenever the dialog opens (or the underlying log
+  // changes its metadata out from under us). Render-adjust rather than
+  // an effect so the reset is scheduled before anything paints.
+  const [prevReset, setPrevReset] = useState({ showing, initialEntries });
+  if (
+    prevReset.showing !== showing ||
+    prevReset.initialEntries !== initialEntries
+  ) {
+    setPrevReset({ showing, initialEntries });
+    if (showing) {
+      setEntries(initialEntries);
+      setRemoved([]);
+      setNewKey("");
+      setNewType("string");
+      setAuthor("");
+      setReason("");
+      setSubmitting(false);
+      setError(undefined);
+    }
+  }
+
+  // On open, prefill Author from the server's best-effort identity (git
+  // user.name → OS login). Same pattern as EditTagsDialog.
   useEffect(() => {
     if (!showing) return;
-    setEntries(initialEntries);
-    setRemoved([]);
-    setNewKey("");
-    setNewType("string");
-    setAuthor("");
-    setReason("");
-    setSubmitting(false);
-    setError(undefined);
-
-    // Prefill Author from the server's best-effort identity (git
-    // user.name → OS login). Same pattern as EditTagsDialog.
     let cancelled = false;
     if (api?.get_user_info) {
       api
@@ -257,7 +270,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
     setNewType("string");
     // Trigger a scroll-into-view + focus on the freshly inserted row
     // once it's in the DOM (handled by the effect below).
-    setPendingFocusKey(k);
+    pendingFocusKeyRef.current = k;
   };
 
   // Scroll the just-added row into view and focus its textarea so the
@@ -266,7 +279,9 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   // taking a ref so we don't need to thread a ref handler through
   // every MetaRow.
   useEffect(() => {
+    const pendingFocusKey = pendingFocusKeyRef.current;
     if (pendingFocusKey == null) return;
+    pendingFocusKeyRef.current = null;
     const selector = `[data-meta-key="${CSS.escape(pendingFocusKey)}"]`;
     const row = document.querySelector<HTMLElement>(selector);
     const textarea = row?.querySelector<HTMLTextAreaElement>("textarea");
@@ -276,8 +291,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       textarea.scrollIntoView({ behavior: "smooth", block: "nearest" });
       textarea.focus();
     }
-    setPendingFocusKey(null);
-  }, [pendingFocusKey]);
+  }, [entries]);
 
   const handleNewKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {

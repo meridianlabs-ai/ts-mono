@@ -39,19 +39,27 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   const [error, setError] = useState<string | undefined>();
 
   // Reset local state whenever the dialog opens (or the underlying log
-  // changes its tags out from under us). On open, also fetch the
-  // server-side identity (git user.name → OS login) so the user doesn't
-  // have to retype themselves for every edit. The fetch is best-effort —
-  // a missing endpoint or empty result simply leaves the field blank.
+  // changes its tags out from under us). Render-adjust rather than an
+  // effect so the reset is scheduled before anything paints.
+  const [prevReset, setPrevReset] = useState({ showing, currentTags });
+  if (prevReset.showing !== showing || prevReset.currentTags !== currentTags) {
+    setPrevReset({ showing, currentTags });
+    if (showing) {
+      setTags(currentTags);
+      setPending("");
+      setAuthor("");
+      setReason("");
+      setError(undefined);
+      setSubmitting(false);
+    }
+  }
+
+  // On open, fetch the server-side identity (git user.name → OS login)
+  // so the user doesn't have to retype themselves for every edit. The
+  // fetch is best-effort — a missing endpoint or empty result simply
+  // leaves the field blank.
   useEffect(() => {
     if (!showing) return;
-    setTags(currentTags);
-    setPending("");
-    setAuthor("");
-    setReason("");
-    setError(undefined);
-    setSubmitting(false);
-
     let cancelled = false;
     if (api?.get_user_info) {
       api
