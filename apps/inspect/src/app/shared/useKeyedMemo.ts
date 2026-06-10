@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/refs -- deliberate render-time ref cache;
+   see the "use no memo" rationale inside useKeyedMemo */
 import { useRef } from "react";
 
 const shallowEqual = (
@@ -32,6 +34,13 @@ export function useKeyedMemo<S, T>(
   itemDeps: (item: S) => readonly unknown[],
   build: (item: S) => T
 ): T[] {
+  // Deliberate render-time ref cache — the per-key identity reuse this
+  // hook exists for can't be expressed with useMemo or compiler
+  // memoization (both are all-or-nothing over the whole array). Safe
+  // under concurrent rendering because the cache is pure: a discarded
+  // render can only drop or repopulate entries, never change what a
+  // given deps tuple builds.
+  "use no memo";
   const cacheRef = useRef(
     new Map<string, { deps: readonly unknown[]; value: T }>()
   );
