@@ -87,7 +87,9 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
             </div>
           )}
           {view === "error" || !hasEvents ? (
-            <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
+            <div className={styles.errorView}>
+              <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
+            </div>
           ) : (
             <RetryEventsView retry={retry} listId={listId} scrollRef={scrollRef} />
           )}
