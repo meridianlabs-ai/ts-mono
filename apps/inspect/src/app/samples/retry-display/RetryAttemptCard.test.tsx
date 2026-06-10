@@ -89,4 +89,14 @@ describe("RetryAttemptCard", () => {
     renderCard({ isOpen: false, retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] } });
     expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
   });
+
+  it("toggles open on Enter and Space keydown on the header", () => {
+    const onToggleOpen = vi.fn();
+    renderCard({ onToggleOpen, isOpen: false });
+    const header = screen.getByText("Attempt 1").closest("[role='button']");
+    expect(header).not.toBeNull();
+    fireEvent.keyDown(header!, { key: "Enter" });
+    fireEvent.keyDown(header!, { key: " " });
+    expect(onToggleOpen).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,4 +1,4 @@
-import { FC, RefObject, useCallback, useEffect, useState } from "react";
+import { FC, RefObject, useEffect, useState } from "react";
 
 import { EvalRetryError } from "@tsmono/inspect-common";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
@@ -34,13 +34,13 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
     setViewByIndex({});
   }, [id, retries.length]);
 
-  const onToggleOpen = useCallback((index: number) => {
+  const onToggleOpen = (index: number) => {
     setExpandedIndex((cur) => (cur === index ? null : index));
-  }, []);
+  };
 
-  const onViewChange = useCallback((index: number, view: RetryView) => {
+  const onViewChange = (index: number, view: RetryView) => {
     setViewByIndex((prev) => ({ ...prev, [index]: view }));
-  }, []);
+  };
 
   return (
     <Card className={styles.card}>

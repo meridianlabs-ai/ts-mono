@@ -15,7 +15,6 @@
   margin-top: 18px;
 }
 
-/* Vertical rail behind the status dots. */
 .rail {
   position: absolute;
   left: 6px;
@@ -44,7 +43,6 @@
   padding-top: 14px;
 }
 
-/* Failed-attempt marker: a danger dot with a soft ring, sitting on the rail. */
 .statusDot {
   display: block;
   flex: none;

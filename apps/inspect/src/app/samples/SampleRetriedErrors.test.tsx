@@ -70,4 +70,24 @@ describe("SampleRetriedErrors", () => {
     fireEvent.click(screen.getByText("Attempt 2"));
     expect(screen.queryByText("RuntimeError: failure 2")).toBeNull();
   });
+
+  it("remembers an attempt's Error/Events selection across collapse and reopen", () => {
+    const scrollRef = createRef<HTMLDivElement>();
+    const withEvents = (n: number): EvalRetryError => ({
+      ...makeRetry(n),
+      events: [{ event: "error" }] as unknown as EvalRetryError["events"],
+    });
+    render(
+      <SampleRetriedErrors id="s1" retries={[withEvents(1), withEvents(2)]} scrollRef={scrollRef} />,
+    );
+    // Attempt 2 is open by default on the Error view (traceback, no transcript).
+    expect(screen.queryByTestId("transcript-layout")).toBeNull();
+    // Switch it to Events.
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
+    expect(screen.getByTestId("transcript-layout")).toBeDefined();
+    // Collapse then reopen attempt 2 — the Events selection should persist.
+    fireEvent.click(screen.getByText("Attempt 2"));
+    fireEvent.click(screen.getByText("Attempt 2"));
+    expect(screen.getByTestId("transcript-layout")).toBeDefined();
+  });
 });
