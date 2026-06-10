@@ -126,6 +126,10 @@ export interface TranscriptLayoutProps {
   // --- Scroll & positioning ---
   scrollRef: RefObject<HTMLDivElement | null>;
   offsetTop?: number;
+  /** Size the layout to its content instead of filling the viewport. Use when
+   *  embedding the transcript inside another scroll container (e.g. a card)
+   *  rather than as the page's primary scroll region. */
+  embedded?: boolean;
 
   // --- Timeline selection adapters ---
   timelineSelection?: UseTimelineProps;
@@ -281,6 +285,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   running = false,
   scrollRef,
   offsetTop = 0,
+  embedded = false,
   timelineSelection,
   activeTimeline,
   serverTimelines,
@@ -994,6 +999,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
           <div
             className={clsx(
               styles.container,
+              embedded && styles.embedded,
               !outline && styles.noOutline,
               outline && isOutlineCollapsed && styles.outlineCollapsed,
               !rightPane && styles.noRightPane,

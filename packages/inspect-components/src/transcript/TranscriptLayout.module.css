@@ -16,6 +16,12 @@
   min-height: 100vh;
 }
 
+/* Embedded in another scroll container (e.g. a retry card): size to content
+   instead of reserving a full viewport. */
+.container.embedded {
+  min-height: 0;
+}
+
 .container > * {
   min-width: 0;
   padding-bottom: 1rem;

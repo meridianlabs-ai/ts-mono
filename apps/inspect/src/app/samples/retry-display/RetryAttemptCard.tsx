@@ -151,6 +151,7 @@ const RetryEventsView: FC<{
         events={retry.events || []}
         scrollRef={scrollRef}
         listId={listId}
+        embedded
         showSwimlanes={false}
         collapseState={collapseState}
         bulkCollapse={bulkCollapse}
