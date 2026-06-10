@@ -1,4 +1,4 @@
-import { FC, ReactNode, useMemo, useRef } from "react";
+import { FC, ReactNode, useMemo, useState } from "react";
 
 import {
   ThemeToggle,
@@ -31,7 +31,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   showActivity = "log",
   breadcrumbsEnabled,
 }) => {
-  const optionsRef = useRef<HTMLButtonElement>(null);
+  const [optionsEl, setOptionsEl] = useState<HTMLButtonElement | null>(null);
   const themePreference = useUserSettings((s) => s.themePreference);
   const setThemePreference = useUserSettings((s) => s.setThemePreference);
   const isDark = useResolvedIsDark(themePreference);
@@ -73,10 +73,10 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         <ViewerOptionsButton
           showing={isShowing}
           setShowing={setShowing}
-          ref={optionsRef}
+          ref={setOptionsEl}
         />
         <ViewerOptionsPopover
-          positionEl={optionsRef.current}
+          positionEl={optionsEl}
           showing={isShowing}
           setShowing={setShowing}
         />

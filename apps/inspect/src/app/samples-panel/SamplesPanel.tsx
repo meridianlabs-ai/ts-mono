@@ -106,7 +106,8 @@ export const SamplesPanel: FC = () => {
 
   const gridRef = useRef<AgGridReact<SampleRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
-  const columnButtonRef = useRef<HTMLButtonElement>(null);
+  const [columnButtonEl, setColumnButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   const logDetails = useStore((state) => state.logs.logDetails);
 
@@ -441,7 +442,7 @@ export const SamplesPanel: FC = () => {
         )}
         <NavbarButton
           key="choose-columns"
-          ref={columnButtonRef}
+          ref={setColumnButtonEl}
           label="Columns"
           icon={ApplicationIcons.columns}
           dropdown
@@ -462,7 +463,7 @@ export const SamplesPanel: FC = () => {
         columns={allColumns}
         visibility={visibilityForGrid}
         onVisibilityChange={setColumnVisibility}
-        positionEl={columnButtonRef.current}
+        positionEl={columnButtonEl}
         filteredFields={filteredFields}
         scoresHeading="Scores"
       />

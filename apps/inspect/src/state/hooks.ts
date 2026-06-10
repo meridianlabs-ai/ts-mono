@@ -497,16 +497,6 @@ export const useMessageVisibility = (
   }, [visible, setVisible, id]);
 };
 
-export const usePrevious = <T>(value: T) => {
-  const ref = useRef<T | undefined>(undefined);
-
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
-
-  return ref.current;
-};
-
 export const useSetSelectedLogIndex = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile

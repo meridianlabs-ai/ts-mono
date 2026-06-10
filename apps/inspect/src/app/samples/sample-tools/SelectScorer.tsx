@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useCallback, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 
 import { PopOver, ToolButton } from "@tsmono/react/components";
 
@@ -20,7 +20,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
   setSelectedScores,
 }) => {
   const [showing, setShowing] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
 
   const selectedKeys = useMemo(() => {
     return new Set(selectedScores?.map((s) => `${s.scorer}.${s.name}`));
@@ -54,12 +54,12 @@ export const SelectScorer: FC<SelectScorerProps> = ({
         label={label}
         icon={ApplicationIcons.metrics}
         onClick={() => setShowing(!showing)}
-        ref={buttonRef}
+        ref={setButtonEl}
         className={clsx(styles.bodyColorButton)}
       />
       <PopOver
         id="score-selector-popover"
-        positionEl={buttonRef.current}
+        positionEl={buttonEl}
         isOpen={showing}
         setIsOpen={setShowing}
         placement="bottom-start"

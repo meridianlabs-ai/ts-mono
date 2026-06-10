@@ -13,16 +13,16 @@ interface ModelRolesViewProps {
  * Renders the Navbar
  */
 export const ModelRolesView: FC<ModelRolesViewProps> = ({ roles }) => {
-  roles = roles || {};
+  const modelRoles = roles || {};
 
   // Render as a single line if there is only a single
   // model role
-  const singleLine = Object.keys(roles).length !== 1;
+  const singleLine = Object.keys(modelRoles).length !== 1;
 
   // Render a layout of model roles
-  const modelEls = Object.keys(roles).map((key) => {
+  const modelEls = Object.keys(modelRoles).map((key) => {
     const role = key;
-    const roleData = roles[role];
+    const roleData = modelRoles[role];
     const model = roleData.model;
     return (
       <div

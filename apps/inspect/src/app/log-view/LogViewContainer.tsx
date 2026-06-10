@@ -1,12 +1,8 @@
-import { FC, useEffect, useLayoutEffect } from "react";
+import { FC, useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import {
-  useEvalSpec,
-  usePrevious,
-  useSampleSummaries,
-} from "../../state/hooks";
+import { useEvalSpec, useSampleSummaries } from "../../state/hooks";
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
 import {
@@ -105,7 +101,7 @@ export const LogViewContainer: FC = () => {
     }
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
-  const prevLogPath = usePrevious<string | undefined>(logPath);
+  const prevLogPathRef = useRef<string | undefined>(undefined);
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
@@ -113,11 +109,13 @@ export const LogViewContainer: FC = () => {
   // old eval doesn't flash while the new one loads. A useEffect would run after
   // the browser has already painted the stale eval.
   useLayoutEffect(() => {
+    const prevLogPath = prevLogPathRef.current;
+    prevLogPathRef.current = logPath;
     if (prevLogPath && logPath && logPath !== prevLogPath) {
       clearSelectedSample();
       clearSelectedLogSummary();
     }
-  }, [logPath, prevLogPath, clearSelectedSample, clearSelectedLogSummary]);
+  }, [logPath, clearSelectedSample, clearSelectedLogSummary]);
 
   // Sync the workspace tab from the URL synchronously. Kept separate from
   // the async log-loading effect below so a tab click can't race with a

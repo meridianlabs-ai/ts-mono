@@ -3,7 +3,6 @@ import {
   KeyboardEvent,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -229,20 +228,23 @@ export const FindBand: FC<FindBandProps> = () => {
     }
   }, []);
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async () => {
-        if (!searchBoxRef.current) return;
-        await handleSearch(false);
-        // Mark for cursor restore on next keypress (keeps find highlight visible)
-        needsCursorRestoreRef.current = true;
-      }, 300),
-    [handleSearch]
-  );
+  const runDebouncedSearch = useCallback(async () => {
+    if (!searchBoxRef.current) return;
+    await handleSearch(false);
+    // Mark for cursor restore on next keypress (keeps find highlight visible)
+    needsCursorRestoreRef.current = true;
+  }, [handleSearch]);
+
+  // Created in an effect (not useMemo) because runDebouncedSearch reads refs,
+  // and the compiler can't prove debounce() won't invoke it during render.
+  const debouncedSearchRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    debouncedSearchRef.current = debounce(runDebouncedSearch, 300);
+  }, [runDebouncedSearch]);
 
   const handleInputChange = useCallback(() => {
-    debouncedSearch();
-  }, [debouncedSearch]);
+    debouncedSearchRef.current?.();
+  }, []);
 
   const handleBeforeInput = useCallback(() => {
     const input = searchBoxRef.current;

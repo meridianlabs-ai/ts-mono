@@ -1,4 +1,4 @@
-import { FC, Fragment, useRef, useState } from "react";
+import { FC, Fragment, useState } from "react";
 
 import { useScores, useSelectedScores } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -16,12 +16,14 @@ interface SampleToolsProps {}
 // selection is handled by the column-chooser popover in `SamplesTab`.
 export const SampleTools: FC<SampleToolsProps> = () => {
   const [showViewOptions, setShowViewOptions] = useState(false);
-  const viewButtonRef = useRef<HTMLButtonElement>(null);
+  const [viewButtonEl, setViewButtonEl] = useState<HTMLButtonElement | null>(
+    null
+  );
   return (
     <Fragment>
       <SampleFilter />
       <NavbarButton
-        ref={viewButtonRef}
+        ref={setViewButtonEl}
         label="View"
         icon={ApplicationIcons.options}
         dropdown
@@ -34,7 +36,7 @@ export const SampleTools: FC<SampleToolsProps> = () => {
       <SamplesViewOptionsPopover
         showing={showViewOptions}
         setShowing={setShowViewOptions}
-        positionEl={viewButtonRef.current}
+        positionEl={viewButtonEl}
       />
     </Fragment>
   );

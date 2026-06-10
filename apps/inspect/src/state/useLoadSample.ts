@@ -1,11 +1,11 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { SampleSummary } from "../client/api/types";
 
-import { useLogSelection, usePrevious, useSampleData } from "./hooks";
+import { useLogSelection, useSampleData } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
 import {
   resolveSample,
@@ -44,15 +44,15 @@ export function useLoadSample() {
   const sampleEpoch = logSelection.sample?.epoch;
   const sampleCompleted = logSelection.sample?.completed;
 
-  // Track changes over time
+  // Track changes over time (updated inside the load effect below)
   const currentSampleCompleted =
     sampleCompleted !== undefined ? sampleCompleted : true;
-  const prevCompleted = usePrevious(currentSampleCompleted);
-  const prevLogFile = usePrevious<string | undefined>(logSelection.logFile);
-  const prevSampleId = usePrevious(sampleId);
-  const prevSampleNeedsReload = usePrevious<number>(
-    sampleData.sampleNeedsReload
-  );
+  const prevRef = useRef<{
+    completed?: boolean;
+    logFile?: string;
+    sampleId?: string | number;
+    sampleNeedsReload?: number;
+  }>({});
 
   const loadSample = useCallback(
     async (
@@ -156,6 +156,13 @@ export function useLoadSample() {
   );
 
   useEffect(() => {
+    const prev = prevRef.current;
+    prevRef.current = {
+      completed: currentSampleCompleted,
+      logFile: logSelection.logFile,
+      sampleId,
+      sampleNeedsReload: sampleData.sampleNeedsReload,
+    };
     if (
       logSelection.logFile &&
       sampleId !== undefined &&
@@ -181,14 +188,15 @@ export function useLoadSample() {
 
       // Check if this is a meaningful change (not just initial render)
       const logFileChanged =
-        prevLogFile !== undefined && prevLogFile !== logSelection.logFile;
+        prev.logFile !== undefined && prev.logFile !== logSelection.logFile;
       const sampleIdChanged =
-        prevSampleId !== undefined && prevSampleId !== sampleId;
+        prev.sampleId !== undefined && prev.sampleId !== sampleId;
       const completedChanged =
-        prevCompleted !== undefined && currentSampleCompleted !== prevCompleted;
+        prev.completed !== undefined &&
+        currentSampleCompleted !== prev.completed;
       const needsReloadChanged =
-        prevSampleNeedsReload !== undefined &&
-        prevSampleNeedsReload !== sampleData.sampleNeedsReload;
+        prev.sampleNeedsReload !== undefined &&
+        prev.sampleNeedsReload !== sampleData.sampleNeedsReload;
 
       // Only load if:
       // 1. The current sample is not already loaded AND not currently loading, OR
@@ -221,10 +229,6 @@ export function useLoadSample() {
     sampleData.status,
     sampleData.sampleNeedsReload,
     sampleData.getSelectedSample,
-    prevLogFile,
-    prevSampleId,
-    prevCompleted,
-    prevSampleNeedsReload,
     loadSample,
     getSelectedSample,
   ]);
