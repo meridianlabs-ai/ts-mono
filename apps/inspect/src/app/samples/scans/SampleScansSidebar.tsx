@@ -82,7 +82,7 @@ export const SampleScansSidebar: FC<SampleScansSidebarProps> = ({
     ) : null;
 
   return (
-    <div className={styles.sidebar} aria-label="Sample scans">
+    <div aria-label="Sample scans">
       {header ? <div className={styles.header}>{header}</div> : null}
       <ScannerResultDetailView
         data={data}
