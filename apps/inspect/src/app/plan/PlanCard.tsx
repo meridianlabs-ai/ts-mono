@@ -68,6 +68,7 @@ export const PlanCard: FC<PlanCardProps> = ({
                 id={"plan-md-metadata"}
                 record={metadata}
                 scrollRef={scrollRef}
+                copyButton={true}
               />
             ) : (
               <div className={clsx("text-size-smaller", styles.emptyMetadata)}>

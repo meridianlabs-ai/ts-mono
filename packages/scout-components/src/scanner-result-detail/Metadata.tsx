@@ -87,6 +87,7 @@ export const MetadataValue: FC<MetadataValueProps> = ({
             id={`metadata-${id}`}
             record={record}
             useBorders={false}
+            copyButton={true}
           />
         );
       }
@@ -95,6 +96,7 @@ export const MetadataValue: FC<MetadataValueProps> = ({
           id={`metadata-${id}`}
           record={value as Record<string, unknown>}
           useBorders={false}
+          copyButton={true}
         />
       );
     }

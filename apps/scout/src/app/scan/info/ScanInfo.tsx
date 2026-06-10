@@ -86,7 +86,11 @@ const ScanMetadataCard: FC<ScanMetadataCardProps> = ({
 
   return (
     <InfoCard title={"Metadata"} className={className}>
-      <RecordTree id="scan-metadata" record={selectedScan.spec.metadata} />
+      <RecordTree
+        id="scan-metadata"
+        record={selectedScan.spec.metadata}
+        copyButton={true}
+      />
     </InfoCard>
   );
 };

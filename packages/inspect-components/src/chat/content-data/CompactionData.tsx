@@ -33,6 +33,7 @@ export const CompactionData: FC<{
         id={`${id}-compacted-content-metadata`}
         className={styles.grid}
         entries={compactionMetadata}
+        options={{ copyButton: true }}
       />
     );
   }

@@ -954,6 +954,7 @@ const metadataViewsForSample = (
             record={invalidationRecord}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
+            copyButton={true}
           />
         </CardBody>
       </Card>
@@ -970,6 +971,7 @@ const metadataViewsForSample = (
             record={sample?.metadata as Record<string, unknown>}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
+            copyButton={true}
           />
         </CardBody>
       </Card>
@@ -987,6 +989,7 @@ const metadataViewsForSample = (
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}
+            copyButton={true}
           />
         </CardBody>
       </Card>

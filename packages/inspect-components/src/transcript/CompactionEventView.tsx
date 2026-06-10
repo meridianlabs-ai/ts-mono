@@ -40,7 +40,11 @@ export const CompactionEventView: FC<CompactionEventViewProps> = ({
       subTitle={formatDateTime(new Date(event.timestamp))}
       icon={TranscriptIcons.compaction}
     >
-      <MetaDataGrid entries={data} className={styles.panel} />
+      <MetaDataGrid
+        entries={data}
+        className={styles.panel}
+        options={{ copyButton: true }}
+      />
     </EventPanel>
   );
 };

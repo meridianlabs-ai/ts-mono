@@ -212,6 +212,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               record={message.metadata}
               id={`${id}-metadata`}
               defaultExpandLevel={0}
+              copyButton={true}
             />
           </LabeledValue>
         ) : (

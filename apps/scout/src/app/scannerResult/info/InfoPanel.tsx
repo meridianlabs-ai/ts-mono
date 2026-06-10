@@ -54,6 +54,7 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
                 <RecordTree
                   id={`scan-metadata-${resultData?.identifier}`}
                   record={resultData?.scanMetadata || {}}
+                  copyButton={true}
                 />
               </CardBody>
             </Card>
@@ -116,6 +117,7 @@ export const TranscriptInfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           total_time: resultData?.transcriptTotalTime,
           total_tokens: resultData?.transcriptTotalTokens,
         }}
+        options={{ copyButton: true }}
       />
     </div>
   );

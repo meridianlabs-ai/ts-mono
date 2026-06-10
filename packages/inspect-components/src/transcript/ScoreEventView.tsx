@@ -71,6 +71,7 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
             record={event.score.metadata}
             className={styles.metadataTree}
             defaultExpandLevel={0}
+            copyButton={true}
           />
         </div>
       ) : undefined}

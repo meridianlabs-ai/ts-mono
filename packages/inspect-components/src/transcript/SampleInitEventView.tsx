@@ -102,6 +102,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
           data-name="Metadata"
           className={styles.metadata}
           entries={event.sample.metadata}
+          options={{ copyButton: true }}
         />
       ) : (
         ""

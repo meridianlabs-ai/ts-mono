@@ -145,6 +145,7 @@ export const TaskTab: FC<TaskTabProps> = ({
                 key={`plan-md-task`}
                 className={"text-size-small"}
                 entries={taskInformation}
+                options={{ copyButton: true }}
               />
 
               <MetaDataGrid
@@ -157,6 +158,7 @@ export const TaskTab: FC<TaskTabProps> = ({
                   ),
                   ["Duration"]: totalDuration,
                 }}
+                options={{ copyButton: true }}
               />
             </div>
           </CardBody>
@@ -171,6 +173,7 @@ export const TaskTab: FC<TaskTabProps> = ({
               <RecordTree
                 id={`early-stopping-metadata`}
                 record={earlyStopping.metadata}
+                copyButton={true}
               />
             </CardBody>
           </Card>
