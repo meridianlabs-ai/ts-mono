@@ -32,6 +32,15 @@ export interface ParseError {
   position: number;
 }
 
+class ParseFailure extends Error {
+  constructor(
+    message: string,
+    readonly position: number
+  ) {
+    super(message);
+  }
+}
+
 export interface ParseResult {
   ast: FilterAst | null;
   error: ParseError | null;
@@ -69,9 +78,12 @@ class Parser {
     return this.eat()!;
   }
 
-  private error(message: string): ParseError {
+  private error(message: string): ParseFailure {
     const at = this.peek();
-    return { message, position: at?.from ?? this.tokens.at(-1)?.to ?? 0 };
+    return new ParseFailure(
+      message,
+      at?.from ?? this.tokens.at(-1)?.to ?? 0
+    );
   }
 
   parse(): FilterAst {
@@ -274,8 +286,8 @@ export function parseFilter(text: string): ParseResult {
     const ast = parser.parse();
     return { ast, error: null };
   } catch (e) {
-    if (typeof e === "object" && e !== null && "message" in e) {
-      return { ast: null, error: e as ParseError };
+    if (e instanceof ParseFailure) {
+      return { ast: null, error: { message: e.message, position: e.position } };
     }
     return {
       ast: null,

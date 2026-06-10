@@ -508,7 +508,7 @@ export function viewServerApi(
     }
 
     const text = await response.text();
-    const log = (await asyncJsonParse<EvalLog>(text)) as EvalLog;
+    const log = (await asyncJsonParse<EvalLog>(text));
     const etag = response.headers.get("ETag") ?? undefined;
     return { log, etag };
   };

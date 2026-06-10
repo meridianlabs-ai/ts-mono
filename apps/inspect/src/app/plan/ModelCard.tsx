@@ -67,7 +67,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
                   Object.keys(modelInfo.config).length > 0 ? (
                     <MetaDataGrid
                       entries={
-                        modelInfo.config as any as Record<string, unknown>
+                        modelInfo.config
                       }
                     />
                   ) : (
@@ -79,7 +79,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
                 <div className="text-size-small">
                   {Object.keys(modelInfo.args).length > 0 ? (
                     <MetaDataGrid
-                      entries={modelInfo.args as any as Record<string, unknown>}
+                      entries={modelInfo.args}
                     />
                   ) : (
                     noneEl

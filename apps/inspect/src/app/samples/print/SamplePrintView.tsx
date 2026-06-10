@@ -273,7 +273,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
       <Card key="print-metadata">
         <CardHeader label="Metadata" />
         <CardBody>
-          <MetaDataGrid entries={sample?.metadata as Record<string, unknown>} />
+          <MetaDataGrid entries={sample?.metadata} />
         </CardBody>
       </Card>
     );
@@ -284,7 +284,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
       <Card key="print-store">
         <CardHeader label="Store" />
         <CardBody>
-          <MetaDataGrid entries={sample?.store as Record<string, unknown>} />
+          <MetaDataGrid entries={sample?.store} />
         </CardBody>
       </Card>
     );

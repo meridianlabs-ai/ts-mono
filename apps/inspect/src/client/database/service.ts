@@ -104,7 +104,7 @@ export class DatabaseService {
 
       const db = this.getDb();
       // Sort by mtime if available, otherwise by id (insertion order)
-      let files = await db.logs.toArray();
+      const files = await db.logs.toArray();
 
       // Sort by mtime (descending) if present, otherwise maintain insertion order.
       // Note: != null (not !==) catches both null and undefined.

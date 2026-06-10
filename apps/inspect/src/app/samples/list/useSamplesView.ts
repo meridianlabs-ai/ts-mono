@@ -75,10 +75,7 @@ export function useSamplesViewScoreColorScales(): Record<
   WireScoreColorScale
 > {
   const evalDefault = useEvalDefaultSamplesView();
-  return (evalDefault?.score_color_scales ?? kNoScoreColorScales) as Record<
-    string,
-    WireScoreColorScale
-  >;
+  return evalDefault?.score_color_scales ?? kNoScoreColorScales;
 }
 
 /** Resolved `colorScalesEnabled` — same access pattern as the

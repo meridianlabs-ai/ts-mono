@@ -158,7 +158,7 @@ export const openRemoteLogFile = async (
     maxBytes?: number,
     preprocessor?: JSONPreprocessor,
     onProgress?: ProgressCallback
-  ): Promise<Object> => {
+  ): Promise<object> => {
     try {
       let data = await remoteZipFile.readFile(file, maxBytes, onProgress);
 
@@ -340,7 +340,7 @@ export const openRemoteLogFile = async (
         listSamples().then((sampleIds) =>
           Promise.all(
             sampleIds.map(({ sampleId, epoch }) =>
-              readSample(sampleId, epoch).then((sample) => sample as EvalSample)
+              readSample(sampleId, epoch).then((sample) => sample)
             )
           )
         ),

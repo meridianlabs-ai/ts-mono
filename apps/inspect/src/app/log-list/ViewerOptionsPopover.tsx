@@ -39,7 +39,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
     setClearMessage(null);
 
     try {
-      await replicationService.clearData();
+      replicationService.clearData();
       setClearMessage("Database cleared successfully");
       setTimeout(() => setClearMessage(null), 3000);
     } catch (error) {

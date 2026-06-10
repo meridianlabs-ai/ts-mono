@@ -31,7 +31,7 @@ export function unwrapFastapiDetail(body: string): string {
       parsed &&
       typeof parsed === "object" &&
       "detail" in parsed &&
-      typeof (parsed as { detail: unknown }).detail === "string"
+      typeof (parsed).detail === "string"
     ) {
       return (parsed as { detail: string }).detail;
     }

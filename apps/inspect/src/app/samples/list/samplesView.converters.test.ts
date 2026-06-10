@@ -226,7 +226,7 @@ describe("resolveSamplesView precedence", () => {
         compactScores: false,
         colorScalesEnabled: true,
       }),
-    } as SamplesViewState;
+    };
     delete (legacy as Partial<SamplesViewState>).userOverrides;
     const evalDefault: TaskSamplesView = {
       name: "Eval",

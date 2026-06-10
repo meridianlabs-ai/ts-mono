@@ -14,7 +14,7 @@ const applicationStorage = storage;
 
 // Application capabilities
 const vscode = getVscodeApi();
-let capabilities: Capabilities = {
+const capabilities: Capabilities = {
   downloadFiles: true,
   downloadLogs: !!applicationApi.download_log,
   webWorkers: true,
@@ -55,7 +55,7 @@ if (!container) {
 }
 
 // Render into the root
-const root = createRoot(container as HTMLElement);
+const root = createRoot(container);
 root.render(<App api={applicationApi} />);
 
 function restoreHash() {

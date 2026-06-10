@@ -31,7 +31,7 @@ function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
     started_at: "2024-01-01T00:00:00Z",
     completed_at: "2024-01-01T01:00:00Z",
     ...overrides,
-  } as LogPreview;
+  };
 }
 
 // Helper function to create test LogInfo
@@ -97,7 +97,7 @@ function createTestSampleSummary(
     },
     completed: true,
     ...overrides,
-  } as SampleSummary;
+  };
 }
 
 describe("Database Service", () => {

@@ -1,6 +1,6 @@
 declare module "asciinema-player" {
   export const create: (
-    src: string | Object,
+    src: string | object,
     el: HTMLElement,
     opts: {
       cols?: number;
@@ -20,7 +20,7 @@ declare module "asciinema-player" {
       terminalFontSize?: string;
       terminalFontFamily?: string;
       terminalLineHeight?: string;
-      logger?: Object;
+      logger?: object;
     }
   ) => any;
 }

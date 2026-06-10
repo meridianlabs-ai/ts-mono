@@ -5,15 +5,15 @@ export function printCircularReferences(obj: Record<string, unknown>): void {
     // Only proceed if value is an object (not null)
     if (value !== null && typeof value === "object") {
       // Check if we've seen this object before
-      if (seenObjects.has(value as object)) {
+      if (seenObjects.has(value)) {
         console.log(
-          `Circular reference detected at path: ${seenObjects.get(value as object)}`
+          `Circular reference detected at path: ${seenObjects.get(value)}`
         );
         return;
       }
 
       // Store the current path for this object
-      seenObjects.set(value as object, path);
+      seenObjects.set(value, path);
 
       // Recursively check all properties
       for (const key in value) {
@@ -93,8 +93,8 @@ export function findDifferences(
 
   // --- Plain objects -------------------------------------------------------
   const allKeys = new Set([
-    ...Object.keys(obj1 as Record<string, unknown>),
-    ...Object.keys(obj2 as Record<string, unknown>),
+    ...Object.keys(obj1),
+    ...Object.keys(obj2),
   ]);
 
   const diff: string[] = [];

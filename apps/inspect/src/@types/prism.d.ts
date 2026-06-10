@@ -1,4 +1,4 @@
-declare var Prism: {
+declare let Prism: {
   languages: any;
   highlight(contents: any, tokens: any, type: any): string;
   highlightElement(

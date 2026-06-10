@@ -5,9 +5,7 @@ import { describe, expect, it } from "vitest";
 import { clearLargeEventsArray } from "./clear-events-preprocessor";
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder() as InstanceType<
-  typeof globalThis.TextDecoder
->;
+const decoder = new TextDecoder();
 
 function encode(str: string): Uint8Array {
   return encoder.encode(str);

@@ -4,7 +4,7 @@ import "@testing-library/jest-dom/vitest";
 // Setup fake IndexedDB for database tests
 import "fake-indexeddb/auto";
 
-global.TextDecoder = TextDecoder as unknown as typeof globalThis.TextDecoder;
+global.TextDecoder = TextDecoder;
 global.TextEncoder = TextEncoder;
 
 // Mock build-time constants used by logger

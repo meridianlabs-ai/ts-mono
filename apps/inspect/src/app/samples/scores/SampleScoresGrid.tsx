@@ -78,7 +78,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
         const scoreData = evalSample.scores[scorer];
         const explanation = scoreData.explanation || "(No Explanation)";
         const answer = scoreData.answer;
-        let metadata = scoreData.metadata || {};
+        const metadata = scoreData.metadata || {};
 
         return (
           <Fragment key={`${scorer}-row`}>

@@ -29,7 +29,7 @@ export const RotatedHeader: FC<IHeaderParams> = (props) => {
 
   useEffect(() => {
     const updateSort = () =>
-      setSort((props.column.getSort() ?? null) as SortDir);
+      setSort((props.column.getSort() ?? null));
     const updateFilter = () => setFilterActive(props.column.isFilterActive());
     props.column.addEventListener("sortChanged", updateSort);
     props.column.addEventListener("filterChanged", updateFilter);

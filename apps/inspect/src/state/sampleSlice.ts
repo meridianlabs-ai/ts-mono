@@ -11,7 +11,7 @@ import { StoreState } from "./store";
 import { isLargeSample } from "./store_filter";
 
 // Create a module-level ref to store large sample objects
-let selectedSampleRef: { current: EvalSample | undefined } = {
+const selectedSampleRef: { current: EvalSample | undefined } = {
   current: undefined,
 };
 

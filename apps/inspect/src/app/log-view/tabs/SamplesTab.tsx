@@ -171,7 +171,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         ? undefined
         : typeof limit === "number"
           ? limit
-          : (limit[1] as number) - (limit[0] as number);
+          : (limit[1]) - (limit[0]);
     return (
       (limitCount || selectedLogDetails?.eval.dataset.samples || 0) *
       (selectedLogDetails?.eval.config.epochs || 0)
@@ -359,7 +359,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         input: inputString(sample.input).join(" "),
         target: Array.isArray(sample.target)
           ? sample.target.join(", ")
-          : (sample.target as string | undefined),
+          : (sample.target),
         error: sample.error,
         limit: sample.limit,
         retries: sample.retries,
@@ -438,7 +438,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const api = sampleListHandle.current?.api;
     if (!api) return;
     const desired = filterModelFromText(currentFilter);
-    const current: FilterModel = (api.getFilterModel() ?? {}) as FilterModel;
+    const current: FilterModel = (api.getFilterModel() ?? {});
     // Preserve current model entries that the synthesizer would have
     // skipped — they live only in the column UI and must not be wiped
     // by a text-driven update. Entries the user can express in text
@@ -469,7 +469,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const state = cols.flatMap((c) => {
       const colId = c.getColId();
       if (!colId.startsWith("score_")) return [];
-      const w = c.getColDef().initialWidth as number | undefined;
+      const w = c.getColDef().initialWidth;
       return w === undefined ? [] : [{ colId, width: w, flex: null }];
     });
     if (state.length > 0) api.applyColumnState({ state });

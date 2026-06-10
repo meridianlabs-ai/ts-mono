@@ -232,7 +232,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const sampleUrlBuilder = useSampleUrlBuilder();
   const onSelectedTab = useCallback(
     (e: MouseEvent<HTMLElement>) => {
-      const el = e.currentTarget as HTMLElement;
+      const el = e.currentTarget;
       const id = el.id;
       setSelectedTab(id);
 
@@ -968,7 +968,7 @@ const metadataViewsForSample = (
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-metadata-${id}`}
-            record={sample?.metadata as Record<string, unknown>}
+            record={sample?.metadata}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             copyButton={true}
@@ -985,7 +985,7 @@ const metadataViewsForSample = (
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-store-${id}`}
-            record={sample?.store as Record<string, unknown>}
+            record={sample?.store}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}

@@ -60,7 +60,7 @@ export const useTranscriptFilter = () => {
   }, [setFilteredEventTypes]);
 
   const setNoneFilter = useCallback(() => {
-    setFilteredEventTypes(Object.keys(eventTypes) as AllEventTypes[]);
+    setFilteredEventTypes(Object.keys(eventTypes));
   }, [setFilteredEventTypes]);
 
   const isDefaultFilter = useMemo(() => {

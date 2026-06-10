@@ -186,7 +186,7 @@ export const TaskTab: FC<TaskTabProps> = ({
               <MetaDataGrid
                 key={`plan-md-task-args`}
                 className={"text-size-small"}
-                entries={task_args as Record<string, unknown>}
+                entries={task_args}
               />
             </CardBody>
           </Card>

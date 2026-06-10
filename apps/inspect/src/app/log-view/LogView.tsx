@@ -84,7 +84,7 @@ export const LogView: FC = () => {
     const refs: RefObject<HTMLElement | null>[] = [];
     for (const key of Object.keys(tabs)) {
       const ref = tabs[key].scrollRef;
-      if (ref) refs.push(ref as RefObject<HTMLElement | null>);
+      if (ref) refs.push(ref);
     }
     return refs;
     // The set of tab refs is stable within a session — recompute only when

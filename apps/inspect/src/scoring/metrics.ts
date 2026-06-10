@@ -96,11 +96,11 @@ export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
       }),
       unscoredSamples:
         score.unscored_samples !== null
-          ? (score.unscored_samples as number)
+          ? (score.unscored_samples)
           : undefined,
       scoredSamples:
         score.scored_samples !== null
-          ? (score.scored_samples as number)
+          ? (score.scored_samples)
           : undefined,
     };
   });

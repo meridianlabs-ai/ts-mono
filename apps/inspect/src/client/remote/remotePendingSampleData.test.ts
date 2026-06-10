@@ -52,7 +52,7 @@ describe("fetchPendingSampleDataDirect", () => {
           statusText: "OK",
           arrayBuffer: async () => body.buffer,
         } as unknown as Response;
-      }) as typeof fetch;
+      });
     });
 
     afterEach(() => {

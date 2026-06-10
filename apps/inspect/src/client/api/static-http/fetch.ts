@@ -60,7 +60,7 @@ export const fetchLogFile = async (
   file: string
 ): Promise<LogContents | undefined> => {
   return fetchFile<LogContents>(file, async (text): Promise<LogContents> => {
-    const log = (await asyncJsonParse(text)) as EvalLog;
+    const log = await asyncJsonParse<EvalLog>(text);
     if (log.version === 1) {
       if (log.results) {
         const untypedLog = log as any;
@@ -113,7 +113,7 @@ export const fetchJsonFile = async <T>(
   return fetchFile<T>(
     file,
     async (text) => {
-      return (await asyncJsonParse(text)) as T;
+      return await asyncJsonParse<T>(text);
     },
     handleError
   );

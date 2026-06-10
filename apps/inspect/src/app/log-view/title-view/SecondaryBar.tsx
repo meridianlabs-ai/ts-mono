@@ -228,7 +228,7 @@ const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
     if (Array.isArray(val) || typeof val === "object") {
       return `${key}: ${JSON.stringify(val)}`;
     } else {
-      return `${key}: ${val}`;
+      return `${key}: ${String(val)}`;
     }
   });
   if (paraValues.length > 0) {

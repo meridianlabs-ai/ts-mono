@@ -127,7 +127,7 @@ const totalTokens = (sample: SampleSummary): number | null => {
 };
 
 const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target) ? target.join(", ") : ((target as string) ?? "");
+  Array.isArray(target) ? target.join(", ") : ((target) ?? "");
 
 const sampleVariables = (
   sample: SampleSummary,
@@ -198,8 +198,8 @@ export const sampleFilterItems = (
       });
       return;
     }
-    var tooltip = `${canonicalName}: ${descriptor.scoreType}`;
-    var categories: string[] = [];
+    let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
+    let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {
       const rounded = (num: number) => {
         // Additional round-trip to remove trailing zeros.
@@ -248,7 +248,7 @@ export const filterExpression = (
       );
     };
     const targetContains = (regex: string): boolean => {
-      let targets = Array.isArray(sample.target)
+      const targets = Array.isArray(sample.target)
         ? sample.target
         : [sample.target];
       return targets.some((target) => target.match(new RegExp(regex, "i")));

@@ -160,7 +160,7 @@ export const initializeStore = (
               await databaseService.closeDatabase();
 
               appCleanup();
-              await logsCleanup();
+              logsCleanup();
               logCleanup();
               sampleCleanup();
             },

@@ -30,7 +30,7 @@ export interface ScorerDescriptor {
 
 export interface ScoreDescriptor {
   scoreType: string;
-  categories?: Array<Object>;
+  categories?: unknown[];
   min?: number;
   max?: number;
   filterable?: boolean;

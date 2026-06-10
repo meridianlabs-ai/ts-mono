@@ -71,7 +71,7 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
             key={key}
             name={key}
             scores={scorers[key].scores}
-            params={scorers[key].params as Record<string, unknown>}
+            params={scorers[key].params}
           />
         );
       });

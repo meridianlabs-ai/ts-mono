@@ -340,7 +340,7 @@ export const clientApi = (
   const get_log_root = async (): Promise<LogRoot> => {
     const logFiles = await api.get_log_root();
     if (logFiles) {
-      return logFiles!;
+      return logFiles;
     } else if (log_file) {
       // Is there an explicitly passed log file?
       const summary = await get_log_details(log_file);
