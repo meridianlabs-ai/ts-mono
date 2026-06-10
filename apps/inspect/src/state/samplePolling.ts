@@ -131,6 +131,19 @@ export function createSamplePolling(
         message: string,
         options: { missingSampleIsError: boolean }
       ): Promise<PollingCallbackResult> => {
+        const keepStreaming = (): PollingCallbackResult => {
+          sampleActions.setSampleStatus("streaming");
+          return true;
+        };
+
+        const failLoad = (error: Error): PollingCallbackResult => {
+          stopPollingTimer();
+          sampleActions.setSampleError(error);
+          sampleActions.setSampleStatus("error");
+          sampleActions.setRunningEvents([]);
+          return false;
+        };
+
         try {
           log.debug(message);
           // The closure-captured `summary` is the stub {id, epoch} from
@@ -165,32 +178,22 @@ export function createSamplePolling(
           }
 
           if (!options.missingSampleIsError) {
-            sampleActions.setSampleStatus("streaming");
-            return true;
+            return keepStreaming();
           }
 
-          stopPollingTimer();
-          sampleActions.setSampleStatus("error");
-          sampleActions.setSampleError(
+          return failLoad(
             new Error("Unable to load sample - an unknown error occurred")
           );
-          sampleActions.setRunningEvents([]);
-          return false;
         } catch (e) {
           if (localAbort.signal.aborted) {
             return false;
           }
 
           if (!options.missingSampleIsError) {
-            sampleActions.setSampleStatus("streaming");
-            return true;
+            return keepStreaming();
           }
 
-          stopPollingTimer();
-          sampleActions.setSampleError(e as Error);
-          sampleActions.setSampleStatus("error");
-          sampleActions.setRunningEvents([]);
-          return false;
+          return failLoad(e as Error);
         }
       };
 
