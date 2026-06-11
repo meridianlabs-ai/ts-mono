@@ -142,6 +142,24 @@ describe("resolveSample", () => {
   ])("$name", ({ sample, check }) => {
     check(resolveSample(sample));
   });
+
+  it("resolves attachment refs inside error_retries events", () => {
+    const sample = makeSample({
+      attachments: { abc123: "the real failed message body" },
+      error_retries: [
+        {
+          message: "RuntimeError",
+          traceback: "tb",
+          traceback_ansi: "tb",
+          events: [modelEvent([msg("m1", "user", "attachment://abc123")])],
+        },
+      ],
+    });
+    const resolved: any = resolveSample(sample);
+    expect(resolved.error_retries[0].events[0].input[0].content).toBe(
+      "the real failed message body"
+    );
+  });
 });
 
 const baseSummary = (

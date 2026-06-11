@@ -25,6 +25,14 @@ export const resolveSample = (sample: any): EvalSample => {
   sample.input = resolveAttachments(sample.input, sample.attachments);
   sample.messages = resolveAttachments(sample.messages, sample.attachments);
   sample.events = resolveAttachments(sample.events, sample.attachments);
+  // Retry-attempt events carry their own attachment:// refs into the shared
+  // sample.attachments map; resolve them too before the map is cleared.
+  if (sample.error_retries) {
+    sample.error_retries = sample.error_retries.map((retry: any) => ({
+      ...retry,
+      events: resolveAttachments(retry.events, sample.attachments),
+    }));
+  }
   sample.attachments = {};
   return sample;
 };
