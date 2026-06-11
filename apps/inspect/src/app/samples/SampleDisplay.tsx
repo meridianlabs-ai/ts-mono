@@ -412,6 +412,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
   const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Panel width is a global preference persisted across samples and reloads,
+  // shared by the Transcript and Messages tabs.
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const railPanelWidth = useStore((state) => {
+    const value = state.app.propertyBags["sidebar-widths"]?.["rail-panel"];
+    return typeof value === "number" ? value : undefined;
+  });
+  const setRailPanelWidth = useCallback(
+    (value: number) => setPropertyValue("sidebar-widths", "rail-panel", value),
+    [setPropertyValue]
+  );
+
   // Scanner scores power the docked Scans panel (and the transcript cite
   // labels). `open` gates the label computation to when the panel is showing.
   const scans = useSampleScans({
@@ -697,6 +711,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ),
       panel,
       label: activeRailId === "scans" ? "Scans" : "Search",
+      panelWidth: railPanelWidth,
+      onPanelWidthChange: setRailPanelWidth,
     };
   }, [
     activeRailId,
@@ -709,6 +725,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     railItems,
     onRailSelect,
     closeDock,
+    railPanelWidth,
+    setRailPanelWidth,
   ]);
 
   return (
@@ -810,6 +828,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   contentClassName={styles.chat}
                   scrollRef={scrollRef}
                   panelTop={stickyOffsetTop}
+                  panelWidth={railPanelWidth}
+                  onPanelWidthChange={setRailPanelWidth}
                   rail={
                     <ActivityRail
                       items={railItems}
@@ -987,6 +1007,9 @@ interface RailSidebarHostProps {
   /** The outer scroll container the panel sticks within. */
   scrollRef: RefObject<HTMLDivElement | null>;
   panelTop: number;
+  /** Controlled panel width, kept in sync with the Transcript tab's panel. */
+  panelWidth?: number;
+  onPanelWidthChange?: (width: number) => void;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
@@ -1002,13 +1025,21 @@ const RailSidebarHost: FC<RailSidebarHostProps> = ({
   panel,
   scrollRef,
   panelTop,
+  panelWidth,
+  onPanelWidthChange,
   contentClassName,
   children,
 }) => (
   <div className={styles.railHost}>
     <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
     {panel && (
-      <ResizablePanel scrollRef={scrollRef} offsetTop={panelTop} label="panel">
+      <ResizablePanel
+        scrollRef={scrollRef}
+        offsetTop={panelTop}
+        width={panelWidth}
+        onWidthChange={onPanelWidthChange}
+        label="panel"
+      >
         {panel}
       </ResizablePanel>
     )}

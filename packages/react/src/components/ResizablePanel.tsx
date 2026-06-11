@@ -18,6 +18,9 @@ interface ResizablePanelProps {
   offsetTop?: number;
   /** Optional ref to the panel's scroll element (e.g. for wheel forwarding). */
   panelScrollRef?: RefObject<HTMLDivElement | null>;
+  /** Controlled width (px). Pair with onWidthChange so dragging still applies;
+      omit to let the panel manage its own width starting at defaultWidth. */
+  width?: number;
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
@@ -38,13 +41,15 @@ export const ResizablePanel = ({
   scrollRef,
   offsetTop = 0,
   panelScrollRef,
+  width: controlledWidth,
   defaultWidth = 360,
   minWidth = 240,
   maxWidth = 800,
   onWidthChange,
   label,
 }: ResizablePanelProps) => {
-  const [width, setWidth] = useState(defaultWidth);
+  const [internalWidth, setInternalWidth] = useState(defaultWidth);
+  const width = controlledWidth ?? internalWidth;
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const onPointerDown = useCallback(
@@ -63,7 +68,7 @@ export const ResizablePanel = ({
       // Resizer is on the panel's left edge, so dragging left widens it.
       const next = startWidth - (e.clientX - startX);
       const clamped = Math.max(minWidth, Math.min(maxWidth, next));
-      setWidth(clamped);
+      setInternalWidth(clamped);
       onWidthChange?.(clamped);
     },
     [minWidth, maxWidth, onWidthChange]

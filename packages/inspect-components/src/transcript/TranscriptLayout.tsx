@@ -132,7 +132,8 @@ export interface TranscriptLayoutRightRailProps {
   panel?: ReactNode;
   /** Fixed rail width in px. Defaults to 44. */
   railWidth?: number;
-  /** Panel width (px) when open. Defaults to 360. */
+  /** Controlled panel width (px). Pair with onPanelWidthChange so dragging
+   *  still applies; omit both for panel-local width (360 default). */
   panelWidth?: number;
   /** Called with the new width as the user drags the panel's resize handle. */
   onPanelWidthChange?: (width: number) => void;
@@ -1408,7 +1409,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   scrollRef={scrollRef}
                   offsetTop={offsetTop}
                   panelScrollRef={rightRailPanelScrollRef}
-                  defaultWidth={rightRail.panelWidth}
+                  width={rightRail.panelWidth}
                   minWidth={rightRail.panelMinWidth}
                   maxWidth={rightRail.panelMaxWidth}
                   onWidthChange={rightRail.onPanelWidthChange}
