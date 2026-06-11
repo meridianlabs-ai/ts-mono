@@ -942,6 +942,10 @@ export interface components {
              * @enum {string}
              */
             trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget" | "agent_complete";
+            /** Trigger Metadata */
+            trigger_metadata?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
             /** Turn */
             turn: number;
             /** Uuid */
