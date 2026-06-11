@@ -18,6 +18,9 @@ vi.mock("@tsmono/react/components", async (importOriginal) => {
     ANSIDisplay: ({ output }: { output: string }) => (
       <pre data-testid="ansi-display">{output}</pre>
     ),
+    ExpandablePanel: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="expandable-panel">{children}</div>
+    ),
   };
 });
 
@@ -71,23 +74,21 @@ describe("SampleRetriedErrors", () => {
     expect(screen.queryByText("RuntimeError: failure 2")).toBeNull();
   });
 
-  it("remembers an attempt's Error/Events selection across collapse and reopen", () => {
+  it("shows the Events section for an open attempt that has events", () => {
     const scrollRef = createRef<HTMLDivElement>();
     const withEvents = (n: number): EvalRetryError => ({
       ...makeRetry(n),
       events: [{ event: "error" }] as unknown as EvalRetryError["events"],
     });
     render(
-      <SampleRetriedErrors id="s1" retries={[withEvents(1), withEvents(2)]} scrollRef={scrollRef} />,
+      <SampleRetriedErrors
+        id="s1"
+        retries={[withEvents(1), withEvents(2)]}
+        scrollRef={scrollRef}
+      />,
     );
-    // Attempt 2 is open by default on the Error view (traceback, no transcript).
-    expect(screen.queryByTestId("transcript-layout")).toBeNull();
-    // Switch it to Events.
-    fireEvent.click(screen.getByRole("button", { name: "Events" }));
-    expect(screen.getByTestId("transcript-layout")).toBeDefined();
-    // Collapse then reopen attempt 2 — the Events selection should persist.
-    fireEvent.click(screen.getByText("Attempt 2"));
-    fireEvent.click(screen.getByText("Attempt 2"));
+    // Attempt 2 is open by default and shows both Error and Events sections.
+    expect(screen.getByText("RuntimeError: failure 2")).toBeDefined();
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
   });
 });

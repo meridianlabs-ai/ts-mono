@@ -4,10 +4,7 @@ import { FC, RefObject, useEffect, useState } from "react";
 import { EvalRetryError } from "@tsmono/inspect-common";
 
 import { ApplicationIcons } from "../appearance/icons";
-import {
-  RetryAttemptCard,
-  RetryView,
-} from "./retry-display/RetryAttemptCard";
+import { RetryAttemptCard } from "./retry-display/RetryAttemptCard";
 import { RetryTerminalAnchor } from "./retry-display/RetryTerminalAnchor";
 import styles from "./SampleRetriedErrors.module.css";
 
@@ -26,21 +23,15 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   const [expandedIndex, setExpandedIndex] = useState<number | null>(
     retries.length - 1,
   );
-  const [viewByIndex, setViewByIndex] = useState<Record<number, RetryView>>({});
 
-  // Reset accordion/view state when switching to a different sample (the same
+  // Reset accordion state when switching to a different sample (the same
   // component instance can be reused across samples on the inline display path).
   useEffect(() => {
     setExpandedIndex(retries.length - 1);
-    setViewByIndex({});
   }, [id, retries.length]);
 
   const onToggleOpen = (index: number) => {
     setExpandedIndex((cur) => (cur === index ? null : index));
-  };
-
-  const onViewChange = (index: number, view: RetryView) => {
-    setViewByIndex((prev) => ({ ...prev, [index]: view }));
   };
 
   return (
@@ -58,9 +49,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
                 retry={retry}
                 attemptNumber={index + 1}
                 isOpen={expandedIndex === index}
-                view={viewByIndex[index] ?? "error"}
                 onToggleOpen={() => onToggleOpen(index)}
-                onViewChange={(view) => onViewChange(index, view)}
                 listId={`sample-error-retries-${id}-${index}`}
                 scrollRef={scrollRef}
               />

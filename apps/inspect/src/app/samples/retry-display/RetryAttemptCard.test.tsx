@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EvalRetryError } from "@tsmono/inspect-common";
 
 // TranscriptLayout pulls in the full transcript stack; stub it so this test
-// exercises only the card's own header/toggle/traceback logic.
+// exercises only the card's own structure.
 vi.mock("@tsmono/inspect-components/transcript", () => ({
   TranscriptLayout: () => <div data-testid="transcript-layout" />,
 }));
@@ -15,10 +15,14 @@ vi.mock("@tsmono/react/components", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tsmono/react/components")>();
   return {
     ...actual,
-    // ANSIDisplay needs an icon-provider context that isn't present in jsdom;
-    // stub it so the card's own logic is what's under test.
+    // ANSIDisplay needs an icon-provider context, and ExpandablePanel needs the
+    // component-state provider — neither is present in jsdom. Stub both so the
+    // card's own logic is what's under test.
     ANSIDisplay: ({ output }: { output: string }) => (
       <pre data-testid="ansi-display">{output}</pre>
+    ),
+    ExpandablePanel: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="expandable-panel">{children}</div>
     ),
   };
 });
@@ -32,6 +36,11 @@ const baseRetry: EvalRetryError = {
   events: null,
 };
 
+const withEvents = (): EvalRetryError => ({
+  ...baseRetry,
+  events: [{ event: "error" }] as unknown as EvalRetryError["events"],
+});
+
 function renderCard(props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}) {
   const scrollRef = createRef<HTMLDivElement>();
   return render(
@@ -39,9 +48,7 @@ function renderCard(props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}
       retry={baseRetry}
       attemptNumber={1}
       isOpen={true}
-      view="error"
       onToggleOpen={() => {}}
-      onViewChange={() => {}}
       listId="test-list-0"
       scrollRef={scrollRef}
       {...props}
@@ -58,23 +65,23 @@ describe("RetryAttemptCard", () => {
     expect(screen.getByText("RuntimeError")).toBeDefined();
   });
 
-  it("shows the traceback in the error view and no Events toggle when there are no events", () => {
-    renderCard({ view: "error" });
-    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
+  it("always shows the Error section with the traceback", () => {
+    renderCard();
+    expect(screen.getByText("Error")).toBeDefined();
+    expect(screen.getByTestId("ansi-display")).toBeDefined();
+  });
+
+  it("shows no Events section when there are no events", () => {
+    renderCard();
+    expect(screen.queryByText("Terminal Events")).toBeNull();
     expect(screen.queryByTestId("transcript-layout")).toBeNull();
   });
 
-  it("renders the Error/Events toggle when events exist", () => {
-    renderCard({ retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] } });
-    expect(screen.getByRole("button", { name: "Error" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Events" })).toBeDefined();
-  });
-
-  it("renders the transcript when view is events", () => {
-    renderCard({
-      retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] },
-      view: "events",
-    });
+  it("shows both Error and Events sections when events exist", () => {
+    renderCard({ retry: withEvents() });
+    expect(screen.getByText("Error")).toBeDefined();
+    expect(screen.getByText("Terminal Events")).toBeDefined();
+    expect(screen.getByTestId("ansi-display")).toBeDefined();
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
   });
 
@@ -86,8 +93,10 @@ describe("RetryAttemptCard", () => {
   });
 
   it("hides the body when collapsed", () => {
-    renderCard({ isOpen: false, retry: { ...baseRetry, events: [{ event: "error" }] as unknown as EvalRetryError["events"] } });
-    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
+    renderCard({ isOpen: false, retry: withEvents() });
+    expect(screen.queryByText("Error")).toBeNull();
+    expect(screen.queryByTestId("ansi-display")).toBeNull();
+    expect(screen.queryByTestId("transcript-layout")).toBeNull();
   });
 
   it("toggles open on Enter and Space keydown on the header", () => {

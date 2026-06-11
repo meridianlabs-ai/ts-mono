@@ -6,26 +6,17 @@ import {
   TranscriptCollapseState,
   TranscriptLayout,
 } from "@tsmono/inspect-components/transcript";
-import { ANSIDisplay, SegmentedControl } from "@tsmono/react/components";
+import { ANSIDisplay, ExpandablePanel } from "@tsmono/react/components";
 import { formatTime } from "@tsmono/util";
 
 import { attemptDuration, deriveErrorType } from "./retryAttempt";
 import styles from "./RetryAttemptCard.module.css";
 
-export type RetryView = "error" | "events";
-
-const kViewSegments = [
-  { id: "error", label: "Error", icon: "bi bi-exclamation-triangle" },
-  { id: "events", label: "Events", icon: "bi bi-list-ul" },
-];
-
 export interface RetryAttemptCardProps {
   retry: EvalRetryError;
   attemptNumber: number;
   isOpen: boolean;
-  view: RetryView;
   onToggleOpen: () => void;
-  onViewChange: (view: RetryView) => void;
   listId: string;
   scrollRef: RefObject<HTMLDivElement | null>;
 }
@@ -34,9 +25,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
   retry,
   attemptNumber,
   isOpen,
-  view,
   onToggleOpen,
-  onViewChange,
   listId,
   scrollRef,
 }) => {
@@ -77,21 +66,28 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
 
       {isOpen && (
         <div className={styles.body}>
+          <div className={styles.sectionHeader}>Error</div>
+          <ExpandablePanel
+            id={`retry-error-${listId}`}
+            collapse={true}
+            className={styles.errorPanel}
+          >
+            <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
+          </ExpandablePanel>
+
           {hasEvents && (
-            <div className={styles.toggle}>
-              <SegmentedControl
-                segments={kViewSegments}
-                selectedId={view}
-                onSegmentChange={(id) => onViewChange(id as RetryView)}
+            <>
+              <div
+                className={clsx(styles.sectionHeader, styles.sectionHeaderEvents)}
+              >
+                Terminal Events
+              </div>
+              <RetryEventsView
+                retry={retry}
+                listId={listId}
+                scrollRef={scrollRef}
               />
-            </div>
-          )}
-          {view === "error" || !hasEvents ? (
-            <div className={styles.errorView}>
-              <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
-            </div>
-          ) : (
-            <RetryEventsView retry={retry} listId={listId} scrollRef={scrollRef} />
+            </>
           )}
         </div>
       )}
