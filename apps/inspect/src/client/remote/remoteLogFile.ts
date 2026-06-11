@@ -339,9 +339,7 @@ export const openRemoteLogFile = async (
         readHeader(),
         listSamples().then((sampleIds) =>
           Promise.all(
-            sampleIds.map(({ sampleId, epoch }) =>
-              readSample(sampleId, epoch).then((sample) => sample)
-            )
+            sampleIds.map(({ sampleId, epoch }) => readSample(sampleId, epoch))
           )
         ),
       ]);
