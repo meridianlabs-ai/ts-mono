@@ -68,7 +68,7 @@ export const useScoutSearchPanelState = ({
     [key, setSearchPanelState]
   );
 
-  return { state, setState };
+  return useMemo(() => ({ state, setState }), [state, setState]);
 };
 
 export const useScoutSearchModelHistory = (): ModelHistoryController => {

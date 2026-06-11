@@ -150,7 +150,7 @@ export const useInspectSearchPanelState = ({
     [key, setSearchPanelState]
   );
 
-  return { state, setState };
+  return useMemo(() => ({ state, setState }), [state, setState]);
 };
 
 export const useInspectSearchModelHistory = (): ModelHistoryController => {
