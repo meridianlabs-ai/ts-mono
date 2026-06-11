@@ -7,10 +7,9 @@ import type { MarkdownReference } from "@tsmono/react/components";
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { MessageLabel } from "./MessageLabel";
-import { Message, ResolvedMessage } from "./messages";
+import { hasServerToolUse, Message, ResolvedMessage } from "./messages";
+import { ClientToolCall } from "./tools/ClientToolCall";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
-import { ToolCallErrorView } from "./tools/ToolCallErrorView";
-import { ToolCallView } from "./tools/ToolCallView";
 import {
   ChatViewDisplayOptions,
   ChatViewLabelOptions,
@@ -57,7 +56,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const getCustomToolView = tools?.renderToolCall;
 
   const views: ReactNode[] = [];
-  const viewKinds: Array<"message" | "tool" | "tool-result"> = [];
+  const viewKinds: Array<"message" | "tool"> = [];
   const viewChips: Array<ReactNode | undefined> = [];
   const useLabels = showLabels || Object.keys(labelValues || {}).length > 0;
 
@@ -145,8 +144,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         ? substituteToolCallContent(tool_call.view, tool_call.arguments)
         : undefined;
 
-      // The call (title + input) is one peer block; its output (or error) is a
-      // separate peer block beneath it. Compact mode keeps the single line.
+      // Each tool call is one self-contained block: collapsible header with
+      // the input zone and output well beneath. Compact mode keeps the
+      // single line.
       if (toolCallStyle === "compact") {
         views.push(
           <ToolCallViewCompact idx={idx} functionCall={functionCall} />
@@ -155,7 +155,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         viewChips.push(undefined);
       } else {
         views.push(
-          <ToolCallView
+          <ClientToolCall
             id={`${index}-tool-call-${idx}`}
             key={`tool-call-${idx}`}
             tool={name}
@@ -164,49 +164,20 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             description={description}
             contentType={contentType}
             output={resolvedToolOutput}
+            error={toolMessage?.error ?? undefined}
             view={resolvedToolView}
-            section="call"
             getCustomToolView={getCustomToolView}
           />
         );
         viewKinds.push("tool");
-        // The position chip sits on the call (the blue tool box). Tools inherit
-        // the parent message's citation when a label map is supplied.
+        // The position chip sits on the tool block. Tools inherit the parent
+        // message's citation when a label map is supplied.
         const toolLabel = useLabels
           ? labelForBlock(resolvedMessage.message.id, toolNumber)
           : undefined;
         viewChips.push(
           toolLabel?.trim() ? <MessageLabel label={toolLabel} /> : undefined
         );
-
-        if (toolMessage?.error) {
-          views.push(
-            <ToolCallErrorView
-              key={`tool-call-${idx}-error`}
-              error={toolMessage.error}
-            />
-          );
-          viewKinds.push("tool-result");
-          viewChips.push(undefined);
-        } else if (hasOutputContent(resolvedToolOutput)) {
-          views.push(
-            <ToolCallView
-              id={`${index}-tool-call-${idx}`}
-              key={`tool-call-${idx}-output`}
-              tool={name}
-              functionCall={functionCall}
-              input={input}
-              description={description}
-              contentType={contentType}
-              output={resolvedToolOutput}
-              view={resolvedToolView}
-              section="output"
-              getCustomToolView={getCustomToolView}
-            />
-          );
-          viewKinds.push("tool-result");
-          viewChips.push(undefined);
-        }
       }
       toolNumber++;
 
@@ -224,34 +195,41 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   if (useLabels || hasTools) {
     // Each row part is a peer block: the message in its role band, the tool
     // call in the blue tool box, and the tool output in a plain bordered box.
-    const renderPart = (
-      idx: number,
-      attached?: { top?: boolean; bottom?: boolean }
-    ) => {
+    const renderPart = (idx: number) => {
       const kind = viewKinds[idx];
       const isMessage = kind === "message";
+      // A message with server-side tool calls is a seamless turn container:
+      // ChatMessage renders the band/tool rows internally, so the wrapper
+      // carries the container frame instead of the role band.
+      const isTurn = isMessage && hasServerToolUse(resolvedMessage.message);
       const chip = viewChips[idx];
       return (
         <div
           key={`chat-message-row-${index}-part-${idx}`}
           data-message-role={
-            isMessage ? resolvedMessage.message.role : undefined
+            isMessage && !isTurn ? resolvedMessage.message.role : undefined
           }
-          data-message-kind={kind}
+          data-message-kind={isMessage ? kind : undefined}
           className={clsx(
-            isMessage && styles.container,
-            hasTools ? styles.box : undefined,
+            isMessage && !isTurn && styles.container,
+            isTurn
+              ? styles.turnContainer
+              : isMessage && hasTools
+                ? styles.box
+                : undefined,
+            !isMessage ? styles.toolPart : undefined,
             isMessage &&
+              !isTurn &&
               highlightUserMessage &&
               resolvedMessage.message.role === "user"
               ? styles.user
               : undefined,
-            isMessage && !hasTools && idx === 0 ? styles.first : undefined,
-            isMessage && !hasTools && idx === views.length - 1
+            isMessage && !isTurn && !hasTools && idx === 0
+              ? styles.first
+              : undefined,
+            isMessage && !isTurn && !hasTools && idx === views.length - 1
               ? styles.last
               : undefined,
-            attached?.bottom ? styles.attachedBottom : undefined,
-            attached?.top ? styles.attachedTop : undefined,
             highlightLabeled && isMessage && messageChip
               ? styles.highlight
               : undefined
@@ -263,41 +241,28 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       );
     };
 
-    // Attach a tool output to the bottom of its call so the call/output read as
-    // one connected card; the assistant message stays a separate peer above.
-    const items: ReactNode[] = [];
-    for (let idx = 0; idx < views.length; idx++) {
-      if (viewKinds[idx] === "tool" && viewKinds[idx + 1] === "tool-result") {
-        items.push(
-          <div
-            key={`chat-message-row-${index}-toolgroup-${idx}`}
-            className={styles.attachedGroup}
-          >
-            {renderPart(idx, { bottom: true })}
-            {renderPart(idx + 1, { top: true })}
-          </div>
-        );
-        idx++;
-      } else {
-        items.push(renderPart(idx));
-      }
-    }
-
-    return <div className={clsx(styles.grid, className)}>{items}</div>;
+    return (
+      <div className={clsx(styles.grid, className)}>
+        {views.map((_, idx) => renderPart(idx))}
+      </div>
+    );
   } else {
+    const isTurn = hasServerToolUse(resolvedMessage.message);
     return views.map((view, idx) => {
       return (
         <div
           key={`chat-message-row-unlabeled-${index}-part-${idx}`}
-          data-message-role={resolvedMessage.message.role}
+          data-message-role={isTurn ? undefined : resolvedMessage.message.role}
           className={clsx(
-            styles.container,
-            idx === 0 ? styles.first : undefined,
-            idx === views.length - 1 ? styles.last : undefined,
+            isTurn ? styles.turnContainer : styles.container,
+            !isTurn && idx === 0 ? styles.first : undefined,
+            !isTurn && idx === views.length - 1 ? styles.last : undefined,
             idx === views.length - 1 ? styles.bottomMargin : undefined,
             className,
-            styles.simple,
-            highlightUserMessage && resolvedMessage.message.role === "user"
+            !isTurn && styles.simple,
+            !isTurn &&
+              highlightUserMessage &&
+              resolvedMessage.message.role === "user"
               ? styles.user
               : undefined
           )}
@@ -389,15 +354,6 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
   }
 };
 
-// Whether a resolved tool output has anything worth rendering in its own
-// result box (skip an empty box when the call produced no output).
-const hasOutputContent = (output: ContentTool[]): boolean =>
-  output.some((tool) =>
-    tool.content.some(
-      (item) => item.type !== "text" || item.text.trim().length > 0
-    )
-  );
-
 const hasVisibleContent = (message: Message): boolean => {
   const content = message.content;
   if (typeof content === "string") {
@@ -408,7 +364,9 @@ const hasVisibleContent = (message: Message): boolean => {
   }
   return content.some((c) => {
     if (c.type === "tool_use") {
-      return false;
+      // Server-side tool calls render as their own rows of the turn
+      // container, so they make the message worth rendering.
+      return true;
     }
     if (c.type === "text") {
       const hasText = c.text.trim().length > 0;

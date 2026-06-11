@@ -266,12 +266,13 @@ const messageRenderers: Record<string, MessageRenderer> = {
       return <ToolOutput output={c.content} key={key} />;
     },
   },
-  // server-side tool use
+  // server-side tool use. Assistant turns render these as flush rows of the
+  // turn container (see ChatMessage); this fallback covers any other context,
+  // so the block carries its own frame.
   tool_use: {
     render: (key, content) => {
       const c = content as ContentToolUse;
-      // If the tool use has a tool, render it
-      return <ServerToolCall id={key} content={c} />;
+      return <ServerToolCall id={key} content={c} flush={false} />;
     },
   },
   data: {

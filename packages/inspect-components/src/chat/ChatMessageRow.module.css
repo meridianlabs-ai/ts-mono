@@ -50,9 +50,19 @@
   background-color: rgba(var(--bs-info-rgb), 0.12);
 }
 
-/* Prototype: self-contained box (used when tool calls are un-embedded) so the
-   assistant message and each tool call read as separate cards rather than one
-   connected band. */
+/* Assistant turn with server-side tool calls: one seamless container — the
+   prose band and flush tool rows inside supply their own left edges, so the
+   frame itself has no left border. */
+.turnContainer {
+  border: 1px solid var(--bs-light-border-subtle);
+  border-left: none;
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+
+/* Self-contained box (used when tool calls are un-embedded) so the assistant
+   message and each tool call read as separate cards rather than one connected
+   band. */
 .box {
   position: relative;
   border: solid 1px var(--bs-light-border-subtle);
@@ -60,33 +70,16 @@
   padding: 0.7rem;
 }
 
-/* An assistant turn rendered as one connected stack: the message, its tool
-   call(s), and output(s) sit flush so they read as a single card with a
-   continuous left gutter. */
-.attachedGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-.attachedBottom {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  /* Drop the divider so the call/output pair reads as one seamless card —
-     only the background color shifts (blue call → gray output). */
-  border-bottom: 0;
-}
-
-.attachedTop {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top: 0;
+/* Tool blocks carry their own frame; the wrapper only anchors the chip. */
+.toolPart {
+  position: relative;
 }
 
 /* Tool-call number chip, pinned to the top-right of its box to mirror the
    position chip on a message's role line. */
 .toolLabel {
   position: absolute;
-  top: 0.7rem;
+  top: 0.45rem;
   right: 0.7rem;
   z-index: 1;
 }

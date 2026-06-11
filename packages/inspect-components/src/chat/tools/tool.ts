@@ -2,6 +2,79 @@ import type { ToolCallContent } from "@tsmono/inspect-common/types";
 
 export const kToolTodoContentType = "agent/todo-list";
 
+/* Per-tool header icons (Bootstrap Icons classes) for the tool block
+   grammar. Keyed by the tool names Inspect and the common CLI agents emit. */
+const kToolIcons: Record<string, string> = {
+  // shells
+  bash: "bi-terminal",
+  Bash: "bi-terminal",
+  bash_session: "bi-terminal",
+  shell: "bi-terminal",
+  shell_command: "bi-terminal",
+  exec_command: "bi-terminal",
+  // code
+  python: "bi-code-square",
+  code_execution: "bi-code-square",
+  // web
+  web_search: "bi-search",
+  WebSearch: "bi-search",
+  web_fetch: "bi-globe2",
+  WebFetch: "bi-globe2",
+  web_browser: "bi-window",
+  // editing / files
+  text_editor: "bi-pencil-square",
+  str_replace_editor: "bi-pencil-square",
+  str_replace_based_edit_tool: "bi-pencil-square",
+  Edit: "bi-pencil-square",
+  Write: "bi-pencil-square",
+  NotebookEdit: "bi-pencil-square",
+  Read: "bi-file-earmark-text",
+  Glob: "bi-search",
+  Grep: "bi-search",
+  // sub-agents
+  task: "bi-people",
+  Task: "bi-people",
+  agent: "bi-people",
+  Agent: "bi-people",
+  spawn_agent: "bi-people",
+  send_input: "bi-people",
+  wait_agent: "bi-people",
+  resume_agent: "bi-people",
+  close_agent: "bi-people",
+  agent_status: "bi-people",
+  agent_wait: "bi-people",
+  agent_cancel: "bi-people",
+  agent_list: "bi-people",
+  // planning
+  TodoWrite: "bi-list-check",
+  todo_write: "bi-list-check",
+  update_plan: "bi-list-check",
+  think: "bi-lightbulb",
+  // misc
+  computer: "bi-display",
+  tool_search: "bi-search",
+  mcp_list_tools: "bi-plug",
+  mcp_call: "bi-plug",
+};
+
+/**
+ * Header icon for a tool call. Unknown client tools get the general tool
+ * icon; unknown server tools keep the globe (the server tell).
+ */
+export const iconForTool = (
+  tool: string,
+  options?: { server?: boolean }
+): string => {
+  const icon = kToolIcons[tool];
+  if (icon) {
+    return icon;
+  }
+  if (tool.startsWith("browser_")) {
+    return "bi-window";
+  }
+  return options?.server ? "bi-globe2" : "bi-tools";
+};
+
 export interface ToolCallResult {
   name: string;
   functionCall: string;

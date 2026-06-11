@@ -79,6 +79,8 @@
 }
 
 :root[data-bs-theme="dark"] {
+  --inspect-tool-output-bg: #14171c;
+
   --inspect-msg-label-bg: #2a2a2e;
   --inspect-msg-label-bg-hover: #33333a;
   --inspect-msg-label-border: #3a3a40;
@@ -150,55 +152,6 @@
 :root[data-theme-variant="readable"] [data-message-role] div.tool-call-input {
   background-color: var(--inspect-tool-output-bg);
   border-left: 1px solid var(--bs-light-border-subtle);
-}
-
-/* The tool call is its own peer block: under readable the whole box is the blue
-   call surface (header + input). */
-:root[data-theme-variant="readable"] [data-message-kind="tool"] {
-  background-color: var(--inspect-readable-tool-call-bg);
-  border-left: 3px solid var(--inspect-readable-tool-call-border);
-}
-
-/* Flush the call input AND the output to the box padding edge in EVERY theme so
-   they line up. The input otherwise carries ToolInput's .toolView padding (and,
-   under readable, the .tool-call-input padding) plus the prism code block's own
-   padding/margin, over-indenting it relative to the output. The `:root` prefix
-   lifts specificity above the readable .tool-call-input rule. */
-:root [data-message-kind="tool"] pre.tool-call-input,
-:root [data-message-kind="tool"] div.tool-call-input {
-  border: 0;
-  border-radius: 0;
-  padding: 0 !important;
-}
-:root [data-message-kind="tool"] .tool-call-input pre[class*="language-"] {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-:root [data-message-kind="tool-result"] .tool-output {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-:root[data-theme-variant="readable"]
-  [data-message-kind="tool"]
-  pre.tool-call-input,
-:root[data-theme-variant="readable"]
-  [data-message-kind="tool"]
-  div.tool-call-input {
-  background-color: transparent;
-}
-
-/* The tool output attaches beneath its call — a light-gray box that shares the
-   call's blue left gutter so the pair reads as one connected card. */
-:root[data-theme-variant="readable"] [data-message-kind="tool-result"] {
-  background-color: var(--inspect-tool-output-bg);
-  border-left: 3px solid var(--inspect-readable-tool-call-border);
-}
-:root[data-theme-variant="readable"]
-  [data-message-kind="tool-result"]
-  .tool-output {
-  background-color: transparent;
-  border: 0;
-  border-radius: 0;
 }
 
 /* Light subtle box around tool output (standalone transcript tool events). */

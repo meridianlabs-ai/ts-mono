@@ -32,6 +32,17 @@ export interface ResolvedMessage {
   toolMessages: ChatMessageTool[];
 }
 
+/** Whether an assistant message carries server-side tool calls (provider
+ * executed `tool_use` content blocks) — these render as flush rows of the
+ * assistant turn container rather than as message body. */
+export const hasServerToolUse = (message: Message): boolean => {
+  return (
+    message.role === "assistant" &&
+    Array.isArray(message.content) &&
+    message.content.some((c) => c.type === "tool_use")
+  );
+};
+
 export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
   // Filter tool messages into a sidelist that the chat stream
   // can use to lookup the tool responses

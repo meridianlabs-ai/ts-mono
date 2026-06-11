@@ -4,10 +4,9 @@ import { FC, useMemo } from "react";
 import type { ModelEvent, ToolEvent } from "@tsmono/inspect-common/types";
 import {
   ChatView,
+  ClientToolCall,
   resolveToolInput,
   substituteToolCallContent,
-  ToolCallErrorView,
-  ToolCallView,
   type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
 
@@ -97,60 +96,22 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   );
 
   const showError = !!event.error && event.error.type !== "approval";
-  const showResult = !showError && hasResultContent(event.result);
 
-  // Render the call and its output as one attached pair (blue call box with the
-  // gray output box seamlessly beneath it), mirroring the messages view. The
-  // colors/flatten come from the shared [data-message-kind] rules in the theme.
+  // The shared tool block grammar: collapsible header with the input zone and
+  // output well stacked beneath.
   const toolCallView = (
-    <div className={styles.attachedGroup}>
-      <div
-        data-message-kind="tool"
-        className={clsx(
-          styles.toolBox,
-          showError || showResult ? styles.attachedBottom : undefined
-        )}
-      >
-        <ToolCallView
-          id={`${eventNode.id}-tool-call`}
-          tool={name}
-          functionCall={functionCall}
-          input={input}
-          description={description}
-          contentType={contentType}
-          output=""
-          mode="compact"
-          view={resolvedView}
-          section="call"
-        />
-      </div>
-      {showError ? (
-        <div
-          data-message-kind="tool-result"
-          className={clsx(styles.toolBox, styles.attachedTop)}
-        >
-          <ToolCallErrorView error={event.error!} />
-        </div>
-      ) : showResult ? (
-        <div
-          data-message-kind="tool-result"
-          className={clsx(styles.toolBox, styles.attachedTop)}
-        >
-          <ToolCallView
-            id={`${eventNode.id}-tool-call`}
-            tool={name}
-            functionCall={functionCall}
-            input={input}
-            description={description}
-            contentType={contentType}
-            output={event.result || ""}
-            mode="compact"
-            view={resolvedView}
-            section="output"
-          />
-        </div>
-      ) : null}
-    </div>
+    <ClientToolCall
+      id={`${eventNode.id}-tool-call`}
+      tool={name}
+      title={displayName}
+      functionCall={functionCall}
+      input={input}
+      description={description}
+      contentType={contentType}
+      output={event.result ?? ""}
+      error={showError ? event.error! : undefined}
+      view={resolvedView}
+    />
   );
 
   const toolLabel = toolLabels.messageLabels?.[event.id];
@@ -214,10 +175,3 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   );
 };
 
-// Whether a tool event has output worth rendering in its own result box.
-function hasResultContent(result: ToolEvent["result"]): boolean {
-  if (result === null || result === undefined) return false;
-  if (typeof result === "string") return result.trim().length > 0;
-  if (Array.isArray(result)) return result.length > 0;
-  return true;
-}
