@@ -106,23 +106,19 @@ export const useInspectSearchApi = (
 ): SearchPanelApi | null => {
   const api = useApi();
   return useMemo(() => {
-    if (
-      !api.post_search ||
-      !api.get_search_result ||
-      !api.list_searches ||
-      !transcriptId
-    ) {
+    const { post_search, get_search_result, list_searches } = api;
+    if (!post_search || !get_search_result || !list_searches || !transcriptId) {
       return null;
     }
     const transcriptDir = stripFileScheme(logFile);
     return {
       cacheKey: `${transcriptDir}\u0000${transcriptId}`,
       createSearch: (request) =>
-        api.post_search!(transcriptDir, transcriptId, request),
+        post_search(transcriptDir, transcriptId, request),
       getCachedResult: (searchId, scope) =>
-        api.get_search_result!(transcriptDir, transcriptId, searchId, scope),
+        get_search_result(transcriptDir, transcriptId, searchId, scope),
       listRecentSearches: (searchType: SearchType, count?: number) =>
-        api.list_searches!(searchType, count ?? 20),
+        list_searches(searchType, count ?? 20),
     };
   }, [api, logFile, transcriptId]);
 };
