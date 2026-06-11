@@ -130,11 +130,11 @@ export interface TranscriptLayoutRightRailProps {
   rail: ReactNode;
   /** Panel content shown in a column to the LEFT of the rail. Null = no panel open. */
   panel?: ReactNode;
-  /** Fixed rail width in px. Defaults to 72. */
+  /** Fixed rail width in px. Defaults to 44. */
   railWidth?: number;
   /** Panel width (px) when open. Defaults to 360. */
   panelWidth?: number;
-  /** When provided, the panel is resizable: callback fires with the new width during drag. */
+  /** Called with the new width as the user drags the panel's resize handle. */
   onPanelWidthChange?: (width: number) => void;
   panelMinWidth?: number;
   panelMaxWidth?: number;
