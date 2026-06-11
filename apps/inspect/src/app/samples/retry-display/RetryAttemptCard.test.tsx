@@ -65,24 +65,33 @@ describe("RetryAttemptCard", () => {
     expect(screen.getByText("RuntimeError")).toBeDefined();
   });
 
-  it("always shows the Error section with the traceback", () => {
+  it("shows the traceback (and no toggle) when expanded with no events", () => {
     renderCard();
-    expect(screen.getByText("Error")).toBeDefined();
     expect(screen.getByTestId("ansi-display")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
   });
 
-  it("shows no Events section when there are no events", () => {
-    renderCard();
-    expect(screen.queryByText("Terminal Events")).toBeNull();
-    expect(screen.queryByTestId("transcript-layout")).toBeNull();
-  });
-
-  it("shows both Error and Events sections when events exist", () => {
+  it("shows the Error/Events toggle only when events exist", () => {
     renderCard({ retry: withEvents() });
-    expect(screen.getByText("Error")).toBeDefined();
-    expect(screen.getByText("Terminal Events")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Error" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Events" })).toBeDefined();
+  });
+
+  it("defaults to the error view and switches to events on toggle", () => {
+    renderCard({ retry: withEvents() });
     expect(screen.getByTestId("ansi-display")).toBeDefined();
+    expect(screen.queryByTestId("transcript-layout")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
+    expect(screen.queryByTestId("ansi-display")).toBeNull();
+  });
+
+  it("toggling the view does not collapse the card", () => {
+    const onToggleOpen = vi.fn();
+    renderCard({ retry: withEvents(), onToggleOpen });
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
+    expect(onToggleOpen).not.toHaveBeenCalled();
   });
 
   it("calls onToggleOpen when the header is clicked", () => {
@@ -92,9 +101,9 @@ describe("RetryAttemptCard", () => {
     expect(onToggleOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("hides the body when collapsed", () => {
+  it("hides the body and toggle when collapsed", () => {
     renderCard({ isOpen: false, retry: withEvents() });
-    expect(screen.queryByText("Error")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
     expect(screen.queryByTestId("ansi-display")).toBeNull();
     expect(screen.queryByTestId("transcript-layout")).toBeNull();
   });

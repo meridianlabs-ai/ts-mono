@@ -74,7 +74,7 @@ describe("SampleRetriedErrors", () => {
     expect(screen.queryByText("RuntimeError: failure 2")).toBeNull();
   });
 
-  it("shows the Events section for an open attempt that has events", () => {
+  it("shows the open attempt's events after toggling to the Events view", () => {
     const scrollRef = createRef<HTMLDivElement>();
     const withEvents = (n: number): EvalRetryError => ({
       ...makeRetry(n),
@@ -87,8 +87,12 @@ describe("SampleRetriedErrors", () => {
         scrollRef={scrollRef}
       />,
     );
-    // Attempt 2 is open by default and shows both Error and Events sections.
+    // Attempt 2 is open by default on the Error view (only the expanded card
+    // exposes the toggle).
     expect(screen.getByText("RuntimeError: failure 2")).toBeDefined();
+    expect(screen.queryByTestId("transcript-layout")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
   });
 });

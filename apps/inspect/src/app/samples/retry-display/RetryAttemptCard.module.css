@@ -54,57 +54,36 @@
   white-space: nowrap;
 }
 
-.duration {
+/* Right-aligned group: the (expanded-only) Error/Events toggle, duration, and
+   chevron. */
+.headerRight {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerToggle {
+  display: flex;
+}
+
+.duration {
   font-family: var(--bs-font-monospace);
   font-size: 12px;
   color: var(--bs-tertiary-color);
   white-space: nowrap;
 }
 
-/* When there's no duration, the chevron still anchors right. */
 .chevron {
-  margin-left: auto;
   color: var(--bs-tertiary-color);
   font-size: 14px;
 }
 
-.duration + .chevron {
-  margin-left: 0;
-}
-
 /* No horizontal padding: the Events transcript goes edge-to-edge so its row
-   borders meet the card edges. Section headers and the error panel re-add
-   their own inset. */
+   borders meet the card edges. The error panel re-adds its own inset. */
 .body {
-  padding-top: 8px;
+  padding-top: 10px;
   padding-bottom: 16px;
-}
-
-/* Titled-divider header: icon + label inset on the left, optional count on the
-   right, with a thin full-width rule underneath (the border spans the full card
-   width since the header has no horizontal margin). */
-.sectionHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px 6px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--bs-border-color);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--bs-secondary-color);
-}
-
-.sectionHeaderEvents {
-  margin-top: 16px;
-}
-
-.sectionIcon {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
 }
 
 .errorPanel {

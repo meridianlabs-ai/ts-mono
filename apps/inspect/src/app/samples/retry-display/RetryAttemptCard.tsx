@@ -6,11 +6,22 @@ import {
   TranscriptCollapseState,
   TranscriptLayout,
 } from "@tsmono/inspect-components/transcript";
-import { ANSIDisplay, ExpandablePanel } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  ExpandablePanel,
+  SegmentedControl,
+} from "@tsmono/react/components";
 import { formatTime } from "@tsmono/util";
 
 import { attemptDuration, deriveErrorType } from "./retryAttempt";
 import styles from "./RetryAttemptCard.module.css";
+
+export type RetryView = "error" | "events";
+
+const kViewSegments = [
+  { id: "error", label: "Error", icon: "bi bi-exclamation-triangle" },
+  { id: "events", label: "Events", icon: "bi bi-list-ul" },
+];
 
 export interface RetryAttemptCardProps {
   retry: EvalRetryError;
@@ -32,6 +43,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
   const errorType = useMemo(() => deriveErrorType(retry), [retry]);
   const durationSec = useMemo(() => attemptDuration(retry), [retry]);
   const hasEvents = !!retry.events?.length;
+  const [view, setView] = useState<RetryView>("error");
 
   return (
     <div className={clsx(styles.card, isOpen ? styles.cardOpen : styles.cardCollapsed)}>
@@ -51,53 +63,46 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
         <span className={styles.attemptLabel}>{`Attempt ${attemptNumber}`}</span>
         {errorType && <span className={styles.errorChip}>{errorType}</span>}
         {retry.message && <span className={styles.message}>{retry.message}</span>}
-        {durationSec != null && (
-          <span className={styles.duration}>{formatTime(durationSec)}</span>
-        )}
-        <i
-          className={clsx(
-            "bi",
-            isOpen ? "bi-chevron-down" : "bi-chevron-right",
-            styles.chevron,
+        <div className={styles.headerRight}>
+          {isOpen && hasEvents && (
+            // Stop propagation so toggling the view doesn't collapse the card.
+            <div
+              className={styles.headerToggle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SegmentedControl
+                segments={kViewSegments}
+                selectedId={view}
+                onSegmentChange={(id) => setView(id as RetryView)}
+              />
+            </div>
           )}
-          aria-hidden="true"
-        />
+          {durationSec != null && (
+            <span className={styles.duration}>{formatTime(durationSec)}</span>
+          )}
+          <i
+            className={clsx(
+              "bi",
+              isOpen ? "bi-chevron-down" : "bi-chevron-right",
+              styles.chevron,
+            )}
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       {isOpen && (
         <div className={styles.body}>
-          <div className={styles.sectionHeader}>
-            <i
-              className={clsx("bi bi-exclamation-triangle", styles.sectionIcon)}
-              aria-hidden="true"
-            />
-            <span>Error</span>
-          </div>
-          <ExpandablePanel
-            id={`retry-error-${listId}`}
-            collapse={true}
-            className={styles.errorPanel}
-          >
-            <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
-          </ExpandablePanel>
-
-          {hasEvents && (
-            <>
-              <div
-                className={clsx(styles.sectionHeader, styles.sectionHeaderEvents)}
-              >
-                <i
-                  className={clsx("bi bi-list-ul", styles.sectionIcon)}
-                  aria-hidden="true"
-                />
-                <span>Terminal Events</span>
-              </div>
-              <RetryEventsView
-                retry={retry}
-                listId={listId}
-                scrollRef={scrollRef}
-              />
-            </>
+          {view === "error" || !hasEvents ? (
+            <ExpandablePanel
+              id={`retry-error-${listId}`}
+              collapse={true}
+              className={styles.errorPanel}
+            >
+              <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
+            </ExpandablePanel>
+          ) : (
+            <RetryEventsView retry={retry} listId={listId} scrollRef={scrollRef} />
           )}
         </div>
       )}
