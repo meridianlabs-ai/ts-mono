@@ -63,7 +63,7 @@ export class ReplicationService {
     this._previewQueue = new WorkQueue<LogHandle, LogPreview>({
       name: "Log-Preview-Queue",
       concurrency: 2,
-      batchSize: 6,
+      batchSize: 24,
       processingDelay: 20,
       onProcessingChanged: this.processingChanged,
       getId: (log) => log.name,
@@ -93,7 +93,7 @@ export class ReplicationService {
 
     this._detailQueue = new WorkQueue<LogHandle, LogDetails>({
       name: "Log-Detail-Queue",
-      concurrency: 10,
+      concurrency: 24,
       batchSize: 1,
       processingDelay: 0,
       onProcessingChanged: this.processingChanged,
