@@ -174,10 +174,6 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             position="block-left"
           />
         )}
-
-        {showToggle && layout === "inline-right" && (
-          <div className={clsx(styles.separator)}></div>
-        )}
       </div>
     );
   }

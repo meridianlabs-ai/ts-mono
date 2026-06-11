@@ -31,7 +31,8 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
 }) => {
   const errorType = useMemo(() => deriveErrorType(retry), [retry]);
   const durationSec = useMemo(() => attemptDuration(retry), [retry]);
-  const hasEvents = !!retry.events?.length;
+  const eventCount = retry.events?.length ?? 0;
+  const hasEvents = eventCount > 0;
 
   return (
     <div className={clsx(styles.card, isOpen ? styles.cardOpen : styles.cardCollapsed)}>
@@ -66,7 +67,13 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
 
       {isOpen && (
         <div className={styles.body}>
-          <div className={styles.sectionHeader}>Error</div>
+          <div className={styles.sectionHeader}>
+            <i
+              className={clsx("bi bi-exclamation-triangle", styles.sectionIcon)}
+              aria-hidden="true"
+            />
+            <span>Error</span>
+          </div>
           <ExpandablePanel
             id={`retry-error-${listId}`}
             collapse={true}
@@ -80,7 +87,12 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
               <div
                 className={clsx(styles.sectionHeader, styles.sectionHeaderEvents)}
               >
-                Terminal Events
+                <i
+                  className={clsx("bi bi-list-ul", styles.sectionIcon)}
+                  aria-hidden="true"
+                />
+                <span>Terminal Events</span>
+                <span className={styles.sectionCount}>{`${eventCount} events`}</span>
               </div>
               <RetryEventsView
                 retry={retry}

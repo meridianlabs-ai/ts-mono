@@ -81,8 +81,16 @@
   padding-bottom: 16px;
 }
 
+/* Titled-divider header: icon + label inset on the left, optional count on the
+   right, with a thin full-width rule underneath (the border spans the full card
+   width since the header has no horizontal margin). */
 .sectionHeader {
-  margin: 0 14px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--bs-border-color);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -92,6 +100,20 @@
 
 .sectionHeaderEvents {
   margin-top: 16px;
+}
+
+.sectionIcon {
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.sectionCount {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--bs-tertiary-color);
 }
 
 .errorPanel {
