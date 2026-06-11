@@ -31,8 +31,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
 }) => {
   const errorType = useMemo(() => deriveErrorType(retry), [retry]);
   const durationSec = useMemo(() => attemptDuration(retry), [retry]);
-  const eventCount = retry.events?.length ?? 0;
-  const hasEvents = eventCount > 0;
+  const hasEvents = !!retry.events?.length;
 
   return (
     <div className={clsx(styles.card, isOpen ? styles.cardOpen : styles.cardCollapsed)}>
@@ -92,7 +91,6 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
                   aria-hidden="true"
                 />
                 <span>Terminal Events</span>
-                <span className={styles.sectionCount}>{`${eventCount} events`}</span>
               </div>
               <RetryEventsView
                 retry={retry}
