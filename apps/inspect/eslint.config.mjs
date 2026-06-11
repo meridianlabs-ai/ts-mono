@@ -7,7 +7,6 @@ export default tseslint.config(
   {
     ignores: [
       "libs/",
-      "preact/",
       "dist/",
       "lib/",
       "node_modules/",
