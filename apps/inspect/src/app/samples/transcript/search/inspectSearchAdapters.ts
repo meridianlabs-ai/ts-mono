@@ -68,8 +68,16 @@ export const useInspectSearchContext = (
   const logDir = useStore((s) => s.logs.logDir);
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
 
+  // Depend on the scalar fields, not the sample object: polling a running
+  // sample replaces the object each tick even when these are unchanged.
+  const sampleUuid = sample?.uuid;
+  const sampleId = sample?.id;
+  const sampleEpoch = sample?.epoch;
+
   return useMemo(() => {
-    if (!sample?.uuid) return null;
+    if (!sampleUuid || sampleId === undefined || sampleEpoch === undefined) {
+      return null;
+    }
     if (!api.post_search || !api.get_search_result || !api.list_searches) {
       return null;
     }
@@ -81,13 +89,21 @@ export const useInspectSearchContext = (
     const logPath = urlLogPath ?? makeLogsPath(logFile, logDir);
     if (!logPath) return null;
     return {
-      transcriptId: sample.uuid,
+      transcriptId: sampleUuid,
       logFile,
       logPath,
-      sampleId: sample.id,
-      sampleEpoch: sample.epoch,
+      sampleId,
+      sampleEpoch,
     };
-  }, [api, sample, selectedLogFile, urlLogPath, logDir]);
+  }, [
+    api,
+    sampleUuid,
+    sampleId,
+    sampleEpoch,
+    selectedLogFile,
+    urlLogPath,
+    logDir,
+  ]);
 };
 
 export const getInspectSearchPanelStateKey = ({
