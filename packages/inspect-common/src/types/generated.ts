@@ -580,6 +580,11 @@ export interface components {
         AppConfig: {
             /** Inspect Version */
             inspect_version: string;
+            /**
+             * Log Dirs
+             * @default []
+             */
+            log_dirs: components["schemas"]["LogDirInfo"][];
             /** Scout Version */
             scout_version?: string | null;
         };
@@ -959,12 +964,10 @@ export interface components {
          *     also accepted at the task and eval layers (where they participate in
          *     the per-field merge — precedence: eval > sample > task).
          *
-         *     The fields excluded from this base class — ``checkpoints_dir`` and
-         *     ``retention`` — are eval-wide concerns that the sample layer must
+         *     The fields excluded from this base class — ``checkpoints_location``
+         *     and ``retention`` — are eval-wide concerns that the sample layer must
          *     not influence. They live only on the derived :class:`CheckpointConfig`,
          *     which is the type used at the task and eval layers.
-         *
-         *     See ``design/plans/checkpointing-working.md`` §2.
          */
         CheckpointSampleConfig: {
             /** Max Consecutive Failures */
@@ -2361,6 +2364,20 @@ export interface components {
              * @enum {string}
              */
             type: "llm";
+        };
+        /**
+         * LogDirInfo
+         * @description A configured log directory.
+         *
+         *     Attributes:
+         *         log_dir: Resolved path/URI the client sends back as `?log_dir=`.
+         *         aliased: Display string with the home directory replaced by `~`.
+         */
+        LogDirInfo: {
+            /** Aliased */
+            aliased: string;
+            /** Log Dir */
+            log_dir: string;
         };
         /** LogDirResponse */
         LogDirResponse: {

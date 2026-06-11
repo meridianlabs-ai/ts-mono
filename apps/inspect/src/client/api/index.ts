@@ -33,6 +33,7 @@ const resolveApi = (): ClientAPI => {
               ? {
                   inspect_version: data.inspect_version,
                   scout_version: null,
+                  log_dirs: [],
                 }
               : undefined;
           const api = staticHttpApi(

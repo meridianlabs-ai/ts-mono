@@ -17,6 +17,7 @@ import {
 const kFallbackAppConfig: AppConfig = {
   inspect_version: "unknown",
   scout_version: null,
+  log_dirs: [],
 };
 
 /**

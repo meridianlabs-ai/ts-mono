@@ -295,13 +295,14 @@ async function get_user_info(): Promise<UserInfo> {
 async function get_app_config(): Promise<AppConfig> {
   try {
     const response = await vscodeClient(kMethodAppConfig, []);
-    if (!response) return { inspect_version: "unknown", scout_version: null };
+    if (!response)
+      return { inspect_version: "unknown", scout_version: null, log_dirs: [] };
     return typeof response === "string"
       ? (JSON5.parse(response) as AppConfig)
       : (response as AppConfig);
   } catch (e: any) {
     if (e?.code === kJsonRpcMethodNotFound) {
-      return { inspect_version: "unknown", scout_version: null };
+      return { inspect_version: "unknown", scout_version: null, log_dirs: [] };
     }
     throw e;
   }
