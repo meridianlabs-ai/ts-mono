@@ -3,20 +3,21 @@ import { useCallback, useEffect } from "react";
 import { createLogger } from "@tsmono/util";
 
 import { clientEventsService } from "./clientEventsService";
-import { useApi, useStore } from "./store";
+import { useApi } from "./store";
+import { useRefreshLogListing } from "./useLogListing";
 
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const refreshLogListing = useRefreshLogListing();
   const api = useApi();
 
   const refreshCallback = useCallback(
     async (_reason: "event" | "periodic") => {
       log.debug(`Refresh Log Files (${_reason})`);
-      await syncLogs();
+      await refreshLogListing();
     },
-    [syncLogs]
+    [refreshLogListing]
   );
 
   useEffect(() => {

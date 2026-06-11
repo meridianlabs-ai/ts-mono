@@ -9,6 +9,7 @@ import {
 } from "../../state/hooks";
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
+import { useRefreshLogListing } from "../../state/useLogListing";
 import {
   baseUrl,
   logSamplesUrl,
@@ -106,7 +107,7 @@ export const LogViewContainer: FC = () => {
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPath = usePrevious<string | undefined>(logPath);
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const refreshLogListing = useRefreshLogListing();
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
   // Clear the previous eval's data before paint when the route changes, so the
@@ -132,12 +133,12 @@ export const LogViewContainer: FC = () => {
       if (logPath) {
         await initLogDir();
         setSelectedLogFile(logPath);
-        void syncLogs();
+        void refreshLogListing();
       }
     };
 
     loadLogFromPath();
-  }, [logPath, setSelectedLogFile, initLogDir, syncLogs]);
+  }, [logPath, setSelectedLogFile, initLogDir, refreshLogListing]);
 
   return <LogViewLayout />;
 };

@@ -18,7 +18,9 @@ import {
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 
+import { queryClient } from "./queryClient";
 import { StoreState } from "./store";
+import { logListingQueryFilter } from "./useLogListing";
 
 const log = createLogger("Log Slice");
 
@@ -37,7 +39,7 @@ export interface LogsSlice {
     // Fetch or update logs
     initLogDir: () => Promise<string | undefined>;
     ensureReplication: () => Promise<void>;
-    syncLogs: () => Promise<LogHandle[]>;
+    ensureReplicationReady: () => Promise<void>;
 
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
@@ -264,10 +266,10 @@ export const createLogsSlice = (
       ensureReplication: async () => {
         const state = get();
         if (state.logs.logDir) {
-          await state.logsActions.syncLogs();
+          await state.logsActions.ensureReplicationReady();
         }
       },
-      syncLogs: async () => {
+      ensureReplicationReady: async () => {
         const databaseService = get().databaseService;
         get().appActions.setLoading(true);
 
@@ -313,7 +315,7 @@ export const createLogsSlice = (
             if (!get().app.status.error) {
               get().appActions.setLoading(false);
             }
-            return [];
+            return;
           }
 
           // Activate the database for this log directory
@@ -377,8 +379,16 @@ export const createLogsSlice = (
 
         get().appActions.setLoading(false);
 
-        // Sync
-        return (await get().replicationService?.sync(initDatabase)) || [];
+        // On first init, startReplication already preloaded cached handles.
+        // On warm re-entry (same dir) nothing preloaded this call, so refresh
+        // handles from cache here; the useLogListing hook owns the server fetch.
+        if (!initDatabase) {
+          await get().replicationService?.preloadFromCache();
+        }
+
+        // Replication is wired up now; (re)fetch the listing — covers the case
+        // where useLogListing's initial query ran before startReplication.
+        void queryClient.invalidateQueries(logListingQueryFilter);
       },
       syncEvalSetInfo: async (logPath?: string) => {
         const info = await api.get_eval_set(logPath);
@@ -403,7 +413,8 @@ export const createLogsSlice = (
 
         if (!isInFileList) {
           if (state.replicationService?.isReplicating() && !isSingleFileMode) {
-            await state.logsActions.syncLogs();
+            await state.logsActions.ensureReplicationReady();
+            await queryClient.refetchQueries(logListingQueryFilter);
             const logHandle = get().logs.logs.find((val: { name: string }) =>
               val.name.endsWith(logFile)
             );

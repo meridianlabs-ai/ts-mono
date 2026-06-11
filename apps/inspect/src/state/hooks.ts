@@ -599,7 +599,9 @@ export const useSamplePopover = (id: string) => {
 
 export const useLogs = () => {
   // Loading logs and eval set info
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
+  const ensureReplicationReady = useStore(
+    (state) => state.logsActions.ensureReplicationReady
+  );
   const syncEvalSetInfo = useStore(
     (state) => state.logsActions.syncEvalSetInfo
   );
@@ -608,12 +610,15 @@ export const useLogs = () => {
   const loadLogs = useCallback(
     async (logPath?: string) => {
       // load in parallel to display Show Retried Logs button as soon as we know current directory is an eval set without awaiting all logs
-      await Promise.all([syncEvalSetInfo(logPath), syncLogs()]).catch((e) => {
+      await Promise.all([
+        syncEvalSetInfo(logPath),
+        ensureReplicationReady(),
+      ]).catch((e) => {
         log.error("Error loading logs", e);
         setLoading(false, e as Error);
       });
     },
-    [syncLogs, setLoading, syncEvalSetInfo]
+    [ensureReplicationReady, setLoading, syncEvalSetInfo]
   );
 
   // Loading overviews
