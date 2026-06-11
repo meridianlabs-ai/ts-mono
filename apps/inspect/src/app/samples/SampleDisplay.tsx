@@ -390,9 +390,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
   // Right-docked sidebar — search and scans share a single slot (one at a
-  // time), each toggled from the toolbar. Scope follows the active tab.
-  const [rightDock, setRightDock] = useState<"none" | "search" | "scans">(
-    "none"
+  // time), each toggled from the toolbar. Scope follows the active tab. The
+  // choice is persisted per log so a closed dock stays closed across reloads.
+  const setPropertyValue = useStore(
+    (state) => state.appActions.setPropertyValue
+  );
+  const dockKey = urlLogPath || "na";
+  const storedDock = useStore((state) => {
+    const value = state.app.propertyBags["rail-dock"]?.[dockKey];
+    return value === "none" || value === "search" || value === "scans"
+      ? value
+      : undefined;
+  });
+  const rightDock = storedDock ?? "none";
+  const setRightDock = useCallback(
+    (value: "none" | "search" | "scans") =>
+      setPropertyValue("rail-dock", dockKey, value),
+    [setPropertyValue, dockKey]
   );
   const searchScope: SearchScope | undefined =
     effectiveSelectedTab === kSampleTranscriptTabId
@@ -402,21 +416,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         : undefined;
   const searchContext = useInspectSearchContext(sample);
   const canSearch = searchContext !== null && searchScope !== undefined;
-  const closeDock = useCallback(() => setRightDock("none"), []);
+  const closeDock = useCallback(() => setRightDock("none"), [setRightDock]);
   // Rail entries toggle their panel: re-selecting the active one closes it,
   // selecting another switches directly (panels are mutually exclusive).
   const onRailSelect = useCallback(
-    (id: ActivityRailItemId) =>
-      setRightDock((prev) => (prev === id ? "none" : id)),
-    []
+    (id: ActivityRailItemId) => setRightDock(rightDock === id ? "none" : id),
+    [rightDock, setRightDock]
   );
   const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Panel width is a global preference persisted across samples and reloads,
   // shared by the Transcript and Messages tabs.
-  const setPropertyValue = useStore(
-    (state) => state.appActions.setPropertyValue
-  );
   const railPanelWidth = useStore((state) => {
     const value = state.app.propertyBags["sidebar-widths"]?.["rail-panel"];
     return typeof value === "number" ? value : undefined;
@@ -435,15 +445,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     open: rightDock === "scans",
   });
 
-  // Open the Scans panel by default the first time a sample with scans loads.
-  // A one-shot guard leaves later user toggles (and opening Search) intact.
+  // Open the Scans panel by default the first time a sample with scans loads,
+  // unless this log already has a persisted dock choice (including "none" —
+  // a user who closed the dock shouldn't have it forced back open).
   const scansDefaultedRef = useRef(false);
   useEffect(() => {
     if (scans.hasScans && !scansDefaultedRef.current) {
       scansDefaultedRef.current = true;
-      setRightDock((prev) => (prev === "none" ? "scans" : prev));
+      if (storedDock === undefined) {
+        setRightDock("scans");
+      }
     }
-  }, [scans.hasScans]);
+  }, [scans.hasScans, storedDock, setRightDock]);
 
   // Build the toolbar in left-to-right groups separated by thin dividers:
   //   [tab-specific view controls] | [shared sample actions] | [Search]
