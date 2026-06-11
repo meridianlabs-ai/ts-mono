@@ -100,7 +100,7 @@ export function createEvalSample(overrides: {
     input: overrides.messages
       .filter((m) => m.role === "user")
       .map((m) => m.content)
-      .join("\n") as string,
+      .join("\n"),
     output: createModelOutput(
       typeof lastAssistant?.content === "string"
         ? lastAssistant.content

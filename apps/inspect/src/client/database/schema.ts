@@ -79,7 +79,7 @@ export class AppDatabase extends Dexie {
         return true;
       }
       return false;
-    } catch (error) {
+    } catch {
       // Database doesn't exist or has issues - let normal flow handle it
       return false;
     }

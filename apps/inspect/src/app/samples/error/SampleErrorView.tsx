@@ -9,19 +9,13 @@ import styles from "./SampleErrorView.module.css";
 
 interface SampleErrorViewProps {
   message?: string;
-  align?: string;
   style?: CSSProperties;
 }
 
 /**
  * Component to display a styled error message.
  */
-export const SampleErrorView: FC<SampleErrorViewProps> = ({
-  message,
-  align,
-}) => {
-  align = align || "center";
-
+export const SampleErrorView: FC<SampleErrorViewProps> = ({ message }) => {
   const type = errorType(message);
 
   return (

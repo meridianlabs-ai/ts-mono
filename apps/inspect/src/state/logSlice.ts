@@ -227,7 +227,7 @@ export const createLogSlice = (
               logPolling.startPolling(logFileName);
               return;
             }
-          } catch (e) {
+          } catch {
             // Cache read failed, continue with normal flow
           }
         }

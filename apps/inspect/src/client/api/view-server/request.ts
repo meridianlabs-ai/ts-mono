@@ -88,7 +88,7 @@ export function serverRequestApi(
       return Boolean(
         apiUrl && new URL(apiUrl).origin !== window.location.origin
       );
-    } catch (error) {
+    } catch {
       return false;
     }
   }

@@ -42,7 +42,6 @@ export class WorkQueue<TInput, TOutput> {
   enqueue(items: TInput[], priority: WorkPriority = WorkPriority.Medium) {
     const now = Date.now();
 
-    let newItemsCount = 0;
     for (const item of items) {
       const id = this.options.getId(item);
       const existing = this.itemsById.get(id);
@@ -61,7 +60,6 @@ export class WorkQueue<TInput, TOutput> {
           addedAt: now,
           retries: 0,
         });
-        newItemsCount++;
       }
     }
     void this.startProcessing();

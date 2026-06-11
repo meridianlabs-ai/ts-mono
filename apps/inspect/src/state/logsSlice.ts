@@ -477,7 +477,7 @@ export const createLogsSlice = (
           const samples = await dbService.readAllSampleSummaries();
           log.debug(`Retrieved ${samples.length} cached samples`);
           return samples;
-        } catch (e) {
+        } catch {
           log.debug("No cached samples available");
           return [];
         }
@@ -497,7 +497,7 @@ export const createLogsSlice = (
           const samples = await dbService.querySampleSummaries(filter);
           log.debug(`Query returned ${samples.length} samples`);
           return samples;
-        } catch (e) {
+        } catch {
           log.debug("Sample query failed, returning empty results");
           return [];
         }
