@@ -92,10 +92,7 @@ export function findDifferences(
   }
 
   // --- Plain objects -------------------------------------------------------
-  const allKeys = new Set([
-    ...Object.keys(obj1),
-    ...Object.keys(obj2),
-  ]);
+  const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
 
   const diff: string[] = [];
 

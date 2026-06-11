@@ -276,7 +276,7 @@ async function get_user_info(): Promise<UserInfo> {
     // See the matching note on `edit_log` above.
     const info =
       typeof response === "string"
-        ? (JSON5.parse(response))
+        ? JSON5.parse(response)
         : (response as UserInfo);
     return info ?? {};
   } catch (e: any) {
@@ -297,7 +297,7 @@ async function get_app_config(): Promise<AppConfig> {
     const response = await vscodeClient(kMethodAppConfig, []);
     if (!response) return { inspect_version: "unknown", scout_version: null };
     return typeof response === "string"
-      ? (JSON5.parse(response))
+      ? JSON5.parse(response)
       : (response as AppConfig);
   } catch (e: any) {
     if (e?.code === kJsonRpcMethodNotFound) {

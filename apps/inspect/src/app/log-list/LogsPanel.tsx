@@ -382,9 +382,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // render — the api read only appeared live because unrelated renders
   // happened to coincide with filter changes.
   const scopeGridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
-  const filteredFields = Object.keys(
-    scopeGridState?.filter?.filterModel ?? {}
-  );
+  const filteredFields = Object.keys(scopeGridState?.filter?.filterModel ?? {});
   const hasFilter = filteredFields.length > 0;
 
   useEffect(() => {

@@ -173,7 +173,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         ? undefined
         : typeof limit === "number"
           ? limit
-          : (limit[1]) - (limit[0]);
+          : limit[1] - limit[0];
     return (
       (limitCount || selectedLogDetails?.eval.dataset.samples || 0) *
       (selectedLogDetails?.eval.config.epochs || 0)
@@ -361,7 +361,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         input: inputString(sample.input).join(" "),
         target: Array.isArray(sample.target)
           ? sample.target.join(", ")
-          : (sample.target),
+          : sample.target,
         error: sample.error,
         limit: sample.limit,
         retries: sample.retries,
@@ -442,7 +442,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const api = sampleListHandle.current?.api;
     if (!api) return;
     const desired = filterModelFromText(currentFilter);
-    const current: FilterModel = (api.getFilterModel() ?? {});
+    const current: FilterModel = api.getFilterModel() ?? {};
     // Preserve current model entries that the synthesizer would have
     // skipped — they live only in the column UI and must not be wiped
     // by a text-driven update. Entries the user can express in text

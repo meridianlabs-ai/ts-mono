@@ -113,7 +113,7 @@ const readSegment = async (seg: SegmentRef): Promise<SampleData> => {
   const bytes = new Uint8Array(await resp.arrayBuffer());
   const zip = await openZipFileFromBuffer(bytes);
   const memberBytes = await zip.readFile(seg.member_name);
-  return (await asyncJsonParseBytes(memberBytes));
+  return await asyncJsonParseBytes(memberBytes);
 };
 
 // Over-inclusive segment filter -> per-item filter here. Mirrors

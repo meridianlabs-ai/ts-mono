@@ -16,9 +16,7 @@ const getScorersFromSamples = (samples: SampleSummary[]): ScoreLabel[] => {
         !Array.isArray(scoreValue.value)
       ) {
         dictScorers.add(scorerKey);
-        for (const innerKey of Object.keys(
-          scoreValue.value
-        )) {
+        for (const innerKey of Object.keys(scoreValue.value)) {
           const label = `${scorerKey}:${innerKey}`;
           if (!scoreLabelsMap.has(label)) {
             scoreLabelsMap.set(label, { name: innerKey, scorer: scorerKey });

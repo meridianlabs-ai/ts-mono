@@ -127,7 +127,7 @@ const totalTokens = (sample: SampleSummary): number | null => {
 };
 
 const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target) ? target.join(", ") : ((target) ?? "");
+  Array.isArray(target) ? target.join(", ") : (target ?? "");
 
 const sampleVariables = (
   sample: SampleSummary,

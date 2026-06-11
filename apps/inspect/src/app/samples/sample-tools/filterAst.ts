@@ -80,10 +80,7 @@ class Parser {
 
   private error(message: string): ParseFailure {
     const at = this.peek();
-    return new ParseFailure(
-      message,
-      at?.from ?? this.tokens.at(-1)?.to ?? 0
-    );
+    return new ParseFailure(message, at?.from ?? this.tokens.at(-1)?.to ?? 0);
   }
 
   parse(): FilterAst {

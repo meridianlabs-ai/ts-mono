@@ -320,7 +320,7 @@ export const SamplesPanel: FC = () => {
           input: inputString(sample.input).join("\n"),
           target: Array.isArray(sample.target)
             ? sample.target.join(", ")
-            : (sample.target),
+            : sample.target,
           error: sample.error,
           limit: sample.limit,
           retries: sample.retries,

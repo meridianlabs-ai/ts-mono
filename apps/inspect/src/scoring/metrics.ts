@@ -95,13 +95,9 @@ export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
         };
       }),
       unscoredSamples:
-        score.unscored_samples !== null
-          ? (score.unscored_samples)
-          : undefined,
+        score.unscored_samples !== null ? score.unscored_samples : undefined,
       scoredSamples:
-        score.scored_samples !== null
-          ? (score.scored_samples)
-          : undefined,
+        score.scored_samples !== null ? score.scored_samples : undefined,
     };
   });
 };
