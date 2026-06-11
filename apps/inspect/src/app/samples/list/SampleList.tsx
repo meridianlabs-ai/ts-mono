@@ -43,6 +43,14 @@ interface SampleListProps {
 const makeSampleRowId = (id: string | number, epoch: number) =>
   `${id}-${epoch}`.replace(/\s+/g, "_");
 
+// Module-level so the grid sees a stable identity across renders.
+const kDefaultColDef: ColDef<SampleRow> = {
+  sortable: true,
+  filter: true,
+  resizable: true,
+  headerTooltipValueGetter: (params) => params.colDef?.headerName,
+};
+
 export const SampleList: FC<SampleListProps> = memo((props) => {
   const {
     items,
@@ -163,12 +171,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         rowData={items}
         columnDefs={columns}
         columnVisibility={columnVisibility}
-        defaultColDef={{
-          sortable: true,
-          filter: true,
-          resizable: true,
-          headerTooltipValueGetter: (params) => params.colDef?.headerName,
-        }}
+        defaultColDef={kDefaultColDef}
         viewMode="list"
         multiline={multiline}
         gridRef={listHandle}

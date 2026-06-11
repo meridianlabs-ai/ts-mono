@@ -50,6 +50,9 @@ const kRotatedHeaderHeight = 115;
 const rowHeightForMode = (mode: SamplesGridViewMode): number =>
   mode === "list" ? kListModeRowHeight : kGridModeRowHeight;
 
+// Module-level so the grid sees a stable identity across renders.
+const kRowSelection = { mode: "singleRow", checkboxes: false } as const;
+
 interface SamplesGridProps<TRow> {
   rowData: TRow[];
   columnDefs: ColDef<TRow>[];
@@ -389,7 +392,7 @@ export const SamplesGrid = <TRow,>(
           headerHeight={headerHeight}
           rowHeight={effectiveRowHeight}
           getRowId={getRowId as (p: GetRowIdParams<TRow>) => string}
-          rowSelection={{ mode: "singleRow", checkboxes: false }}
+          rowSelection={kRowSelection}
           enableCellTextSelection={true}
           suppressCellFocus={true}
           domLayout="normal"

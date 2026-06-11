@@ -49,12 +49,21 @@ export function useSamplesViewMultiline(): boolean {
   return useResolvedSamplesView().multiline;
 }
 
+// Stable fallbacks: a fresh `{}` per render would invalidate every
+// downstream memo (columnDefs, scoreColorScales) and re-fire the
+// `redrawRows` effect in SamplesTab on every render — tearing down and
+// recreating all grid row DOM each time.
+const kNoScoreLabels: Record<string, string> = Object.freeze({});
+const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
+  {}
+);
+
 /** Eval-author-supplied score-label overrides. Read straight from
  *  the wire (no persistence) so a user's stored view from a prior
  *  eval can't shadow the current eval's labels. Returns an empty
  *  object when no overrides are present. */
 export function useSamplesViewScoreLabels(): Record<string, string> {
-  return useEvalDefaultSamplesView()?.score_labels ?? {};
+  return useEvalDefaultSamplesView()?.score_labels ?? kNoScoreLabels;
 }
 
 /** Eval-author-supplied score-cell colour scales. Same wire-only
@@ -66,7 +75,7 @@ export function useSamplesViewScoreColorScales(): Record<
   WireScoreColorScale
 > {
   const evalDefault = useEvalDefaultSamplesView();
-  return (evalDefault?.score_color_scales ?? {}) as Record<
+  return (evalDefault?.score_color_scales ?? kNoScoreColorScales) as Record<
     string,
     WireScoreColorScale
   >;
