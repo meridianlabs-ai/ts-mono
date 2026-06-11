@@ -4,6 +4,7 @@ import { FC, RefObject, useEffect, useState } from "react";
 import { EvalRetryError } from "@tsmono/inspect-common";
 
 import { ApplicationIcons } from "../appearance/icons";
+
 import { RetryAttemptCard } from "./retry-display/RetryAttemptCard";
 import { RetryTerminalAnchor } from "./retry-display/RetryTerminalAnchor";
 import styles from "./SampleRetriedErrors.module.css";
@@ -21,7 +22,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
 }) => {
   // Accordion: default to the most recent failure (closest to the success).
   const [expandedIndex, setExpandedIndex] = useState<number | null>(
-    retries.length - 1,
+    retries.length - 1
   );
 
   // Reset accordion state when switching to a different sample (the same
@@ -43,7 +44,9 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
           {retries.map((retry, index) => (
             <div className={styles.row} key={index}>
               <div className={styles.dotGutter} aria-hidden="true">
-                <i className={clsx(ApplicationIcons.error, styles.statusIcon)} />
+                <i
+                  className={clsx(ApplicationIcons.error, styles.statusIcon)}
+                />
               </div>
               <RetryAttemptCard
                 retry={retry}

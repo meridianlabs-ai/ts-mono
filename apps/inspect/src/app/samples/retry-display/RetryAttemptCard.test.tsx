@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { ComponentProps, createRef } from "react";
+import { ComponentProps, createRef, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+
+import { RetryAttemptCard } from "./RetryAttemptCard";
 
 // TranscriptLayout pulls in the full transcript stack; stub it so this test
 // exercises only the card's own structure.
@@ -12,7 +14,8 @@ vi.mock("@tsmono/inspect-components/transcript", () => ({
 }));
 
 vi.mock("@tsmono/react/components", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@tsmono/react/components")>();
+  const actual =
+    await importOriginal<typeof import("@tsmono/react/components")>();
   return {
     ...actual,
     // ANSIDisplay needs an icon-provider context, and ExpandablePanel needs the
@@ -21,13 +24,11 @@ vi.mock("@tsmono/react/components", async (importOriginal) => {
     ANSIDisplay: ({ output }: { output: string }) => (
       <pre data-testid="ansi-display">{output}</pre>
     ),
-    ExpandablePanel: ({ children }: { children: React.ReactNode }) => (
+    ExpandablePanel: ({ children }: { children: ReactNode }) => (
       <div data-testid="expandable-panel">{children}</div>
     ),
   };
 });
-
-import { RetryAttemptCard } from "./RetryAttemptCard";
 
 const baseRetry: EvalRetryError = {
   message: "Simulated failure for sample rec0Arme2jcXQZnAW",
@@ -41,7 +42,9 @@ const withEvents = (): EvalRetryError => ({
   events: [{ event: "error" }] as unknown as EvalRetryError["events"],
 });
 
-function renderCard(props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}) {
+function renderCard(
+  props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}
+) {
   const scrollRef = createRef<HTMLDivElement>();
   return render(
     <RetryAttemptCard
@@ -52,7 +55,7 @@ function renderCard(props: Partial<ComponentProps<typeof RetryAttemptCard>> = {}
       listId="test-list-0"
       scrollRef={scrollRef}
       {...props}
-    />,
+    />
   );
 }
 

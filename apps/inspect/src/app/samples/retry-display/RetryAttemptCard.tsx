@@ -46,7 +46,12 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
   const [view, setView] = useState<RetryView>("error");
 
   return (
-    <div className={clsx(styles.card, isOpen ? styles.cardOpen : styles.cardCollapsed)}>
+    <div
+      className={clsx(
+        styles.card,
+        isOpen ? styles.cardOpen : styles.cardCollapsed
+      )}
+    >
       <div
         className={styles.header}
         role="button"
@@ -60,9 +65,13 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
           }
         }}
       >
-        <span className={styles.attemptLabel}>{`Attempt ${attemptNumber}`}</span>
+        <span
+          className={styles.attemptLabel}
+        >{`Attempt ${attemptNumber}`}</span>
         {errorType && <span className={styles.errorChip}>{errorType}</span>}
-        {retry.message && <span className={styles.message}>{retry.message}</span>}
+        {retry.message && (
+          <span className={styles.message}>{retry.message}</span>
+        )}
         <div className={styles.headerRight}>
           {isOpen && hasEvents && (
             // Stop propagation so toggling the view doesn't collapse the card.
@@ -84,7 +93,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
             className={clsx(
               "bi",
               isOpen ? "bi-chevron-down" : "bi-chevron-right",
-              styles.chevron,
+              styles.chevron
             )}
             aria-hidden="true"
           />
@@ -99,10 +108,17 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
               collapse={true}
               className={styles.errorPanel}
             >
-              <ANSIDisplay output={retry.traceback_ansi} className={styles.ansi} />
+              <ANSIDisplay
+                output={retry.traceback_ansi}
+                className={styles.ansi}
+              />
             </ExpandablePanel>
           ) : (
-            <RetryEventsView retry={retry} listId={listId} scrollRef={scrollRef} />
+            <RetryEventsView
+              retry={retry}
+              listId={listId}
+              scrollRef={scrollRef}
+            />
           )}
         </div>
       )}
@@ -142,7 +158,7 @@ const RetryEventsView: FC<{
         : Object.keys(initialCollapsed).length > 0
           ? initialCollapsed
           : undefined,
-    [transcriptCollapsed, initialCollapsed],
+    [transcriptCollapsed, initialCollapsed]
   );
 
   const collapseState = useMemo<TranscriptCollapseState>(
@@ -155,7 +171,7 @@ const RetryEventsView: FC<{
         setBulkCollapse(undefined);
       },
     }),
-    [effectiveCollapsed],
+    [effectiveCollapsed]
   );
 
   return (

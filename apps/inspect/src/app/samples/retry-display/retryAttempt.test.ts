@@ -36,7 +36,9 @@ describe("deriveErrorType", () => {
   });
 
   it("returns null when the final line is not an exception", () => {
-    expect(deriveErrorType(retry({ traceback: "some free-form text 123 !!!" }))).toBeNull();
+    expect(
+      deriveErrorType(retry({ traceback: "some free-form text 123 !!!" }))
+    ).toBeNull();
   });
 
   it("returns null for an empty traceback", () => {

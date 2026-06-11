@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
+import { createRef, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+
+import { SampleRetriedErrors } from "./SampleRetriedErrors";
 
 vi.mock("@tsmono/inspect-components/transcript", () => ({
   TranscriptLayout: () => <div data-testid="transcript-layout" />,
@@ -12,19 +14,18 @@ vi.mock("@tsmono/inspect-components/transcript", () => ({
 // ANSIDisplay needs an icon-provider context that isn't present in jsdom; stub
 // it (rendering its output text) so we can assert which attempt's traceback is open.
 vi.mock("@tsmono/react/components", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@tsmono/react/components")>();
+  const actual =
+    await importOriginal<typeof import("@tsmono/react/components")>();
   return {
     ...actual,
     ANSIDisplay: ({ output }: { output: string }) => (
       <pre data-testid="ansi-display">{output}</pre>
     ),
-    ExpandablePanel: ({ children }: { children: React.ReactNode }) => (
+    ExpandablePanel: ({ children }: { children: ReactNode }) => (
       <div data-testid="expandable-panel">{children}</div>
     ),
   };
 });
-
-import { SampleRetriedErrors } from "./SampleRetriedErrors";
 
 function makeRetry(n: number): EvalRetryError {
   return {
@@ -39,7 +40,7 @@ function renderPanel(count: number) {
   const scrollRef = createRef<HTMLDivElement>();
   const retries = Array.from({ length: count }, (_, i) => makeRetry(i + 1));
   return render(
-    <SampleRetriedErrors id="s1" retries={retries} scrollRef={scrollRef} />,
+    <SampleRetriedErrors id="s1" retries={retries} scrollRef={scrollRef} />
   );
 }
 
@@ -85,7 +86,7 @@ describe("SampleRetriedErrors", () => {
         id="s1"
         retries={[withEvents(1), withEvents(2)]}
         scrollRef={scrollRef}
-      />,
+      />
     );
     // Attempt 2 is open by default on the Error view (only the expanded card
     // exposes the toggle).
