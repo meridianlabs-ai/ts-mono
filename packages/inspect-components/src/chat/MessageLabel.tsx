@@ -13,6 +13,14 @@ interface MessageLabelProps {
   className?: string | string[];
 }
 
+// Badges show the compact number ("[M4]" → "4"); the full cite stays in the
+// tooltip so prose references like "[M4]" remain traceable. Inline anchors
+// keep the full text — they must read like the prose they sit in.
+const compactLabel = (label: string): string => {
+  const inner = label.replace(/^\[/, "").replace(/\]$/, "");
+  return inner.replace(/^[A-Za-z]+/, "") || inner;
+};
+
 /**
  * A filled monospace chip used for message position labels (top-right of a
  * message) and as an inline anchor in summary prose.
@@ -42,9 +50,14 @@ export const MessageLabel: FC<MessageLabelProps> = ({
     );
   }
 
+  const compact = compactLabel(label);
   return (
-    <span className={clsx(styles.badge, className)} onClick={onActivate}>
-      {label}
+    <span
+      className={clsx(styles.badge, className)}
+      onClick={onActivate}
+      title={compact === label ? undefined : label}
+    >
+      {compact}
     </span>
   );
 };
