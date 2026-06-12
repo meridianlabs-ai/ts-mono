@@ -646,8 +646,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         : null;
 
   // Shared rail entries for both the Transcript and Messages tabs: Search on
-  // top, Scans below (per design). Scans is always listed but disabled with a
-  // "No scans" label when the sample has none.
+  // top, Scans below (per design). Scans is omitted entirely when the sample
+  // has none.
   const railItems = useMemo<ActivityRailItem[]>(() => {
     const items: ActivityRailItem[] = [];
     if (canSearch) {
@@ -657,12 +657,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon: ApplicationIcons.search,
       });
     }
-    items.push({
-      id: "scans",
-      label: scans.hasScans ? "Scans" : "No scans",
-      icon: ApplicationIcons.scoringSidebar,
-      disabled: !scans.hasScans,
-    });
+    if (scans.hasScans) {
+      items.push({
+        id: "scans",
+        label: "Scans",
+        icon: ApplicationIcons.scoringSidebar,
+      });
+    }
     return items;
   }, [canSearch, scans.hasScans]);
 
