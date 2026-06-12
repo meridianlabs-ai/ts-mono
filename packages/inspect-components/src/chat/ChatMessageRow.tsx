@@ -125,7 +125,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     let idx = 0;
     for (const tool_call of resolvedMessage.message.tool_calls) {
       // Extract tool input
-      const { name, input, description, functionCall, contentType } =
+      const { name, input, description, functionCall, contentType, title } =
         resolveToolInput(tool_call.function, tool_call.arguments);
 
       let toolMessage: ChatMessageTool | undefined;
@@ -159,6 +159,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             id={`${index}-tool-call-${idx}`}
             key={`tool-call-${idx}`}
             tool={name}
+            title={resolvedToolView?.title || title}
             functionCall={functionCall}
             input={input}
             description={description}

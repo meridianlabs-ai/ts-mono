@@ -174,4 +174,3 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     </EventPanel>
   );
 };
-

@@ -29,11 +29,7 @@ export type { ToolCallViewProps } from "./tools/ToolCallView";
 export { ToolCallView } from "./tools/ToolCallView";
 export type { ClientToolCallProps } from "./tools/ClientToolCall";
 export { ClientToolCall } from "./tools/ClientToolCall";
-export {
-  ToolBlock,
-  ToolBlockInput,
-  ToolBlockOutput,
-} from "./tools/ToolBlock";
+export { ToolBlock, ToolBlockInput, ToolBlockOutput } from "./tools/ToolBlock";
 export { ToolCallErrorView } from "./tools/ToolCallErrorView";
 export { ToolOutput } from "./tools/ToolOutput";
 export { MessageContent, isMessageContent } from "./MessageContent";

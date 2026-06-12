@@ -66,9 +66,7 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
     !!content.error ||
     !!listToolsResult ||
     !!webSearchResult ||
-    (codeExecutionResult
-      ? execHasOutput
-      : hasResultContent(content.result));
+    (codeExecutionResult ? execHasOutput : hasResultContent(content.result));
 
   return (
     <ToolBlock
@@ -192,7 +190,9 @@ const CodeExecutionResult: FC<{
       border={false}
       lines={15}
     >
-      {result.stdout ? <pre className={styles.execOutput}>{result.stdout}</pre> : null}
+      {result.stdout ? (
+        <pre className={styles.execOutput}>{result.stdout}</pre>
+      ) : null}
       {result.stderr ? (
         <pre className={clsx(styles.execOutput, styles.execError)}>
           {result.stderr}
