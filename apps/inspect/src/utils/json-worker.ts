@@ -9,7 +9,7 @@ class JsonWorkerPool {
   private nextRequestId = 0;
   private pendingRequests = new Map<
     number,
-    { resolve: (value: any) => void; reject: (error: Error) => void }
+    { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >();
   private readonly poolSize = 4;
 
@@ -62,7 +62,7 @@ class JsonWorkerPool {
     this.pendingRequests.clear();
   }
 
-  async parse(text: string): Promise<any> {
+  async parse(text: string): Promise<unknown> {
     this.ensureWorkers();
 
     const encodedText = this.encoder.encode(text);
@@ -83,7 +83,7 @@ class JsonWorkerPool {
     });
   }
 
-  async parseBytes(data: Uint8Array): Promise<any> {
+  async parseBytes(data: Uint8Array): Promise<unknown> {
     this.ensureWorkers();
 
     const requestId = this.nextRequestId++;
@@ -136,7 +136,7 @@ export const asyncJsonParse = async <T>(text: string): Promise<T> => {
     }
     return Promise.resolve(result) as T;
   } else {
-    return workerPool.parse(text);
+    return workerPool.parse(text) as Promise<T>;
   }
 };
 
@@ -154,7 +154,7 @@ export const asyncJsonParseBytes = async <T>(data: Uint8Array): Promise<T> => {
     const text = new TextDecoder("utf-8").decode(data);
     return jsonParse<T>(text);
   } else {
-    return workerPool.parseBytes(data);
+    return workerPool.parseBytes(data) as Promise<T>;
   }
 };
 

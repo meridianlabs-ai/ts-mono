@@ -135,7 +135,7 @@ export interface SampleSummary {
   scores: EvalSampleScore | null | undefined;
   error?: string;
   limit?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   completed?: boolean;
   retries?: number;
   // Per-sample timing and token usage; populated by Inspect's Python
@@ -191,7 +191,7 @@ export interface Capabilities {
 }
 
 export interface LogViewAPI {
-  client_events: () => Promise<any[]>;
+  client_events: () => Promise<string[]>;
   get_eval_set: (dir?: string) => Promise<EvalSet | undefined>;
   get_flow: (dir?: string) => Promise<string | undefined>;
   get_log_dir?: () => Promise<string | undefined>;
@@ -394,7 +394,7 @@ export interface ClientStorage {
 
 export interface FetchResponse {
   raw: string;
-  parsed: Record<string, any>;
+  parsed: Record<string, unknown>;
 }
 
 export interface EvalHeader {

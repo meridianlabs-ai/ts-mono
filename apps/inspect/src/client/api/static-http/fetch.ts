@@ -63,6 +63,10 @@ export const fetchLogFile = async (
     const log = await asyncJsonParse<EvalLog>(text);
     if (log.version === 1) {
       if (log.results) {
+        // v1 logs stored a single `results.scorer` object instead of a
+        // `scores` array; reshaping it requires touching fields that don't
+        // exist on the current EvalLog type.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const untypedLog = log as any;
         log.results.scores = [];
         untypedLog.results.scorer.scorer = untypedLog.results.scorer.name;
@@ -74,6 +78,9 @@ export const fetchLogFile = async (
         // migrate samples
         const scorerName = log.results.scores[0].name;
         log.samples?.forEach((sample) => {
+          // v1 samples carried a single `score` field, since replaced by
+          // the `scores` map.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const untypedSample = sample as any;
           sample.scores = { [scorerName]: untypedSample.score };
           delete untypedSample.score;

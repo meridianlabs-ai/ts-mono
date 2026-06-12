@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 
-export const useWhyDidYouUpdate = (componentName: string, props: any) => {
+export const useWhyDidYouUpdate = (
+  componentName: string,
+  props: Record<string, unknown>
+) => {
   const previousProps = useRef(props);
 
   useEffect(() => {

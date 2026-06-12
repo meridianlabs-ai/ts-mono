@@ -71,6 +71,10 @@ export const LogView: FC = () => {
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
 
+  // Heterogeneous tab configs each bind their own props type; `unknown`
+  // can't unify them because TabDescriptor's `component` puts the prop type
+  // in a contravariant position.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tabs: Record<string, TabDescriptor<any>> = {
     ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
     task: taskTabConfig,

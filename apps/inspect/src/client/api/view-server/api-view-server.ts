@@ -1,6 +1,8 @@
 import {
   AppConfig,
   EvalLog,
+  EvalSet,
+  LogFilesResponse,
   LogInfo,
   LogUpdate,
   Result,
@@ -20,6 +22,7 @@ import {
   EvalHeader,
   LogContents,
   LogPreview,
+  LogRoot,
   LogViewAPI,
   PendingSampleResponse,
   PendingSamples,
@@ -69,15 +72,17 @@ export function viewServerApi(
       "GET",
       `/events?${params.toString()}`
     );
-    return result.parsed;
+    return result.parsed as string[];
   };
 
   const get_log_dir = async () => {
     if (logDir) {
       return logDir;
     }
-    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed;
-    return obj.log_dir as string | undefined;
+    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed as {
+      log_dir?: string;
+    };
+    return obj.log_dir;
   };
 
   const get_log_root = async () => {
@@ -89,7 +94,7 @@ export function viewServerApi(
     // Note the last request time so we can get events
     // since the last request
     lastEvalTime = Date.now();
-    return logs.parsed;
+    return logs.parsed as LogRoot | undefined;
   };
 
   const get_logs = async (mtime: number, clientFileCount: number) => {
@@ -108,7 +113,7 @@ export function viewServerApi(
     lastEvalTime = Date.now();
 
     const envelope = await requestApi.fetchString("GET", path, headers);
-    return envelope.parsed;
+    return envelope.parsed as LogFilesResponse;
   };
 
   const log_file_token = (mtime: number, fileCount: number) => {
@@ -131,7 +136,7 @@ export function viewServerApi(
 
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed;
+      return result.parsed as EvalSet;
     } catch (error) {
       // if the eval set is not found, no biggee as not all
       // log directories will have an eval set.
@@ -182,7 +187,7 @@ export function viewServerApi(
       "GET",
       `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`
     );
-    return result;
+    return result as LogContents;
   };
 
   const get_log_info = async (file: string): Promise<LogInfo> => {
@@ -190,7 +195,7 @@ export function viewServerApi(
       "GET",
       `/log-info/${encodeURIComponent(file)}`
     );
-    return result.parsed;
+    return result.parsed as LogInfo;
   };
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
@@ -249,7 +254,7 @@ export function viewServerApi(
       "GET",
       `/log-headers?${params.toString()}`
     );
-    const logHeaders: EvalHeader[] = result.parsed;
+    const logHeaders = result.parsed as EvalHeader[];
     return logHeaders.map(toLogPreview);
   };
 

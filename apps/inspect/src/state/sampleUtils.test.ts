@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any --
+   These tests assert on the dynamically-resolved event payloads produced by
+   resolveSample, which reach into union-typed event fields that carry no
+   precise static type at the assertion site. */
 import { describe, expect, it } from "vitest";
 
 import { SampleSummary } from "../client/api/types";

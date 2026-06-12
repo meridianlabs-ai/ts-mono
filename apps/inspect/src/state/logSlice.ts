@@ -88,7 +88,7 @@ const initialState = {
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: unknown,
   api: ClientAPI
 ): [LogSlice, () => void] => {
   const logPolling = createLogPolling(get, set, api);

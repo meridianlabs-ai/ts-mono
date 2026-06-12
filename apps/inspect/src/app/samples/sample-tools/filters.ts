@@ -105,12 +105,12 @@ const scoreVariables = (
   return variables;
 };
 
-const getNestedPropertyValue = (obj: any, path: string): any => {
+const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
   const keys = path.split(".");
-  let current = obj;
+  let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = current[key];
+      current = (current as Record<string, unknown>)[key];
     } else {
       return undefined;
     }
@@ -278,7 +278,7 @@ export const filterExpression = (
       ...mySampleVariables,
       ...scoreVariables(evalDescriptor, sample.scores),
     };
-    const resolveVariable = (name: string, get: (name: string) => any) => {
+    const resolveVariable = (name: string, get: (name: string) => unknown) => {
       // Sample variables (like has_error) always exist.
       if (name in mySampleVariables) {
         const value = get(name);
@@ -310,7 +310,7 @@ export const filterExpression = (
     }
   } catch (error) {
     if (error instanceof ReferenceError) {
-      const errorObj = error as any as Record<string, unknown>;
+      const errorObj = error as unknown as Record<string, unknown>;
       const propertyName: string = (errorObj["propertyName"] as string) || "";
       if (propertyName) {
         // Don't show errors for metadata properties - they might not exist in all samples

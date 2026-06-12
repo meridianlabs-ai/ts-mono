@@ -134,6 +134,9 @@ describe("samplePolling helpers", () => {
               event_id: "event-1",
               sample_id: "sample-1",
               epoch: 1,
+              // Minimal event stub; the precise Event union shape is
+              // irrelevant to what this test exercises.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               event: {} as any,
             },
           ],
@@ -331,6 +334,9 @@ describe("createSamplePolling", () => {
                 call_refs: [[0, 3]],
                 call_key: "messages",
               },
+              // Hand-built model event; not worth reconstructing the full
+              // generated Event type for a fixture.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
           },
         ],
@@ -580,7 +586,7 @@ const createSummary = (id: string) =>
   ({
     id,
     epoch: 1,
-  }) as any;
+  }) as unknown as SampleSummary;
 
 const chatMessage = (id: string, role: string, content: string) => ({
   id,
