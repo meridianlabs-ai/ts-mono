@@ -10,6 +10,9 @@ interface RailDockProps {
   panel?: ReactNode;
   /** The outer scroll container the panel and rail stick within. */
   scrollRef: RefObject<HTMLElement | null>;
+  /** Height of scrollRef's visible area, when the parent already measures
+      it. Omit to let the panel measure the element itself. */
+  scrollerHeight?: number;
   /** Sticky offset below the toolbar. */
   offsetTop?: number;
   /** Optional ref to the panel's scroll element (e.g. for wheel forwarding). */
@@ -36,6 +39,7 @@ export const RailDock = ({
   rail,
   panel,
   scrollRef,
+  scrollerHeight,
   offsetTop = 0,
   panelScrollRef,
   railWidth = 44,
@@ -49,6 +53,7 @@ export const RailDock = ({
     {panel != null && (
       <ResizablePanel
         scrollRef={scrollRef}
+        scrollerHeight={scrollerHeight}
         offsetTop={offsetTop}
         panelScrollRef={panelScrollRef}
         width={panelWidth}

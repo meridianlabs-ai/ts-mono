@@ -3,10 +3,11 @@ import {
   PointerEvent as ReactPointerEvent,
   RefObject,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
+
+import { useElementHeight } from "../hooks/useElementHeight";
 
 import styles from "./ResizablePanel.module.css";
 
@@ -14,6 +15,9 @@ interface ResizablePanelProps {
   children: ReactNode;
   /** The outer scroll container the panel sticks within. */
   scrollRef: RefObject<HTMLElement | null>;
+  /** Height of scrollRef's visible area, when the parent already measures
+      it. Omit to let the panel measure the element itself. */
+  scrollerHeight?: number;
   /** Sticky offset below the toolbar. */
   offsetTop?: number;
   /** Optional ref to the panel's scroll element (e.g. for wheel forwarding). */
@@ -39,6 +43,7 @@ interface ResizablePanelProps {
 export const ResizablePanel = ({
   children,
   scrollRef,
+  scrollerHeight: providedScrollerHeight,
   offsetTop = 0,
   panelScrollRef,
   width: controlledWidth,
@@ -85,20 +90,11 @@ export const ResizablePanel = ({
 
   // Cap the panel to the visible scroller height (100vh would include the app
   // navbar above the scroll container, leaving content unreachable).
-  const [scrollerHeight, setScrollerHeight] = useState(0);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setScrollerHeight(el.getBoundingClientRect().height);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [scrollRef]);
+  const measuredScrollerHeight = useElementHeight(
+    scrollRef,
+    providedScrollerHeight === undefined
+  );
+  const scrollerHeight = providedScrollerHeight ?? measuredScrollerHeight;
 
   const maxHeight =
     scrollerHeight > 0

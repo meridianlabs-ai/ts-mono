@@ -35,7 +35,7 @@ import {
   RailDock,
   StickyScroll,
 } from "@tsmono/react/components";
-import { useScrubberProgress } from "@tsmono/react/hooks";
+import { useElementHeight, useScrubberProgress } from "@tsmono/react/hooks";
 
 import {
   findTimelineIndexForEvent,
@@ -1019,12 +1019,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     railPanelOpenFlag,
   ]);
 
-  // Track the scroll container's visible height so sticky sidebars can cap
-  // their max-height to the actually-visible area (100vh would include the
-  // app navbar above the scroll container, leaving content unreachable).
-  // Use getBoundingClientRect().height — this matches what's actually on
-  // screen (clientHeight can report slightly different values depending on
-  // scrollbar / box-sizing quirks).
   // Capture the outline's own scroll container (the StickyScroll div, which
   // has overflow-y:auto) into state so the outline's Virtuoso can use it as
   // its scroll parent. Resolving into state (rather than reading a ref during
@@ -1043,20 +1037,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [outlineScrollRef]
   );
 
-  const [scrollerHeight, setScrollerHeight] = useState<number>(0);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setScrollerHeight(el.getBoundingClientRect().height);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [scrollRef]);
+  // Track the scroll container's visible height so sticky sidebars can cap
+  // their max-height to the actually-visible area (100vh would include the
+  // app navbar above the scroll container, leaving content unreachable).
+  const scrollerHeight = useElementHeight(scrollRef);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -1236,6 +1220,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               rail={rightRail.rail}
               panel={rightRail.panel}
               scrollRef={scrollRef}
+              scrollerHeight={scrollerHeight}
               offsetTop={offsetTop}
               panelScrollRef={rightRailPanelScrollRef}
               railWidth={rightRail.railWidth}
