@@ -36,10 +36,10 @@ import "../../shared/agGrid";
 
 import styles from "../../shared/gridCells.module.css";
 import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
-import { createGridColumnResizer } from "../../shared/gridUtils";
 import { openInNewTab } from "../../shared/openInNewTab";
 import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
 import { useApplyColumnVisibility } from "../../shared/useApplyColumnVisibility";
+import { useGridColumnRefit } from "../../shared/useGridColumnRefit";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
@@ -415,29 +415,27 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const maxColCount = useRef(0);
 
-  // Lazily created on first use: creating it during render would pass the
-  // grid ref into non-React code, and the single instance must survive
-  // re-renders so the debounce timer isn't reset.
-  const resizerRef = useRef<(() => void) | null>(null);
-  const resizeGridColumns = useCallback(() => {
-    resizerRef.current ??= createGridColumnResizer(gridRef);
-    resizerRef.current();
-  }, []);
+  // Auto-fit defers to the user: once they manually resize a column, all
+  // subsequent auto-fits below are suppressed so their widths stick.
+  const { refitColumns, handleColumnResized } = useGridColumnRefit(gridRef);
 
-  // Resize grid columns when columns prop changes (e.g., when columns are hidden/unhidden)
+  // Refit when the column set changes (e.g. the scores view-mode toggle
+  // swaps the score column set). `columns` is content-stable across
+  // logDetails flushes (see useLogListColumns), so this no longer fires —
+  // and wipes user-dragged widths — on every detail flush while loading.
   useEffect(() => {
-    resizeGridColumns();
-  }, [columns, resizeGridColumns]);
+    refitColumns();
+  }, [columns, refitColumns]);
 
   const handleGridColumnsChanged = useCallback(
     (e: GridColumnsChangedEvent<LogListRow>) => {
       const cols = e.api.getColumnDefs();
       if (cols && cols.length > maxColCount.current) {
         maxColCount.current = cols.length;
-        resizeGridColumns();
+        refitColumns();
       }
     },
-    [resizeGridColumns]
+    [refitColumns]
   );
 
   // Find functionality - searches across the currently visible columns.
@@ -602,7 +600,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           rowSelection={{ mode: "singleRow", checkboxes: false }}
           getRowId={(params) => params.data.id}
           onGridColumnsChanged={handleGridColumnsChanged}
-          onGridSizeChanged={resizeGridColumns}
+          onGridSizeChanged={refitColumns}
+          onColumnResized={handleColumnResized}
           theme={themeBalham}
           enableCellTextSelection={true}
           initialState={initialGridState}

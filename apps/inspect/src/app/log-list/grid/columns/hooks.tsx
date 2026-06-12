@@ -19,9 +19,11 @@ import {
   createFolderFirstComparator,
 } from "../../../shared/gridComparators";
 import { getFieldKey } from "../../../shared/gridUtils";
+import { useStableValue } from "../../../shared/useStableValue";
 import { PreformattedTooltip } from "../PreformattedTooltip";
 
 import localStyles from "./columns.module.css";
+import { computeScorerMap, scorerMapsEqual } from "./scorerMap";
 import { LogListRow } from "./types";
 
 const styles = { ...sharedStyles, ...localStyles };
@@ -39,16 +41,6 @@ const primaryModelValue = (row: LogListRow | undefined): string | undefined => {
   if (row.model && row.model !== kModelNone) return row.model;
   return displayModelRoles(row)[0]?.[1];
 };
-
-/**
- * Build a stable, unique column key for a (scorer, metric) pair. The reducer
- * is intentionally omitted so the same logical metric is one column regardless
- * of whether the log recorded `reducer=null` (default, silently mean) or
- * `reducer="mean"` (explicit). "/" is used as separator because ag-grid treats
- * "." in `field` as nested-object access.
- */
-const scorerMetricKey = (scorerName: string, metricName: string): string =>
-  `${scorerName}/${metricName}`;
 
 /** Human-readable header: "scorer / metric". */
 const scorerMetricHeader = (scorerName: string, metricName: string): string =>
@@ -101,40 +93,18 @@ export const useLogListColumns = (
   );
   const logDetails = useStore((state) => state.logs.logDetails);
 
-  // Detect all unique (scorer, reducer, metric) combinations across all logs
-  // from their results. Previously this collapsed on metric name alone, which
-  // merged distinct scorers emitting the same metric (e.g. two "accuracy"s)
-  // into a single column.
-  const scorerMap = useMemo(() => {
-    const info: Record<
-      string,
-      { scorerName: string; metricName: string; valueType: string }
-    > = {};
-
-    for (const [logName, details] of Object.entries(logDetails)) {
-      if (scopePrefix && !logName.startsWith(scopePrefix)) {
-        continue;
-      }
-      if (details.results?.scores) {
-        for (const evalScore of details.results.scores) {
-          if (evalScore.metrics) {
-            for (const [metricName, metric] of Object.entries(
-              evalScore.metrics
-            )) {
-              const key = scorerMetricKey(evalScore.name, metricName);
-              info[key] = {
-                scorerName: evalScore.name,
-                metricName,
-                valueType: typeof metric.value,
-              };
-            }
-          }
-        }
-      }
-    }
-
-    return info;
-  }, [logDetails, scopePrefix]);
+  // `logDetails` gets a new identity on every detail flush while a
+  // directory loads, so the memo alone would return a fresh map (and
+  // cascade fresh column defs into the grid) on every flush. Content
+  // equality keeps the map — and everything keyed on it — stable unless
+  // the scorer columns actually changed.
+  const scorerMap = useStableValue(
+    useMemo(
+      () => computeScorerMap(logDetails, scopePrefix),
+      [logDetails, scopePrefix]
+    ),
+    scorerMapsEqual
+  );
 
   // Auto-hide scorer columns by default if not explicitly set. Seed defaults
   // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
