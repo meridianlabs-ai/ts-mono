@@ -83,9 +83,10 @@
      are plain 1px card borders uncolored, 3px accent bands colorized. */
   --inspect-tool-block-edge: 1px solid var(--bs-light-border-subtle);
   --inspect-tool-block-header-bg: var(--bs-tertiary-bg);
-  /* Visibly darker than the output well so input/output read as distinct
-     zones without the readable tints. */
-  --inspect-tool-block-input-bg: var(--bs-secondary-bg);
+  /* The input continues the header surface; the output is lighter (plain
+     page background) so the call and its result read as distinct zones. */
+  --inspect-tool-block-input-bg: var(--inspect-tool-block-header-bg);
+  --inspect-tool-block-output-bg: var(--bs-body-bg);
   --inspect-tool-block-ink: var(--bs-secondary-color);
   --inspect-turn-prose-edge: 1px solid var(--bs-light-border-subtle);
 }
@@ -121,6 +122,7 @@
   --inspect-tool-block-edge: 3px solid var(--inspect-readable-tool-call-border);
   --inspect-tool-block-header-bg: var(--inspect-readable-tool-call-bg);
   --inspect-tool-block-input-bg: var(--inspect-readable-tool-call-bg);
+  --inspect-tool-block-output-bg: var(--inspect-tool-output-bg);
   --inspect-tool-block-ink: var(--inspect-readable-tool-call-border);
   --inspect-turn-prose-edge: 3px solid var(--inspect-readable-assistant-border);
 }
