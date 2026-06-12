@@ -34,6 +34,11 @@ import type {
 import { NoContentsPanel, StickyScroll } from "@tsmono/react/components";
 import { useScrubberProgress } from "@tsmono/react/hooks";
 
+import {
+  findTimelineIndexForEvent,
+  findTimelineIndexForMessage,
+  timelineContainsEvent,
+} from "./findTimelineForDeepLink";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
@@ -636,6 +641,28 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const resolved = resolvedLocal ?? resolvedRoot;
 
+  // Cross-timeline deep links: if the target lives in a different root
+  // timeline, find it so the effect below can switch to it. -1 = no switch.
+  const deepLinkTimelineIndex = useMemo(() => {
+    if (timelines.length <= 1) return -1;
+    if (initialEventId) {
+      const active = timelines[activeTimelineIndex];
+      if (!active || timelineContainsEvent(initialEventId, active)) return -1;
+      return findTimelineIndexForEvent(initialEventId, timelines);
+    }
+    if (initialMessageId && !resolvedLocal && !resolvedRoot) {
+      return findTimelineIndexForMessage(initialMessageId, timelines);
+    }
+    return -1;
+  }, [
+    initialEventId,
+    initialMessageId,
+    resolvedLocal,
+    resolvedRoot,
+    timelines,
+    activeTimelineIndex,
+  ]);
+
   // Side-effect: switch swimlane selection when resolution comes from root
   // (i.e. requires moving the user to a different row to see the resolved
   // event). Calls `timelineState.select` with `{ preserveDeepLink: true }`
@@ -651,6 +678,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const prevMessageIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (prevMessageIdRef.current === initialMessageId) return;
+    // A cross-timeline switch is pending: don't consume the message id yet —
+    // this effect must re-evaluate after the switch lands and resolution
+    // re-runs against the new root.
+    if (deepLinkTimelineIndex >= 0) return;
     prevMessageIdRef.current = initialMessageId;
     if (!resolvedRoot) return;
     let targetKey: string | null = null;
@@ -661,7 +692,34 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     }
     if (timelineState.selected === targetKey) return;
     timelineState.select(targetKey, { preserveDeepLink: true });
-  }, [initialMessageId, resolvedRoot, spanSelectKeys, timelineState]);
+  }, [
+    initialMessageId,
+    deepLinkTimelineIndex,
+    resolvedRoot,
+    spanSelectKeys,
+    timelineState,
+  ]);
+
+  // Fire the timeline switch once per deep-link change — a stale `?event=` /
+  // `?message=` param left in the URL must not snap the user back after they
+  // manually switch timelines away.
+  const prevDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (timelines.length <= 1) return;
+    const key = initialEventId ?? initialMessageId ?? null;
+    if (prevDeepLinkRef.current === key) return;
+    prevDeepLinkRef.current = key;
+    if (key === null || deepLinkTimelineIndex < 0) return;
+    if (deepLinkTimelineIndex === activeTimelineIndex) return;
+    setActiveTimeline(deepLinkTimelineIndex);
+  }, [
+    initialEventId,
+    initialMessageId,
+    deepLinkTimelineIndex,
+    activeTimelineIndex,
+    setActiveTimeline,
+    timelines.length,
+  ]);
 
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
