@@ -43,6 +43,8 @@ import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import {
+  resolveEventInBranches,
+  resolveEventToSpan,
   resolveMessageInBranches,
   resolveMessageToEvent,
 } from "./resolveMessageToEvent";
@@ -721,6 +723,47 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     timelines.length,
   ]);
 
+  // Event deep links targeting a non-visible swimlane lane: with swimlanes
+  // on, the event list only contains the selected rows' events, so a target
+  // in another agent lane (or branch) is unreachable until that row is
+  // selected. The event-id analogue of the message side-effect above.
+  const resolvedEventSpan = useMemo(() => {
+    if (!initialEventId || !showSwimlanes) return undefined;
+    const present = eventsForNodes.some(
+      (e) => (e as { uuid?: string | null }).uuid === initialEventId
+    );
+    if (present) return undefined;
+    return (
+      resolveEventToSpan(initialEventId, timelineData.root) ??
+      resolveEventInBranches(initialEventId, timelineData.root)
+    );
+  }, [initialEventId, showSwimlanes, eventsForNodes, timelineData.root]);
+
+  const prevEventIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevEventIdRef.current === initialEventId) return;
+    // A cross-timeline switch is pending: re-evaluate after it lands.
+    if (deepLinkTimelineIndex >= 0) return;
+    prevEventIdRef.current = initialEventId;
+    if (!resolvedEventSpan) return;
+    let targetKey: string | null = null;
+    if (resolvedEventSpan.branchRowKey) {
+      targetKey = resolvedEventSpan.branchRowKey;
+    } else if (resolvedEventSpan.agentSpanId) {
+      targetKey =
+        spanSelectKeys.get(resolvedEventSpan.agentSpanId)?.key ?? null;
+    }
+    if (!targetKey) return;
+    if (timelineState.selected === targetKey) return;
+    timelineState.select(targetKey, { preserveDeepLink: true });
+  }, [
+    initialEventId,
+    deepLinkTimelineIndex,
+    resolvedEventSpan,
+    spanSelectKeys,
+    timelineState,
+  ]);
+
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
 
@@ -786,6 +829,19 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       collapseState?.transcript,
       defaultCollapsedIds,
     ]
+  );
+
+  // Bulk-expand for deep links into collapsed regions. One batched update —
+  // sequential onCollapseTranscript calls would each re-seed defaults and
+  // clobber the previous call's expansion while the store is unseeded.
+  const onExpandNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (!onSetTranscriptCollapsed) return;
+      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
+      for (const id of nodeIds) next[id] = false;
+      onSetTranscriptCollapsed(next);
+    },
+    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
   );
 
   // ---------------------------------------------------------------------------
@@ -1180,6 +1236,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 collapsedTranscript={collapseState?.transcript}
                 collapsedOutline={collapseState?.outline}
                 onCollapseTranscript={onCollapseTranscript}
+                onExpandNodes={
+                  onSetTranscriptCollapsed ? onExpandNodes : undefined
+                }
                 eventNodeContext={mergedEventNodeContext}
               />
             ) : emptyText !== null ? (

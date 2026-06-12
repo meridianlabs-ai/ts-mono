@@ -28,7 +28,11 @@ import {
 } from "./outline/tree-visitors";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
-import { flatTree } from "./transform/flatten";
+import {
+  findAncestorIds,
+  findCollapsedAncestors,
+  flatTree,
+} from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
 import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
@@ -60,6 +64,9 @@ export interface TranscriptViewNodesProps {
   /** Outline collapse state, used only for turn-map computation. */
   collapsedOutline?: Record<string, boolean>;
   onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
+  /** Expand several nodes in one state update — used to reveal deep-link
+   *  targets hidden inside collapsed regions. */
+  onExpandNodes?: (nodeIds: string[]) => void;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
 }
@@ -97,29 +104,6 @@ const escapeAttr = (id: string): string =>
   typeof CSS !== "undefined" && CSS.escape
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
-
-/**
- * Find the IDs of all ancestors of `eventId` in the EventNode tree.
- * Returns an empty array if `eventId` is not found.
- * Order: outermost ancestor first.
- */
-function findAncestorIds(nodes: EventNode[], eventId: string): string[] {
-  const path: string[] = [];
-  const found = walk(nodes, eventId, path);
-  return found ? path : [];
-
-  function walk(nodes: EventNode[], target: string, path: string[]): boolean {
-    for (const n of nodes) {
-      if (n.id === target) return true;
-      if (n.children.length > 0) {
-        path.push(n.id);
-        if (walk(n.children, target, path)) return true;
-        path.pop();
-      }
-    }
-    return false;
-  }
-}
 
 /** Worst-case bottom edge of the top-pinned sticky bar (relative to the
  *  scroll container's top), based on each sticky element's CSS `top` +
@@ -249,6 +233,7 @@ export const TranscriptViewNodes = forwardRef<
     collapsedTranscript,
     collapsedOutline,
     onCollapseTranscript,
+    onExpandNodes,
     eventNodeContext,
   },
   ref
@@ -442,6 +427,32 @@ export const TranscriptViewNodes = forwardRef<
   // `flattenedNodes` changes (filter/collapse) don't re-fire a scroll for
   // an already-handled target — but two messages that resolve to the same
   // event panel still re-fire when `initialMessageId` differs.
+  // Deep links into collapsed regions: the target has no row until its
+  // collapsed ancestors are expanded. Expand them once per target — the
+  // scroll effect below re-fires when the flattened list updates. Guarded
+  // per target so a stale URL param doesn't fight the user re-collapsing.
+  const expandedForTargetRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scrollEventId || !onExpandNodes) return;
+    if (expandedForTargetRef.current === scrollEventId) return;
+    if (flattenedNodes.some((n) => n.id === scrollEventId)) return;
+    const collapsedAncestors = findCollapsedAncestors(
+      eventNodes,
+      scrollEventId,
+      collapsedTranscript ?? defaultCollapsedIds
+    );
+    if (collapsedAncestors.length === 0) return;
+    expandedForTargetRef.current = scrollEventId;
+    onExpandNodes(collapsedAncestors);
+  }, [
+    scrollEventId,
+    onExpandNodes,
+    flattenedNodes,
+    eventNodes,
+    collapsedTranscript,
+    defaultCollapsedIds,
+  ]);
+
   const lastScrolledKeyRef = useRef<string | null>(null);
   const offsetTopRef = useRef(offsetTop);
   useEffect(() => {

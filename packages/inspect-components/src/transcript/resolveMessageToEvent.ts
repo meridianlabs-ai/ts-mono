@@ -87,6 +87,69 @@ export function resolveMessageInBranches(
   return undefined;
 }
 
+/**
+ * Resolves an event id (event uuid or span node id) to its swimlane target
+ * in the main content tree: the immediate child agent span (if any) that
+ * must be selected before the event list can contain the target.
+ *
+ * The event-id analogue of `resolveMessageToEvent` — same one-level agent
+ * context semantics, but matching node identity instead of message ids.
+ */
+export function resolveEventToSpan(
+  eventId: string,
+  root: TimelineSpan
+): ResolvedMessageEvent | undefined {
+  return walkContentForEvent(eventId, root.content, null);
+}
+
+/**
+ * Branch fallback for `resolveEventToSpan` — walks every branch row and
+ * returns the first hit along with the branch's swimlane row key.
+ */
+export function resolveEventInBranches(
+  eventId: string,
+  root: TimelineSpan
+): ResolvedMessageEvent | undefined {
+  const rows = computeFlatSwimlaneRows(root, {
+    includeUtility: true,
+    showBranches: true,
+  });
+
+  for (const row of rows) {
+    if (!row.branch) continue;
+    for (const rowSpan of row.spans) {
+      const agents = isSingleSpan(rowSpan) ? [rowSpan.agent] : rowSpan.agents;
+      for (const agent of agents) {
+        const match = walkContentForEvent(eventId, agent.content, null);
+        if (match) {
+          return { ...match, branchRowKey: row.key };
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function walkContentForEvent(
+  eventId: string,
+  content: ReadonlyArray<TimelineEvent | TimelineSpan>,
+  agentContext: string | null
+): ResolvedMessageEvent | undefined {
+  for (const item of content) {
+    if (item.type === "event") {
+      const uuid = (item.event as { uuid?: string | null }).uuid;
+      if (uuid === eventId) return { eventId, agentSpanId: agentContext };
+    } else {
+      const childContext =
+        item.spanType === "agent" ? (agentContext ?? item.id) : agentContext;
+      if (item.id === eventId) return { eventId, agentSpanId: agentContext };
+      const found = walkContentForEvent(eventId, item.content, childContext);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 // =============================================================================
 // Match priorities — lower number = higher priority
 // =============================================================================
