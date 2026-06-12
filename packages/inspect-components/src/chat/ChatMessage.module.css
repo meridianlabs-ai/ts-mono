@@ -16,13 +16,13 @@
   border-top: 1px solid var(--bs-light-border-subtle);
 }
 
-/* The prose row keeps the assistant band; the left accent is supplied here so
-   the turn reads the same outside the readable variant (which re-applies the
-   identical color via the [data-message-role] rules). Extra vertical padding
-   gives the prose rows more weight between the tool rows. */
+/* The prose row keeps the assistant band; the left accent token is neutral
+   by default and colorized under the readable variant (where the
+   [data-message-role] rules re-apply the identical color). Extra vertical
+   padding gives the prose rows more weight between the tool rows. */
 .proseSegment {
   padding: 0.9rem 0.7rem;
-  border-left: 3px solid var(--inspect-readable-assistant-border);
+  border-left: 3px solid var(--inspect-turn-prose-accent);
 }
 
 .timestamp {
