@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Score } from "@tsmono/inspect-common/types";
 import type { EventNodeContext } from "@tsmono/inspect-components/transcript";
@@ -46,17 +46,15 @@ export function useSampleScans(opts: {
     return filtered;
   }, [allScores]);
 
-  const hasScans = Object.keys(scores).length > 0;
+  const scanners = Object.keys(scores);
+  const hasScans = scanners.length > 0;
 
-  const [selected, setSelected] = useState<string>("");
-  useEffect(() => {
-    const scanners = Object.keys(scores);
-    if (scanners.length === 0) {
-      if (selected !== "") setSelected("");
-    } else if (!scanners.includes(selected)) {
-      setSelected(scanners[0]);
-    }
-  }, [scores, selected]);
+  // Derive the effective selection instead of syncing state in an effect:
+  // fall back to the first scanner when the stored choice isn't available.
+  const [storedSelection, setSelected] = useState<string>("");
+  const selected = scanners.includes(storedSelection)
+    ? storedSelection
+    : (scanners[0] ?? "");
 
   const makeCiteUrl = useMakeCiteUrl({ sampleId, sampleEpoch });
 

@@ -203,10 +203,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleMessages !== undefined;
 
   useEffect(() => {
-    if (!hasSampleData) {
-      setTabsHeight(0);
-      return;
-    }
+    if (!hasSampleData) return;
 
     const el = tabsRef.current;
     if (!el) return;
@@ -640,10 +637,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
-    if (!selectedSampleSummary) {
-      setHeaderHeight(0);
-      return;
-    }
+    if (!selectedSampleSummary) return;
 
     const wrapper = headerWrapperRef.current;
     if (!wrapper) return;
@@ -656,14 +650,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     return () => ro.disconnect();
   }, [selectedSampleSummary]);
 
-  const stickyOffsetTop = tabsHeight + headerHeight;
+  // The measurement effects above skip running while their elements are
+  // unmounted, so zero out the stale last-measured heights here instead.
+  const effectiveHeaderHeight = selectedSampleSummary ? headerHeight : 0;
+  const stickyOffsetTop =
+    (hasSampleData ? tabsHeight : 0) + effectiveHeaderHeight;
 
   const tabsContainerStyle = useMemo(
     () =>
       ({
-        "--inspect-sample-header-height": `${headerHeight}px`,
+        "--inspect-sample-header-height": `${effectiveHeaderHeight}px`,
       }) as CSSProperties,
-    [headerHeight]
+    [effectiveHeaderHeight]
   );
 
   // Which rail entry (if any) is showing its panel. Scans only applies on the
