@@ -79,14 +79,15 @@
 
   /* Tool block (header/edge/zones) tokens: neutral by default so the
      design-consistent look holds when Event Colors is off; the readable
-     variant points them at the colored tool tokens below. */
-  --inspect-tool-block-accent: var(--bs-light-border-subtle);
+     variant points them at the colored tool tokens below. The left edges
+     are plain 1px card borders uncolored, 3px accent bands colorized. */
+  --inspect-tool-block-edge: 1px solid var(--bs-light-border-subtle);
   --inspect-tool-block-header-bg: var(--bs-tertiary-bg);
   /* Visibly darker than the output well so input/output read as distinct
      zones without the readable tints. */
   --inspect-tool-block-input-bg: var(--bs-secondary-bg);
   --inspect-tool-block-ink: var(--bs-secondary-color);
-  --inspect-turn-prose-accent: var(--bs-light-border-subtle);
+  --inspect-turn-prose-edge: 1px solid var(--bs-light-border-subtle);
 }
 
 :root[data-bs-theme="dark"] {
@@ -117,11 +118,11 @@
    already emit (no per-role classes, no duplicated styles). */
 :root[data-theme-variant="readable"] {
   --bs-body-color: var(--inspect-readable-body-color);
-  --inspect-tool-block-accent: var(--inspect-readable-tool-call-border);
+  --inspect-tool-block-edge: 3px solid var(--inspect-readable-tool-call-border);
   --inspect-tool-block-header-bg: var(--inspect-readable-tool-call-bg);
   --inspect-tool-block-input-bg: var(--inspect-readable-tool-call-bg);
   --inspect-tool-block-ink: var(--inspect-readable-tool-call-border);
-  --inspect-turn-prose-accent: var(--inspect-readable-assistant-border);
+  --inspect-turn-prose-edge: 3px solid var(--inspect-readable-assistant-border);
 }
 
 :root[data-theme-variant="readable"] [data-message-role] {
