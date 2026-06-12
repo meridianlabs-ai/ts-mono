@@ -12,6 +12,8 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
 
   test("preserves complete from pending-sample URL responses", async () => {
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      // The test only ever calls fetch with a string URL.
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       const url = String(input);
       expect(url).toContain("/pending-sample-data-urls?");
       return Promise.resolve({

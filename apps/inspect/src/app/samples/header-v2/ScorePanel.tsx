@@ -7,6 +7,7 @@ import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
+import { valueAsString } from "../../../utils/format";
 import {
   resolveScorePanelSort,
   resolveScorePanelView,
@@ -285,8 +286,8 @@ function makeCompare(
     if (an !== null && bn !== null) return an - bn;
     if (an !== null) return -1;
     if (bn !== null) return 1;
-    const as = av === undefined ? "" : String(av);
-    const bs = bv === undefined ? "" : String(bv);
+    const as = av === undefined ? "" : valueAsString(av);
+    const bs = bv === undefined ? "" : valueAsString(bv);
     return as.localeCompare(bs, undefined, { numeric: true });
   };
 }

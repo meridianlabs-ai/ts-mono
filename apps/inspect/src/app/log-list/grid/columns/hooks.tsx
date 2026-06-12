@@ -11,7 +11,11 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 import { kModelNone } from "../../../../constants";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
-import { formatDateTime, formatTime } from "../../../../utils/format";
+import {
+  formatDateTime,
+  formatTime,
+  valueAsString,
+} from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import {
@@ -676,7 +680,9 @@ export const useLogListColumns = (
           if (typeof valA === "number" && typeof valB === "number") {
             return valA - valB;
           }
-          return String(valA || "").localeCompare(String(valB || ""));
+          return valueAsString(valA || "").localeCompare(
+            valueAsString(valB || "")
+          );
         }),
       } as ColDef<LogListRow>;
     });
@@ -777,7 +783,9 @@ export const useLogListColumns = (
             if (typeof valA === "number" && typeof valB === "number") {
               return valA - valB;
             }
-            return String(valA || "").localeCompare(String(valB || ""));
+            return valueAsString(valA || "").localeCompare(
+            valueAsString(valB || "")
+          );
           }),
         } as ColDef<LogListRow>;
       });

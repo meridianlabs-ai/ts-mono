@@ -15,7 +15,11 @@ import { formatDataset } from "@tsmono/util";
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
 import { useEvalDescriptor, useSampleInvalidation } from "../../../state/hooks";
-import { formatDateTime, formatDuration } from "../../../utils/format";
+import {
+  formatDateTime,
+  formatDuration,
+  valueAsString,
+} from "../../../utils/format";
 
 import styles from "./SecondaryBar.module.css";
 
@@ -228,7 +232,7 @@ const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
     if (Array.isArray(val) || typeof val === "object") {
       return `${key}: ${JSON.stringify(val)}`;
     } else {
-      return `${key}: ${String(val)}`;
+      return `${key}: ${valueAsString(val)}`;
     }
   });
   if (paraValues.length > 0) {

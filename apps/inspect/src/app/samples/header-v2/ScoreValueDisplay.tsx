@@ -3,6 +3,7 @@ import { CSSProperties, FC } from "react";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
+import { valueAsString } from "../../../utils/format";
 
 import { scoreTone, Tone } from "./scoreTone";
 import styles from "./ScoreValueDisplay.module.css";
@@ -54,7 +55,7 @@ const CircleValue: FC<ScoreValueDisplayProps> = ({
         className={clsx(styles.circle, toneCircleClass(tone))}
         style={sizeStyle}
       >
-        {String(value)}
+        {valueAsString(value)}
       </span>
     );
   }

@@ -15,6 +15,7 @@ import {
   kScoreTypeOther,
   kScoreTypePassFail,
 } from "../../../../constants";
+import { valueAsString } from "../../../../utils/format";
 import { SampleFilterItem } from "../filters";
 
 import {
@@ -369,7 +370,7 @@ const makeMetadataValueCompletion = (value: unknown): Completion => {
   } else if (value === null) {
     label = "None";
   } else {
-    label = String(value);
+    label = valueAsString(value);
   }
 
   return {
@@ -692,7 +693,7 @@ export function getCompletions(
                     : "False"
                   : value === null
                     ? "None"
-                    : String(value);
+                    : valueAsString(value);
             return label.toLowerCase().startsWith(currentQuery.toLowerCase());
           })
         : metadataValues;

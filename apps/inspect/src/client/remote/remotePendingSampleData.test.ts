@@ -24,6 +24,8 @@ describe("fetchPendingSampleDataDirect", () => {
 
     beforeEach(() => {
       globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        // The test only ever calls fetch with a string URL.
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const url = String(input);
         // Segment N encodes one event with id=N*10. Delay is inverse to N so
         // higher-id segments resolve first, stressing arrival-order merging.

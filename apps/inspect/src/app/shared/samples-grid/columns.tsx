@@ -16,7 +16,11 @@ import {
   kScoreTypeNumeric,
   kScoreTypePassFail,
 } from "../../../constants";
-import { formatDateTime, formatTime } from "../../../utils/format";
+import {
+  formatDateTime,
+  formatTime,
+  valueAsString,
+} from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
   kDefaultSampleSortValue,
@@ -644,7 +648,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
         comparator: isNumeric
           ? comparators.number
           : (a: unknown, b: unknown) =>
-              String(a ?? "").localeCompare(String(b ?? "")),
+              valueAsString(a ?? "").localeCompare(valueAsString(b ?? "")),
         valueGetter: (params: ValueGetterParams<SampleRow>) => {
           const data = params.data?.data;
           if (!data) return undefined;
@@ -727,7 +731,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       comparator: isUniformNumber
         ? comparators.number
         : (a: unknown, b: unknown) =>
-            String(a ?? "").localeCompare(String(b ?? "")),
+            valueAsString(a ?? "").localeCompare(valueAsString(b ?? "")),
     };
   });
 }
