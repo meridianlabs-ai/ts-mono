@@ -83,6 +83,11 @@
   opacity: 0.75;
 }
 
+/* Extra air between the turn label and the event-number pill. */
+.eventLabel {
+  margin-left: 0.5em;
+}
+
 .root {
   background-color: var(--bs-light-bg-subtle);
   border-radius: unset;

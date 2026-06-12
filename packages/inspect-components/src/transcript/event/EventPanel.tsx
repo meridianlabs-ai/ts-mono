@@ -159,6 +159,7 @@ export const EventPanel: FC<EventPanelProps> = ({
           display: "grid",
           gridTemplateColumns: gridColumns.join(" "),
           columnGap: "0.3em",
+          alignItems: "center",
           cursor: isCollapsible && !useBottomDongle ? "pointer" : undefined,
         }}
         onMouseEnter={() => setMouseOver(true)}
@@ -241,7 +242,14 @@ export const EventPanel: FC<EventPanelProps> = ({
         {turnLabel && (
           <span className={clsx(styles.turnLabel)}>{turnLabel}</span>
         )}
-        {eventLabel && <MessageLabel label={eventLabel} />}
+        {eventLabel && (
+          <MessageLabel
+            // Cite labels arrive as "[E58]"; the pill shows the bare number,
+            // matching message numbering.
+            label={eventLabel.replace(/\D/g, "") || eventLabel}
+            className={styles.eventLabel}
+          />
+        )}
       </div>
     ) : (
       ""
