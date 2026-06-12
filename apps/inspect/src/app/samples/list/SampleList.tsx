@@ -193,3 +193,5 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     </div>
   );
 });
+
+SampleList.displayName = "SampleList";

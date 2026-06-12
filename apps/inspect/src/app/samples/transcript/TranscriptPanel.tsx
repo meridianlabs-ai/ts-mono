@@ -378,3 +378,5 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     />
   );
 });
+
+TranscriptPanel.displayName = "TranscriptPanel";

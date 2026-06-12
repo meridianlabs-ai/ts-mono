@@ -45,3 +45,5 @@ export const FlowButton = forwardRef<HTMLButtonElement, FlowButtonProps>(
     );
   }
 );
+
+FlowButton.displayName = "FlowButton";

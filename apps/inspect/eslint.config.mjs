@@ -60,7 +60,6 @@ export default tseslint.config(
         },
       ],
       "@typescript-eslint/require-await": "off",
-      "react/display-name": "off",
     },
   }
 );
