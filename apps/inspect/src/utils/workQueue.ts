@@ -67,7 +67,7 @@ export class WorkQueue<TInput, TOutput> {
 
   async processImmediate(items: TInput[]) {
     const results = await this.options.worker(items);
-    this.options.onComplete(results, items);
+    void this.options.onComplete(results, items);
   }
 
   private startProcessing() {
@@ -108,7 +108,7 @@ export class WorkQueue<TInput, TOutput> {
         try {
           const results = await this.options.worker(inputs);
 
-          this.options.onComplete(results, inputs);
+          void this.options.onComplete(results, inputs);
         } catch (error) {
           console.error("Work queue processing error:", error);
 

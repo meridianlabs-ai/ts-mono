@@ -100,7 +100,7 @@ export const createPolling = (
     log.debug("Start Polling");
     isPolling = true;
     isStopped = false;
-    poll();
+    void poll();
   };
 
   return { name, start, stop };

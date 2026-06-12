@@ -157,7 +157,7 @@ const AppContent: FC = () => {
       }
     };
 
-    loadSpecificLog();
+    void loadSpecificLog();
   }, [selectedLogFile, loadedLogFile, selectedLogDetails, loadLog, setLoading]);
 
   useEffect(() => {
@@ -167,7 +167,7 @@ const AppContent: FC = () => {
       await pollLog();
     };
     if (selectedLogDetails?.status === "started") {
-      doPoll();
+      void doPoll();
     }
   }, [pollLog, selectedLogDetails?.status]);
 
@@ -204,10 +204,10 @@ const AppContent: FC = () => {
             if (log_dir === logDir) {
               setSelectedLogFile(decodedUrl);
             } else {
-              api.open_log_file(e.data.url, e.data.log_dir);
+              void api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            syncLogs();
+            void syncLogs();
           }
           break;
         }
@@ -268,7 +268,7 @@ const AppContent: FC = () => {
       new ClipboardJS(".clipboard-button,.copy-button");
     };
 
-    loadLogsAndState();
+    void loadLogsAndState();
   }, [
     setLogDir,
     setLogFiles,

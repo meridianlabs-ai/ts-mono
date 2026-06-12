@@ -40,7 +40,6 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx}"],
     rules: {
       "no-unused-vars": "off",
-      "@typescript-eslint/no-floating-promises": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",

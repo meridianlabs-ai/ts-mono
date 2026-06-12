@@ -340,7 +340,7 @@ export class ReplicationService {
       if (invalidate) {
         // Invalidate everything
         for (const file of logFiles) {
-          this._database?.clearCacheForFile(file.name);
+          void this._database?.clearCacheForFile(file.name);
         }
 
         // Drop stale queued work before scheduling new fetches
@@ -391,7 +391,7 @@ export class ReplicationService {
         return !updatedLogs.find((f) => f.name === current.name);
       });
       for (const file of deletedFiles) {
-        this._database?.clearCacheForFile(file.name);
+        void this._database?.clearCacheForFile(file.name);
       }
 
       if (deletedFiles.length > 0) {
@@ -422,7 +422,7 @@ export class ReplicationService {
     });
 
     // Invalidate summaries and overviews for deleted or updated files
-    toInvalidate
+    void toInvalidate
       .map((file) => file.name)
       .map((name) => this._database?.clearCacheForFile(name));
 
@@ -494,8 +494,8 @@ export class ReplicationService {
   }
 
   public clearData() {
-    this._database?.clearAllCaches();
-    this.updateDbStats();
+    void this._database?.clearAllCaches();
+    void this.updateDbStats();
   }
 
   private async queueMissingOrStartedPreviews(

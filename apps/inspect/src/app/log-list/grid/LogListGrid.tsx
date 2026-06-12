@@ -323,7 +323,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
         const url = e.data.url;
         if (url) {
           setTimeout(() => {
-            navigate(url);
+            void navigate(url);
           }, 10);
         }
       }
@@ -340,7 +340,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
       if (openInNewWindow) {
         openInNewTab(rowNode.data.url);
       } else {
-        navigate(rowNode.data.url);
+        void navigate(rowNode.data.url);
       }
     },
     [navigate]

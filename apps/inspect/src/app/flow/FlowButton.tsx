@@ -22,7 +22,7 @@ export const FlowButton = forwardRef<HTMLButtonElement>(
       const flowPath = logPath
         ? `${routePrefix}/${logPath}/flow.yaml`
         : `${routePrefix}/flow.yaml`;
-      navigateRouter(flowPath);
+      void navigateRouter(flowPath);
     };
 
     return (

@@ -368,7 +368,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   }, [logItems]);
 
   useEffect(() => {
-    loadLogs(logPath);
+    void loadLogs(logPath);
   }, [loadLogs, logPath]);
 
   const handleResetFilters = () => {
@@ -389,7 +389,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     if (maybeShowSingleLog && logItems.length === 1) {
       const onlyItem = logItems[0];
       if (onlyItem.url) {
-        navigate(onlyItem.url);
+        void navigate(onlyItem.url);
       }
     }
   }, [logItems, maybeShowSingleLog, navigate]);

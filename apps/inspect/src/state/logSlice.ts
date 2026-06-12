@@ -232,7 +232,7 @@ export const createLogSlice = (
                   [logFileName]: toLogPreview(cachedInfo),
                 });
                 // Still fetch fresh data in background to update cache
-                refreshLogDetails().catch(() => {
+                void refreshLogDetails().catch(() => {
                   // Silently ignore background refresh errors
                 });
               }
