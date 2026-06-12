@@ -22,7 +22,7 @@
    padding gives the prose rows more weight between the tool rows. */
 .proseSegment {
   padding: 0.9rem 0.7rem;
-  border-left: 3px solid var(--inspect-turn-prose-accent);
+  border-left: var(--inspect-turn-prose-edge);
 }
 
 .timestamp {

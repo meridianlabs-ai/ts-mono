@@ -3,7 +3,7 @@
    variant (the Event Colors toggle); the output well is the tool-output
    fill, hairlines/border are the subtle border token. */
 .block {
-  border-left: 3px solid var(--inspect-tool-block-accent);
+  border-left: var(--inspect-tool-block-edge);
 }
 
 .standalone {
