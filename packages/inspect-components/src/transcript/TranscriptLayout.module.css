@@ -19,10 +19,7 @@
 .container {
   display: grid;
   width: 100%;
-  grid-template-columns: var(--outline-width, 180px) 1px 1fr 1px var(
-      --right-pane-width,
-      360px
-    );
+  grid-template-columns: var(--outline-width, 180px) 1px 1fr;
   min-height: 100vh;
 }
 
@@ -38,34 +35,10 @@
 }
 
 .container.outlineCollapsed {
-  grid-template-columns: 22px 1px 1fr 1px var(--right-pane-width, 360px);
-}
-
-.container.noOutline {
-  grid-template-columns: 1fr 1px var(--right-pane-width, 360px);
-}
-
-.container.rightPaneCollapsed {
-  grid-template-columns: var(--outline-width, 180px) 1px 1fr 1px 22px;
-}
-
-.container.outlineCollapsed.rightPaneCollapsed {
-  grid-template-columns: 22px 1px 1fr 1px 22px;
-}
-
-.container.noOutline.rightPaneCollapsed {
-  grid-template-columns: 1fr 1px 22px;
-}
-
-.container.noRightPane {
-  grid-template-columns: var(--outline-width, 180px) 1px 1fr;
-}
-
-.container.outlineCollapsed.noRightPane {
   grid-template-columns: 22px 1px 1fr;
 }
 
-.container.noOutline.noRightPane {
+.container.noOutline {
   grid-template-columns: 1fr;
 }
 
@@ -101,53 +74,6 @@
 
 .separator {
   background-color: var(--bs-border-color);
-}
-
-.rightSeparator {
-  background-color: var(--bs-border-color);
-}
-
-.rightPane {
-  padding-top: 0rem;
-  padding-right: 0.2rem;
-  align-self: start;
-}
-
-.container:not(.rightPaneCollapsed) > .rightPane {
-  padding-left: 0.2rem;
-  /* Leave room on the right for the absolutely-positioned close button. */
-  padding-right: 1.2rem;
-  max-height: calc(var(--scroller-height, 100vh) - var(--outline-top, 0px));
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.rightPaneResizer {
-  position: absolute;
-  left: -3px;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: col-resize;
-  touch-action: none;
-  user-select: none;
-  z-index: 1;
-  background-color: transparent;
-  transition: background-color 120ms ease;
-}
-
-.rightPaneResizer:hover,
-.rightPaneResizer:active {
-  background-color: var(--bs-primary-border-subtle);
-}
-
-.rightPaneToggle {
-  all: unset;
-  cursor: pointer;
-  font-size: 0.8em;
-  position: absolute;
-  top: 0.2rem;
-  left: 0.2rem;
 }
 
 .eventsList {
@@ -188,12 +114,6 @@
   top: 0;
   height: 0;
   z-index: 3;
-}
-
-/* In the right pane, extend the anchor into the parent's right padding so
-   the button lines up with the existing visual position. */
-.rightPane .sidebarHeaderCloseAnchor {
-  margin-right: -1.2rem;
 }
 
 /* Center the close icon vertically with the rootHeader title that follows

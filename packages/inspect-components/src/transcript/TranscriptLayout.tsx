@@ -18,7 +18,6 @@ import {
   CSSProperties,
   FC,
   ReactNode,
-  PointerEvent as ReactPointerEvent,
   RefObject,
   useCallback,
   useEffect,
@@ -106,25 +105,6 @@ export interface TranscriptLayoutOutlineProps {
   setSelectedId?: (id: string) => void;
 }
 
-export interface TranscriptLayoutRightPaneProps {
-  /** Content shown when the pane is expanded. */
-  content: ReactNode;
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
-  toggleIcon: string;
-  toggleTitle?: string;
-  /** Header title shown next to the toggle icon when expanded. */
-  title?: string;
-  /** Width (px) when expanded. Defaults to 360. */
-  width?: number;
-  /** When provided, the pane is resizable: callback fires with the new width during drag. */
-  onWidthChange?: (width: number) => void;
-  minWidth?: number;
-  maxWidth?: number;
-  /** aria-label root for the toggle / pane region. */
-  label?: string;
-}
-
 export interface TranscriptLayoutRightRailProps {
   /** Always-visible rail content (the vertical activity bar). */
   rail: ReactNode;
@@ -205,14 +185,8 @@ export interface TranscriptLayoutProps {
    *  caller wants to observe its scroll events (e.g. headroom direction). */
   outlineScrollRef?: RefObject<HTMLDivElement | null>;
 
-  // --- Right pane ---
-  /** Optional right-side pane (mirror of outline). When omitted, the right column is hidden. */
-  rightPane?: TranscriptLayoutRightPaneProps;
-  /** Optional ref to the right pane's sticky scroll container. */
-  rightPaneScrollRef?: RefObject<HTMLDivElement | null>;
-
   // --- Right rail ---
-  /** Optional always-visible right rail + optional panel. Independent of `rightPane`. */
+  /** Optional always-visible right rail + optional panel. */
   rightRail?: TranscriptLayoutRightRailProps;
   /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
   rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
@@ -342,8 +316,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   collapseState,
   outline,
   outlineScrollRef,
-  rightPane,
-  rightPaneScrollRef,
   rightRail,
   rightRailPanelScrollRef,
   eventNodeContext,
@@ -948,7 +920,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // keep stale state. Dispatch a synthetic scroll event after the DOM has
   // settled to force them to re-measure.
   const outlineCollapsedFlag = outline?.collapsed ?? null;
-  const rightPaneCollapsedFlag = rightPane?.collapsed ?? null;
   const railPanelOpenFlag = rightRail?.panel != null;
   useEffect(() => {
     const el = scrollRef.current;
@@ -957,12 +928,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       el.dispatchEvent(new Event("scroll"));
     }, 0);
     return () => clearTimeout(timer);
-  }, [
-    outlineCollapsedFlag,
-    rightPaneCollapsedFlag,
-    railPanelOpenFlag,
-    scrollRef,
-  ]);
+  }, [outlineCollapsedFlag, railPanelOpenFlag, scrollRef]);
 
   // Forward wheel events from the sidebars to the main scroll container
   // only while the header above the tabs is still visible. Once the sidebar
@@ -980,7 +946,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   useEffect(() => {
     const main = scrollRef.current;
     const outlineEl = outlineScrollRef?.current ?? null;
-    const rightEl = rightPaneScrollRef?.current ?? null;
     const railPanelEl = rightRailPanelScrollRef?.current ?? null;
     if (!main) return;
 
@@ -1022,16 +987,14 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       };
 
     // The rail panel pins directly below the toolbar (offsetTop), alongside
-    // the timeline; the outline and right pane pin below the swimlanes
-    // (effectiveOffsetTop). Each needs its own sticky-detection threshold.
+    // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
+    // Each needs its own sticky-detection threshold.
     const targets: {
       el: HTMLDivElement;
       stickyTopRef: { current: number };
     }[] = [];
     if (outlineEl)
       targets.push({ el: outlineEl, stickyTopRef: effectiveOffsetTopRef });
-    if (rightEl)
-      targets.push({ el: rightEl, stickyTopRef: effectiveOffsetTopRef });
     if (railPanelEl)
       targets.push({ el: railPanelEl, stickyTopRef: offsetTopRef });
 
@@ -1049,12 +1012,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }, [
     scrollRef,
     outlineScrollRef,
-    rightPaneScrollRef,
     rightRailPanelScrollRef,
     // Re-attach when collapse state changes (the scroll elements may have
     // unmounted/remounted via the conditional render).
     outlineCollapsedFlag,
-    rightPaneCollapsedFlag,
     railPanelOpenFlag,
   ]);
 
@@ -1098,58 +1059,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }, [scrollRef]);
 
   // ---------------------------------------------------------------------------
-  // Right pane resize
-  // ---------------------------------------------------------------------------
-
-  const rightPaneWidth = rightPane?.width ?? 360;
-  const rightPaneMinWidth = rightPane?.minWidth ?? 240;
-  const rightPaneMaxWidth = rightPane?.maxWidth ?? 800;
-  const rightPaneOnWidthChange = rightPane?.onWidthChange;
-  const rightPaneDragRef = useRef<{
-    startX: number;
-    startWidth: number;
-  } | null>(null);
-
-  const handleRightPanePointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!rightPaneOnWidthChange) return;
-      e.preventDefault();
-      (e.target as HTMLDivElement).setPointerCapture(e.pointerId);
-      rightPaneDragRef.current = {
-        startX: e.clientX,
-        startWidth: rightPaneWidth,
-      };
-    },
-    [rightPaneOnWidthChange, rightPaneWidth]
-  );
-
-  const handleRightPanePointerMove = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!rightPaneOnWidthChange || !rightPaneDragRef.current) return;
-      const { startX, startWidth } = rightPaneDragRef.current;
-      const next = startWidth - (e.clientX - startX);
-      const clamped = Math.max(
-        rightPaneMinWidth,
-        Math.min(rightPaneMaxWidth, next)
-      );
-      rightPaneOnWidthChange(clamped);
-    },
-    [rightPaneOnWidthChange, rightPaneMinWidth, rightPaneMaxWidth]
-  );
-
-  const handleRightPanePointerUp = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      rightPaneDragRef.current = null;
-      try {
-        (e.target as HTMLDivElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // pointer may already be released
-      }
-    },
-    []
-  );
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -1188,14 +1097,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 styles.container,
                 embedded && styles.embedded,
                 !outline && styles.noOutline,
-                outline && isOutlineCollapsed && styles.outlineCollapsed,
-                !rightPane && styles.noRightPane,
-                rightPane && rightPane.collapsed && styles.rightPaneCollapsed
+                outline && isOutlineCollapsed && styles.outlineCollapsed
               )}
               style={
                 {
                   "--outline-top": `${effectiveOffsetTop}px`,
-                  "--right-pane-width": `${rightPaneWidth}px`,
                   "--scroller-height": scrollerHeight
                     ? `${scrollerHeight}px`
                     : "100vh",
@@ -1319,74 +1225,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />
               ) : null}
-              {rightPane && (
-                <>
-                  <div className={styles.rightSeparator} />
-                  <StickyScroll
-                    ref={rightPaneScrollRef}
-                    scrollRef={scrollRef}
-                    className={styles.rightPane}
-                    offsetTop={effectiveOffsetTop}
-                  >
-                    {!rightPane.collapsed ? (
-                      <>
-                        {rightPaneOnWidthChange && (
-                          <div
-                            className={styles.rightPaneResizer}
-                            role="separator"
-                            aria-orientation="vertical"
-                            aria-label={`Resize ${rightPane.label ?? "pane"}`}
-                            onPointerDown={handleRightPanePointerDown}
-                            onPointerMove={handleRightPanePointerMove}
-                            onPointerUp={handleRightPanePointerUp}
-                            onPointerCancel={handleRightPanePointerUp}
-                          />
-                        )}
-                        {rightPane.title && (
-                          <div className={styles.sidebarHeader}>
-                            <span
-                              className={clsx(
-                                styles.sidebarHeaderTitle,
-                                "text-size-smaller"
-                              )}
-                            >
-                              {rightPane.title}
-                            </span>
-                          </div>
-                        )}
-                        <div className={styles.sidebarHeaderCloseAnchor}>
-                          <button
-                            type="button"
-                            className={styles.sidebarHeaderClose}
-                            onClick={() => rightPane.onCollapsedChange(true)}
-                            aria-label={`Hide ${rightPane.label ?? "pane"}`}
-                            title={
-                              rightPane.toggleTitle ??
-                              `Hide ${rightPane.label ?? "pane"}`
-                            }
-                          >
-                            <i className="bi bi-x" />
-                          </button>
-                        </div>
-                        {rightPane.content}
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.rightPaneToggle}
-                        onClick={() => rightPane.onCollapsedChange(false)}
-                        title={
-                          rightPane.toggleTitle ??
-                          `Show ${rightPane.label ?? "pane"}`
-                        }
-                        aria-label={`Show ${rightPane.label ?? "pane"}`}
-                      >
-                        <i className={rightPane.toggleIcon} />
-                      </button>
-                    )}
-                  </StickyScroll>
-                </>
-              )}
             </div>
           </div>
           {/* The rail (and its optional resizable panel) render as a flex
