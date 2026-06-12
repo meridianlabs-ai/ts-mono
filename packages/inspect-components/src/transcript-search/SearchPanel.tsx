@@ -33,7 +33,6 @@ import {
 import styles from "./SearchPanel.module.css";
 import {
   createInitialSearchPanelState,
-  normalizeSearchPanelState,
   SearchPanelState,
 } from "./searchPanelState";
 import { buildSearchRequest, buildSearchScope } from "./searchRequest";
@@ -146,16 +145,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const modelInputId = useId();
   const queryClient = useQueryClient();
 
-  const setState = useCallback(
-    (updater: (prev: SearchPanelState) => SearchPanelState) => {
-      stateController.setState((prev) =>
-        updater(normalizeSearchPanelState(prev))
-      );
-    },
-    [stateController]
-  );
-
-  const state = normalizeSearchPanelState(stateController.state);
+  // The host normalizes at its store boundary, so `state` is already a full
+  // SearchPanelState and `setState` can take updaters untouched.
+  const { state, setState } = stateController;
   const { searchType } = state;
   const activeBranch = state.searches[searchType];
   const { query, searchId } = activeBranch;

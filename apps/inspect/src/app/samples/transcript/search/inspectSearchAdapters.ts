@@ -152,17 +152,14 @@ export const useInspectSearchPanelState = ({
     () => getInspectSearchPanelStateKey({ scope, logFile, transcriptId }),
     [scope, logFile, transcriptId]
   );
-  const state = useStore((s) => s.search.panelStates[key]);
+  const stored = useStore((s) => s.search.panelStates[key]);
   const setSearchPanelState = useStore(
     (s) => s.searchActions.setSearchPanelState
   );
 
+  const state = useMemo(() => normalizeSearchPanelState(stored), [stored]);
   const setState = useCallback<SearchPanelStateController["setState"]>(
-    (updater) => {
-      setSearchPanelState(key, (prev) =>
-        normalizeSearchPanelState(updater(prev))
-      );
-    },
+    (updater) => setSearchPanelState(key, updater),
     [key, setSearchPanelState]
   );
 

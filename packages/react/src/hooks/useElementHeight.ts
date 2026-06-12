@@ -21,7 +21,13 @@ export const useElementHeight = (
     if (!enabled) return;
     const el = ref.current;
     if (!el) return;
-    const update = () => setHeight(el.getBoundingClientRect().height);
+    // Read ref.current fresh on each measure rather than the `el` captured
+    // above, so the window-resize path measures the live element even if it
+    // was swapped without re-running this effect.
+    const update = () => {
+      const current = ref.current;
+      if (current) setHeight(current.getBoundingClientRect().height);
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);

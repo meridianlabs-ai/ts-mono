@@ -56,15 +56,12 @@ export const useScoutSearchPanelState = ({
     () => getSearchPanelStateKey({ scope, transcriptDir }),
     [scope, transcriptDir]
   );
-  const state = useStore((s) => s.searchPanelStates[key]);
+  const stored = useStore((s) => s.searchPanelStates[key]);
   const setSearchPanelState = useStore((s) => s.setSearchPanelState);
 
+  const state = useMemo(() => normalizeSearchPanelState(stored), [stored]);
   const setState = useCallback<SearchPanelStateController["setState"]>(
-    (updater) => {
-      setSearchPanelState(key, (prev) =>
-        normalizeSearchPanelState(updater(prev))
-      );
-    },
+    (updater) => setSearchPanelState(key, updater),
     [key, setSearchPanelState]
   );
 

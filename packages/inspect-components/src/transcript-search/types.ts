@@ -5,7 +5,7 @@ import type {
   SearchResponse,
 } from "@tsmono/inspect-common/types";
 
-import type { StoredSearchPanelState } from "./searchPanelState";
+import type { SearchPanelState } from "./searchPanelState";
 
 export type SearchScope = "events" | "messages";
 export type SearchType = "grep" | "llm";
@@ -32,13 +32,15 @@ export interface SearchPanelApi {
   ) => Promise<SearchInputListResponse>;
 }
 
+/**
+ * State seam for the SearchPanel. The host is responsible for normalizing
+ * stored/persisted state into a full SearchPanelState before exposing it here
+ * (and at its store write boundary), so the panel never re-normalizes — it
+ * reads `state` directly and passes updaters straight through.
+ */
 export interface SearchPanelStateController {
-  state: StoredSearchPanelState | undefined;
-  setState: (
-    updater: (
-      prev: StoredSearchPanelState | undefined
-    ) => StoredSearchPanelState
-  ) => void;
+  state: SearchPanelState;
+  setState: (updater: (prev: SearchPanelState) => SearchPanelState) => void;
 }
 
 export interface ModelHistoryController {
