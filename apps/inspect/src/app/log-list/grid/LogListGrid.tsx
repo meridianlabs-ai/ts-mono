@@ -616,8 +616,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onGridReady={handleGridReady}
           onRowClicked={handleRowClick}
           onCellMouseDown={handleCellMouseDown}
-          onSortChanged={handleSortChanged}
-          onFilterChanged={handleFilterChanged}
+          onSortChanged={() => void handleSortChanged()}
+          onFilterChanged={() => void handleFilterChanged()}
           onModelUpdated={handleModelUpdated}
           loading={data.length === 0 && (loading > 0 || syncing)}
         />

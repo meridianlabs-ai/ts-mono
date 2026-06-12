@@ -50,13 +50,16 @@ export class ReplicationService {
 
   constructor() {
     this._processingCount = 0;
-    this._throttledUpdateDbStats = throttle(() => this.updateDbStats(), 1000);
+    this._throttledUpdateDbStats = throttle(
+      () => void this.updateDbStats(),
+      1000
+    );
     this._throttledFlushPreviewBatch = throttle(
-      () => this.flushPreviewBatch(),
+      () => void this.flushPreviewBatch(),
       250
     );
     this._throttledFlushDetailBatch = throttle(
-      () => this.flushDetailBatch(),
+      () => void this.flushDetailBatch(),
       250
     );
 

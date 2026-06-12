@@ -72,7 +72,7 @@ export const DownloadLogButton = ({
         styles.downloadLogButton,
         className
       )}
-      onClick={handleClick}
+      onClick={() => void handleClick()}
       aria-label={ariaLabel}
       disabled={downloadState !== "idle"}
     >

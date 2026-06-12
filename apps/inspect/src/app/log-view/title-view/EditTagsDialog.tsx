@@ -189,7 +189,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}
