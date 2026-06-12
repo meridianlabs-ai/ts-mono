@@ -63,7 +63,7 @@
 
 .inputZone {
   border-top: 1px solid var(--bs-light-border-subtle);
-  background-color: var(--inspect-tool-block-header-bg);
+  background-color: var(--inspect-tool-block-input-bg);
   padding: 0.5rem;
   overflow-x: auto;
 }
