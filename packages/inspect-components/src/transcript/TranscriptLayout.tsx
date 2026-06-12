@@ -33,7 +33,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 import {
   NoContentsPanel,
-  ResizablePanel,
+  RailDock,
   StickyScroll,
 } from "@tsmono/react/components";
 import { useScrubberProgress } from "@tsmono/react/hooks";
@@ -1150,19 +1150,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Right rail
-  // ---------------------------------------------------------------------------
-  //
-  // The rail (and its optional resizable panel) render as a flex region to the
-  // right of the timeline + content, so they run full height starting directly
-  // below the toolbar rather than below the swimlanes. The panel + its resizer
-  // come from the shared <ResizablePanel>; the rail is a fixed-width column.
-
-  const railWidth = rightRail?.railWidth ?? 44;
-  const railActive = !!rightRail;
-  const railPanelOpen = railActive && rightRail?.panel != null;
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -1402,35 +1389,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               )}
             </div>
           </div>
-          {railActive && rightRail && (
-            <>
-              {railPanelOpen && (
-                <ResizablePanel
-                  scrollRef={scrollRef}
-                  offsetTop={offsetTop}
-                  panelScrollRef={rightRailPanelScrollRef}
-                  width={rightRail.panelWidth}
-                  minWidth={rightRail.panelMinWidth}
-                  maxWidth={rightRail.panelMaxWidth}
-                  onWidthChange={rightRail.onPanelWidthChange}
-                  label={rightRail.label}
-                >
-                  {rightRail.panel}
-                </ResizablePanel>
-              )}
-              <div className={styles.railSeparator} />
-              <div
-                className={styles.rightRail}
-                style={{ flex: `0 0 ${railWidth}px` }}
-              >
-                <div
-                  className={styles.rightRailSticky}
-                  style={{ top: offsetTop }}
-                >
-                  {rightRail.rail}
-                </div>
-              </div>
-            </>
+          {/* The rail (and its optional resizable panel) render as a flex
+              region to the right of the timeline + content, so they run full
+              height starting directly below the toolbar rather than below the
+              swimlanes. */}
+          {rightRail && (
+            <RailDock
+              rail={rightRail.rail}
+              panel={rightRail.panel}
+              scrollRef={scrollRef}
+              offsetTop={offsetTop}
+              panelScrollRef={rightRailPanelScrollRef}
+              railWidth={rightRail.railWidth}
+              panelWidth={rightRail.panelWidth}
+              onPanelWidthChange={rightRail.onPanelWidthChange}
+              panelMinWidth={rightRail.panelMinWidth}
+              panelMaxWidth={rightRail.panelMaxWidth}
+              label={rightRail.label}
+            />
           )}
         </div>
       </TimelineRowSelectContext.Provider>

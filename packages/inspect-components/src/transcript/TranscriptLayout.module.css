@@ -154,23 +154,6 @@
   padding-bottom: 1rem;
 }
 
-/* Right rail: an always-visible activity bar. The optional panel column to its
-   left is the shared <ResizablePanel>; the rail itself is a fixed-width column
-   (width supplied inline) that stretches to the full row height. */
-.railSeparator {
-  flex: 0 0 1px;
-  background-color: var(--bs-border-color);
-}
-
-.rightRail {
-  align-self: stretch;
-  background-color: var(--bs-body-bg);
-}
-
-.rightRailSticky {
-  position: sticky;
-}
-
 .sidebarHeader {
   display: flex;
   flex-direction: row;
