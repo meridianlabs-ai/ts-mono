@@ -70,7 +70,7 @@
 
 .outputWell {
   border-top: 1px solid var(--bs-light-border-subtle);
-  background-color: var(--inspect-tool-block-output-bg);
+  background-color: var(--inspect-tool-output-bg);
   padding: 12px 15px;
   font-size: var(--inspect-font-size-smaller);
   line-height: 1.6;
