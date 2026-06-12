@@ -7,9 +7,7 @@ import { useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowButton.module.css";
 
-export interface FlowButtonProps {}
-
-export const FlowButton = forwardRef<HTMLButtonElement, FlowButtonProps>(
+export const FlowButton = forwardRef<HTMLButtonElement>(
   (_, ref) => {
     const navigateRouter = useNavigate();
     const location = useLocation();

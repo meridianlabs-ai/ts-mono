@@ -15,8 +15,6 @@ import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
 
 import { FindBandUI } from "./FindBandUI";
 
-interface FindBandProps {}
-
 const findConfig = {
   caseSensitive: false,
   wrapAround: false,
@@ -25,7 +23,7 @@ const findConfig = {
   showDialog: false,
 };
 
-export const FindBand: FC<FindBandProps> = () => {
+export const FindBand: FC = () => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const storeHideFind = useStore((state) => state.appActions.hideFind);
   const { extendedFindTerm, countAllMatches } = useExtendedFind();

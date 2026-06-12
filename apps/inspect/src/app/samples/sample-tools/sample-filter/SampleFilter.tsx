@@ -27,8 +27,6 @@ import { getCompletions } from "./completions";
 import styles from "./SampleFilter.module.css";
 import { language } from "./tokenize";
 
-interface SampleFilterProps {}
-
 // Constants
 const FILTER_TOOLTIP = `
 Filter samples by:
@@ -143,7 +141,7 @@ const getLints = (
 };
 
 // Main component
-export const SampleFilter: FC<SampleFilterProps> = () => {
+export const SampleFilter: FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView>(null);
   const linterCompartment = useRef<Compartment>(new Compartment());
