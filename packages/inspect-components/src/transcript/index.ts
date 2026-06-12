@@ -55,6 +55,11 @@ export {
   resolveMessageToEvent,
   type ResolvedMessageEvent,
 } from "./resolveMessageToEvent";
+export {
+  findTimelineIndexForEvent,
+  findTimelineIndexForMessage,
+  timelineContainsEvent,
+} from "./findTimelineForDeepLink";
 
 // Outline visitors
 export {
