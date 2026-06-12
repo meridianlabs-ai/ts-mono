@@ -776,6 +776,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 >
                   <div className={styles.retriedErrors}>
                     <SampleRetriedErrors
+                      key={sample.uuid || String(sample.id)}
                       id={sample.uuid || String(sample.id)}
                       retries={sample.error_retries}
                       scrollRef={scrollRef}

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, RefObject, useEffect, useState } from "react";
+import { FC, RefObject, useState } from "react";
 
 import { EvalRetryError } from "@tsmono/inspect-common";
 
@@ -21,15 +21,11 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   scrollRef,
 }) => {
   // Accordion: default to the most recent failure (closest to the success).
+  // Callers must pass key={id} so the state resets when the sample changes
+  // (the same component instance can be reused on the inline display path).
   const [expandedIndex, setExpandedIndex] = useState<number | null>(
     retries.length - 1
   );
-
-  // Reset accordion state when switching to a different sample (the same
-  // component instance can be reused across samples on the inline display path).
-  useEffect(() => {
-    setExpandedIndex(retries.length - 1);
-  }, [id, retries.length]);
 
   const onToggleOpen = (index: number) => {
     setExpandedIndex((cur) => (cur === index ? null : index));
