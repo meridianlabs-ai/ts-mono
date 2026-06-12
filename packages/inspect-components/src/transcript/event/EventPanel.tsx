@@ -12,6 +12,7 @@ import {
 import { CopyButton } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
+import { MessageLabel } from "../../chat/MessageLabel";
 import { EventLabelContext } from "../EventLabelContext";
 import { useStickyObserver } from "../hooks/useStickyObserver";
 import type { EventPanelCallbacks } from "../types";
@@ -119,11 +120,6 @@ export const EventPanel: FC<EventPanelProps> = ({
     gridColumns.push("minmax(0, max-content)");
   }
 
-  // search/reference label
-  if (eventLabel) {
-    gridColumns.push("minmax(0, max-content)");
-  }
-
   // icon
   if (icon) {
     gridColumns.push("max-content");
@@ -136,6 +132,10 @@ export const EventPanel: FC<EventPanelProps> = ({
   // navs: auto so it shrinks to picker mode when over-constrained
   gridColumns.push("auto");
   if (turnLabel) {
+    gridColumns.push("max-content");
+  }
+  // search/reference label — far-right pill, like message numbering
+  if (eventLabel) {
     gridColumns.push("max-content");
   }
 
@@ -169,20 +169,6 @@ export const EventPanel: FC<EventPanelProps> = ({
             onClick={toggleCollapse}
             className={collapsed ? kChevronRight : kChevronDown}
           />
-        ) : (
-          ""
-        )}
-        {eventLabel ? (
-          <div
-            className={clsx(
-              "text-style-secondary",
-              "text-style-label",
-              styles.eventLabel
-            )}
-            onClick={toggleCollapse}
-          >
-            {eventLabel} -
-          </div>
         ) : (
           ""
         )}
@@ -255,6 +241,7 @@ export const EventPanel: FC<EventPanelProps> = ({
         {turnLabel && (
           <span className={clsx(styles.turnLabel)}>{turnLabel}</span>
         )}
+        {eventLabel && <MessageLabel label={eventLabel} />}
       </div>
     ) : (
       ""

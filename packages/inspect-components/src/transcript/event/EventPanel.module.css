@@ -83,13 +83,6 @@
   opacity: 0.75;
 }
 
-/* The event labels look like [E7], and those square brackets sit really low.
-   Sliding them down a little looks more balanced 
-*/
-.eventLabel {
-  transform: translateY(-1px);
-}
-
 .root {
   background-color: var(--bs-light-bg-subtle);
   border-radius: unset;
