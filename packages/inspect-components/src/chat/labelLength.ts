@@ -1,3 +1,5 @@
+import { compactLabel } from "./MessageLabel";
+
 /**
  * Compute the maximum label length from a label map.
  * Hoisted out of ChatMessageRow so it runs once per message list,
@@ -6,7 +8,8 @@
  * The width is the widest label across the whole map so the column stays
  * aligned everywhere the map is used (e.g. uniformly across the events of a
  * transcript). Returns 0 for an empty map and a small default when there is no
- * map (rows fall back to numeric labels).
+ * map (rows fall back to numeric labels). Measures the badge display form,
+ * which is what the column actually renders.
  */
 export function computeMaxLabelLength(
   messageLabels: Record<string, string> | undefined
@@ -14,7 +17,8 @@ export function computeMaxLabelLength(
   if (!messageLabels) return 3;
   let max = 0;
   for (const v of Object.values(messageLabels)) {
-    if (v.length > max) max = v.length;
+    const len = compactLabel(v).length;
+    if (len > max) max = len;
   }
   return max;
 }

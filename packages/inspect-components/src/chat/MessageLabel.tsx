@@ -13,10 +13,13 @@ interface MessageLabelProps {
   className?: string | string[];
 }
 
-// Badges show the compact number ("[M4]" → "4"); the full cite stays in the
-// tooltip so prose references like "[M4]" remain traceable. Inline anchors
-// keep the full text — they must read like the prose they sit in.
-const compactLabel = (label: string): string => {
+/**
+ * Badge display form of a label: "[M4]" / "E58" → "4" / "58". The full cite
+ * stays in the badge tooltip so prose references like "[M4]" remain
+ * traceable. Inline anchors keep the full text — they must read like the
+ * prose they sit in.
+ */
+export const compactLabel = (label: string): string => {
   const inner = label.replace(/^\[/, "").replace(/\]$/, "");
   return inner.replace(/^[A-Za-z]+/, "") || inner;
 };
