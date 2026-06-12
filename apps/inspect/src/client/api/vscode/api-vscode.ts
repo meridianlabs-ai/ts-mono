@@ -45,8 +45,8 @@ const asRpcError = (e: unknown): { code?: number; message?: string } =>
 
 const vscodeClient = webViewJsonRpcClient(getVscodeApi());
 
-async function client_events() {
-  return [];
+function client_events(): Promise<string[]> {
+  return Promise.resolve([]);
 }
 
 async function get_log_root() {
@@ -93,12 +93,12 @@ const get_logs = async (mtime: number, clientFileCount: number) => {
   }
 };
 
-async function get_eval_set(): Promise<undefined> {
-  return undefined;
+function get_eval_set(): Promise<undefined> {
+  return Promise.resolve(undefined);
 }
 
-async function get_flow(): Promise<undefined> {
-  return undefined;
+function get_flow(): Promise<undefined> {
+  return Promise.resolve(undefined);
 }
 
 async function get_log_contents(
@@ -234,7 +234,7 @@ async function log_message(log_file: string, message: string): Promise<void> {
   await vscodeClient(kMethodLogMessage, [log_file, message]);
 }
 
-async function download_file() {
+function download_file(): Promise<void> {
   throw Error("Downloading files is not supported in VS Code");
 }
 
@@ -333,13 +333,14 @@ async function get_app_config(): Promise<AppConfig> {
   }
 }
 
-async function open_log_file(log_file: string, log_dir: string) {
+function open_log_file(log_file: string, log_dir: string): Promise<void> {
   const msg = {
     type: "displayLogFile",
     url: log_file,
     log_dir: log_dir,
   };
   getVscodeApi()?.postMessage(msg);
+  return Promise.resolve();
 }
 
 const api: LogViewAPI = {

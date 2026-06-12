@@ -287,11 +287,12 @@ export const createLogSlice = (
         });
       },
 
-      pollLog: async () => {
+      pollLog: () => {
         const currentLog = get().log.loadedLog;
         if (currentLog) {
           logPolling.startPolling(currentLog);
         }
+        return Promise.resolve();
       },
 
       refreshLog: async () => {

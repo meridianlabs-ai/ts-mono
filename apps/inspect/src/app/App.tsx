@@ -172,7 +172,7 @@ const AppContent: FC = () => {
   }, [pollLog, selectedLogDetails?.status]);
 
   const onMessage = useCallback(
-    async (e: HostMessage) => {
+    (e: HostMessage) => {
       switch (e.data.type) {
         case "updateState": {
           if (e.data.url) {

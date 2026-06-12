@@ -78,7 +78,7 @@ export class ReplicationService {
 
         return previews;
       },
-      onComplete: async (previews: LogPreview[], inputs: LogHandle[]) => {
+      onComplete: (previews: LogPreview[], inputs: LogHandle[]) => {
         // Add to pending batch
         inputs.forEach((log, i) => {
           if (previews[i]) {
@@ -88,6 +88,7 @@ export class ReplicationService {
 
         // Schedule batched update
         this._throttledFlushPreviewBatch();
+        return Promise.resolve();
       },
     });
 
@@ -115,7 +116,7 @@ export class ReplicationService {
         const allResults = details.filter((d) => d !== undefined);
         return allResults;
       },
-      onComplete: async (details: LogDetails[], inputs: LogHandle[]) => {
+      onComplete: (details: LogDetails[], inputs: LogHandle[]) => {
         // Add to pending batch
         inputs.forEach((log, i) => {
           if (details[i]) {
@@ -125,6 +126,7 @@ export class ReplicationService {
 
         // Schedule batched update
         this._throttledFlushDetailBatch();
+        return Promise.resolve();
       },
     });
   }

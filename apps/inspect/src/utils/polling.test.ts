@@ -32,9 +32,9 @@ describe("createPolling", () => {
 
   test("re-enters immediately when callback returns 'immediate'", async () => {
     let count = 0;
-    const cb = vi.fn().mockImplementation(async () => {
+    const cb = vi.fn().mockImplementation(() => {
       count += 1;
-      return count < 3 ? "immediate" : true;
+      return Promise.resolve(count < 3 ? "immediate" : true);
     });
     const p = createPolling("t", cb, { maxRetries: 3, interval: 2 });
 

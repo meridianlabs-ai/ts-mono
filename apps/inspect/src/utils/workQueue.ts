@@ -70,7 +70,7 @@ export class WorkQueue<TInput, TOutput> {
     this.options.onComplete(results, items);
   }
 
-  private async startProcessing() {
+  private startProcessing() {
     // Start new workers up to concurrency limit
     while (
       this.activeWorkers < this.options.concurrency &&

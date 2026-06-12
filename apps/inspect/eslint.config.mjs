@@ -57,7 +57,6 @@ export default tseslint.config(
           destructuredArrayIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/require-await": "off",
     },
   }
 );

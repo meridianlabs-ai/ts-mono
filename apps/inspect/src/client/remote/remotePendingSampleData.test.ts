@@ -5,14 +5,16 @@ import { ApiError } from "../api/view-server/request";
 import { fetchPendingSampleDataDirect } from "./remotePendingSampleData";
 
 vi.mock("./remoteZipFile", () => ({
-  openZipFileFromBuffer: vi.fn(async (bytes: Uint8Array) => ({
-    readFile: async (_member: string) => bytes,
-  })),
+  openZipFileFromBuffer: vi.fn((bytes: Uint8Array) =>
+    Promise.resolve({
+      readFile: (_member: string) => Promise.resolve(bytes),
+    })
+  ),
 }));
 
 vi.mock("../../utils/json-worker", () => ({
-  asyncJsonParseBytes: vi.fn(async (bytes: Uint8Array) =>
-    JSON.parse(new TextDecoder().decode(bytes))
+  asyncJsonParseBytes: vi.fn((bytes: Uint8Array) =>
+    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)))
   ),
 }));
 
@@ -50,7 +52,7 @@ describe("fetchPendingSampleDataDirect", () => {
           ok: true,
           status: 200,
           statusText: "OK",
-          arrayBuffer: async () => body.buffer,
+          arrayBuffer: () => Promise.resolve(body.buffer),
         } as unknown as Response;
       });
     });

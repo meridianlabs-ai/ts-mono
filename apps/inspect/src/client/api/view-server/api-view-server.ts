@@ -270,11 +270,11 @@ export function viewServerApi(
       headers: {
         "Content-Type": "text/plain",
       },
-      parse: async (text: string) => {
+      parse: (text: string) => {
         if (text !== "") {
           throw new Error(`Unexpected response from log_message: ${text}`);
         }
-        return;
+        return Promise.resolve();
       },
     };
     await requestApi.fetchType<void>(
@@ -586,7 +586,7 @@ export function viewServerApi(
     }
   };
 
-  const download_log = async (log_file: string): Promise<void> => {
+  const download_log = (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
 
@@ -596,6 +596,7 @@ export function viewServerApi(
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    return Promise.resolve();
   };
 
   return {

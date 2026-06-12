@@ -11,20 +11,22 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
   });
 
   test("preserves complete from pending-sample URL responses", async () => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       expect(url).toContain("/pending-sample-data-urls?");
-      return {
+      return Promise.resolve({
         ok: true,
         status: 200,
         statusText: "OK",
-        text: async () =>
-          JSON.stringify({
-            segments: [],
-            complete: true,
-            has_more: false,
-          }),
-      } as unknown as Response;
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              segments: [],
+              complete: true,
+              has_more: false,
+            })
+          ),
+      } as unknown as Response);
     });
 
     const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
