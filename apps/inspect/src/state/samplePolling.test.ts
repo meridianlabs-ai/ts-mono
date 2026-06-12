@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment --
+   Mock sample/event fixtures are intentionally minimal `any` stubs, and the
+   assertions reach into their dynamically-shaped fields. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StoreApi, UseBoundStore } from "zustand";
 

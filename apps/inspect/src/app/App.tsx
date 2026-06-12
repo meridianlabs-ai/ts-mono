@@ -237,8 +237,10 @@ const AppContent: FC = () => {
       // First see if there is embedded state and if so, use that
       const embeddedState = document.getElementById("logview-state");
       if (embeddedState) {
-        const state = JSON5.parse(embeddedState.textContent || "");
-        onMessage({ data: state });
+        const state = JSON5.parse<HostMessage["data"]>(
+          embeddedState.textContent || ""
+        );
+        onMessage({ data: state } as HostMessage);
       } else {
         // For non-route URL params support (legacy)
         const urlParams = new URLSearchParams(window.location.search);

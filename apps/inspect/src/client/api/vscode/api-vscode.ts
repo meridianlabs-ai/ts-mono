@@ -1,6 +1,12 @@
 import JSON5 from "json5";
 
-import { AppConfig, LogInfo, LogUpdate } from "@tsmono/inspect-common/types";
+import {
+  AppConfig,
+  EvalLog,
+  LogFilesResponse,
+  LogInfo,
+  LogUpdate,
+} from "@tsmono/inspect-common/types";
 import { getVscodeApi } from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
@@ -8,6 +14,8 @@ import {
   Capabilities,
   EditLogResult,
   LogContents,
+  LogPreview,
+  LogRoot,
   LogViewAPI,
   PendingSampleResponse,
   PendingSamples,
@@ -54,15 +62,15 @@ async function get_log_root() {
     | string
     | undefined;
   if (response) {
-    const parsed = JSON5.parse(response);
+    const parsed: unknown = JSON5.parse(response);
     if (Array.isArray(parsed)) {
       // This is an old response, which omits the log_dir
       return {
         log_dir: "",
         files: parsed,
-      };
+      } as unknown as LogRoot;
     } else {
-      return parsed;
+      return parsed as LogRoot;
     }
   } else {
     return undefined;
@@ -74,22 +82,27 @@ const get_log_dir = async () => {
     | string
     | undefined;
   if (response) {
-    const parsed = JSON5.parse(response);
-    return parsed.log_dir as string | undefined;
+    const parsed = JSON5.parse<{ log_dir?: string }>(response);
+    return parsed.log_dir;
   }
   return undefined;
 };
 
-const get_logs = async (mtime: number, clientFileCount: number) => {
+const get_logs = async (
+  mtime: number,
+  clientFileCount: number
+): Promise<LogFilesResponse> => {
   const response = (await vscodeClient(kMethodEvalLogFiles, [
     mtime,
     clientFileCount,
   ])) as string | undefined;
   if (response) {
-    const parsed = JSON5.parse(response);
-    return parsed;
+    return JSON5.parse<LogFilesResponse>(response);
   } else {
-    return [];
+    // No payload from the extension: an empty incremental response (no
+    // changed files) matches LogFilesResponse. The prior `[]` predated the
+    // typed contract and left `response.files` undefined for callers.
+    return { files: [], response_type: "incremental" };
   }
 };
 
@@ -111,11 +124,11 @@ async function get_log_contents(
     headerOnly,
   ])) as string | undefined;
   if (response) {
-    let json;
+    let json: EvalLog;
     if (capabilities?.webWorkers) {
-      json = await asyncJsonParse(response);
+      json = await asyncJsonParse<EvalLog>(response);
     } else {
-      json = JSON5.parse(response);
+      json = JSON5.parse<EvalLog>(response);
     }
     return {
       parsed: json,
@@ -156,9 +169,11 @@ async function get_log_summaries(files: string[]) {
     | string
     | undefined;
   if (response) {
-    return JSON5.parse(response);
+    return JSON5.parse<LogPreview[]>(response);
   } else {
-    return undefined;
+    // Contract is LogPreview[]; the prior `undefined` predated the typed
+    // contract. An empty array is the natural "no summaries" value.
+    return [];
   }
 }
 
@@ -302,7 +317,7 @@ async function get_user_info(): Promise<UserInfo> {
     // See the matching note on `edit_log` above.
     const info =
       typeof response === "string"
-        ? JSON5.parse(response)
+        ? JSON5.parse<UserInfo>(response)
         : (response as UserInfo);
     return info ?? {};
   } catch (e: unknown) {
@@ -323,7 +338,7 @@ async function get_app_config(): Promise<AppConfig> {
     const response = await vscodeClient(kMethodAppConfig, []);
     if (!response) return { inspect_version: "unknown", scout_version: null };
     return typeof response === "string"
-      ? JSON5.parse(response)
+      ? JSON5.parse<AppConfig>(response)
       : (response as AppConfig);
   } catch (e: unknown) {
     if (asRpcError(e).code === kJsonRpcMethodNotFound) {

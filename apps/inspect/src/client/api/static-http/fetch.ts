@@ -64,9 +64,10 @@ export const fetchLogFile = async (
     if (log.version === 1) {
       if (log.results) {
         // v1 logs stored a single `results.scorer` object instead of a
-        // `scores` array; reshaping it requires touching fields that don't
-        // exist on the current EvalLog type.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // `scores` array, and samples carried a single `score` field; both
+        // reshapes touch fields that don't exist on the current EvalLog type,
+        // so this migration block works against `any`.
+        /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
         const untypedLog = log as any;
         log.results.scores = [];
         untypedLog.results.scorer.scorer = untypedLog.results.scorer.name;
@@ -78,13 +79,11 @@ export const fetchLogFile = async (
         // migrate samples
         const scorerName = log.results.scores[0].name;
         log.samples?.forEach((sample) => {
-          // v1 samples carried a single `score` field, since replaced by
-          // the `scores` map.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const untypedSample = sample as any;
           sample.scores = { [scorerName]: untypedSample.score };
           delete untypedSample.score;
         });
+        /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
       }
     }
     return {

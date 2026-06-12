@@ -340,8 +340,22 @@ export const FindBand: FC = () => {
     />
   );
 };
+// `Window.find` is a non-standard but widely-supported API not in lib.dom.
+declare global {
+  interface Window {
+    find(
+      searchTerm?: string,
+      caseSensitive?: boolean,
+      backwards?: boolean,
+      wrapAround?: boolean,
+      wholeWord?: boolean,
+      searchInFrames?: boolean,
+      showDialog?: boolean
+    ): boolean;
+  }
+}
+
 function windowFind(searchTerm: string, back: boolean): boolean {
-  // @ts-expect-error: `Window.find` is non-standard
   return window.find(
     searchTerm,
     findConfig.caseSensitive,
@@ -350,7 +364,7 @@ function windowFind(searchTerm: string, back: boolean): boolean {
     findConfig.wholeWord,
     findConfig.searchInFrames,
     findConfig.showDialog
-  ) as boolean;
+  );
 }
 
 function positionSelectionForWrap(back: boolean): void {

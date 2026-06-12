@@ -545,7 +545,7 @@ export function viewServerApi(
       "GET",
       `/scout/searches?${params.toString()}`
     );
-    return result.parsed;
+    return result.parsed as SearchInputListResponse;
   };
 
   const post_search = async (
@@ -559,7 +559,7 @@ export function viewServerApi(
       { "Content-Type": "application/json" },
       JSON.stringify(request)
     );
-    return result.parsed;
+    return result.parsed as SearchResponse;
   };
 
   const get_search_result = async (
@@ -577,7 +577,7 @@ export function viewServerApi(
       `/searches/${encodeURIComponent(search_id)}${query ? `?${query}` : ""}`;
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed;
+      return result.parsed as Result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         return null;

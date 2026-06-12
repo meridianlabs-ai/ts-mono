@@ -8,9 +8,10 @@ import { resolveAttachments } from "../utils/attachments";
  * Migrates and resolves attachments for a sample
  */
 // Accepts raw sample JSON of any vintage (old logs nested events under
-// `transcript`, and callers/tests pass partial shapes), normalizing it
-// into an EvalSample — an inherently dynamic boundary.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// `transcript`, and callers/tests pass partial shapes), normalizing it into
+// an EvalSample. This is an inherently dynamic boundary, so the body operates
+// on `any` rather than reconstructing the full union-typed sample shape.
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 export const resolveSample = (sample: any): EvalSample => {
   sample = { ...sample };
 
@@ -42,6 +43,7 @@ export const resolveSample = (sample: any): EvalSample => {
   sample.attachments = {};
   return sample;
 };
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 
 /**
  * Build a minimal EvalSample from a pending-buffer summary that has errored.

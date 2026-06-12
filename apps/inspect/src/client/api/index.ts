@@ -9,6 +9,14 @@ import { ClientAPI } from "./types";
 import { viewServerApi } from "./view-server/api-view-server";
 import vscodeApi from "./vscode/api-vscode";
 
+// Shape of the JSON embedded in the #log_dir_context script element.
+interface LogDirContext {
+  log_dir?: string;
+  log_file?: string;
+  abs_log_dir?: string;
+  inspect_version?: string;
+}
+
 /**
  * Resolves the client API
  */
@@ -25,9 +33,9 @@ const resolveApi = (): ClientAPI => {
       // Read the contents
       const context = scriptEl.textContent;
       if (context !== null) {
-        const data = JSON5.parse(context);
+        const data = JSON5.parse<LogDirContext>(context);
         if (data.log_dir || data.log_file) {
-          const log_dir = data.log_dir || dirname(data.log_file);
+          const log_dir = data.log_dir || dirname(data.log_file ?? "");
           const app_config: AppConfig | undefined =
             data.inspect_version !== undefined
               ? {

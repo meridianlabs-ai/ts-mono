@@ -498,10 +498,12 @@ const kFileHeaderSize = 46;
 /**
  * Parses the central directory of a ZIP file from the provided buffer and returns a map of entries.
  */
-const parseCentralDirectory = (buffer: Uint8Array) => {
+const parseCentralDirectory = (
+  buffer: Uint8Array
+): Map<string, CentralDirectoryEntry> => {
   let offset = 0;
   const view = new DataView(buffer.buffer);
-  const entries = new Map();
+  const entries = new Map<string, CentralDirectoryEntry>();
 
   while (offset < buffer.length) {
     // Central Directory signature

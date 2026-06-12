@@ -1,5 +1,15 @@
 import JSON5 from "json5";
 
+// Shape posted back by the worker for a parse request.
+interface WorkerParseResponse {
+  requestId: number;
+  success: boolean;
+  serialized?: boolean;
+  result?: unknown;
+  error?: string;
+  stack?: string;
+}
+
 // Pool of workers to parse JSON/JSON5 off the main thread
 class JsonWorkerPool {
   private readonly encoder = new TextEncoder();
@@ -34,7 +44,8 @@ class JsonWorkerPool {
   }
 
   private handleMessage(e: MessageEvent) {
-    const { requestId, success, serialized, result, error, stack } = e.data;
+    const { requestId, success, serialized, result, error, stack } =
+      e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
 
@@ -42,7 +53,7 @@ class JsonWorkerPool {
 
     if (success) {
       if (serialized) {
-        const resultString = this.decoder.decode(result);
+        const resultString = this.decoder.decode(result as Uint8Array);
         pending.resolve(JSON.parse(resultString));
       } else {
         pending.resolve(result);
@@ -127,14 +138,14 @@ export const asyncJsonParse = async <T>(text: string): Promise<T> => {
   // diminishing returns, so for small JSON that will serialize
   // very quickly, just do it immediately on the main thread.
   if (text.length < 50000) {
-    let result = undefined;
+    let result: unknown = undefined;
     try {
       // Optimistically, try a regular JSON parse first (this is much faster)
       result = JSON.parse(text);
     } catch {
       result = JSON5.parse(text);
     }
-    return Promise.resolve(result) as T;
+    return result as T;
   } else {
     return workerPool.parse(text) as Promise<T>;
   }
@@ -161,9 +172,9 @@ export const asyncJsonParseBytes = async <T>(data: Uint8Array): Promise<T> => {
 export const jsonParse = <T>(text: string): T => {
   try {
     // Optimistically, try a regular JSON parse first (this is much faster)
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   } catch {
-    return JSON5.parse(text);
+    return JSON5.parse<T>(text);
   }
 };
 

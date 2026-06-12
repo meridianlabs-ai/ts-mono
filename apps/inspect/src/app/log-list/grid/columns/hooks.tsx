@@ -176,7 +176,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
-        tooltipValueGetter: (params) => params.value || undefined,
+        tooltipValueGetter: (params) => (params.value as string) || undefined,
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return "";
@@ -281,7 +281,7 @@ export const useLogListColumns = (
         resizable: true,
         valueFormatter: (params) => {
           if (params.value === undefined || params.value === null) return "";
-          return formatPrettyDecimal(params.value);
+          return formatPrettyDecimal(params.value as number);
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           const item = params.data;
@@ -389,7 +389,7 @@ export const useLogListColumns = (
         sortable: true,
         filter: true,
         resizable: true,
-        tooltipValueGetter: (params) => params.value || undefined,
+        tooltipValueGetter: (params) => (params.value as string) || undefined,
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return "";
@@ -441,7 +441,7 @@ export const useLogListColumns = (
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value)}</div>;
+          return <div>{formatNumber(params.value as number)}</div>;
         },
       },
       {
@@ -457,7 +457,7 @@ export const useLogListColumns = (
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value)}</div>;
+          return <div>{formatNumber(params.value as number)}</div>;
         },
       },
       {
@@ -487,7 +487,7 @@ export const useLogListColumns = (
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value)}</div>;
+          return <div>{formatNumber(params.value as number)}</div>;
         },
       },
       {
@@ -501,19 +501,19 @@ export const useLogListColumns = (
         resizable: true,
         valueFormatter: (params) => {
           if (params.value === undefined || params.value === null) return "";
-          return formatTime(params.value);
+          return formatTime(params.value as number);
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatTime(params.value)}</div>;
+          return <div>{formatTime(params.value as number)}</div>;
         },
         tooltipValueGetter: (params) => {
           if (params.value === undefined || params.value === null) {
             return undefined;
           }
-          return formatTime(params.value);
+          return formatTime(params.value as number);
         },
       },
       {
@@ -562,7 +562,7 @@ export const useLogListColumns = (
           if (!tags || tags.length === 0) return "";
           return tags.join(", ");
         },
-        tooltipValueGetter: (params) => params.value || undefined,
+        tooltipValueGetter: (params) => (params.value as string) || undefined,
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           if (!params.value) return <EmptyCell />;
           return <div className={styles.nameCell}>{params.value}</div>;
@@ -579,13 +579,13 @@ export const useLogListColumns = (
         resizable: true,
         valueFormatter: (params) => {
           if (params.value === undefined || params.value === null) return "";
-          return `${formatPrettyDecimal(params.value)}%`;
+          return `${formatPrettyDecimal(params.value as number)}%`;
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatPrettyDecimal(params.value)}%</div>;
+          return <div>{formatPrettyDecimal(params.value as number)}%</div>;
         },
       },
       {
@@ -601,7 +601,7 @@ export const useLogListColumns = (
           if (params.value === undefined || params.value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value)}</div>;
+          return <div>{formatNumber(params.value as number)}</div>;
         },
       },
       {
@@ -658,7 +658,12 @@ export const useLogListColumns = (
             : "agTextColumnFilter",
         resizable: true,
         valueFormatter: (params) => {
-          const value = params.value;
+          const value = params.value as
+            | string
+            | number
+            | boolean
+            | null
+            | undefined;
           if (value === "" || value === null || value === undefined) {
             return "";
           }
@@ -668,12 +673,14 @@ export const useLogListColumns = (
           return String(value);
         },
         cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const value = params.value;
+          const value = params.value as unknown;
           if (value === undefined || value === null || value === "") {
             return <EmptyCell />;
           }
           return (
-            <div className={styles.scoreCell}>{formatPrettyDecimal(value)}</div>
+            <div className={styles.scoreCell}>
+              {formatPrettyDecimal(value as number)}
+            </div>
           );
         },
         comparator: createFolderFirstComparator<LogListRow>((valA, valB) => {
@@ -739,7 +746,12 @@ export const useLogListColumns = (
             return first?.value;
           },
           valueFormatter: (params) => {
-            const value = params.value;
+            const value = params.value as
+              | string
+              | number
+              | boolean
+              | null
+              | undefined;
             if (value === "" || value === null || value === undefined) {
               return "";
             }

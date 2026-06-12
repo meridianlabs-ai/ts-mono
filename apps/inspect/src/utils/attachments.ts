@@ -14,7 +14,7 @@ export const resolveAttachments = <T>(
   // Handle arrays recursively
   if (Array.isArray(value)) {
     let hasChanged = false;
-    const resolvedArray = value.map((v) => {
+    const resolvedArray = (value as unknown[]).map((v) => {
       const resolved = resolveAttachments(v, attachments);
       if (resolved !== v) hasChanged = true;
       return resolved;
@@ -33,7 +33,7 @@ export const resolveAttachments = <T>(
     let hasChanged = false;
     const resolvedObject: Record<string, unknown> = {};
 
-    for (const [key, val] of Object.entries(value)) {
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
       const resolved = resolveAttachments(val, attachments);
       resolvedObject[key] = resolved;
 

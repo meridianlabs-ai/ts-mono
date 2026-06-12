@@ -298,14 +298,14 @@ export const filterExpression = (
       constants: filterExpressionConstants,
       customProp: resolveVariable,
     });
-    const result = expression(vars);
+    const result: unknown = expression(vars);
     if (typeof result === "boolean") {
       return { matches: result, error: undefined };
     } else if (result instanceof Error) {
       throw result;
     } else {
       throw new TypeError(
-        `Filter expression returned a non-boolean value: ${result}`
+        `Filter expression returned a non-boolean value: ${String(result)}`
       );
     }
   } catch (error) {

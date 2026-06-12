@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any --
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access --
    These tests assert on the dynamically-resolved event payloads produced by
    resolveSample, which reach into union-typed event fields that carry no
    precise static type at the assertion site. */

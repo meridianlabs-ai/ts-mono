@@ -14,6 +14,8 @@ global.TextEncoder = TextEncoder;
 // Polyfill structuredClone for Node.js versions that don't have it
 if (typeof global.structuredClone === "undefined") {
   global.structuredClone = (obj) => {
+    // Polyfill clones via a JSON round-trip, which is inherently untyped.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return JSON.parse(JSON.stringify(obj));
   };
 }

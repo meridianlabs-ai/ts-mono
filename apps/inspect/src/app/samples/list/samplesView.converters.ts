@@ -280,6 +280,8 @@ export const partitionFilterModel = (
   for (const [colId, entry] of Object.entries(model)) {
     const rendered = toDsl(colId, entry);
     if (rendered === null) {
+      // ag-grid's FilterModel types its entry values as `any`.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       extra[colId] = entry;
     } else if (rendered.length > 0) {
       dslParts.push(rendered);

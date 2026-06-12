@@ -618,7 +618,7 @@ type Middleware<T extends AnyFn> = (
 const debugMiddleware: Middleware<AnyFn> = (name, _fn, args, result) => {
   if (result instanceof Promise) {
     const startTime = performance.now();
-    return result.then((returned) => {
+    return result.then((returned: unknown) => {
       const duration = performance.now() - startTime;
       console.log(`[ClientAPI] ${name}`, {
         args,
