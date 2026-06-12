@@ -32,6 +32,14 @@
   gap: 0.25rem;
 }
 
-.clickable {
+.closeButton {
+  all: unset;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.closeButton:focus-visible {
+  outline: 1px solid var(--bs-primary);
+  outline-offset: 1px;
 }

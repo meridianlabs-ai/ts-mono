@@ -32,10 +32,15 @@ export const SidebarHeader: FC<SidebarHeaderProps> = ({
         <div className={styles.headerActions}>
           {actions}
           {onClose && (
-            <i
-              className={clsx(closeIcon, styles.clickable)}
+            <button
+              type="button"
+              className={styles.closeButton}
               onClick={onClose}
-            />
+              aria-label={title ? `Close ${title}` : "Close"}
+              title={title ? `Close ${title}` : "Close"}
+            >
+              <i className={closeIcon} aria-hidden="true" />
+            </button>
           )}
         </div>
       )}
