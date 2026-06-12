@@ -25,7 +25,7 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
             has_more: false,
           }),
       } as unknown as Response;
-    }) as typeof fetch;
+    });
 
     const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
 
