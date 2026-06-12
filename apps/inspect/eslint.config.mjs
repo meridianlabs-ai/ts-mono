@@ -35,7 +35,6 @@ export default tseslint.config(
       },
     },
   },
-  // Legacy code overrides — disabled rules that haven't been fixed yet
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
