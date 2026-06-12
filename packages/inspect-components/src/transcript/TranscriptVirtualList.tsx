@@ -306,6 +306,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <CheckpointEventView
           eventNode={node as EventNode<CheckpointEvent>}
           className={className}
+          eventCallbacks={eventCallbacks}
         />
       );
 

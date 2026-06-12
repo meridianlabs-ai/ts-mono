@@ -1,27 +1,16 @@
 .panel {
   margin: 0.2em 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1em;
+  row-gap: 0.3em;
+  align-items: baseline;
 }
 
-.metric {
+.rowValue {
   display: flex;
-  gap: 0.5em;
-}
-
-.label {
-  font-weight: 600;
-  min-width: 5em;
-}
-
-.section {
-  margin-top: 0.5em;
-}
-
-.sectionTitle {
-  font-weight: 600;
-}
-
-.indented {
-  padding-left: 1.5em;
+  flex-direction: column;
+  gap: 0.1em;
 }
 
 .files {
