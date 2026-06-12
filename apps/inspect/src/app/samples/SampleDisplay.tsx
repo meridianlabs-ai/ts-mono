@@ -44,7 +44,7 @@ import {
   CardBody,
   CardHeader,
   NoContentsPanel,
-  ResizablePanel,
+  RailDock,
   StickyScroll,
   TabPanel,
   TabSet,
@@ -694,8 +694,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     return items;
   }, [canSearch, scans.hasScans]);
 
-  const transcriptRail = useMemo<TranscriptLayoutRightRailProps>(() => {
-    const panel =
+  // Rail + panel nodes shared verbatim by the Transcript and Messages tabs;
+  // the search scope follows the active tab.
+  const railNode = useMemo(
+    () => (
+      <ActivityRail
+        items={railItems}
+        active={activeRailId}
+        onSelect={onRailSelect}
+      />
+    ),
+    [railItems, activeRailId, onRailSelect]
+  );
+  const railPanel = useMemo(
+    () =>
       activeRailId === "scans" ? (
         <ScansSidebarPanel
           scores={scans.scores}
@@ -705,40 +717,37 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           onSelectedChange={scans.setSelected}
           onClose={closeDock}
         />
-      ) : activeRailId === "search" && searchContext ? (
+      ) : activeRailId === "search" && searchContext && searchScope ? (
         <SearchPanelSlot
-          scope="events"
+          scope={searchScope}
           context={searchContext}
           onClose={closeDock}
         />
-      ) : null;
-    return {
-      rail: (
-        <ActivityRail
-          items={railItems}
-          active={activeRailId}
-          onSelect={onRailSelect}
-        />
-      ),
-      panel,
-      label: activeRailId === "scans" ? "Scans" : "Search",
+      ) : null,
+    [
+      activeRailId,
+      scans.scores,
+      scans.makeCiteUrl,
+      scans.selected,
+      scans.setSelected,
+      sampleEvents,
+      searchContext,
+      searchScope,
+      closeDock,
+    ]
+  );
+  const railLabel = activeRailId === "scans" ? "Scans" : "Search";
+
+  const transcriptRail = useMemo<TranscriptLayoutRightRailProps>(
+    () => ({
+      rail: railNode,
+      panel: railPanel,
+      label: railLabel,
       panelWidth: railPanelWidth,
       onPanelWidthChange: setRailPanelWidth,
-    };
-  }, [
-    activeRailId,
-    scans.scores,
-    scans.makeCiteUrl,
-    scans.selected,
-    scans.setSelected,
-    sampleEvents,
-    searchContext,
-    railItems,
-    onRailSelect,
-    closeDock,
-    railPanelWidth,
-    setRailPanelWidth,
-  ]);
+    }),
+    [railNode, railPanel, railLabel, railPanelWidth, setRailPanelWidth]
+  );
 
   return (
     <DisplayModeContext.Provider value={displayModeContext}>
@@ -841,31 +850,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   panelTop={stickyOffsetTop}
                   panelWidth={railPanelWidth}
                   onPanelWidthChange={setRailPanelWidth}
-                  rail={
-                    <ActivityRail
-                      items={railItems}
-                      active={activeRailId}
-                      onSelect={onRailSelect}
-                    />
-                  }
-                  panel={
-                    activeRailId === "scans" ? (
-                      <ScansSidebarPanel
-                        scores={scans.scores}
-                        events={sampleEvents}
-                        makeCiteUrl={scans.makeCiteUrl}
-                        selected={scans.selected}
-                        onSelectedChange={scans.setSelected}
-                        onClose={closeDock}
-                      />
-                    ) : activeRailId === "search" && searchContext ? (
-                      <SearchPanelSlot
-                        scope="messages"
-                        context={searchContext}
-                        onClose={closeDock}
-                      />
-                    ) : null
-                  }
+                  rail={railNode}
+                  panel={railPanel}
+                  label={railLabel}
                 >
                   <ChatViewVirtualList
                     key={`${baseId}-chat-${id}`}
@@ -1021,15 +1008,17 @@ interface RailSidebarHostProps {
   /** Controlled panel width, kept in sync with the Transcript tab's panel. */
   panelWidth?: number;
   onPanelWidthChange?: (width: number) => void;
+  /** aria-label root for the panel region. */
+  label?: string;
   /** Extra className applied to the main content slot. */
   contentClassName?: string;
   children: ReactNode;
 }
 
 /**
- * Flex host for tabs without a swimlane timeline (Messages): main content, an
- * optional resizable panel (shared <ResizablePanel>), and an always-visible
- * rail pinned right. Mirrors the transcript tab's rail layout.
+ * Flex host for tabs without a swimlane timeline (Messages): main content,
+ * then the shared <RailDock> (optional resizable panel + always-visible rail)
+ * pinned right. Mirrors the transcript tab's rail layout.
  */
 const RailSidebarHost: FC<RailSidebarHostProps> = ({
   rail,
@@ -1038,30 +1027,21 @@ const RailSidebarHost: FC<RailSidebarHostProps> = ({
   panelTop,
   panelWidth,
   onPanelWidthChange,
+  label,
   contentClassName,
   children,
 }) => (
   <div className={styles.railHost}>
     <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
-    {panel && (
-      <ResizablePanel
-        scrollRef={scrollRef}
-        offsetTop={panelTop}
-        width={panelWidth}
-        onWidthChange={onPanelWidthChange}
-        label="panel"
-      >
-        {panel}
-      </ResizablePanel>
-    )}
-    {/* Full-height column (border + bg run the whole content height, matching
-        the transcript tab's rail); the items themselves stick below the
-        toolbar. */}
-    <div className={styles.railColumn}>
-      <div className={styles.railColumnSticky} style={{ top: panelTop }}>
-        {rail}
-      </div>
-    </div>
+    <RailDock
+      rail={rail}
+      panel={panel}
+      scrollRef={scrollRef}
+      offsetTop={panelTop}
+      panelWidth={panelWidth}
+      onPanelWidthChange={onPanelWidthChange}
+      label={label}
+    />
   </div>
 );
 
