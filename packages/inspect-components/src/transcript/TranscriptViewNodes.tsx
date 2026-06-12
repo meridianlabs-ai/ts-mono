@@ -16,7 +16,6 @@ import {
   useRef,
 } from "react";
 
-import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { StickyScrollProvider } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
@@ -30,6 +29,7 @@ import {
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
+import { pairToolApprovals } from "./transform/toolApprovals";
 import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 // =============================================================================
@@ -275,40 +275,16 @@ export const TranscriptViewNodes = forwardRef<
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
-  const { toolApprovals, hiddenApprovalIds } = useMemo(() => {
-    const toolIds = new Set<string>();
-    const walkTools = (nodes: EventNode[]) => {
-      for (const n of nodes) {
-        if (n.event.event === "tool") toolIds.add(n.event.id);
-        if (n.children.length) walkTools(n.children);
-      }
-    };
-    walkTools(eventNodes);
+  const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
+    () => pairToolApprovals(eventNodes),
+    [eventNodes]
+  );
 
-    const approvals = new Map<string, EventNode<ApprovalEvent>>();
-    const hidden = new Set<string>();
-    const walkApprovals = (nodes: EventNode[]) => {
-      for (const n of nodes) {
-        if (n.event.event === "approval") {
-          // Auto-approved calls add no information — hide them entirely
-          // (don't pair, don't surface as flat rows). Non-approve auto
-          // decisions (reject/terminate/…) stay visible.
-          const isAutoApprove =
-            n.event.approver === "auto" && n.event.decision === "approve";
-          if (isAutoApprove) {
-            hidden.add(n.id);
-          } else if (toolIds.has(n.event.call.id)) {
-            approvals.set(n.event.call.id, n as EventNode<ApprovalEvent>);
-            hidden.add(n.id);
-          }
-        }
-        if (n.children.length) walkApprovals(n.children);
-      }
-    };
-    walkApprovals(eventNodes);
-
-    return { toolApprovals: approvals, hiddenApprovalIds: hidden };
-  }, [eventNodes]);
+  // Hidden approvals have no row of their own — retarget deep links at the
+  // tool row that renders them inline.
+  const scrollEventId = initialEventId
+    ? (approvalScrollRedirects.get(initialEventId) ?? initialEventId)
+    : initialEventId;
 
   const flattenedNodes = useMemo(() => {
     const all = flatTree(
@@ -472,20 +448,20 @@ export const TranscriptViewNodes = forwardRef<
     offsetTopRef.current = offsetTop;
   }, [offsetTop]);
   useEffect(() => {
-    if (!initialEventId) {
+    if (!scrollEventId) {
       lastScrolledKeyRef.current = null;
       return;
     }
-    const targetKey = `${initialEventId}:${initialMessageId ?? ""}`;
+    const targetKey = `${scrollEventId}:${initialMessageId ?? ""}`;
     if (lastScrolledKeyRef.current === targetKey) return;
-    const idx = flattenedNodes.findIndex((n) => n.id === initialEventId);
+    const idx = flattenedNodes.findIndex((n) => n.id === scrollEventId);
     if (idx === -1) return;
     const container = scrollRef?.current;
     if (!container) return;
     lastScrolledKeyRef.current = targetKey;
     const targetSelector = initialMessageId
       ? `[data-message-id="${escapeAttr(initialMessageId)}"]`
-      : `[id="${escapeAttr(initialEventId)}"]`;
+      : `[id="${escapeAttr(scrollEventId)}"]`;
     return scrollToEventTarget({
       listHandle: listHandle.current,
       index: idx,
@@ -494,7 +470,7 @@ export const TranscriptViewNodes = forwardRef<
       getStickyOffset: () => offsetTopRef.current ?? 0,
       paddingBelowSticky: kPaddingBelowSticky,
     });
-  }, [initialEventId, initialMessageId, flattenedNodes, scrollRef]);
+  }, [scrollEventId, initialMessageId, flattenedNodes, scrollRef]);
 
   useListKeyboardNavigation({
     listHandle,
@@ -519,7 +495,7 @@ export const TranscriptViewNodes = forwardRef<
           running={running}
           offsetTop={offsetTop}
           className={clsx(className)}
-          initialEventId={initialEventId}
+          initialEventId={scrollEventId}
           renderAgentCard={renderAgentCard}
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
