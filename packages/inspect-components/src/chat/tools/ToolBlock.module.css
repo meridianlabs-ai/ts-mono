@@ -1,9 +1,9 @@
-/* Shared tool-call block grammar. Colors map to existing theme tokens: the
-   tool accent + header tint are the readable tool-call tokens (defined for
-   every theme), the output well is the tool-output fill, hairlines/border are
-   the subtle border token. */
+/* Shared tool-call block grammar. Colors come from the tool-block tokens,
+   which are neutral by default and only colorized under the readable
+   variant (the Event Colors toggle); the output well is the tool-output
+   fill, hairlines/border are the subtle border token. */
 .block {
-  border-left: 3px solid var(--inspect-readable-tool-call-border);
+  border-left: var(--inspect-tool-block-edge);
 }
 
 .standalone {
@@ -19,13 +19,13 @@
   align-items: center;
   gap: 9px;
   padding: 9px 13px;
-  background-color: var(--inspect-readable-tool-call-bg);
+  background-color: var(--inspect-tool-block-header-bg);
 }
 
 .icon {
   flex: none;
   font-size: 13px;
-  color: var(--inspect-readable-tool-call-border);
+  color: var(--inspect-tool-block-ink);
 }
 
 .title {
@@ -33,7 +33,7 @@
   font-family: var(--bs-font-monospace);
   font-size: var(--inspect-font-size-smaller);
   font-weight: 600;
-  color: var(--inspect-readable-tool-call-border);
+  color: var(--inspect-tool-block-ink);
 }
 
 .summary {
@@ -63,14 +63,14 @@
 
 .inputZone {
   border-top: 1px solid var(--bs-light-border-subtle);
-  background-color: var(--inspect-readable-tool-call-bg);
+  background-color: var(--inspect-tool-block-input-bg);
   padding: 0.5rem;
   overflow-x: auto;
 }
 
 .outputWell {
   border-top: 1px solid var(--bs-light-border-subtle);
-  background-color: var(--inspect-tool-output-bg);
+  background-color: var(--inspect-tool-block-output-bg);
   padding: 12px 15px;
   font-size: var(--inspect-font-size-smaller);
   line-height: 1.6;
