@@ -127,13 +127,20 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   // Global keydown handler for keyboard shortcuts
   const handleKeyDown = useCallback(
     (e: globalThis.KeyboardEvent) => {
-      // Don't handle keyboard events if focus is on an input, textarea, or select element
-      const activeElement = document.activeElement;
+      // Don't handle keyboard events if focus is on an input, textarea, or
+      // select element. Walk shadow roots so custom elements like
+      // <vscode-textarea> (whose real <textarea> lives in shadow DOM) count.
+      let activeElement: Element | null = document.activeElement;
+      while (activeElement?.shadowRoot?.activeElement) {
+        activeElement = activeElement.shadowRoot.activeElement;
+      }
       const isInputFocused =
         activeElement &&
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA" ||
-          activeElement.tagName === "SELECT");
+          activeElement.tagName === "SELECT" ||
+          (activeElement instanceof HTMLElement &&
+            activeElement.isContentEditable));
 
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         if (!nativeFind) {
