@@ -425,18 +425,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     open: rightDock === "scans",
   });
 
-  // Open the Scans panel by default the first time a sample with scans loads,
-  // unless this log already has a persisted dock choice (including "none" —
-  // a user who closed the dock shouldn't have it forced back open).
-  const scansDefaultedRef = useRef(false);
+  // Open the Scans panel by default the first time a sample with scans loads
+  // *for a given log*, unless that log already has a persisted dock choice
+  // (including "none" — a user who closed the dock shouldn't have it forced
+  // back open). Keyed by dockKey because SampleDisplay stays mounted while the
+  // cross-log Samples browser navigates between logs.
+  const scansDefaultedForKeyRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (scans.hasScans && !scansDefaultedRef.current) {
-      scansDefaultedRef.current = true;
+    if (scans.hasScans && scansDefaultedForKeyRef.current !== dockKey) {
+      scansDefaultedForKeyRef.current = dockKey;
       if (storedDock === undefined) {
         setRightDock("scans");
       }
     }
-  }, [scans.hasScans, storedDock, setRightDock]);
+  }, [scans.hasScans, storedDock, setRightDock, dockKey]);
 
   // Build the toolbar in left-to-right groups separated by thin dividers:
   //   [tab-specific view controls] | [shared sample actions] | [Search]
