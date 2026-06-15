@@ -29,7 +29,7 @@
     "@tsmono/tsconfig": "workspace:*",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^4.1.8"
   }
 }
