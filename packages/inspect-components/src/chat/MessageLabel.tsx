@@ -14,15 +14,13 @@ interface MessageLabelProps {
 }
 
 /**
- * Badge display form of a label: "[M4]" / "E58" → "4" / "58". The full cite
- * stays in the badge tooltip so prose references like "[M4]" remain
- * traceable. Inline anchors keep the full text — they must read like the
- * prose they sit in.
+ * Badge display form of a label: strips the surrounding cite brackets but
+ * keeps the type letter, so "[M4]" → "M4" and "[E58]" → "E58". The full
+ * cite stays in the badge tooltip; inline anchors keep the original text —
+ * they must read like the prose they sit in.
  */
-export const compactLabel = (label: string): string => {
-  const inner = label.replace(/^\[/, "").replace(/\]$/, "");
-  return inner.replace(/^[A-Za-z]+/, "") || inner;
-};
+export const compactLabel = (label: string): string =>
+  label.replace(/^\[/, "").replace(/\]$/, "");
 
 /**
  * A filled monospace chip used for message position labels (top-right of a
