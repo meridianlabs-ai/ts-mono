@@ -705,13 +705,25 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Fire the timeline switch once per deep-link change — a stale `?event=` /
   // `?message=` param left in the URL must not snap the user back after they
   // manually switch timelines away.
+  //
+  // Mark the key "consumed" only once we've actually switched. While the
+  // target isn't found yet (index -1 — e.g. timeline data still building or
+  // events still streaming), leave it unconsumed so a later data update with
+  // the same key can still trigger the switch. The snap-back guard still
+  // holds: after a switch, the target resolves in the now-active timeline,
+  // so `deepLinkTimelineIndex` drops to -1 and the consumed key blocks any
+  // re-switch even if the user navigates timelines manually.
   const prevDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
     if (timelines.length <= 1) return;
     const key = initialEventId ?? initialMessageId ?? null;
+    if (key === null) {
+      prevDeepLinkRef.current = null;
+      return;
+    }
     if (prevDeepLinkRef.current === key) return;
+    if (deepLinkTimelineIndex < 0) return;
     prevDeepLinkRef.current = key;
-    if (key === null || deepLinkTimelineIndex < 0) return;
     if (deepLinkTimelineIndex === activeTimelineIndex) return;
     setActiveTimeline(deepLinkTimelineIndex);
   }, [

@@ -65,10 +65,13 @@ describe("resolveEventToSpan", () => {
     });
   });
 
-  it("uses the outermost agent span for nested agents", () => {
+  it("uses the innermost agent span for nested agents", () => {
+    // Every nested agent has its own selectable row; selecting the outer
+    // agent renders the inner one as a card, so the deep link must target
+    // the innermost agent's row to make the event appear inline.
     expect(resolveEventToSpan("ev-nested", root)).toEqual({
       eventId: "ev-nested",
-      agentSpanId: "agent-outer",
+      agentSpanId: "agent-inner",
     });
   });
 
@@ -83,6 +86,62 @@ describe("resolveEventToSpan", () => {
     expect(resolveEventToSpan("agent-inner", root)).toEqual({
       eventId: "agent-inner",
       agentSpanId: "agent-outer",
+    });
+  });
+
+  it("resolves to the deepest agent across three nesting levels", () => {
+    const deep = span(
+      "deep-root",
+      [
+        span(
+          "agent-a",
+          [
+            span(
+              "agent-b",
+              [
+                span("agent-c", [event("ev-deep")], {
+                  spanType: "agent",
+                }),
+              ],
+              { spanType: "agent" }
+            ),
+          ],
+          { spanType: "agent" }
+        ),
+      ],
+      { spanType: "root" }
+    );
+    expect(resolveEventToSpan("ev-deep", deep)).toEqual({
+      eventId: "ev-deep",
+      agentSpanId: "agent-c",
+    });
+  });
+
+  it("treats a non-agent span between agents as transparent", () => {
+    // agent-outer > tool-span (non-agent) > agent-inner. The innermost
+    // *agent* wins; the intervening non-agent span doesn't reset context.
+    const mixed = span(
+      "mixed-root",
+      [
+        span(
+          "agent-outer2",
+          [
+            span("tool-span", [event("ev-after")], { spanType: "tool" }),
+            span("agent-inner2", [event("ev-mixed")], { spanType: "agent" }),
+          ],
+          { spanType: "agent" }
+        ),
+      ],
+      { spanType: "root" }
+    );
+    expect(resolveEventToSpan("ev-mixed", mixed)).toEqual({
+      eventId: "ev-mixed",
+      agentSpanId: "agent-inner2",
+    });
+    // An event in the non-agent span stays under the enclosing agent.
+    expect(resolveEventToSpan("ev-after", mixed)).toEqual({
+      eventId: "ev-after",
+      agentSpanId: "agent-outer2",
     });
   });
 

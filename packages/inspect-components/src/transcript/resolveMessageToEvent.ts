@@ -89,11 +89,13 @@ export function resolveMessageInBranches(
 
 /**
  * Resolves an event id (event uuid or span node id) to its swimlane target
- * in the main content tree: the immediate child agent span (if any) that
- * must be selected before the event list can contain the target.
+ * in the main content tree: the *innermost* enclosing agent span (if any)
+ * whose row must be selected before the event list contains the target.
  *
- * The event-id analogue of `resolveMessageToEvent` — same one-level agent
- * context semantics, but matching node identity instead of message ids.
+ * The event-id analogue of `resolveMessageToEvent`, but matching node
+ * identity instead of message ids, and resolving to the deepest agent row
+ * rather than one level down — every nested agent has its own selectable
+ * row, so the deepest one is what renders the target inline.
  */
 export function resolveEventToSpan(
   eventId: string,
@@ -140,8 +142,11 @@ function walkContentForEvent(
       const uuid = (item.event as { uuid?: string | null }).uuid;
       if (uuid === eventId) return { eventId, agentSpanId: agentContext };
     } else {
-      const childContext =
-        item.spanType === "agent" ? (agentContext ?? item.id) : agentContext;
+      // Track the *innermost* enclosing agent: every agent at every depth
+      // gets its own selectable swimlane row, and selecting an outer agent
+      // renders a nested one as a card (not its events). So a deep link must
+      // resolve to the deepest agent row that makes the target inline.
+      const childContext = item.spanType === "agent" ? item.id : agentContext;
       if (item.id === eventId) return { eventId, agentSpanId: agentContext };
       const found = walkContentForEvent(eventId, item.content, childContext);
       if (found) return found;
