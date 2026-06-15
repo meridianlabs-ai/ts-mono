@@ -81,20 +81,22 @@ export const useCachedSearchResult = ({
   scope,
   searchId,
 }: {
-  api: SearchPanelApi;
+  api: SearchPanelApi | null;
   scope: SearchResultScope;
   searchId: string | null;
 }) => {
+  const enabled = !!api && !!searchId;
   return useQuery<Result | null, Error>({
-    queryKey: searchId
-      ? searchQueryKeys.cachedResult({
-          cacheKey: api.cacheKey,
-          scope,
-          searchId,
-        })
-      : ["search-result", "disabled"],
-    queryFn: () => api.getCachedResult(searchId!, scope),
-    enabled: !!searchId,
+    queryKey:
+      api && searchId
+        ? searchQueryKeys.cachedResult({
+            cacheKey: api.cacheKey,
+            scope,
+            searchId,
+          })
+        : ["search-result", "disabled"],
+    queryFn: () => api!.getCachedResult(searchId!, scope),
+    enabled,
     staleTime: Infinity,
   });
 };

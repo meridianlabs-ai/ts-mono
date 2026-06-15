@@ -10,6 +10,11 @@ export type {
   SearchPanelState,
   StoredSearchPanelState,
 } from "./searchPanelState";
+export {
+  deriveSearchReferenceLabels,
+  useCachedSearchReferenceLabels,
+} from "./referenceLabels";
+export type { SearchReferenceLabels } from "./referenceLabels";
 export { buildSearchRequest, buildSearchScope } from "./searchRequest";
 export type { GrepOptions } from "./searchRequest";
 export type {

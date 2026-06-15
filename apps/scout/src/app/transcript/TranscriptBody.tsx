@@ -125,11 +125,18 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         ? "events"
         : undefined;
 
-  const eventsReferenceLabels = useSearchReferenceLabels({
-    scope: "events",
+  // Labels track the active tab's search scope so each tab shows the cites
+  // from its own results. `?? "events"` only feeds the hook a stable scope
+  // when no tab is searchable; searchId resolution still yields no labels.
+  const referenceLabels = useSearchReferenceLabels({
+    scope: searchScope ?? "events",
     transcriptDir: resolvedTranscriptsDir,
     transcriptId: transcript.transcript_id,
   });
+  const eventsReferenceLabels =
+    searchScope === "events" ? referenceLabels : undefined;
+  const messagesReferenceLabels =
+    searchScope === "messages" ? referenceLabels : undefined;
   const searchAvailable = searchScope !== undefined;
 
   const handleTabChange = useCallback(
@@ -411,6 +418,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             display={{
               formatDateTime,
             }}
+            labels={
+              messagesReferenceLabels?.messageLabels
+                ? { messageLabels: messagesReferenceLabels.messageLabels }
+                : undefined
+            }
             linking={{
               enabled: isHostedEnvironment(),
               getMessageUrl: getFullMessageUrl,

@@ -103,7 +103,9 @@ import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
+import { mergeTranscriptLabelContext } from "./transcript/search/mergeTranscriptLabelContext";
 import { SearchPanelSlot } from "./transcript/search/SearchPanelSlot";
+import { useInspectSearchReferenceLabels } from "./transcript/search/useInspectSearchReferenceLabels";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
 
@@ -424,6 +426,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleEpoch: sample?.epoch ?? undefined,
     open: rightDock === "scans",
   });
+
+  // Search cites label the transcript the same way scanner cites do; the
+  // hook follows the active tab's scope and yields nothing until a search
+  // runs. Rail panels are mutually exclusive, so in practice only one of
+  // scan/search labels is present at a time, but the merge is defensive.
+  const searchReferenceLabels = useInspectSearchReferenceLabels({
+    scope: searchScope ?? "events",
+    context: searchContext,
+  });
+  const transcriptSearchLabels =
+    searchScope === "events" ? searchReferenceLabels : undefined;
+  const messagesSearchLabels =
+    searchScope === "messages" ? searchReferenceLabels : undefined;
+  const transcriptEventNodeContext = useMemo(
+    () =>
+      mergeTranscriptLabelContext(
+        scans.eventNodeContext,
+        transcriptSearchLabels
+      ),
+    [scans.eventNodeContext, transcriptSearchLabels]
+  );
 
   // Open the Scans panel by default the first time a sample with scans loads
   // *for a given log*, unless that log already has a persisted dock choice
@@ -796,7 +819,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     running={running}
                     events={sampleEvents}
                     timelines={sample?.timelines ?? undefined}
-                    eventNodeContext={scans.eventNodeContext}
+                    eventNodeContext={transcriptEventNodeContext}
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
                     rightRail={transcriptRail}
@@ -835,6 +858,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
                   display={chatDisplay}
+                  labels={
+                    messagesSearchLabels?.messageLabels
+                      ? { messageLabels: messagesSearchLabels.messageLabels }
+                      : undefined
+                  }
                   linking={chatLinking}
                   onNativeFindChanged={setNativeFind}
                   scrollRef={scrollRef}
