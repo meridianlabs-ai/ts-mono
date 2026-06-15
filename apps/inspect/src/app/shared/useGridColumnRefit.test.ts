@@ -56,6 +56,17 @@ describe("useGridColumnRefit", () => {
     expect(sizeColumnsToFit).not.toHaveBeenCalled();
   });
 
+  it("stops auto-fitting after a resize-handle double-click autosize", () => {
+    // ag-grid dispatches the public columnResized event with source
+    // "autosizeColumns" (not "uiColumnResized") for double-click autosize.
+    const { gridRef, sizeColumnsToFit } = makeGridRef();
+    const { result } = renderHook(() => useGridColumnRefit(gridRef));
+    result.current.handleColumnResized(resizedEvent("autosizeColumns", true));
+    result.current.refitColumns();
+    vi.advanceTimersByTime(50);
+    expect(sizeColumnsToFit).not.toHaveBeenCalled();
+  });
+
   it("suppresses a pending refit when a user resize lands mid-debounce", () => {
     const { gridRef, sizeColumnsToFit } = makeGridRef();
     const { result } = renderHook(() => useGridColumnRefit(gridRef));
@@ -70,7 +81,7 @@ describe("useGridColumnRefit", () => {
     const { result } = renderHook(() => useGridColumnRefit(gridRef));
     result.current.handleColumnResized(resizedEvent("sizeColumnsToFit", true));
     result.current.handleColumnResized(resizedEvent("flex", true));
-    result.current.handleColumnResized(resizedEvent("autosizeColumns", true));
+    result.current.handleColumnResized(resizedEvent("api", true));
     result.current.refitColumns();
     vi.advanceTimersByTime(50);
     expect(sizeColumnsToFit).toHaveBeenCalledTimes(1);

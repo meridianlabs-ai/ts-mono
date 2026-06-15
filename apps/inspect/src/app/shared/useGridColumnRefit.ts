@@ -14,6 +14,22 @@ export interface GridColumnRefit<TRow> {
   handleColumnResized: (e: ColumnResizedEvent<TRow>) => void;
 }
 
+// ag-grid `columnResized` event sources that mean "the user sized this
+// column themselves". `"uiColumnResized"` is a resize-handle drag;
+// `"autosizeColumns"` is what ag-grid (34.x) dispatches on the public
+// event for a resize-handle double-click autosize (the internal
+// `"uiColumnResized"` source it passes down only surfaces on the
+// column-scoped `widthChanged` event, not here). Both are direct
+// interactions with the resize handle in our config — we never call
+// `api.autoSizeColumns`, and our `fitGridWidth` strategy routes through
+// `sizeColumnsToFitGridBody`, not the autosize path — so neither can be
+// triggered programmatically. Grid-initiated sources (`"sizeColumnsToFit"`,
+// `"flex"`, `"api"`, ...) are intentionally absent.
+const kUserResizeSources: ReadonlySet<string> = new Set([
+  "uiColumnResized",
+  "autosizeColumns",
+]);
+
 /**
  * Auto-fit columns to the grid width, deferring to the user.
  *
@@ -24,10 +40,6 @@ export interface GridColumnRefit<TRow> {
  * suppressed (until the grid remounts, e.g. on a scope change). The guard
  * is checked when the debounce fires, so a fit already pending when the
  * user starts dragging is suppressed too.
- *
- * `"uiColumnResized"` covers both drag-resize and double-click autosize;
- * grid-initiated sources (`"sizeColumnsToFit"`, `"flex"`, ...) don't trip
- * the guard.
  */
 export function useGridColumnRefit<TRow>(
   gridRef: RefObject<AgGridReact<TRow> | null>
@@ -39,7 +51,7 @@ export function useGridColumnRefit<TRow>(
   const resizerRef = useRef<(() => void) | null>(null);
 
   const handleColumnResized = useCallback((e: ColumnResizedEvent<TRow>) => {
-    if (e.source === "uiColumnResized") {
+    if (kUserResizeSources.has(e.source)) {
       userResizedRef.current = true;
     }
   }, []);
