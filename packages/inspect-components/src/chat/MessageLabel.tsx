@@ -41,7 +41,11 @@ export const MessageLabel: FC<MessageLabelProps> = ({
     };
     return (
       <a
-        className={clsx(styles.inline, className)}
+        className={clsx(
+          styles.inline,
+          onActivate && styles.interactive,
+          className
+        )}
         onClick={onActivate}
         onKeyDown={onActivate ? onKeyDown : undefined}
         tabIndex={onActivate ? 0 : undefined}
@@ -54,7 +58,11 @@ export const MessageLabel: FC<MessageLabelProps> = ({
   const compact = compactLabel(label);
   return (
     <span
-      className={clsx(styles.badge, className)}
+      className={clsx(
+        styles.badge,
+        onActivate && styles.interactive,
+        className
+      )}
       onClick={onActivate}
       title={compact === label ? undefined : label}
     >

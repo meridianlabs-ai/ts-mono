@@ -17,8 +17,12 @@
   background: var(--inspect-msg-label-bg);
   border: 1px solid var(--inspect-msg-label-border);
   color: var(--inspect-msg-label-text);
-  cursor: pointer;
   transition: background 0.12s ease;
+}
+
+/* Pointer + hover only when the chip actually activates something. */
+.interactive {
+  cursor: pointer;
 }
 
 .badge {
@@ -36,7 +40,6 @@
   vertical-align: baseline;
 }
 
-.badge:hover,
-.inline:hover {
+.interactive:hover {
   background: var(--inspect-msg-label-bg-hover);
 }
