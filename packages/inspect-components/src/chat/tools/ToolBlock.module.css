@@ -17,8 +17,8 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 13px;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem 0 0.8rem;
   background-color: var(--inspect-tool-block-header-bg);
 }
 
@@ -62,9 +62,8 @@
 }
 
 .inputZone {
-  border-top: 1px solid var(--bs-light-border-subtle);
   background-color: var(--inspect-tool-block-input-bg);
-  padding: 0.5rem;
+  padding: 0 0.5rem 0.2rem 0.5rem;
   overflow-x: auto;
 }
 
