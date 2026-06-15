@@ -4,10 +4,6 @@
   align-items: stretch;
   width: 100%;
   gap: 0.25rem;
-  padding: 0.4rem 0;
-  /* The dividing line is drawn by the host column (the full-height
-     railSeparator on the transcript, the railColumn border on messages) so it
-     spans the whole column rather than just the rail's items. */
 }
 
 .item {
