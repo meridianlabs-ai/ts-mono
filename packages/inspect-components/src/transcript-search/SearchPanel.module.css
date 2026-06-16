@@ -262,3 +262,12 @@
   font-size: var(--inspect-font-size-small);
   text-align: center;
 }
+
+.searchingText {
+  margin: 0;
+}
+
+.searchingElapsed {
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+}

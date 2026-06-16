@@ -6,6 +6,7 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -579,6 +580,48 @@ const RecentSearches: FC<{
   );
 };
 
+// Phrases cycle as elapsed time crosses each threshold (seconds). LLM searches
+// are bounded by upstream provider latency, so a long wait is normal — evolving
+// copy reframes it as steady progress rather than a stall. Ordered high-to-low
+// so the first match wins.
+const SEARCHING_STAGES: { after: number; message: string }[] = [
+  { after: 45, message: "Still working through the corpus" },
+  { after: 31, message: "Checking the answer" },
+  { after: 22, message: "Asking the model" },
+  { after: 14, message: "Reading long passages" },
+  { after: 9, message: "Scanning relevant sections" },
+  { after: 0, message: "Searching" },
+];
+
+const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
+  // Mounts only while loading, so the elapsed clock resets per search.
+  const [start] = useState(() => performance.now());
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((performance.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [start]);
+
+  const message =
+    searchType === "grep"
+      ? "Searching"
+      : (SEARCHING_STAGES.find((stage) => elapsed >= stage.after)?.message ??
+        "Searching");
+
+  return (
+    <div className={styles.emptyState}>
+      <p className={styles.searchingText}>
+        <i className={baseApplicationIcons.search} aria-hidden="true" />{" "}
+        {message}
+        <span className={styles.searchingElapsed}> · {elapsed}s</span>
+      </p>
+    </div>
+  );
+};
+
 const SearchResults: FC<{
   loading: boolean;
   error: Error | null;
@@ -601,13 +644,7 @@ const SearchResults: FC<{
   getEventMessageUrl,
 }) => {
   if (loading) {
-    return (
-      <div className={styles.emptyState}>
-        <p>
-          <i className={baseApplicationIcons.search} /> Searching…
-        </p>
-      </div>
-    );
+    return <SearchingIndicator searchType={searchType} />;
   }
   if (error) {
     return (
