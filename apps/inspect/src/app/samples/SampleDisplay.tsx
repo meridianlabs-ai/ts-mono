@@ -692,6 +692,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     return items;
   }, [canSearch, scans.hasScans]);
 
+  // When there are no rail entries (no search capability and no scans), the
+  // rail host is omitted entirely so the right gutter doesn't render blank.
+  const hasRail = railItems.length > 0;
+
   // Rail + panel nodes shared verbatim by the Transcript and Messages tabs;
   // the search scope follows the active tab.
   const railNode = useMemo(
@@ -822,7 +826,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     eventNodeContext={transcriptEventNodeContext}
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
-                    rightRail={transcriptRail}
+                    rightRail={hasRail ? transcriptRail : undefined}
                     rightRailPanelScrollRef={railPanelScrollRef}
                   />
                 </div>
@@ -847,8 +851,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 panelTop={stickyOffsetTop}
                 panelWidth={railPanelWidth}
                 onPanelWidthChange={setRailPanelWidth}
-                rail={railNode}
-                panel={railPanel}
+                rail={hasRail ? railNode : undefined}
+                panel={hasRail ? railPanel : undefined}
                 label={railLabel}
               >
                 <ChatViewVirtualList
@@ -995,10 +999,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 };
 
 interface RailSidebarHostProps {
-  /** The always-visible activity rail. */
-  rail: ReactNode;
+  /** The always-visible activity rail. Omit to render content with no rail. */
+  rail?: ReactNode;
   /** The open panel, or null when no panel is active. */
-  panel: ReactNode;
+  panel?: ReactNode;
   /** The outer scroll container the panel sticks within. */
   scrollRef: RefObject<HTMLDivElement | null>;
   panelTop: number;
@@ -1030,15 +1034,17 @@ const RailSidebarHost: FC<RailSidebarHostProps> = ({
 }) => (
   <div className={styles.railHost}>
     <div className={clsx(styles.tabContent, contentClassName)}>{children}</div>
-    <RailDock
-      rail={rail}
-      panel={panel}
-      scrollRef={scrollRef}
-      offsetTop={panelTop}
-      panelWidth={panelWidth}
-      onPanelWidthChange={onPanelWidthChange}
-      label={label}
-    />
+    {rail != null && (
+      <RailDock
+        rail={rail}
+        panel={panel}
+        scrollRef={scrollRef}
+        offsetTop={panelTop}
+        panelWidth={panelWidth}
+        onPanelWidthChange={onPanelWidthChange}
+        label={label}
+      />
+    )}
   </div>
 );
 
