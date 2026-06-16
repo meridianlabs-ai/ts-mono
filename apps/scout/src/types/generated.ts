@@ -510,8 +510,6 @@ export interface paths {
         /**
          * Search a transcript
          * @description Search a transcript using grep or LLM-based search.
-         *
-         *     Returns cached results if the same search was run before.
          */
         post: operations["search_transcripts__dir___id__search_post"];
         delete?: never;
@@ -1119,6 +1117,10 @@ export interface components {
              * @enum {string}
              */
             trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget" | "agent_complete";
+            /** Trigger Metadata */
+            trigger_metadata?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
             /** Turn */
             turn: number;
             /** Uuid */
@@ -2749,7 +2751,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "message" | "time" | "working" | "token" | "cost" | "operator" | "custom";
+            type: "message" | "time" | "working" | "token" | "turn" | "cost" | "operator" | "custom";
             /** Uuid */
             uuid?: string | null;
             /** Working Start */
