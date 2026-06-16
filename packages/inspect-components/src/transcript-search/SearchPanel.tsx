@@ -353,6 +353,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     [setState]
   );
 
+  // Seed the model input with the most recent model on open. Marking the ref
+  // done on the first run (not only when it fills) means a later clear — or a
+  // persisted model — is never fought.
+  const didPrefillModelRef = useRef(false);
+  useEffect(() => {
+    if (didPrefillModelRef.current) return;
+    didPrefillModelRef.current = true;
+    const mostRecent = modelHistory.history[0];
+    if (model === "" && mostRecent !== undefined) {
+      handleModelChange(mostRecent);
+    }
+  }, [model, modelHistory.history, handleModelChange]);
+
   return (
     <div className={styles.container}>
       <SidebarHeader
