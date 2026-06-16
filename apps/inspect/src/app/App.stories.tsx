@@ -300,17 +300,11 @@ export const ErrorState: Story = {
         http.get("*/api/logs/:file", () => HttpResponse.json(errorLog)),
         http.get("*/api/log-headers*", () =>
           HttpResponse.json([
-            {
-              eval_id: "eval-error",
-              run_id: "run-error",
-              task: "error-task",
-              task_id: "error-001",
-              task_version: 1,
-              model: "claude-sonnet-4-5-20250929",
+            createEvalHeader({
+              eval: { eval_id: "eval-error", run_id: "run-error", task: "error-task", task_id: "error-001", task_version: 1 },
               status: "error",
-              started_at: "2025-01-15T12:00:00Z",
-              completed_at: "2025-01-15T12:00:30Z",
-            },
+              stats: { started_at: "2025-01-15T12:00:00Z", completed_at: "2025-01-15T12:00:30Z" },
+            }),
           ])
         ),
       ]),

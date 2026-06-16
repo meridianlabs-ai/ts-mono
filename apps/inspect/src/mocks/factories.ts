@@ -9,7 +9,6 @@ import type {
 
 import type {
   EvalHeader,
-  LogContents,
   LogDetails,
   SampleSummary,
 } from "../client/api/types";
@@ -160,15 +159,6 @@ export function createEvalLog(overrides?: {
     invalidated: false,
     error: overrides?.error,
   };
-}
-
-// ---------------------------------------------------------------------------
-// LogContents factory (what get_log_contents returns)
-// ---------------------------------------------------------------------------
-
-export function createLogContents(evalLog: EvalLog): LogContents {
-  const raw = JSON.stringify(evalLog);
-  return { raw, parsed: evalLog };
 }
 
 // ---------------------------------------------------------------------------
