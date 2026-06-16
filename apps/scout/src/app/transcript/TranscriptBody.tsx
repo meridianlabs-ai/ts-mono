@@ -418,11 +418,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             display={{
               formatDateTime,
             }}
-            labels={
-              messagesReferenceLabels?.messageLabels
-                ? { messageLabels: messagesReferenceLabels.messageLabels }
-                : undefined
-            }
+            labels={messagesReferenceLabels}
             linking={{
               enabled: isHostedEnvironment(),
               getMessageUrl: getFullMessageUrl,

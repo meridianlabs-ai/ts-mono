@@ -858,11 +858,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
                   display={chatDisplay}
-                  labels={
-                    messagesSearchLabels?.messageLabels
-                      ? { messageLabels: messagesSearchLabels.messageLabels }
-                      : undefined
-                  }
+                  labels={messagesSearchLabels}
                   linking={chatLinking}
                   onNativeFindChanged={setNativeFind}
                   scrollRef={scrollRef}
