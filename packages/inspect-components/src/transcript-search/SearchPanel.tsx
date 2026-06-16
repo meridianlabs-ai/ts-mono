@@ -456,7 +456,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                     <AutocompleteInput
                       id={modelInputId}
                       className={styles.modelInput}
-                      placeholder={defaultModel ?? "e.g., openai/gpt-5"}
+                      placeholder={defaultModel ?? "e.g., openai/gpt-5.4"}
                       value={model}
                       onChange={handleModelChange}
                       onCommit={handleModelCommit}
