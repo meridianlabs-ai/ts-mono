@@ -380,7 +380,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           helper="Default model for LLM scanning (scanners can override as required)"
           value={config.model}
           onChange={(v) => onChange({ model: v })}
-          placeholder="e.g., openai/gpt-5"
+          placeholder="e.g., openai/gpt-5.4"
         />
 
         <TextField
