@@ -19,10 +19,13 @@ const stubApi: ClientAPI = {
 };
 
 /** Wraps a story in an <ApiProvider/> backed by a no-op stub API. */
-export const withApiProvider =
-  (overrides: Partial<ClientAPI> = {}): Decorator =>
-  (Story) => (
-    <ApiProvider value={{ ...stubApi, ...overrides }}>
+export const withApiProvider = (
+  overrides: Partial<ClientAPI> = {}
+): Decorator => {
+  const api: ClientAPI = { ...stubApi, ...overrides };
+  return (Story) => (
+    <ApiProvider value={api}>
       <Story />
     </ApiProvider>
   );
+};

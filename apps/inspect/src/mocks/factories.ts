@@ -13,10 +13,6 @@ import type {
   SampleSummary,
 } from "../client/api/types";
 
-// ---------------------------------------------------------------------------
-// EvalSpec factory
-// ---------------------------------------------------------------------------
-
 export function createEvalSpec(overrides?: Partial<EvalSpec>): EvalSpec {
   return {
     eval_id: "eval-001",
@@ -38,10 +34,6 @@ export function createEvalSpec(overrides?: Partial<EvalSpec>): EvalSpec {
   };
 }
 
-// ---------------------------------------------------------------------------
-// EvalStats factory
-// ---------------------------------------------------------------------------
-
 export function createEvalStats(overrides?: Partial<EvalStats>): EvalStats {
   return {
     started_at: "2025-01-15T10:00:00Z",
@@ -52,10 +44,6 @@ export function createEvalStats(overrides?: Partial<EvalStats>): EvalStats {
     ...overrides,
   };
 }
-
-// ---------------------------------------------------------------------------
-// EvalHeader factory (what GET /api/log-headers returns per entry)
-// ---------------------------------------------------------------------------
 
 export function createEvalHeader(overrides?: {
   eval?: Partial<EvalSpec>;
@@ -71,10 +59,6 @@ export function createEvalHeader(overrides?: {
     error: overrides?.error,
   };
 }
-
-// ---------------------------------------------------------------------------
-// ModelOutput factory
-// ---------------------------------------------------------------------------
 
 export function createModelOutput(content = "Response text"): ModelOutput {
   return {
@@ -98,10 +82,6 @@ export function createModelOutput(content = "Response text"): ModelOutput {
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// EvalSample factory
-// ---------------------------------------------------------------------------
 
 export function createEvalSample(overrides: {
   id: number | string;
@@ -137,10 +117,6 @@ export function createEvalSample(overrides: {
   };
 }
 
-// ---------------------------------------------------------------------------
-// EvalLog factory
-// ---------------------------------------------------------------------------
-
 export function createEvalLog(overrides?: {
   samples?: EvalSample[];
   eval?: Partial<EvalSpec>;
@@ -160,10 +136,6 @@ export function createEvalLog(overrides?: {
     error: overrides?.error,
   };
 }
-
-// ---------------------------------------------------------------------------
-// LogDetails factory (what get_log_details returns)
-// ---------------------------------------------------------------------------
 
 export function createLogDetails(evalLog: EvalLog): LogDetails {
   const sampleSummaries: SampleSummary[] = (evalLog.samples ?? []).map(

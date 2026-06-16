@@ -56,8 +56,29 @@ for (const id of targets) {
   });
 
   await page.goto(`${BASE}/iframe.html?id=${id}&viewMode=story`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(7000);
-  const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+  const readBody = async () =>
+    ((await page.locator("body").innerText().catch(() => "")) || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Poll for the expected content instead of a fixed sleep. For stories with
+  // no content assertion, give the page a brief settle before the error checks.
+  const DEADLINE_MS = 10000;
+  const POLL_MS = 250;
+  let body = await readBody();
+  if (expect.length) {
+    const start = Date.now();
+    while (
+      expect.some((t) => !body.includes(t)) &&
+      Date.now() - start < DEADLINE_MS
+    ) {
+      await page.waitForTimeout(POLL_MS);
+      body = await readBody();
+    }
+  } else {
+    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+    body = await readBody();
+  }
 
   const missing = expect.filter((t) => !body.includes(t));
   const present = notExpect.filter((t) => body.includes(t));

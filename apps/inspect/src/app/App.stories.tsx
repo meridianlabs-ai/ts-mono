@@ -8,7 +8,6 @@ import {
   createEvalHeader,
   createEvalLog,
   createEvalSample,
-  createLogDetails,
 } from "../mocks/factories";
 import completedEvalFixture from "../mocks/fixtures/completed-eval.json";
 
@@ -16,17 +15,16 @@ const LOG_FILE = "demo.json";
 const ENCODED_LOG = encodeURIComponent(LOG_FILE);
 
 const logFileHandlers = (evalLog: EvalLog) => {
-  const logDetails = createLogDetails(evalLog);
   const header = createEvalHeader({
-    eval: logDetails.eval,
-    status: logDetails.status,
-    error: logDetails.error ?? undefined,
-    stats: logDetails.stats,
+    eval: evalLog.eval,
+    status: evalLog.status,
+    error: evalLog.error ?? undefined,
+    stats: evalLog.stats,
   });
   return withDefaults([
     http.get("*/api/log-files*", () =>
       HttpResponse.json({
-        files: [{ name: LOG_FILE, task: logDetails.eval.task, task_id: logDetails.eval.task_id }],
+        files: [{ name: LOG_FILE, task: evalLog.eval.task, task_id: evalLog.eval.task_id }],
         response_type: "full",
       })
     ),
@@ -46,10 +44,6 @@ const meta: Meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-
-// ---------------------------------------------------------------------------
-// LogListing: shows a directory of log files
-// ---------------------------------------------------------------------------
 
 export const LogListing: Story = {
   parameters: {
@@ -104,10 +98,6 @@ export const LogListing: Story = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// CompletedEvalSynthetic: sample messages tab with tool call + reasoning
-// ---------------------------------------------------------------------------
-
 const syntheticSample = createEvalSample({
   id: 1,
   epoch: 1,
@@ -160,10 +150,6 @@ export const CompletedEvalSynthetic: Story = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// CompletedEvalRealData: real Python fixture from tests/
-// ---------------------------------------------------------------------------
-
 // Cast at import boundary — fixture predates some schema fields (e.g. eval_id)
 const realEvalLog = completedEvalFixture as unknown as EvalLog;
 
@@ -192,16 +178,16 @@ export const CompletedEvalRealData: Story = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// RunningEval: polling /pending-samples until completion
-// ---------------------------------------------------------------------------
-
 export const RunningEval: Story = {
   parameters: {
     initialRoute: `/logs/${ENCODED_LOG}`,
     msw: {
       handlers: (() => {
-        // Closure counter resets each render since the story object is re-evaluated
+        // callCount persists for the module's lifetime (this IIFE runs once at
+        // import, not per render), so the running→completed transition only
+        // plays on the first visit; revisiting the story in the same session
+        // starts already-completed.
+        // TODO(#336): reset callCount per mount so the transition replays on revisit.
         let callCount = 0;
         const K = 3; // Return pending samples for the first K calls
 
@@ -272,10 +258,6 @@ export const RunningEval: Story = {
     },
   },
 };
-
-// ---------------------------------------------------------------------------
-// ErrorState: eval that ended in error
-// ---------------------------------------------------------------------------
 
 const errorLog = createEvalLog({
   status: "error",

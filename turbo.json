@@ -39,7 +39,8 @@
       "inputs": [
         ".storybook/**",
         "package.json",
-        "../../**/*.stories.{ts,tsx}"
+        "../../apps/*/src/**",
+        "../../packages/*/src/**"
       ],
       "outputs": [
         "storybook-static/**"
