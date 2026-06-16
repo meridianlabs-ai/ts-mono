@@ -33,6 +33,7 @@ import {
 
 import styles from "./SearchPanel.module.css";
 import {
+  applySearchTypeChange,
   createInitialSearchPanelState,
   SearchPanelState,
 } from "./searchPanelState";
@@ -298,7 +299,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 
   const handleSearchTypeChange = useCallback(
     (type: SearchType) => {
-      setState((prev) => ({ ...prev, searchType: type }));
+      setState((prev) => applySearchTypeChange(prev, type));
     },
     [setState]
   );

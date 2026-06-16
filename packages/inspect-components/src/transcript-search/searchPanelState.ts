@@ -54,6 +54,48 @@ export const createInitialSearchPanelState = (): SearchPanelState => ({
   },
 });
 
+// Switching search type carries an unsubmitted draft over to the tab you switch
+// to (and leaves the original empty), so typing in the wrong mode isn't lost.
+// Anything already typed in the target, or a query that has been submitted
+// (searchId set), is left untouched.
+export const applySearchTypeChange = (
+  prev: SearchPanelState,
+  type: SearchType
+): SearchPanelState => {
+  if (type === prev.searchType) return prev;
+
+  const source = prev.searches[prev.searchType];
+  const target = prev.searches[type];
+  const sourceIsDraft = source.searchId === null && source.query.trim() !== "";
+  const targetIsEmpty = target.query === "" && target.searchId === null;
+
+  if (!sourceIsDraft || !targetIsEmpty) {
+    return { ...prev, searchType: type };
+  }
+
+  if (type === "llm") {
+    return {
+      ...prev,
+      searchType: "llm",
+      searches: {
+        ...prev.searches,
+        grep: { ...prev.searches.grep, query: "" },
+        llm: { ...prev.searches.llm, query: source.query },
+      },
+    };
+  }
+
+  return {
+    ...prev,
+    searchType: "grep",
+    searches: {
+      ...prev.searches,
+      grep: { ...prev.searches.grep, query: source.query },
+      llm: { ...prev.searches.llm, query: "" },
+    },
+  };
+};
+
 const mergeGrepOptions = (options?: Partial<GrepOptions>): GrepOptions => ({
   ignoreCase: options?.ignoreCase ?? true,
   regex: options?.regex ?? false,
