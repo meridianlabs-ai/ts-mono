@@ -58,7 +58,26 @@
   padding: 16px;
   color: var(--vscode-foreground);
   font-size: 13px;
+}
+
+.overflowAuto {
   overflow-y: auto;
+}
+
+.overflowHidden {
+  overflow: hidden;
+}
+
+.overflowScroll {
+  overflow: scroll;
+}
+
+.overflowVisible {
+  overflow: visible;
+}
+
+.noPadding {
+  padding: 0;
 }
 
 .footer {
