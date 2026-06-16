@@ -529,7 +529,7 @@ importers:
         version: 2.1.1
     devDependencies:
       '@tanstack/react-query':
-        specifier: ^5.100.14
+        specifier: ^5.101.0
         version: 5.101.0(react@19.2.7)
       '@testing-library/react':
         specifier: ^16.3.1
