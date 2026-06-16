@@ -6,7 +6,10 @@
   align-items: flex-start;
   justify-content: center;
   padding-top: 15vh;
-  z-index: 1000;
+  /* Above app chrome: Bootstrap's sticky-top navbar is 1020 and fixed
+     elements are 1030, so a modal must clear those (matches the standard
+     Bootstrap modal layer). */
+  z-index: 1050;
 }
 
 .modal {
