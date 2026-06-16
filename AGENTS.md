@@ -13,6 +13,11 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
 - **`@tsmono/util`**: barrel export — import from the package, not individual files
 - **Tooling defaults are fully strict** — new packages get strictest rules;
   legacy code (apps/scout, packages/util) relaxes via local overrides
+- **Storybook** — stories live next to their code. Full-app MSW interaction
+  stories have non-obvious pitfalls (per-story `msw.handlers` REPLACE the global
+  set; a passing `storybook:build` does NOT mean the stories work — verify in a
+  browser). Read [tooling/storybook/README.md](tooling/storybook/README.md)
+  before touching them.
 
 ## Code Style — Comments                                                       
                                                                                 

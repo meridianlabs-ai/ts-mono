@@ -4,7 +4,8 @@ const config: StorybookConfig = {
   stories: [
     "../../../**/*.stories.@(ts|tsx)",
   ],
-  addons: ['@storybook/addon-docs'],
+  addons: ['@storybook/addon-docs', 'msw-storybook-addon'],
+  staticDirs: ["../public"],
   framework: "@storybook/react-vite",
   async viteFinal(config) {
     return {

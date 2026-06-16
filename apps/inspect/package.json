@@ -37,6 +37,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test --config playwright.config.ts",
+    "story-smoke": "node scripts/story-smoke.mjs",
     "check-all": "pnpm tsc && pnpm lint:fix && pnpm format && pnpm test && pnpm build"
   },
   "exports": {

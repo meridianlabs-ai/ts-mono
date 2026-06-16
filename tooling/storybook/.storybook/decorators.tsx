@@ -1,8 +1,8 @@
 import { Decorator } from "@storybook/react";
 
 import { ComponentIconProvider } from "@tsmono/react/components";
-import { initializeStore } from "../../../apps/inspect/src/state/store";
 import type { ClientAPI, Capabilities, ClientStorage } from "../../../apps/inspect/src/client/api/types";
+import { initializeStore } from "../../../apps/inspect/src/state/store";
 
 const icons = {
   chevronDown: "bi-chevron-down",
@@ -67,3 +67,5 @@ export const withStore: Decorator = (Story) => {
   }
   return <Story />;
 };
+
+export { withMockedApp } from "../../../apps/inspect/src/mocks/story-decorator";
