@@ -39,6 +39,8 @@ import {
   UsagePanel,
 } from "@tsmono/inspect-components/usage";
 import {
+  ActivityRail,
+  type ActivityRailItem,
   ANSIDisplay,
   Card,
   CardBody,
@@ -86,11 +88,6 @@ import {
 import { openInNewTab } from "../shared/openInNewTab";
 
 import {
-  ActivityRail,
-  type ActivityRailItem,
-  type ActivityRailItemId,
-} from "./ActivityRail";
-import {
   messagesFromEvents,
   type MessagesFromEventsState,
 } from "./messagesFromEvents";
@@ -116,6 +113,8 @@ interface SampleDisplayProps {
   progress?: number;
   focusOnLoad?: boolean;
 }
+
+type ActivityRailItemId = "search" | "scans";
 
 /**
  * Component to display a sample with relevant context and visibility control.
@@ -673,8 +672,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Shared rail entries for both the Transcript and Messages tabs: Search on
   // top, Scans below (per design). Scans is omitted entirely when the sample
   // has none.
-  const railItems = useMemo<ActivityRailItem[]>(() => {
-    const items: ActivityRailItem[] = [];
+  const railItems = useMemo<ActivityRailItem<ActivityRailItemId>[]>(() => {
+    const items: ActivityRailItem<ActivityRailItemId>[] = [];
     if (canSearch) {
       items.push({
         id: "search",
