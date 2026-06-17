@@ -13,6 +13,21 @@ const tabbableElements = (container: HTMLElement): HTMLElement[] =>
     (el) => el.getAttribute("aria-hidden") !== "true"
   );
 
+const TEXT_INPUT_SELECTOR =
+  'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),textarea,vscode-textfield';
+
+const shouldSubmitOnEnter = (
+  event: KeyboardEvent,
+  modal: HTMLElement | null
+): boolean => {
+  if (event.defaultPrevented || !modal) return false;
+  const target = event.target;
+  if (!(target instanceof Element)) return true;
+  if (!modal.contains(target)) return false;
+  if (target === modal) return true;
+  return target.matches(TEXT_INPUT_SELECTOR);
+};
+
 interface ModalProps {
   show: boolean;
   onHide: () => void;
@@ -57,6 +72,7 @@ export const Modal: FC<ModalProps> = ({
       if (e.key === "Escape") {
         onHide();
       } else if (e.key === "Enter" && onSubmit) {
+        if (!shouldSubmitOnEnter(e, modalRef.current)) return;
         e.preventDefault();
         onSubmit();
       } else if (e.key === "Tab" && modalRef.current) {

@@ -85,6 +85,30 @@ describe("Modal accessibility", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it("submits on Enter from text inputs", () => {
+    const onSubmit = vi.fn();
+    renderModal({
+      onSubmit,
+      children: <input aria-label="Name" />,
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+      key: "Enter",
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not submit on Enter from buttons", () => {
+    const onSubmit = vi.fn();
+    renderModal({
+      onSubmit,
+      footer: <button type="button">Cancel</button>,
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Cancel" }), {
+      key: "Enter",
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("does not throw on Enter without onSubmit", () => {
     renderModal();
     expect(() => fireEvent.keyDown(document, { key: "Enter" })).not.toThrow();
