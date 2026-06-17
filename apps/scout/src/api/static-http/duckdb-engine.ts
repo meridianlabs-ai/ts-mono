@@ -10,7 +10,6 @@ import type { SqlParam } from "./condition-sql";
 export class StaticDuckDB {
   private dbPromise: Promise<duckdb.AsyncDuckDB> | undefined;
   private connectionPromise: Promise<duckdb.AsyncDuckDBConnection> | undefined;
-  private readonly registeredFiles = new Set<string>();
 
   async queryObjects(sql: string, params: SqlParam[] = []): Promise<object[]> {
     return fromArrow(await this.queryBytes(sql, params)).objects();
@@ -21,18 +20,6 @@ export class StaticDuckDB {
     params: SqlParam[] = []
   ): Promise<Uint8Array> {
     return this.queryBytes(sql, params);
-  }
-
-  async registerHttpFile(name: string, url: string): Promise<void> {
-    if (this.registeredFiles.has(name)) return;
-    const db = await this.db();
-    await db.registerFileURL(
-      name,
-      absoluteUrl(url),
-      duckdb.DuckDBDataProtocol.HTTP,
-      true
-    );
-    this.registeredFiles.add(name);
   }
 
   private async queryBytes(
