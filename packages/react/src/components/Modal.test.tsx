@@ -71,6 +71,32 @@ describe("Modal accessibility", () => {
     );
   });
 
+  it("generates unique title ids when no id is provided", () => {
+    render(
+      <ComponentIconProvider icons={icons}>
+        <Modal show onHide={() => {}} title="First">
+          <button>first body</button>
+        </Modal>
+        <Modal show onHide={() => {}} title="Second">
+          <button>second body</button>
+        </Modal>
+      </ComponentIconProvider>
+    );
+
+    const [firstDialog, secondDialog] = screen.getAllByRole("dialog");
+    const firstLabelId = firstDialog?.getAttribute("aria-labelledby");
+    const secondLabelId = secondDialog?.getAttribute("aria-labelledby");
+    expect(firstLabelId).toBeTruthy();
+    expect(secondLabelId).toBeTruthy();
+    expect(firstLabelId).not.toBe(secondLabelId);
+    expect(document.getElementById(firstLabelId ?? "")?.textContent).toBe(
+      "First"
+    );
+    expect(document.getElementById(secondLabelId ?? "")?.textContent).toBe(
+      "Second"
+    );
+  });
+
   it("exposes a named close button with a decorative icon", () => {
     renderModal();
     const closeButton = screen.getByRole("button", { name: "Close" });

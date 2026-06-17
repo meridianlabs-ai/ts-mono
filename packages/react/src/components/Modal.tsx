@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode, useEffect, useRef } from "react";
+import { FC, ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { useComponentIcons } from "./ComponentIconContext";
@@ -64,6 +64,7 @@ export const Modal: FC<ModalProps> = ({
 }) => {
   const icons = useComponentIcons();
   const modalRef = useRef<HTMLDivElement>(null);
+  const fallbackTitleId = useId();
 
   // Handle escape, enter, and tab (focus trap) keys.
   useEffect(() => {
@@ -122,7 +123,7 @@ export const Modal: FC<ModalProps> = ({
 
   if (!show) return null;
 
-  const titleId = `${id ?? "modal"}-title`;
+  const titleId = id ? `${id}-title` : fallbackTitleId;
 
   return createPortal(
     <div className={styles.backdrop} onClick={onHide}>
