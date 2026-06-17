@@ -141,8 +141,13 @@ export const Modal: FC<ModalProps> = ({
           <h3 id={titleId} className={styles.title}>
             {title}
           </h3>
-          <button className={styles.closeButton} onClick={onHide}>
-            <i className={icons.close} />
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={onHide}
+            aria-label="Close"
+          >
+            <i className={icons.close} aria-hidden="true" />
           </button>
         </div>
         <div

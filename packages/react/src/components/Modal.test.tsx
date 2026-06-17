@@ -71,6 +71,15 @@ describe("Modal accessibility", () => {
     );
   });
 
+  it("exposes a named close button with a decorative icon", () => {
+    renderModal();
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    expect(closeButton.getAttribute("type")).toBe("button");
+    expect(closeButton.querySelector("i")?.getAttribute("aria-hidden")).toBe(
+      "true"
+    );
+  });
+
   it("closes on Escape", () => {
     const onHide = vi.fn();
     renderModal({ onHide });
