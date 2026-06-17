@@ -18,7 +18,7 @@ import styles from "./ResultsPanel.module.css";
 import { ScoreAgGrid } from "./ScoreAgGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
-const kMaxPrimaryScoreRows = 4;
+const kMaxPrimaryScoreRows = 3;
 
 export const displayScorersFromRunningMetrics = (metrics?: RunningMetric[]) => {
   if (!metrics) {

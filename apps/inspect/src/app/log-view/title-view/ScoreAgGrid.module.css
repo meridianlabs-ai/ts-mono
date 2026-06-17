@@ -2,7 +2,7 @@
   max-width: 100%;
   max-height: 60vh;
   overflow: auto;
-  padding: 0.5rem 1rem;
+  padding: 0;
 }
 
 /* Title-region summary card: size to content, no inner scroll/padding. */
@@ -11,9 +11,41 @@
   overflow: visible;
 }
 
+/* Inline card sits on the results panel — let the whole grid show through so
+   it blends with its surroundings rather than painting its own surface. Every
+   chrome layer (root wrapper, header, body, sticky/floating rails) paints its
+   own opaque fill, so each has to be cleared. */
+.cardContainer :global(.ag-root-wrapper),
+.cardContainer :global(.ag-header),
+.cardContainer :global(.ag-body),
+.cardContainer :global(.ag-floating-top),
+.cardContainer :global(.ag-floating-bottom),
+.cardContainer :global(.ag-sticky-top),
+.cardContainer :global(.ag-sticky-bottom),
+.cardContainer :global(.ag-row),
+.cardContainer :global(.ag-cell) {
+  background-color: transparent;
+}
+
 .gridContainer :global(.ag-cell),
 .cardContainer :global(.ag-cell) {
   font-variant-numeric: tabular-nums;
+}
+
+/* Cells aren't interactive — clicking does nothing — so don't imply otherwise
+   with a pointer cursor or hover surface. */
+.gridContainer :global(.ag-cell),
+.cardContainer :global(.ag-cell),
+.gridContainer :global(.ag-row-hover),
+.cardContainer :global(.ag-row-hover) {
+  cursor: default;
+}
+
+.gridContainer :global(.ag-row-hover),
+.gridContainer :global(.ag-row-hover) :global(.ag-cell),
+.cardContainer :global(.ag-row-hover),
+.cardContainer :global(.ag-row-hover) :global(.ag-cell) {
+  background-color: transparent;
 }
 
 /* Scorer column reads as the row label — a touch heavier + higher contrast. */

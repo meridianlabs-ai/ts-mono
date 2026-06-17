@@ -94,9 +94,10 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
 }) => {
   const scorerColWidth = compact ? kScorerColWidthCompact : kScorerColWidth;
   const metricColWidth = compact ? kMetricColWidthCompact : kMetricColWidth;
-  // Card stays sortable but not resizable — resizing a tight 3-column
-  // summary just breaks its layout.
+  // Compact card isn't resizable (resizing a tight summary breaks its layout)
+  // and isn't sortable (it's a truncated view — sorting a partial set misleads).
   const resizable = !compact;
+  const sortable = !compact;
 
   const { rowData, columnDefs, hasGroups, naturalWidth } = useMemo(() => {
     // All scorers in a scoreGroup share the same metric signature, so the
@@ -131,7 +132,7 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
     ): ColDef<ScoreGridRow> => ({
       headerName: name,
       field: field(i),
-      sortable: true,
+      sortable: sortable,
       resizable: resizable,
       width: metricColWidth,
       cellClass: clsx(
@@ -171,7 +172,7 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
     const scorerCol: ColDef<ScoreGridRow> = {
       headerName: "Scorer",
       field: "scorer",
-      sortable: true,
+      sortable: sortable,
       resizable: resizable,
       width: scorerColWidth,
       minWidth: compact ? 90 : 150,
@@ -208,6 +209,7 @@ const ScoreGroupGrid: FC<ScoreGroupGridProps> = ({
     showReducer,
     compact,
     resizable,
+    sortable,
     scorerColWidth,
     metricColWidth,
   ]);
