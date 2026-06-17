@@ -73,9 +73,6 @@ interface ScanCatalogRow {
   scannerPaths: Record<string, string>;
 }
 
-const TRANSCRIPTS_CATALOG = "transcripts_catalog.parquet";
-const SCANS_CATALOG = "scans_catalog.parquet";
-
 const joinUrl = (base: string, ...parts: string[]): string => {
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
   const cleaned = parts
@@ -110,17 +107,15 @@ export const apiScoutStatic = (
   const baseUrl = context.bundleBaseUrl ?? "./api";
   const db = new StaticDuckDB();
 
-  const registerTranscriptsCatalog = (): Promise<void> =>
-    db.registerHttpFile(
-      TRANSCRIPTS_CATALOG,
-      joinUrl(baseUrl, "transcripts", "catalog.parquet")
-    );
-
-  const registerScansCatalog = (): Promise<void> =>
-    db.registerHttpFile(
-      SCANS_CATALOG,
-      joinUrl(baseUrl, "scans", "catalog.parquet")
-    );
+  // Query catalogs by their absolute http(s) URL so DuckDB reads them through
+  // httpfs (HEAD + ranged column-chunk GETs) rather than buffering the whole
+  // file via registerFileURL. Keeps listing/filtering scalable as catalogs grow.
+  const transcriptsCatalog = absoluteUrl(
+    joinUrl(baseUrl, "transcripts", "catalog.parquet")
+  );
+  const scansCatalog = absoluteUrl(
+    joinUrl(baseUrl, "scans", "catalog.parquet")
+  );
 
   return {
     capability: "workbench",
@@ -153,10 +148,9 @@ export const apiScoutStatic = (
       orderBy?: OrderByModel | OrderByModel[],
       pagination?: Pagination
     ): Promise<TranscriptsResponse> => {
-      await registerTranscriptsCatalog();
       return queryCatalogListing<TranscriptInfo>(
         db,
-        TRANSCRIPTS_CATALOG,
+        transcriptsCatalog,
         "transcript_id",
         filter,
         orderBy,
@@ -170,10 +164,9 @@ export const apiScoutStatic = (
       orderBy?: OrderByModel | OrderByModel[],
       pagination?: Pagination
     ): Promise<ScansResponse> => {
-      await registerScansCatalog();
       return queryCatalogListing<ScanRow>(
         db,
-        SCANS_CATALOG,
+        scansCatalog,
         "scan_id",
         filter,
         orderBy,
@@ -186,8 +179,7 @@ export const apiScoutStatic = (
       column: string,
       filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
-      await registerTranscriptsCatalog();
-      return queryDistinct(db, TRANSCRIPTS_CATALOG, column, filter);
+      return queryDistinct(db, transcriptsCatalog, column, filter);
     },
 
     getScansColumnValues: async (
@@ -195,18 +187,16 @@ export const apiScoutStatic = (
       column: string,
       filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
-      await registerScansCatalog();
-      return queryDistinct(db, SCANS_CATALOG, column, filter);
+      return queryDistinct(db, scansCatalog, column, filter);
     },
 
     hasTranscript: async (
       _transcriptsDir: string,
       id: string
     ): Promise<boolean> => {
-      await registerTranscriptsCatalog();
       const rows = await db.queryObjects(
         `SELECT COUNT(*) AS total_count FROM ${catalogTable(
-          TRANSCRIPTS_CATALOG
+          transcriptsCatalog
         )} WHERE "transcript_id" = ?`,
         [id]
       );
@@ -217,10 +207,9 @@ export const apiScoutStatic = (
       _transcriptsDir: string,
       id: string
     ): Promise<Transcript> => {
-      await registerTranscriptsCatalog();
       const rows = await db.queryObjects(
         `SELECT row_json, content_path FROM ${catalogTable(
-          TRANSCRIPTS_CATALOG
+          transcriptsCatalog
         )} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
       );
@@ -248,8 +237,7 @@ export const apiScoutStatic = (
     },
 
     getScan: async (_scansDir: string, scanPath: string): Promise<Status> => {
-      await registerScansCatalog();
-      const row = await lookupScanCatalogRow(db, scanPath);
+      const row = await lookupScanCatalogRow(db, scansCatalog, scanPath);
       return fetchJson<Status>(joinUrl(baseUrl, row.statusPath));
     },
 
@@ -259,10 +247,9 @@ export const apiScoutStatic = (
       scanner: string,
       excludeColumns?: string[]
     ): Promise<Uint8Array> => {
-      await registerScansCatalog();
       const parquetUrl = scannerParquetUrl(
         baseUrl,
-        await lookupScanCatalogRow(db, scanPath),
+        await lookupScanCatalogRow(db, scansCatalog, scanPath),
         scanner
       );
       const projection = scannerProjection(excludeColumns);
@@ -277,10 +264,9 @@ export const apiScoutStatic = (
       scanner: string,
       uuid: string
     ): Promise<ScanResultDetail> => {
-      await registerScansCatalog();
       const parquetUrl = scannerParquetUrl(
         baseUrl,
-        await lookupScanCatalogRow(db, scanPath),
+        await lookupScanCatalogRow(db, scansCatalog, scanPath),
         scanner
       );
       const rows = await db.queryObjects(
@@ -445,11 +431,12 @@ const buildListingWhere = (filter: Condition) => conditionToSql(filter);
 
 const lookupScanCatalogRow = async (
   db: StaticDuckDB,
+  scansCatalog: string,
   scanPath: string
 ): Promise<ScanCatalogRow> => {
   const rows = await db.queryObjects(
     `SELECT bundle_id, status_path, scanner_paths_json FROM ${catalogTable(
-      SCANS_CATALOG
+      scansCatalog
     )} WHERE "static_path" = ? OR "scan_id" = ? OR "location" = ? LIMIT 1`,
     [scanPath, scanPath, scanPath]
   );
