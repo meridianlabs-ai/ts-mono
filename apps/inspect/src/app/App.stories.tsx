@@ -35,11 +35,11 @@ const logFileHandlers = (evalLog: EvalLog) => {
 
 // The decorator renders <App api={api}/> itself — no args needed.
 const meta: Meta = {
-  title: "App/FullApp",
   parameters: {
     layout: "fullscreen",
   },
   decorators: [withMockedApp],
+  tags: ["!autodocs"],
 };
 
 export default meta;
