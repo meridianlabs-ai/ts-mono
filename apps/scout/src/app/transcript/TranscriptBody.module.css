@@ -1,57 +1,3 @@
-/* When the search split is active, the TabSet's tab bar and contents must
-   have bounded heights so the inner VscodeSplitLayout can fill the available
-   space. Without this, the Fragment-rendered ul + tab-content flow naturally
-   and give the split no height to work with. */
-.tabContainer {
-  display: grid;
-  grid-template-rows: max-content minmax(0, 1fr);
-  height: 100%;
-  min-height: 0;
-}
-
-.tabContainer > :global(.tab-content) {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.tabContainer > :global(.tab-content) > :global(.tab-pane.active) {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Inside a bounded TabPanel, the VscodeSplitLayout fills the space. The panel
-   itself should contain overflow so content doesn't escape. */
-.tabWithSearchSplit {
-  overflow: hidden !important;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.searchSplitLayout {
-  height: 100%;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-}
-
-.searchSplitStart {
-  height: 100%;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.searchSidebar {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  background-color: var(--bs-body-bg);
-}
-
 :global(.nav).tabs {
   border-bottom: solid 1px var(--bs-border-color);
   padding-bottom: 0.25rem;
@@ -97,20 +43,19 @@
   padding: 0.1rem 0.4rem !important;
 }
 
-.splitLayout {
-  height: 100%;
-  width: 100%;
-}
-
-.splitStart {
-  height: 100%;
-  overflow-y: auto;
-}
-
-.validationSidebar {
+.railHost {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
   height: 100%;
-  background-color: var(--bs-body-bg);
-  overflow-y: auto;
+  min-height: 0;
+}
+
+.railContent {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
 }
