@@ -23,6 +23,7 @@ export * from "./Preformatted";
 export * from "./ProgressBar";
 export * from "./PulsingDots";
 export * from "./RailDock";
+export * from "./ActivityRail";
 export * from "./ResizablePanel";
 export * from "./SegmentedControl";
 export * from "./SidebarHeader";
