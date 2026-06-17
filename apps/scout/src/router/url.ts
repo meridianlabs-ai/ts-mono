@@ -20,7 +20,7 @@ export const kScanIdPattern = /scan_id=[a-zA-Z0-9_.-]{22}$/;
 // Query parameter constants
 export const kScannerQueryParam = "scanner";
 export const kValidationQueryParam = "validation";
-export const kSearchQueryParam = "search";
+export const kRailQueryParam = "rail";
 export const kValidationSetQueryParam = "validationSet";
 export const kDataframeColumnsQueryParam = "cols";
 const kLegacySidebarQueryParam = "sidebar";
@@ -249,18 +249,39 @@ export const getValidationParam = (searchParams: URLSearchParams): boolean => {
   return searchParams.get(kValidationQueryParam) === "1";
 };
 
-// Updates the search sidebar parameter in URL search params.
-export const updateSearchParam = (
-  searchParams: URLSearchParams,
-  isOpen: boolean
-): URLSearchParams => {
-  return updateBooleanParam(searchParams, kSearchQueryParam, isOpen);
+export type RailPanelId = "search" | "validation";
+
+const isRailPanelId = (value: string | null): value is RailPanelId =>
+  value === "search" || value === "validation";
+
+// Retrieves the active rail panel id, or undefined when none/invalid.
+export const getRailParam = (
+  searchParams: URLSearchParams
+): RailPanelId | undefined => {
+  const value = searchParams.get(kRailQueryParam);
+  return isRailPanelId(value) ? value : undefined;
 };
 
-// Retrieves the search sidebar parameter from URL search params.
-export const getSearchParam = (searchParams: URLSearchParams): boolean => {
-  return searchParams.get(kSearchQueryParam) === "1";
+// Sets the active rail panel id, or clears it when given undefined.
+export const updateRailParam = (
+  searchParams: URLSearchParams,
+  id: RailPanelId | undefined
+): URLSearchParams => {
+  const newParams = new URLSearchParams(searchParams);
+  if (id) {
+    newParams.set(kRailQueryParam, id);
+  } else {
+    newParams.delete(kRailQueryParam);
+  }
+  return newParams;
 };
+
+// Toggle semantics: re-selecting the active id closes it; selecting another
+// switches. Panels are mutually exclusive (a single value).
+export const nextRailValue = (
+  current: RailPanelId | undefined,
+  clicked: RailPanelId
+): RailPanelId | undefined => (current === clicked ? undefined : clicked);
 
 // Retrieves the validation set URI from URL search params.
 export const getValidationSetParam = (
