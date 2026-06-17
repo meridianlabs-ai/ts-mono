@@ -62,6 +62,7 @@ interface ValidationCaseEditorProps {
   taskId?: string | null;
   taskRepeat?: number | null;
   className?: string | string[];
+  onClose?: () => void;
 }
 
 export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
@@ -69,6 +70,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
   taskId,
   taskRepeat,
   className,
+  onClose,
 }) => {
   const [searchParams] = useSearchParams();
   const editorValidationSetUri = useStore(
@@ -165,6 +167,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
               validationCase={caseData}
               validationCases={casesData}
               className={className}
+              onClose={onClose}
             />
           )}
         </>
@@ -184,6 +187,7 @@ interface ValidationCaseEditorComponentProps {
   validationCase?: ValidationCase | null;
   validationCases?: ValidationCase[];
   className?: string | string[];
+  onClose?: () => void;
 }
 
 const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
@@ -195,6 +199,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
   validationCase: caseData,
   validationCases,
   className,
+  onClose,
 }) => {
   const config = useAppConfig();
   const queryClient = useQueryClient();
@@ -462,7 +467,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
         title="Validation Case"
         icon={ApplicationIcons.validation}
         actions={actions}
-        onClose={closeValidationSidebar}
+        onClose={onClose ?? closeValidationSidebar}
         closeIcon={ApplicationIcons.close}
       />
       <div className={styles.content}>
