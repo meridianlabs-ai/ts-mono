@@ -103,8 +103,15 @@ usage to parameterize the shared component. No behavior change for Inspect.
 
 ### 4. Layout integration (two-host)
 
+The rail and its panel sit **to the right** of the tab content, starting **below
+the toolbar** and running alongside the content (the timeline/event list on the
+Events tab, the message list on the Messages tab) — matching Inspect. They do *not*
+sit below the timeline. This positioning is what `RailDock` + the `rightRail` slot
+already provide.
+
 - **Events tab**: pass the rail + panel nodes through `TranscriptLayout`'s existing
-  `rightRail` prop (plumbed via `TimelineEventsView`).
+  `rightRail` prop (plumbed via `TimelineEventsView`). The rail/panel render to the
+  right of the timeline + event list.
 - **Messages tab**: wrap its content in a `RailSidebarHost`-style flex row
   `[content][RailDock]`, mirroring Inspect's `SampleDisplay`.
 - **Metadata / Info tabs**: no host rendered → no rail, no panel.
