@@ -11,8 +11,8 @@ import {
 } from "react";
 
 import { MetadataEdit } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
 
-import { Modal } from "../../../components/Modal";
 import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 
@@ -357,8 +357,8 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   return (
     <Modal
       id="edit-metadata-dialog"
-      showing={showing}
-      setShowing={setShowing}
+      show={showing}
+      onHide={() => setShowing(false)}
       title="Edit metadata"
       width="820px"
       footer={

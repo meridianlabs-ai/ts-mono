@@ -1,12 +1,12 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Modal } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
-import { Modal } from "../../../components/Modal";
 import {
   expandGroupedMetrics,
   metricDisplayName,
@@ -145,12 +145,22 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
           <>
             <Modal
               id="results-metrics"
-              showing={showing}
-              setShowing={setShowing}
+              show={showing}
+              onHide={() => setShowing(false)}
               title={"Scoring Detail"}
+              width="min(1000px, 90vw)"
               overflow="hidden"
               padded={false}
               className={styles.scoringDetailModal}
+              footer={
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowing(false)}
+                >
+                  Close
+                </button>
+              }
             >
               <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
             </Modal>

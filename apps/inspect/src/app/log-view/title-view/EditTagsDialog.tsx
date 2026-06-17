@@ -2,8 +2,8 @@ import clsx from "clsx";
 import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
 
-import { Modal } from "../../../components/Modal";
 import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 
@@ -170,8 +170,8 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   return (
     <Modal
       id="edit-tags-dialog"
-      showing={showing}
-      setShowing={setShowing}
+      show={showing}
+      onHide={() => setShowing(false)}
       title="Edit tags"
       width="580px"
       footer={
@@ -231,7 +231,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
               onChange={(e) => setPending(e.target.value)}
               onKeyDown={handleInputKeyDown}
               disabled={submitting}
-              autoFocus
+              data-autofocus
             />
             <button
               type="button"

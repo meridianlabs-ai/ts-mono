@@ -101,14 +101,10 @@
   margin-bottom: 0.35em;
 }
 
-.scoringDetailModal :global(.modal-dialog) {
-  max-width: min(1000px, 90vw);
-}
-
 /* Let the dialog shrink to the grid's natural width instead of always
-   stretching to the max-width. The grid container sizes itself from the
-   sum of column widths; modal-content honours that. */
-.scoringDetailModal :global(.modal-content) {
+   stretching to the max-width (set via the modal's `width` prop). The grid
+   container sizes itself from the sum of column widths; the dialog honours
+   that and caps at the prop's max-width. */
+.scoringDetailModal {
   width: fit-content;
-  max-width: 100%;
 }

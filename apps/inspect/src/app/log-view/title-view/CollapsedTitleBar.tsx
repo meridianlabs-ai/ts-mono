@@ -1,14 +1,13 @@
 import clsx from "clsx";
 import { FC, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
-import { Modal } from "../../../components/Modal";
 import {
   expandGroupedMetrics,
   metricDisplayName,
@@ -181,29 +180,35 @@ const MetricsLink: FC<MetricsLinkProps> = ({ scorers }) => {
   const grouped = groupScorers(scorers);
   const showReducer = scorers.findIndex((s) => !!s.reducer) !== -1;
 
-  // The modal is portaled to <body> so it escapes the title-view collapsing
-  // wrapper (which sets opacity: 0 on whichever slot is hidden). Without the
-  // portal, the modal would inherit that opacity and become invisible while
-  // still capturing pointer events.
+  // Modal portals to <body> internally, so it escapes the title-view
+  // collapsing wrapper (which sets opacity: 0 on whichever slot is hidden)
+  // without a manual portal here.
   const [showing, setShowing] = useState(false);
 
   return (
     <>
       <LinkButton text="View metrics…" onClick={() => setShowing(true)} />
-      {createPortal(
-        <Modal
-          id="collapsed-title-bar-metrics"
-          showing={showing}
-          setShowing={setShowing}
-          title="Scoring Detail"
-          overflow="hidden"
-          padded={false}
-          className={styles.scoringDetailModal}
-        >
-          <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
-        </Modal>,
-        document.body
-      )}
+      <Modal
+        id="collapsed-title-bar-metrics"
+        show={showing}
+        onHide={() => setShowing(false)}
+        title="Scoring Detail"
+        width="min(1000px, 90vw)"
+        overflow="hidden"
+        padded={false}
+        className={styles.scoringDetailModal}
+        footer={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowing(false)}
+          >
+            Close
+          </button>
+        }
+      >
+        <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
+      </Modal>
     </>
   );
 };

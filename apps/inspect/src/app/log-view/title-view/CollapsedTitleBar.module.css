@@ -69,11 +69,8 @@
   opacity: 0.7;
 }
 
-.scoringDetailModal :global(.modal-dialog) {
-  max-width: min(1000px, 90vw);
-}
-
-.scoringDetailModal :global(.modal-content) {
+/* Shrink the dialog to the grid's natural width, capped by the modal's
+   `width` prop (the grid scrolls internally beyond that). */
+.scoringDetailModal {
   width: fit-content;
-  max-width: 100%;
 }
