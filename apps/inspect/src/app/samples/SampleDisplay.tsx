@@ -40,7 +40,6 @@ import {
 } from "@tsmono/inspect-components/usage";
 import {
   ActivityRail,
-  type ActivityRailItem,
   ANSIDisplay,
   Card,
   CardBody,
@@ -52,6 +51,7 @@ import {
   TabSet,
   ToolButton,
   ToolDropdownButton,
+  type ActivityRailItem,
 } from "@tsmono/react/components";
 import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";

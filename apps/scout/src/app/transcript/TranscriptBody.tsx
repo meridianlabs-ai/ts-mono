@@ -23,12 +23,12 @@ import type { TranscriptLayoutRightRailProps } from "@tsmono/inspect-components/
 import type { SearchScope as TranscriptSearchScope } from "@tsmono/inspect-components/transcript-search";
 import {
   ActivityRail,
-  type ActivityRailItem,
   RailDock,
   TabPanel,
   TabSet,
   ToolButton,
   ToolDropdownButton,
+  type ActivityRailItem,
 } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
