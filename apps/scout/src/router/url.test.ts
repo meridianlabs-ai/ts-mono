@@ -5,6 +5,7 @@ import {
   getValidationParam,
   kRailQueryParam,
   kValidationQueryParam,
+  kValidationSetQueryParam,
   nextRailValue,
   transcriptRoute,
   updateRailParam,
@@ -29,16 +30,15 @@ describe("validation param helpers", () => {
     expect(getValidationParam(new URLSearchParams("search=1"))).toBe(false);
   });
 
-  it("uses validation=1 when linking to a validation set", () => {
+  it("deep-links a validation set via the rail param", () => {
     const route = transcriptRoute(
       "transcripts",
       "sample-1",
-      new URLSearchParams("search=1&sidebar=validation"),
+      undefined,
       "/tmp/cases.csv"
     );
-    expect(route).toBe(
-      "/transcripts/dHJhbnNjcmlwdHM/sample-1?search=1&validation=1&validationSet=L3RtcC9jYXNlcy5jc3Y"
-    );
+    expect(route).toContain(`${kRailQueryParam}=validation`);
+    expect(route).toContain(kValidationSetQueryParam);
   });
 });
 

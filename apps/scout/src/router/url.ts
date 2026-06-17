@@ -86,12 +86,12 @@ export const transcriptRoute = (
   const encodedDir = encodeBase64Url(transcriptsDir);
   const route = `/transcripts/${encodedDir}/${transcriptId}`;
 
-  // If validationSetUri is provided, add validation params
+  // If validationSetUri is provided, open the validation rail panel + select it
   let params = searchParams ? new URLSearchParams(searchParams) : undefined;
   if (validationSetUri) {
     params = params ?? new URLSearchParams();
     params.delete(kLegacySidebarQueryParam);
-    params.set(kValidationQueryParam, "1");
+    params.set(kRailQueryParam, "validation");
     params.set(kValidationSetQueryParam, encodeBase64Url(validationSetUri));
   }
 
