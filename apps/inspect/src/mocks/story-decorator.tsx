@@ -2,8 +2,8 @@ import type { Decorator } from "@storybook/react";
 
 import { App } from "../app/App";
 import { clientApi } from "../client/api/client-api";
-import { viewServerApi } from "../client/api/view-server/api-view-server";
 import type { Capabilities, ClientStorage } from "../client/api/types";
+import { viewServerApi } from "../client/api/view-server/api-view-server";
 import { initializeStore } from "../state/store";
 
 // Mirrors production capabilities. webWorkers must stay true so the IndexedDB

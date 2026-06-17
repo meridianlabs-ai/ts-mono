@@ -12,9 +12,7 @@
     "task_args": {},
     "dataset": {
       "samples": 1,
-      "sample_ids": [
-        1
-      ],
+      "sample_ids": [1],
       "shuffled": false
     },
     "model": "openai/gpt-4o-mini",

@@ -1,15 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { http, HttpResponse } from "msw";
+
 import type { EvalLog } from "@tsmono/inspect-common/types";
 
-import { withMockedApp } from "../mocks/story-decorator";
-import { withDefaults } from "../mocks/handlers";
 import {
   createEvalHeader,
   createEvalLog,
   createEvalSample,
 } from "../mocks/factories";
 import completedEvalFixture from "../mocks/fixtures/completed-eval.json";
+import { withDefaults } from "../mocks/handlers";
+import { withMockedApp } from "../mocks/story-decorator";
 
 const LOG_FILE = "demo.json";
 const ENCODED_LOG = encodeURIComponent(LOG_FILE);
@@ -24,7 +25,13 @@ const logFileHandlers = (evalLog: EvalLog) => {
   return withDefaults([
     http.get("*/api/log-files*", () =>
       HttpResponse.json({
-        files: [{ name: LOG_FILE, task: evalLog.eval.task, task_id: evalLog.eval.task_id }],
+        files: [
+          {
+            name: LOG_FILE,
+            task: evalLog.eval.task,
+            task_id: evalLog.eval.task_id,
+          },
+        ],
         response_type: "full",
       })
     ),
@@ -79,7 +86,11 @@ export const LogListing: Story = {
                   id: 1,
                   epoch: 1,
                   messages: [
-                    { role: "user", content: "Listing demo sample", source: "input" },
+                    {
+                      role: "user",
+                      content: "Listing demo sample",
+                      source: "input",
+                    },
                   ],
                 }),
               ],
@@ -88,9 +99,43 @@ export const LogListing: Story = {
         ),
         http.get("*/api/log-headers*", () =>
           HttpResponse.json([
-            createEvalHeader({ eval: { eval_id: "eval-a", run_id: "run-a", task: "math-eval", task_id: "task-a" }, stats: { started_at: "2025-01-15T09:00:00Z", completed_at: "2025-01-15T09:05:00Z" } }),
-            createEvalHeader({ eval: { eval_id: "eval-b", run_id: "run-b", task: "code-eval", task_id: "task-b" }, stats: { started_at: "2025-01-15T10:00:00Z", completed_at: "2025-01-15T10:08:00Z" } }),
-            createEvalHeader({ eval: { eval_id: "eval-c", run_id: "run-c", task: "reasoning", task_id: "task-c" }, status: "error", stats: { started_at: "2025-01-15T11:00:00Z", completed_at: "2025-01-15T11:01:00Z" } }),
+            createEvalHeader({
+              eval: {
+                eval_id: "eval-a",
+                run_id: "run-a",
+                task: "math-eval",
+                task_id: "task-a",
+              },
+              stats: {
+                started_at: "2025-01-15T09:00:00Z",
+                completed_at: "2025-01-15T09:05:00Z",
+              },
+            }),
+            createEvalHeader({
+              eval: {
+                eval_id: "eval-b",
+                run_id: "run-b",
+                task: "code-eval",
+                task_id: "task-b",
+              },
+              stats: {
+                started_at: "2025-01-15T10:00:00Z",
+                completed_at: "2025-01-15T10:08:00Z",
+              },
+            }),
+            createEvalHeader({
+              eval: {
+                eval_id: "eval-c",
+                run_id: "run-c",
+                task: "reasoning",
+                task_id: "task-c",
+              },
+              status: "error",
+              stats: {
+                started_at: "2025-01-15T11:00:00Z",
+                completed_at: "2025-01-15T11:01:00Z",
+              },
+            }),
           ])
         ),
       ]),
@@ -102,13 +147,18 @@ const syntheticSample = createEvalSample({
   id: 1,
   epoch: 1,
   messages: [
-    { role: "user", content: "List files in the /tmp directory.", source: "input" },
+    {
+      role: "user",
+      content: "List files in the /tmp directory.",
+      source: "input",
+    },
     {
       role: "assistant",
       content: [
         {
           type: "reasoning",
-          reasoning: "The user wants a directory listing. I should use bash to run ls.",
+          reasoning:
+            "The user wants a directory listing. I should use bash to run ls.",
           signature: null,
           redacted: false,
         },
@@ -160,7 +210,13 @@ export const CompletedEvalRealData: Story = {
       handlers: withDefaults([
         http.get("*/api/log-files*", () =>
           HttpResponse.json({
-            files: [{ name: LOG_FILE, task: "input_task", task_id: "8zXjbRzCWrL9GXiXo2vus9" }],
+            files: [
+              {
+                name: LOG_FILE,
+                task: "input_task",
+                task_id: "8zXjbRzCWrL9GXiXo2vus9",
+              },
+            ],
             response_type: "full",
           })
         ),
@@ -168,8 +224,18 @@ export const CompletedEvalRealData: Story = {
         http.get("*/api/log-headers*", () =>
           HttpResponse.json([
             createEvalHeader({
-              eval: { eval_id: "real-eval-001", run_id: "2BnNsHEspZ94qvnbpxq9wJ", task: "input_task", task_id: "8zXjbRzCWrL9GXiXo2vus9", task_version: 0, model: "openai/gpt-4o-mini" },
-              stats: { started_at: "2024-11-05T13:31:45-05:00", completed_at: "2024-11-05T13:32:19-05:00" },
+              eval: {
+                eval_id: "real-eval-001",
+                run_id: "2BnNsHEspZ94qvnbpxq9wJ",
+                task: "input_task",
+                task_id: "8zXjbRzCWrL9GXiXo2vus9",
+                task_version: 0,
+                model: "openai/gpt-4o-mini",
+              },
+              stats: {
+                started_at: "2024-11-05T13:31:45-05:00",
+                completed_at: "2024-11-05T13:32:19-05:00",
+              },
             }),
           ])
         ),
@@ -194,7 +260,9 @@ export const RunningEval: Story = {
         const runningSample = createEvalSample({
           id: 1,
           epoch: 1,
-          messages: [{ role: "user", content: "Running eval sample", source: "input" }],
+          messages: [
+            { role: "user", content: "Running eval sample", source: "input" },
+          ],
         });
 
         const startedLog = createEvalLog({
@@ -212,7 +280,13 @@ export const RunningEval: Story = {
         return withDefaults([
           http.get("*/api/log-files*", () =>
             HttpResponse.json({
-              files: [{ name: LOG_FILE, task: "running-task", task_id: "running-001" }],
+              files: [
+                {
+                  name: LOG_FILE,
+                  task: "running-task",
+                  task_id: "running-001",
+                },
+              ],
               response_type: "full",
             })
           ),
@@ -223,9 +297,17 @@ export const RunningEval: Story = {
           http.get("*/api/log-headers*", () =>
             HttpResponse.json([
               createEvalHeader({
-                eval: { eval_id: "eval-running", run_id: "run-running", task: "running-task", task_id: "running-001" },
+                eval: {
+                  eval_id: "eval-running",
+                  run_id: "run-running",
+                  task: "running-task",
+                  task_id: "running-001",
+                },
                 status: "started",
-                stats: { started_at: new Date().toISOString(), completed_at: undefined },
+                stats: {
+                  started_at: new Date().toISOString(),
+                  completed_at: undefined,
+                },
               }),
             ])
           ),
@@ -263,8 +345,10 @@ const errorLog = createEvalLog({
   status: "error",
   error: {
     message: "Task failed: sandbox connection timed out after 30s",
-    traceback: "Traceback (most recent call last):\n  File 'task.py', line 42, in run\n    raise TimeoutError('sandbox connection timed out after 30s')\nTimeoutError: sandbox connection timed out after 30s",
-    traceback_ansi: "Traceback (most recent call last):\n  File 'task.py', line 42, in run\n    raise TimeoutError('sandbox connection timed out after 30s')\nTimeoutError: sandbox connection timed out after 30s",
+    traceback:
+      "Traceback (most recent call last):\n  File 'task.py', line 42, in run\n    raise TimeoutError('sandbox connection timed out after 30s')\nTimeoutError: sandbox connection timed out after 30s",
+    traceback_ansi:
+      "Traceback (most recent call last):\n  File 'task.py', line 42, in run\n    raise TimeoutError('sandbox connection timed out after 30s')\nTimeoutError: sandbox connection timed out after 30s",
   },
 });
 
@@ -275,7 +359,9 @@ export const ErrorState: Story = {
       handlers: withDefaults([
         http.get("*/api/log-files*", () =>
           HttpResponse.json({
-            files: [{ name: LOG_FILE, task: "error-task", task_id: "error-001" }],
+            files: [
+              { name: LOG_FILE, task: "error-task", task_id: "error-001" },
+            ],
             response_type: "full",
           })
         ),
@@ -283,9 +369,18 @@ export const ErrorState: Story = {
         http.get("*/api/log-headers*", () =>
           HttpResponse.json([
             createEvalHeader({
-              eval: { eval_id: "eval-error", run_id: "run-error", task: "error-task", task_id: "error-001", task_version: 1 },
+              eval: {
+                eval_id: "eval-error",
+                run_id: "run-error",
+                task: "error-task",
+                task_id: "error-001",
+                task_version: 1,
+              },
               status: "error",
-              stats: { started_at: "2025-01-15T12:00:00Z", completed_at: "2025-01-15T12:00:30Z" },
+              stats: {
+                started_at: "2025-01-15T12:00:00Z",
+                completed_at: "2025-01-15T12:00:30Z",
+              },
             }),
           ])
         ),

@@ -19,10 +19,18 @@ const BASE = process.env.STORYBOOK_URL ?? "http://localhost:6006";
 // for errors only.
 const EXPECTATIONS = {
   "app-fullapp--log-listing": { expect: ["math-eval"] },
-  "app-fullapp--completed-eval-synthetic": { expect: ["List files in the /tmp directory"] },
+  "app-fullapp--completed-eval-synthetic": {
+    expect: ["List files in the /tmp directory"],
+  },
   "app-fullapp--completed-eval-real-data": { expect: ["Hey there, hipster"] },
-  "app-fullapp--running-eval": { expect: ["RUNNING"], notExpect: ["An error occurred while loading"] },
-  "app-fullapp--error-state": { expect: ["TASK FAILED"], notExpect: ["An error occurred while loading"] },
+  "app-fullapp--running-eval": {
+    expect: ["RUNNING"],
+    notExpect: ["An error occurred while loading"],
+  },
+  "app-fullapp--error-state": {
+    expect: ["TASK FAILED"],
+    notExpect: ["An error occurred while loading"],
+  },
 };
 
 // 404s that are correct protocol, not bugs:
@@ -50,14 +58,25 @@ for (const id of targets) {
   page.on("pageerror", (e) => pageErrors.push(e.message));
   page.on("response", (r) => {
     const u = r.url();
-    if (u.includes("/api/") && r.status() >= 400 && !EXPECTED_404.some((p) => u.includes(p))) {
+    if (
+      u.includes("/api/") &&
+      r.status() >= 400 &&
+      !EXPECTED_404.some((p) => u.includes(p))
+    ) {
       apiFail.push(`${r.status()} ${u.replace(/\?.*/, "")}`);
     }
   });
 
-  await page.goto(`${BASE}/iframe.html?id=${id}&viewMode=story`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}/iframe.html?id=${id}&viewMode=story`, {
+    waitUntil: "domcontentloaded",
+  });
   const readBody = async () =>
-    ((await page.locator("body").innerText().catch(() => "")) || "")
+    (
+      (await page
+        .locator("body")
+        .innerText()
+        .catch(() => "")) || ""
+    )
       .replace(/\s+/g, " ")
       .trim();
 
@@ -76,24 +95,34 @@ for (const id of targets) {
       body = await readBody();
     }
   } else {
-    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+    await page
+      .waitForLoadState("networkidle", { timeout: 5000 })
+      .catch(() => {});
     body = await readBody();
   }
 
   const missing = expect.filter((t) => !body.includes(t));
   const present = notExpect.filter((t) => body.includes(t));
-  const fatalErrors = pageErrors.filter((e) => !TOLERATED_ERRORS.some((t) => e.includes(t)));
-  const tolerated = pageErrors.filter((e) => TOLERATED_ERRORS.some((t) => e.includes(t)));
-  const fail = missing.length || present.length || apiFail.length || fatalErrors.length;
+  const fatalErrors = pageErrors.filter(
+    (e) => !TOLERATED_ERRORS.some((t) => e.includes(t))
+  );
+  const tolerated = pageErrors.filter((e) =>
+    TOLERATED_ERRORS.some((t) => e.includes(t))
+  );
+  const fail =
+    missing.length || present.length || apiFail.length || fatalErrors.length;
   if (fail) anyFail = true;
 
   console.log(`\n===== ${id} =====`);
   console.log(`  body(170): ${JSON.stringify(body.slice(0, 170))}`);
   if (missing.length) console.log(`  MISSING expected: ${missing.join(", ")}`);
-  if (present.length) console.log(`  UNEXPECTED present: ${present.join(", ")}`);
+  if (present.length)
+    console.log(`  UNEXPECTED present: ${present.join(", ")}`);
   if (apiFail.length) console.log(`  API FAIL: ${apiFail.join(" | ")}`);
-  if (fatalErrors.length) console.log(`  PAGEERRORS: ${fatalErrors.join(" || ")}`);
-  if (tolerated.length) console.log(`  tolerated(known): ${[...new Set(tolerated)].join(" || ")}`);
+  if (fatalErrors.length)
+    console.log(`  PAGEERRORS: ${fatalErrors.join(" || ")}`);
+  if (tolerated.length)
+    console.log(`  tolerated(known): ${[...new Set(tolerated)].join(" || ")}`);
   console.log(`  => ${fail ? "FAIL" : "PASS"}`);
   await ctx.close();
 }
