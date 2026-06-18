@@ -1,5 +1,3 @@
-import { decompress as decompressZstd } from "fzstd";
-
 import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse } from "@tsmono/util";
@@ -37,7 +35,6 @@ import {
   SearchResultScope,
   TopicVersions,
 } from "../api";
-import { resolveAttachments } from "../attachmentsHelpers";
 import { expandInputEvents } from "../expandInputEvents";
 
 import {
@@ -87,15 +84,6 @@ const fetchJson = async <T>(url: string): Promise<T> => {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
   return asyncJsonParse<T>(await res.text());
-};
-
-const fetchZstdJson = async <T>(url: string): Promise<T> => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
-  }
-  const decompressed = decompressZstd(new Uint8Array(await res.arrayBuffer()));
-  return asyncJsonParse<T>(new TextDecoder().decode(decompressed));
 };
 
 const unsupported = <T>(op: string): Promise<T> =>
@@ -208,7 +196,7 @@ export const apiScoutStatic = (
       id: string
     ): Promise<Transcript> => {
       const rows = await db.queryObjects(
-        `SELECT row_json, content_path FROM ${catalogTable(
+        `SELECT row_json, content_file FROM ${catalogTable(
           transcriptsCatalog
         )} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
@@ -217,22 +205,45 @@ export const apiScoutStatic = (
       const info = await asyncJsonParse<TranscriptInfo>(
         stringField(row, "row_json")
       );
-      const parsed = await fetchZstdJson<MessagesEventsResponse>(
-        joinUrl(baseUrl, stringField(row, "content_path"))
+
+      // Open the transcript's content from the native parquet via httpfs range
+      // reads (HEAD + ranged column-chunk GETs). Attachments are inlined at
+      // write time, so no attachment resolution is needed here.
+      const url = absoluteUrl(
+        joinUrl(baseUrl, stringField(row, "content_file"))
+      );
+      const contentRows = await db.queryObjects(
+        `SELECT messages, events, events_data, timelines FROM ${catalogTable(
+          url
+        )} WHERE "transcript_id" = ? LIMIT 1`,
+        [id]
+      );
+      const content = firstRow(
+        contentRows,
+        `Transcript content '${id}' not found`
       );
 
-      const { messages, timelines, attachments } = parsed;
-      const events = expandEvents(parsed.events, parsed.events_data ?? null);
+      const messages = await asyncJsonParse<MessagesEventsResponse["messages"]>(
+        stringField(content, "messages")
+      );
+      const rawEvents =
+        (await parseOptionalJson<MessagesEventsResponse["events"]>(
+          content,
+          "events"
+        )) ?? [];
+      const eventsData = await parseOptionalJson<
+        MessagesEventsResponse["events_data"]
+      >(content, "events_data");
+      const timelines = await parseOptionalJson<
+        MessagesEventsResponse["timelines"]
+      >(content, "timelines");
+      const events = expandEvents(rawEvents, eventsData ?? null);
 
       return {
         ...info,
-        ...(attachments && Object.keys(attachments).length > 0
-          ? {
-              messages: resolveAttachments(messages, attachments),
-              events: resolveAttachments(events, attachments),
-              timelines,
-            }
-          : { messages, events, timelines }),
+        messages,
+        events,
+        timelines: timelines ?? [],
       };
     },
 
