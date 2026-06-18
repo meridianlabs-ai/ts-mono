@@ -241,7 +241,7 @@ const contentRenderers: (
         ) : (
           <MetaDataGrid
             id={id}
-            className={"font-size-small"}
+            className={"text-size-small"}
             entries={arrayMap}
             options={{ plain: true }}
           />
@@ -334,7 +334,7 @@ const contentRenderers: (
             rendered: (
               <MetaDataGrid
                 id={id}
-                className={"font-size-small"}
+                className={"text-size-small"}
                 entries={entry.value as Record<string, unknown>}
                 options={{ plain: true }}
               />

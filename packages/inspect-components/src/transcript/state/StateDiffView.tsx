@@ -3,6 +3,8 @@ import { diff } from "jsondiffpatch";
 import { format } from "jsondiffpatch/formatters/html";
 import { FC } from "react";
 
+import "./StateDiffView.css";
+
 interface StateDiffViewProps {
   before: object;
   after: object;

@@ -3,11 +3,20 @@
    apps/inspect/src/img/. Shared rules live in the theme package. */
 
 :root {
-  --inspect-event-panel-sticky-top: 30px;
+  --event-panel-sticky-top: 30px;
 }
 
 body[class^="vscode-"] {
-  --inspect-event-panel-sticky-top: 25px;
+  --event-panel-sticky-top: 25px;
+}
+
+/* VS Code webview — app-shell tuning for the embedded host. */
+html.vscode {
+  font-size: 13px;
+}
+
+body[class^="vscode-"] {
+  min-width: 400px;
 }
 
 /* Full-viewport gate shown while the app config loads (or if it fails). */
@@ -39,7 +48,7 @@ li > ul {
   font-size: 0.7rem;
 }
 
-.tab-tools .btn {
+.tab-tools button {
   font-size: 0.7rem;
   padding: 0.2em 0.8em;
 }
@@ -151,4 +160,190 @@ li > ul {
   vertical-align: middle;
   mask: url("../img/inspect-flow.svg") no-repeat center / contain;
   -webkit-mask: url("../img/inspect-flow.svg") no-repeat center / contain;
+}
+
+/* Code blocks inside the log-view workspace sit flush on the page surface. */
+.workspace pre[class*="language-"] {
+  margin: 0;
+  padding: 0.3em;
+}
+
+.workspace :not(pre) > code[class*="language-"],
+.workspace pre[class*="language-"] {
+  background-color: var(--inspect-background);
+}
+
+.sample-answer .markdown-content h1,
+.sample-answer .markdown-content h2,
+.sample-answer .markdown-content h3,
+.sample-answer .markdown-content h4,
+.sample-answer .markdown-content h5,
+.sample-answer .markdown-content h6 {
+  font-size: 1em;
+  font-weight: 400;
+  margin-top: 0em;
+  margin-bottom: 0em;
+}
+
+/* Map design tokens onto AG Grid's theming variables. */
+body {
+  --ag-background-color: var(--inspect-background);
+  --ag-foreground-color: var(--inspect-foreground);
+  --ag-header-background-color: var(--inspect-surface);
+  --ag-header-font-size: var(--inspect-font-size-small);
+  --ag-header-font-weight: 500;
+  --ag-header-text-color: var(--inspect-muted);
+  --ag-font-family: var(--inspect-font-family);
+  --ag-wrapper-border: none;
+  --ag-row-hover-color: var(--inspect-secondary-bg-subtle);
+  --ag-selected-row-background-color: var(--inspect-secondary-bg-subtle);
+  --ag-border-radius: var(--inspect-radius);
+}
+
+/* ── App shell layout ── */
+
+#app {
+  height: 100vh;
+  overflow-y: hidden;
+}
+
+.app-main-grid {
+  display: grid;
+  height: 100vh;
+  overflow-y: hidden;
+  grid-template-rows: max-content max-content 1fr;
+}
+
+.app-main-grid.single-file-mode {
+  grid-template-rows: max-content max-content 1fr;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace.full-screen {
+  top: 0;
+}
+
+@media (min-width: 768px) {
+  .workspace {
+    left: var(--sidebar-width);
+  }
+  .workspace.full-screen {
+    left: 0;
+  }
+}
+
+/* ── Navbar (inspect-only chrome) ── */
+
+.navbar {
+  --navbar-color: color-mix(
+    in srgb,
+    var(--inspect-emphasis-foreground) 65%,
+    transparent
+  );
+  --navbar-brand-padding-y: 0.3125rem;
+  --navbar-brand-color: var(--inspect-emphasis-foreground);
+  --navbar-brand-hover-color: var(--inspect-emphasis-foreground);
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.navbar-brand {
+  padding-top: var(--navbar-brand-padding-y);
+  padding-bottom: var(--navbar-brand-padding-y);
+  margin-right: 1rem;
+  font-size: 1.25rem;
+  color: var(--navbar-brand-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navbar-brand:hover,
+.navbar-brand:focus {
+  color: var(--navbar-brand-hover-color);
+}
+
+.navbar-text {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  color: var(--navbar-color);
+}
+
+.navbar-text a,
+.navbar-text a:hover,
+.navbar-text a:focus {
+  color: var(--inspect-emphasis-foreground);
+}
+
+.navbar {
+  padding-top: 0;
+  padding-bottom: 0;
+  background-color: var(--inspect-surface);
+  top: 0;
+}
+
+.navbar-brand {
+  font-weight: 400;
+  font-size: 1.4em;
+}
+
+.navbar-text {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+
+[data-theme="dark"] .navbar {
+  background-color: unset;
+}
+
+@media (max-width: 575px) {
+  .navbar .vertical-metric-label {
+    font-size: 0.7rem !important;
+  }
+  .tab-tools select {
+    width: 50px;
+  }
+  .navbar .vertical-metric-value {
+    margin-top: 0.2rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+/* VS Code webview (and browser dark, same body class): host-tuned navbar. */
+
+body[class^="vscode-"] .navbar-brand {
+  font-size: 1.1em;
+}
+
+body[class^="vscode-"] .navbar-brand > div {
+  margin-top: -0.2rem !important;
+}
+
+body[class^="vscode-"] .task-title {
+  margin-top: 0.4em;
+}
+
+body[class^="vscode-"] .task-model {
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+}
+
+body[class^="vscode-"] .navbar-brand {
+  --navbar-brand-color: var(--inspect-foreground);
+  --navbar-brand-hover-color: var(--inspect-foreground);
+}
+
+body[class^="vscode-"] .navbar-text {
+  --navbar-color: var(--inspect-foreground);
+}
+
+body[class^="vscode-"] .navbar-text i.bi {
+  color: var(--inspect-foreground);
 }

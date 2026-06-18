@@ -1,0 +1,192 @@
+/**
+ * Prism integration — sizing, light/dark code-block surfaces, and the dark
+ * token theme. Loaded by usePrismHighlight so any consumer of highlighting
+ * gets consistent code-block styling. The light-mode overrides are
+ * `:root`-prefixed so they beat prismjs's stock theme on specificity
+ * regardless of stylesheet order (import-graph order differs per entry
+ * point); the dark theme already wins via its `.vscode-dark` scope.
+ *
+ * `.vscode-dark` is set on <body> both by VS Code webviews and by
+ * apply-theme in browser dark mode — these are the dark-mode code styles.
+ */
+
+:root .token.attr-name,
+:root .token.builtin,
+:root .token.char,
+:root .token.inserted,
+:root .token.selector,
+:root .token.string {
+  color: var(--inspect-foreground);
+}
+
+:root .token.operator {
+  background: inherit;
+}
+
+:root pre[class*="language-"] {
+  border: unset;
+  border-radius: unset;
+  box-shadow: unset;
+}
+
+:root pre[class*="language-"],
+:root .markdown-content pre[class*="language-"] {
+  background-color: #f8f8f8;
+}
+
+.vscode-dark pre[class*="language-"],
+.vscode-dark .model-call pre[class*="language-"],
+.vscode-dark .markdown-content pre[class*="language-"] {
+  background-color: #333333;
+}
+
+/* PrismJS's stock theme (prismjs/themes/prism.css) hardcodes a light-blue
+   `#b3d4fc` selection on code blocks, washed out on the dark code background
+   above. Override it in dark with the editor selection token (same as
+   CodeMirror's). Scoped to .vscode-dark and mirroring Prism's selector set so
+   it wins on specificity regardless of stylesheet order; light mode keeps
+   Prism's default. */
+.vscode-dark code[class*="language-"]::selection,
+.vscode-dark code[class*="language-"] ::selection,
+.vscode-dark pre[class*="language-"]::selection,
+.vscode-dark pre[class*="language-"] ::selection {
+  background: var(--inspect-active-selection-background);
+}
+
+:root .model-call pre[class*="language-"],
+:root .markdown-content pre[class*="language-"],
+:root pre[class*="language-"].tool-output {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: var(--inspect-radius) !important;
+}
+
+/* prism-custom.css */
+:root code[class*="language-"],
+:root pre[class*="language-"] {
+  font-size: 0.7rem !important;
+}
+
+:root .token {
+  font-size: 0.7rem !important;
+}
+
+/* PrismJS 1.29.0 https://prismjs.com/download.html#themes=prism-dark&languages=markup+css+clike+javascript+bash+python */
+/* This has been generated from the URL above, then scoped within the
+ * .vscode-dark class. If it needs to be regenerated, be sure to add that back in. */
+.vscode-dark code[class*="language-"],
+.vscode-dark pre[class*="language-"] {
+  color: #fff;
+  background: 0 0;
+  text-shadow: 0 -0.1em 0.2em #000;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 1em;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+@media print {
+  .vscode-dark code[class*="language-"],
+  .vscode-dark pre[class*="language-"] {
+    text-shadow: none;
+  }
+}
+
+.vscode-dark :not(pre) > code[class*="language-"],
+.vscode-dark pre[class*="language-"] {
+  background: #4c3f33;
+}
+
+.vscode-dark pre[class*="language-"] {
+  padding: 1em;
+  margin: 0.5em 0;
+  overflow: auto;
+  border-radius: 0.5em;
+}
+
+.vscode-dark :not(pre) > code[class*="language-"] {
+  padding: 0.15em 0.2em 0.05em;
+  border-radius: 0.3em;
+  white-space: normal;
+}
+
+.vscode-dark .token.cdata,
+.vscode-dark .token.comment,
+.vscode-dark .token.doctype,
+.vscode-dark .token.prolog {
+  color: #997f66;
+}
+
+.vscode-dark .token.punctuation {
+  opacity: 0.7;
+}
+
+.vscode-dark .token.namespace {
+  opacity: 0.7;
+}
+
+.vscode-dark .token.boolean,
+.vscode-dark .token.constant,
+.vscode-dark .token.number,
+.vscode-dark .token.property,
+.vscode-dark .token.symbol,
+.vscode-dark .token.tag {
+  color: #d1939e;
+}
+
+.vscode-dark .token.attr-name,
+.vscode-dark .token.builtin,
+.vscode-dark .token.char,
+.vscode-dark .token.inserted,
+.vscode-dark .token.selector,
+.vscode-dark .token.string {
+  color: #bce051;
+}
+
+.vscode-dark .language-css .token.string,
+.vscode-dark .style .token.string,
+.vscode-dark .token.entity,
+.vscode-dark .token.operator,
+.vscode-dark .token.url,
+.vscode-dark .token.variable {
+  color: #f4b73d;
+}
+
+.vscode-dark .token.atrule,
+.vscode-dark .token.attr-value,
+.vscode-dark .token.keyword {
+  color: #d1939e;
+}
+
+.vscode-dark .token.important,
+.vscode-dark .token.regex {
+  color: #e90;
+}
+
+.vscode-dark .token.bold,
+.vscode-dark .token.important {
+  font-weight: 700;
+}
+
+.vscode-dark .token.italic {
+  font-style: italic;
+}
+
+.vscode-dark .token.entity {
+  cursor: help;
+}
+
+.vscode-dark .token.deleted {
+  color: red;
+}

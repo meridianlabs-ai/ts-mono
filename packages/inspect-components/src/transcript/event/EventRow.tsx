@@ -40,6 +40,6 @@ export const EventRow: FC<EventRowProps> = ({
     ""
   );
 
-  const card = <div className={clsx("card", styles.contents)}>{contentEl}</div>;
+  const card = <div className={clsx(styles.contents)}>{contentEl}</div>;
   return card;
 };

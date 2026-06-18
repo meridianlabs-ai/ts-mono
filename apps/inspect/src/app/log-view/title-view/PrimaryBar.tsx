@@ -58,14 +58,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
 
   return (
     <div className={clsx(styles.wrapper)}>
-      <div
-        className={clsx(
-          "navbar-brand",
-          "navbar-text",
-          "mb-0",
-          styles.container
-        )}
-      >
+      <div className={clsx("navbar-brand", "navbar-text", styles.container)}>
         <div className={styles.body}>
           <div className={styles.bodyContainer}>
             <div
@@ -102,9 +95,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
           ) : undefined}
 
           <div className={clsx("text-size-small", styles.secondaryContainer)}>
-            <div className={clsx("navbar-secondary-text", "text-truncate")}>
-              {logFileName}
-            </div>
+            <div className="text-truncate">{logFileName}</div>
             <div className={styles.buttonGroup}>
               {copyValue ? <CopyButton value={copyValue} /> : ""}
               {downloadLogs && selectedLogFile && isEvalFile ? (

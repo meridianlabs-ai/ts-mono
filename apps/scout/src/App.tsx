@@ -6,7 +6,9 @@
 // Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
 // icon-font styles load ahead of the theme's own component styles.
 import "bootstrap-icons/font/bootstrap-icons.css";
-import "bootstrap/dist/css/bootstrap.min.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reboot";
+import "@tsmono/theme/utilities";
 import "@vscode/codicons/dist/codicon.css";
 
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
@@ -19,7 +21,7 @@ import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
-import "@tsmono/theme/base";
+import "@tsmono/theme/transcript";
 import "@tsmono/theme/vscode";
 import "./app/App.css";
 

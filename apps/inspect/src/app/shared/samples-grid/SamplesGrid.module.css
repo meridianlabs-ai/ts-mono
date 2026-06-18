@@ -213,3 +213,9 @@
   display: flex;
   justify-content: center;
 }
+
+/* VS Code webview clamps the sample-input cell tighter than the browser. */
+:global(html.vscode) :global(.sample-input) {
+  line-height: 1.3em;
+  -webkit-line-clamp: 4 !important;
+}

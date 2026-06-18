@@ -655,7 +655,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const tabsContainerStyle = useMemo(
     () =>
       ({
-        "--inspect-sample-header-height": `${effectiveHeaderHeight}px`,
+        "--sample-header-height": `${effectiveHeaderHeight}px`,
       }) as CSSProperties,
     [effectiveHeaderHeight]
   );

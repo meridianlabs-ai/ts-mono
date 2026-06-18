@@ -54,3 +54,12 @@
 .scores {
   padding-top: 1em;
 }
+
+/* Centered fluid container (bootstrap-derived sizing this view kept). */
+.fluidContainer {
+  width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  margin-right: auto;
+  margin-left: auto;
+}

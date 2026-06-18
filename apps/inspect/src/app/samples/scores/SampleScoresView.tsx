@@ -48,9 +48,9 @@ export const SampleScoresView: FC<SampleScoresViewProps> = ({
   return (
     <div
       className={clsx(
-        "container-fluid",
+        styles.fluidContainer,
         className,
-        "font-size-base",
+        "text-size-base",
         styles.container
       )}
     >

@@ -2,8 +2,13 @@ import { Modifier, Placement } from "@popperjs/core";
 import clsx from "clsx";
 import React, {
   CSSProperties,
+  FC,
+  MutableRefObject,
   ReactNode,
+  useCallback,
   useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -16,14 +21,12 @@ interface PopOverProps {
   setIsOpen: (isOpen: boolean) => void;
   positionEl: HTMLElement | null;
   placement?: Placement;
-  showArrow?: boolean;
   offset?: [number, number];
   usePortal?: boolean;
   hoverDelay?: number;
   closeOnMouseLeave?: boolean;
 
   className?: string | string[];
-  arrowClassName?: string | string[];
 
   children: ReactNode;
   styles?: CSSProperties;
@@ -39,17 +42,14 @@ export const PopOver: React.FC<PopOverProps> = ({
   positionEl,
   children,
   placement = "bottom",
-  showArrow = true,
   offset = [0, 8],
   className = "",
-  arrowClassName = "",
   usePortal = true,
   hoverDelay = 250,
   closeOnMouseLeave = true,
   styles = {},
 }) => {
   const popperRef = useRef<HTMLDivElement | null>(null);
-  const arrowRef = useRef<HTMLDivElement | null>(null);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null
   );
@@ -188,9 +188,10 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
   }, [isOpen, positionEl, hoverDelay]);
 
-  // Effect to create portal container when needed
-  useEffect(() => {
-    // Only create portal when the popover is open
+  // Create the portal container before the browser paints (useLayoutEffect,
+  // not useEffect): a post-paint effect would let the first open commit
+  // paint the popover inline at the trigger's DOM position.
+  useLayoutEffect(() => {
     if (usePortal && isOpen && shouldShowPopover) {
       let container = document.getElementById(id);
 
@@ -223,6 +224,112 @@ export const PopOver: React.FC<PopOverProps> = ({
     return undefined;
   }, [usePortal, isOpen, shouldShowPopover, id]);
 
+  // While the popover is shown, keep hovering over it from dismissing it.
+  const handlePopoverMouseEnter = useCallback(() => {
+    isOverPopoverRef.current = true;
+    // Cancel any pending dismissal when mouse enters popover
+    if (dismissalTimerRef.current !== null) {
+      window.clearTimeout(dismissalTimerRef.current);
+      dismissalTimerRef.current = null;
+    }
+    // Also cancel the hover delay timer
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current);
+    }
+    // Ensure popover stays visible
+    setShouldShowPopover(true);
+  }, []);
+
+  const handlePopoverMouseLeave = useCallback(
+    (e: MouseEvent) => {
+      // Only dismiss if we're actually leaving the popover container
+      // (currentTarget is the popover root the listener is attached to)
+      const popperEl = e.currentTarget as HTMLElement;
+      if (e.relatedTarget && popperEl.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      if (!closeOnMouseLeave) {
+        return;
+      }
+      isOverPopoverRef.current = false;
+      // Dismiss when leaving the popover
+      setShouldShowPopover(false);
+      setIsOpenRef.current(false);
+    },
+    [closeOnMouseLeave]
+  );
+
+  // Early return if not open or should not show due to hover delay
+  if (!isOpen || (hoverDelay > 0 && !shouldShowPopover)) {
+    return null;
+  }
+
+  // PopperBody mounts fresh on every open (the early return above unmounts
+  // it on close), so usePopper's internal styles/attributes state can never
+  // carry a previous open's coordinates into the first frame of the next.
+  const popperContent = (
+    <PopperBody
+      popperRef={popperRef}
+      positionEl={positionEl}
+      placement={placement}
+      offset={offset}
+      className={className}
+      styles={styles}
+      onMouseEnter={handlePopoverMouseEnter}
+      onMouseLeave={handlePopoverMouseLeave}
+    >
+      {children}
+    </PopperBody>
+  );
+
+  // If using portal, render only once the (pre-paint) container exists
+  if (usePortal) {
+    return portalContainer
+      ? createPortal(popperContent, portalContainer)
+      : null;
+  }
+
+  // Otherwise render normally
+  return popperContent;
+};
+
+interface PopperBodyProps {
+  popperRef: MutableRefObject<HTMLDivElement | null>;
+  positionEl: HTMLElement | null;
+  placement: Placement;
+  offset: [number, number];
+  className: string | string[];
+  styles: CSSProperties;
+  onMouseEnter: () => void;
+  onMouseLeave: (e: MouseEvent) => void;
+  children: ReactNode;
+}
+
+const PopperBody: FC<PopperBodyProps> = ({
+  popperRef,
+  positionEl,
+  placement,
+  offset,
+  className,
+  styles,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}) => {
+  // State-backed popper element (not a ref read during render): attachment
+  // re-renders, so usePopper always sees the real node and positions before
+  // the gate below ever shows the popover.
+  const [popperEl, setPopperEl] = useState<HTMLDivElement | null>(null);
+  const setPopperNode = useCallback(
+    (el: HTMLDivElement | null) => {
+      popperRef.current = el;
+      setPopperEl(el);
+    },
+    [popperRef]
+  );
+
+  const [offsetX, offsetY] = offset;
+
   // Popper modifier pair that caps the popover to the full viewport
   // (minus padding), not to whatever the popover currently happens to be.
   // Bounding the size up-front lets popper shift it freely to fit, avoiding
@@ -233,10 +340,8 @@ export const PopOver: React.FC<PopOverProps> = ({
   // collapses to the popper's current width once preventOverflow has shifted
   // it inside, so we derive the cap directly from the viewport — accurate
   // for a body-portal popover and placement-agnostic.
-  const maxSizeModifier = React.useMemo<
-    Modifier<"maxSize", { padding: number }>
-  >(
-    () => ({
+  const modifiers = useMemo(() => {
+    const maxSizeModifier: Modifier<"maxSize", { padding: number }> = {
       name: "maxSize",
       enabled: true,
       phase: "main",
@@ -250,12 +355,9 @@ export const PopOver: React.FC<PopOverProps> = ({
           height: Math.max(0, window.innerHeight - 2 * padding),
         };
       },
-    }),
-    []
-  );
+    };
 
-  const applyMaxSizeModifier = React.useMemo<Modifier<"applyMaxSize", object>>(
-    () => ({
+    const applyMaxSizeModifier: Modifier<"applyMaxSize", object> = {
       name: "applyMaxSize",
       enabled: true,
       phase: "beforeWrite",
@@ -271,395 +373,94 @@ export const PopOver: React.FC<PopOverProps> = ({
           maxHeight: `${data.height}px`,
         };
       },
-    }),
-    []
-  );
+    };
 
-  // Configure modifiers for popper
-  const modifiers = [
-    { name: "offset", options: { offset } },
-    { name: "preventOverflow", options: { padding: 8 } },
-    {
-      name: "arrow",
-      enabled: showArrow,
-      options: {
-        // Latent — see meridianlabs-ai/ts-mono#90. `arrowRef.current` is
-        // null on the first render, so the arrow modifier initially has
-        // no element. The force-update useEffect below schedules a
-        // popper recompute after refs attach, and the `positionedThisOpen`
-        // gating hides the popover (visibility: hidden, offscreen) until
-        // popper has positioned it for this open cycle — so the
-        // unpositioned-arrow render never paints. Migrating to a
-        // state-backed `arrowElement` is the textbook fix but the
-        // existing belt-and-suspenders gating means there is no
-        // user-visible symptom today; deferring until the broader
-        // popper-ref migration.
-        // eslint-disable-next-line react-hooks/refs
-        element: arrowRef.current,
-        padding: 5, // This keeps the arrow from getting too close to the corner
+    return [
+      { name: "offset", options: { offset: [offsetX, offsetY] } },
+      { name: "preventOverflow", options: { padding: 8 } },
+      {
+        name: "computeStyles",
+        options: {
+          gpuAcceleration: false,
+          adaptive: true,
+        },
       },
-    },
-    {
-      name: "computeStyles",
-      options: {
-        gpuAcceleration: false,
-        adaptive: true,
+      // Ensure popper is positioned correctly with respect to its reference element
+      {
+        name: "flip",
+        options: {
+          fallbackPlacements: ["top", "right", "bottom", "left"],
+        },
       },
-    },
-    // Ensure popper is positioned correctly with respect to its reference element
-    {
-      name: "flip",
-      options: {
-        fallbackPlacements: ["top", "right", "bottom", "left"],
-      },
-    },
-    maxSizeModifier,
-    applyMaxSizeModifier,
-  ];
+      maxSizeModifier,
+      applyMaxSizeModifier,
+    ];
+  }, [offsetX, offsetY]);
 
-  // Use popper hook with modifiers
-  //
-  // Latent — see meridianlabs-ai/ts-mono#90. `popperRef.current` is null on
-  // the first render, so usePopper initially has no popper element to
-  // position. The force-update useEffect below recomputes once refs
-  // attach, and `positionedThisOpen` keeps the popover hidden until
-  // popper has positioned it for this open cycle. No user-visible
-  // symptom today; migration to state-backed `popperElement` is the
-  // mechanically clean fix but deferred until we touch this component
-  // for other reasons.
-  const {
-    styles: popperStyles,
-    attributes,
-    state,
-    update,
-    // eslint-disable-next-line react-hooks/refs
-  } = usePopper(positionEl, popperRef.current, {
+  const { styles: popperStyles, attributes } = usePopper(positionEl, popperEl, {
     placement,
     strategy: "fixed",
     modifiers,
   });
 
-  // Per-open-cycle "has popper positioned this open?" signal. react-popper's
-  // internal useState (for styles/attributes) persists across open/close
-  // cycles, so on the first render of a reopen the last open's top/left are
-  // still in popperStyles — we'd paint at stale coordinates for one frame.
-  //
-  // Derived (not stored) from popper's `state` identity: we snapshot `state`
-  // at the open transition via a ref and flip positionedThisOpen true once
-  // popper hands us a *different* state object for this cycle. The re-render
-  // that carries the fresh state is driven by react-popper's own setState
-  // inside its layout effect — that runs before the browser's first paint
-  // after open, so the first paint lands with the popover at its final
-  // position. No setState-in-effect, no offscreen frame, no flash.
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-  const [openBaselineState, setOpenBaselineState] =
-    useState<typeof state>(state);
-  if (prevIsOpen !== isOpen) {
-    setPrevIsOpen(isOpen);
-    if (isOpen) {
-      setOpenBaselineState(state);
-    }
-  }
-  const positionedThisOpen =
-    isOpen && state !== null && state !== openBaselineState;
+  // Popper sets data-popper-placement only once it has genuinely computed a
+  // position; react-popper's initial styles are placeholder (top/left 0),
+  // so gating visibility on the attribute is what prevents a first-frame
+  // paint at the viewport's top-left corner.
+  const positioned = attributes.popper?.["data-popper-placement"] != null;
 
-  // Force update when needed refs change.
-  //
-  // This effect papers over the stale-null reads of `popperRef.current` /
-  // `arrowRef.current` passed to usePopper above (see meridianlabs-ai/ts-mono#90).
-  // A 10ms setTimeout gives the callback refs time to attach, then we ask
-  // popper to recompute against the now-populated DOM nodes. Including
-  // `arrowRef.current` in the dep array is intentional: re-running this
-  // effect when the arrow node attaches is exactly what makes the
-  // workaround load-bearing. Reading `.current` during render to derive
-  // the dep is the reason for the `react-hooks/refs` suppression, and
-  // the lint rule can't see that the read drives effect scheduling
-  // (hence `exhaustive-deps`). Removing this effect requires the
-  // state-backed migration prescribed by #90.
   useEffect(() => {
-    if (update && isOpen && shouldShowPopover) {
-      const timer = setTimeout(() => {
-        void update();
-      }, 10);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs
-  }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
-
-  // When the popover is shown and positioned, track mouse enter/leave on the popover itself
-  // and use that to block dismissal while hovering over the popover
-  useEffect(() => {
-    // Wait for both the popover to be visible AND Popper to have calculated positioning
-    if (
-      !popperRef.current ||
-      !isOpen ||
-      !shouldShowPopover ||
-      !state?.placement
-    ) {
-      return;
-    }
-
-    const popperEl = popperRef.current;
-
-    const handlePopoverMouseEnter = () => {
-      isOverPopoverRef.current = true;
-      // Cancel any pending dismissal when mouse enters popover
-      if (dismissalTimerRef.current !== null) {
-        window.clearTimeout(dismissalTimerRef.current);
-        dismissalTimerRef.current = null;
-      }
-      // Also cancel the hover delay timer
-      if (hoverTimerRef.current !== null) {
-        window.clearTimeout(hoverTimerRef.current);
-      }
-      // Ensure popover stays visible
-      setShouldShowPopover(true);
-    };
-
-    const handlePopoverMouseLeave = (e: MouseEvent) => {
-      // Only dismiss if we're actually leaving the popover container
-      // Check if the related target is still within the popover
-      if (e.relatedTarget && popperEl.contains(e.relatedTarget as Node)) {
-        return;
-      }
-      if (!closeOnMouseLeave) {
-        return;
-      }
-      isOverPopoverRef.current = false;
-      // Dismiss when leaving the popover
-      setShouldShowPopover(false);
-      setIsOpenRef.current(false);
-    };
-
-    // Use capture phase to ensure we catch events before children
-    popperEl.addEventListener("mouseenter", handlePopoverMouseEnter, true);
-    popperEl.addEventListener("mouseleave", handlePopoverMouseLeave, true);
-
+    if (!popperEl) return;
+    // Capture phase so we catch enter/leave before children
+    popperEl.addEventListener("mouseenter", onMouseEnter, true);
+    popperEl.addEventListener("mouseleave", onMouseLeave, true);
     return () => {
-      popperEl.removeEventListener("mouseenter", handlePopoverMouseEnter, true);
-      popperEl.removeEventListener("mouseleave", handlePopoverMouseLeave, true);
+      popperEl.removeEventListener("mouseenter", onMouseEnter, true);
+      popperEl.removeEventListener("mouseleave", onMouseLeave, true);
     };
-  }, [isOpen, shouldShowPopover, state?.placement, closeOnMouseLeave]);
+  }, [popperEl, onMouseEnter, onMouseLeave]);
 
-  // Define arrow data-* attribute based on placement
-  const getArrowDataPlacement = () => {
-    if (!state || !state.placement) return placement;
-    return state.placement;
-  };
-
-  // Get the actual placement from Popper state
-  const actualPlacement = state?.placement || placement;
-
-  // For a CSS triangle, we use the border trick
-  // A CSS triangle doesn't need separate border styling like a rotated square would
-
-  // Popper container styles
   const defaultPopperStyles: CSSProperties = {
-    backgroundColor: "var(--bs-body-bg)",
+    backgroundColor: "var(--inspect-background)",
     padding: "12px",
-    borderRadius: "var(--bs-border-radius)",
+    borderRadius: "var(--inspect-radius)",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    border: "solid 1px var(--bs-border-color)",
+    border: "solid 1px var(--inspect-border)",
     zIndex: 1200,
-    position: "relative",
-    // Apply opacity transition to smooth the appearance
-    opacity: state?.placement ? 1 : 0,
+    // Smooth the appearance once positioned
     transition: "opacity 0.1s",
     maxWidth: "80%",
     maxHeight: "80%",
-    overflowY: "hidden",
+    // Scrolling lives on the inner content wrapper: flex + minHeight:0 is
+    // what lets the maxHeight cap actually constrain it.
+    display: "flex",
+    flexDirection: "column",
   };
 
-  // Early return if not open or should not show due to hover delay
-  if (!isOpen || (hoverDelay > 0 && !shouldShowPopover)) {
-    return null;
-  }
-
-  // For position-aware rendering. Use the per-open-cycle flag rather than
-  // react-popper state, which persists styles across open/close cycles and
-  // would otherwise cause paints at stale or placeholder coordinates on the
-  // first render of any open.
-  const popperReady = positionedThisOpen;
-  const positionedStyle = popperReady
+  const positionedStyle: CSSProperties = positioned
     ? {
         ...popperStyles.popper,
         opacity: 1,
-        visibility: "visible" as const,
+        visibility: "visible",
       }
     : {
-        ...popperStyles.popper,
         // visibility: hidden is bulletproof — no paint regardless of what
-        // position values are in popperStyles.popper (which may include
-        // stale coordinates from a prior open since react-popper's useState
-        // persists, or placeholder 0/0 on a brand-new instance).
-        visibility: "hidden" as const,
+        // placeholder values are in popperStyles.popper.
+        visibility: "hidden",
         opacity: 0,
-        position: "fixed" as const,
+        position: "fixed",
         top: "-9999px",
         left: "-9999px",
       };
 
-  // Create the popper content with position-aware styles
-  const popperContent = (
+  return (
     <div
-      ref={popperRef}
+      ref={setPopperNode}
       style={{ ...defaultPopperStyles, ...positionedStyle, ...styles }}
       className={clsx(className)}
       {...attributes.popper}
     >
-      {children}
-
-      {showArrow && (
-        <>
-          {/* Invisible div for Popper.js to use as reference */}
-          <div
-            ref={arrowRef}
-            style={{ position: "absolute", visibility: "hidden" }}
-            data-placement={getArrowDataPlacement()}
-          />
-
-          {/* Arrow container - positioned by Popper */}
-          <div
-            className={clsx("popper-arrow-container", arrowClassName)}
-            style={{
-              ...popperStyles.arrow,
-              position: "absolute",
-              zIndex: 1,
-              // Size and positioning based on placement - smaller arrow
-              ...(actualPlacement.startsWith("top") && {
-                bottom: "-8px",
-                width: "16px",
-                height: "8px",
-              }),
-              ...(actualPlacement.startsWith("bottom") && {
-                top: "-8px",
-                width: "16px",
-                height: "8px",
-              }),
-              ...(actualPlacement.startsWith("left") && {
-                right: "-8px",
-                width: "8px",
-                height: "16px",
-              }),
-              ...(actualPlacement.startsWith("right") && {
-                left: "-8px",
-                width: "8px",
-                height: "16px",
-              }),
-              // Content positioning
-              overflow: "hidden",
-            }}
-          >
-            {/* Border element (rendered behind) */}
-            {actualPlacement.startsWith("top") && (
-              <div
-                style={{
-                  position: "absolute",
-                  width: 0,
-                  height: 0,
-                  borderStyle: "solid",
-                  borderWidth: "8px 8px 0 8px",
-                  borderColor: "#eee transparent transparent transparent",
-                  top: "0px",
-                  left: "0px",
-                }}
-              />
-            )}
-            {actualPlacement.startsWith("bottom") && (
-              <div
-                style={{
-                  position: "absolute",
-                  width: 0,
-                  height: 0,
-                  borderStyle: "solid",
-                  borderWidth: "0 8px 8px 8px",
-                  borderColor: "transparent transparent #eee transparent",
-                  top: "0px",
-                  left: "0px",
-                }}
-              />
-            )}
-            {actualPlacement.startsWith("left") && (
-              <div
-                style={{
-                  position: "absolute",
-                  width: 0,
-                  height: 0,
-                  borderStyle: "solid",
-                  borderWidth: "8px 0 8px 8px",
-                  borderColor: "transparent transparent transparent #eee",
-                  top: "0px",
-                  left: "0px",
-                }}
-              />
-            )}
-            {actualPlacement.startsWith("right") && (
-              <div
-                style={{
-                  position: "absolute",
-                  width: 0,
-                  height: 0,
-                  borderStyle: "solid",
-                  borderWidth: "8px 8px 8px 0",
-                  borderColor: "transparent #eee transparent transparent",
-                  top: "0px",
-                  left: "0px",
-                }}
-              />
-            )}
-
-            {/* Actual triangle created with CSS borders, slightly smaller and offset to create border effect */}
-            <div
-              style={{
-                position: "absolute",
-                width: 0,
-                height: 0,
-                borderStyle: "solid",
-                backgroundColor: "transparent",
-                // Position relative to border triangle
-                left: "0px",
-                zIndex: 1,
-
-                // Top placement - pointing down
-                ...(actualPlacement.startsWith("top") && {
-                  borderWidth: "7px 7px 0 7px",
-                  borderColor: "white transparent transparent transparent",
-                  top: "0px",
-                }),
-
-                // Bottom placement - pointing up
-                ...(actualPlacement.startsWith("bottom") && {
-                  borderWidth: "0 7px 7px 7px",
-                  borderColor: "transparent transparent white transparent",
-                  top: "1px",
-                }),
-
-                // Left placement - pointing right
-                ...(actualPlacement.startsWith("left") && {
-                  borderWidth: "7px 0 7px 7px",
-                  borderColor: "transparent transparent transparent white",
-                  left: "0px",
-                }),
-
-                // Right placement - pointing left
-                ...(actualPlacement.startsWith("right") && {
-                  borderWidth: "7px 7px 7px 0",
-                  borderColor: "transparent white transparent transparent",
-                  left: "1px",
-                }),
-              }}
-            />
-          </div>
-        </>
-      )}
+      <div style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
     </div>
   );
-
-  // If using portal and the container exists, render through the portal
-  if (usePortal && portalContainer) {
-    return createPortal(popperContent, portalContainer);
-  }
-
-  // Otherwise render normally
-  return popperContent;
 };

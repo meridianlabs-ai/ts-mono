@@ -56,9 +56,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
   const modelText = formatModelText(evalSpec);
 
   return (
-    <div
-      className={clsx("navbar-brand", "navbar-text", "mb-0", styles.container)}
-    >
+    <div className={clsx("navbar-brand", "navbar-text", styles.container)}>
       <div className={clsx(styles.left)}>
         <span
           id="task-title-collapsed"

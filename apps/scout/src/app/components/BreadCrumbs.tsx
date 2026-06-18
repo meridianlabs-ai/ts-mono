@@ -10,6 +10,12 @@ import { basename, dirname, prettyDirUri } from "@tsmono/util";
 
 import styles from "./Breadcrumbs.module.css";
 
+// Stable reference: the truncation hook lists these in its effect deps.
+const breadcrumbClassNames = {
+  breadcrumb: styles.breadcrumb ?? "",
+  breadcrumbItem: styles.breadcrumbItem ?? "",
+};
+
 const kPathSeparator = "/";
 
 interface BreadCrumbsProps {
@@ -76,7 +82,8 @@ export const BreadCrumbs: FC<BreadCrumbsProps> = ({
 
   const { visibleSegments, showEllipsis } = useBreadcrumbTruncation(
     breadcrumbSegments,
-    pathContainerRef
+    pathContainerRef,
+    breadcrumbClassNames
   );
 
   return (
@@ -84,7 +91,7 @@ export const BreadCrumbs: FC<BreadCrumbsProps> = ({
       className={clsx(styles.pathContainer, className)}
       ref={pathContainerRef}
     >
-      <ol className={clsx("breadcrumb", styles.breadcrumbs)}>
+      <ol className={clsx(styles.breadcrumb, styles.breadcrumbs)}>
         {visibleSegments.map((segment, index) => {
           const isLast = index === visibleSegments.length - 1;
           const shouldShowEllipsis =
@@ -93,15 +100,15 @@ export const BreadCrumbs: FC<BreadCrumbsProps> = ({
           return (
             <Fragment key={index}>
               {shouldShowEllipsis && (
-                <li className={clsx("breadcrumb-item", styles.ellipsis)}>
+                <li className={clsx(styles.breadcrumbItem, styles.ellipsis)}>
                   <span>...</span>
                 </li>
               )}
               <li
                 className={clsx(
                   styles.pathLink,
-                  "breadcrumb-item",
-                  isLast && disableLastSegment ? "active" : undefined
+                  styles.breadcrumbItem,
+                  isLast && disableLastSegment ? styles.active : undefined
                 )}
               >
                 {segment.url && !(disableLastSegment && isLast) ? (

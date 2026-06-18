@@ -47,7 +47,7 @@
 }
 
 .highlight {
-  background-color: rgba(var(--bs-info-rgb), 0.12);
+  background-color: rgba(13, 202, 240, 0.12);
 }
 
 /* Assistant turn with server-side tool calls: one seamless container — the

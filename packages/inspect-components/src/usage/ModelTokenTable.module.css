@@ -137,12 +137,7 @@
 }
 
 .stack {
-  display: flex;
-  height: 8px;
-  width: 100%;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--bs-light-border-subtle);
+  composes: stackBase from "./usageSwatches.module.css";
   margin-top: 7px;
 }
 
@@ -225,21 +220,21 @@
 }
 
 .catInput {
-  background: #cfdcef;
+  composes: catInput from "./usageSwatches.module.css";
 }
 
 .catCacheRead {
-  background: #a8c4ec;
+  composes: catCacheRead from "./usageSwatches.module.css";
 }
 
 .catCacheWrite {
-  background: #6ea0dc;
+  composes: catCacheWrite from "./usageSwatches.module.css";
 }
 
 .catOutput {
-  background: #3a7bd5;
+  composes: catOutput from "./usageSwatches.module.css";
 }
 
 .catReasoning {
-  background: #1f4e8c;
+  composes: catReasoning from "./usageSwatches.module.css";
 }

@@ -2,6 +2,15 @@
    Rules here are either unique to scout or reference assets that live under
    apps/scout/src/img/. Shared rules live in the theme package. */
 
+/* VS Code webview — app-shell tuning for the embedded host. */
+html.vscode {
+  font-size: 13px;
+}
+
+body[class^="vscode-"] {
+  min-width: 400px;
+}
+
 .ag-cell-auto-height {
   --reduceLineHeightBy: 16px;
   line-height: calc(
@@ -79,4 +88,26 @@ pre > code {
   margin-top: -2px;
   mask: url("../img/tasks.svg") no-repeat center / contain;
   -webkit-mask: url("../img/tasks.svg") no-repeat center / contain;
+}
+
+/* Map design tokens onto AG Grid's theming variables. */
+body {
+  --ag-background-color: var(--inspect-background);
+  --ag-foreground-color: var(--inspect-foreground);
+  --ag-header-background-color: var(--inspect-surface);
+  --ag-header-font-size: var(--inspect-font-size-small);
+  --ag-header-font-weight: 500;
+  --ag-header-text-color: var(--inspect-muted);
+  --ag-font-family: var(--inspect-font-family);
+  --ag-wrapper-border: none;
+  --ag-row-hover-color: var(--inspect-secondary-bg-subtle);
+  --ag-selected-row-background-color: var(--inspect-secondary-bg-subtle);
+  --ag-border-radius: var(--inspect-radius);
+}
+
+/* ── App shell layout ── */
+
+#app {
+  height: 100vh;
+  overflow-y: hidden;
 }

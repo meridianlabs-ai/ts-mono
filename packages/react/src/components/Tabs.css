@@ -1,0 +1,129 @@
+/**
+ * Tab/nav styling (bootstrap-derived). The class names are global semantic
+ * hooks because three packages render this markup (TabSet/NavPills here,
+ * EventPanel in inspect-components, SampleDisplay in the inspect app);
+ * TabSet owns the rules. Parameterized by --nav-* vars so contexts (the
+ * inspect navbar, the VS Code host below) can re-skin without new rules.
+ */
+
+.nav {
+  --nav-link-color: var(--inspect-link);
+  --nav-link-hover-color: var(--inspect-link-hover);
+  display: flex;
+  flex-wrap: wrap;
+  padding-left: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.5rem 1rem;
+  /* .nav-link is a native <button>; inherit weight rather than the UA default. */
+  font-weight: inherit;
+  color: var(--nav-link-color);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+  color: var(--nav-link-hover-color);
+}
+
+.nav-link:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem var(--inspect-focus-ring-color);
+}
+
+.nav-link.disabled,
+.nav-link:disabled {
+  color: var(--inspect-muted-foreground);
+  pointer-events: none;
+  cursor: default;
+}
+
+.nav-tabs {
+  --nav-tabs-border-width: var(--inspect-border-width);
+  --nav-tabs-border-radius: var(--inspect-radius);
+  --nav-tabs-link-hover-border-color: var(--inspect-surface-muted)
+    var(--inspect-surface-muted) var(--inspect-border);
+  border-bottom: var(--nav-tabs-border-width) solid var(--inspect-border);
+}
+
+.nav-tabs .nav-link {
+  margin-bottom: calc(-1 * var(--nav-tabs-border-width));
+  border: var(--nav-tabs-border-width) solid transparent;
+  border-top-left-radius: var(--nav-tabs-border-radius);
+  border-top-right-radius: var(--nav-tabs-border-radius);
+}
+
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link:focus {
+  isolation: isolate;
+  border-color: var(--nav-tabs-link-hover-border-color);
+}
+
+.nav-link.active {
+  border-bottom-width: 0 !important;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--inspect-emphasis-foreground);
+  background-color: var(--inspect-background);
+  border-color: var(--inspect-border) var(--inspect-border)
+    var(--inspect-background);
+}
+
+.nav-pills {
+  /* Active pill is intentionally a neutral muted surface, not the brand
+     accent; the host rules below set the effective value per context. */
+  --nav-pills-link-active-color: #fff;
+  --nav-pills-link-active-bg: var(--inspect-surface-muted);
+}
+
+.nav-pills .nav-link {
+  border-radius: var(--inspect-radius);
+}
+
+.nav-pills .nav-link.active {
+  color: var(--nav-pills-link-active-color);
+  background-color: var(--nav-pills-link-active-bg);
+}
+
+.tab-content > .tab-pane {
+  display: none;
+}
+
+body:not([class^="vscode-"]) button {
+  --nav-pills-link-active-bg: var(--inspect-surface-muted);
+  --nav-pills-link-active-color: var(--inspect-foreground);
+  --nav-link-color: var(--inspect-foreground);
+}
+
+.tab-content > .active {
+  display: flex;
+}
+
+/* VS Code host re-skin (body class also set in browser dark mode). */
+
+body[class^="vscode-"] .nav-pills {
+  --nav-pills-link-active-bg: var(--inspect-background);
+  --nav-pills-link-active-color: var(--inspect-foreground);
+}
+
+body[class^="vscode-"] .nav-link {
+  --nav-link-color: var(--inspect-link);
+  --inspect-link-hover: var(--vscode-notificationLink-foreground);
+}
+
+body[class^="vscode-"] .nav-link:hover {
+  --nav-link-color: var(--inspect-link);
+  --nav-link-hover-color: var(--inspect-link);
+  --nav-tabs-link-hover-border-color: var(--inspect-link);
+}

@@ -1,5 +1,5 @@
 .row {
   border-bottom: solid 1px var(--inspect-border);
   padding: 0.25rem 1rem;
-  background-color: rgba(var(--bs-secondary-rgb), 0.03);
+  background-color: color-mix(in srgb, var(--inspect-muted) 3%, transparent);
 }

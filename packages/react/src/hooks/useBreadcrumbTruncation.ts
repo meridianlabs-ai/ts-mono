@@ -13,7 +13,10 @@ interface TruncatedBreadcrumbs {
 
 export const useBreadcrumbTruncation = (
   segments: BreadcrumbSegment[],
-  containerRef: RefObject<HTMLElement | null>
+  containerRef: RefObject<HTMLElement | null>,
+  /** The caller's breadcrumb list/item classes, so the offscreen
+      measurement element renders with the same layout it measures. */
+  classNames: { breadcrumb: string; breadcrumbItem: string }
 ): TruncatedBreadcrumbs => {
   const [truncatedData, setTruncatedData] = useState<TruncatedBreadcrumbs>({
     visibleSegments: segments,
@@ -37,7 +40,7 @@ export const useBreadcrumbTruncation = (
 
       // Create a test element to measure breadcrumb widths
       const testElement = document.createElement("ol");
-      testElement.className = "breadcrumb";
+      testElement.className = classNames.breadcrumb;
       testElement.style.position = "absolute";
       testElement.style.visibility = "hidden";
       testElement.style.whiteSpace = "nowrap";
@@ -48,7 +51,10 @@ export const useBreadcrumbTruncation = (
 
       // Test if all segments fit
       testElement.innerHTML = segments
-        .map((segment) => `<li class="breadcrumb-item">${segment.text}</li>`)
+        .map(
+          (segment) =>
+            `<li class="${classNames.breadcrumbItem}">${segment.text}</li>`
+        )
         .join("");
 
       if (testElement.scrollWidth <= containerWidth) {
@@ -83,12 +89,14 @@ export const useBreadcrumbTruncation = (
 
         // Test with ellipsis
         const testHTML = [
-          `<li class="breadcrumb-item">${firstSegment.text}</li>`,
-          `<li class="breadcrumb-item">...</li>`,
+          `<li class="${classNames.breadcrumbItem}">${firstSegment.text}</li>`,
+          `<li class="${classNames.breadcrumbItem}">...</li>`,
           ...segments
             .slice(segments.length - 1 - endCount, -1)
-            .map((s) => `<li class="breadcrumb-item">${s.text}</li>`),
-          `<li class="breadcrumb-item">${lastSegment.text}</li>`,
+            .map(
+              (s) => `<li class="${classNames.breadcrumbItem}">${s.text}</li>`
+            ),
+          `<li class="${classNames.breadcrumbItem}">${lastSegment.text}</li>`,
         ].join("");
 
         testElement.innerHTML = testHTML;
@@ -127,7 +135,12 @@ export const useBreadcrumbTruncation = (
     return () => {
       resizeObserver.disconnect();
     };
-  }, [segments, containerRef]);
+  }, [
+    segments,
+    containerRef,
+    classNames.breadcrumb,
+    classNames.breadcrumbItem,
+  ]);
 
   return truncatedData;
 };

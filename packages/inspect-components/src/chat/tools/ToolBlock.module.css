@@ -67,6 +67,16 @@
   overflow-x: auto;
 }
 
+/* When the header or input zone is the block's last child — a generic/no-arg
+   tool whose args render inline in the header (so there is no input zone), or
+   any tool call with no output — that element owns the block's bottom edge.
+   Give it real bottom space matching the header's top, instead of crushing the
+   single line against the border. */
+.header:last-child,
+.inputZone:last-child {
+  padding-bottom: 0.5rem;
+}
+
 .outputWell {
   border-top: 1px solid var(--inspect-border-subtle);
   background-color: var(--inspect-tool-block-output-bg);

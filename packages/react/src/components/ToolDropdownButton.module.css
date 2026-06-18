@@ -1,9 +1,13 @@
-:global(.btn).toolButton {
-  background-color: var(--bs-light-border-subtle);
+/* Re-skin the Button vars (assignments cascade after Button.module.css
+   because this module imports it). */
+.toolButton {
+  --_bg: var(--inspect-border-subtle);
+  --_hover-bg: var(--inspect-border-subtle);
 }
 
-:global(.btn).toolButton.bodyColor {
-  background-color: var(--bs-light);
+.toolButton.bodyColor {
+  --_bg: var(--inspect-surface);
+  --_hover-bg: var(--inspect-surface);
 }
 
 .toolButton {
@@ -23,7 +27,7 @@
 .toolButton:focus {
   outline: none;
   box-shadow:
-    0 0 0 2px rgba(var(--bs-primary-rgb), 0.5),
+    0 0 0 2px color-mix(in srgb, var(--inspect-primary) 50%, transparent),
     inset 0 2px 4px rgba(0, 0, 0, 0.15),
     inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }

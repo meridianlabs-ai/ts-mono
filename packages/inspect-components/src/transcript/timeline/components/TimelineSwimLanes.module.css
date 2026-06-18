@@ -1,10 +1,9 @@
 .swimlane {
   --swimlane-row-height: 18px;
   --swimlane-minimap-height: 24px;
-  --swimlane-grid-columns: auto 1fr auto;
 
   display: grid;
-  grid-template-columns: var(--swimlane-grid-columns);
+  grid-template-columns: auto 1fr auto;
   padding: 0rem 0 0rem;
   outline: none;
   flex-shrink: 0;

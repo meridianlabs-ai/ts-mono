@@ -1,0 +1,341 @@
+/**
+ * Reboot — the element defaults this viewer actually relies on:
+ *  - the markdown content surface (markdown-it output is bounded — raw HTML is
+ *    escaped before parsing — so: headings, p, lists, blockquote, inline/block
+ *    code, tables, links, img, and re-injected sup),
+ *  - a few component-rendered elements (dl/dt/dd, small, b), and
+ *  - form-control normalization (button/input/select/textarea/fieldset/summary).
+ * No utility classes — components own layout. Theme-dependent values read the
+ * --inspect-* tokens. If you add an element here, it's because the viewer
+ * renders it; nothing is kept "just in case".
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* No focus ring on containers focused programmatically (e.g. a dialog with
+   tabindex="-1") rather than by keyboard. */
+[tabindex="-1"]:focus:not(:focus-visible) {
+  outline: 0 !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--inspect-font-family);
+  font-size: var(--inspect-font-size-base);
+  font-weight: var(--inspect-font-weight);
+  line-height: var(--inspect-line-height);
+  color: var(--inspect-foreground);
+  text-align: left;
+  background-color: var(--inspect-background);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+hr {
+  margin: 1rem 0;
+  color: inherit;
+  border: 0;
+  border-top: 1px solid;
+  opacity: 0.25;
+}
+
+/* Markdown headings (plus a few real <h*> in dialog titles). */
+h6,
+h5,
+h4,
+h3,
+h2,
+h1 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: inherit;
+}
+
+h1 {
+  font-size: calc(1.375rem + 1.5vw);
+}
+@media (min-width: 1200px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+}
+
+h2 {
+  font-size: calc(1.325rem + 0.9vw);
+}
+@media (min-width: 1200px) {
+  h2 {
+    font-size: 2rem;
+  }
+}
+
+h3 {
+  font-size: calc(1.3rem + 0.6vw);
+}
+@media (min-width: 1200px) {
+  h3 {
+    font-size: 1.75rem;
+  }
+}
+
+h4 {
+  font-size: calc(1.275rem + 0.3vw);
+}
+@media (min-width: 1200px) {
+  h4 {
+    font-size: 1.5rem;
+  }
+}
+
+h5 {
+  font-size: 1.25rem;
+}
+
+h6 {
+  font-size: 1rem;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+ol,
+ul {
+  padding-left: 2rem;
+}
+
+ol,
+ul,
+dl {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+ol ol,
+ul ul,
+ol ul,
+ul ol {
+  margin-bottom: 0;
+}
+
+dt {
+  font-weight: 700;
+}
+
+dd {
+  margin-bottom: 0.5rem;
+  margin-left: 0;
+}
+
+blockquote {
+  margin: 0 0 1rem;
+}
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+small {
+  font-size: 0.875em;
+}
+
+/* sup: re-injected into rendered message content (e.g. citation markers). */
+sub,
+sup {
+  position: relative;
+  font-size: 0.75em;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
+sup {
+  top: -0.5em;
+}
+
+a {
+  color: var(--inspect-link);
+  text-decoration: underline;
+}
+a:hover {
+  color: var(--inspect-link-hover);
+}
+
+/* Bare named anchors (no href, no class) shouldn't read as links. */
+a:not([href]):not([class]),
+a:not([href]):not([class]):hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+pre,
+code {
+  font-family: var(--inspect-font-mono);
+  font-size: 1em;
+}
+
+pre {
+  display: block;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  overflow: auto;
+  font-size: 0.875em;
+}
+pre code {
+  font-size: inherit;
+  color: inherit;
+  word-break: normal;
+}
+
+code {
+  font-size: 0.875em;
+  color: var(--inspect-code-foreground);
+  word-wrap: break-word;
+}
+a > code {
+  color: inherit;
+}
+
+/* The VS Code webview host flattens inline-code backgrounds. */
+body[class^="vscode-"] code {
+  background-color: transparent;
+}
+
+img,
+svg {
+  vertical-align: middle;
+}
+
+/* Markdown (GFM) tables; component tables add their own borders. */
+table {
+  caption-side: bottom;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: inherit;
+  text-align: -webkit-match-parent;
+}
+
+thead,
+tbody,
+tfoot,
+tr,
+td,
+th {
+  border-color: inherit;
+  border-style: solid;
+  border-width: 0;
+}
+
+label {
+  display: inline-block;
+}
+
+button {
+  border-radius: 0;
+}
+
+button:focus:not(:focus-visible) {
+  outline: 0;
+}
+
+input,
+button,
+select,
+optgroup,
+textarea {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+[role="button"] {
+  cursor: pointer;
+}
+
+select {
+  word-wrap: normal;
+}
+select:disabled {
+  opacity: 1;
+}
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+  -webkit-appearance: button;
+}
+button:not(:disabled),
+[type="button"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[type="submit"]:not(:disabled) {
+  cursor: pointer;
+}
+
+::-moz-focus-inner {
+  padding: 0;
+  border-style: none;
+}
+
+/* Number inputs (epoch / limit fields). */
+::-webkit-inner-spin-button {
+  height: auto;
+}
+
+textarea {
+  resize: vertical;
+}
+
+fieldset {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  line-height: inherit;
+}
+legend + * {
+  clear: left;
+}
+
+summary {
+  display: list-item;
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Inline code keeps the accent color even inside a link — this needs higher
+   specificity than `a > code { color: inherit }` above; the :not()s exclude
+   syntax-highlighted blocks, whose colors Prism owns. */
+code:not(.sourceCode):not(.source-code):not([class^="language-"]) {
+  color: var(--inspect-code-foreground);
+}

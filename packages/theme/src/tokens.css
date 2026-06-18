@@ -1,0 +1,325 @@
+/**
+ * Internal / derived tokens — computed from the public inputs in theme.css
+ * (imported below). Don't override these; override theme.css's inputs and these
+ * follow. Order: DERIVED (color-mix'd from the inputs, correct in light AND dark
+ * from one definition) → fixed internals → component-family tokens → readable
+ * variant → VS Code host bridge. See design/theme-system.md.
+ */
+@import "./theme.css";
+
+/* ══ DERIVED — color-mix'd from the theme.css inputs; do not override ════════ */
+:root {
+  /* Text variants: foreground at reduced strength; -emphasis pushes past it. */
+  --inspect-muted-foreground: color-mix(
+    in srgb,
+    var(--inspect-foreground) 75%,
+    transparent
+  );
+  --inspect-faint-foreground: color-mix(
+    in srgb,
+    var(--inspect-foreground) 50%,
+    transparent
+  );
+  /* Opaque neutral for muted *fills* (dots/chips) — unlike the translucent
+     -muted-foreground used for text. */
+  --inspect-muted: color-mix(
+    in srgb,
+    var(--inspect-foreground) 55%,
+    var(--inspect-background)
+  );
+
+  /* Surface + border variants nudge background/border toward the foreground. */
+  --inspect-surface-muted: color-mix(
+    in srgb,
+    var(--inspect-foreground) 9%,
+    var(--inspect-background)
+  );
+  --inspect-surface-hover: color-mix(
+    in srgb,
+    var(--inspect-foreground) 4%,
+    var(--inspect-background)
+  );
+  --inspect-border-subtle: color-mix(
+    in srgb,
+    var(--inspect-border) 55%,
+    var(--inspect-background)
+  );
+
+  /* Link hover: toward foreground (darker in light, lighter in dark). */
+  --inspect-link-hover: color-mix(
+    in srgb,
+    var(--inspect-link) 82%,
+    var(--inspect-foreground)
+  );
+
+  /* Status families: one base hue → surface (wash) / border / emphasis (text).
+     -emphasis mixes toward --inspect-foreground so it reads dark-on-light and
+     light-on-dark automatically. */
+  --inspect-primary-surface: color-mix(
+    in srgb,
+    var(--inspect-primary) 16%,
+    var(--inspect-background)
+  );
+  --inspect-primary-emphasis: color-mix(
+    in srgb,
+    var(--inspect-primary) 62%,
+    var(--inspect-foreground)
+  );
+  --inspect-danger-surface: color-mix(
+    in srgb,
+    var(--inspect-danger) 16%,
+    var(--inspect-background)
+  );
+  --inspect-danger-border: color-mix(
+    in srgb,
+    var(--inspect-danger) 42%,
+    var(--inspect-background)
+  );
+  --inspect-danger-emphasis: color-mix(
+    in srgb,
+    var(--inspect-danger) 62%,
+    var(--inspect-foreground)
+  );
+  /* Danger as *text* tracks the base hue (the VS Code bridge re-tunes it). */
+  --inspect-danger-foreground: var(--inspect-danger);
+  --inspect-success-surface: color-mix(
+    in srgb,
+    var(--inspect-success) 16%,
+    var(--inspect-background)
+  );
+  --inspect-success-border: color-mix(
+    in srgb,
+    var(--inspect-success) 42%,
+    var(--inspect-background)
+  );
+  --inspect-success-emphasis: color-mix(
+    in srgb,
+    var(--inspect-success) 62%,
+    var(--inspect-foreground)
+  );
+  --inspect-warning-surface: color-mix(
+    in srgb,
+    var(--inspect-warning) 22%,
+    var(--inspect-background)
+  );
+  --inspect-warning-border: color-mix(
+    in srgb,
+    var(--inspect-warning) 50%,
+    var(--inspect-background)
+  );
+  /* Warning text needs a much larger foreground share than the other statuses:
+     yellow is so light that 62% would stay near-invisible on warning-surface
+     in light mode (fails WCAG AA). 32% keeps an amber identity while reading
+     dark-on-light and light-on-dark. */
+  --inspect-warning-emphasis: color-mix(
+    in srgb,
+    var(--inspect-warning) 32%,
+    var(--inspect-foreground)
+  );
+  /* Info accent (cyan): a fixed extra status the sample-grid score color scale
+     reads (colorScale.ts, as an inline-style string) — not a public input. */
+  --inspect-info-surface: color-mix(
+    in srgb,
+    #0dcaf0 16%,
+    var(--inspect-background)
+  );
+
+  /* Focus ring derives from primary. */
+  --inspect-focus-border-color: color-mix(
+    in srgb,
+    var(--inspect-primary) 55%,
+    var(--inspect-background)
+  );
+  --inspect-focus-ring-color: color-mix(
+    in srgb,
+    var(--inspect-primary) 25%,
+    transparent
+  );
+
+  /* Translucent border = foreground at low alpha (dark-on-light, light-on-dark). */
+  --inspect-border-color-translucent: color-mix(
+    in srgb,
+    var(--inspect-foreground) 17%,
+    transparent
+  );
+}
+
+/* INTERNAL — explicit values that can't derive from the inputs (theme-extreme
+   contrast, the type scale, fixed accents, shadows). */
+:root {
+  --inspect-emphasis-foreground: #000;
+  --inspect-border-width: 1px;
+  --inspect-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+
+  --inspect-orange: #fd7e14;
+
+  /* Type scale (only --inspect-font-size-base is public). */
+  --inspect-font-size-title-secondary: 1.3rem;
+  --inspect-font-size-largest: 1.2rem;
+  --inspect-font-size-larger: 1.1rem;
+  --inspect-font-size-large: 1rem;
+  --inspect-font-size-small: 0.8rem;
+  /* Same value as -small today; collapsing would touch 120+ call sites, so
+     it's left as a distinct scale step rather than churned away. */
+  --inspect-font-size-smaller: 0.8rem;
+  --inspect-font-size-smallest: 0.7rem;
+  --inspect-font-size-smallestest: 0.6rem;
+
+  /* Default content text — 0.9x the document base (--inspect-font-size-base).
+     This was the historical value of --inspect-font-size-base itself (0.9rem);
+     now derived, so re-theming the base scales body and content together. */
+  --inspect-font-size-content: calc(var(--inspect-font-size-base) * 0.9);
+
+  /* Editor text selection — VS Code provides these; browser fallbacks here. */
+  --inspect-inactive-selection-background: var(
+    --vscode-editor-inactiveSelectionBackground,
+    #d9d9d9
+  );
+  --inspect-active-selection-background: var(
+    --vscode-editor-selectionBackground,
+    #d7d4f0
+  );
+
+  /* A subtle secondary surface: --inspect-surface-muted in the browser, but
+     remapped to the editor hover-widget background inside VS Code (see the
+     bridge below) — so it can't simply be aliased to --inspect-surface-muted.
+     Also consumed by colorScale.ts as a JS string ("muted" role), invisible to
+     a CSS grep — do not delete it as "unused". */
+  --inspect-secondary-bg-subtle: var(--inspect-surface-muted);
+}
+
+:root[data-theme="dark"] {
+  --inspect-emphasis-foreground: #fff;
+}
+
+/* ══ INTERNAL — component-family tokens (not the public surface) ═════════════ */
+/* Cross-cutting component tokens that read the semantic tokens above. A
+   component owns its look via these; a downstream re-skins by overriding the
+   public inputs, not these. */
+:root {
+  --inspect-find-background: var(--inspect-background);
+  --inspect-find-foreground: var(--inspect-foreground);
+  --inspect-input-background: var(--inspect-background);
+  --inspect-input-foreground: var(--inspect-foreground);
+  --inspect-input-border: var(--inspect-border-subtle);
+  --inspect-diff-add-color: #dafbe1;
+  --inspect-diff-remove-color: #ffebe9;
+  --inspect-tool-output-bg: #f8f8f8;
+  --inspect-tool-output-color: inherit;
+  --inspect-tool-output-border: var(--inspect-border);
+  --inspect-tool-error-bg: color-mix(
+    in srgb,
+    var(--inspect-danger) 6%,
+    transparent
+  );
+
+  /* Message-label chip. */
+  --inspect-msg-label-bg: #f3f3f6;
+  --inspect-msg-label-bg-hover: #ebebef;
+  --inspect-msg-label-border: #e4e4e9;
+  --inspect-msg-label-text: #5f5f68;
+
+  /* Tool block (header/edge/zones): neutral by default so the design-consistent
+     look holds when Event Colors is off; the readable variant points them at
+     the colored role tokens. 1px card edge uncolored, 3px accent band colored. */
+  --inspect-tool-block-edge: 1px solid var(--inspect-border-subtle);
+  --inspect-tool-block-header-bg: var(--inspect-surface-hover);
+  --inspect-tool-block-input-bg: var(--inspect-tool-block-header-bg);
+  --inspect-tool-block-output-bg: var(--inspect-background);
+  --inspect-tool-block-ink: var(--inspect-muted-foreground);
+  --inspect-turn-prose-edge: 1px solid var(--inspect-border-subtle);
+
+  /* Readable-variant role bands — defined always, applied only under
+     [data-theme-variant="readable"]. */
+  --inspect-readable-user-bg: #f1eeea;
+  --inspect-readable-user-border: #857f78;
+  --inspect-readable-assistant-bg: #f6f1fe;
+  --inspect-readable-assistant-border: #694a8a;
+  --inspect-readable-thinking-bg: #f7f2ff;
+  --inspect-readable-tool-call-bg: #edf4fb;
+  --inspect-readable-tool-call-border: #415e79;
+  --inspect-readable-system-bg: #fdfdfd;
+  --inspect-readable-system-border: #a9abaf;
+  --inspect-readable-body-color: #11181f;
+}
+
+:root[data-theme="dark"] {
+  --inspect-tool-output-bg: #14171c;
+
+  --inspect-msg-label-bg: #2a2a2e;
+  --inspect-msg-label-bg-hover: #33333a;
+  --inspect-msg-label-border: #3a3a40;
+  --inspect-msg-label-text: #b4b4bd;
+
+  --inspect-readable-user-bg: #262421;
+  --inspect-readable-user-border: #8e8881;
+  --inspect-readable-assistant-bg: #251f2c;
+  --inspect-readable-assistant-border: #9575b9;
+  --inspect-readable-thinking-bg: #241f31;
+  --inspect-readable-tool-call-bg: #1c232a;
+  --inspect-readable-tool-call-border: #6c8aa7;
+  --inspect-readable-system-bg: #0a0b0d;
+  --inspect-readable-system-border: #67696f;
+  --inspect-readable-body-color: #e6e8ea;
+}
+
+/* Readable variant: trade design consistency for transcript scannability —
+   each turn gets a distinct tinted band + accent rule, and the tool tokens are
+   pointed at the higher-contrast role colors. Roles are read off the
+   data-message-role / data-content-kind attributes the chat components emit. */
+:root[data-theme-variant="readable"] {
+  --inspect-foreground: var(--inspect-readable-body-color);
+  --inspect-tool-block-edge: 3px solid var(--inspect-readable-tool-call-border);
+  --inspect-tool-block-header-bg: var(--inspect-readable-tool-call-bg);
+  --inspect-tool-block-input-bg: var(--inspect-readable-tool-call-bg);
+  --inspect-tool-block-output-bg: var(--inspect-tool-output-bg);
+  --inspect-tool-block-ink: var(--inspect-readable-tool-call-border);
+  --inspect-turn-prose-edge: 3px solid var(--inspect-readable-assistant-border);
+}
+
+/* ══ VS Code host bridge ════════════════════════════════════════════════════ */
+/* Inside a VS Code webview the IDE owns the palette: map its --vscode-* tokens
+   onto our public inputs (the derived tokens then re-derive from these), plus a
+   few component tokens the editor exposes directly. This block also fires in a
+   plain browser in dark mode — apply-theme.ts sets the `vscode-*` body class
+   there so vscode.css's --vscode-* fallbacks supply the dark palette.
+   `[class^=` matches only when a `vscode-*` class is FIRST on <body>;
+   apply-theme.ts guarantees that, but an embedder prepending another body
+   class would silently disable this entire bridge. */
+body[class^="vscode-"] {
+  --inspect-foreground: var(--vscode-editor-foreground);
+  --inspect-emphasis-foreground: var(--vscode-editor-foreground);
+  --inspect-background: var(--vscode-editor-background);
+  --inspect-surface: var(--vscode-sideBar-background);
+  --inspect-secondary-bg-subtle: var(--vscode-editorHoverWidget-background);
+  --inspect-surface-muted: var(--vscode-list-inactiveSelectionBackground);
+  --inspect-surface-hover: var(--vscode-list-hoverBackground);
+  --inspect-border: var(--vscode-editorGroup-border);
+  --inspect-border-subtle: var(--vscode-sideBarSectionHeader-border);
+  --inspect-muted-foreground: var(--vscode-descriptionForeground);
+  --inspect-link: var(--vscode-textLink-foreground);
+  --inspect-link-hover: var(--vscode-textLink-activeForeground);
+  --inspect-muted: var(--vscode-breadcrumb-foreground);
+  --inspect-code-foreground: var(--vscode-editorInfo-foreground);
+  --inspect-primary: var(--vscode-banner-iconForeground);
+  --inspect-primary-surface: var(--vscode-editor-selectionHighlightBackground);
+  --inspect-primary-emphasis: var(--vscode-editorLink-activeForeground);
+  --inspect-warning-surface: var(--vscode-inputValidation-warningBackground);
+  --inspect-warning-emphasis: var(--vscode-input-foreground);
+  --inspect-success-surface: var(--vscode-diffEditor-insertedTextBackground);
+  --inspect-danger-surface: var(--vscode-diffEditor-removedTextBackground);
+  --inspect-info-surface: var(--vscode-inputValidation-infoBackground);
+  --inspect-danger-foreground: var(--vscode-errorForeground);
+
+  --inspect-tool-output-bg: var(--vscode-textCodeBlock-background);
+  --inspect-tool-output-color: var(--vscode-editor-foreground);
+  --inspect-tool-output-border: var(--vscode-editorWidget-border);
+  --inspect-tool-error-bg: var(--vscode-inputValidation-errorBackground);
+  --inspect-find-background: var(--vscode-editorWidget-background);
+  --inspect-find-foreground: var(--vscode-editorWidget-foreground);
+  --inspect-input-background: var(--vscode-input-background);
+  --inspect-input-foreground: var(--vscode-input-foreground);
+  --inspect-input-border: var(--vscode-input-border);
+  --inspect-diff-add-color: var(--vscode-diffEditor-insertedTextBackground);
+  --inspect-diff-remove-color: var(--vscode-diffEditor-removedTextBackground);
+}

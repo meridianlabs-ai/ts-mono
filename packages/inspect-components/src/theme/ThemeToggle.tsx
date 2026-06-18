@@ -96,7 +96,6 @@ export const ThemeToggle = ({
         setIsOpen={setOpen}
         positionEl={buttonEl}
         placement="bottom-end"
-        showArrow={false}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         offset={[0, 1]}

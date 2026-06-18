@@ -5,7 +5,7 @@ import {
   readThemePreference,
   resolveTheme,
   ThemePreference,
-} from "./bootstrap";
+} from "./apply-theme";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -136,7 +136,7 @@ describe("resolveTheme", () => {
         kind: "apply-variant-only",
         variant: "readable",
         // jsdom: no `vscode-*` class on <body>, so caller is told to leave
-        // `data-bs-theme` alone.
+        // `data-theme` alone.
         hostIsDark: null,
       });
     }
@@ -201,12 +201,12 @@ describe("resolveTheme", () => {
     });
     applyTheme();
     expect(attrs.get("data-theme-variant")).toBe("readable");
-    expect(attrs.get("data-bs-theme")).toBe("dark");
+    expect(attrs.get("data-theme")).toBe("dark");
 
     preference = "system";
     applyTheme();
     expect(attrs.has("data-theme-variant")).toBe(false);
-    expect(attrs.get("data-bs-theme")).toBe("dark");
+    expect(attrs.get("data-theme")).toBe("dark");
   });
 
   it("standalone + readable-system follows OS scheme but keeps readable variant", () => {

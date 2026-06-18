@@ -73,7 +73,7 @@
   font-size: var(--inspect-font-size-smallest);
 }
 
-.tabTools :global(.btn) {
+.tabTools button {
   font-size: var(--inspect-font-size-smallest);
   padding: 0.1em 0.5em;
 }

@@ -99,7 +99,6 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
         // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
         positionEl={chipRef.current}
         placement="bottom-start"
-        showArrow={true}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         styles={{

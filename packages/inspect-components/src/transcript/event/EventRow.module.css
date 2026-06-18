@@ -1,3 +1,27 @@
+/* Card framing (bootstrap-derived; this row is the only consumer).
+   In a VS Code webview the border follows the host editor-group border. */
+.contents {
+  --_card-border-color: var(--inspect-border-color-translucent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--inspect-foreground);
+  word-wrap: break-word;
+  background-color: var(--inspect-background);
+  background-clip: border-box;
+  border: var(--inspect-border-width) solid var(--_card-border-color);
+  border-radius: var(--inspect-radius);
+}
+
+.contents {
+  margin-bottom: 0.5em;
+}
+
+:global(body[class^="vscode-"]) .contents {
+  --_card-border-color: var(--inspect-border);
+}
+
 .title {
   display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr);

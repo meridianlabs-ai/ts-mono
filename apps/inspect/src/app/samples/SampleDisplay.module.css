@@ -7,7 +7,7 @@
 .tabControls {
   position: sticky;
   z-index: 1001;
-  top: var(--inspect-sample-header-height, 0);
+  top: var(--sample-header-height, 0);
   padding: 0.25rem 0.5rem;
   border-bottom: solid 1px var(--inspect-border);
   background-color: var(--inspect-background);

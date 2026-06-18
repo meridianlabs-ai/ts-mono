@@ -21,7 +21,7 @@
 }
 
 .icon {
-  font-size: var(--inspect-font-size-base, 0.9rem);
+  font-size: var(--inspect-font-size-content);
 }
 
 .menu {

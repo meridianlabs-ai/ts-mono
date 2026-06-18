@@ -55,25 +55,28 @@
   border: solid 1px var(--inspect-border);
 }
 
-:global(.btn).sortButton {
-  background: transparent;
-  border: none;
-  border-radius: var(--bs-border-radius);
-  color: var(--bs-secondary);
+/* Re-skin the Button vars (this module's CSS loads after Button's). */
+.sortButton {
+  --_bg: transparent;
+  --_hover-bg: transparent;
+  --_border-width: 0;
+  --_border-radius: var(--inspect-radius);
+  --_color: var(--inspect-muted);
+  --_padding-y: 0;
+  --_padding-x: 5px;
+  --_font-size: var(--inspect-font-size-smallest, 0.7rem);
+  --_line-height: 1.5;
   margin: 1px;
-  padding: 0 5px;
   height: calc(100% - 2px);
-  line-height: 1.5;
   display: inline-flex;
   align-items: center;
-  font-size: var(--inspect-font-size-smallest, 0.7rem);
 }
 
-:global(.btn).sortButton:hover {
-  color: var(--bs-body-color);
+.sortButton:hover {
+  --_hover-color: var(--inspect-foreground);
 }
 
-:global(.btn).sortButton i {
+.sortButton i {
   margin-right: 0;
 }
 

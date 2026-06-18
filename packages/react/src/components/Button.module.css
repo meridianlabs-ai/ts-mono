@@ -1,0 +1,185 @@
+/**
+ * Button primitive. The base rule reads private parameterization vars;
+ * variant classes (and the VS Code host context) only assign vars, never
+ * raw properties, so cascade order between them never matters.
+ *
+ * The hover/focus rules fall back to the base appearance
+ * (`var(--_hover-color, var(--_color))`), so a variant that assigns no
+ * `--_hover-*` vars has a true no-op hover; variants opt into a hover state
+ * by assigning them.
+ */
+
+.button {
+  --_padding-x: 0.75rem;
+  --_padding-y: 0.375rem;
+  --_font-size: 1rem;
+  --_line-height: 1.5;
+  --_color: var(--inspect-foreground);
+  --_bg: transparent;
+  --_border-width: var(--inspect-border-width);
+  --_border-color: transparent;
+  --_border-radius: var(--inspect-radius);
+  --_hover-border-color: transparent;
+  --_disabled-opacity: 0.65;
+  --_focus-box-shadow: 0 0 0 0.25rem rgba(var(--_focus-shadow-rgb), 0.5);
+  display: inline-block;
+  padding: var(--_padding-y) var(--_padding-x);
+  font-size: var(--_font-size);
+  /* Native <button> has a non-inheriting UA font-family; inherit the app font. */
+  font-family: inherit;
+  font-weight: 400;
+  line-height: var(--_line-height);
+  color: var(--_color);
+  text-align: center;
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  border: var(--_border-width) solid var(--_border-color);
+  border-radius: var(--_border-radius);
+  background-color: var(--_bg);
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}
+
+.button:hover {
+  color: var(--_hover-color, var(--_color));
+  background-color: var(--_hover-bg, var(--_bg));
+  border-color: var(--_hover-border-color);
+}
+
+.button:focus-visible {
+  color: var(--_hover-color, var(--_color));
+  background-color: var(--_hover-bg, var(--_bg));
+  border-color: var(--_hover-border-color);
+  outline: 0;
+  box-shadow: var(--_focus-box-shadow);
+}
+
+.button:active {
+  color: var(--_active-color);
+  background-color: var(--_active-bg);
+  border-color: var(--_active-border-color);
+}
+
+.button:active:focus-visible {
+  box-shadow: var(--_focus-box-shadow);
+}
+
+.button:disabled {
+  color: var(--_disabled-color);
+  pointer-events: none;
+  background-color: var(--_disabled-bg);
+  border-color: var(--_disabled-border-color);
+  opacity: var(--_disabled-opacity);
+}
+
+/* ── Variants (Bootstrap 5.3.8 values) ── */
+
+.primary {
+  /* Track the accent so a re-theme's --inspect-primary reaches the page's most
+     visible control. The color-mix ratios reproduce Bootstrap's exact default
+     shades when --inspect-primary is #0d6efd (#0b5ed7 = 85%, #0a58ca = 80%).
+     In a VS Code webview the .primary host block below overrides all of this. */
+  --_color: #fff;
+  --_bg: var(--inspect-primary);
+  --_border-color: var(--inspect-primary);
+  --_hover-color: #fff;
+  --_hover-bg: color-mix(in srgb, var(--inspect-primary) 85%, #000);
+  --_hover-border-color: color-mix(in srgb, var(--inspect-primary) 80%, #000);
+  --_focus-shadow-rgb: 49, 132, 253;
+  --_active-color: #fff;
+  --_active-bg: color-mix(in srgb, var(--inspect-primary) 80%, #000);
+  --_active-border-color: color-mix(in srgb, var(--inspect-primary) 75%, #000);
+  --_disabled-color: #fff;
+  --_disabled-bg: var(--inspect-primary);
+  --_disabled-border-color: var(--inspect-primary);
+}
+
+.secondary {
+  --_color: #fff;
+  --_bg: #6c757d;
+  --_border-color: #6c757d;
+  --_hover-color: #fff;
+  --_hover-bg: #5c636a;
+  --_hover-border-color: #565e64;
+  --_focus-shadow-rgb: 130, 138, 145;
+  --_active-color: #fff;
+  --_active-bg: #565e64;
+  --_active-border-color: #51585e;
+  --_disabled-color: #fff;
+  --_disabled-bg: #6c757d;
+  --_disabled-border-color: #6c757d;
+}
+
+.outlinePrimary {
+  --_color: var(--inspect-primary);
+  --_border-color: var(--inspect-primary);
+  --_hover-color: #fff;
+  --_hover-bg: var(--inspect-primary);
+  --_hover-border-color: var(--inspect-primary);
+  --_focus-shadow-rgb: 13, 110, 253;
+  --_active-color: #fff;
+  --_active-bg: var(--inspect-primary);
+  --_active-border-color: var(--inspect-primary);
+  --_disabled-color: var(--inspect-primary);
+  --_disabled-bg: transparent;
+  --_disabled-border-color: var(--inspect-primary);
+}
+
+/* Toolbar button: subtle fill, no border emphasis. */
+.tool {
+  --_bg: var(--inspect-secondary-bg-subtle);
+  --_hover-bg: var(--inspect-secondary-bg-subtle);
+  --_border-color: var(--inspect-secondary-bg-subtle);
+  --_hover-border-color: var(--inspect-secondary-bg-subtle);
+}
+
+/* ── VS Code host re-skin (body class is also set in browser dark mode) ── */
+
+:global(body[class^="vscode-"]) .primary {
+  --_bg: var(--vscode-button-background);
+  --_border-color: var(--vscode-button-background);
+  --_hover-bg: var(--vscode-button-hoverBackground);
+  --_hover-border-color: var(--vscode-button-hoverBackground);
+  --_color: var(--vscode-button-foreground);
+  --_hover-color: var(--vscode-button-foreground);
+  --_disabled-color: var(--vscode-button-foreground);
+  --_disabled-bg: var(--vscode-button-background);
+  --_disabled-border-color: var(--vscode-button-background);
+  --_disabled-opacity: 0.8;
+}
+
+:global(body[class^="vscode-"]) .secondary {
+  --_bg: var(--vscode-button-secondaryBackground);
+  --_border-color: var(--vscode-button-secondaryBackground);
+  --_hover-bg: var(--vscode-button-secondaryHoverBackground);
+  --_hover-border-color: var(--vscode-button-secondaryHoverBackground);
+  --_color: var(--vscode-button-secondaryForeground);
+  --_hover-color: var(--vscode-button-secondaryForeground);
+  --_disabled-color: var(--vscode-button-secondaryForeground);
+  --_disabled-bg: var(--vscode-button-secondaryBackground);
+  --_disabled-border-color: var(--vscode-button-secondaryBackground);
+  --_disabled-opacity: 0.8;
+}
+
+:global(body[class^="vscode-"]) .tool {
+  --_hover-bg: var(--inspect-surface);
+  --_bg: var(--inspect-surface);
+  --_border-color: var(--inspect-surface);
+  --_hover-border-color: var(--inspect-surface);
+  --_color: var(--inspect-muted-foreground);
+  --_hover-color: var(--inspect-muted-foreground);
+  --_disabled-opacity: 0.8;
+}

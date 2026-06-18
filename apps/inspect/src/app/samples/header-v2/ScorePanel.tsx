@@ -243,8 +243,10 @@ const ScoreChip: FC<ScoreChipProps> = ({ score }) => {
   if (score.bgColor) {
     style = { borderColor: score.bgColor };
   } else if (score.tone === "neutral" && score.numericIntensity !== undefined) {
-    const opacity = (0.25 + 0.75 * score.numericIntensity).toFixed(2);
-    style = { borderColor: `rgba(var(--bs-primary-rgb), ${opacity})` };
+    const pct = ((0.25 + 0.75 * score.numericIntensity) * 100).toFixed(0);
+    style = {
+      borderColor: `color-mix(in srgb, var(--inspect-primary) ${pct}%, transparent)`,
+    };
   }
   return (
     <span

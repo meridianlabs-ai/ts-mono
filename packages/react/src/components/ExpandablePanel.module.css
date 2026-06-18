@@ -19,7 +19,7 @@
 }
 
 .expandableContents {
-  font-size: var(--inspect-font-size-base);
+  font-size: var(--inspect-font-size-content);
 }
 
 /* Fade-out at the bottom of truncated content to signal "more below".

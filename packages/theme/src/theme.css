@@ -1,0 +1,55 @@
+/**
+ * theme.css — the public theming contract.
+ *
+ * These ~16 `--inspect-*` tokens are the ENTIRE surface a downstream embedder
+ * overrides to re-skin the viewer. Set them and everything else follows:
+ * tokens.css derives surfaces, borders, emphasis, hover/muted variants and the
+ * focus ring from these via color-mix() — correct in light AND dark from one
+ * definition, so you never touch the derived tokens.
+ *
+ * To re-theme: override these on :root (loaded after the viewer bundle) and
+ * mirror the ones that change under :root[data-theme="dark"]. `data-theme="dark"`
+ * is the dark-mode signal — a cross-app contract shared with hawk. See the
+ * package README for an override example, and design/theme-system.md for how
+ * the derivation layer works.
+ */
+
+/* ── light ── */
+:root {
+  --inspect-foreground: #212529;
+  --inspect-background: #fff;
+  --inspect-surface: #f8f9fa;
+  --inspect-border: #dee2e6;
+
+  --inspect-primary: #0d6efd;
+  --inspect-danger: #dc3545;
+  --inspect-success: #198754;
+  --inspect-warning: #ffc107;
+  --inspect-link: #0d6efd;
+  --inspect-code-foreground: #8b0000;
+
+  --inspect-radius: 3px;
+  --inspect-font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
+    "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+  --inspect-font-mono:
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  --inspect-font-size-base: 1rem;
+  --inspect-font-weight: 400;
+  --inspect-line-height: 1.5;
+}
+
+/* ── dark overrides ── */
+:root[data-theme="dark"] {
+  --inspect-foreground: #dee2e6;
+  --inspect-background: #212529;
+  --inspect-surface: #2b3035;
+  --inspect-border: #495057;
+  --inspect-link: #6ea8fe;
+  /* #8b0000 is unreadable on the dark background; lighten inline-code red. */
+  --inspect-code-foreground: #ea868f;
+  /* primary/danger/success/warning keep the same base hue across themes;
+     their surfaces/borders/emphasis re-derive from the dark background+fg. */
+}

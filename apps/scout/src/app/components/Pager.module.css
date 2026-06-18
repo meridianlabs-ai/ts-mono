@@ -1,14 +1,11 @@
 .pager {
-  --bs-pagination-padding-x: 0.5em;
-  --bs-pagination-padding-y: 0.15em;
-  --bs-pagination-font-size: 0.8rem;
-  --bs-pagination-padding-x: 0.5em;
-  --bs-pagination-padding-y: 0;
-  --bs-pagination-border-radius: var(--bs-border-radius);
+  --pagination-padding-x: 0.5em;
+  --pagination-padding-y: 0;
+  --pagination-font-size: 0.8rem;
   margin-bottom: 0;
 }
 
-.item:not(:global(.disabled)) {
+.item:not(.disabled) {
   cursor: pointer;
 }
 
@@ -19,11 +16,75 @@
 
 .item:first-child,
 .item:last-child {
-  --bs-pagination-padding-x: 0.3em;
+  --pagination-padding-x: 0.3em;
 }
 
 .item:first-child :global(.ii:before),
 .item:last-child :global(.ii:before) {
   margin-top: -2px;
   font-size: 0.8em;
+}
+
+/* ── Pagination styling (bootstrap-derived) ── */
+
+.pagination {
+  --pagination-padding-x: 0.75rem;
+  --pagination-padding-y: 0.375rem;
+  --pagination-font-size: 1rem;
+  display: flex;
+  padding-left: 0;
+  list-style: none;
+}
+
+.pageLink {
+  position: relative;
+  display: block;
+  padding: var(--pagination-padding-y) var(--pagination-padding-x);
+  font-size: var(--pagination-font-size);
+  color: var(--inspect-link);
+  text-decoration: none;
+  background-color: var(--inspect-background);
+  border: var(--inspect-border-width) solid var(--inspect-border);
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
+}
+
+.pageLink:hover {
+  z-index: 2;
+  color: var(--inspect-link-hover);
+  background-color: var(--inspect-surface-hover);
+  border-color: var(--inspect-border);
+}
+
+.pageLink:focus {
+  z-index: 3;
+  color: var(--inspect-link-hover);
+  background-color: var(--inspect-surface-muted);
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem var(--inspect-focus-ring-color);
+}
+
+.pageLink.active,
+.active > .pageLink {
+  z-index: 3;
+  color: #fff;
+  background-color: var(--inspect-primary);
+  border-color: var(--inspect-primary);
+}
+
+.pageLink.disabled,
+.disabled > .pageLink {
+  color: var(--inspect-muted-foreground);
+  pointer-events: none;
+  background-color: var(--inspect-surface-muted);
+  border-color: var(--inspect-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pageLink {
+    transition: none;
+  }
 }

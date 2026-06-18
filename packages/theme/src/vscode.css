@@ -21,7 +21,6 @@
   /* Core colors */
   --vscode-foreground: #3b3b3b;
   --vscode-descriptionForeground: #717171;
-  --vscode-disabledForeground: rgba(0, 0, 0, 0.4);
   --vscode-errorForeground: #f14c4c;
   --vscode-icon-foreground: #424242;
   --vscode-focusBorder: #0090f1;
@@ -48,7 +47,6 @@
   --vscode-editorHoverWidget-background: #f3f3f3;
   --vscode-editorInfo-foreground: #316bcd;
   --vscode-editorLink-activeForeground: #006ab1;
-  --vscode-editorWarning-foreground: #bf8803;
   --vscode-editorWidget-background: #f3f3f3;
   --vscode-editorWidget-border: #d4d4d4;
   --vscode-editorWidget-foreground: #3b3b3b;
@@ -63,15 +61,13 @@
   --vscode-inputOption-activeForeground: #000000;
 
   /* Input validation */
+  --vscode-inputValidation-infoBackground: #d6ecf2;
   --vscode-inputValidation-warningBackground: #f2dede;
   --vscode-inputValidation-warningBorder: #be8800;
   --vscode-inputValidation-errorBackground: #f2dede;
   --vscode-inputValidation-errorBorder: #be1100;
 
   /* Dropdown colors */
-  --vscode-dropdown-background: #ffffff;
-  --vscode-dropdown-foreground: #3b3b3b;
-  --vscode-dropdown-border: #cecece;
 
   /* Settings controls (used by vscode-elements textfield, checkbox, dropdown) */
   --vscode-settings-textInputBackground: #ffffff;
@@ -141,14 +137,11 @@
   --vscode-banner-iconForeground: #007acc;
   --vscode-breadcrumb-foreground: #616161;
   --vscode-notificationLink-foreground: #006ab1;
-  --vscode-notifications-background: #ffffff;
-  --vscode-notifications-foreground: #3b3b3b;
   --vscode-textLink-foreground: #006ab1;
   --vscode-textLink-activeForeground: #005a9e;
 
   /* Panel colors */
   --vscode-panel-background: #ffffff;
-  --vscode-panel-border: #e7e7e7;
   --vscode-panelTitle-activeBorder: #007acc;
   --vscode-panelTitle-activeForeground: #3b3b3b;
   --vscode-panelTitle-inactiveForeground: #717171;
@@ -157,12 +150,9 @@
   --vscode-sideBar-background: #f3f3f3;
   --vscode-sideBarSectionHeader-background: #f3f3f3;
   --vscode-sideBarSectionHeader-border: #e7e7e7;
-  --vscode-sideBarSectionHeader-foreground: #3b3b3b;
   --vscode-sideBarTitle-foreground: #3b3b3b;
 
   /* Peek view */
-  --vscode-peekViewTitle-background: #f3f3f3;
-  --vscode-peekViewTitleDescription-foreground: #616161;
 
   /* Diff colors */
   --vscode-diffEditor-insertedTextBackground: #dafbe1;
@@ -213,19 +203,13 @@
   /* Core colors */
   --vscode-foreground: #bfbfbf;
   --vscode-descriptionForeground: #8c8c8c;
-  --vscode-disabledForeground: #555555;
   --vscode-errorForeground: #f48771;
   --vscode-icon-foreground: #8c8c8c;
   --vscode-focusBorder: #3994bcb3;
   --vscode-contrastBorder: transparent;
 
   /* Text colors */
-  --vscode-textBlockQuote-background: #242526;
-  --vscode-textBlockQuote-border: #2a2b2cff;
   --vscode-textCodeBlock-background: #242526;
-  --vscode-textPreformat-background: #262626;
-  --vscode-textPreformat-foreground: #8c8c8c;
-  --vscode-textSeparator-foreground: #2a2a2aff;
 
   /* Font settings */
   --vscode-font-family:
@@ -248,7 +232,6 @@
   --vscode-editorHoverWidget-background: #202122;
   --vscode-editorInfo-foreground: #3a94bc;
   --vscode-editorLink-activeForeground: #3a94bc;
-  --vscode-editorWarning-foreground: #e5ba7d;
   --vscode-editorWidget-background: #202122;
   --vscode-editorWidget-border: #2a2b2cff;
   --vscode-editorWidget-foreground: #bfbfbf;
@@ -263,18 +246,14 @@
   --vscode-inputOption-activeForeground: #bfbfbf;
 
   /* Input validation */
+  --vscode-inputValidation-infoBackground: #063b49;
   --vscode-inputValidation-warningBackground: #352a05;
   --vscode-inputValidation-warningBorder: #b89500;
-  --vscode-inputValidation-warningForeground: #bfbfbf;
   --vscode-inputValidation-errorBackground: #3a1d1d;
   --vscode-inputValidation-errorBorder: #be1100;
   --vscode-inputValidation-errorForeground: #bfbfbf;
 
   /* Dropdown colors */
-  --vscode-dropdown-background: #191a1b;
-  --vscode-dropdown-foreground: #bfbfbf;
-  --vscode-dropdown-border: #333536;
-  --vscode-dropdown-listBackground: #191a1b;
 
   /* Settings controls (used by vscode-elements textfield, checkbox, dropdown) */
   --vscode-settings-textInputBackground: #191a1b;
@@ -320,16 +299,10 @@
   --vscode-list-activeSelectionForeground: #ededed;
   --vscode-list-activeSelectionIconForeground: #ededed;
   --vscode-list-inactiveSelectionBackground: #2c2d2e;
-  --vscode-list-inactiveSelectionForeground: #ededed;
-  --vscode-list-focusBackground: #3994bc26;
-  --vscode-list-focusForeground: #bfbfbf;
   --vscode-list-focusOutline: #3994bcb3;
   --vscode-list-focusAndSelectionOutline: #3994bcb3;
   --vscode-list-focusHighlightForeground: #48a0c7;
   --vscode-list-highlightForeground: #48a0c7;
-  --vscode-list-invalidItemForeground: #444444;
-  --vscode-list-errorForeground: #f48771;
-  --vscode-list-warningForeground: #e5ba7d;
 
   /* Menu colors */
   --vscode-menu-background: #202122;
@@ -350,30 +323,22 @@
   --vscode-banner-iconForeground: #48a0c7;
   --vscode-breadcrumb-foreground: #8c8c8c;
   --vscode-notificationLink-foreground: #3a94bc;
-  --vscode-notifications-background: #202122;
-  --vscode-notifications-foreground: #bfbfbf;
   --vscode-textLink-foreground: #48a0c7;
   --vscode-textLink-activeForeground: #53a5ca;
 
   /* Panel colors */
   --vscode-panel-background: #191a1b;
-  --vscode-panel-border: #2a2b2cff;
   --vscode-panelTitle-activeBorder: #3994bc;
   --vscode-panelTitle-activeForeground: #bfbfbf;
   --vscode-panelTitle-inactiveForeground: #8c8c8c;
 
   /* Sidebar colors */
   --vscode-sideBar-background: #191a1b;
-  --vscode-sideBar-foreground: #bfbfbf;
-  --vscode-sideBar-border: #2a2b2cff;
   --vscode-sideBarSectionHeader-background: #191a1b;
   --vscode-sideBarSectionHeader-border: #2a2b2cff;
-  --vscode-sideBarSectionHeader-foreground: #bfbfbf;
   --vscode-sideBarTitle-foreground: #bfbfbf;
 
   /* Peek view */
-  --vscode-peekViewTitle-background: #242526;
-  --vscode-peekViewTitleDescription-foreground: #8c8c8c;
 
   /* Diff colors */
   --vscode-diffEditor-insertedTextBackground: #57ab5a4d;

@@ -1,8 +1,35 @@
-.breadcrumbs {
-  --bs-breadcrumb-divider: "/";
-  --bs-breadcrumb-item-padding-x: 0.1rem !important;
+/* ── Breadcrumb ── */
 
-  margin-bottom: 0 !important;
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  margin-bottom: 1rem;
+  list-style: none;
+}
+
+.breadcrumbItem + .breadcrumbItem {
+  padding-left: 0.1rem;
+}
+
+.breadcrumbItem + .breadcrumbItem::before {
+  float: left;
+  padding-right: 0.1rem;
+  color: var(--inspect-muted-foreground);
+  content: "/";
+}
+
+.breadcrumbItem.active {
+  color: var(--inspect-muted-foreground);
+}
+
+/* VS Code host: the divider follows the host foreground. */
+:global(body[class^="vscode-"]) .breadcrumbItem + .breadcrumbItem::before {
+  color: var(--inspect-foreground);
+}
+
+.breadcrumbs {
+  margin-bottom: 0;
   min-width: 0;
   overflow: hidden;
   width: max-content;
@@ -17,10 +44,4 @@
 
 .pathContainer {
   overflow-x: hidden;
-}
-
-.pathLink {
-}
-
-.pathSegment {
 }
