@@ -4,7 +4,7 @@ import "asciinema-player/dist/bundle/asciinema-player.css";
 
 import { CSSProperties, FC, useEffect, useRef } from "react";
 
-interface AsciinemaPlayerProps {
+export interface AsciinemaPlayerProps {
   id?: string;
   inputUrl: string;
   outputUrl: string;

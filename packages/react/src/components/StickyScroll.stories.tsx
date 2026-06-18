@@ -84,7 +84,6 @@ const ScrollableDemo: FC<DemoProps> = ({
 };
 
 const meta = {
-  title: "Components/StickyScroll",
   component: ScrollableDemo,
   parameters: {
     layout: "padded",

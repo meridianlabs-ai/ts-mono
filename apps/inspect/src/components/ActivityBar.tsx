@@ -3,7 +3,7 @@ import { FC } from "react";
 
 import styles from "./ActivityBar.module.css";
 
-interface ActivityBarProps {
+export interface ActivityBarProps {
   animating: boolean;
   progress?: number;
 }

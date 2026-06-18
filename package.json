@@ -17,7 +17,9 @@
     "format": "turbo run format",
     "format:check": "turbo run format:check",
     "dev": "turbo run dev",
-    "e2e": "turbo run e2e"
+    "e2e": "turbo run e2e",
+    "storybook": "turbo run storybook --filter @tsmono/storybook",
+    "storybook:build": "turbo run storybook:build --filter @tsmono/storybook"
   },
   "//": "manypkg requires root deps in 'dependencies', not 'devDependencies'. The root is private and never published, so the distinction is meaningless here — it's a consistency convention.",
   "pnpm": {

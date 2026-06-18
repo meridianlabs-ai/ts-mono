@@ -5,7 +5,7 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import styles from "./CodePanel.module.css";
 
-interface CodePanelProps {
+export interface CodePanelProps {
   code: string;
   language?: string;
 }

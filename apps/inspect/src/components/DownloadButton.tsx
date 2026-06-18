@@ -4,7 +4,7 @@ import { useApi } from "../state/store";
 
 import "./DownloadButton.css";
 
-interface DownloadButtonProps {
+export interface DownloadButtonProps {
   label: string;
   fileName: string;
   fileContents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>;
