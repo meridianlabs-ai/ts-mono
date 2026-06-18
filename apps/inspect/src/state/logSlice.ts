@@ -213,12 +213,19 @@ export const createLogSlice = (
                 dbService.writeLogDetail(logAbsPath, logDetails).catch(() => {
                   // Silently ignore cache errors
                 });
+                // Repaint the listing preview from the fresh status: a log
+                // cached as "started" may have since finished.
+                state.logsActions.updateLogPreviews({
+                  [logFileName]: toLogPreview(logDetails),
+                });
               });
-              // Continue with rest of the function using cached data
-              const header = {
-                [logFileName]: toLogPreview(cachedInfo),
-              };
-              state.logsActions.updateLogPreviews(header);
+              // Don't seed the listing from a cached "started" preview: it can
+              // clobber a fresher status; the fetch above repaints it.
+              if (cachedInfo.status !== "started") {
+                state.logsActions.updateLogPreviews({
+                  [logFileName]: toLogPreview(cachedInfo),
+                });
+              }
               set((state) => {
                 state.log.loadedLog = logFileName;
               });

@@ -1,6 +1,7 @@
 import { createLogger } from "@tsmono/util";
 
 import { ClientAPI } from "../client/api/types";
+import { toLogPreview } from "../client/utils/type-utils";
 import { createPolling } from "../utils/polling";
 
 import { StoreState } from "./store";
@@ -49,6 +50,11 @@ export function createLogPolling(
           `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
           logDetails
         );
+
+        // Sync the listing preview so a log that finishes in detail view
+        // isn't stale on the grid. Key by logFileName (the handle name the
+        // grid reads previews by), not the absolute selectedLogFile.
+        state.logs.logPreviews[logFileName] = toLogPreview(logDetails);
 
         // Clear pending summaries if requested
         if (clearPending) {
