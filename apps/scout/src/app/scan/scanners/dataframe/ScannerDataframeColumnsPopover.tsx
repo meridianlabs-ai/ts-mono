@@ -361,7 +361,7 @@ const InlinePresets: FC<{
               Cancel
             </a>
             {saveError && (
-              <span style={{ color: "var(--bs-danger, #dc3545)" }}>
+              <span style={{ color: "var(--inspect-danger, #dc3545)" }}>
                 {saveError}
               </span>
             )}

@@ -5,13 +5,13 @@
 }
 
 .error {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }
 
 .success {
-  color: var(--bs-success);
+  color: var(--inspect-success);
 }
 
 .cancelled {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }

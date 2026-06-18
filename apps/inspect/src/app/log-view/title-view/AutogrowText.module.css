@@ -1,5 +1,5 @@
 .textarea {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   padding: 0.4rem 0.625rem;
@@ -11,7 +11,7 @@
   overflow: hidden;
   /* Borderless, transparent flat-cell look so the textarea reads as
      part of the surrounding grid (and `rowNew` highlights bleed
-     through unbroken). Overrides Bootstrap `form-control`'s border,
+     through unbroken). Overrides the shared Input treatment's border,
      border-radius, and focus box-shadow. */
   background: transparent;
   border: none;
@@ -22,7 +22,7 @@
   outline: none;
   box-shadow: none;
   /* Subtle tinted background as the focus indicator — replaces the
-     form-control blue ring with something that doesn't visually
+     default blue focus ring with something that doesn't visually
      interrupt the grid. */
-  background: var(--bs-tertiary-bg);
+  background: var(--inspect-surface-hover);
 }

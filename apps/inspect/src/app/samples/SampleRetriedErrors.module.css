@@ -8,7 +8,7 @@
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
 }
 
 .timeline {
@@ -22,7 +22,7 @@
   top: 6px;
   bottom: 6px;
   width: 2px;
-  background: var(--bs-border-color);
+  background: var(--inspect-border);
 }
 
 .items {
@@ -50,7 +50,7 @@
   display: block;
   font-size: 14px;
   line-height: 1;
-  color: var(--bs-danger);
-  background: var(--bs-body-bg);
+  color: var(--inspect-danger);
+  background: var(--inspect-background);
   border-radius: 50%;
 }

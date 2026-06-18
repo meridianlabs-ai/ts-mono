@@ -6,7 +6,7 @@
 
 .rootHeader {
   padding: 0 1.5em 0.25em 0;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

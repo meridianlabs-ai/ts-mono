@@ -7,7 +7,7 @@
 
 .defineScannerSection {
   padding: 1rem;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--inspect-border);
   flex-shrink: 0;
 }
 
@@ -44,12 +44,12 @@
 .scannerDescription {
   flex: 2;
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .paramsPlaceholder {
   padding: 1rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-size: 0.875rem;
 }
 
@@ -75,16 +75,16 @@
 }
 
 .card {
-  border: 1px solid var(--bs-border-color);
+  border: 1px solid var(--inspect-border);
   border-radius: 0.375rem;
   padding: 1rem;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .header {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .scanId {
@@ -93,7 +93,7 @@
 }
 
 .configLine {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-size: 0.75rem;
   font-family: monospace;
   margin-top: 0.25rem;
@@ -105,14 +105,14 @@
 
 .progressBar {
   height: 4px;
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background-color: var(--bs-success);
+  background-color: var(--inspect-success);
   transition: width 0.3s ease;
 }
 
@@ -122,7 +122,7 @@
   margin-top: 0.25rem;
   font-family: monospace;
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .content {
@@ -149,7 +149,7 @@
 
 .table th {
   font-weight: 600;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .numeric {
@@ -158,7 +158,7 @@
 
 .sidebar {
   min-width: 150px;
-  border-left: 1px solid var(--bs-border-color);
+  border-left: 1px solid var(--inspect-border);
   padding-left: 1rem;
   display: flex;
   flex-direction: column;
@@ -182,15 +182,15 @@
 }
 
 .stat span:first-child {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .error {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
   font-weight: 600;
 }
 
 .mutationStatus {
   font-size: 0.7rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }

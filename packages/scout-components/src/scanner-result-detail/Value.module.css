@@ -11,15 +11,15 @@
 }
 
 .true {
-  background-color: var(--bs-success);
-  border: solid var(--bs-success) 1px;
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-success);
+  border: solid var(--inspect-success) 1px;
+  color: var(--inspect-background);
 }
 
 .false {
-  background-color: var(--bs-danger);
-  border: solid var(--bs-danger) 1px;
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-danger);
+  border: solid var(--inspect-danger) 1px;
+  color: var(--inspect-background);
 }
 
 .valueTable {

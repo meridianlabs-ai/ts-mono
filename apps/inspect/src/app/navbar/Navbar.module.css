@@ -1,5 +1,5 @@
 .header {
-  background: var(--bs-light);
+  background: var(--inspect-surface);
   display: grid;
   grid-template-columns: 1fr max-content;
   justify-content: space-between;
@@ -9,11 +9,11 @@
 }
 
 .header.bordered {
-  border-bottom: solid var(--bs-border-color) 1px;
+  border-bottom: solid var(--inspect-border) 1px;
 }
 
 .breadcrumbs {
-  border-left: solid var(--bs-border-color) 1px;
+  border-left: solid var(--inspect-border) 1px;
   padding-left: 0.5em;
   margin-bottom: 0;
   min-width: 0;
@@ -24,7 +24,7 @@
 }
 
 .ellipsis {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-weight: normal;
 }
 
@@ -48,11 +48,11 @@
 }
 
 .toolbarButton {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .toolbarButton:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .pathContainer {

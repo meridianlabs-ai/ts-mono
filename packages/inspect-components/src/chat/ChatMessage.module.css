@@ -13,7 +13,7 @@
 /* Segmented assistant turn: prose bands and flush tool rows stack with
    hairline separators inside the turn container. */
 .turnSegments > * + * {
-  border-top: 1px solid var(--bs-light-border-subtle);
+  border-top: 1px solid var(--inspect-border-subtle);
 }
 
 /* The prose row keeps the assistant band; the left accent token is neutral
@@ -42,7 +42,7 @@
 }
 
 .toolMessageGrid {
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 .headerEnd {

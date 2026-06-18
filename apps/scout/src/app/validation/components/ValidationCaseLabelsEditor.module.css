@@ -6,8 +6,8 @@
   min-height: 30px;
   align-items: center;
   align-content: flex-start;
-  background-color: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, var(--bs-border-color));
+  background-color: var(--inspect-input-background);
+  border: 1px solid var(--inspect-input-border);
   border-radius: 2px;
 }
 

@@ -1,4 +1,4 @@
-/* Inspect-specific overlay on top of @tsmono/theme/base + @tsmono/theme/vscode.
+/* Inspect-specific overlay on top of the @tsmono/theme stylesheets.
    Rules here are either unique to inspect or reference assets that live under
    apps/inspect/src/img/. Shared rules live in the theme package. */
 
@@ -48,8 +48,8 @@ li > ul {
   font-size: 0.7rem;
 }
 
-/* Extra print rules (the minimal @media print inside the Prism block lives
-   in theme/base.css). */
+/* Extra print rules (the minimal @media print for code blocks lives in the
+   Prism integration CSS in @tsmono/react). */
 @media print {
   html {
     font-size: 9pt;

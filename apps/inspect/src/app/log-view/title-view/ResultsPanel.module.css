@@ -35,7 +35,7 @@
   text-align: center;
   padding-top: 0.3rem;
   margin-bottom: -0.2rem;
-  border-bottom: solid var(--bs-border-color) 1px;
+  border-bottom: solid var(--inspect-border) 1px;
 }
 
 .verticalMetricValue {
@@ -62,7 +62,7 @@
 
 .multiScorerLabel {
   text-align: center;
-  border-bottom: solid var(--bs-border-color) 1px;
+  border-bottom: solid var(--inspect-border) 1px;
   margin-bottom: -0.1rem;
 }
 

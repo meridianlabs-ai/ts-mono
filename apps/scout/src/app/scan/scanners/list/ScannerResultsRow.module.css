@@ -1,5 +1,5 @@
 .row {
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
   padding: 0.5rem 1rem 1rem 1rem;
   max-height: 200px;
 }
@@ -53,12 +53,12 @@
 }
 
 .link {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   text-decoration: none;
 }
 
 .link:hover {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .error {

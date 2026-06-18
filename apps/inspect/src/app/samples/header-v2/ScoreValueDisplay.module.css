@@ -11,19 +11,19 @@
 }
 
 .circlePass {
-  background: var(--bs-success);
+  background: var(--inspect-success);
 }
 
 .circleFail {
-  background: var(--bs-danger);
+  background: var(--inspect-danger);
 }
 
 .circleWarn {
-  background: var(--bs-orange);
+  background: var(--inspect-orange);
 }
 
 .circleNeutral {
-  background: var(--bs-secondary);
+  background: var(--inspect-muted);
 }
 
 .text {
@@ -39,19 +39,19 @@
 }
 
 .textPass {
-  color: var(--bs-success);
+  color: var(--inspect-success);
 }
 
 .textFail {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }
 
 .textWarn {
-  color: var(--bs-orange);
+  color: var(--inspect-orange);
 }
 
 .textNeutral {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 /* Smaller pill used inside ScoreChip. The mini pill has a fixed-ish
@@ -78,21 +78,21 @@
 }
 
 .miniPillPass {
-  background: var(--bs-success);
+  background: var(--inspect-success);
   color: #fff;
 }
 
 .miniPillFail {
-  background: var(--bs-danger);
+  background: var(--inspect-danger);
   color: #fff;
 }
 
 .miniPillWarn {
-  background: var(--bs-orange);
+  background: var(--inspect-orange);
   color: #fff;
 }
 
 .miniPillNeutral {
-  background: var(--bs-secondary-bg-subtle);
-  color: var(--bs-secondary);
+  background: var(--inspect-secondary-bg-subtle);
+  color: var(--inspect-muted);
 }

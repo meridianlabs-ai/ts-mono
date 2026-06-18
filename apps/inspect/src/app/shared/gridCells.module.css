@@ -23,11 +23,11 @@
   gap: 2px;
   width: 100%;
   font-size: 0.95rem;
-  color: var(--bs-gray-600);
+  color: var(--inspect-muted);
 }
 
 .iconCell :global(.ii:before) {
-  background-color: var(--bs-gray-600);
+  background-color: var(--inspect-muted);
 }
 
 .numberCell {
@@ -49,7 +49,7 @@
 
 .folder,
 .taskText {
-  color: var(--bs-link-color);
+  color: var(--inspect-link);
   font-size: 12.8px;
 }
 

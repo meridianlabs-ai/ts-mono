@@ -1,4 +1,4 @@
-/* Scout-specific overlay on top of @tsmono/theme/base + @tsmono/theme/vscode.
+/* Scout-specific overlay on top of the @tsmono/theme stylesheets.
    Rules here are either unique to scout or reference assets that live under
    apps/scout/src/img/. Shared rules live in the theme package. */
 
@@ -12,7 +12,7 @@
 }
 
 pre > code {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 /* SVG Icon styles - following Bootstrap Icons pattern */

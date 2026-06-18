@@ -19,7 +19,7 @@ function updateStickyState(container: Element | null, elements: Set<Element>) {
   // sets it) rather than document.body, so per-view overrides work correctly.
   const readStickyTop = (el: Element) =>
     parseFloat(
-      getComputedStyle(el).getPropertyValue("--inspect-event-panel-sticky-top")
+      getComputedStyle(el).getPropertyValue("--event-panel-sticky-top")
     ) || 0;
 
   elements.forEach((el) => {

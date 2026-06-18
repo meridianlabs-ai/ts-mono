@@ -12,11 +12,10 @@
   gap: 8px;
   width: fit-content;
   padding: 3px 3px;
-  background: var(--vscode-dropdown-background, var(--vscode-input-background));
-  border: 1px solid
-    var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
+  background: var(--inspect-input-background);
+  border: 1px solid var(--inspect-input-border);
   border-radius: 2px;
-  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+  color: var(--inspect-foreground);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -32,13 +31,13 @@
 }
 
 .trigger:hover {
-  background: var(--vscode-dropdown-background);
-  border-color: var(--vscode-focusBorder);
+  background: var(--inspect-input-background);
+  border-color: var(--inspect-focus-border-color);
 }
 
 .trigger:focus {
   outline: none;
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--inspect-focus-border-color);
 }
 
 .triggerContent {
@@ -61,7 +60,7 @@
 
 .triggerSecondary {
   font-size: calc(var(--vscode-font-size, 13px) - 2px);
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -70,19 +69,15 @@
 
 .triggerPlaceholder {
   font-size: var(--vscode-font-size, 13px);
-  color: var(--vscode-input-placeholderForeground);
+  color: var(--inspect-muted-foreground);
   white-space: nowrap;
 }
 
 /* Dropdown panel - rendered via portal */
 .dropdown {
   z-index: 10000;
-  background: var(
-    --vscode-dropdown-background,
-    var(--vscode-input-background, #252526)
-  );
-  border: 1px solid
-    var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
+  background: var(--inspect-input-background);
+  border: 1px solid var(--inspect-input-border);
   border-radius: 2px;
   max-height: 200px;
   overflow-y: auto;
@@ -93,7 +88,7 @@
 .item {
   padding: 6px 10px;
   cursor: pointer;
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .item:last-child {
@@ -101,7 +96,7 @@
 }
 
 .item:hover {
-  background-color: var(--vscode-list-hoverBackground);
+  background-color: var(--inspect-surface-hover);
 }
 
 /* Selected item - with proper contrast */
@@ -115,12 +110,12 @@
 }
 
 .primaryText {
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   font-size: var(--vscode-font-size, 13px);
 }
 
 .secondaryText {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-size: calc(var(--vscode-font-size, 13px) - 2px);
   margin-top: 1px;
   overflow: hidden;
@@ -133,18 +128,18 @@
 }
 
 .loading {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
 }
 
 .error {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
 }
 
 /* Divider between sets and create option */
 .divider {
   height: 1px;
-  background: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  background: var(--inspect-border);
   margin: 4px 10px;
 }
 
@@ -159,7 +154,7 @@
 }
 
 .createOption .primaryText {
-  color: var(--vscode-textLink-foreground);
+  color: var(--inspect-link);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -184,7 +179,7 @@
 
 .hint {
   font-size: 0.8rem;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
 }
 

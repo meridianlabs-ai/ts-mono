@@ -12,12 +12,12 @@
   padding: 0.25rem 0.4rem;
   color: inherit;
   cursor: pointer;
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--inspect-radius);
   line-height: 1;
 }
 
 .button:hover {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .icon {
@@ -27,17 +27,17 @@
 .menu {
   padding: 0.4rem 0.55rem;
   min-width: 11rem;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
+  background: var(--inspect-background);
+  border: 1px solid var(--inspect-border);
+  border-radius: var(--inspect-radius);
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .headerRow {
   display: flex;
   column-gap: 1.25rem;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--inspect-border);
   margin-bottom: 0.35rem;
   padding-bottom: 0.25rem;
   justify-content: space-between;
@@ -61,14 +61,14 @@
   margin: 0 0 0.35rem;
   padding: 0 0 0.35rem;
   border: none;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .resetButton {
   padding: 0;
   background: none;
   border: none;
-  color: var(--bs-link-color);
+  color: var(--inspect-link);
   font-size: var(--inspect-font-size-small, 0.8rem);
   text-decoration: none;
   cursor: pointer;

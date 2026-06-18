@@ -26,18 +26,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem 0.75rem 1rem;
-  border-bottom: 1px solid var(--vscode-widget-border);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .header {
   font-size: 16px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .detail {
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
 }
 
 .conflictBanner {
@@ -50,7 +50,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .conflictActions {
@@ -87,7 +87,7 @@
 .navGroup {
   font-size: 12px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   padding: 6px 8px 4px 8px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -102,7 +102,7 @@
   width: 100%;
   padding: 4px 8px 4px 16px;
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   background: none;
   border: none;
   text-align: left;
@@ -111,11 +111,11 @@
 }
 
 .navItem:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--inspect-surface-hover);
 }
 
 .navItem:focus {
-  outline: 1px solid var(--vscode-focusBorder);
+  outline: 1px solid var(--inspect-focus-border-color);
   outline-offset: -1px;
 }
 
@@ -153,7 +153,7 @@
 .sectionHeader {
   font-size: 13px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   padding: 0.35rem 0.75rem 0.35rem 1rem;
   margin-left: -0.75rem;
   background: var(--vscode-sideBarSectionHeader-background);
@@ -168,9 +168,9 @@
 .loading,
 .error {
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .error {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
 }

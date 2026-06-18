@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--bs-light-bg-subtle);
-  border-bottom: solid 1px var(--bs-border-color);
+  background-color: var(--inspect-surface);
+  border-bottom: solid 1px var(--inspect-border);
   width: 100%;
   padding-left: 0.5rem;
 }
@@ -27,7 +27,7 @@
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
   transition:
     background-color 0.1s,
@@ -35,6 +35,6 @@
 }
 
 .iconButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-foreground);
+  background: var(--inspect-surface-hover);
+  color: var(--inspect-foreground);
 }

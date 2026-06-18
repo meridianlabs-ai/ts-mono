@@ -9,14 +9,14 @@
   font-size: 12px;
   padding: 4px 6px;
   border-radius: 4px;
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  border: 1px solid var(--inspect-border);
+  background: var(--inspect-background);
+  color: var(--inspect-foreground);
 }
 
 .input:disabled {
-  background: var(--bs-light);
-  color: var(--bs-secondary);
+  background: var(--inspect-surface);
+  color: var(--inspect-muted);
 }
 
 .inputWithToggle {
@@ -32,7 +32,7 @@
   border: none;
   padding: 2px 4px;
   cursor: pointer;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -40,7 +40,7 @@
 }
 
 .toggleButton:hover:not(:disabled) {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .toggleButton:disabled {
@@ -52,8 +52,8 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
+  background: var(--inspect-background);
+  border: 1px solid var(--inspect-border);
   border-radius: 4px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   max-height: 200px;
@@ -72,6 +72,6 @@
 
 .suggestionItem:hover,
 .suggestionItem.highlighted {
-  background: var(--bs-primary);
+  background: var(--inspect-primary);
   color: white;
 }

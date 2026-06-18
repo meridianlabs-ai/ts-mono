@@ -9,6 +9,6 @@
 }
 
 .warning {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 0.9rem;
 }

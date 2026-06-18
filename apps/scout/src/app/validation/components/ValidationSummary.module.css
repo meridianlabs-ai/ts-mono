@@ -3,10 +3,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-size: 14px;
 }
 
 .separator {
-  color: var(--vscode-panel-border);
+  color: var(--inspect-border);
 }

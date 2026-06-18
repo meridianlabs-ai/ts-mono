@@ -1,16 +1,16 @@
 .toolbarButton {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .toolbarButton:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .toolbarButton.disabled {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .toolbarButton.disabled:hover {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   cursor: default;
 }

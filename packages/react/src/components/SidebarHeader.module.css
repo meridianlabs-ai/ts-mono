@@ -5,14 +5,14 @@
   padding: 0.5rem;
   flex-shrink: 0;
   height: 39px;
-  border-bottom: 1px solid var(--bs-border-color);
-  background-color: var(--bs-light);
+  border-bottom: 1px solid var(--inspect-border);
+  background-color: var(--inspect-surface);
 }
 
 .headerTitle {
   margin: 0;
   font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   text-transform: uppercase;
   font-weight: 400;
 }
@@ -23,7 +23,7 @@
 
 .headerSecondary {
   font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
 }
 
 .headerActions {
@@ -40,6 +40,6 @@
 }
 
 .closeButton:focus-visible {
-  outline: 1px solid var(--bs-primary);
+  outline: 1px solid var(--inspect-primary);
   outline-offset: 1px;
 }

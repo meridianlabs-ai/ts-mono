@@ -1,13 +1,13 @@
 .card {
   position: relative;
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
   padding: 0.625rem;
-  border: solid 1px var(--bs-border-color);
+  border: solid 1px var(--inspect-border);
   cursor: pointer;
 }
 
 .card:hover {
-  background-color: var(--bs-secondary-bg-subtle);
+  background-color: var(--inspect-secondary-bg-subtle);
 }
 
 .branchCard {
@@ -15,16 +15,16 @@
 }
 
 .branchCard:hover {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .utilityCard {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   border-style: dashed;
 }
 
 .utilityCard:hover {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .header {
@@ -64,7 +64,7 @@
 .resultPanel {
   margin: 0.5em -0.625rem -0.625rem;
   padding: 0.5em 0.625rem 0.625rem;
-  border-top: solid 1px var(--bs-border-color);
-  background-color: var(--bs-body-bg);
-  font-size: var(--inspect-font-size-base);
+  border-top: solid 1px var(--inspect-border);
+  background-color: var(--inspect-background);
+  font-size: var(--inspect-font-size-content);
 }

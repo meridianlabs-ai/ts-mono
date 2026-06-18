@@ -2,8 +2,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   align-items: stretch;
-  border-top: 1px solid var(--bs-light-border-subtle);
-  border-bottom: 1px solid var(--bs-light-border-subtle);
+  border-top: 1px solid var(--inspect-border-subtle);
+  border-bottom: 1px solid var(--inspect-border-subtle);
   font-variant-numeric: tabular-nums;
 }
 
@@ -14,7 +14,7 @@
 
 .cell {
   padding: 0.75rem 1rem 0.75rem 0;
-  border-right: 1px solid var(--bs-light-border-subtle);
+  border-right: 1px solid var(--inspect-border-subtle);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -39,7 +39,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -55,7 +55,7 @@
 .val {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
@@ -64,13 +64,13 @@
 
 .val small {
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-weight: 400;
 }
 
 .sub {
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .stack {
@@ -92,7 +92,7 @@
   flex-wrap: wrap;
   gap: 0.25rem 0.9rem;
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .breakdown > span {
@@ -102,7 +102,7 @@
 }
 
 .breakdown b {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   font-weight: 600;
 }
 
@@ -127,19 +127,18 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .clockVal {
   font-weight: 600;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .clockArrow {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
-/* Category colours — single blue-family hue */
 .catInput {
   background: #cfdcef;
 }

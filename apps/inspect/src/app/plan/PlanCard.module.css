@@ -8,7 +8,7 @@
 }
 
 .emptyMetadata {
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
   padding: 0.25rem 0.5rem;
 }

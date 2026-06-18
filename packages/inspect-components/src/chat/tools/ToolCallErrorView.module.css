@@ -1,9 +1,9 @@
 .error {
-  color: var(--inspect-tool-error-color);
+  color: var(--inspect-danger-foreground);
   background-color: var(--inspect-tool-error-bg);
   padding: 0.5em 0.7em;
-  border-radius: var(--bs-border-radius);
-  font-family: var(--bs-font-monospace);
+  border-radius: var(--inspect-radius);
+  font-family: var(--inspect-font-mono);
   overflow-wrap: anywhere;
   margin: 0.5em 0;
 }

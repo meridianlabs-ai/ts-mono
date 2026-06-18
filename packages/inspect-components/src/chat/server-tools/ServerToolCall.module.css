@@ -14,5 +14,5 @@
 }
 
 .execError {
-  color: var(--inspect-tool-error-color);
+  color: var(--inspect-danger-foreground);
 }

@@ -15,7 +15,7 @@
 
 .filterIcon {
   margin-left: 0.5rem;
-  color: var(--bs-primary);
+  color: var(--inspect-primary);
 }
 
 .scrollableContainer {
@@ -38,7 +38,7 @@
   display: flex;
   column-gap: 2rem;
   row-gap: 1rem;
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
   margin-bottom: 0.5rem;
   justify-content: space-between;
   align-items: center;

@@ -1,22 +1,22 @@
 .rootControl {
-  background-color: var(--bs-body-bg);
-  border-radius: var(--bs-border-radius);
+  background-color: var(--inspect-background);
+  border-radius: var(--inspect-radius);
   display: flex;
   flex-direction: row;
   align-items: center;
-  border: solid 1px var(--bs-border-color);
+  border: solid 1px var(--inspect-border);
 }
 
 .segment.selected {
-  background-color: var(--bs-secondary-bg);
-  border-radius: var(--bs-border-radius);
-  color: var(--bs-emphasis-color);
+  background-color: var(--inspect-surface-muted);
+  border-radius: var(--inspect-radius);
+  color: var(--inspect-emphasis-foreground);
 }
 
 button.segment {
   margin: 1px;
-  background-color: var(--bs-body-bg);
-  border-radius: var(--bs-border-radius);
+  background-color: var(--inspect-background);
+  border-radius: var(--inspect-radius);
   border: none;
   padding-block-end: 0;
   padding-block-start: 0;

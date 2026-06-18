@@ -1,6 +1,19 @@
-/* VS Code theme defaults (for non-VS Code context) */
-/* Complete set of variables used by @vscode-elements/elements */
-/* These are overridden by actual VS Code theme variables when running in VS Code */
+/**
+ * Browser fallbacks for the `--vscode-*` tokens the `@vscode-elements/*` web
+ * components read internally, plus normalization of those components
+ * (vscode-label / vscode-form-helper). Outside a real VS Code webview nothing
+ * provides these, so the form controls (VscodeButton/Textfield/Select/…) would
+ * render unstyled without this layer; inside VS Code the host's real values win.
+ *
+ * Scope: ONLY the `--vscode-*` fallback definitions and `@vscode-elements`
+ * component normalization belong here. App- and component-specific styling
+ * (host re-skins) lives beside what it re-skins, not in this file.
+ *
+ * This is NOT a knob for our own styling — our component CSS reads `--inspect-*`.
+ * The `--vscode-*` → `--inspect-*` BRIDGE lives in tokens.css, not here. We only
+ * consume `--vscode-*`; the sole reason we *define* any is to satisfy this
+ * vendored library's host contract.
+ */
 
 :root {
   color-scheme: light;
@@ -194,7 +207,7 @@
   --vscode-keybindingTable-rowsBackground: rgba(128, 128, 128, 0.04);
 }
 
-:root[data-bs-theme="dark"] {
+:root[data-theme="dark"] {
   color-scheme: dark;
 
   /* Core colors */

@@ -1,4 +1,7 @@
-import { createApplyTheme, readThemePreference } from "@tsmono/theme/bootstrap";
+import {
+  createApplyTheme,
+  readThemePreference,
+} from "@tsmono/theme/apply-theme";
 
 import { SETTINGS_STORAGE_KEY } from "./constants";
 

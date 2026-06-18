@@ -9,7 +9,7 @@
   outline: none;
   flex-shrink: 0;
   position: relative;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--inspect-border);
   margin-bottom: 0px;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .swimlane:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+  box-shadow: inset 0 0 0 1px var(--inspect-focus-border-color);
 }
 
 /* Collapsible rows — fade + slide animation */
@@ -61,7 +61,7 @@
    the StickyScroll wrapper, inflating stickySwimLaneHeight by 1px and
    leaving a gap between the swimlane and the event card headers. */
 .swimlaneSticky {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .collapsibleInner {
@@ -84,20 +84,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
+  background-color: var(--inspect-background);
+  border: 1px solid var(--inspect-border);
   border-top: none;
-  border-radius: 0 0 var(--bs-border-radius) var(--bs-border-radius);
+  border-radius: 0 0 var(--inspect-radius) var(--inspect-radius);
   cursor: pointer;
   padding: 1px 0;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   font-size: 0.55rem;
   line-height: 1;
 }
 
 .collapseToggle:hover {
-  color: var(--vscode-foreground);
-  background-color: var(--bs-secondary-bg);
+  color: var(--inspect-foreground);
+  background-color: var(--inspect-surface-muted);
 }
 
 /* Row — display:contents so all rows share the parent grid columns */
@@ -113,7 +113,7 @@
   white-space: nowrap;
   font-size: var(--inspect-font-size-smallest);
   line-height: var(--swimlane-row-height);
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   -webkit-user-select: none;
   user-select: none;
   display: flex;
@@ -123,16 +123,16 @@
 }
 
 .label:hover {
-  color: var(--vscode-textLink-foreground);
+  color: var(--inspect-link);
 }
 
 .labelSelected {
-  color: var(--vscode-textLink-foreground);
+  color: var(--inspect-link);
 }
 
 /* Ancestor rows of the selected branch — subtler than selected */
 .labelHighlighted {
-  color: var(--vscode-textLink-foreground);
+  color: var(--inspect-link);
   opacity: 0.6;
 }
 
@@ -145,12 +145,12 @@
   width: 12px;
   flex-shrink: 0;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   font-size: 8px;
 }
 
 .chevron:hover {
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .chevronSpacer {
@@ -168,7 +168,7 @@
   background: none;
   font-size: 9px;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   opacity: 0;
 }
 
@@ -178,7 +178,7 @@
 }
 
 .punchDownBtn:hover {
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .viewStackBack {
@@ -186,24 +186,24 @@
   align-items: center;
   gap: 4px;
   padding: 1px 6px;
-  border: 1px solid var(--bs-border-color);
+  border: 1px solid var(--inspect-border);
   border-radius: 3px;
   background: transparent;
   font-size: var(--inspect-font-size-smallest);
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   cursor: pointer;
 }
 
 .viewStackBack:hover {
-  background: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.05));
+  background: var(--inspect-surface-hover);
 }
 
 /* Bar area */
 
 .barArea {
   height: var(--swimlane-row-height);
-  border-left: 1px solid var(--bs-border-color);
-  border-right: 1px solid var(--bs-border-color);
+  border-left: 1px solid var(--inspect-border);
+  border-right: 1px solid var(--inspect-border);
 }
 
 .barInner {
@@ -217,7 +217,7 @@
   top: 1px;
   bottom: 1px;
   border-radius: 2px;
-  background-color: var(--bs-primary);
+  background-color: var(--inspect-primary);
   opacity: 0.3;
   display: flex;
   align-items: center;
@@ -236,7 +236,7 @@
 
 .fillSelected {
   opacity: 0.7;
-  box-shadow: inset 0 0 0 1px var(--bs-primary);
+  box-shadow: inset 0 0 0 1px var(--inspect-primary);
 }
 
 /* Partial highlight overlay — sibling of .fill in barInner.
@@ -247,7 +247,7 @@
   top: 1px;
   bottom: 1px;
   border-radius: 2px;
-  background-color: var(--bs-primary);
+  background-color: var(--inspect-primary);
   opacity: 0.45;
   pointer-events: none;
 }
@@ -264,7 +264,7 @@
   position: absolute;
   top: 1px;
   bottom: 1px;
-  background-color: var(--bs-primary);
+  background-color: var(--inspect-primary);
   cursor: pointer;
 }
 
@@ -294,7 +294,7 @@
 
 .parallelBadge {
   font-size: var(--inspect-font-size-smallest);
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
 }
 
 /* Markers */
@@ -319,7 +319,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--bs-body-bg);
+  background: var(--inspect-background);
   z-index: -1;
 }
 
@@ -345,11 +345,11 @@
   bottom: 0;
   left: 3px;
   width: 1px;
-  background-color: var(--vscode-errorForeground, #f44747);
+  background-color: var(--inspect-danger-foreground);
 }
 
 .markerCompaction {
-  color: var(--bs-body-bg);
+  color: var(--inspect-background);
   rotate: none;
   font-size: 16px;
   top: 0;
@@ -363,7 +363,7 @@
 }
 
 .markerBranch {
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   cursor: pointer;
 }
 
@@ -387,7 +387,7 @@
   height: 0;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
-  border-left: 4px solid var(--vscode-descriptionForeground, #717171);
+  border-left: 4px solid var(--inspect-muted-foreground);
   pointer-events: none;
 }
 
@@ -399,7 +399,7 @@
   right: 3px;
   width: 5px;
   height: 1px;
-  background: var(--vscode-descriptionForeground, #717171);
+  background: var(--inspect-muted-foreground);
   transform: translateY(-50%);
 }
 
@@ -418,10 +418,10 @@
 
 .optionsButton {
   background: none;
-  border: 1px solid var(--vscode-widget-border, var(--bs-border-color));
+  border: 1px solid var(--inspect-border);
   border-radius: 50%;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   font-size: 7px;
   width: 12px;
   height: 12px;
@@ -435,8 +435,8 @@
 }
 
 .optionsButton:hover {
-  color: var(--vscode-foreground);
-  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--inspect-foreground);
+  background: var(--inspect-surface-hover);
   opacity: 1;
 }
 
@@ -455,7 +455,7 @@
 }
 
 .breadcrumbDivider {
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   font-size: var(--inspect-font-size-smallest);
   padding: 0 2px;
   -webkit-user-select: none;
@@ -466,20 +466,20 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   font-size: var(--inspect-font-size-smallest);
   padding: 0 2px;
 }
 
 .breadcrumbLink:hover {
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   text-decoration: underline;
 }
 
 .breadcrumbCurrent {
   background: none;
   border: none;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   font-weight: 600;
   font-size: var(--inspect-font-size-smallest);
   padding: 0 2px 0 0;
@@ -491,7 +491,7 @@
   padding: 0 0.75rem 0 0.5rem;
   font-size: var(--inspect-font-size-smallest);
   line-height: var(--swimlane-row-height);
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--inspect-muted-foreground);
   white-space: nowrap;
   text-align: right;
   -webkit-user-select: none;

@@ -8,19 +8,19 @@
 }
 
 .green {
-  background-color: var(--bs-success);
-  border-color: var(--bs-success);
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-success);
+  border-color: var(--inspect-success);
+  color: var(--inspect-background);
 }
 
 .red {
-  background-color: var(--bs-danger);
-  border-color: var(--bs-danger);
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-danger);
+  border-color: var(--inspect-danger);
+  color: var(--inspect-background);
 }
 
 .orange {
-  background-color: var(--bs-orange);
-  border-color: var(--bs-orange);
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-orange);
+  border-color: var(--inspect-orange);
+  color: var(--inspect-background);
 }

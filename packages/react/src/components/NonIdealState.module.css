@@ -16,20 +16,20 @@
 
 .icon {
   font-size: 48px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   opacity: 0.7;
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   text-align: center;
 }
 
 .description {
   font-size: 14px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   text-align: center;
   max-width: 300px;
 }
@@ -39,12 +39,12 @@
 }
 
 .action a {
-  color: var(--bs-link-color);
+  color: var(--inspect-link);
   text-decoration: none;
   font-size: 14px;
 }
 
 .action a:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
   text-decoration: underline;
 }

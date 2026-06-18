@@ -3,9 +3,9 @@
    Colors mapped to existing theme variables for light/dark support. */
 
 .grid {
-  font-family: var(--bs-body-font-family);
+  font-family: var(--inspect-font-family);
   font-size: var(--inspect-font-size-small);
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   line-height: 1.5;
 }
 
@@ -22,7 +22,7 @@
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
   padding-block: 3px;
-  border-bottom: 1px dotted var(--bs-light-border-subtle);
+  border-bottom: 1px dotted var(--inspect-border-subtle);
   align-items: baseline;
 }
 
@@ -37,20 +37,20 @@
 }
 
 .striped .rows > .row:nth-child(even) {
-  background: var(--bs-light-bg-subtle);
+  background: var(--inspect-surface);
 }
 
 .key {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-feature-settings: "calt" 0;
   letter-spacing: 0;
   word-break: break-all;
 }
 
 .val {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   overflow-wrap: anywhere;
   font-feature-settings: "tnum";
 }
@@ -61,17 +61,17 @@
 }
 
 .empty {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-style: italic;
   font-size: var(--inspect-font-size-smallest);
 }
 
 .numVal {
-  color: var(--bs-code-color);
+  color: var(--inspect-code-foreground);
 }
 
 .boolVal {
-  color: var(--bs-success-text-emphasis, #198754);
+  color: var(--inspect-success-emphasis, #198754);
 }
 
 /* ── Copy button (opt-in via copyButton option) ──────────────── */
@@ -122,17 +122,17 @@
 }
 
 .groupKey {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smallest);
   font-weight: 500;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   letter-spacing: 0;
 }
 
 .groupRule {
   flex: 1;
   height: 1px;
-  background: var(--bs-light-border-subtle);
+  background: var(--inspect-border-subtle);
 }
 
 /* ── Depth 1 — tighter, lighter ──────────────────────────────── */
@@ -146,7 +146,7 @@
 }
 
 .depth1 .key {
-  color: var(--bs-tertiary-color);
+  color: var(--inspect-faint-foreground);
   font-size: var(--inspect-font-size-smallestest);
 }
 
@@ -159,7 +159,7 @@
 }
 
 .depth1Group .groupKey {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-size: var(--inspect-font-size-smallestest);
 }
 
@@ -180,9 +180,9 @@
   height: 20px;
   margin-top: 8px;
   margin-left: 0.5rem;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   border-radius: 5px;
-  border: solid var(--bs-light-border-subtle) 1px;
+  border: solid var(--inspect-border-subtle) 1px;
   width: fit-content;
 }
 
@@ -191,6 +191,6 @@
   border: none;
   padding: 0 0.5rem;
   background-color: transparent;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   cursor: pointer;
 }

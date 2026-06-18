@@ -7,7 +7,7 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
   cursor: pointer;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .idLink:disabled {
-  color: var(--vscode-disabledForeground);
+  color: var(--inspect-faint-foreground);
   cursor: default;
 }
 
@@ -64,7 +64,7 @@
   min-width: 80px;
   padding-right: 8px;
   font-size: 0.8rem;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
 }
 
 .targetCell {
@@ -74,7 +74,7 @@
 }
 
 .target {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-size: 0.85rem;
 }
 
@@ -86,9 +86,9 @@
   border-radius: 5px;
   padding: 4px 8px;
   font-size: 0.7rem;
-  background-color: var(--bs-success);
-  border: solid var(--bs-success) 1px;
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-success);
+  border: solid var(--inspect-success) 1px;
+  color: var(--inspect-background);
   width: 4.5em;
 }
 
@@ -99,9 +99,9 @@
   border-radius: 5px;
   padding: 4px 8px;
   font-size: 0.7rem;
-  background-color: var(--bs-danger);
-  border: solid var(--bs-danger) 1px;
-  color: var(--bs-body-bg);
+  background-color: var(--inspect-danger);
+  border: solid var(--inspect-danger) 1px;
+  color: var(--inspect-background);
   width: 4.5em;
 }
 
@@ -115,7 +115,7 @@
 }
 
 .splitSelect:hover {
-  --vscode-dropdown-background: var(--vscode-list-hoverBackground);
+  --vscode-dropdown-background: var(--inspect-surface-hover);
 }
 
 /* Action buttons */
@@ -137,7 +137,7 @@
   background: none;
   border: none;
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
   opacity: 0.6;
   transition:
@@ -147,7 +147,7 @@
 
 .actionButton:hover:not(:disabled) {
   opacity: 1;
-  background: var(--vscode-list-hoverBackground);
+  background: var(--inspect-surface-hover);
 }
 
 .actionButton:disabled {
@@ -157,7 +157,7 @@
 
 /* Transcript details (below ID link) */
 .detailsRow {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-size: 0.8rem;
   line-height: 1.2;
   padding-bottom: 1px;
@@ -168,7 +168,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--vscode-editorWarning-foreground, #cca700);
+  color: var(--inspect-warning-emphasis);
   font-size: 0.8rem;
   line-height: 1.2;
   padding-bottom: 1px;
@@ -190,7 +190,7 @@
 }
 
 .warning {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 0.9rem;
 }
 

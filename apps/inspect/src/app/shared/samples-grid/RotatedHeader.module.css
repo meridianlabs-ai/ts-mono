@@ -15,7 +15,7 @@
    * it lies along the diagonal lower edge of the label parallelogram,
    * forming a clean separator between adjacent rotated headers in the
    * same `--ag-border-color` Balham uses for vertical separators. */
-  border-bottom: 1px solid var(--ag-border-color, var(--bs-border-color));
+  border-bottom: 1px solid var(--ag-border-color, var(--inspect-border));
   /* Fixed width so every rotated label has the same parallelogram
    * length. The text inside stretches via `flex: 1` and ellipses if
    * it overflows. */
@@ -39,7 +39,7 @@
 .label:hover {
   /* Subtle highlight on hover — and lift above neighboring rotated
    * labels so the hovered text is fully readable. */
-  background: var(--bs-tertiary-bg);
+  background: var(--inspect-surface-hover);
   z-index: 2;
 }
 
@@ -102,7 +102,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--bs-primary);
+  background: var(--inspect-primary);
 }
 
 /* Invisible anchor for the column-menu popup. ag-grid positions the

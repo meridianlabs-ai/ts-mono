@@ -27,7 +27,7 @@
   margin: 0;
   font-weight: 500;
   font-size: 1em;
-  color: var(--bs-secondary-text-color);
+  color: var(--inspect-muted-foreground);
 }
 
 .scanTitleView .secondaryRow {
@@ -44,5 +44,5 @@
   margin: 0;
   font-size: 0.8em;
   font-weight: 400;
-  color: var(--bs-secondary-text-color);
+  color: var(--inspect-muted-foreground);
 }

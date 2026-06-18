@@ -17,7 +17,7 @@
 
 .eventLink,
 .eventLink a {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   text-decoration: none;
   cursor: pointer;
 }
@@ -25,7 +25,7 @@
 .eventLink:hover,
 .eventLink a:hover {
   text-decoration: underline;
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .label {

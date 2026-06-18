@@ -1,5 +1,5 @@
 .container {
-  border-right: solid 1px var(--bs-border-color);
+  border-right: solid 1px var(--inspect-border);
 }
 
 .entry {
@@ -10,7 +10,7 @@
 }
 
 .entry.selected {
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--inspect-surface-muted);
 }
 
 .titleBlock {
@@ -42,7 +42,7 @@
 }
 
 .entry:hover .title {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .numericResultTable {

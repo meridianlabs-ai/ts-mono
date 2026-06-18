@@ -15,7 +15,7 @@
   align-items: center;
   gap: 0.2rem;
   padding: 0.5rem 0.25rem;
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   border-left: 2px solid transparent;
   transition:
     color 120ms ease,
@@ -23,8 +23,8 @@
 }
 
 .item:hover:not(:disabled) {
-  color: var(--bs-body-color);
-  background-color: var(--bs-tertiary-bg);
+  color: var(--inspect-foreground);
+  background-color: var(--inspect-surface-hover);
 }
 
 .item:disabled {
@@ -33,9 +33,9 @@
 }
 
 .itemActive {
-  color: var(--bs-body-color);
-  border-left-color: var(--bs-primary);
-  background-color: var(--bs-tertiary-bg);
+  color: var(--inspect-foreground);
+  border-left-color: var(--inspect-primary);
+  background-color: var(--inspect-surface-hover);
 }
 
 .icon {

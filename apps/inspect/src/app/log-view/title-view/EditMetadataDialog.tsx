@@ -507,7 +507,7 @@ const MetaRow: FC<{
     data-meta-key={entry.key}
   >
     {/* Plain <span> not <code> — the global theme tints `<code>` with
-        `--bs-code-color` (dark red) at higher specificity than a CSS
+        `--inspect-code-foreground` (dark red) at higher specificity than a CSS
         module class. The monospace font comes from `.key`. */}
     <span className={clsx("text-size-smaller", styles.key)}>{entry.key}</span>
     <div className={styles.value}>
