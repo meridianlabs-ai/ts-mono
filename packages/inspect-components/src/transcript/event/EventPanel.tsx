@@ -103,6 +103,13 @@ export const EventPanel: FC<EventPanelProps> = ({
   );
   const defaultPillId = defaultPill !== -1 ? pillId(defaultPill) : pillId(0);
 
+  // The pill nav and the collapsed-summary text share the same right-aligned
+  // cell — they never appear together (summary text is only supplied for
+  // single-child panels, which have no tabs).
+  const showNavs =
+    !(isCollapsible && collapsibleContent && collapsed) &&
+    filteredArrChildren.length > 1;
+
   const [selectedNav, setSelectedNav] = useProperty(
     eventNodeId,
     "selectedNav",
@@ -127,10 +134,11 @@ export const EventPanel: FC<EventPanelProps> = ({
 
   // title (carries copy-link + headerExtra so they wrap with the title)
   gridColumns.push("minmax(0, max-content)");
+  // navs/summary: 1fr so the cell always spans the row's free space. With an
+  // `auto` track it collapses to the picker's width once collapsed, and the
+  // measured width can then never grow back to the pill row's natural width —
+  // so the picker can never expand to tabs again.
   gridColumns.push("minmax(0, 1fr)");
-  gridColumns.push("minmax(0, max-content)");
-  // navs: auto so it shrinks to picker mode when over-constrained
-  gridColumns.push("auto");
   if (turnLabel) {
     gridColumns.push("max-content");
   }
@@ -208,17 +216,11 @@ export const EventPanel: FC<EventPanelProps> = ({
             </span>
           ) : null}
         </div>
-        <div onClick={toggleCollapse}></div>
         <div
-          className={clsx("text-style-secondary", styles.label)}
-          onClick={toggleCollapse}
+          className={styles.navs}
+          onClick={showNavs ? undefined : toggleCollapse}
         >
-          {collapsed ? text : ""}
-        </div>
-        <div className={styles.navs}>
-          {isCollapsible && collapsibleContent && collapsed ? (
-            ""
-          ) : filteredArrChildren && filteredArrChildren.length > 1 ? (
+          {showNavs ? (
             <EventNavs
               navs={filteredArrChildren.map((child, index) => {
                 const defaultTitle = `Tab ${index}`;
@@ -235,9 +237,11 @@ export const EventPanel: FC<EventPanelProps> = ({
               selectedNav={selectedNav || ""}
               setSelectedNav={setSelectedNav}
             />
-          ) : (
-            ""
-          )}
+          ) : collapsed && text ? (
+            <span className={clsx("text-style-secondary", styles.label)}>
+              {text}
+            </span>
+          ) : null}
         </div>
         {turnLabel && (
           <span className={clsx(styles.turnLabel)}>{turnLabel}</span>
