@@ -36,10 +36,11 @@
   margin-left: 0.5rem;
 }
 
-:global(.btn).filterButton {
 /* Re-skin the Button vars (this module's CSS loads after Button's). */
+.filterButton {
+  --_padding-y: 0.2rem;
+  --_padding-x: 0.2rem;
   width: 100%;
-  padding: 0.2rem;
 }
 
 .durationInputWrapper {

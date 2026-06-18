@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
-import { Modal } from "@tsmono/react/components";
+import { Button, Input, Modal } from "@tsmono/react/components";
 
 import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
@@ -178,22 +178,22 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
         <div className={sharedStyles.footer}>
           <ChangeSummary adding={tagsAdd} removing={tagsRemove} />
           <div className={sharedStyles.footerActions}>
-            <button
-              type="button"
-              className={clsx("btn", "btn-secondary", "text-size-smaller")}
+            <Button
+              variant="secondary"
+              className={"text-size-smaller"}
               onClick={() => setShowing(false)}
               disabled={submitting}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className={clsx("btn", "btn-primary", "text-size-smaller")}
+            </Button>
+            <Button
+              variant="primary"
+              className={"text-size-smaller"}
               onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
       }
@@ -219,13 +219,9 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             ))}
           </div>
           <div className={styles.addRow}>
-            <input
+            <Input
               type="text"
-              className={clsx(
-                "form-control",
-                "text-size-smaller",
-                styles.input
-              )}
+              className={clsx("text-size-smaller", styles.input)}
               placeholder="Add a tag and press Enter"
               value={pending}
               onChange={(e) => setPending(e.target.value)}
@@ -233,19 +229,14 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
               disabled={submitting}
               data-autofocus
             />
-            <button
-              type="button"
-              className={clsx(
-                "btn",
-                pending.trim() ? "btn-primary" : "btn-secondary",
-                "text-size-smaller",
-                styles.addButton
-              )}
+            <Button
+              variant={pending.trim() ? "primary" : "secondary"}
+              className={clsx("text-size-smaller", styles.addButton)}
               onClick={addPendingTag}
               disabled={submitting || !pending.trim()}
             >
               <i className={ApplicationIcons.changes.add} /> Add
-            </button>
+            </Button>
           </div>
         </div>
 

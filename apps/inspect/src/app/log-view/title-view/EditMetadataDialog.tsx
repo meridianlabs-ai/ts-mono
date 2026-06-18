@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import { MetadataEdit } from "@tsmono/inspect-common/types";
-import { Modal } from "@tsmono/react/components";
+import { Button, Input, Modal, Select } from "@tsmono/react/components";
 
 import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
@@ -365,22 +365,22 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
         <div className={sharedStyles.footer}>
           <ChangeSummary adding={adding} editing={editing} removing={removed} />
           <div className={sharedStyles.footerActions}>
-            <button
-              type="button"
-              className={clsx("btn", "btn-secondary", "text-size-smaller")}
+            <Button
+              variant="secondary"
+              className={"text-size-smaller"}
               onClick={() => setShowing(false)}
               disabled={submitting}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className={clsx("btn", "btn-primary", "text-size-smaller")}
+            </Button>
+            <Button
+              variant="primary"
+              className={"text-size-smaller"}
               onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
       }
@@ -418,25 +418,17 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
           </div>
 
           <div className={styles.addRow}>
-            <input
+            <Input
               type="text"
-              className={clsx(
-                "form-control",
-                "text-size-smaller",
-                styles.addKeyInput
-              )}
+              className={clsx("text-size-smaller", styles.addKeyInput)}
               placeholder="Add a key…"
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               onKeyDown={handleNewKeyDown}
               disabled={submitting}
             />
-            <select
-              className={clsx(
-                "form-select",
-                "text-size-smaller",
-                styles.typeSelect
-              )}
+            <Select
+              className={clsx("text-size-smaller", styles.typeSelect)}
               value={newType}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
                 setNewType(e.target.value as NewType)
@@ -450,20 +442,15 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
               <option value="object">object</option>
               <option value="array">array</option>
               <option value="null">null</option>
-            </select>
-            <button
-              type="button"
-              className={clsx(
-                "btn",
-                newKey.trim() ? "btn-primary" : "btn-secondary",
-                "text-size-smaller",
-                styles.addButton
-              )}
+            </Select>
+            <Button
+              variant={newKey.trim() ? "primary" : "secondary"}
+              className={clsx("text-size-smaller", styles.addButton)}
               onClick={addKey}
               disabled={submitting || !newKey.trim()}
             >
               <i className={ApplicationIcons.changes.add} /> Add key
-            </button>
+            </Button>
           </div>
         </div>
 

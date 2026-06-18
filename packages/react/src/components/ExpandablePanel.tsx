@@ -12,6 +12,7 @@ import {
 
 import { useCollapsedState, useResizeObserver } from "../hooks";
 
+import { Button } from "./Button";
 import styles from "./ExpandablePanel.module.css";
 import { useFindTarget } from "./FindTargetContext";
 
@@ -204,12 +205,12 @@ const MoreToggle: FC<MoreToggleProps> = ({
       )}
       style={style}
     >
-      <button
-        className={clsx("btn", styles.moreToggleButton, "text-size-smallest")}
+      <Button
+        className={clsx(styles.moreToggleButton, "text-size-smallest")}
         onClick={onToggle}
       >
         {text}...
-      </button>
+      </Button>
     </div>
   );
 };

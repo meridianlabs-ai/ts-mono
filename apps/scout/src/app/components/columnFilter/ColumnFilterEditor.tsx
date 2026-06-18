@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { ChangeEvent, FC, KeyboardEvent, useCallback } from "react";
 
-import { AutocompleteInput } from "@tsmono/react/components";
+import { AutocompleteInput, Button } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../../api/api";
 import type { OperatorModel } from "../../../query";
@@ -260,18 +260,14 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
       )}
 
       <div className={styles.filterRow}>
-        <button
-          className={clsx(
-            "btn",
-            "btn-outline-primary",
-            styles.filterButton,
-            "text-size-small"
-          )}
+        <Button
+          variant="outline-primary"
+          className={clsx(styles.filterButton, "text-size-small")}
           onClick={onCommit}
           disabled={!hasColumnSelected}
         >
           Apply
-        </button>
+        </Button>
       </div>
     </div>
   );

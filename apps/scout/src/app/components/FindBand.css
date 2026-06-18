@@ -35,13 +35,13 @@
   margin-right: 0.5em;
 }
 
-.findBand .btn.next,
-.findBand .btn.prev {
+.findBand .next,
+.findBand .prev {
   padding: 0;
   font-size: var(--inspect-font-size-larger);
 }
 
-.findBand .btn.close {
+.findBand .close {
   padding: 0;
   font-size: var(--inspect-font-size-title-secondary);
   margin-top: -0.1rem;

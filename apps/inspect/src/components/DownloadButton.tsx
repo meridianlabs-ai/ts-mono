@@ -1,5 +1,7 @@
 import { FC } from "react";
 
+import { Button } from "@tsmono/react/components";
+
 import { useApi } from "../state/store";
 
 import "./DownloadButton.css";
@@ -17,13 +19,14 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
 }) => {
   const api = useApi();
   return (
-    <button
-      className={"btn btn-outline-primary download-button"}
+    <Button
+      variant="outline-primary"
+      className={"download-button"}
       onClick={async () => {
         await api.download_file(fileName, fileContents);
       }}
     >
       {label}
-    </button>
+    </Button>
   );
 };

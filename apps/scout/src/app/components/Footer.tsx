@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Spinner } from "@tsmono/react/components";
 import { formatNumber } from "@tsmono/util";
 
 import styles from "./Footer.module.css";
@@ -72,12 +73,7 @@ export const Footer: FC<FooterProps> = ({
       <div className={clsx(styles.left)}>
         {progressText ? (
           <div className={clsx(styles.spinnerContainer)}>
-            <div
-              className={clsx("spinner-border", styles.spinner)}
-              role="status"
-            >
-              <span className={clsx("visually-hidden")}>{progressText}...</span>
-            </div>
+            <Spinner className={styles.spinner} label={`${progressText}...`} />
             <div className={clsx("text-style-secondary", styles.label)}>
               {progressText}...
             </div>

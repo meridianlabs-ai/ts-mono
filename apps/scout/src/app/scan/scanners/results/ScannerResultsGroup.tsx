@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { ChangeEvent, FC, useCallback } from "react";
 
+import { Select } from "@tsmono/react/components";
+
 import { useStore } from "../../../../state/store";
 import { ResultGroup } from "../../../types";
 
@@ -49,9 +51,10 @@ export const ScannerResultsGroup: FC<ScannerResultsGroupProps> = ({
       >
         Group:
       </span>
-      <select
+      <Select
         id={"scan-result-filter"}
-        className={clsx("form-select", "form-select-sm", "text-size-smallest")}
+        fieldSize="sm"
+        className={"text-size-smallest"}
         aria-label=".sort-filter-label"
         value={groupResultsBy || "none"}
         onChange={handleChange}
@@ -63,7 +66,7 @@ export const ScannerResultsGroup: FC<ScannerResultsGroupProps> = ({
             </option>
           );
         })}
-      </select>
+      </Select>
     </div>
   );
 };

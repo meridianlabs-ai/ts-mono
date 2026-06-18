@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "./Button";
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./ToolDropdownButton.module.css";
 
@@ -103,12 +104,10 @@ export const ToolDropdownButton = forwardRef<
 
     return (
       <>
-        <button
+        <Button
           ref={setRef}
-          type="button"
+          variant="tool"
           className={clsx(
-            "btn",
-            "btn-tools",
             styles.toolButton,
             subtle ? styles.bodyColor : undefined,
             className
@@ -119,7 +118,7 @@ export const ToolDropdownButton = forwardRef<
           {icon && <i className={`${icon}`} />}
           {label}
           <i className={clsx(icons.chevronDown, styles.chevron)} />
-        </button>
+        </Button>
         {isOpen &&
           menuPosition &&
           createPortal(

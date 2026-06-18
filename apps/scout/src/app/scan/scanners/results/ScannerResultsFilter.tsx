@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { ChangeEvent, FC, useCallback } from "react";
 
+import { Select } from "@tsmono/react/components";
+
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsFilter.module.css";
@@ -40,9 +42,10 @@ export const ScannerResultsFilter: FC = () => {
       >
         Results:
       </span>
-      <select
+      <Select
         id={"scan-result-filter"}
-        className={clsx("form-select", "form-select-sm", "text-size-smallest")}
+        fieldSize="sm"
+        className={"text-size-smallest"}
         aria-label=".sort-filter-label"
         value={selectedFilter}
         onChange={handleChange}
@@ -54,7 +57,7 @@ export const ScannerResultsFilter: FC = () => {
             </option>
           );
         })}
-      </select>
+      </Select>
     </div>
   );
 };

@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { FC, KeyboardEvent, useCallback, useEffect, useRef } from "react";
 
-import { useExtendedFind, useFindTargetSetter } from "@tsmono/react/components";
+import {
+  Button,
+  useExtendedFind,
+  useFindTargetSetter,
+} from "@tsmono/react/components";
 
 import "./FindBand.css";
 
@@ -292,30 +296,15 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         onChange={handleInputChange}
       />
       <span id="inspect-find-no-results">No results</span>
-      <button
-        type="button"
-        title="Previous match"
-        className="btn next"
-        onClick={findPrevious}
-      >
+      <Button title="Previous match" className="next" onClick={findPrevious}>
         <i className={ApplicationIcons.arrows.up} />
-      </button>
-      <button
-        type="button"
-        title="Next match"
-        className="btn prev"
-        onClick={findNext}
-      >
+      </Button>
+      <Button title="Next match" className="prev" onClick={findNext}>
         <i className={ApplicationIcons.arrows.down} />
-      </button>
-      <button
-        type="button"
-        title="Close"
-        className="btn close"
-        onClick={onClose}
-      >
+      </Button>
+      <Button title="Close" className="close" onClick={onClose}>
         <i className={ApplicationIcons.close} />
-      </button>
+      </Button>
     </div>
   );
 };

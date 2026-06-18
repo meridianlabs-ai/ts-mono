@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Spinner } from "@tsmono/react/components";
+
 import styles from "./LogListFooter.module.css";
 
 interface LogListFooterProps {
@@ -33,12 +35,7 @@ export const LogListFooter: FC<LogListFooterProps> = ({
       <div className={clsx(styles.left)}>
         {progressText ? (
           <div className={clsx(styles.spinnerContainer)}>
-            <div
-              className={clsx("spinner-border", styles.spinner)}
-              role="status"
-            >
-              <span className={clsx("visually-hidden")}>{progressText}...</span>
-            </div>
+            <Spinner className={styles.spinner} label={`${progressText}...`} />
             <div className={clsx("text-style-secondary", styles.label)}>
               {progressText}...
             </div>

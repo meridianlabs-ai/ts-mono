@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Input } from "@tsmono/react/components";
+
 import styles from "./EditAnnotationsDialog.module.css";
 
 interface ProvenanceFieldsProps {
@@ -26,10 +28,10 @@ export const ProvenanceFields: FC<ProvenanceFieldsProps> = ({
       >
         Author <span className={styles.required}>*</span>
       </label>
-      <input
+      <Input
         id="edit-annotations-author"
         type="text"
-        className={clsx("form-control", "text-size-smaller")}
+        className={"text-size-smaller"}
         placeholder="Your name or username"
         value={author}
         onChange={(e) => setAuthor(e.target.value)}
@@ -47,10 +49,10 @@ export const ProvenanceFields: FC<ProvenanceFieldsProps> = ({
         </label>
         <span className={clsx("text-size-smaller", styles.hint)}>optional</span>
       </div>
-      <input
+      <Input
         id="edit-annotations-reason"
         type="text"
-        className={clsx("form-control", "text-size-smaller")}
+        className={"text-size-smaller"}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         disabled={disabled}

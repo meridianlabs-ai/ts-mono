@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 
+import { TextArea } from "@tsmono/react/components";
+
 import styles from "./AutogrowText.module.css";
 
 interface AutogrowTextProps {
@@ -62,9 +64,9 @@ export const AutogrowText: FC<AutogrowTextProps> = ({
   }, [value, maxHeightPx]);
 
   return (
-    <textarea
+    <TextArea
       ref={ref}
-      className={clsx("form-control", styles.textarea)}
+      className={clsx(styles.textarea)}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
