@@ -103,8 +103,20 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     //      visible (clipped) area, so a `mask-image` gradient on the wrapper
     //      fades the bottom of the *visible* region — not the bottom of the
     //      natural-height content (which would sit off-screen).
+    // `contain: layout paint` isolates the collapsed subtree so the browser
+    // does not lay out, paint, or *layerize* the clipped overflow. Without it,
+    // a pathologically tall child (e.g. a multi-megabyte tool result that
+    // renders ~1,000,000px tall) forces the compositor to build a layer for
+    // the entire natural height on every resize — observed as ~1.4s per
+    // `Layerize` call, wedging the main thread (laggy in Blink, spinlocks
+    // WebKit). `size` containment is intentionally omitted so the box still
+    // sizes to `maxHeight`.
     const contentStyles: CSSProperties = effectiveCollapsed
-      ? { overflow: "hidden", maxHeight: `${lines}rem` }
+      ? {
+          overflow: "hidden",
+          maxHeight: `${lines}rem`,
+          contain: "layout paint",
+        }
       : {};
 
     const handleToggle = useCallback(() => {
