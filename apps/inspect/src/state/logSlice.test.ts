@@ -16,7 +16,7 @@ const logDetails = (status: LogDetails["status"]): LogDetails =>
   }) as unknown as LogDetails;
 
 const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
-  let state: StoreState;
+  const state = {} as StoreState;
 
   const set = vi.fn((fn: (state: StoreState) => void) => {
     fn(state);
@@ -42,7 +42,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     get_log_details: vi.fn().mockResolvedValue(freshInfo),
   } as unknown as ClientAPI;
 
-  state = {
+  Object.assign(state, {
     appActions: {
       setWorkspaceTab: vi.fn(),
     },
@@ -56,7 +56,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
       initLogDir: vi.fn().mockResolvedValue("/logs"),
       updateLogPreviews,
     },
-  } as unknown as StoreState;
+  } as unknown as StoreState);
 
   const [slice, cleanup] = createLogSlice(set, get, {}, api);
   state.log = { ...slice.log };
