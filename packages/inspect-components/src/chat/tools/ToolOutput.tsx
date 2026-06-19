@@ -5,6 +5,7 @@ import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
 import { isAnsiOutput, isJson } from "@tsmono/util";
 
+import { cappedText } from "../../content/cappedText";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 
@@ -95,9 +96,20 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     );
   }
 
+  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
+  // which the browser re-layerizes on every resize (~1.4s each — laggy in
+  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
+  // a fixed-height scroller does not help because the off-screen content is
+  // still layerized.
+  const { text: capped, notice } = cappedText(text);
   return (
-    <pre className={clsx(styles.textOutput, "tool-output")}>
-      <code className={clsx("sourceCode", styles.textCode)}>{text.trim()}</code>
-    </pre>
+    <>
+      <pre className={clsx(styles.textOutput, "tool-output")}>
+        <code className={clsx("sourceCode", styles.textCode)}>
+          {capped.trim()}
+        </code>
+      </pre>
+      {notice}
+    </>
   );
 };

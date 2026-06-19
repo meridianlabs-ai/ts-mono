@@ -7,6 +7,7 @@ import {
   type MarkdownRenderer,
 } from "@tsmono/react/components";
 
+import { cappedText } from "./cappedText";
 import { useDisplayMode } from "./DisplayModeContext";
 
 interface RenderedTextProps {
@@ -30,28 +31,38 @@ export const RenderedText = forwardRef<
     ref
   ) => {
     const displayMode = useDisplayMode();
-    if (forceRender || displayMode === "rendered") {
-      return (
+    const { text, notice } = cappedText(markdown);
+
+    const body =
+      forceRender || displayMode === "rendered" ? (
         <MarkdownDivWithReferences
           ref={ref as ForwardedRef<HTMLDivElement>}
-          markdown={markdown}
+          markdown={text}
           references={references}
           options={options}
           style={style}
           className={className}
           renderer={renderer}
         />
-      );
-    } else {
-      return (
+      ) : (
         <Preformatted
           ref={ref as ForwardedRef<HTMLPreElement>}
-          text={markdown}
+          text={text}
           style={style}
           className={className}
         />
       );
+
+    if (notice === null) {
+      return body;
     }
+
+    return (
+      <>
+        {body}
+        {notice}
+      </>
+    );
   }
 );
 
