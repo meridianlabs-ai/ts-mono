@@ -22,7 +22,7 @@
    tint to convey clickability. */
 .link {
   border: none;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   padding: 0.125rem 0.35rem;
   border-radius: 4px;
   /* Matches the pill variant's regular weight so the two Edit
@@ -33,11 +33,11 @@
 }
 
 .link:hover {
-  background: var(--bs-secondary-bg);
+  background: var(--inspect-surface-muted);
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--bs-border-color);
+  outline: 2px solid var(--inspect-border);
   outline-offset: 1px;
 }
 
@@ -48,8 +48,8 @@
    line-height + padding — no fixed height, so chip and pill stay
    visually aligned without drift if font-size changes.) */
 .pill {
-  color: var(--bs-body-color);
-  border: 1px solid var(--bs-border-color);
+  color: var(--inspect-foreground);
+  border: 1px solid var(--inspect-border);
   border-radius: 999px;
   padding: 0.125rem 0.35rem;
   font-weight: 400;
@@ -57,10 +57,10 @@
 }
 
 .pill:hover {
-  background: var(--bs-secondary-bg);
+  background: var(--inspect-surface-muted);
 }
 
 .pill:focus-visible {
-  outline: 2px solid var(--bs-border-color);
+  outline: 2px solid var(--inspect-border);
   outline-offset: 1px;
 }

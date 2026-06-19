@@ -86,7 +86,10 @@ export const TextField: FC<TextFieldProps> = ({
       />
       {debouncedError && (
         <VscodeFormHelper
-          style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
+          style={{
+            color: "var(--inspect-danger-foreground)",
+            marginTop: "4px",
+          }}
         >
           {debouncedError}
         </VscodeFormHelper>

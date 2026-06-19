@@ -6,5 +6,5 @@
 }
 
 .query {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
 }

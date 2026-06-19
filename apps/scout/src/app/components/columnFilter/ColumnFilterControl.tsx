@@ -79,13 +79,12 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
         // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
         positionEl={buttonRef.current}
         placement="bottom-end"
-        showArrow={true}
         hoverDelay={-1}
         className={styles.filterPopover}
         closeOnMouseLeave={false}
         styles={{
           padding: "0.4rem",
-          backgroundColor: "var(--bs-light)",
+          backgroundColor: "var(--inspect-surface)",
         }}
       >
         <ColumnFilterEditor

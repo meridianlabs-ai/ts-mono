@@ -1,5 +1,5 @@
 .header {
-  background: var(--bs-light);
+  background: var(--inspect-surface);
   display: grid;
   grid-template-columns: max-content 1fr max-content max-content;
   justify-content: space-between;
@@ -8,7 +8,7 @@
 }
 
 .bordered {
-  border-bottom: solid var(--bs-border-color) 1px;
+  border-bottom: solid var(--inspect-border) 1px;
 }
 
 .left {
@@ -34,7 +34,7 @@
   align-items: baseline;
   padding-right: 0.4rem;
   margin-right: 0.4rem;
-  border-right: solid var(--bs-border-color) 1px;
+  border-right: solid var(--inspect-border) 1px;
 }
 
 .rightButtons {
@@ -43,11 +43,11 @@
   align-items: center;
   padding-left: 0.4rem;
   margin-left: 0.4rem;
-  border-left: solid var(--bs-border-color) 1px;
+  border-left: solid var(--inspect-border) 1px;
 }
 
 .hasChildren {
-  border-left: solid var(--bs-border-color) 1px;
+  border-left: solid var(--inspect-border) 1px;
   padding-left: 0.5rem;
   margin-left: 0.5rem;
 }

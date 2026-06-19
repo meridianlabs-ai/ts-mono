@@ -1,4 +1,7 @@
 import clsx from "clsx";
+
+import "./Tabs.css";
+
 import {
   Children,
   CSSProperties,

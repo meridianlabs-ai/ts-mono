@@ -8,7 +8,7 @@
 
 a.citationLink {
   display: block;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   text-decoration: none;
 }
 a.citationLink:hover {

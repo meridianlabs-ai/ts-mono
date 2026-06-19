@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
 
+import { Button } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../app/appearance/icons";
 
 import "./FindBand.css";
@@ -68,32 +70,25 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       >
         {statusText}
       </span>
-      <button
-        type="button"
+      <Button
         title="Previous match"
-        className="btn prev"
+        className="prev"
         onClick={onPrevious}
         disabled={disableNav}
       >
         <i className={ApplicationIcons.arrows.up} />
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
         title="Next match"
-        className="btn next"
+        className="next"
         onClick={onNext}
         disabled={disableNav}
       >
         <i className={ApplicationIcons.arrows.down} />
-      </button>
-      <button
-        type="button"
-        title="Close"
-        className="btn close"
-        onClick={onClose}
-      >
+      </Button>
+      <Button title="Close" className="close" onClick={onClose}>
         <i className={ApplicationIcons.close} />
-      </button>
+      </Button>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 .sidebar {
-  border-right: solid 1px var(--bs-border-color);
+  border-right: solid 1px var(--inspect-border);
   overflow-y: auto;
 }
 

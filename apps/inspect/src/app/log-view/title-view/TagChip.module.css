@@ -10,9 +10,9 @@
   /* Outline-only look — transparent fill, body weight text. Keeps
      the chips from competing with the task title for visual weight. */
   background: transparent;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   border-radius: 999px;
-  border: 1px solid var(--bs-border-color);
+  border: 1px solid var(--inspect-border);
   letter-spacing: 0.01em;
   white-space: nowrap;
   /* When the chip is rendered as a <button> (clickable header chip),
@@ -38,8 +38,8 @@
 /* Pending-add variant inside the editor: keep the green outline so it
    still reads as "new", but no fill (matches the saved-chip style). */
 .chipNew {
-  border-color: var(--bs-success-border-subtle);
-  color: var(--bs-success-text-emphasis);
+  border-color: var(--inspect-success-border);
+  color: var(--inspect-success-emphasis);
 }
 
 /* Applied when the chip is rendered as a clickable <button> (header
@@ -50,11 +50,11 @@
 }
 
 .chipClickable:hover {
-  background: var(--bs-secondary-bg);
+  background: var(--inspect-surface-muted);
 }
 
 .chipClickable:focus-visible {
-  outline: 2px solid var(--bs-border-color);
+  outline: 2px solid var(--inspect-border);
   outline-offset: 1px;
 }
 
@@ -73,5 +73,5 @@
 
 .chipRemove:hover {
   opacity: 1;
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }

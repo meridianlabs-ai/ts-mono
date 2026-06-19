@@ -17,7 +17,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.1em;
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
 }
 
 .file {

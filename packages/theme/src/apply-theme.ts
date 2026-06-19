@@ -2,13 +2,13 @@
  * Framework-agnostic theme bootstrap shared by every viewer.
  *
  * Two CSS contracts this module has to satisfy together:
- *  - `data-bs-theme` on <html> drives Bootstrap's own light/dark tokens and
- *    the dark `--vscode-*` overrides in vscode.css (light defaults are
- *    ungated `:root`).
- *  - `body.vscode-dark` activates the `--vscode-* → --bs-*` bridge in
- *    base.css (`body[class^="vscode-"]`). We deliberately set only
- *    `vscode-dark` (never `vscode-light`) so light standalone stays on
- *    pure Bootstrap — see the comment at the toggle call below.
+ *  - `data-theme` on <html> drives the dark `--inspect-*` token overrides in
+ *    tokens.css and the dark `--vscode-*` overrides in vscode.css (light
+ *    defaults are ungated `:root`).
+ *  - `body.vscode-dark` activates the `--vscode-* → --inspect-*` bridge in
+ *    vscode.css (`body[class^="vscode-"]`). We deliberately set only
+ *    `vscode-dark` (never `vscode-light`) so light standalone stays on the
+ *    `:root` light defaults — see the comment at the toggle call below.
  *
  * Nothing here self-executes; callers must invoke the returned function.
  * That keeps the module import-safe for tests/SSR and lets the caller
@@ -122,9 +122,9 @@ export type ResolveOutput =
       variant: ThemeVariant;
       /**
        * The host's resolved dark/light, so the variant token block keyed on
-       * `:root[data-bs-theme="dark"]` activates when the host is dark.
+       * `:root[data-theme="dark"]` activates when the host is dark.
        * `null` if we can't tell (no vscode-* body class yet) — caller then
-       * leaves `data-bs-theme` untouched.
+       * leaves `data-theme` untouched.
        */
       hostIsDark: boolean | null;
     }
@@ -152,7 +152,7 @@ export const resolveTheme = (input: ResolveInput): ResolveOutput => {
       input.preference === "readable-system" ||
       !input.explicitParam
     ) {
-      // Mirror the host's body class onto `data-bs-theme` so the dark readable
+      // Mirror the host's body class onto `data-theme` so the dark readable
       // token block follows Cursor/VS Code theme changes. Plain webview
       // preferences use the same path to clear a previously selected variant.
       const hostIsDark = hostIsDarkFromBody();
@@ -214,7 +214,7 @@ export type ApplyThemeOptions = {
 declare global {
   interface Window {
     // One hook per window, intentional: the theme is document-level (one
-    // <html data-bs-theme>), so co-resident viewers share it. Don't namespace
+    // <html data-theme>), so co-resident viewers share it. Don't namespace
     // per app — hosts like hawk call this exact name.
     __APPLY_BROWSER_THEME__?: () => void;
   }
@@ -258,8 +258,8 @@ const installBodyClassObserver = (): void => {
   new MutationObserver(() => {
     if (document.body.className === lastClass) return;
     lastClass = document.body.className;
-    // Re-apply so `data-bs-theme`/variant follow the host theme swap; the React
-    // icon updates by observing the resulting `data-bs-theme` change.
+    // Re-apply so `data-theme`/variant follow the host theme swap; the React
+    // icon updates by observing the resulting `data-theme` change.
     currentApplyTheme?.();
   }).observe(document.body, {
     attributes: true,
@@ -297,21 +297,21 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       }
       if (result.hostIsDark !== null) {
         document.documentElement.setAttribute(
-          "data-bs-theme",
+          "data-theme",
           result.hostIsDark ? "dark" : "light"
         );
       }
     } else if (result.kind === "apply") {
-      // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
+      // data-* attributes belong on <html> (CSS gates `:root[data-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
       // Splitting elements here is deliberate — keep them in lockstep.
       document.documentElement.setAttribute(
-        "data-bs-theme",
+        "data-theme",
         result.isDark ? "dark" : "light"
       );
 
       // The readable skin is a small token-override block keyed on this
-      // attribute (see base.css); absent attribute = the design-consistent
+      // attribute (see tokens.css); absent attribute = the design-consistent
       // default, so we remove rather than set "default".
       if (result.variant === "readable") {
         document.documentElement.setAttribute("data-theme-variant", "readable");
@@ -320,16 +320,16 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       }
 
       // Only `vscode-dark` is toggled (never a `vscode-light` class): in light
-      // standalone the bridge stays OFF so the `:root` Bootstrap + light
+      // standalone the bridge stays OFF so the `:root` theme-token + light
       // `--vscode-*` defaults apply, matching scout's long-shipped behavior.
       // Adding `vscode-light` would activate the bridge in light mode and
-      // silently re-skin every `--bs-*` token.
+      // silently re-skin every `--inspect-*` token.
       if (result.toggleBodyClass) {
         document.body?.classList.toggle("vscode-dark", result.isDark);
       }
     }
     // No explicit React notification needed: the resolved theme lives in
-    // `<html data-bs-theme>`, and useResolvedIsDark observes that attribute.
+    // `<html data-theme>`, and useResolvedIsDark observes that attribute.
   };
 
   currentApplyTheme = applyTheme;
@@ -348,8 +348,8 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
   // of here avoids re-applying on every unrelated localStorage write.
 
   // VS Code/Cursor swaps `vscode-dark` ↔ `vscode-light` on <body> when the
-  // user changes the host theme. Re-apply so `data-bs-theme` / variant tokens
-  // follow; the React icon then updates by observing that `data-bs-theme`.
+  // user changes the host theme. Re-apply so `data-theme` / variant tokens
+  // follow; the React icon then updates by observing that `data-theme`.
   installBodyClassObserver();
 
   return applyTheme;

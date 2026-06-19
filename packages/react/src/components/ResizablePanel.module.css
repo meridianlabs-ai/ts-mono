@@ -4,7 +4,7 @@
   position: relative;
   flex: 0 0 1px;
   align-self: stretch;
-  background-color: var(--bs-border-color);
+  background-color: var(--inspect-border);
 }
 
 .resizer {
@@ -39,7 +39,7 @@
 
 .resizer:hover::after,
 .resizer:active::after {
-  background-color: var(--bs-primary);
+  background-color: var(--inspect-primary);
 }
 
 /* No padding: hosted panels (Search / Scans) own their internal padding and
@@ -48,7 +48,7 @@
   position: sticky;
   padding: 0;
   align-self: start;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   overflow-y: auto;
   scrollbar-width: thin;
 }

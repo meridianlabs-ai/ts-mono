@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useEffect, useId, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
-import type { ThemePreference } from "@tsmono/theme/bootstrap";
+import type { ThemePreference } from "@tsmono/theme/apply-theme";
 
 import styles from "./ThemeToggle.module.css";
 
@@ -96,7 +96,6 @@ export const ThemeToggle = ({
         setIsOpen={setOpen}
         positionEl={buttonEl}
         placement="bottom-end"
-        showArrow={false}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         offset={[0, 1]}

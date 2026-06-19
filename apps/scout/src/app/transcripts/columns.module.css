@@ -1,5 +1,5 @@
 .success {
-  color: var(--bs-success) !important;
+  color: var(--inspect-success) !important;
 }
 
 .unsuccess {

@@ -25,11 +25,11 @@
   padding: 0 1rem;
   height: 28px;
   background: var(--vscode-sideBarSectionHeader-background);
-  border-bottom: solid var(--bs-light-border-subtle) 1px;
+  border-bottom: solid var(--inspect-border-subtle) 1px;
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 28px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: sticky;
@@ -63,7 +63,7 @@
   font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   margin-right: 8px;
 }
 
@@ -132,7 +132,7 @@
 }
 
 .emptyState {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   text-align: center;
   padding: 24px 1rem;
 }
@@ -146,7 +146,7 @@
 
 .modalContent p {
   margin: 0;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .splitSelector {
@@ -160,6 +160,6 @@
 }
 
 .warning {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 0.9em;
 }

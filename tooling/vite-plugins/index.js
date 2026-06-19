@@ -9,7 +9,7 @@ import { context as esbuildContext } from "esbuild";
  * render-blocking <script>.
  *
  * The bootstrap must run before the app's CSS link and module bundle so
- * `data-bs-theme` / the `vscode-*` body class are set before first paint
+ * `data-theme` / the `vscode-*` body class are set before first paint
  * (otherwise the page flashes light then repaints dark). esbuild bundles
  * the entry to a self-contained IIFE so it has no import dependency on the
  * async module graph.

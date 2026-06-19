@@ -494,7 +494,7 @@ export const TranscriptViewNodes = forwardRef<
       <div
         style={
           {
-            "--inspect-event-panel-sticky-top": `${offsetTop}px`,
+            "--event-panel-sticky-top": `${offsetTop}px`,
           } as CSSProperties
         }
       >

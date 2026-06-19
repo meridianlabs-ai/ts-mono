@@ -64,10 +64,10 @@ const editorTheme = EditorView.theme({
     color: "var(--inspect-input-foreground)",
     backgroundColor: "var(--inspect-input-background)",
     border: "1px solid var(--inspect-input-border)",
-    borderRadius: "var(--bs-border-radius)",
+    borderRadius: "var(--inspect-radius)",
   },
   ".cm-cursor.cm-cursor-primary": {
-    borderLeftColor: "var(--bs-body-color)",
+    borderLeftColor: "var(--inspect-foreground)",
   },
   ".cm-selectionBackground": {
     backgroundColor: "var(--inspect-inactive-selection-background)",
@@ -79,23 +79,24 @@ const editorTheme = EditorView.theme({
   "&.cm-focused": {
     outline: "none",
     borderColor: "var(--inspect-focus-border-color)",
-    boxShadow: "var(--inspect-focus-border-shadow)",
+    boxShadow:
+      "0 0 0 0.25rem color-mix(in srgb, var(--inspect-primary) 25%, transparent)",
   },
   ".filter-pending > &.cm-focused": {
-    borderColor: "var(--inspect-focus-border-gray-color)",
-    boxShadow: "var(--inspect-focus-border-gray-shadow)",
+    borderColor: "#808080",
+    boxShadow: "0 0 0 0.25rem rgba(48, 48, 48, 0.25)",
   },
   ".cm-tooltip": {
-    backgroundColor: "var(--bs-light)",
-    border: "1px solid var(--bs-border-color)",
-    color: "var(--bs-body-color)",
+    backgroundColor: "var(--inspect-surface)",
+    border: "1px solid var(--inspect-border)",
+    color: "var(--inspect-foreground)",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-    color: "var(--bs-body-color)",
+    color: "var(--inspect-foreground)",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
     backgroundColor: "var(--inspect-active-selection-background)",
-    color: "var(--bs-body-color)",
+    color: "var(--inspect-foreground)",
   },
   ".cm-scroller": {
     overflow: "hidden",

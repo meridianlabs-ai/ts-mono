@@ -11,6 +11,12 @@ import { ApplicationIcons } from "../appearance/icons";
 
 import styles from "./Navbar.module.css";
 
+// Stable reference: the truncation hook lists these in its effect deps.
+const breadcrumbClassNames = {
+  breadcrumb: styles.breadcrumb,
+  breadcrumbItem: styles.breadcrumbItem,
+};
+
 interface NavbarProps {
   children?: ReactNode;
   bordered?: boolean;
@@ -67,7 +73,8 @@ export const Navbar: FC<NavbarProps> = ({
 
   const { visibleSegments, showEllipsis } = useBreadcrumbTruncation(
     segments,
-    pathContainerRef
+    pathContainerRef,
+    breadcrumbClassNames
   );
 
   return (
@@ -94,7 +101,7 @@ export const Navbar: FC<NavbarProps> = ({
         {breadcrumbsEnabled !== false && (
           <div className={clsx(styles.pathContainer)} ref={pathContainerRef}>
             {logDir ? (
-              <ol className={clsx("breadcrumb", styles.breadcrumbs)}>
+              <ol className={clsx(styles.breadcrumb, styles.breadcrumbs)}>
                 {visibleSegments?.map((segment, index) => {
                   const isLast = index === visibleSegments.length - 1;
                   const shouldShowEllipsis =
@@ -104,7 +111,10 @@ export const Navbar: FC<NavbarProps> = ({
                     <Fragment key={index}>
                       {shouldShowEllipsis && (
                         <li
-                          className={clsx("breadcrumb-item", styles.ellipsis)}
+                          className={clsx(
+                            styles.breadcrumbItem,
+                            styles.ellipsis
+                          )}
                         >
                           <span>...</span>
                         </li>
@@ -112,8 +122,8 @@ export const Navbar: FC<NavbarProps> = ({
                       <li
                         className={clsx(
                           styles.pathLink,
-                          "breadcrumb-item",
-                          isLast ? "active" : undefined
+                          styles.breadcrumbItem,
+                          isLast ? styles.active : undefined
                         )}
                       >
                         {segment.url && !isLast ? (

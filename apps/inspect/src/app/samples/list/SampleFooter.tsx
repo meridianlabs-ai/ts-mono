@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Spinner } from "@tsmono/react/components";
+
 import styles from "./SampleFooter.module.css";
 
 interface SampleFooterProps {
@@ -19,12 +21,7 @@ export const SampleFooter: FC<SampleFooterProps> = ({
       <div>
         {running ? (
           <div className={clsx(styles.spinnerContainer)}>
-            <div
-              className={clsx("spinner-border", styles.spinner)}
-              role="status"
-            >
-              <span className={clsx("visually-hidden")}>Running...</span>
-            </div>
+            <Spinner className={styles.spinner} label="Running..." />
             <div className={clsx("text-style-secondary", styles.label)}>
               running...
             </div>

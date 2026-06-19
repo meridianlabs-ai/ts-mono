@@ -37,15 +37,15 @@
   display: flex;
   align-items: center;
   font-size: 0.875rem;
-  color: var(--bs-gray-600);
+  color: var(--inspect-muted);
 }
 
 .multiScorerBadge {
   margin-left: 0.35rem;
   padding: 2px 0.45rem;
   border-radius: 0.5rem;
-  background: var(--bs-secondary-bg);
-  color: var(--bs-secondary-color);
+  background: var(--inspect-surface-muted);
+  color: var(--inspect-muted-foreground);
   font-size: var(--inspect-font-size-smallest);
   line-height: 1;
   cursor: help;
@@ -53,19 +53,19 @@
 }
 
 .error {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }
 
 .started {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .success {
-  color: var(--bs-success);
+  color: var(--inspect-success);
 }
 
 .cancelled {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .statusCell {

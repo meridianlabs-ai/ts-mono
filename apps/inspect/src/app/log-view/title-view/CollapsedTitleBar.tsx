@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, useState } from "react";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
-import { Modal } from "@tsmono/react/components";
+import { Button, Modal } from "@tsmono/react/components";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
@@ -56,9 +56,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
   const modelText = formatModelText(evalSpec);
 
   return (
-    <div
-      className={clsx("navbar-brand", "navbar-text", "mb-0", styles.container)}
-    >
+    <div className={clsx("navbar-brand", "navbar-text", styles.container)}>
       <div className={clsx(styles.left)}>
         <span
           id="task-title-collapsed"
@@ -198,13 +196,9 @@ const MetricsLink: FC<MetricsLinkProps> = ({ scorers }) => {
         padded={false}
         className={styles.scoringDetailModal}
         footer={
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setShowing(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowing(false)}>
             Close
-          </button>
+          </Button>
         }
       >
         <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />

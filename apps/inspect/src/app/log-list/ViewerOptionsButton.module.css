@@ -5,5 +5,5 @@
 }
 
 .viewerOptions {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }

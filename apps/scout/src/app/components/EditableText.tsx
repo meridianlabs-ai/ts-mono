@@ -249,7 +249,6 @@ export const EditableText: FC<EditableTextProps> = ({
           positionEl={spanRef.current}
           placement="bottom-start"
           hoverDelay={0}
-          showArrow={false}
           offset={[0, 4]}
           className={clsx(styles.mruPopover, "text-size-smallest")}
         >

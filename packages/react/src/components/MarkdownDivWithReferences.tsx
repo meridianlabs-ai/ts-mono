@@ -204,7 +204,6 @@ export const MarkdownDivWithReferences = forwardRef<
           }}
           placement="auto"
           hoverDelay={1000}
-          showArrow={true}
           styles={{ maxHeight: "70vh", overflowY: "auto" }}
         >
           {(currentRef.citePreview && currentRef.citePreview()) || (

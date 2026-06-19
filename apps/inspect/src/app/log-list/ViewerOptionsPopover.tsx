@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useState } from "react";
 
-import { PopOver } from "@tsmono/react/components";
+import { Button, PopOver } from "@tsmono/react/components";
 
 import { DB_VERSION } from "../../client/database/schema";
 import { useStore } from "../../state/store";
@@ -60,7 +60,6 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       placement="auto"
       hoverDelay={-1}
       offset={[-10, 5]}
-      showArrow={false}
     >
       <div className={clsx(styles.container, "text-size-smaller")}>
         <div
@@ -121,18 +120,14 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         </div>
         <div className={clsx()}>
           {" "}
-          <button
+          <Button
+            variant="tool"
             onClick={handleClearDatabase}
             disabled={isClearing}
-            className={clsx(
-              "btn",
-              "btn-tools",
-              "text-size-smallest",
-              styles.clearButton
-            )}
+            className={clsx("text-size-smallest", styles.clearButton)}
           >
             {isClearing ? "Clearing..." : "Clear Local Database"}
-          </button>
+          </Button>
         </div>
 
         {clearMessage && (

@@ -13,7 +13,7 @@
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
   transition:
     background-color 0.1s,
@@ -21,8 +21,8 @@
 }
 
 .iconButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-foreground);
+  background: var(--inspect-surface-hover);
+  color: var(--inspect-foreground);
 }
 
 .iconButton:disabled {
@@ -44,11 +44,8 @@
   top: 100%;
   right: 0;
   margin-top: 2px;
-  background: var(
-    --vscode-menu-background,
-    var(--vscode-editorWidget-background)
-  );
-  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
+  background: var(--vscode-menu-background, var(--inspect-surface));
+  border: 1px solid var(--inspect-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 1001;
@@ -65,7 +62,7 @@
   border: none;
   text-align: left;
   cursor: pointer;
-  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  color: var(--inspect-foreground);
   white-space: nowrap;
   font-size: 13px;
   line-height: 22px;
@@ -74,9 +71,9 @@
 .menuItem:hover {
   background: var(
     --vscode-menu-selectionBackground,
-    var(--vscode-list-hoverBackground)
+    var(--inspect-surface-hover)
   );
-  color: var(--vscode-menu-selectionForeground, var(--vscode-foreground));
+  color: var(--vscode-menu-selectionForeground, var(--inspect-foreground));
 }
 
 .menuItem:disabled {

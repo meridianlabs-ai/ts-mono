@@ -35,7 +35,7 @@
 }
 
 .asciinema-body {
-  border-top: 1px solid var(--bs-light-border-subtle);
+  border-top: 1px solid var(--inspect-border-subtle);
   grid-column: span 3;
   width: 100%;
 }

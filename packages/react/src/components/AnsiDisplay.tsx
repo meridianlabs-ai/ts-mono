@@ -131,8 +131,19 @@ interface OutputRunProps {
 }
 
 const OutputRun: FC<OutputRunProps> = ({ run }) => {
-  // Render.
-  return <span style={computeCSSProperties(run)}>{run.text}</span>;
+  // Blink is a CSS-module animation (keyframes names are hashed, so it
+  // can't be referenced from an inline style).
+  const runStyles = run.format?.styles;
+  const blinkClass = runStyles?.includes(ANSIStyle.SlowBlink)
+    ? styles.slowBlink
+    : runStyles?.includes(ANSIStyle.RapidBlink)
+      ? styles.rapidBlink
+      : undefined;
+  return (
+    <span className={blinkClass} style={computeCSSProperties(run)}>
+      {run.text}
+    </span>
+  );
 };
 
 const computeCSSProperties = (outputRun: ANSIOutputRun) => {
@@ -182,21 +193,8 @@ const computeStyles = (styles: ANSIStyle[]) => {
           };
           break;
 
-        // Slow blink.
-        case ANSIStyle.SlowBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 1s linear infinite" },
-          };
-          break;
-
-        // Rapid blink.
-        case ANSIStyle.RapidBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 0.5s linear infinite" },
-          };
-          break;
+        // SlowBlink / RapidBlink are handled as CSS-module classes in
+        // OutputRun, not inline styles.
 
         // Hidden.
         case ANSIStyle.Hidden:

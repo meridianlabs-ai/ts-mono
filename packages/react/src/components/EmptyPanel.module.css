@@ -1,0 +1,41 @@
+.panel {
+  width: 100%;
+}
+
+/* Bootstrap 5.3.8 `.container` sizing — the panel's long-standing centered
+   layout. */
+.container {
+  width: 100%;
+  padding-inline: 0.75rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 576px) {
+  .container {
+    max-width: 540px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 720px;
+  }
+}
+
+@media (min-width: 992px) {
+  .container {
+    max-width: 960px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1140px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: 1320px;
+  }
+}

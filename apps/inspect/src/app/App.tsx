@@ -1,6 +1,7 @@
 import "bootstrap-icons/font/bootstrap-icons.css";
-import "bootstrap/dist/css/bootstrap.css";
-import "@vscode/codicons/dist/codicon.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reboot";
+import "@tsmono/theme/utilities";
 
 import JSON5 from "json5";
 
@@ -12,7 +13,7 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-yaml";
 import "prismjs/themes/prism.css";
-import "@tsmono/theme/base";
+import "@tsmono/theme/transcript";
 import "@tsmono/theme/vscode";
 import "./App.css";
 

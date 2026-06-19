@@ -3,8 +3,8 @@
   flex-direction: row;
   margin: 0rem 0;
   padding: 2px 6px;
-  border: solid 1px var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
+  border: solid 1px var(--inspect-border);
+  border-radius: var(--inspect-radius);
   align-items: baseline;
   white-space: nowrap;
 }

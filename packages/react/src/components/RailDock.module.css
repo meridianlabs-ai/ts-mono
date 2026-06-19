@@ -1,11 +1,11 @@
 .separator {
   flex: 0 0 1px;
-  background-color: var(--bs-border-color);
+  background-color: var(--inspect-border);
 }
 
 .rail {
   align-self: stretch;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .railSticky {

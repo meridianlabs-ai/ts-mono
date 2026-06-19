@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { Modal } from "@tsmono/react/components";
+import { Button, Modal } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatPrettyDecimal } from "@tsmono/util";
 
@@ -156,13 +156,9 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
               padded={false}
               className={styles.scoringDetailModal}
               footer={
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowing(false)}
-                >
+                <Button variant="secondary" onClick={() => setShowing(false)}>
                   Close
-                </button>
+                </Button>
               }
             >
               <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />

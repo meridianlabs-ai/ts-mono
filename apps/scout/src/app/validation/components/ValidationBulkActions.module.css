@@ -3,13 +3,13 @@
   align-items: center;
   gap: 12px;
   padding: 0.5rem 1rem;
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-bottom: solid var(--bs-light-border-subtle) 1px;
+  background: var(--inspect-inactive-selection-background);
+  border-bottom: solid var(--inspect-border-subtle) 1px;
 }
 
 .selectedCount {
   font-weight: 500;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .modalContent {
@@ -20,7 +20,7 @@
 
 .modalContent p {
   margin: 0;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .splitSelector {
@@ -34,6 +34,6 @@
 }
 
 .warning {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 0.9em;
 }

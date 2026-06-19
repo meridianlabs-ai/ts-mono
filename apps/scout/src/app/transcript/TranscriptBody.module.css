@@ -1,5 +1,5 @@
 :global(.nav).tabs {
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
   padding-bottom: 0.25rem;
   padding-top: 0.5rem;
   padding-left: 0.5rem;
@@ -7,7 +7,7 @@
   position: sticky;
   z-index: 999;
   top: 0;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 :global(.nav).tabs :global(.nav-link) {

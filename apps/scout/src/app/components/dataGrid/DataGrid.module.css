@@ -13,8 +13,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--bs-light-bg-subtle);
-  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--inspect-surface);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 .headerRow {
@@ -32,7 +32,7 @@
   padding: 4px 0px 4px 8px;
   text-align: left;
   font-weight: 400;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-size: var(--inspect-font-size-small) !important;
   transition: background-color 0.15s ease;
 }
@@ -63,15 +63,15 @@
 
 .headerCellDragging {
   opacity: 1;
-  background: var(--bs-light-bg-subtle);
+  background: var(--inspect-surface);
 }
 
 .headerCellDragOverLeft {
-  border-left: 3px solid var(--bs-primary);
+  border-left: 3px solid var(--inspect-primary);
 }
 
 .headerCellDragOverRight {
-  border-right: 3px solid var(--bs-primary);
+  border-right: 3px solid var(--inspect-primary);
 }
 
 .resizer {
@@ -86,7 +86,7 @@
   cursor: col-resize;
   user-select: none;
   touch-action: none;
-  border-right: solid 1px var(--bs-border-color);
+  border-right: solid 1px var(--inspect-border);
   z-index: 10;
   pointer-events: auto;
 }
@@ -96,12 +96,12 @@
 }
 
 .resizer:hover {
-  background: var(--bs-primary);
+  background: var(--inspect-primary);
   opacity: 0.5;
 }
 
 .resizerActive {
-  background: var(--bs-primary);
+  background: var(--inspect-primary);
   opacity: 1;
 }
 
@@ -118,28 +118,28 @@
   display: flex;
   position: absolute;
   width: 100%;
-  border-bottom: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--inspect-border);
+  background: var(--inspect-background);
   transition: background-color 0.15s ease;
   cursor: pointer;
   user-select: none;
 }
 
 .row:hover {
-  background: var(--bs-light);
+  background: var(--inspect-surface);
 }
 
 .rowSelected {
-  background: var(--bs-primary-bg-subtle) !important;
+  background: var(--inspect-primary-surface) !important;
 }
 
 .rowFocused {
-  outline: 2px solid var(--bs-primary-bg-subtle);
+  outline: 2px solid var(--inspect-primary-surface);
   outline-offset: 0px;
 }
 
 .rowSelected.rowFocused {
-  background: var(--bs-primary-bg-subtle) !important;
+  background: var(--inspect-primary-surface) !important;
 }
 
 .cell {

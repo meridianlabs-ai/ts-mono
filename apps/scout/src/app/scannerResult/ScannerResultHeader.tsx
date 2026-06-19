@@ -206,7 +206,7 @@ const transcriptHeadings = (
     headings.push({
       label: "Agent",
       value: (
-        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+        <span style={{ fontFamily: "var(--inspect-font-mono)" }}>
           {resultData.transcriptAgent}
         </span>
       ),
@@ -217,7 +217,7 @@ const transcriptHeadings = (
     headings.push({
       label: "Model",
       value: (
-        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+        <span style={{ fontFamily: "var(--inspect-font-mono)" }}>
           {transcriptModel}
         </span>
       ),
@@ -228,7 +228,7 @@ const transcriptHeadings = (
     headings.push({
       label: "Scanning Model",
       value: (
-        <span style={{ fontFamily: "var(--bs-font-monospace)" }}>
+        <span style={{ fontFamily: "var(--inspect-font-mono)" }}>
           {scanningModel}
         </span>
       ),

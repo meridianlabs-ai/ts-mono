@@ -1,7 +1,7 @@
 .root {
-  background: var(--bs-light);
-  color: var(--bs-body-color);
-  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--inspect-surface);
+  color: var(--inspect-foreground);
+  border-bottom: 1px solid var(--inspect-border);
 }
 
 /* Outer two-column layout. The right column gets a clamped range so
@@ -33,7 +33,7 @@
 
 .right {
   padding: 0;
-  background: var(--bs-light);
+  background: var(--inspect-surface);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -46,17 +46,17 @@
   column-gap: 8px;
   row-gap: 2px;
   margin-bottom: 8px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
 }
 
 .metaSep {
-  color: var(--bs-tertiary-color, var(--bs-secondary));
+  color: var(--inspect-faint-foreground, var(--inspect-muted));
 }
 
 .metaId {
-  font-family: var(--bs-font-monospace);
-  color: var(--bs-body-color);
-  font-size: var(--inspect-font-size-base);
+  font-family: var(--inspect-font-mono);
+  color: var(--inspect-foreground);
+  font-size: var(--inspect-font-size-content);
   font-weight: 500;
 }
 
@@ -79,14 +79,14 @@
 .fieldLabel {
   font-size: var(--inspect-font-size-smallest, 0.7rem);
   font-weight: 400;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .fieldValue {
   font-size: var(--inspect-font-size-smaller, 0.9rem);
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   line-height: 1.5;
   margin-top: 4px;
 }
@@ -116,7 +116,7 @@
 
 .errorBlock {
   padding: 10px 18px;
-  border-top: 1px dashed var(--bs-border-color);
+  border-top: 1px dashed var(--inspect-border);
 }
 
 /* Collapsed state — meta line only. Used both as a standalone band
@@ -142,9 +142,9 @@
   align-items: flex-start;
   gap: 0.75em;
   padding: 0.75em 1em;
-  background-color: var(--bs-warning-bg-subtle);
-  border-bottom: 1px solid var(--bs-warning-border-subtle);
-  color: var(--bs-warning-text-emphasis);
+  background-color: var(--inspect-warning-surface);
+  border-bottom: 1px solid var(--inspect-warning-border);
+  color: var(--inspect-warning-emphasis);
 }
 
 .invalidationIcon {

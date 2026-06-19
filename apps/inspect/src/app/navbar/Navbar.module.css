@@ -1,19 +1,48 @@
+/* ── Breadcrumb ── */
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  margin-bottom: 1rem;
+  list-style: none;
+}
+
+.breadcrumbItem + .breadcrumbItem {
+  padding-left: 0.5rem;
+}
+
+.breadcrumbItem + .breadcrumbItem::before {
+  float: left;
+  padding-right: 0.5rem;
+  color: var(--inspect-muted-foreground);
+  content: ">";
+}
+
+.breadcrumbItem.active {
+  color: var(--inspect-muted-foreground);
+}
+
+/* VS Code host: the divider follows the host foreground. */
+:global(body[class^="vscode-"]) .breadcrumbItem + .breadcrumbItem::before {
+  color: var(--inspect-foreground);
+}
+
 .header {
-  background: var(--bs-light);
+  background: var(--inspect-surface);
   display: grid;
   grid-template-columns: 1fr max-content;
   justify-content: space-between;
   padding: 0.2em 0.5em;
-  --bs-breadcrumb-divider: ">";
   overflow: hidden;
 }
 
 .header.bordered {
-  border-bottom: solid var(--bs-border-color) 1px;
+  border-bottom: solid var(--inspect-border) 1px;
 }
 
 .breadcrumbs {
-  border-left: solid var(--bs-border-color) 1px;
+  border-left: solid var(--inspect-border) 1px;
   padding-left: 0.5em;
   margin-bottom: 0;
   min-width: 0;
@@ -24,7 +53,7 @@
 }
 
 .ellipsis {
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   font-weight: normal;
 }
 
@@ -48,11 +77,11 @@
 }
 
 .toolbarButton {
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
 }
 
 .toolbarButton:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
 }
 
 .pathContainer {

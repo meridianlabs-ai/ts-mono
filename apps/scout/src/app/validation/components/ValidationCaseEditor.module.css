@@ -10,19 +10,19 @@
 }
 
 .placeholder {
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   font-size: 0.875rem;
   text-align: center;
   margin-top: 2rem;
 }
 
 .textValue {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smaller);
 }
 
 .panel {
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -57,19 +57,19 @@
 
 .saveStatusContainer.saveStatusError {
   opacity: 1;
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }
 
 .saveStatus {
   font-size: var(--inspect-font-size-smallest);
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   word-wrap: break-word;
   overflow-wrap: break-word;
   display: block;
 }
 
 .createError {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: var(--inspect-font-size-smallest);
   margin-top: 0.25rem;
 }
@@ -84,7 +84,7 @@
   background: none;
   border: none;
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
   opacity: 0.6;
   font-size: 12px;
@@ -95,8 +95,8 @@
 
 .headerActionButton:hover:not(:disabled) {
   opacity: 1;
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-errorForeground);
+  background: var(--inspect-surface-hover);
+  color: var(--inspect-danger-foreground);
 }
 
 .headerActionButton:disabled {

@@ -161,7 +161,6 @@ export const ColumnSelectorPopover = <T,>({
       setIsOpen={setShowing}
       positionEl={positionEl}
       placement="bottom-end"
-      showArrow={false}
       hoverDelay={-1}
       closeOnMouseLeave={false}
       offset={[0, 1]}

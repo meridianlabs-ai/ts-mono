@@ -1,7 +1,38 @@
+/**
+ * Global rules for `.markdown-content`, the semantic hook MarkdownDiv puts
+ * on its container. Global (not module-scoped) because other stylesheets
+ * key off the same class (prism integration, app-level overrides).
+ */
+
+.markdown-content pre > code,
+.markdown-content pre {
+  white-space: pre-wrap !important;
+  word-wrap: anywhere !important;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 0.9em;
+  font-weight: 600;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+/* Ordered-list items render as <p> (see markdownRendering.ts) — tighten them
+   from the full reboot paragraph margin to list spacing. */
 .markdown-ordered-list-item {
   margin-bottom: 0.2em;
 }
 
+/* The last paragraph owns the container's bottom edge, so drop the reboot
+   paragraph margin and let the caller own the trailing space. This is the
+   global counterpart to the no-last-para-padding opt-in: its `> p` selector
+   can't reach the <p> through this .markdown-content wrapper, so without this
+   rule every rendered message/markdown block keeps a dangling 1rem bottom. */
 .markdown-content p:last-child {
   margin-bottom: 0;
 }

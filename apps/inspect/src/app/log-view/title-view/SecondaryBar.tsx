@@ -236,7 +236,7 @@ const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
       <code
         style={{
           padding: 0,
-          color: "var(--bs-body-color)",
+          color: "var(--inspect-foreground)",
           overflowWrap: "anywhere",
         }}
       >

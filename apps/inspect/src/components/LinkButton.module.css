@@ -3,11 +3,11 @@
   border: none;
   flex-direction: row;
   background-color: unset;
-  color: var(--bs-link-color);
+  color: var(--inspect-link);
 }
 
 .button:hover {
-  color: var(--bs-link-hover-color);
+  color: var(--inspect-link-hover);
   cursor: pointer;
 }
 

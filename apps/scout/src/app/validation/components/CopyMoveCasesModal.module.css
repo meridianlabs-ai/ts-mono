@@ -6,7 +6,7 @@
 
 .modalContent p {
   margin: 0;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
 }
 
 .fieldGroup {
@@ -17,7 +17,7 @@
 
 .label {
   font-size: 0.85rem;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
 }
 
 .select {
@@ -30,12 +30,12 @@
 
 .hint {
   font-size: 0.8rem;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
 }
 
 .error {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 0.9em;
   margin: 0;
 }

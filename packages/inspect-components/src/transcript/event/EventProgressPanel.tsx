@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Spinner } from "@tsmono/react/components";
+
 import styles from "./EventProgressPanel.module.css";
 
 interface EventProgressPanelProps {
@@ -11,17 +13,13 @@ export const EventProgressPanel: FC<EventProgressPanelProps> = ({ text }) => {
   return (
     <div className={clsx(styles.panel)}>
       <div className={clsx(styles.container)}>
-        <Spinner />
+        <PanelSpinner />
         <div className={clsx("text-size-smaller", styles.text)}>{text}</div>
       </div>
     </div>
   );
 };
 
-const Spinner: FC = () => {
-  return (
-    <div className={clsx(styles.spinner, "spinner-border")} role="status">
-      <span className={clsx("visually-hidden")}>generating...</span>
-    </div>
-  );
-};
+const PanelSpinner: FC = () => (
+  <Spinner className={styles.spinner} label="generating..." />
+);

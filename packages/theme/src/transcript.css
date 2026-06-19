@@ -1,0 +1,85 @@
+/**
+ * Transcript wiring — the cross-cutting rules that span many components:
+ * the readable-variant role bands (keyed on the data-message-role /
+ * data-content-kind attributes the chat components emit) and the
+ * `.tool-output` styling hook. These deliberately live in the theme
+ * package because no single component owns them.
+ */
+
+:root[data-theme-variant="readable"] [data-message-role] {
+  border-left: 3px solid transparent;
+}
+
+:root[data-theme-variant="readable"] [data-message-role="user"] {
+  background-color: var(--inspect-readable-user-bg);
+  border-left-color: var(--inspect-readable-user-border);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="assistant"] {
+  background-color: var(--inspect-readable-assistant-bg);
+  border-left-color: var(--inspect-readable-assistant-border);
+}
+
+/* The boxed "surface" of a tool call is the raw-content pre
+   (pre.tool-call-input) or the eval-provided view container
+   (div.tool-call-input). Box the surface itself — a tinted call-out with a
+   colored left accent (standalone transcript) — so free-form custom views get
+   the same treatment as code views. */
+:root[data-theme-variant="readable"] pre.tool-call-input,
+:root[data-theme-variant="readable"] div.tool-call-input {
+  background-color: var(--inspect-readable-tool-call-bg);
+  border: 1px solid var(--inspect-border-subtle);
+  border-left: 3px solid var(--inspect-readable-tool-call-border);
+  border-radius: var(--inspect-radius);
+  padding: 0.5em !important;
+}
+
+/* Flatten a fenced code block inside a view — the surface carries the box. */
+:root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Nested in a message band: neutral surface with a subtle (not colored) left,
+   since the surrounding band already frames the turn. The un-embedded tool box
+   and standalone transcript tool events keep the colored call surface. */
+:root[data-theme-variant="readable"] [data-message-role] pre.tool-call-input,
+:root[data-theme-variant="readable"] [data-message-role] div.tool-call-input {
+  background-color: var(--inspect-tool-output-bg);
+  border-left: 1px solid var(--inspect-border-subtle);
+}
+
+/* Light subtle box around tool output (standalone transcript tool events). */
+:root[data-theme-variant="readable"] .tool-output {
+  border: 1px solid var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
+}
+
+:root[data-theme-variant="readable"] [data-message-role="system"] {
+  background-color: var(--inspect-readable-system-bg);
+  border-left-color: var(--inspect-readable-system-border);
+}
+
+/* Agent thinking, nested inside an assistant turn, gets a subtle tint so
+   reasoning is visually separable from the model's actual response. No left
+   accent — nested inside the assistant band it reads as a strong double gutter.*/
+:root[data-theme-variant="readable"] [data-content-kind="reasoning"] {
+  background-color: var(--inspect-readable-thinking-bg);
+}
+
+/* The `.tool-output` family is the canonical styling hook for tool message
+   output (the CSS-module `.textOutput` also carries this class). Drive it
+   off the tokens so the vscode bridge / apps can re-skin it; the token
+   defaults reproduce the #f8f8f8 / #333333 appearance. The compound
+   `pre[class*="language-"].tool-output` selector is NOT a duplicate of
+   `.tool-output`: prism.css sets `:root pre[class*="language-"]` to #f8f8f8 at
+   specificity (0,2,1), which would win over a lone `.tool-output` (0,1,0) on a
+   Prism-highlighted block and shadow the token in dark / VS Code. Keep both. */
+pre[class*="language-"].tool-output,
+.tool-output {
+  background-color: var(--inspect-tool-output-bg);
+  color: var(--inspect-tool-output-color);
+}

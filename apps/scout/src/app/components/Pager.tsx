@@ -77,10 +77,15 @@ export const Pager: FC<PagerProps> = ({
 
   return (
     <nav aria-label="Log Pagination">
-      <ul className={clsx("pagination", styles.pager)}>
-        <li className={clsx(currentPage === 0 ? "disabled" : "", styles.item)}>
+      <ul className={clsx(styles.pagination, styles.pager)}>
+        <li
+          className={clsx(
+            currentPage === 0 ? styles.disabled : "",
+            styles.item
+          )}
+        >
           <a
-            className={clsx("page-link")}
+            className={clsx(styles.pageLink)}
             onClick={() => {
               if (currentPage > 0 && setPage) {
                 setPage(currentPage - 1);
@@ -96,14 +101,14 @@ export const Pager: FC<PagerProps> = ({
             key={segment.key}
             className={clsx(
               segment.type === "page" && segment.page === currentPage
-                ? "active"
+                ? styles.active
                 : undefined,
-              segment.type === "ellipsis" ? "disabled" : undefined,
+              segment.type === "ellipsis" ? styles.disabled : undefined,
               styles.item
             )}
           >
             <a
-              className={clsx("page-link")}
+              className={clsx(styles.pageLink)}
               onClick={() => {
                 if (
                   segment.type === "page" &&
@@ -120,12 +125,12 @@ export const Pager: FC<PagerProps> = ({
         ))}
         <li
           className={clsx(
-            currentPage + 1 >= pageCount ? "disabled" : "",
+            currentPage + 1 >= pageCount ? styles.disabled : "",
             styles.item
           )}
         >
           <a
-            className={clsx("page-link")}
+            className={clsx(styles.pageLink)}
             onClick={() => {
               if (currentPage < pageCount && setPage) {
                 setPage(currentPage + 1);

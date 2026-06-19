@@ -16,7 +16,7 @@
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--inspect-foreground);
   margin: 0;
   flex-shrink: 0;
 }
@@ -54,7 +54,7 @@
 }
 
 .filterLabel {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-size: 0.85rem;
 }
 
@@ -74,7 +74,7 @@
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   cursor: pointer;
   transition:
     background-color 0.1s,
@@ -82,8 +82,8 @@
 }
 
 .iconButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-foreground);
+  background: var(--inspect-surface-hover);
+  color: var(--inspect-foreground);
 }
 
 .iconButton:disabled {
@@ -102,7 +102,7 @@
 }
 
 .warning {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   font-size: 13px;
 }
 
@@ -127,28 +127,28 @@
 }
 
 .loading {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   font-style: italic;
   padding: 16px 0;
 }
 
 .error {
-  color: var(--vscode-errorForeground);
+  color: var(--inspect-danger-foreground);
   padding: 16px 0;
 }
 
 .emptyState {
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
   text-align: center;
   padding: 48px 16px;
 }
 
 .casesPlaceholder {
   padding: 16px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--inspect-background);
+  border: 1px solid var(--inspect-border);
   border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--inspect-muted-foreground);
 }
 
 /* Summary wrapper for responsive hiding */

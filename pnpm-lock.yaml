@@ -110,9 +110,6 @@ importers:
       asciinema-player:
         specifier: ^3.15.1
         version: 3.15.1
-      bootstrap:
-        specifier: ^5.3.8
-        version: 5.3.8(@popperjs/core@2.11.8)
       bootstrap-icons:
         specifier: ^1.13.1
         version: 1.13.1
@@ -201,9 +198,6 @@ importers:
       '@tsmono/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier-config
-      '@types/bootstrap':
-        specifier: ^5.2.11
-        version: 5.2.11
       '@types/clipboard':
         specifier: ^2.0.10
         version: 2.0.10
@@ -312,9 +306,6 @@ importers:
       arquero:
         specifier: ^8.0.3
         version: 8.0.3
-      bootstrap:
-        specifier: ^5.3.8
-        version: 5.3.8(@popperjs/core@2.11.8)
       bootstrap-icons:
         specifier: ^1.13.1
         version: 1.13.1
@@ -397,9 +388,6 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
-      '@types/bootstrap':
-        specifier: ^5.2.11
-        version: 5.2.11
       '@types/css-modules':
         specifier: ^1.0.5
         version: 1.0.5
@@ -2598,9 +2586,6 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
-  '@types/bootstrap@5.2.11':
-    resolution: {integrity: sha512-69ykbLiNzQxi6Q/y/aYJLrlzI5QkLQjhIYW2U+cxujBxAmaBtmXKtxnFes59Ttfpt936as6xJU0dYnmVpcwIwg==}
-
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -3105,11 +3090,6 @@ packages:
 
   bootstrap-icons@1.13.1:
     resolution: {integrity: sha512-ijombt4v6bv5CLeXvRWKy7CuM3TRTuPEuGaGKvTV5cz65rQSY8RQ2JcHt6b90cBBAC7s8fsf2EkQDldzCoXUjw==}
-
-  bootstrap@5.3.8:
-    resolution: {integrity: sha512-HP1SZDqaLDPwsNiqRqi5NcP0SSXciX2s9E+RyqJIIqGo+vJeN5AJVM98CXmW/Wux0nQ5L7jeWUdplCEf0Ee+tg==}
-    peerDependencies:
-      '@popperjs/core': ^2.11.8
 
   brace-expansion@1.1.15:
     resolution: {integrity: sha512-EwOCDEex4quD37XhqM3omwtMoJjr//isUZz1JopUNWms+4Z2ViyM/k1YIRePpoVNnQhENnxtFjLaxNHrT7xIUg==}
@@ -6996,10 +6976,6 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
-  '@types/bootstrap@5.2.11':
-    dependencies:
-      '@popperjs/core': 2.11.8
-
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -7522,10 +7498,6 @@ snapshots:
   binary-extensions@2.3.0: {}
 
   bootstrap-icons@1.13.1: {}
-
-  bootstrap@5.3.8(@popperjs/core@2.11.8):
-    dependencies:
-      '@popperjs/core': 2.11.8
 
   brace-expansion@1.1.15:
     dependencies:

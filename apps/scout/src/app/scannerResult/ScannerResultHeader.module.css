@@ -1,6 +1,6 @@
 .header {
   padding: 1rem 1rem;
-  border-top: solid var(--bs-light-border-subtle) 1px;
+  border-top: solid var(--inspect-border-subtle) 1px;
 }
 
 /* Higher specificity to beat text-size-smallest !important (source-order tie) */
@@ -18,15 +18,15 @@
 }
 
 .collapsedBar {
-  background: var(--bs-tertiary-bg);
-  border-top: 1px solid var(--bs-border-color);
-  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--inspect-surface-hover);
+  border-top: 1px solid var(--inspect-border);
+  border-bottom: 1px solid var(--inspect-border);
   padding: 0.25rem 0.9rem;
   display: flex;
   align-items: center;
   gap: 0.85rem;
   font-size: 0.76rem;
-  color: var(--bs-body-color);
+  color: var(--inspect-foreground);
   min-height: 30px;
 }
 
@@ -50,17 +50,17 @@
 }
 
 .collapsedDate {
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
   white-space: nowrap;
 }
 
 .collapsedMono {
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: 0.72rem;
   white-space: nowrap;
 }
 
 .dot {
-  color: var(--bs-tertiary-color);
+  color: var(--inspect-faint-foreground);
   flex-shrink: 0;
 }

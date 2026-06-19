@@ -14,17 +14,17 @@ import styles from "./ScoreAgGrid.module.css";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
 // "Refined Classic" look: hairline rows, no wrapper/column chrome, muted
-// headers, theme-driven colors so it tracks Bootstrap light/dark mode.
+// headers, theme-driven colors so it tracks the --inspect-* light/dark mode.
 const scoreGridTheme = themeBalham.withParams({
   fontFamily: "inherit",
   backgroundColor: "transparent",
-  foregroundColor: "var(--bs-body-color)",
+  foregroundColor: "var(--inspect-foreground)",
   headerBackgroundColor: "transparent",
-  headerTextColor: "var(--bs-secondary-color)",
+  headerTextColor: "var(--inspect-muted-foreground)",
   oddRowBackgroundColor: "transparent",
-  borderColor: "var(--bs-border-color)",
-  rowBorder: { width: 1, color: "var(--bs-border-color-translucent)" },
-  headerRowBorder: { width: 1, color: "var(--bs-border-color)" },
+  borderColor: "var(--inspect-border)",
+  rowBorder: { width: 1, color: "var(--inspect-border-color-translucent)" },
+  headerRowBorder: { width: 1, color: "var(--inspect-border)" },
   wrapperBorder: false,
   columnBorder: false,
   headerColumnBorder: false,

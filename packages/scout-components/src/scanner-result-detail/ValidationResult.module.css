@@ -9,13 +9,13 @@
 }
 
 .true {
-  border: solid var(--bs-success) 1px;
-  color: var(--bs-success);
+  border: solid var(--inspect-success) 1px;
+  color: var(--inspect-success);
 }
 
 .false {
-  border: solid var(--bs-danger) 1px;
-  color: var(--bs-danger);
+  border: solid var(--inspect-danger) 1px;
+  color: var(--inspect-danger);
 }
 
 .resultContainer {

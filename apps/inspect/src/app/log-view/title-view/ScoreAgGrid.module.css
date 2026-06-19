@@ -51,7 +51,7 @@
 /* Scorer column reads as the row label — a touch heavier + higher contrast. */
 :global(.ag-cell).firstCell {
   font-weight: 500;
-  color: var(--bs-emphasis-color);
+  color: var(--inspect-emphasis-foreground);
 }
 
 .gridContainer :global(.ag-layout-auto-height .ag-center-cols-viewport),
@@ -94,5 +94,5 @@
 .groupGrid + .groupGrid {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: solid 1px var(--bs-light-border-subtle);
+  border-top: solid 1px var(--inspect-border-subtle);
 }

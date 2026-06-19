@@ -23,3 +23,9 @@
     transform: rotate(360deg);
   }
 }
+
+/* Tint the icon with the editor foreground so it reads on the VS Code host's
+   palette as well as the standalone surface. */
+:global(.download-scan-button) i.bi {
+  color: var(--vscode-editor-foreground);
+}

@@ -7,10 +7,10 @@
 }
 
 .standalone {
-  border-top: 1px solid var(--bs-light-border-subtle);
-  border-right: 1px solid var(--bs-light-border-subtle);
-  border-bottom: 1px solid var(--bs-light-border-subtle);
-  border-radius: var(--bs-border-radius);
+  border-top: 1px solid var(--inspect-border-subtle);
+  border-right: 1px solid var(--inspect-border-subtle);
+  border-bottom: 1px solid var(--inspect-border-subtle);
+  border-radius: var(--inspect-radius);
   overflow: hidden;
 }
 
@@ -30,7 +30,7 @@
 
 .title {
   flex: none;
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smaller);
   font-weight: 600;
   color: var(--inspect-tool-block-ink);
@@ -42,9 +42,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--bs-font-monospace);
+  font-family: var(--inspect-font-mono);
   font-size: var(--inspect-font-size-smaller);
-  color: var(--bs-secondary-color);
+  color: var(--inspect-muted-foreground);
 }
 
 .pill {
@@ -54,9 +54,9 @@
   font-size: var(--inspect-font-size-smallestest);
   font-weight: 500;
   line-height: 1.5;
-  color: var(--bs-secondary-color);
-  background-color: var(--bs-body-bg);
-  border: 1px solid var(--bs-light-border-subtle);
+  color: var(--inspect-muted-foreground);
+  background-color: var(--inspect-background);
+  border: 1px solid var(--inspect-border-subtle);
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -67,8 +67,18 @@
   overflow-x: auto;
 }
 
+/* When the header or input zone is the block's last child — a generic/no-arg
+   tool whose args render inline in the header (so there is no input zone), or
+   any tool call with no output — that element owns the block's bottom edge.
+   Give it real bottom space matching the header's top, instead of crushing the
+   single line against the border. */
+.header:last-child,
+.inputZone:last-child {
+  padding-bottom: 0.5rem;
+}
+
 .outputWell {
-  border-top: 1px solid var(--bs-light-border-subtle);
+  border-top: 1px solid var(--inspect-border-subtle);
   background-color: var(--inspect-tool-block-output-bg);
   padding: 12px 15px;
   font-size: var(--inspect-font-size-smaller);

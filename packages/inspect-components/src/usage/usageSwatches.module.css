@@ -1,0 +1,31 @@
+/* Shared token-usage bar and category-swatch rules.
+   Both ModelTokenTable and ModelUsagePanel compose from here. */
+
+.stackBase {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--inspect-border-subtle);
+}
+
+.catInput {
+  background: #cfdcef;
+}
+
+.catCacheRead {
+  background: #a8c4ec;
+}
+
+.catCacheWrite {
+  background: #6ea0dc;
+}
+
+.catOutput {
+  background: #3a7bd5;
+}
+
+.catReasoning {
+  background: #1f4e8c;
+}

@@ -111,12 +111,11 @@ export const ValidationCaseLabelsEditor: FC<
         // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects
         positionEl={addChipRef.current}
         placement="bottom-start"
-        showArrow={true}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         styles={{
           padding: "0.4rem",
-          backgroundColor: "var(--bs-light)",
+          backgroundColor: "var(--inspect-surface)",
         }}
       >
         <div className={styles.popoverContent}>

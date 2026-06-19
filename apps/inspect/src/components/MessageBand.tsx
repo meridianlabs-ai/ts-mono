@@ -1,6 +1,8 @@
 import { clsx } from "clsx";
 import { FC, useCallback } from "react";
 
+import { Button } from "@tsmono/react/components";
+
 import { ApplicationIcons } from "../app/appearance/icons";
 import { useMessageVisibility } from "../state/hooks";
 
@@ -34,13 +36,13 @@ export const MessageBand: FC<MessageBandProps> = ({
     <div className={clsx("message-band", className)}>
       <i className={ApplicationIcons.logging[type]} />
       {message}
-      <button
-        className={clsx("btn", "message-band-btn", type)}
+      <Button
+        className={clsx("message-band-btn", type)}
         title="Close"
         onClick={handleClick}
       >
         <i className={ApplicationIcons.close}></i>
-      </button>
+      </Button>
     </div>
   );
 };

@@ -11,14 +11,14 @@
 .outer {
   display: flex;
   height: 1em;
-  border-radius: var(--bs-border-radius);
-  border: solid var(--bs-border-color) 1px;
+  border-radius: var(--inspect-radius);
+  border: solid var(--inspect-border) 1px;
   overflow: hidden;
-  background-color: var(--bs-body-bg);
+  background-color: var(--inspect-background);
 }
 
 .inner {
-  background-color: var(--bs-primary);
+  background-color: var(--inspect-primary);
   position: sticky;
   opacity: 0.7;
 }

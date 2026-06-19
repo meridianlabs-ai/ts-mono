@@ -1,0 +1,7 @@
+# ts-mono is developed as a git submodule inside the inspect_ai repo. Without
+# `root = true`, EditorConfig (and therefore Prettier) walks up past the
+# submodule boundary and inherits the parent repo's `[*.{md,qmd}] indent_size = 4`,
+# so Markdown formats differently here than in standalone CI (which has no
+# parent .editorconfig). Declaring this file root keeps local == CI: Prettier
+# falls back to its own defaults (tabWidth 2), matching the standalone checkout.
+root = true

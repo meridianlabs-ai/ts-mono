@@ -28,8 +28,8 @@ interface ScoreValueDisplayProps {
  * - boolean → solid circle with "T" or "F"
  * - everything else → tabular-nums text, tone-colored when explicit
  *
- * Colors come from theme tokens (--bs-success / --bs-danger /
- * --bs-orange) so dark/light handle automatically.
+ * Colors come from theme tokens (--inspect-success / --inspect-danger /
+ * --inspect-orange) so dark/light handle automatically.
  */
 /**
  * Shared circle renderer for passfail / boolean scores. Returns null

@@ -28,6 +28,15 @@ export const defaultHandlers = [
     return HttpResponse.json({ log_dir: "/home/test/logs" });
   }),
 
+  // Log root (initLogDir). Without this the request falls through to the
+  // vite proxy and fails; logsSlice records that error and whether it sticks
+  // depends on a race with the other boot requests' setLoading calls —
+  // the suite then passes or fails on machine timing. Exact path (no
+  // trailing wildcard) so /api/logs/{file} fetches are not shadowed.
+  http.get("*/api/logs", () => {
+    return HttpResponse.json({ log_dir: "/home/test/logs" });
+  }),
+
   // Log file listing
   http.get("*/api/log-files*", () => {
     return HttpResponse.json({

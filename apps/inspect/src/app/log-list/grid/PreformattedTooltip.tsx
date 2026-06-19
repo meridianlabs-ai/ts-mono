@@ -6,8 +6,8 @@ export const PreformattedTooltip: FC<CustomTooltipProps> = ({ value }) => {
   return (
     <div
       style={{
-        backgroundColor: "var(--bs-body-bg, #fff)",
-        border: "1px solid var(--bs-border-color, #dee2e6)",
+        backgroundColor: "var(--inspect-background, #fff)",
+        border: "1px solid var(--inspect-border, #dee2e6)",
         borderRadius: "4px",
         padding: "8px",
         maxWidth: "500px",

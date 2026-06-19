@@ -181,12 +181,11 @@ export const FilterBar: FC<FilterBarProps> = ({
           // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
           positionEl={chipRefs.current[editingColumnId] ?? null}
           placement="bottom-start"
-          showArrow={true}
           hoverDelay={-1}
           closeOnMouseLeave={false}
           styles={{
             padding: "0.4rem",
-            backgroundColor: "var(--bs-light)",
+            backgroundColor: "var(--inspect-surface)",
           }}
         >
           <ColumnFilterEditor

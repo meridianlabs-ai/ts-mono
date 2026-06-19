@@ -7,7 +7,7 @@
 }
 
 .keyPairBordered {
-  border-bottom: solid 1px var(--bs-border-color);
+  border-bottom: solid 1px var(--inspect-border);
 }
 
 /* Copy button column (opt-in via copyButton prop) */

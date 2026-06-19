@@ -1,15 +1,15 @@
 .green {
-  color: var(--bs-success);
+  color: var(--inspect-success);
 }
 
 .yellow {
-  color: var(--bs-warning);
+  color: var(--inspect-warning);
 }
 
 .red {
-  color: var(--bs-danger);
+  color: var(--inspect-danger);
 }
 
 .blue {
-  color: var(--bs-primary);
+  color: var(--inspect-primary);
 }

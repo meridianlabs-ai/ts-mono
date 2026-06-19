@@ -16,29 +16,31 @@
   font-size: 12px;
   padding: 4px 6px;
   border-radius: 4px;
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  border: 1px solid var(--inspect-border);
+  background: var(--inspect-background);
+  color: var(--inspect-foreground);
 }
 
 .filterInput:disabled,
 .filterSelect:disabled {
-  background: var(--bs-light);
-  color: var(--bs-secondary);
+  background: var(--inspect-surface);
+  color: var(--inspect-muted);
 }
 
 .columnId {
   font-weight: 600;
-  font-family: var(--bs-monospace);
+  font-family: var(--inspect-font-mono);
 }
 
 .columnIdText {
   margin-left: 0.5rem;
 }
 
-:global(.btn).filterButton {
+/* Re-skin the Button vars (this module's CSS loads after Button's). */
+.filterButton {
+  --_padding-y: 0.2rem;
+  --_padding-x: 0.2rem;
   width: 100%;
-  padding: 0.2rem;
 }
 
 .durationInputWrapper {
@@ -50,12 +52,12 @@
 
 .durationHelper {
   font-size: 11px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   padding-left: 2px;
 }
 
 .rangeLabel {
   font-size: 11px;
-  color: var(--bs-secondary);
+  color: var(--inspect-muted);
   padding-left: 2px;
 }

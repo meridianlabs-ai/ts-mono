@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-import { resolveIsDark, type ThemePreference } from "@tsmono/theme/bootstrap";
+import { resolveIsDark, type ThemePreference } from "@tsmono/theme/apply-theme";
 
-// Re-render trigger: watch the `data-bs-theme` attribute the theme bootstrap
+// Re-render trigger: watch the `data-theme` attribute the theme bootstrap
 // writes to <html>. That's the single source of truth both the pre-paint
 // inline script and React share, and it's the only signal for theme changes
 // that don't flow through React state — an OS color-scheme flip or a VS Code
 // host theme swap (`vscode-dark`↔`vscode-light`), both of which the bootstrap
-// turns into a `data-bs-theme` update.
+// turns into a `data-theme` update.
 const subscribe = (onChange: () => void): (() => void) => {
   if (
     typeof MutationObserver === "undefined" ||
@@ -18,7 +18,7 @@ const subscribe = (onChange: () => void): (() => void) => {
   const observer = new MutationObserver(onChange);
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-bs-theme"],
+    attributeFilter: ["data-theme"],
   });
   return () => observer.disconnect();
 };
