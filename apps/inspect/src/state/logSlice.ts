@@ -206,10 +206,12 @@ export const createLogSlice = (
               await dbService.readLogDetailsForFile(logAbsPath);
             if (cachedInfo) {
               log.debug(`Using cached log info for: ${logAbsPath}`);
-              state.logActions.setSelectedLogDetails(cachedInfo);
-              // Still fetch fresh data in background to update cache
-              api.get_log_details(logAbsPath).then((logDetails) => {
-                state.logActions.setSelectedLogDetails(logDetails);
+
+              const refreshLogDetails = async () => {
+                const logDetails = await api.get_log_details(logAbsPath, false);
+                if (get().logs.selectedLogFile === logAbsPath) {
+                  state.logActions.setSelectedLogDetails(logDetails);
+                }
                 dbService.writeLogDetail(logAbsPath, logDetails).catch(() => {
                   // Silently ignore cache errors
                 });
@@ -218,12 +220,20 @@ export const createLogSlice = (
                 state.logsActions.updateLogPreviews({
                   [logFileName]: toLogPreview(logDetails),
                 });
-              });
-              // Don't seed the listing from a cached "started" preview: it can
-              // clobber a fresher status; the fetch above repaints it.
-              if (cachedInfo.status !== "started") {
+              };
+
+              if (cachedInfo.status === "started") {
+                // A cached running log is only provisional. Wait for a fresh
+                // read so reopening details can't re-seed stale running state.
+                await refreshLogDetails();
+              } else {
+                state.logActions.setSelectedLogDetails(cachedInfo);
                 state.logsActions.updateLogPreviews({
                   [logFileName]: toLogPreview(cachedInfo),
+                });
+                // Still fetch fresh data in background to update cache
+                refreshLogDetails().catch(() => {
+                  // Silently ignore background refresh errors
                 });
               }
               set((state) => {
@@ -240,7 +250,7 @@ export const createLogSlice = (
         }
 
         try {
-          const logDetails = await api.get_log_details(logFileName);
+          const logDetails = await api.get_log_details(logFileName, false);
           state.logActions.setSelectedLogDetails(logDetails);
 
           // OPTIONAL: Cache log info (completely non-blocking)
@@ -294,7 +304,7 @@ export const createLogSlice = (
 
         log.debug(`refresh: ${selectedLogFile}`);
         try {
-          const logDetails = await api.get_log_details(selectedLogFile);
+          const logDetails = await api.get_log_details(selectedLogFile, false);
           state.logActions.setSelectedLogDetails(logDetails);
         } catch (error) {
           log.error("Error refreshing log:", error);
