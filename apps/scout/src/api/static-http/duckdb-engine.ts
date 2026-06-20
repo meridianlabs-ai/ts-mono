@@ -78,7 +78,15 @@ const createDuckDB = async (): Promise<duckdb.AsyncDuckDB> => {
     throw new Error("DuckDB-WASM selected a bundle without a browser worker");
   }
 
-  const worker = new Worker(bundle.mainWorker);
+  // Wrap the DuckDB worker in a thin shim that forces ranged (identity)
+  // responses for Parquet reads — see duckdb-range.worker.ts. The real DuckDB
+  // worker URL is handed to the shim via the Worker `name` option, which it
+  // loads with importScripts.
+  const realWorkerUrl = new URL(bundle.mainWorker, window.location.href).href;
+  const worker = new Worker(
+    new URL("./duckdb-range.worker.ts", import.meta.url),
+    { type: "classic", name: realWorkerUrl }
+  );
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   await configureBundledExtensions(db);
