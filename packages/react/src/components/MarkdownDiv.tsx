@@ -46,8 +46,10 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
     // post-processing because injected reference links are HTML too.
     const applyPostProcess = useCallback(
       (html: string): string => {
-        const processed = postProcess ? postProcess(html) : html;
-        return sanitizeRenderedHtml(processed);
+        if (!postProcess) {
+          return html;
+        }
+        return sanitizeRenderedHtml(postProcess(html));
       },
       [postProcess]
     );
