@@ -109,7 +109,9 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       description={description}
       contentType={contentType}
       output={event.result ?? ""}
-      error={showError ? event.error! : undefined}
+      selfAnnotation={context?.selfAnnotation}
+      inputScreenshot={context?.inputScreenshot}
+      error={showError && event.error ? event.error : undefined}
       view={resolvedView}
     />
   );

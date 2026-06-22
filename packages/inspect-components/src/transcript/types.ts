@@ -4,6 +4,10 @@ import type {
   BranchEvent,
   CheckpointEvent,
   CompactionEvent,
+  ContentAudio,
+  ContentImage,
+  ContentText,
+  ContentVideo,
   ErrorEvent,
   InfoEvent,
   InputEvent,
@@ -24,6 +28,8 @@ import type {
   SubtaskEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+
+import type { ToolAnnotation } from "../chat/tools/AnnotatedToolOutput";
 
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
@@ -189,4 +195,11 @@ export interface EventNodeContext {
   toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */
   retryAttempts?: Map<string, ModelEvent[]>;
+  selfAnnotation?: ToolAnnotation;
+  inputScreenshot?: (
+    | ContentText
+    | ContentImage
+    | ContentAudio
+    | ContentVideo
+  )[];
 }
