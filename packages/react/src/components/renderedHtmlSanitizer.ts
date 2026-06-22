@@ -1,5 +1,6 @@
-import DOMPurify, {
+import createDOMPurify, {
   type Config,
+  type DOMPurify as DOMPurifyInstance,
   type UponSanitizeAttributeHookEvent,
 } from "dompurify";
 
@@ -110,6 +111,7 @@ const PURIFY_CONFIG: Config = {
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
 
+let purify: DOMPurifyInstance | undefined;
 let hooksInstalled = false;
 
 const escapeHtmlCharacters = (content: string): string =>
@@ -135,21 +137,34 @@ export const sanitizeRenderedHtml = (html: string): string => {
     return html;
   }
 
-  if (typeof document === "undefined") {
+  const purifier = getPurify();
+  if (!purifier) {
     return escapeHtmlCharacters(html);
   }
 
-  installHooks();
-  return DOMPurify.sanitize(html, PURIFY_CONFIG);
+  return purifier.sanitize(html, PURIFY_CONFIG);
 };
 
-const installHooks = (): void => {
+const getPurify = (): DOMPurifyInstance | undefined => {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  if (!purify) {
+    purify = createDOMPurify(window);
+  }
+
+  installHooks(purify);
+  return purify;
+};
+
+const installHooks = (purify: DOMPurifyInstance): void => {
   if (hooksInstalled) {
     return;
   }
   hooksInstalled = true;
 
-  DOMPurify.addHook("uponSanitizeElement", (node, hookEvent) => {
+  purify.addHook("uponSanitizeElement", (node, hookEvent) => {
     if (
       hookEvent.tagName === "style" &&
       node instanceof Element &&
@@ -159,7 +174,7 @@ const installHooks = (): void => {
     }
   });
 
-  DOMPurify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
+  purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
       sanitizeStyleAttributeHook(node, hookEvent);
     } else if (
