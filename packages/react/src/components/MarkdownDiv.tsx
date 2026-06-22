@@ -17,6 +17,7 @@ import {
   renderMarkdown,
   type MarkdownRenderer,
 } from "./markdownRendering";
+import { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
 
 export type { MarkdownRenderer } from "./markdownRendering";
 
@@ -37,14 +38,16 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   ({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
     const rendererName = renderer ?? defaultMarkdownRenderer;
 
-    // Check cache for rendered content (before post-processing)
+    // Check cache for sanitized rendered content (before post-processing)
     const cacheKey = `${rendererName}:${markdown}`;
     const cachedHtml = renderCache.get(cacheKey);
 
-    // Apply post-processing to get final HTML
+    // Apply post-processing to get final HTML. The sanitizer runs after
+    // post-processing because injected reference links are HTML too.
     const applyPostProcess = useCallback(
       (html: string): string => {
-        return postProcess ? postProcess(html) : html;
+        const processed = postProcess ? postProcess(html) : html;
+        return sanitizeRenderedHtml(processed);
       },
       [postProcess]
     );
@@ -89,10 +92,11 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
               renderCache.delete(firstKey);
             }
           }
-          renderCache.set(cacheKey, result);
+          const sanitizedResult = sanitizeRenderedHtml(result);
+          renderCache.set(cacheKey, sanitizedResult);
 
           // Apply post-processing after caching
-          const finalHtml = applyPostProcess(result);
+          const finalHtml = applyPostProcess(sanitizedResult);
 
           // Use startTransition to mark this as a non-urgent update
           startTransition(() => {
