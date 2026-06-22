@@ -115,6 +115,13 @@ const configureBundledExtensions = async (
     // parquet under the custom repository.
     await runSql(connection, "INSTALL httpfs");
     await runSql(connection, "LOAD httpfs");
+    // Cache Parquet footers and HTTP file metadata across queries. Every static
+    // query wraps the catalog/data file in a fresh read_parquet(url), so without
+    // these each query re-issues a HEAD (file size) plus a footer range read
+    // before touching column data. These caches are database-global, so the
+    // long-lived query connection reuses the parsed footer and discovered size.
+    await runSql(connection, "SET enable_object_cache=true");
+    await runSql(connection, "SET enable_http_metadata_cache=true");
   } finally {
     await connection.close();
   }
