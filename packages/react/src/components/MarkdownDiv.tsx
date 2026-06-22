@@ -73,48 +73,29 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
       setRenderedHtml(sanitizeMarkdown(markdown));
 
-      // Process markdown asynchronously using the queue
-      const { promise, cancel } = renderQueue.enqueue(() =>
-        renderMarkdown(markdown, rendererName)
-      );
-
-      // Update state when rendering completes
-      promise
-        .then((result) => {
-          // Update cache with pre-post-processed content (with simple size limit)
+      const { cancel } = renderCoordinator.enqueue(
+        () => renderMarkdown(markdown, rendererName),
+        (result) => {
           if (renderCache.size >= MAX_CACHE_SIZE) {
-            // Remove oldest entry (first key)
             const firstKey = renderCache.keys().next().value;
             if (firstKey) {
               renderCache.delete(firstKey);
             }
           }
           renderCache.set(cacheKey, result);
-
-          // Apply post-processing after caching
-          const finalHtml = applyPostProcess(result);
-
-          // Use startTransition to mark this as a non-urgent update
-          startTransition(() => {
-            setRenderedHtml(finalHtml);
-          });
-        })
-        .catch((error: unknown) => {
-          console.error("Markdown rendering error:", error);
-        });
+          setRenderedHtml(applyPostProcess(result));
+        }
+      );
 
       return () => {
         // Cancel rendering if component unmounts
         cancel();
       };
-    }, [
-      markdown,
-      rendererName,
-      cachedHtml,
-      renderedHtml,
-      cacheKey,
-      applyPostProcess,
-    ]);
+      // The effect must re-run only when source inputs change, not when its own
+      // async output updates; reading current renderedHtml in the cached branch
+      // without subscribing here is intentional.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally excludes renderedHtml; see comment above
+    }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
 
     return (
       <div
@@ -228,5 +209,72 @@ class MarkdownRenderQueue {
   }
 }
 
-// Shared rendering queue
-const renderQueue = new MarkdownRenderQueue(10);
+class MarkdownRenderCoordinator {
+  private nextId = 0;
+  private completedResults = new Map<number, string>();
+  private pendingCallbacks = new Map<number, (html: string) => void>();
+  private flushScheduled = false;
+  private queue: MarkdownRenderQueue;
+
+  constructor(maxConcurrent: number = 10) {
+    this.queue = new MarkdownRenderQueue(maxConcurrent);
+  }
+
+  enqueue(
+    task: () => Promise<string>,
+    onComplete: (html: string) => void
+  ): { cancel: () => void } {
+    const id = this.nextId++;
+    this.pendingCallbacks.set(id, onComplete);
+
+    const { promise, cancel } = this.queue.enqueue(task);
+
+    promise
+      .then((result) => {
+        this.completedResults.set(id, result);
+        this.scheduleFlush();
+      })
+      .catch((error: unknown) => {
+        this.pendingCallbacks.delete(id);
+        this.completedResults.delete(id);
+        console.error("Markdown rendering error:", error);
+      });
+
+    return {
+      cancel: () => {
+        cancel();
+        this.pendingCallbacks.delete(id);
+        this.completedResults.delete(id);
+      },
+    };
+  }
+
+  private scheduleFlush(): void {
+    if (!this.flushScheduled) {
+      this.flushScheduled = true;
+      queueMicrotask(() => this.flush());
+    }
+  }
+
+  private flush(): void {
+    this.flushScheduled = false;
+    const batch = new Map(this.completedResults);
+    this.completedResults.clear();
+
+    if (batch.size === 0) {
+      return;
+    }
+
+    startTransition(() => {
+      for (const [id, html] of batch) {
+        const callback = this.pendingCallbacks.get(id);
+        if (callback) {
+          callback(html);
+          this.pendingCallbacks.delete(id);
+        }
+      }
+    });
+  }
+}
+
+const renderCoordinator = new MarkdownRenderCoordinator(10);
