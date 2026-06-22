@@ -196,7 +196,7 @@ export const apiScoutStatic = (
       id: string
     ): Promise<Transcript> => {
       const rows = await db.queryObjects(
-        `SELECT row_json, content_file FROM ${catalogTable(
+        `SELECT row_json, metadata, content_file FROM ${catalogTable(
           transcriptsCatalog
         )} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
@@ -205,6 +205,14 @@ export const apiScoutStatic = (
       const info = await asyncJsonParse<TranscriptInfo>(
         stringField(row, "row_json")
       );
+      // metadata can be large, so it lives in its own catalog column and is
+      // kept out of row_json (which the listing reads) to keep first-load
+      // small. Merge it back here for the detail view.
+      const metadata = await parseOptionalJson<TranscriptInfo["metadata"]>(
+        row,
+        "metadata"
+      );
+      info.metadata = metadata ?? {};
 
       // Open the transcript's content from the native parquet via httpfs range
       // reads (HEAD + ranged column-chunk GETs). Attachments are inlined at
