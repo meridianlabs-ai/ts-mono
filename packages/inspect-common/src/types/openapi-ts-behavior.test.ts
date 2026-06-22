@@ -149,8 +149,7 @@ async function classifyField(
   schema: Record<string, unknown>,
   defaultNonNullable: boolean
 ): Promise<"required" | "optional"> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ast = await openapiTS(schema as any, {
+  const ast = await openapiTS(schema, {
     ...openapiTSOptions,
     defaultNonNullable,
   });
