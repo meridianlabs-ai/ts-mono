@@ -18,6 +18,7 @@ import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
+import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
@@ -88,25 +89,13 @@ export const TranscriptVirtualListComponent: FC<
     return idx === -1 ? undefined : idx;
   });
 
-  const hasToolEventsAtCurrentDepth = useCallback(
-    (startIndex: number) => {
-      const startNode = eventNodes[startIndex];
-      if (!startNode) return false;
-      // Walk backwards from this index to see if we see any tool events
-      // at this depth, prior to this event
-      for (let i = startIndex; i >= 0; i--) {
-        const node = eventNodes[i];
-        if (!node) return false;
-
-        if (node.event.event === "tool") {
-          return true;
-        }
-        if (node.depth < startNode.depth) {
-          return false;
-        }
-      }
-      return false;
-    },
+  // Pre-compute, in O(n), whether each event has a tool event at its depth.
+  // This was previously an O(n^2) per-index backward scan run once per node
+  // while building contextMap, which dominated time-to-first-paint on large or
+  // deeply nested transcripts. computeHasToolEventsAtDepth returns the
+  // identical boolean for every index (locked by hasToolEventsAtDepth.test.ts).
+  const hasToolEventsLookup = useMemo(
+    () => computeHasToolEventsAtDepth(eventNodes),
     [eventNodes]
   );
 
@@ -125,12 +114,12 @@ export const TranscriptVirtualListComponent: FC<
   const contextMap = useMemo(() => {
     const map = new Map<string, EventNodeContext>();
     for (const [i, node] of eventNodes.entries()) {
-      const hasToolEvents = hasToolEventsAtCurrentDepth(i);
+      const hasToolEvents = hasToolEventsLookup[i] ?? false;
       const turnInfo = turnMap?.get(node.id);
       map.set(node.id, { hasToolEvents, turnInfo, ...eventNodeContext });
     }
     return map;
-  }, [eventNodes, hasToolEventsAtCurrentDepth, turnMap, eventNodeContext]);
+  }, [eventNodes, hasToolEventsLookup, turnMap, eventNodeContext]);
 
   const eventLabels = eventNodeContext?.eventLabels;
 
