@@ -13,8 +13,12 @@
 // Content-Length / Content-Range, so adding a Range header to size-discovery
 // requests makes sizing and column-chunk reads consistent.
 //
-// We add `Range: bytes=0-` (the whole file) to any .parquet request that
-// doesn't already carry a Range header. Requests DuckDB already makes as ranges
+// We add `Range: bytes=0-0` (a single byte) to any .parquet request that
+// doesn't already carry a Range header. The 206 response still reports the true
+// total via `Content-Range: bytes 0-0/<size>`, so DuckDB learns the correct
+// uncompressed size without downloading the whole file — using `bytes=0-`
+// (whole file) would pull the entire body on every size-discovery probe,
+// defeating the range-read design. Requests DuckDB already makes as ranges
 // (column-chunk reads) are untouched, and non-Parquet assets (wasm, extensions)
 // are left alone so their normal whole-file delivery is unaffected.
 //
@@ -66,7 +70,7 @@ xhrProto.send = function (
   const state = requestState.get(this);
   if (state && !state.hasRange && /\.parquet(\?|$)/.test(state.url)) {
     try {
-      nativeSetRequestHeader.call(this, "Range", "bytes=0-");
+      nativeSetRequestHeader.call(this, "Range", "bytes=0-0");
     } catch {
       // Header not settable in the current state; proceed unchanged.
     }
