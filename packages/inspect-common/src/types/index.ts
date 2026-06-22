@@ -139,6 +139,7 @@ export type ApproverPolicyConfig = S["ApproverPolicyConfig"];
 
 // Server response types
 export type AppConfig = S["AppConfig"];
+export type LogDirInfo = S["LogDirInfo"];
 export type AttachmentData = S["AttachmentData"];
 export type CallPoolData = S["CallPoolData"];
 export type EventData = S["EventData"];

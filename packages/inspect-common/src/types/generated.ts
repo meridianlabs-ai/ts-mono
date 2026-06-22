@@ -580,6 +580,11 @@ export interface components {
         AppConfig: {
             /** Inspect Version */
             inspect_version: string;
+            /**
+             * Log Dirs
+             * @default []
+             */
+            log_dirs: components["schemas"]["LogDirInfo"][];
             /** Scout Version */
             scout_version?: string | null;
         };
@@ -2373,6 +2378,20 @@ export interface components {
              * @enum {string}
              */
             type: "llm";
+        };
+        /**
+         * LogDirInfo
+         * @description A configured log directory.
+         *
+         *     Attributes:
+         *         log_dir: Resolved path/URI the client sends back as `?log_dir=`.
+         *         aliased: Display string with the home directory replaced by `~`.
+         */
+        LogDirInfo: {
+            /** Aliased */
+            aliased: string;
+            /** Log Dir */
+            log_dir: string;
         };
         /** LogDirResponse */
         LogDirResponse: {

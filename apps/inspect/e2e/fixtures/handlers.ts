@@ -15,6 +15,7 @@ export const defaultHandlers = [
     return HttpResponse.json<AppConfig>({
       inspect_version: "0.0.0-e2e",
       scout_version: null,
+      log_dirs: [],
     });
   }),
 
