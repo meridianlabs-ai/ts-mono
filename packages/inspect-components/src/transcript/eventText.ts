@@ -82,6 +82,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
+      // API-call errors / tracebacks surfaced on the model event itself
+      // (e.g. provider 5xx) — make them searchable like the rendered view.
+      if (modelEvent.error) {
+        fields.push(["error", modelEvent.error]);
+      }
+      if (modelEvent.traceback) {
+        fields.push(["traceback", modelEvent.traceback]);
+      }
       break;
     }
 

@@ -239,7 +239,7 @@ export const FindBand: FC<FindBandProps> = () => {
   // and the compiler can't prove debounce() won't invoke it during render.
   const debouncedSearchRef = useRef<(() => void) | null>(null);
   useEffect(() => {
-    debouncedSearchRef.current = debounce(runDebouncedSearch, 300);
+    debouncedSearchRef.current = debounce(runDebouncedSearch, 100);
   }, [runDebouncedSearch]);
 
   const handleInputChange = useCallback(() => {

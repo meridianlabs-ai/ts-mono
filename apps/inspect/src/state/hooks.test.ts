@@ -4,12 +4,15 @@ import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { EvalLogStatus } from "../@types/extraInspect";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
+import { SampleSummary } from "../client/api/types";
 
 import {
+  compareSamples,
   computeLogsWithRetried,
   readEvalScorePanelView,
   resolveScorePanelSort,
   resolveScorePanelView,
+  samplesAreSorted,
   ScorePanelSortState,
 } from "./hooks";
 
@@ -23,6 +26,29 @@ const log = (
 });
 
 const preview = (status: EvalLogStatus) => ({ status });
+
+const s = (id: string | number, epoch: number): SampleSummary =>
+  ({ id, epoch, input: "", target: "", scores: null });
+
+describe("compareSamples / samplesAreSorted", () => {
+  it("orders numeric ids ascending then epoch ascending", () => {
+    expect(compareSamples(s(1, 0), s(2, 0))).toBeLessThan(0);
+    expect(compareSamples(s(2, 0), s(1, 0))).toBeGreaterThan(0);
+    expect(compareSamples(s(1, 0), s(1, 1))).toBeLessThan(0);
+    expect(compareSamples(s(1, 1), s(1, 1))).toBe(0);
+  });
+
+  it("orders string ids lexicographically", () => {
+    expect(compareSamples(s("a", 0), s("b", 0))).toBeLessThan(0);
+  });
+
+  it("detects sorted vs unsorted arrays", () => {
+    expect(samplesAreSorted([s(1, 0), s(1, 1), s(2, 0)])).toBe(true);
+    expect(samplesAreSorted([s(2, 0), s(1, 0)])).toBe(false);
+    expect(samplesAreSorted([s(1, 0)])).toBe(true);
+    expect(samplesAreSorted([])).toBe(true);
+  });
+});
 
 describe("computeLogsWithRetried", () => {
   it("marks a lone log as not retried", () => {
