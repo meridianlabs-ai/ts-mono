@@ -136,9 +136,9 @@ export default defineConfig(({ mode }) => {
         minify: mode !== "development",
         rollupOptions: {
           output: {
-            entryFileNames: `assets/index.js`,
-            chunkFileNames: `assets/[name].js`,
-            assetFileNames: `assets/[name].[ext]`,
+            entryFileNames: `assets/[name]-[hash].js`,
+            chunkFileNames: `assets/[name]-[hash].js`,
+            assetFileNames: `assets/[name]-[hash].[ext]`,
             manualChunks(id) {
               if (
                 id.includes("mathjax") ||
