@@ -480,14 +480,18 @@ export const PopOver: React.FC<PopOverProps> = ({
   // would otherwise cause paints at stale or placeholder coordinates on the
   // first render of any open.
   const popperReady = positionedThisOpen;
-  const positionedStyle = popperReady
+  const currentPopperStyle = (popperStyles.popper ??
+    {}) as unknown as CSSProperties;
+  const currentArrowStyle = (popperStyles.arrow ??
+    {}) as unknown as CSSProperties;
+  const positionedStyle: CSSProperties = popperReady
     ? {
-        ...popperStyles.popper,
+        ...currentPopperStyle,
         opacity: 1,
         visibility: "visible" as const,
       }
     : {
-        ...popperStyles.popper,
+        ...currentPopperStyle,
         // visibility: hidden is bulletproof — no paint regardless of what
         // position values are in popperStyles.popper (which may include
         // stale coordinates from a prior open since react-popper's useState
@@ -522,7 +526,7 @@ export const PopOver: React.FC<PopOverProps> = ({
           <div
             className={clsx("popper-arrow-container", arrowClassName)}
             style={{
-              ...popperStyles.arrow,
+              ...currentArrowStyle,
               position: "absolute",
               zIndex: 1,
               // Size and positioning based on placement - smaller arrow

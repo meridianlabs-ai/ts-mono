@@ -1,4 +1,9 @@
-const FORBIDDEN_ELEMENTS = new Set([
+import DOMPurify, {
+  type Config,
+  type UponSanitizeAttributeHookEvent,
+} from "dompurify";
+
+const FORBIDDEN_TAGS = [
   "animate",
   "animatemotion",
   "animatetransform",
@@ -22,7 +27,26 @@ const FORBIDDEN_ELEMENTS = new Set([
   "textarea",
   "track",
   "video",
-]);
+];
+
+const MATHJAX_TAGS = [
+  "mjx-assistive-mml",
+  "mjx-container",
+  "mjx-status",
+  "mjx-tip",
+  "mjx-tool",
+  "style",
+];
+
+const MATHJAX_ATTRS = [
+  "display",
+  "focusable",
+  "jax",
+  "justify",
+  "role",
+  "unselectable",
+  "width",
+];
 
 const URL_ATTRIBUTES = new Set([
   "action",
@@ -73,7 +97,20 @@ const SAFE_STYLE_PROPERTIES = new Set([
 ]);
 
 const UNSAFE_CSS_PATTERN =
-  /@import|behavior\s*:|binding\s*:|expression\s*\(|javascript\s*:|vbscript\s*:|data\s*:|url\s*\(/i;
+  /@import|behavior\s*:|binding\s*:|expression\s*\(|javascript\s*:|vbscript\s*:|url\s*\(/i;
+
+const PURIFY_CONFIG: Config = {
+  ADD_ATTR: MATHJAX_ATTRS,
+  ADD_DATA_URI_TAGS: ["img", "image"],
+  ADD_TAGS: MATHJAX_TAGS,
+  ALLOW_DATA_ATTR: true,
+  ALLOW_UNKNOWN_PROTOCOLS: false,
+  FORBID_ATTR: ["srcdoc", "srcset"],
+  FORBID_TAGS: FORBIDDEN_TAGS,
+  USE_PROFILES: { html: true, mathMl: true, svg: true },
+};
+
+let hooksInstalled = false;
 
 const escapeHtmlCharacters = (content: string): string =>
   content.replace(/[<>&'"]/g, (c: string): string => {
@@ -102,68 +139,53 @@ export const sanitizeRenderedHtml = (html: string): string => {
     return escapeHtmlCharacters(html);
   }
 
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  sanitizeChildren(template.content);
-  return template.innerHTML;
+  installHooks();
+  return DOMPurify.sanitize(html, PURIFY_CONFIG);
 };
 
-const sanitizeChildren = (parent: ParentNode): void => {
-  for (const child of Array.from(parent.childNodes)) {
-    if (child.nodeType === Node.COMMENT_NODE) {
-      child.remove();
-      continue;
+const installHooks = (): void => {
+  if (hooksInstalled) {
+    return;
+  }
+  hooksInstalled = true;
+
+  DOMPurify.addHook("uponSanitizeElement", (node, hookEvent) => {
+    if (
+      hookEvent.tagName === "style" &&
+      node instanceof Element &&
+      !isAllowedMathJaxStyleElement(node)
+    ) {
+      node.remove();
     }
+  });
 
-    if (child.nodeType !== Node.ELEMENT_NODE) {
-      continue;
+  DOMPurify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
+    if (hookEvent.attrName === "style") {
+      sanitizeStyleAttributeHook(node, hookEvent);
+    } else if (
+      URL_ATTRIBUTES.has(hookEvent.attrName) &&
+      !isSafeUrlAttribute(node, hookEvent.attrValue)
+    ) {
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
     }
+  });
+};
 
-    const element = child as Element;
-    const tagName = element.tagName.toLowerCase();
-
-    if (FORBIDDEN_ELEMENTS.has(tagName)) {
-      element.remove();
-      continue;
-    }
-
-    if (tagName === "style" && !isAllowedStyleElement(element)) {
-      element.remove();
-      continue;
-    }
-
-    sanitizeAttributes(element);
-    sanitizeChildren(element);
+const sanitizeStyleAttributeHook = (
+  node: Element,
+  hookEvent: UponSanitizeAttributeHookEvent
+): void => {
+  const safeStyle = sanitizeStyleAttribute(hookEvent.attrValue);
+  if (safeStyle) {
+    hookEvent.attrValue = safeStyle;
+  } else {
+    hookEvent.keepAttr = false;
+    node.removeAttribute(hookEvent.attrName);
   }
 };
 
-const sanitizeAttributes = (element: Element): void => {
-  for (const attr of Array.from(element.attributes)) {
-    const name = attr.name.toLowerCase();
-    const value = attr.value;
-
-    if (name.startsWith("on") || name === "srcdoc" || name === "srcset") {
-      element.removeAttribute(attr.name);
-      continue;
-    }
-
-    if (name === "style") {
-      const safeStyle = sanitizeStyleAttribute(value);
-      if (safeStyle) {
-        element.setAttribute(attr.name, safeStyle);
-      } else {
-        element.removeAttribute(attr.name);
-      }
-      continue;
-    }
-
-    if (URL_ATTRIBUTES.has(name) && !isSafeUrl(value)) {
-      element.removeAttribute(attr.name);
-    }
-  }
-};
-
-const isSafeUrl = (value: string): boolean => {
+const isSafeUrlAttribute = (node: Element, value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) {
     return true;
@@ -179,28 +201,15 @@ const isSafeUrl = (value: string): boolean => {
       return charCode > 0x1f && charCode !== 0x7f && !/\s/.test(char);
     })
     .join("");
-  if (/^(?:javascript|vbscript|data):/i.test(normalized)) {
-    return false;
-  }
 
-  if (normalized.startsWith("#")) {
-    return true;
-  }
-
-  const explicitProtocol = /^[a-zA-Z][a-zA-Z\d+.-]*:/.exec(normalized);
-  if (!explicitProtocol) {
-    return true;
-  }
-
-  try {
-    const parsed = new URL(
-      normalized,
-      document.baseURI || "https://example.invalid/"
+  if (/^data:/i.test(normalized)) {
+    return (
+      ["img", "image"].includes(node.tagName.toLowerCase()) &&
+      /^data:image\//i.test(normalized)
     );
-    return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol);
-  } catch {
-    return false;
   }
+
+  return !/^(?:javascript|vbscript):/i.test(normalized);
 };
 
 const sanitizeStyleAttribute = (style: string): string => {
@@ -231,7 +240,7 @@ const sanitizeStyleAttribute = (style: string): string => {
   return safeDeclarations.join(" ");
 };
 
-const isAllowedStyleElement = (element: Element): boolean => {
+const isAllowedMathJaxStyleElement = (element: Element): boolean => {
   const parent = element.parentElement;
   const parentId = parent?.getAttribute("id") || "";
   const css = element.textContent || "";
