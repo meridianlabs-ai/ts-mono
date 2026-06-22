@@ -480,10 +480,8 @@ export const PopOver: React.FC<PopOverProps> = ({
   // would otherwise cause paints at stale or placeholder coordinates on the
   // first render of any open.
   const popperReady = positionedThisOpen;
-  const currentPopperStyle = (popperStyles.popper ??
-    {}) as unknown as CSSProperties;
-  const currentArrowStyle = (popperStyles.arrow ??
-    {}) as unknown as CSSProperties;
+  const currentPopperStyle = popperStyles.popper ?? {};
+  const currentArrowStyle = popperStyles.arrow ?? {};
   const positionedStyle: CSSProperties = popperReady
     ? {
         ...currentPopperStyle,
