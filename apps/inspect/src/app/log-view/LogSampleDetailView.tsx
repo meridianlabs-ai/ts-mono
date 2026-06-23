@@ -122,7 +122,7 @@ export const LogSampleDetailView: FC = () => {
           sampleTabId,
           prefix
         );
-        navigate(url, { replace: true });
+        void navigate(url, { replace: true });
       }
     }
   }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate, prefix]);

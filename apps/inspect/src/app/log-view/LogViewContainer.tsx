@@ -74,7 +74,7 @@ export const LogViewContainer: FC = () => {
         const finalUrl = searchParams.toString()
           ? `${url}?${searchParams.toString()}`
           : url;
-        navigate(finalUrl);
+        void navigate(finalUrl);
         return;
       }
     }
@@ -97,7 +97,7 @@ export const LogViewContainer: FC = () => {
         prefix
       );
       clearInitialState();
-      navigate(url);
+      void navigate(url);
     }
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
@@ -134,7 +134,7 @@ export const LogViewContainer: FC = () => {
       }
     };
 
-    loadLogFromPath();
+    void loadLogFromPath();
   }, [logPath, setSelectedLogFile, initLogDir, syncLogs]);
 
   return <LogViewLayout />;

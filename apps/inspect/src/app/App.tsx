@@ -157,7 +157,7 @@ const AppContent: FC = () => {
       }
     };
 
-    loadSpecificLog();
+    void loadSpecificLog();
   }, [selectedLogFile, loadedLogFile, selectedLogDetails, loadLog, setLoading]);
 
   useEffect(() => {
@@ -167,12 +167,12 @@ const AppContent: FC = () => {
       await pollLog();
     };
     if (selectedLogDetails?.status === "started") {
-      doPoll();
+      void doPoll();
     }
   }, [pollLog, selectedLogDetails?.status]);
 
   const onMessage = useCallback(
-    async (e: HostMessage) => {
+    (e: HostMessage) => {
       switch (e.data.type) {
         case "updateState": {
           if (e.data.url) {
@@ -204,10 +204,10 @@ const AppContent: FC = () => {
             if (log_dir === logDir) {
               setSelectedLogFile(decodedUrl);
             } else {
-              api.open_log_file(e.data.url, e.data.log_dir);
+              void api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            syncLogs();
+            void syncLogs();
           }
           break;
         }
@@ -237,8 +237,10 @@ const AppContent: FC = () => {
       // First see if there is embedded state and if so, use that
       const embeddedState = document.getElementById("logview-state");
       if (embeddedState) {
-        const state = JSON5.parse(embeddedState.textContent || "");
-        onMessage({ data: state });
+        const state = JSON5.parse<HostMessage["data"]>(
+          embeddedState.textContent || ""
+        );
+        onMessage({ data: state } as HostMessage);
       } else {
         // For non-route URL params support (legacy)
         const urlParams = new URLSearchParams(window.location.search);
@@ -268,7 +270,7 @@ const AppContent: FC = () => {
       new ClipboardJS(".clipboard-button,.copy-button");
     };
 
-    loadLogsAndState();
+    void loadLogsAndState();
   }, [
     setLogDir,
     setLogFiles,

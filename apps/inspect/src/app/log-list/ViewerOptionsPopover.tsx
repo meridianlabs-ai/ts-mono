@@ -28,7 +28,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
 
   const logDir = useStore((state) => state.logs.logDir);
 
-  const handleClearDatabase = async () => {
+  const handleClearDatabase = () => {
     if (!replicationService) {
       setClearMessage("Database service not available");
       setTimeout(() => setClearMessage(null), 3000);

@@ -98,7 +98,7 @@ const initialState: AppState = {
 export const createAppSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any
+  _store: unknown
 ): [AppSlice, () => void] => {
   const getBoolRecord = (
     record: Record<string, boolean>,

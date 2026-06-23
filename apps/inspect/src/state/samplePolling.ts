@@ -492,7 +492,7 @@ function processEvents(
         };
 
         if (api.log_message) {
-          api.log_message(
+          void api.log_message(
             log_file,
             `Unable to resolve attachment ${attachmentId}\n` +
               JSON.stringify(snapshot)

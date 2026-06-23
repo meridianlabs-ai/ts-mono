@@ -2,6 +2,7 @@ import clsx from "clsx";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypePassFail } from "../../../../constants";
+import { valueAsString } from "../../../../utils/format";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 import styles from "./PassFailScoreDescriptor.module.css";
@@ -73,7 +74,7 @@ export const passFailScoreDescriptor = (
           </span>
         );
       } else {
-        return String(score);
+        return valueAsString(score);
       }
     },
     compare: (a: SelectedScore, b: SelectedScore) => {
@@ -85,8 +86,8 @@ export const passFailScoreDescriptor = (
         return 1;
       } else {
         const sort =
-          order.indexOf(String(a.value || "")) -
-          order.indexOf(String(b.value || ""));
+          order.indexOf(valueAsString(a.value || "")) -
+          order.indexOf(valueAsString(b.value || ""));
         return sort;
       }
     },

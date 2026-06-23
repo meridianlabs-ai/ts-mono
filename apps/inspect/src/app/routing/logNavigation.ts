@@ -18,11 +18,11 @@ export const useLogNavigation = () => {
       if (loadedLog && logPath) {
         // We already have the logPath from params, just navigate to the tab
         const url = logsUrlRaw(logPath, tabId, prefix);
-        navigate(url);
+        void navigate(url);
       } else if (loadedLog) {
         // Fallback to constructing the path if needed
         const url = logsUrl(loadedLog, logDir, tabId, prefix);
-        navigate(url);
+        void navigate(url);
       }
     },
     [loadedLog, logPath, logDir, navigate, prefix]

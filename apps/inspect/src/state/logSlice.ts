@@ -88,7 +88,7 @@ const initialState = {
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: unknown,
   api: ClientAPI
 ): [LogSlice, () => void] => {
   const logPolling = createLogPolling(get, set, api);
@@ -232,7 +232,7 @@ export const createLogSlice = (
                   [logFileName]: toLogPreview(cachedInfo),
                 });
                 // Still fetch fresh data in background to update cache
-                refreshLogDetails().catch(() => {
+                void refreshLogDetails().catch(() => {
                   // Silently ignore background refresh errors
                 });
               }
@@ -287,11 +287,12 @@ export const createLogSlice = (
         });
       },
 
-      pollLog: async () => {
+      pollLog: () => {
         const currentLog = get().log.loadedLog;
         if (currentLog) {
           logPolling.startPolling(currentLog);
         }
+        return Promise.resolve();
       },
 
       refreshLog: async () => {

@@ -91,6 +91,20 @@ function validateZstdWindowSize(data: Uint8Array): void {
   }
 }
 
+// Messages posted back by the zstd worker (see kZstdWorkerCode).
+interface ZstdInitMessage {
+  type: "init_complete";
+  success: boolean;
+  error?: string;
+}
+
+interface ZstdDecompressMessage {
+  requestId: number;
+  success: boolean;
+  data?: Uint8Array;
+  error?: string;
+}
+
 /** Cached worker and blob URL */
 let zstdWorker: Worker | null = null;
 let blobURL: string | null = null;
@@ -129,12 +143,13 @@ function getZstdWorker(): Promise<Worker> {
 
     // Wait for init confirmation before resolving
     const initHandler = (event: MessageEvent) => {
-      if (event.data.type === "init_complete") {
+      const message = event.data as ZstdInitMessage;
+      if (message.type === "init_complete") {
         zstdWorker!.removeEventListener("message", initHandler);
-        if (event.data.success) {
+        if (message.success) {
           resolve(zstdWorker!);
         } else {
-          reject(new Error(event.data.error || "Worker initialization failed"));
+          reject(new Error(message.error || "Worker initialization failed"));
         }
       }
     };
@@ -191,13 +206,13 @@ export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
           success,
           data: resultData,
           error,
-        } = event.data;
+        } = event.data as ZstdDecompressMessage;
         const pending = pendingRequests.get(respId);
         if (!pending) return;
 
         pendingRequests.delete(respId);
 
-        if (success) {
+        if (success && resultData) {
           pending.resolve(resultData);
         } else {
           pending.reject(new Error(error || "Decompression failed"));

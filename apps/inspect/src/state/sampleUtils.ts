@@ -7,6 +7,11 @@ import { resolveAttachments } from "../utils/attachments";
 /**
  * Migrates and resolves attachments for a sample
  */
+// Accepts raw sample JSON of any vintage (old logs nested events under
+// `transcript`, and callers/tests pass partial shapes), normalizing it into
+// an EvalSample. This is an inherently dynamic boundary, so the body operates
+// on `any` rather than reconstructing the full union-typed sample shape.
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 export const resolveSample = (sample: any): EvalSample => {
   sample = { ...sample };
 
@@ -28,14 +33,17 @@ export const resolveSample = (sample: any): EvalSample => {
   // Retry-attempt events carry their own attachment:// refs into the shared
   // sample.attachments map; resolve them too before the map is cleared.
   if (sample.error_retries) {
-    sample.error_retries = sample.error_retries.map((retry: any) => ({
-      ...retry,
-      events: resolveAttachments(retry.events, sample.attachments),
-    }));
+    sample.error_retries = sample.error_retries.map(
+      (retry: Record<string, unknown>) => ({
+        ...retry,
+        events: resolveAttachments(retry.events, sample.attachments),
+      })
+    );
   }
   sample.attachments = {};
   return sample;
 };
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 
 /**
  * Build a minimal EvalSample from a pending-buffer summary that has errored.

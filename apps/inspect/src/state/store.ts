@@ -50,7 +50,7 @@ export type PersistedState = {
 };
 
 // Create a proxy store that forwards calls to the real store once initialized
-export const useStore = ((selector?: any) => {
+export const useStore = ((selector?: (state: StoreState) => unknown) => {
   if (!storeImplementation) {
     throw new Error(
       "Store accessed before initialization. Call initializeStore first."

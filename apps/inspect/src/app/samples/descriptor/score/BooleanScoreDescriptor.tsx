@@ -1,6 +1,7 @@
 import clsx from "clsx";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
+import { valueAsString } from "../../../../utils/format";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 import styles from "./BooleanScoreDescriptor.module.css";
@@ -20,7 +21,7 @@ export const booleanScoreDescriptor = (): ScoreDescriptor => {
             score ? styles.green : styles.red
           )}
         >
-          {String(score)}
+          {valueAsString(score)}
         </span>
       );
     },

@@ -59,7 +59,7 @@ export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = ({
       }
     );
 
-    player.play();
+    void player.play();
 
     return () => {
       player.dispose();

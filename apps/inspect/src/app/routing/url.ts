@@ -38,7 +38,9 @@ export const useDecodedParams = <
   const decodedParams = useMemo(() => {
     const decoded = {} as T;
     Object.entries(params).forEach(([key, value]) => {
-      (decoded as any)[key] = decodeUrlParam(value as string);
+      (decoded as Record<string, string | undefined>)[key] = decodeUrlParam(
+        value as string
+      );
     });
     return decoded;
   }, [params]);

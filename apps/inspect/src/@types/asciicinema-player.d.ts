@@ -1,4 +1,12 @@
 declare module "asciinema-player" {
+  export interface AsciinemaPlayer {
+    play(): Promise<void>;
+    pause(): void;
+    getCurrentTime(): number;
+    getDuration(): number | null;
+    seek(location: number | string): Promise<void>;
+    dispose(): void;
+  }
   export const create: (
     src: string | object,
     el: HTMLElement,
@@ -22,5 +30,5 @@ declare module "asciinema-player" {
       terminalLineHeight?: string;
       logger?: object;
     }
-  ) => any;
+  ) => AsciinemaPlayer;
 }

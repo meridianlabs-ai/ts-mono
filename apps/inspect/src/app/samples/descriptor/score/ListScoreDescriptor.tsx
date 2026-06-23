@@ -9,7 +9,10 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
     scoreType: kScoreTypeList,
     filterable: false,
     compare: (a: SelectedScore, b: SelectedScore) => {
-      return (a.value as any as []).length - (b.value as any as []).length;
+      return (
+        (a.value as unknown as unknown[]).length -
+        (b.value as unknown as unknown[]).length
+      );
     },
     render: (score) => {
       if (score === null || score === undefined) {

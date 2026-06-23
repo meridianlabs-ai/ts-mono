@@ -50,13 +50,16 @@ export class ReplicationService {
 
   constructor() {
     this._processingCount = 0;
-    this._throttledUpdateDbStats = throttle(() => this.updateDbStats(), 1000);
+    this._throttledUpdateDbStats = throttle(
+      () => void this.updateDbStats(),
+      1000
+    );
     this._throttledFlushPreviewBatch = throttle(
-      () => this.flushPreviewBatch(),
+      () => void this.flushPreviewBatch(),
       250
     );
     this._throttledFlushDetailBatch = throttle(
-      () => this.flushDetailBatch(),
+      () => void this.flushDetailBatch(),
       250
     );
 
@@ -78,7 +81,7 @@ export class ReplicationService {
 
         return previews;
       },
-      onComplete: async (previews: LogPreview[], inputs: LogHandle[]) => {
+      onComplete: (previews: LogPreview[], inputs: LogHandle[]) => {
         // Add to pending batch
         inputs.forEach((log, i) => {
           if (previews[i]) {
@@ -88,6 +91,7 @@ export class ReplicationService {
 
         // Schedule batched update
         this._throttledFlushPreviewBatch();
+        return Promise.resolve();
       },
     });
 
@@ -115,7 +119,7 @@ export class ReplicationService {
         const allResults = details.filter((d) => d !== undefined);
         return allResults;
       },
-      onComplete: async (details: LogDetails[], inputs: LogHandle[]) => {
+      onComplete: (details: LogDetails[], inputs: LogHandle[]) => {
         // Add to pending batch
         inputs.forEach((log, i) => {
           if (details[i]) {
@@ -125,6 +129,7 @@ export class ReplicationService {
 
         // Schedule batched update
         this._throttledFlushDetailBatch();
+        return Promise.resolve();
       },
     });
   }
@@ -335,7 +340,7 @@ export class ReplicationService {
       if (invalidate) {
         // Invalidate everything
         for (const file of logFiles) {
-          this._database?.clearCacheForFile(file.name);
+          void this._database?.clearCacheForFile(file.name);
         }
 
         // Drop stale queued work before scheduling new fetches
@@ -386,7 +391,7 @@ export class ReplicationService {
         return !updatedLogs.find((f) => f.name === current.name);
       });
       for (const file of deletedFiles) {
-        this._database?.clearCacheForFile(file.name);
+        void this._database?.clearCacheForFile(file.name);
       }
 
       if (deletedFiles.length > 0) {
@@ -417,7 +422,7 @@ export class ReplicationService {
     });
 
     // Invalidate summaries and overviews for deleted or updated files
-    toInvalidate
+    void toInvalidate
       .map((file) => file.name)
       .map((name) => this._database?.clearCacheForFile(name));
 
@@ -489,8 +494,8 @@ export class ReplicationService {
   }
 
   public clearData() {
-    this._database?.clearAllCaches();
-    this.updateDbStats();
+    void this._database?.clearAllCaches();
+    void this.updateDbStats();
   }
 
   private async queueMissingOrStartedPreviews(

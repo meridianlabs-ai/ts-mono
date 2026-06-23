@@ -44,7 +44,7 @@ export const useLoadLog = () => {
       }
     };
 
-    exec();
+    void exec();
   }, [
     routeLogPath,
     sampleId,

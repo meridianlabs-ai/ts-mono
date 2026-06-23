@@ -57,7 +57,7 @@ export interface ServerRequestApi {
     headers?: Record<string, string>,
     body?: string
   ) => Promise<{
-    parsed: any;
+    parsed: unknown;
     raw: string;
   }>;
   fetchBytes: (method: HttpMethod, path: string) => Promise<Uint8Array>;
@@ -153,7 +153,7 @@ export function serverRequestApi(
     path: string,
     headers?: Record<string, string>,
     body?: string
-  ): Promise<{ parsed: any; raw: string }> => {
+  ): Promise<{ parsed: unknown; raw: string }> => {
     const url = buildApiUrl(path);
 
     const requestHeaders: HeadersInit = {

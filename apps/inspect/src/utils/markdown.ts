@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import Token from "markdown-it/lib/token.mjs";
 
 /**
  * Truncates markdown text to a target length while preserving markdown syntax
@@ -116,11 +117,11 @@ function hasMarkdownSyntax(text: string): boolean {
 /**
  * Extracts the text content from a markdown token
  */
-function getTokenContent(token: any): string {
+function getTokenContent(token: Token): string {
   // Handle different token types
   if (token.type === "inline" && token.children) {
     return token.children
-      .map((child: any) => {
+      .map((child: Token) => {
         if (child.content) return child.content;
         if (child.type === "softbreak") return "\n";
         if (child.type === "hardbreak") return "\n";
@@ -153,7 +154,7 @@ function getTokenContent(token: any): string {
 /**
  * Checks if a token represents a complete markdown syntax element
  */
-function isCompleteSyntax(token: any): boolean {
+function isCompleteSyntax(token: Token): boolean {
   // Consider a token "complete" if it's a closing tag or a complete block
   const completeTypes = [
     "paragraph_close",

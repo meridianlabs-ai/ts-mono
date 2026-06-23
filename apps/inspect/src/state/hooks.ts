@@ -168,7 +168,7 @@ export const useRefreshLog = () => {
     try {
       setLoading(true);
 
-      refreshLog();
+      void refreshLog();
       resetFiltering();
 
       setLoading(false);

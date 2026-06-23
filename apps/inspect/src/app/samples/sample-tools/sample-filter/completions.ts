@@ -15,6 +15,7 @@ import {
   kScoreTypeOther,
   kScoreTypePassFail,
 } from "../../../../constants";
+import { valueAsString } from "../../../../utils/format";
 import { SampleFilterItem } from "../filters";
 
 import {
@@ -180,8 +181,8 @@ const getSampleUuids = (samples: SampleSummary[]): Set<string> => {
 const getMetadataPropertyValues = (
   samples: SampleSummary[],
   propertyPath: string
-): Set<any> => {
-  const values = new Set<any>();
+): Set<unknown> => {
+  const values = new Set<unknown>();
   for (const sample of samples) {
     if (sample.metadata) {
       const value = getNestedProperty(sample.metadata, propertyPath);
@@ -193,12 +194,12 @@ const getMetadataPropertyValues = (
   return values;
 };
 
-const getNestedProperty = (obj: any, path: string): any => {
+const getNestedProperty = (obj: unknown, path: string): unknown => {
   const keys = path.split(".");
-  let current = obj;
+  let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = current[key];
+      current = (current as Record<string, unknown>)[key];
     } else {
       return undefined;
     }
@@ -359,7 +360,7 @@ const makeSampleUuidCompletion = (uuid: string): Completion => ({
   boost: 25,
 });
 
-const makeMetadataValueCompletion = (value: any): Completion => {
+const makeMetadataValueCompletion = (value: unknown): Completion => {
   let label: string;
   if (typeof value === "string") {
     label = `"${value}"`;
@@ -369,13 +370,13 @@ const makeMetadataValueCompletion = (value: any): Completion => {
   } else if (value === null) {
     label = "None";
   } else {
-    label = String(value);
+    label = valueAsString(value);
   }
 
   return {
     label,
     type: "text",
-    info: `Metadata value: ${value}`,
+    info: `Metadata value: ${String(value)}`,
     boost: 25,
   };
 };
@@ -692,7 +693,7 @@ export function getCompletions(
                     : "False"
                   : value === null
                     ? "None"
-                    : String(value);
+                    : valueAsString(value);
             return label.toLowerCase().startsWith(currentQuery.toLowerCase());
           })
         : metadataValues;

@@ -65,10 +65,10 @@ export const createPolling = (
       if (shouldContinue === "immediate") {
         // setTimeout(0) yields to the task queue so the renderer can paint
         // and GC between iterations; queueMicrotask would starve both.
-        timeoutId = setTimeout(poll, 0);
+        timeoutId = setTimeout(() => void poll(), 0);
         return;
       }
-      timeoutId = setTimeout(poll, interval * 1000);
+      timeoutId = setTimeout(() => void poll(), interval * 1000);
     } catch (e) {
       // Don't retry if polling has been stopped
       if (!isPolling || isStopped) {
@@ -89,7 +89,7 @@ export const createPolling = (
       log.debug(
         `Retry ${retryCount}/${maxRetries}, backoff: ${backoffTime / 1000}s`
       );
-      timeoutId = setTimeout(poll, backoffTime);
+      timeoutId = setTimeout(() => void poll(), backoffTime);
     }
   };
 
@@ -100,7 +100,7 @@ export const createPolling = (
     log.debug("Start Polling");
     isPolling = true;
     isStopped = false;
-    poll();
+    void poll();
   };
 
   return { name, start, stop };

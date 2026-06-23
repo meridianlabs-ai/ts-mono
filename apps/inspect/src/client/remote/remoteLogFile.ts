@@ -188,19 +188,21 @@ export const openRemoteLogFile = async (
   /**
    * Lists all samples in the zip file.
    */
-  const listSamples = async (): Promise<SampleEntry[]> => {
-    return Array.from(remoteZipFile.centralDirectory.keys())
-      .filter(
-        (filename) =>
-          filename.startsWith("samples/") && filename.endsWith(".json")
-      )
-      .map((filename) => {
-        const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
-        return {
-          sampleId,
-          epoch: parseInt(epochStr.split(".")[0], 10),
-        };
-      });
+  const listSamples = (): Promise<SampleEntry[]> => {
+    return Promise.resolve(
+      Array.from(remoteZipFile.centralDirectory.keys())
+        .filter(
+          (filename) =>
+            filename.startsWith("samples/") && filename.endsWith(".json")
+        )
+        .map((filename) => {
+          const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
+          return {
+            sampleId,
+            epoch: parseInt(epochStr.split(".")[0], 10),
+          };
+        })
+    );
   };
 
   /**

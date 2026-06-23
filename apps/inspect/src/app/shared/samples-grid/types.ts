@@ -42,5 +42,5 @@ export interface SampleRow {
   tokens?: number;
   duration?: number;
 
-  [key: string]: any;
+  [key: string]: unknown;
 }
