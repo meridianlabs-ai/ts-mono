@@ -428,3 +428,56 @@ describe("clientApi.edit_log etag plumbing", () => {
     expect(edit_log).toHaveBeenCalledWith("log.eval", okUpdate, "v2");
   });
 });
+
+describe("clientApi.remoteEvalFile promise memoisation", () => {
+  // Browser traces showed log-info / EOCD / cdir fetched ×2–×4 on cold
+  // open because concurrent callers each ran their own
+  // openRemoteLogFile. Caching the in-flight promise collapses them.
+  const sampleSummary = { tags: [] as string[], sampleSummaries: [] };
+
+  test("concurrent cached reads share one openRemoteLogFile", async () => {
+    let resolveOpen!: (
+      v: Awaited<ReturnType<typeof openRemoteLogFile>>
+    ) => void;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        })
+    );
+
+    const client = clientApi(baseApi());
+    const a = client.get_log_details("log.eval", true);
+    const b = client.get_log_details("log.eval", true);
+
+    // Both calls issued before the first open resolves.
+    expect(openMock).toHaveBeenCalledTimes(1);
+
+    resolveOpen({
+      readLogSummary: vi.fn().mockResolvedValue(sampleSummary),
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+
+    await Promise.all([a, b]);
+    expect(openMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("a rejected open is not cached", async () => {
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValueOnce({
+        readLogSummary: vi.fn().mockResolvedValue(sampleSummary),
+      } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+
+    const client = clientApi(baseApi());
+    await expect(client.get_log_details("log.eval", true)).rejects.toThrow(
+      "transient"
+    );
+    // Retry should re-attempt rather than return the cached rejection.
+    await client.get_log_details("log.eval", true);
+    expect(openMock).toHaveBeenCalledTimes(2);
+  });
+});

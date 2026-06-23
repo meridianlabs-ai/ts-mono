@@ -325,7 +325,14 @@ export interface ClientAPI {
     log_file: string,
     id: string | number,
     epoch: number,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    /**
+     * When the sample is missing from the cached central directory,
+     * re-open the zip uncached and retry once. Pass `false` for
+     * speculative reads (caller doesn't yet know whether the sample
+     * exists) to avoid a wasted full reopen. Default `true`.
+     */
+    retryUncached?: boolean
   ) => Promise<EvalSample | undefined>;
   get_log_pending_samples?: (
     log_file: string,

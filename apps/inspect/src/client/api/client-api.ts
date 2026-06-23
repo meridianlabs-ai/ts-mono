@@ -56,7 +56,7 @@ export class SampleSizeLimitedExceededError extends Error {
 
 interface LoadedLogFile {
   file?: string;
-  remoteLog?: RemoteLogFile;
+  remoteLog?: Promise<RemoteLogFile>;
 }
 
 /**
@@ -78,20 +78,28 @@ export const clientApi = (
     remoteLog: undefined,
   };
 
-  const remoteEvalFile = async (log_file: string, cached: boolean = false) => {
-    if (cached && loadedEvalFile.file === log_file) {
+  const remoteEvalFile = (
+    log_file: string,
+    cached: boolean = false
+  ): Promise<RemoteLogFile> => {
+    // Cache the in-flight promise (not the resolved value) so concurrent
+    // callers share one openRemoteLogFile rather than each issuing their
+    // own log-info / EOCD / cdir request chain.
+    if (cached && loadedEvalFile.file === log_file && loadedEvalFile.remoteLog) {
       return loadedEvalFile.remoteLog;
     }
 
-    const remoteLog = await openRemoteLogFile(
-      api,
-      encodePathParts(log_file),
-      5
-    );
+    const remoteLog = openRemoteLogFile(api, encodePathParts(log_file), 5);
 
     if (cached) {
       loadedEvalFile.file = log_file;
       loadedEvalFile.remoteLog = remoteLog;
+      remoteLog.catch(() => {
+        if (loadedEvalFile.remoteLog === remoteLog) {
+          loadedEvalFile.file = undefined;
+          loadedEvalFile.remoteLog = undefined;
+        }
+      });
     }
 
     return remoteLog;
@@ -140,11 +148,7 @@ export const clientApi = (
   ): Promise<LogDetails> => {
     if (isEvalFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
-      if (remoteLogFile) {
-        return await remoteLogFile.readLogSummary();
-      } else {
-        throw new Error("Unable to read remote eval file");
-      }
+      return await remoteLogFile.readLogSummary();
     } else {
       const logContents = await get_log(log_file);
       /**
@@ -188,14 +192,12 @@ export const clientApi = (
     log_file: string,
     id: string | number,
     epoch: number,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    retryUncached: boolean = true
   ): Promise<EvalSample | undefined> => {
     if (isEvalFile(log_file)) {
       async function fetchSample(useCache: boolean) {
         const remoteLogFile = await remoteEvalFile(log_file, useCache);
-        if (!remoteLogFile) {
-          throw new Error(`Unable to read remote eval file ${log_file}`);
-        }
         return await remoteLogFile.readSample(String(id), epoch, onProgress);
       }
 
@@ -211,9 +213,13 @@ export const clientApi = (
         // First attempt with cache
         return await fetchSample(true);
       } catch (error) {
-        if (error instanceof SampleNotFoundError) {
+        if (error instanceof SampleNotFoundError && retryUncached) {
+          // The cached central directory may be stale (e.g. a sample
+          // was flushed to the zip after we last opened it). Re-open
+          // and try once more — but only when the caller knows the
+          // sample should exist; speculative callers pass
+          // retryUncached=false to avoid a wasted full reopen.
           try {
-            // Retry without cache
             return await fetchSample(false);
           } catch (retryError) {
             return handleError(retryError);

@@ -124,10 +124,26 @@ export const openRemoteLogFile = async (
       }
     | undefined = undefined;
 
+  // When the browser fetches bytes directly from S3 (presigned URL), each
+  // range request is its own TCP/H2 stream, so a smaller chunk size lets
+  // 1–8 MB sample entries parallelise across the connection pool instead
+  // of going as a single serial transfer. Through the proxy (no direct
+  // URL — typically an SSH port-forward), all requests share one stream
+  // anyway, so keep the default to avoid pointless request overhead.
+  const DIRECT_URL_PARALLEL_CHUNK_SIZE = 768 * 1024;
+  const zipOptions = directUrl
+    ? { parallelChunkSize: DIRECT_URL_PARALLEL_CHUNK_SIZE }
+    : {};
+
   let retryCount = 0;
   while (!remoteZipFile && retryCount < OPEN_RETRY_LIMIT) {
     try {
-      remoteZipFile = await openRemoteZipFile(url, logInfo.size, fetchBytes);
+      remoteZipFile = await openRemoteZipFile(
+        url,
+        logInfo.size,
+        fetchBytes,
+        zipOptions
+      );
     } catch {
       retryCount++;
       console.warn(

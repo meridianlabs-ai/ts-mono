@@ -20,6 +20,11 @@ const log = createLogger("useSampleLoader");
 
 // Generation counter to invalidate stale sample load responses
 let loadGeneration = 0;
+// Whether the most recent loadSample call for the current identifier
+// had a resolved summary. Lets the effect retry a speculative
+// (summary-less) attempt once the summary arrives, without the
+// `isSameSample && isLoading` dedup early-return blocking it.
+let lastLoadHadSummary = false;
 
 /**
  * Hook that handles loading samples based on the current log selection.
@@ -38,10 +43,18 @@ export function useLoadSample() {
   const getSelectedSample = useStore(
     (state) => state.sampleActions.getSelectedSample
   );
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
 
-  // Extract sample properties to avoid object reference issues
-  const sampleId = logSelection.sample?.id;
-  const sampleEpoch = logSelection.sample?.epoch;
+  // The handle (id/epoch) is set synchronously from the route by
+  // selectSample(); the summary (completed/error/...) only resolves
+  // once summaries.json (or the journal fallback) has loaded. Keying the
+  // load on the handle lets the sample fetch start as soon as the zip's
+  // central directory is parsed, in parallel with the summaries read,
+  // instead of being serialised behind it.
+  const sampleId = selectedSampleHandle?.id;
+  const sampleEpoch = selectedSampleHandle?.epoch;
   const sampleCompleted = logSelection.sample?.completed;
 
   // Track changes over time (updated inside the load effect below)
@@ -52,6 +65,7 @@ export function useLoadSample() {
     logFile?: string;
     sampleId?: string | number;
     sampleNeedsReload?: number;
+    hadSummary?: boolean;
   }>({});
 
   const loadSample = useCallback(
@@ -71,9 +85,11 @@ export function useLoadSample() {
       const isLoading =
         sampleData.status === "loading" || sampleData.status === "streaming";
 
-      if (isSameSample && isLoading) {
+      const hasSummary = summary !== undefined;
+      if (isSameSample && isLoading && hasSummary === lastLoadHadSummary) {
         return;
       }
+      lastLoadHadSummary = hasSummary;
 
       // Invalidate any in-flight responses from previous loads
       const thisGeneration = ++loadGeneration;
@@ -102,8 +118,19 @@ export function useLoadSample() {
             });
           };
 
+          // When we don't yet have the summary, this is a speculative
+          // fetch racing ahead of the summaries load. A cdir miss in
+          // that case shouldn't trigger a full uncached reopen — the
+          // sample may simply not be in the zip yet (running eval).
+          const retryUncached = summary !== undefined;
           const sample: EvalSample | undefined =
-            (await api.get_log_sample(logFile, id, epoch, onProgress)) ??
+            (await api.get_log_sample(
+              logFile,
+              id,
+              epoch,
+              onProgress,
+              retryUncached
+            )) ??
             (summary?.error
               ? synthesizeErroredSampleFromSummary(summary)
               : undefined);
@@ -127,6 +154,17 @@ export function useLoadSample() {
             const migratedSample = resolveSample(sample);
             sampleActions.setSelectedSample(migratedSample, logFile);
             sampleActions.setSampleStatus("ok");
+          } else if (summary === undefined) {
+            // Speculative miss: the sample isn't in the (cached)
+            // central directory and we don't yet know whether it's
+            // completed. Stay in "loading"; this effect re-fires when
+            // logSelection.sample arrives and will either retry
+            // (completed: true) or switch to the polling path
+            // (completed: false).
+            log.debug(
+              `Speculative sample fetch missed for ${id}-${epoch}; awaiting summary`
+            );
+            return;
           } else {
             sampleActions.setSampleStatus("error");
             throw new Error(
@@ -162,6 +200,7 @@ export function useLoadSample() {
       logFile: logSelection.logFile,
       sampleId,
       sampleNeedsReload: sampleData.sampleNeedsReload,
+      hadSummary: logSelection.sample !== undefined,
     };
     if (
       logSelection.logFile &&
@@ -197,6 +236,11 @@ export function useLoadSample() {
       const needsReloadChanged =
         prev.sampleNeedsReload !== undefined &&
         prev.sampleNeedsReload !== sampleData.sampleNeedsReload;
+      // A speculative (summary-less) load may have already fired and
+      // left status="loading"; once the summary resolves, re-attempt so
+      // the completed/error state from the summary can route correctly.
+      const summaryArrived =
+        prev.hadSummary === false && logSelection.sample !== undefined;
 
       // Only load if:
       // 1. The current sample is not already loaded AND not currently loading, OR
@@ -206,7 +250,8 @@ export function useLoadSample() {
         logFileChanged ||
         sampleIdChanged ||
         completedChanged ||
-        needsReloadChanged;
+        needsReloadChanged ||
+        summaryArrived;
 
       if (shouldLoad) {
         void loadSample(

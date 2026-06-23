@@ -46,8 +46,7 @@ export class FileSizeLimitError extends Error {
   }
 }
 
-const PARALLEL_CHUNK_THRESHOLD = 8 * 1024 * 1024; // 8MB
-const PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
+const DEFAULT_PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
 const MAX_PARALLEL_CHUNKS = 10;
 
 const fetchBytesParallel = async (
@@ -55,11 +54,12 @@ const fetchBytesParallel = async (
   url: string,
   start: number,
   end: number,
+  chunkSize: number,
   onProgress?: ProgressCallback
 ): Promise<Uint8Array> => {
   const totalSize = end - start + 1;
 
-  if (totalSize <= PARALLEL_CHUNK_THRESHOLD) {
+  if (totalSize <= chunkSize) {
     return fetchFn(url, start, end);
   }
 
@@ -67,7 +67,7 @@ const fetchBytesParallel = async (
   const chunks: { start: number; end: number; index: number }[] = [];
   let offset = start;
   while (offset <= end) {
-    const chunkEnd = Math.min(offset + PARALLEL_CHUNK_SIZE - 1, end);
+    const chunkEnd = Math.min(offset + chunkSize - 1, end);
     chunks.push({ start: offset, end: chunkEnd, index: chunks.length });
     offset = chunkEnd + 1;
   }
@@ -108,6 +108,19 @@ const fetchBytesParallel = async (
   return combined;
 };
 
+export interface OpenRemoteZipFileOptions {
+  /**
+   * Range-request chunk size for `fetchBytesParallel`. Defaults to 8 MB,
+   * which keeps small entries as a single request. Lower this when the
+   * transport benefits from multiple concurrent streams (e.g. browser →
+   * presigned S3 over a high-latency link), so that entries in the
+   * 1–8 MB range still parallelise.
+   */
+  parallelChunkSize?: number;
+}
+
+const TAIL_WINDOW_BYTES = 128 * 1024;
+
 /**
  * Opens a remote ZIP file from the specified URL, fetches and parses the central directory,
  * and provides a method to read files within the ZIP.
@@ -119,7 +132,8 @@ export const openRemoteZipFile = async (
     url: string,
     start: number,
     end: number
-  ) => Promise<Uint8Array> = fetchRange
+  ) => Promise<Uint8Array> = fetchRange,
+  options: OpenRemoteZipFileOptions = {}
 ): Promise<{
   centralDirectory: Map<string, CentralDirectoryEntry>;
   readFile: (
@@ -128,7 +142,33 @@ export const openRemoteZipFile = async (
     onProgress?: ProgressCallback
   ) => Promise<Uint8Array>;
 }> => {
+  const parallelChunkSize =
+    options.parallelChunkSize ?? DEFAULT_PARALLEL_CHUNK_SIZE;
+
   contentLength = contentLength ?? (await fetchSize(url));
+
+  // Prefetch a fixed window at the file tail and serve any subsequent
+  // range that falls inside it from memory. The EOCD, ZIP64 locator/EOCD,
+  // and (for typical .eval logs) the central directory + header.json all
+  // live in this window, so the open sequence collapses to one network
+  // read instead of 3–5 sequential ones. Ranges outside the window fall
+  // through to the network unchanged.
+  const tailStart = Math.max(0, contentLength - TAIL_WINDOW_BYTES);
+  const tail = await fetchBytes(url, tailStart, contentLength - 1);
+  const networkFetch = fetchBytes;
+  fetchBytes = (u, start, end) => {
+    // readFile() over-estimates the entry length (extraFieldPadding),
+    // so a request near EOF can extend past contentLength. The real
+    // server clamps to file end; mirror that here so an in-window
+    // start still hits the cache.
+    const clampedEnd = Math.min(end, contentLength - 1);
+    if (start >= tailStart && clampedEnd < tailStart + tail.length) {
+      return Promise.resolve(
+        tail.slice(start - tailStart, clampedEnd - tailStart + 1)
+      );
+    }
+    return networkFetch(u, start, end);
+  };
 
   // Read the end of central directory record
   const eocdrBuffer = await fetchBytes(
@@ -200,7 +240,8 @@ export const openRemoteZipFile = async (
     fetchBytes,
     url,
     centralDirOffset,
-    centralDirOffset + centralDirSize - 1
+    centralDirOffset + centralDirSize - 1,
+    parallelChunkSize
   );
   const centralDirectory = parseCentralDirectory(centralDirBuffer);
 
@@ -236,6 +277,7 @@ export const openRemoteZipFile = async (
         url,
         entry.fileOffset,
         entry.fileOffset + estimatedSize - 1,
+        parallelChunkSize,
         onProgress
       );
 
@@ -262,7 +304,8 @@ export const openRemoteZipFile = async (
           fetchBytes,
           url,
           entry.fileOffset,
-          entry.fileOffset + actualTotal - 1
+          entry.fileOffset + actualTotal - 1,
+          parallelChunkSize
         );
       }
 
