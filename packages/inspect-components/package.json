@@ -13,6 +13,7 @@
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/transform": "./src/transcript/transform/index.ts",
+    "./transcript/timeline": "./src/transcript/timeline/logic.ts",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",
     "./transcript-search": "./src/transcript-search/index.ts",
     "./usage": "./src/usage/index.ts"
