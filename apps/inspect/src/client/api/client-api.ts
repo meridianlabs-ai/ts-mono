@@ -85,7 +85,11 @@ export const clientApi = (
     // Cache the in-flight promise (not the resolved value) so concurrent
     // callers share one openRemoteLogFile rather than each issuing their
     // own log-info / EOCD / cdir request chain.
-    if (cached && loadedEvalFile.file === log_file && loadedEvalFile.remoteLog) {
+    if (
+      cached &&
+      loadedEvalFile.file === log_file &&
+      loadedEvalFile.remoteLog
+    ) {
       return loadedEvalFile.remoteLog;
     }
 
