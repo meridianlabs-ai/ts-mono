@@ -45,7 +45,7 @@
     "@tsmono/tsconfig": "workspace:*",
     "@types/css-modules": "^1.0.5",
     "@types/json5": "^2.2.0",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vscode-elements/react-elements": "^2.4.0",
@@ -57,7 +57,7 @@
     "react-dom": "^19.2.7",
     "react-virtuoso": "^4.18.7",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.0",
-    "vitest": "^4.1.8"
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^4.1.9"
   }
 }
