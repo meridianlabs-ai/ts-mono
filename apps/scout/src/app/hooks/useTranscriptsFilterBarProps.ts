@@ -33,7 +33,9 @@ export const useTranscriptsFilterBarProps = (
   const condition = useFilterConditions();
   const otherColumnsFilter = useFilterConditions(editingColumnId ?? undefined);
 
-  const { data: filterCodeValues } = useCode(condition ?? skipToken);
+  const { data: filterCodeValues } = useCode(
+    staticBundle ? skipToken : (condition ?? skipToken)
+  );
 
   const { data: filterSuggestions } = useTranscriptsColumnValues(
     editingColumnId && transcriptsDir
@@ -51,7 +53,7 @@ export const useTranscriptsFilterBarProps = (
   );
 
   return {
-    filterCodeValues: staticBundle ? undefined : filterCodeValues,
+    filterCodeValues,
     filterSuggestions: filterSuggestions ?? [],
     onFilterColumnChange,
     condition,
