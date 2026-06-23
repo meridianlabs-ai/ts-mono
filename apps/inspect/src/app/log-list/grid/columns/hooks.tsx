@@ -796,8 +796,8 @@ export const useLogListColumns = (
               return valA - valB;
             }
             return valueAsString(valA || "").localeCompare(
-            valueAsString(valB || "")
-          );
+              valueAsString(valB || "")
+            );
           }),
         } as ColDef<LogListRow>;
       });

@@ -7,7 +7,6 @@ import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
-import { valueAsString } from "../../../utils/format";
 import {
   resolveScorePanelSort,
   resolveScorePanelView,
@@ -16,6 +15,7 @@ import {
   useScorePanelSort,
   useScorePanelView,
 } from "../../../state/hooks";
+import { valueAsString } from "../../../utils/format";
 import {
   colorForValue,
   resolveScale,

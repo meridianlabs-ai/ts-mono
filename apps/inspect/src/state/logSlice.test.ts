@@ -85,9 +85,9 @@ describe("logSlice.syncLog", () => {
       false
     );
     expect(harness.updateLogPreviews).toHaveBeenCalledTimes(1);
-    expect(harness.updateLogPreviews.mock.calls[0]?.[0]["run.eval"]?.status).toBe(
-      "success"
-    );
+    expect(
+      harness.updateLogPreviews.mock.calls[0]?.[0]["run.eval"]?.status
+    ).toBe("success");
     expect(harness.state.log.selectedLogDetails?.status).toBe("success");
 
     harness.cleanup();

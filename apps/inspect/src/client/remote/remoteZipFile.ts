@@ -323,10 +323,7 @@ export const openZipFileFromBuffer = (
 
   return Promise.resolve({
     centralDirectory,
-    readFile: async (
-      file: string,
-      maxBytes?: number
-    ): Promise<Uint8Array> => {
+    readFile: async (file: string, maxBytes?: number): Promise<Uint8Array> => {
       const entry = centralDirectory.get(file);
       if (!entry) {
         throw new Error(`File not found: ${file}`);
