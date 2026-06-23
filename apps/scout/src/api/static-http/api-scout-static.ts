@@ -220,10 +220,10 @@ export const apiScoutStatic = (
       const url = absoluteUrl(
         joinUrl(baseUrl, stringField(row, "content_file"))
       );
+      const contentTable = catalogTable(url);
+      const contentColumns = await transcriptContentColumns(db, contentTable);
       const contentRows = await db.queryObjects(
-        `SELECT messages, events, events_data, timelines FROM ${catalogTable(
-          url
-        )} WHERE "transcript_id" = ? LIMIT 1`,
+        `SELECT ${contentColumns.map(quoteIdentifier).join(", ")} FROM ${contentTable} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
       );
       const content = firstRow(
@@ -271,10 +271,13 @@ export const apiScoutStatic = (
         await lookupScanCatalogRow(db, scansCatalog, scanPath),
         scanner
       );
-      const projection = scannerProjection(excludeColumns);
-      return db.queryArrowIpc(
-        `SELECT ${projection} FROM ${catalogTable(parquetUrl)}`
+      const scannerTable = catalogTable(parquetUrl);
+      const projection = await scannerProjection(
+        db,
+        scannerTable,
+        excludeColumns
       );
+      return db.queryArrowIpc(`SELECT ${projection} FROM ${scannerTable}`);
     },
 
     getScannerDataframeDetail: async (
@@ -486,12 +489,41 @@ const scannerParquetUrl = (
   return absoluteUrl(joinUrl(baseUrl, scannerPath));
 };
 
-const scannerProjection = (excludeColumns: string[] | undefined): string => {
+const transcriptContentColumns = async (
+  db: StaticDuckDB,
+  table: string
+): Promise<string[]> => {
+  const available = await tableColumnNames(db, table);
+  if (!available.has("messages")) {
+    throw new Error("Transcript content is missing required column 'messages'");
+  }
+  return ["messages", "events", "events_data", "timelines"].filter((column) =>
+    available.has(column)
+  );
+};
+
+const scannerProjection = async (
+  db: StaticDuckDB,
+  table: string,
+  excludeColumns: string[] | undefined
+): Promise<string> => {
   const excluded = (excludeColumns ?? [])
     .map((column) => column.trim())
     .filter((column) => column.length > 0);
   if (excluded.length === 0) return "*";
-  return `* EXCLUDE (${excluded.map(quoteIdentifier).join(", ")})`;
+
+  const available = await tableColumnNames(db, table);
+  const presentExcluded = excluded.filter((column) => available.has(column));
+  if (presentExcluded.length === 0) return "*";
+  return `* EXCLUDE (${presentExcluded.map(quoteIdentifier).join(", ")})`;
+};
+
+const tableColumnNames = async (
+  db: StaticDuckDB,
+  table: string
+): Promise<Set<string>> => {
+  const rows = await db.queryObjects(`DESCRIBE SELECT * FROM ${table}`);
+  return new Set(rows.map((row) => stringField(row, "column_name")));
 };
 
 const catalogTable = (catalogName: string): string =>
