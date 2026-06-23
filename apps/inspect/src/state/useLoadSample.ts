@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 
 import { useLogSelection, useSampleData } from "./hooks";
@@ -20,11 +21,6 @@ const log = createLogger("useSampleLoader");
 
 // Generation counter to invalidate stale sample load responses
 let loadGeneration = 0;
-// Whether the most recent loadSample call for the current identifier
-// had a resolved summary. Lets the effect retry a speculative
-// (summary-less) attempt once the summary arrives, without the
-// `isSameSample && isLoading` dedup early-return blocking it.
-let lastLoadHadSummary = false;
 
 /**
  * Hook that handles loading samples based on the current log selection.
@@ -65,7 +61,6 @@ export function useLoadSample() {
     logFile?: string;
     sampleId?: string | number;
     sampleNeedsReload?: number;
-    hadSummary?: boolean;
   }>({});
 
   const loadSample = useCallback(
@@ -76,20 +71,21 @@ export function useLoadSample() {
       completed: boolean | undefined,
       summary: SampleSummary | undefined
     ) => {
-      // Skip if already loading this exact sample
+      // Skip if already loading this exact sample. The route-derived
+      // id is a string ("1") but setSelectedSample later overwrites
+      // sample_identifier.id with the parsed sample's id (number 1),
+      // so use the type-coercing comparator.
       const currentId = sampleData.selectedSampleIdentifier;
       const isSameSample =
-        currentId?.id === id &&
+        sampleIdsEqual(currentId?.id, id) &&
         currentId?.epoch === epoch &&
         currentId?.logFile === logFile;
       const isLoading =
         sampleData.status === "loading" || sampleData.status === "streaming";
 
-      const hasSummary = summary !== undefined;
-      if (isSameSample && isLoading && hasSummary === lastLoadHadSummary) {
+      if (isSameSample && isLoading) {
         return;
       }
-      lastLoadHadSummary = hasSummary;
 
       // Invalidate any in-flight responses from previous loads
       const thisGeneration = ++loadGeneration;
@@ -145,7 +141,7 @@ export function useLoadSample() {
 
           if (sample) {
             const isNewSample =
-              currentId?.id !== id ||
+              !sampleIdsEqual(currentId?.id, id) ||
               currentId?.epoch !== epoch ||
               currentId?.logFile !== logFile;
             if (isNewSample) {
@@ -200,7 +196,6 @@ export function useLoadSample() {
       logFile: logSelection.logFile,
       sampleId,
       sampleNeedsReload: sampleData.sampleNeedsReload,
-      hadSummary: logSelection.sample !== undefined,
     };
     if (
       logSelection.logFile &&
@@ -212,7 +207,7 @@ export function useLoadSample() {
       // This is important for VSCode reloads where the identifier may be
       // persisted but the actual sample data (stored in a ref) is lost.
       const identifierMatches =
-        sampleData.selectedSampleIdentifier?.id === sampleId &&
+        sampleIdsEqual(sampleData.selectedSampleIdentifier?.id, sampleId) &&
         sampleData.selectedSampleIdentifier?.epoch === sampleEpoch &&
         sampleData.selectedSampleIdentifier?.logFile === logSelection.logFile;
       const hasSampleData = getSelectedSample() !== undefined;
@@ -236,22 +231,23 @@ export function useLoadSample() {
       const needsReloadChanged =
         prev.sampleNeedsReload !== undefined &&
         prev.sampleNeedsReload !== sampleData.sampleNeedsReload;
-      // A speculative (summary-less) load may have already fired and
-      // left status="loading"; once the summary resolves, re-attempt so
-      // the completed/error state from the summary can route correctly.
-      const summaryArrived =
-        prev.hadSummary === false && logSelection.sample !== undefined;
 
       // Only load if:
       // 1. The current sample is not already loaded AND not currently loading, OR
       // 2. Something meaningful changed (log file, sample ID, completed status, or reload flag)
+      //
+      // The speculative (handle-driven, summary-less) fetch covers
+      // completed samples directly. If the sample turns out to be
+      // running (not in the zip), the summary later resolves with
+      // completed=false → completedChanged → polling path; no extra
+      // summary-arrival trigger is needed (and adding one would
+      // interrupt an in-flight speculative fetch, doubling the bytes).
       const shouldLoad =
         (!isCurrentSampleLoaded && !isLoading && !isError) ||
         logFileChanged ||
         sampleIdChanged ||
         completedChanged ||
-        needsReloadChanged ||
-        summaryArrived;
+        needsReloadChanged;
 
       if (shouldLoad) {
         void loadSample(
