@@ -624,30 +624,6 @@ export function getTranscriptColumns(
   return visibleColumnKeys.map((key) => ALL_COLUMNS[key]);
 }
 
-/**
- * Extract title value for tooltip from a cell.
- */
-export function getCellTitleValue(
-  cell: any,
-  columnDef: TranscriptColumn
-): string {
-  const value = cell.getValue();
-
-  // Use custom titleValue function if provided
-  if (columnDef.titleValue) {
-    return columnDef.titleValue(value);
-  }
-
-  // Default fallback
-  if (value === undefined || value === null) {
-    return "";
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-}
-
 // Columns available for filtering (used by Add Filter popover)
 export const FILTER_COLUMNS: AvailableColumn[] = DEFAULT_COLUMN_ORDER.map(
   (columnId) => ({
