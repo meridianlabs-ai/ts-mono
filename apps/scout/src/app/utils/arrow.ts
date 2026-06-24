@@ -205,7 +205,7 @@ async function extractLabelValidation(
 
     // Not label-based, return as-is
     return parsedValidation;
-  } catch (error) {
+  } catch {
     // If parsing fails, return original string
     return validationResultStr;
   }
@@ -327,7 +327,7 @@ async function createSyntheticRows(
     }
 
     return syntheticRows;
-  } catch (error) {
+  } catch {
     // If parsing fails, no synthetic rows
     return [];
   }
