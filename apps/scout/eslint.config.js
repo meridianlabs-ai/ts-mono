@@ -42,7 +42,6 @@ export default tseslint.config(
       "@typescript-eslint/unbound-method": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "react/display-name": "off",
       "react/no-children-prop": "off",
       "react/no-unescaped-entities": "off",
     },
