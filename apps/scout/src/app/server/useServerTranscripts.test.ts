@@ -9,6 +9,7 @@ import { Column } from "../../query/column";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { TranscriptsResponse } from "../../types/api-types";
+import { deepCopy } from "../project/configUtils";
 
 import { useServerTranscripts } from "./useServerTranscripts";
 
@@ -100,7 +101,7 @@ describe("useServerTranscripts", () => {
     });
 
     expect(capturedBody).toMatchObject({
-      filter: JSON.parse(JSON.stringify(filter)) as unknown,
+      filter: deepCopy(filter),
     });
   });
 
