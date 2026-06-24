@@ -46,7 +46,8 @@ export class FileSizeLimitError extends Error {
   }
 }
 
-const DEFAULT_PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
+const PARALLEL_CHUNK_THRESHOLD = 8 * 1024 * 1024; // 8MB
+const PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
 const MAX_PARALLEL_CHUNKS = 10;
 
 const fetchBytesParallel = async (
@@ -54,12 +55,11 @@ const fetchBytesParallel = async (
   url: string,
   start: number,
   end: number,
-  chunkSize: number,
   onProgress?: ProgressCallback
 ): Promise<Uint8Array> => {
   const totalSize = end - start + 1;
 
-  if (totalSize <= chunkSize) {
+  if (totalSize <= PARALLEL_CHUNK_THRESHOLD) {
     return fetchFn(url, start, end);
   }
 
@@ -67,7 +67,7 @@ const fetchBytesParallel = async (
   const chunks: { start: number; end: number; index: number }[] = [];
   let offset = start;
   while (offset <= end) {
-    const chunkEnd = Math.min(offset + chunkSize - 1, end);
+    const chunkEnd = Math.min(offset + PARALLEL_CHUNK_SIZE - 1, end);
     chunks.push({ start: offset, end: chunkEnd, index: chunks.length });
     offset = chunkEnd + 1;
   }
@@ -108,17 +108,6 @@ const fetchBytesParallel = async (
   return combined;
 };
 
-export interface OpenRemoteZipFileOptions {
-  /**
-   * Range-request chunk size for `fetchBytesParallel`. Defaults to 8 MB,
-   * which keeps small entries as a single request. Lower this when the
-   * transport benefits from multiple concurrent streams (e.g. browser →
-   * presigned S3 over a high-latency link), so that entries in the
-   * 1–8 MB range still parallelise.
-   */
-  parallelChunkSize?: number;
-}
-
 const TAIL_WINDOW_BYTES = 128 * 1024;
 
 /**
@@ -132,8 +121,7 @@ export const openRemoteZipFile = async (
     url: string,
     start: number,
     end: number
-  ) => Promise<Uint8Array> = fetchRange,
-  options: OpenRemoteZipFileOptions = {}
+  ) => Promise<Uint8Array> = fetchRange
 ): Promise<{
   centralDirectory: Map<string, CentralDirectoryEntry>;
   readFile: (
@@ -142,9 +130,6 @@ export const openRemoteZipFile = async (
     onProgress?: ProgressCallback
   ) => Promise<Uint8Array>;
 }> => {
-  const parallelChunkSize =
-    options.parallelChunkSize ?? DEFAULT_PARALLEL_CHUNK_SIZE;
-
   contentLength = contentLength ?? (await fetchSize(url));
 
   // Prefetch a fixed window at the file tail and serve any subsequent
@@ -240,8 +225,7 @@ export const openRemoteZipFile = async (
     fetchBytes,
     url,
     centralDirOffset,
-    centralDirOffset + centralDirSize - 1,
-    parallelChunkSize
+    centralDirOffset + centralDirSize - 1
   );
   const centralDirectory = parseCentralDirectory(centralDirBuffer);
 
@@ -277,7 +261,6 @@ export const openRemoteZipFile = async (
         url,
         entry.fileOffset,
         entry.fileOffset + estimatedSize - 1,
-        parallelChunkSize,
         onProgress
       );
 
@@ -304,8 +287,7 @@ export const openRemoteZipFile = async (
           fetchBytes,
           url,
           entry.fileOffset,
-          entry.fileOffset + actualTotal - 1,
-          parallelChunkSize
+          entry.fileOffset + actualTotal - 1
         );
       }
 

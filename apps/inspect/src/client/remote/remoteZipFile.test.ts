@@ -132,35 +132,3 @@ describe("openRemoteZipFile tail-window cache", () => {
     expect(calls[1][0]).toBe(0);
   });
 });
-
-describe("openRemoteZipFile parallelChunkSize", () => {
-  test("readFile splits a large entry into parallel chunks", async () => {
-    const payload = new Uint8Array(3 * 1024 * 1024); // 3 MB
-    const zip = buildZip([{ name: "big.bin", data: payload }]);
-    const { fetchBytes, calls } = recordingFetcher(zip);
-
-    const z = await openRemoteZipFile("mem://zip", zip.length, fetchBytes, {
-      parallelChunkSize: 768 * 1024,
-    });
-
-    const openCalls = calls.length;
-    const got = await z.readFile("big.bin");
-    expect(got.length).toBe(payload.length);
-
-    // Entry header + 3 MB payload at 768 KB chunks → ~5 range requests.
-    const readCalls = calls.length - openCalls;
-    expect(readCalls).toBeGreaterThanOrEqual(4);
-    expect(readCalls).toBeLessThanOrEqual(6);
-  });
-
-  test("default chunk size keeps a 3 MB entry as a single range", async () => {
-    const payload = new Uint8Array(3 * 1024 * 1024);
-    const zip = buildZip([{ name: "big.bin", data: payload }]);
-    const { fetchBytes, calls } = recordingFetcher(zip);
-
-    const z = await openRemoteZipFile("mem://zip", zip.length, fetchBytes);
-    const openCalls = calls.length;
-    await z.readFile("big.bin");
-    expect(calls.length - openCalls).toBe(1);
-  });
-});
