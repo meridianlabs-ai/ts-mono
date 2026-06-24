@@ -460,8 +460,11 @@ const optimalColumnLayout = (
       }, 0);
 
       // measure the length of the longest value
-      const maxValueLen = Object.values(obj).reduce((max, val) => {
-        const valStr = val !== undefined && val !== null ? String(val) : "";
+      const maxValueLen = Object.values(
+        obj as Record<string, unknown>
+      ).reduce<number>((max, val) => {
+        const valStr =
+          val !== undefined && val !== null ? valueAsString(val) : "";
         return Math.max(max, valStr.length);
       }, 0);
 

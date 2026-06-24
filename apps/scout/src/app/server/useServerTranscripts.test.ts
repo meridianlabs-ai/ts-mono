@@ -100,7 +100,7 @@ describe("useServerTranscripts", () => {
     });
 
     expect(capturedBody).toMatchObject({
-      filter: JSON.parse(JSON.stringify(filter)),
+      filter: JSON.parse(JSON.stringify(filter)) as unknown,
     });
   });
 

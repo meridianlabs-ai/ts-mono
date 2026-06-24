@@ -68,7 +68,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             if (!col) {
               return undefined;
             }
-            const sampleValue = col?.at(0);
+            const sampleValue = col?.at(0) as unknown;
 
             // Create value formatter based on truncation options and data type
             const valueFormatter = options
