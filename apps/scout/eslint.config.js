@@ -44,7 +44,6 @@ export default tseslint.config(
           ignoreRestSiblings: true,
         },
       ],
-      "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
     },
   }
