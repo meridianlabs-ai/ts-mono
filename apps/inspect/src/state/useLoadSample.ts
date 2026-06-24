@@ -42,9 +42,7 @@ export function useLoadSample() {
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
-  const summariesLoaded = useStore(
-    (state) => state.log.selectedLogDetails !== undefined
-  );
+  const logStatus = useStore((state) => state.log.selectedLogDetails?.status);
 
   // Set when a speculative (summary-less) fetch returned a cdir miss and
   // we parked in "loading" awaiting the summary. The flag is set *after*
@@ -248,12 +246,18 @@ export function useLoadSample() {
         speculativeMissRef.current && logSelection.sample !== undefined;
 
       // The route-derived id may not exist in this log at all (typo /
-      // stale link). Once summaries have loaded and there's still no
-      // match, surface an error instead of leaving the speculative miss
-      // parked in "loading" forever.
+      // stale link). Once *this log's* summaries have loaded and
+      // there's still no match, surface an error instead of leaving
+      // the speculative miss parked in "loading" forever. For a
+      // running eval the sample may simply not have started yet —
+      // keep waiting; logPolling will surface it via
+      // pendingSampleSummaries when it does.
+      const summariesLoadedForThisLog =
+        logSelection.loadedLog === logSelection.logFile;
       if (
         speculativeMissRef.current &&
-        summariesLoaded &&
+        summariesLoadedForThisLog &&
+        logStatus !== "started" &&
         logSelection.sample === undefined &&
         identifierMatches &&
         isLoading
@@ -300,7 +304,8 @@ export function useLoadSample() {
     sampleData.status,
     sampleData.sampleNeedsReload,
     sampleData.getSelectedSample,
-    summariesLoaded,
+    logSelection.loadedLog,
+    logStatus,
     sampleActions,
     loadSample,
     getSelectedSample,
