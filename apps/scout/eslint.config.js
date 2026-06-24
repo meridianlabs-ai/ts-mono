@@ -42,7 +42,6 @@ export default tseslint.config(
       "@typescript-eslint/unbound-method": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "react/no-unescaped-entities": "off",
     },
   }
 );
