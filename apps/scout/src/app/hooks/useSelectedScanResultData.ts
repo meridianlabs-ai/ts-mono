@@ -39,12 +39,14 @@ const useScanResultData = (
       return undefined;
     }
 
-    const filtered = columnTable
-      .params({ targetIdentifier: rowIdentifier })
-      .filter(
-        (d: { identifier: string }, $: { targetIdentifier: string }) =>
-          d.identifier === $.targetIdentifier
-      );
+    // arquero types params() as `this | Params`, which collapses the chained
+    // result to `any`; params() returns the table, so narrow back to it.
+    const filtered = (
+      columnTable.params({ targetIdentifier: rowIdentifier }) as ColumnTable
+    ).filter(
+      (d: { identifier: string }, $: { targetIdentifier: string }) =>
+        d.identifier === $.targetIdentifier
+    );
 
     if (filtered.numRows() === 0) {
       return undefined;

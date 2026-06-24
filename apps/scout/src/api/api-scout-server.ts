@@ -496,8 +496,12 @@ const connectTopicUpdatesViaPolling = (
     })
       .then<TopicVersions>((res) => res.json())
       .then(onUpdate)
-      .catch((error) => {
-        if (error.name !== "AbortError") {
+      .catch((error: unknown) => {
+        const name =
+          error && typeof error === "object" && "name" in error
+            ? error.name
+            : undefined;
+        if (name !== "AbortError") {
           console.error("Topic polling failed:", error);
         }
       });
