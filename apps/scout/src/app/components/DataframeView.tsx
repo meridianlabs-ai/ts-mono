@@ -134,7 +134,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
                 if (params.rowIndex !== null && params.rowIndex !== undefined) {
                   setSelectedDataframeRow(params.rowIndex);
                 }
-                onRowDoubleClicked(params.data);
+                onRowDoubleClicked(params.data as object);
               }
             },
           },
@@ -202,7 +202,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
       const selectedNode =
         gridRef.current.api.getDisplayedRowAtIndex(selectedDataframeRow);
       if (selectedNode?.data) {
-        onRowDoubleClicked(selectedNode.data);
+        onRowDoubleClicked(selectedNode.data as object);
       }
     }
   }, [selectedDataframeRow, onRowDoubleClicked]);

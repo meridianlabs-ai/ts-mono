@@ -525,7 +525,7 @@ const connectTopicUpdatesViaSSE = (
   const connect = () => {
     eventSource = new EventSource(`${apiBaseUrl}/topics/stream`);
     eventSource.onmessage = (e) =>
-      onUpdate(JSON.parse(e.data) as TopicVersions);
+      onUpdate(JSON.parse(e.data as string) as TopicVersions);
     eventSource.onerror = () => {
       eventSource?.close();
       timeoutId = setTimeout(connect, 5000);
