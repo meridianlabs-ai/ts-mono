@@ -42,3 +42,16 @@ export {
   getSelectedSpans,
   type MinimapSelection,
 } from "./timelineEventNodes";
+
+export {
+  computeRowLayouts,
+  type RowLayout,
+  type PositionedSpan,
+} from "./swimlaneLayout";
+
+export {
+  computeTimeMapping,
+  type TimeMapping,
+} from "./timeMapping";
+
+export type { MarkerDepth, MarkerKind } from "./markers";

@@ -9,6 +9,8 @@
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./components": "./src/components/index.ts",
+    "./components/Modal": "./src/components/Modal.tsx",
+    "./components/ComponentIconContext": "./src/components/ComponentIconContext.tsx",
     "./icons": "./src/icons/index.ts",
     "./state": "./src/state/index.ts",
     "./virtual": "./src/virtual/index.ts"

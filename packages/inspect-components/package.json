@@ -8,12 +8,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
+    "./chat/messages": "./src/chat/messages.ts",
     "./chat/tools": "./src/chat/tools/tool.ts",
+    "./chat/tools/custom": "./src/chat/tools/customToolRendering.tsx",
     "./content": "./src/content/index.ts",
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/transform": "./src/transcript/transform/index.ts",
     "./transcript/timeline": "./src/transcript/timeline/logic.ts",
+    "./transcript/timeline/swimlanes": "./src/transcript/timeline/components/TimelineSwimLanes.tsx",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",
     "./transcript-search": "./src/transcript-search/index.ts",
     "./usage": "./src/usage/index.ts"
