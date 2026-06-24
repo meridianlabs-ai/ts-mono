@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 
 import type { FilterType } from "../../state/store";
+import { valueAsString } from "../utils/format";
 
 /**
  * Common column metadata properties shared across all data grids.
@@ -67,5 +68,5 @@ export function getCellTitleValue<TData>(
   if (typeof value === "object") {
     return JSON.stringify(value, null, 2);
   }
-  return String(value);
+  return valueAsString(value);
 }

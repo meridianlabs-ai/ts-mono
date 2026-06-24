@@ -15,6 +15,7 @@ import { centerTruncate } from "@tsmono/util";
 
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
+import { valueAsString } from "../utils/format";
 
 import "./agGridSetup";
 
@@ -81,7 +82,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
                     return centerTruncate(params.value, options.maxStrLen);
                   }
 
-                  return String(params.value);
+                  return valueAsString(params.value);
                 }
               : undefined;
 

@@ -13,6 +13,7 @@ import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
+import { valueAsString } from "../utils/format";
 
 import styles from "./columns.module.css";
 
@@ -110,7 +111,7 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
     if (value === undefined || value === null) {
       return "-";
     }
-    return String(value);
+    return valueAsString(value);
   };
 
   return {
@@ -133,7 +134,7 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
       if (value === undefined || value === null) {
         return "-";
       }
-      return String(value);
+      return valueAsString(value);
     },
   };
 }
@@ -165,6 +166,10 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
       }
       return String(value);
     } catch {
+      // printObject already threw on this value, so String() is the
+      // non-throwing last resort here; valueAsString (JSON.stringify) could
+      // throw again on the same object.
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       return String(value);
     }
   };

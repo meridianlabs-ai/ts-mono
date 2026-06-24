@@ -4,6 +4,8 @@
 
 import { ColumnSizingState } from "@tanstack/react-table";
 
+import { valueAsString } from "../../utils/format";
+
 import { clampSize, DEFAULT_SIZE, getColumnId, SizingStrategy } from "./types";
 
 /**
@@ -122,7 +124,8 @@ export const fitContentStrategy: SizingStrategy = {
         // Use column's textValue function if available, otherwise fall back to String()
         // If textValue returns null, skip content measurement for this column
         const getTextValue =
-          column.textValue ?? ((v: unknown) => (v == null ? "-" : String(v)));
+          column.textValue ??
+          ((v: unknown) => (v == null ? "-" : valueAsString(v)));
 
         let maxContentWidth = 0;
         let skipContentMeasurement = false;

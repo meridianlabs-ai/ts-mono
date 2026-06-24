@@ -7,6 +7,7 @@ import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../icons";
 import type { SimpleCondition } from "../../query/types";
 import type { ColumnFilter } from "../../state/store";
+import { valueAsString } from "../utils/format";
 
 import { AddFilterButton, type AddFilterPopoverState } from "./AddFilterButton";
 import { Chip } from "./Chip";
@@ -286,7 +287,7 @@ const formatRepresentativeType = (value: unknown): string => {
   } else if (typeof value === "string") {
     return `'${value}'`;
   } else {
-    return String(value);
+    return valueAsString(value);
   }
 };
 
