@@ -39,6 +39,8 @@ import {
   Request,
   serverRequestApi,
   unwrapFastapiDetail,
+  VIEW_REQUEST_HEADER,
+  VIEW_REQUEST_HEADER_VALUE,
 } from "./request";
 
 // The time that the view was initially loaded
@@ -278,7 +280,7 @@ export function viewServerApi(
       },
     };
     await requestApi.fetchType<void>(
-      "GET",
+      "POST",
       `/log-message?${params.toString()}`,
       request
     );
@@ -487,6 +489,7 @@ export function viewServerApi(
     if (headerProvider) {
       Object.assign(headers, await headerProvider());
     }
+    headers[VIEW_REQUEST_HEADER] = VIEW_REQUEST_HEADER_VALUE;
 
     const isCrossOrigin = Boolean(
       apiBaseUrl &&

@@ -2,6 +2,9 @@ import { asyncJsonParse } from "../../../utils/json-worker";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
+export const VIEW_REQUEST_HEADER = "X-Inspect-View-Request";
+export const VIEW_REQUEST_HEADER_VALUE = "true";
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -74,6 +77,15 @@ export function serverRequestApi(
 ): ServerRequestApi {
   const apiUrl = baseUrl || "";
 
+  function addViewRequestHeader(
+    method: HttpMethod,
+    headers: Record<string, string>
+  ): void {
+    if (method !== "GET") {
+      headers[VIEW_REQUEST_HEADER] = VIEW_REQUEST_HEADER_VALUE;
+    }
+  }
+
   function buildApiUrl(path: string): string {
     if (!apiUrl) {
       return path;
@@ -100,7 +112,7 @@ export function serverRequestApi(
   ): Promise<{ raw: string; parsed: T }> => {
     const url = buildApiUrl(path);
 
-    const responseHeaders: HeadersInit = {
+    const responseHeaders: Record<string, string> = {
       Accept: "application/json",
       Pragma: "no-cache",
       Expires: "0",
@@ -116,6 +128,7 @@ export function serverRequestApi(
     if (request.body) {
       responseHeaders["Content-Type"] = "application/json";
     }
+    addViewRequestHeader(method, responseHeaders);
 
     const response = await fetch(url, {
       method,
@@ -156,7 +169,7 @@ export function serverRequestApi(
   ): Promise<{ parsed: unknown; raw: string }> => {
     const url = buildApiUrl(path);
 
-    const requestHeaders: HeadersInit = {
+    const requestHeaders: Record<string, string> = {
       Accept: "application/json",
       Pragma: "no-cache",
       Expires: "0",
@@ -172,6 +185,7 @@ export function serverRequestApi(
     if (body) {
       requestHeaders["Content-Type"] = "application/json";
     }
+    addViewRequestHeader(method, requestHeaders);
 
     const response = await fetch(url, {
       method,
@@ -198,7 +212,7 @@ export function serverRequestApi(
   ): Promise<Uint8Array> => {
     const url = buildApiUrl(path);
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       Accept: "application/octet-stream",
       Pragma: "no-cache",
       Expires: "0",
@@ -209,6 +223,7 @@ export function serverRequestApi(
       const globalHeaders = await getHeaders();
       Object.assign(headers, globalHeaders);
     }
+    addViewRequestHeader(method, headers);
 
     const response = await fetch(url, {
       method,
