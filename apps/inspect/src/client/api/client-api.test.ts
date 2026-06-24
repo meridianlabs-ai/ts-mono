@@ -463,6 +463,47 @@ describe("clientApi.remoteEvalFile promise memoisation", () => {
     expect(openMock).toHaveBeenCalledTimes(1);
   });
 
+  test("cached=false reuses an in-flight open but re-opens once it has resolved", async () => {
+    let resolveOpen!: (
+      v: Awaited<ReturnType<typeof openRemoteLogFile>>
+    ) => void;
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        })
+    );
+
+    const client = clientApi(baseApi());
+
+    // Cold open: cached=true creates and caches the in-flight promise.
+    const a = client.get_log_details("log.eval", true);
+    // Concurrent cached=false (e.g. syncLog's initial load) — the
+    // cached promise is still in-flight, hence as fresh as a new open
+    // would be → reuse it.
+    const b = client.get_log_details("log.eval", false);
+    expect(openMock).toHaveBeenCalledTimes(1);
+
+    resolveOpen({
+      readLogSummary: vi.fn().mockResolvedValue(sampleSummary),
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+    await Promise.all([a, b]);
+
+    // After resolution, cached=false (e.g. logPolling.refreshLog)
+    // must re-open to pick up newly-flushed samples.
+    openMock.mockResolvedValueOnce({
+      readLogSummary: vi.fn().mockResolvedValue(sampleSummary),
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+    await client.get_log_details("log.eval", false);
+    expect(openMock).toHaveBeenCalledTimes(2);
+
+    // …and that fresh open is now what cached=true callers get.
+    await client.get_log_details("log.eval", true);
+    expect(openMock).toHaveBeenCalledTimes(2);
+  });
+
   test("a rejected open is not cached", async () => {
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();

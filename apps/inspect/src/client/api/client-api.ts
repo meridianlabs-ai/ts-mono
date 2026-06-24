@@ -57,6 +57,7 @@ export class SampleSizeLimitedExceededError extends Error {
 interface LoadedLogFile {
   file?: string;
   remoteLog?: Promise<RemoteLogFile>;
+  resolved?: boolean;
 }
 
 /**
@@ -85,26 +86,38 @@ export const clientApi = (
     // Cache the in-flight promise (not the resolved value) so concurrent
     // callers share one openRemoteLogFile rather than each issuing their
     // own log-info / EOCD / cdir request chain.
-    if (
-      cached &&
-      loadedEvalFile.file === log_file &&
-      loadedEvalFile.remoteLog
-    ) {
-      return loadedEvalFile.remoteLog;
+    //
+    // `cached=false` means "at least as fresh as now". An in-flight
+    // cached promise satisfies that — it hasn't read from the server
+    // yet — so reuse it. Only when the cached promise has already
+    // resolved (and may therefore be stale) does `cached=false` open
+    // a fresh one; the fresh open then replaces the cache so later
+    // `cached=true` callers see the newer cdir.
+    if (loadedEvalFile.file === log_file && loadedEvalFile.remoteLog) {
+      if (cached || !loadedEvalFile.resolved) {
+        return loadedEvalFile.remoteLog;
+      }
     }
 
     const remoteLog = openRemoteLogFile(api, encodePathParts(log_file), 5);
 
-    if (cached) {
-      loadedEvalFile.file = log_file;
-      loadedEvalFile.remoteLog = remoteLog;
-      remoteLog.catch(() => {
+    loadedEvalFile.file = log_file;
+    loadedEvalFile.remoteLog = remoteLog;
+    loadedEvalFile.resolved = false;
+    remoteLog.then(
+      () => {
+        if (loadedEvalFile.remoteLog === remoteLog) {
+          loadedEvalFile.resolved = true;
+        }
+      },
+      () => {
         if (loadedEvalFile.remoteLog === remoteLog) {
           loadedEvalFile.file = undefined;
           loadedEvalFile.remoteLog = undefined;
+          loadedEvalFile.resolved = undefined;
         }
-      });
-    }
+      }
+    );
 
     return remoteLog;
   };
@@ -584,6 +597,7 @@ export const clientApi = (
             if (loadedEvalFile.file === log_file) {
               loadedEvalFile.file = undefined;
               loadedEvalFile.remoteLog = undefined;
+              loadedEvalFile.resolved = undefined;
             }
             return result;
           }
