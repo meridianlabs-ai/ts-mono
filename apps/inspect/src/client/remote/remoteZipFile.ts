@@ -140,6 +140,15 @@ export const openRemoteZipFile = async (
   // through to the network unchanged.
   const tailStart = Math.max(0, contentLength - TAIL_WINDOW_BYTES);
   const tail = await fetchBytes(url, tailStart, contentLength - 1);
+  if (tail.length !== contentLength - tailStart) {
+    // A server that ignores Range returns the full body here. Catching
+    // it at the prefetch (where the over-long response is observable)
+    // gives the targeted error; the EOCD read below is now always a
+    // cache hit so it can no longer detect this itself.
+    throw new Error(
+      `Range request returned ${tail.length} bytes (expected ${contentLength - tailStart}) — does the HTTP server serving this file support HTTP range requests?`
+    );
+  }
   const networkFetch = fetchBytes;
   fetchBytes = (u, start, end) => {
     // readFile() over-estimates the entry length (extraFieldPadding),
@@ -165,15 +174,7 @@ export const openRemoteZipFile = async (
 
   // Check signature to make sure we found the EOCD record
   if (eocdrView.getUint32(0, true) !== 0x06054b50) {
-    if (eocdrBuffer.length !== 22) {
-      // The range request seems like it was ignored because more bytes than
-      // were requested were returned.
-      throw new Error(
-        "Unexpected central directory size - does the HTTP server serving this file support HTTP range requests?"
-      );
-    } else {
-      throw new Error("End of central directory record not found");
-    }
+    throw new Error("End of central directory record not found");
   }
 
   let centralDirOffset = eocdrView.getUint32(16, true);

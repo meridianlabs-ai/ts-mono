@@ -110,6 +110,23 @@ describe("openRemoteZipFile tail-window cache", () => {
     expect(calls.length).toBe(1);
   });
 
+  test("detects servers that ignore Range and return the full body", async () => {
+    const zip = buildZip([
+      { name: "filler.bin", data: new Uint8Array(200 * 1024) },
+    ]);
+    // Simulate a Range-ignoring server: every range read returns the
+    // entire file regardless of start/end.
+    const fetchBytes = (
+      _url: string,
+      _start: number,
+      _end: number
+    ): Promise<Uint8Array> => Promise.resolve(zip.slice());
+
+    await expect(
+      openRemoteZipFile("mem://zip", zip.length, fetchBytes)
+    ).rejects.toThrow(/range request/i);
+  });
+
   test("entries before the tail window fall through to a network fetch", async () => {
     // Place a small entry at offset 0, then a 200 KB entry after it so
     // the file is large enough that offset 0 falls outside the 128 KB
