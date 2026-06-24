@@ -492,8 +492,8 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
             <>
               <VscodeDivider />
               <InfoBox>
-                Validation sets with dictionary or list targets aren't editable
-                using this UI.
+                Validation sets with dictionary or list targets aren&apos;t
+                editable using this UI.
               </InfoBox>
             </>
           )}

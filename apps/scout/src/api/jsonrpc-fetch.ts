@@ -103,7 +103,11 @@ export function createJsonRpcFetch(
           ? init.body
           : init.body instanceof ArrayBuffer
             ? new TextDecoder().decode(init.body)
-            : String(init.body);
+            : // Last-resort fallback for other BodyInit kinds (Blob, FormData,
+              // streams) which aren't used on this JSON-RPC path; String() is a
+              // reasonable degenerate stringification here.
+              // eslint-disable-next-line @typescript-eslint/no-base-to-string
+              String(init.body);
     }
 
     const request: HttpProxyRequest = { method, path, headers, body };

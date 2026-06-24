@@ -496,8 +496,12 @@ const connectTopicUpdatesViaPolling = (
     })
       .then<TopicVersions>((res) => res.json())
       .then(onUpdate)
-      .catch((error) => {
-        if (error.name !== "AbortError") {
+      .catch((error: unknown) => {
+        const name =
+          error && typeof error === "object" && "name" in error
+            ? error.name
+            : undefined;
+        if (name !== "AbortError") {
           console.error("Topic polling failed:", error);
         }
       });
@@ -521,7 +525,7 @@ const connectTopicUpdatesViaSSE = (
   const connect = () => {
     eventSource = new EventSource(`${apiBaseUrl}/topics/stream`);
     eventSource.onmessage = (e) =>
-      onUpdate(JSON.parse(e.data) as TopicVersions);
+      onUpdate(JSON.parse(e.data as string) as TopicVersions);
     eventSource.onerror = () => {
       eventSource?.close();
       timeoutId = setTimeout(connect, 5000);

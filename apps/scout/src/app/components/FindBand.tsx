@@ -337,17 +337,32 @@ async function findExtendedInDOM(
   let hasTriedExtendedSearch = false;
   const maxAttempts = 25;
 
+  // `Window.find` is non-standard and missing from the DOM lib types.
+  const windowFind = (
+    window as Window & {
+      find?: (
+        searchTerm: string,
+        caseSensitive?: boolean,
+        backwards?: boolean,
+        wrapAround?: boolean,
+        wholeWord?: boolean,
+        searchInFrames?: boolean,
+        showDialog?: boolean
+      ) => boolean;
+    }
+  ).find;
+
   do {
-    // @ts-expect-error: `Window.find` is non-standard
-    result = window.find(
-      searchTerm,
-      findConfig.caseSensitive,
-      back,
-      findConfig.wrapAround,
-      findConfig.wholeWord,
-      findConfig.searchInFrames,
-      findConfig.showDialog
-    );
+    result =
+      windowFind?.(
+        searchTerm,
+        findConfig.caseSensitive,
+        back,
+        findConfig.wrapAround,
+        findConfig.wholeWord,
+        findConfig.searchInFrames,
+        findConfig.showDialog
+      ) ?? false;
 
     if (result) {
       // We have a result, check whether it is valid (not in unsearchable

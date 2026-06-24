@@ -1,11 +1,25 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 
+import type { JsonValue } from "../types/json-value";
+
+import type { JsonRpcParams } from "./jsonrpc";
 import type { HttpProxyRequest, HttpProxyResponse } from "./jsonrpc-fetch";
 import { createJsonRpcFetch, kMethodHttpRequest } from "./jsonrpc-fetch";
 
+type RpcClient = (method: string, params?: JsonRpcParams) => Promise<JsonValue>;
+
 function mockRpcClient(response: HttpProxyResponse) {
-  return vi.fn().mockResolvedValue(response);
+  return vi.fn<RpcClient>().mockResolvedValue(response as unknown as JsonValue);
+}
+
+// The proxy is always invoked as rpcClient(method, [request]); pull the first
+// request payload back out of the recorded call for assertions.
+function firstRequest(
+  rpcClient: ReturnType<typeof mockRpcClient>
+): HttpProxyRequest {
+  const params = rpcClient.mock.calls[0]?.[1];
+  return (params as HttpProxyRequest[])[0]!;
 }
 
 const validResponse: HttpProxyResponse = {
@@ -32,7 +46,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test", inputMethod ? { method: inputMethod } : {});
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.method).toBe(expectedMethod);
     });
 
@@ -59,7 +73,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch(input);
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.path).toBe(expectedPath);
     });
 
@@ -69,7 +83,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch(new URL("http://localhost/api/resource?id=123"));
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.path).toBe("/api/resource?id=123");
     });
 
@@ -79,7 +93,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch(new Request("http://localhost/api/from-request?x=1"));
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.path).toBe("/api/from-request?x=1");
     });
   });
@@ -94,7 +108,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test", { headers });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.headers).toEqual({
         authorization: "Bearer token",
         "content-type": "application/json",
@@ -112,7 +126,7 @@ describe("createJsonRpcFetch", () => {
         ],
       });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.headers).toEqual({
         "X-Custom": "value1",
         "X-Other": "value2",
@@ -127,7 +141,7 @@ describe("createJsonRpcFetch", () => {
         headers: { "X-Api-Key": "secret", Accept: "application/json" },
       });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.headers).toEqual({
         "X-Api-Key": "secret",
         Accept: "application/json",
@@ -140,7 +154,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test");
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.headers).toEqual({});
     });
   });
@@ -152,7 +166,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test", { method: "POST", body: '{"data":"value"}' });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.body).toBe('{"data":"value"}');
     });
 
@@ -168,7 +182,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test", { method: "POST", body: buffer });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.body).toBe("binary data");
     });
 
@@ -178,7 +192,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test", { method: "POST", body: 12345 as never });
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.body).toBe("12345");
     });
 
@@ -188,7 +202,7 @@ describe("createJsonRpcFetch", () => {
 
       await fetch("/api/test");
 
-      const request = rpcClient.mock.calls[0]![1]![0] as HttpProxyRequest;
+      const request = firstRequest(rpcClient);
       expect(request.body).toBeUndefined();
     });
   });

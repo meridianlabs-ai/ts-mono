@@ -39,7 +39,7 @@ export function filterNullValues<T extends Record<string, unknown>>(
  * Loses functions, Symbols, undefined values. Circular references will throw.
  */
 export function deepCopy<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+  return JSON.parse(JSON.stringify(obj)) as T;
 }
 
 /**

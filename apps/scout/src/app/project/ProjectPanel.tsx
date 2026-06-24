@@ -400,7 +400,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         footer={
           <>
             <VscodeButton secondary onClick={() => blocker.proceed?.()}>
-              Don't Save
+              Don&apos;t Save
             </VscodeButton>
             <VscodeButton secondary onClick={() => blocker.reset?.()}>
               Cancel

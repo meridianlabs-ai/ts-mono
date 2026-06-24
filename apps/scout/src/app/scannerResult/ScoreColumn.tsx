@@ -5,6 +5,7 @@ import type { JsonValue } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
 import { ScoreValue } from "../components/ScoreValue";
+import { valueAsString } from "../utils/format";
 
 import styles from "./ScoreColumn.module.css";
 
@@ -69,6 +70,8 @@ export const CollapsedScore: FC<{
   }
 
   return (
-    <span className={styles.collapsedSimpleScore}>Score: {String(score)}</span>
+    <span className={styles.collapsedSimpleScore}>
+      Score: {valueAsString(score)}
+    </span>
   );
 };
