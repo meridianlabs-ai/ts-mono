@@ -49,6 +49,16 @@ export function useLoadSample() {
   // the await resolves, so it never marks an in-flight fetch — that lets
   // the effect retry on summary arrival without ever interrupting a
   // download in progress (which would double the bytes transferred).
+  //
+  // The retry is driven by the next effect run (summaryArrivedAfterMiss
+  // / the not-found check), which requires a store change *after* the
+  // ref is set. On a cold open the miss resolves (microtask after the
+  // shared open) strictly before readLogSummary's worker round-trip, so
+  // setSelectedLogDetails always provides that change. On the IndexedDB
+  // cache-hit path the synchronous cache restore can land first, but the
+  // unconditional background refreshLogDetails() then provides the
+  // re-render — so the worst case is the not-found error appearing after
+  // the background refresh rather than immediately.
   const speculativeMissRef = useRef(false);
 
   // The handle (id/epoch) is set synchronously from the route by
@@ -127,7 +137,10 @@ export function useLoadSample() {
           // fetch racing ahead of the summaries load. A cdir miss in
           // that case shouldn't trigger a full uncached reopen — the
           // sample may simply not be in the zip yet (running eval).
-          const retryUncached = summary !== undefined;
+          // Likewise an errored sample (summary.error set) has no
+          // entry in the zip by design — skip the reopen and fall
+          // straight through to synthesizeErroredSampleFromSummary.
+          const retryUncached = summary !== undefined && !summary.error;
           const sample: EvalSample | undefined =
             (await api.get_log_sample(
               logFile,

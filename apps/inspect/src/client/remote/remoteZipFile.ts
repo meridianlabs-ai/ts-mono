@@ -140,11 +140,14 @@ export const openRemoteZipFile = async (
   // through to the network unchanged.
   const tailStart = Math.max(0, contentLength - TAIL_WINDOW_BYTES);
   const tail = await fetchBytes(url, tailStart, contentLength - 1);
-  if (tail.length !== contentLength - tailStart) {
+  if (tail.length > contentLength - tailStart) {
     // A server that ignores Range returns the full body here. Catching
     // it at the prefetch (where the over-long response is observable)
     // gives the targeted error; the EOCD read below is now always a
-    // cache hit so it can no longer detect this itself.
+    // cache hit so it can no longer detect this itself. A *short* read
+    // (file shrank between log-info and this fetch — possible for an
+    // S3-backed running eval being rewritten) is left to the EOCD
+    // signature check, which gives a more accurate diagnostic.
     throw new Error(
       `Range request returned ${tail.length} bytes (expected ${contentLength - tailStart}) — does the HTTP server serving this file support HTTP range requests?`
     );
