@@ -183,7 +183,7 @@ export async function expandResultsetRows(
 async function extractLabelValidation(
   row: Record<string, unknown>,
   validationResultStr: string
-): Promise<boolean | string | null | unknown> {
+): Promise<unknown> {
   if (!row.label || typeof row.label !== "string") {
     return validationResultStr;
   }
