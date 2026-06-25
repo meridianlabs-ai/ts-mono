@@ -141,7 +141,7 @@ function gridCell(
   page: Parameters<Parameters<typeof test>[2]>[0]["page"],
   text: string
 ) {
-  return page.locator(".ag-cell").filter({ hasText: text }).first();
+  return page.getByRole("gridcell").filter({ hasText: text }).first();
 }
 
 test.describe("Top-level views", () => {
@@ -153,7 +153,7 @@ test.describe("Top-level views", () => {
     await expect(segmentButton(page, "Tasks")).toBeVisible();
 
     // Should show task rows in a grid (flat list, no folder grouping)
-    const grid = page.locator(".ag-root-wrapper");
+    const grid = page.getByRole("grid");
     await expect(grid).toBeVisible();
 
     // Should show log file entries
@@ -260,7 +260,9 @@ test.describe("Top-level views", () => {
 
     // "subdir" should NOT appear as a separate folder row
     // (task-gamma is in subdir/ but should show as a flat entry)
-    const folderRows = page.locator(".ag-row").filter({ hasText: /^subdir$/ });
+    const folderRows = page
+      .getByRole("row")
+      .filter({ hasText: /^subdir$/ });
     await expect(folderRows).toHaveCount(0);
   });
 

@@ -1,4 +1,3 @@
-import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
 import {
   FC,
@@ -36,7 +35,6 @@ import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
-import { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
@@ -58,7 +56,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   mode = "logs",
 }) => {
   const { loadLogs } = useLogs();
-  const gridRef = useRef<AgGridReact<LogListRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
@@ -74,7 +71,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.
   const deferredLogPreviews = useDeferredValue(logPreviews);
-  const { filteredCount, gridStateByScope } = useLogsListing();
+  const { filteredCount } = useLogsListing();
 
   const syncing = useStore((state) => state.app.status.syncing);
   const error = useStore((state) => state.app.status.error);
@@ -309,37 +306,16 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.logs.listing.columnVisibility
   );
 
-  // Wrapper that clears filters for columns that are being hidden. Because
-  // the popover only sees `pickerColumns` (the active view mode), the
+  // The popover only sees `pickerColumns` (the active view mode), so the
   // visibility map it emits is scoped to those fields. Merge it into the
   // full stored map so toggles in one view don't wipe the other view's
   // entries.
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      const mergedVisibility = {
+      setColumnVisibility({
         ...currentColumnVisibility,
         ...newVisibility,
-      };
-
-      if (gridRef.current?.api) {
-        const currentFilterModel = gridRef.current.api.getFilterModel() || {};
-        let filtersRemoved = false;
-        const newFilterModel: Record<string, unknown> = {};
-
-        for (const [field, filter] of Object.entries(currentFilterModel)) {
-          if (mergedVisibility[field] === false) {
-            filtersRemoved = true;
-          } else {
-            newFilterModel[field] = filter;
-          }
-        }
-
-        if (filtersRemoved) {
-          gridRef.current.api.setFilterModel(newFilterModel);
-        }
-      }
-
-      setColumnVisibility(mergedVisibility);
+      });
     },
     [currentColumnVisibility, setColumnVisibility]
   );
@@ -368,20 +344,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     void loadLogs(logPath);
   }, [loadLogs, logPath]);
 
-  const handleResetFilters = () => {
-    if (gridRef.current?.api) {
-      gridRef.current.api.setFilterModel(null);
-    }
-  };
-
-  // Derived from the store's persisted grid state (kept fresh by the
-  // grid's onStateUpdated) rather than read off the grid api during
-  // render — the api read only appeared live because unrelated renders
-  // happened to coincide with filter changes.
-  const scopeGridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
-  const filteredFields = Object.keys(scopeGridState?.filter?.filterModel ?? {});
-  const hasFilter = filteredFields.length > 0;
-
   useEffect(() => {
     const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
     if (maybeShowSingleLog && onlyItem?.url) {
@@ -396,15 +358,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         currentPath={mode === "tasks" ? undefined : logPath}
         showActivity="log"
       >
-        {hasFilter && (
-          <NavbarButton
-            key="reset-filters"
-            label="Reset Filters"
-            icon={ApplicationIcons.filter}
-            onClick={handleResetFilters}
-          />
-        )}
-
         {hasRetriedLogs && (
           <NavbarButton
             key="show-retried"
@@ -446,7 +399,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         visibility={visibility}
         onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonEl}
-        filteredFields={filteredFields}
         scoresHeading="Metrics"
         groupableScores
         scoresViewMode={scoresViewMode}
@@ -465,7 +417,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               items={logItems}
               currentPath={currentDir}
               scopeKey={scopeKey}
-              gridRef={gridRef}
               mode={mode}
             />
           </div>

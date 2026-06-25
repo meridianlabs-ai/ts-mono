@@ -100,6 +100,8 @@
     "@lezer/highlight": "^1.2.2",
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.3",
     "@vscode-elements/react-elements": "^2.4.0",
     "@vscode/codicons": "^0.0.45",
     "ag-grid-community": "^34.3.1",

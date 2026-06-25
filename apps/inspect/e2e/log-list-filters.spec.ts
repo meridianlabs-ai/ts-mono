@@ -17,6 +17,13 @@
  *
  * Tests drive AG-Grid via column-header sort clicks and via setFilterModel
  * through a dev-only window hook on LogListGrid (`__inspectGridApi`).
+ *
+ * SKIPPED during the AG Grid → TanStack Table migration. The log list now
+ * renders via the inspect-local TanStack DataGrid (phase 1), which does not
+ * yet implement sorting (phase 2), per-column filtering (later phase), or
+ * grid-state persistence (phase 2), and no longer exposes `__inspectGridApi`.
+ * Re-enable / rewrite these against the TanStack grid as those phases land.
+ * See design/plans/loglistgrid-tanstack.md.
  */
 import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
@@ -192,7 +199,7 @@ async function expectNoSort(page: Page) {
 // keeps its filter+sort independently.
 // ---------------------------------------------------------------------------
 
-test.describe("Per-scope filter and ordering", () => {
+test.describe.skip("Per-scope filter and ordering", () => {
   test("Tasks segment's sort doesn't leak into Folders segment", async ({
     page,
     network,
@@ -306,7 +313,7 @@ test.describe("Per-scope filter and ordering", () => {
   });
 });
 
-test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
+test.describe.skip("Tasks ↔ Samples round-trip preserves ordering", () => {
   // Samples is a different surface, not a different log-list scope. Like
   // going to a log and back, this round-trip should leave the task list's
   // sort untouched.
@@ -334,7 +341,7 @@ test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
 // Issue #137 — navigating into a log and back MUST preserve ordering
 // ---------------------------------------------------------------------------
 
-test.describe("#137 – Back from a log preserves ordering", () => {
+test.describe.skip("#137 – Back from a log preserves ordering", () => {
   test("Tasks → log → back preserves column ordering", async ({
     page,
     network,
@@ -411,7 +418,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
 // after the fix.
 // ---------------------------------------------------------------------------
 
-test.describe("Regression — adjacent behaviors", () => {
+test.describe.skip("Regression — adjacent behaviors", () => {
   test("Sort indicator appears after clicking a column header", async ({
     page,
     network,
