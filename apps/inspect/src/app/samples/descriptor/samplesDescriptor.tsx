@@ -6,6 +6,7 @@ import { arrayToString } from "@tsmono/util";
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
+import { valueAsString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";
@@ -185,7 +186,7 @@ export const createEvalDescriptor = (
     } else if (descriptor && descriptor.render) {
       return descriptor.render(score);
     } else {
-      return <span>{String(score)}</span>;
+      return <span>{valueAsString(score)}</span>;
     }
   };
 

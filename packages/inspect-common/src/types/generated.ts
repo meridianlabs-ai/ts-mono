@@ -164,11 +164,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Api Log Delete */
-        get: operations["api_log_delete_log_delete__log__get"];
+        get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Api Log Delete */
+        delete: operations["api_log_delete_log_delete__log__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -283,10 +283,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Api Log Message */
-        get: operations["api_log_message_log_message_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Api Log Message */
+        post: operations["api_log_message_log_message_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4167,7 +4167,7 @@ export interface operations {
             };
         };
     };
-    api_log_delete_log_delete__log__get: {
+    api_log_delete_log_delete__log__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -4325,7 +4325,7 @@ export interface operations {
             };
         };
     };
-    api_log_message_log_message_get: {
+    api_log_message_log_message_post: {
         parameters: {
             query: {
                 log_file: string;

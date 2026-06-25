@@ -16,7 +16,11 @@ import {
   kScoreTypeNumeric,
   kScoreTypePassFail,
 } from "../../../constants";
-import { formatDateTime, formatTime } from "../../../utils/format";
+import {
+  formatDateTime,
+  formatTime,
+  valueAsString,
+} from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
   kDefaultSampleSortValue,
@@ -190,7 +194,7 @@ export function buildSampleColumns(
         filter: true,
         resizable: true,
         valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-          filename(params.value),
+          filename(params.value as string),
       },
       {
         colId: "completed_at",
@@ -211,7 +215,7 @@ export function buildSampleColumns(
           return new Date(d.getFullYear(), d.getMonth(), d.getDate());
         },
         valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-          params.value ? formatDateTime(new Date(params.value)) : "",
+          params.value ? formatDateTime(new Date(params.value as string)) : "",
         comparator: comparators.date,
       }
     );
@@ -380,7 +384,7 @@ export function buildSampleColumns(
       params.value === undefined || params.value === null ? (
         <EmptyCell />
       ) : (
-        <div>{formatNumber(params.value)}</div>
+        <div>{formatNumber(params.value as number)}</div>
       ),
   });
 
@@ -398,17 +402,17 @@ export function buildSampleColumns(
     valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
       params.value === undefined || params.value === null
         ? ""
-        : formatTime(params.value),
+        : formatTime(params.value as number),
     cellRenderer: (params: ICellRendererParams<SampleRow>) =>
       params.value === undefined || params.value === null ? (
         <EmptyCell />
       ) : (
-        <div>{formatTime(params.value)}</div>
+        <div>{formatTime(params.value as number)}</div>
       ),
     tooltipValueGetter: (params) =>
       params.value === undefined || params.value === null
         ? undefined
-        : formatTime(params.value),
+        : formatTime(params.value as number),
   });
 
   // OPTIONAL columns kept before scores so a scrolling user sees
@@ -517,7 +521,7 @@ export function buildSampleColumns(
         return new Date(d.getFullYear(), d.getMonth(), d.getDate());
       },
       valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-        params.value ? formatDateTime(new Date(params.value)) : "",
+        params.value ? formatDateTime(new Date(params.value as string)) : "",
     });
   }
 
@@ -644,7 +648,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
         comparator: isNumeric
           ? comparators.number
           : (a: unknown, b: unknown) =>
-              String(a ?? "").localeCompare(String(b ?? "")),
+              valueAsString(a ?? "").localeCompare(valueAsString(b ?? "")),
         valueGetter: (params: ValueGetterParams<SampleRow>) => {
           const data = params.data?.data;
           if (!data) return undefined;
@@ -717,7 +721,13 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       resizable: true,
       cellStyle,
       valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
-        const v = params.value;
+        const v = params.value as
+          | string
+          | number
+          | boolean
+          | object
+          | null
+          | undefined;
         if (v === "" || v === null || v === undefined) return "";
         if (Array.isArray(v)) return v.join(", ");
         if (typeof v === "object") return JSON.stringify(v);
@@ -727,7 +737,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       comparator: isUniformNumber
         ? comparators.number
         : (a: unknown, b: unknown) =>
-            String(a ?? "").localeCompare(String(b ?? "")),
+            valueAsString(a ?? "").localeCompare(valueAsString(b ?? "")),
     };
   });
 }

@@ -52,6 +52,7 @@ export const MarkdownDivWithReferences = forwardRef<
     () => new Map(references?.map((r) => [r.id, r])),
     [references]
   );
+  const hasReferences = (references?.length || 0) > 0;
 
   const { navigate } = useComponentNavigation();
 
@@ -87,13 +88,21 @@ export const MarkdownDivWithReferences = forwardRef<
       <MarkdownDiv
         ref={ref}
         markdown={markdown}
-        postProcess={postProcess}
+        postProcess={hasReferences ? postProcess : undefined}
         style={style}
         renderer={renderer}
         onClick={handleLinkClick}
       />
     ),
-    [ref, markdown, postProcess, style, renderer, handleLinkClick]
+    [
+      ref,
+      markdown,
+      hasReferences,
+      postProcess,
+      style,
+      renderer,
+      handleLinkClick,
+    ]
   );
 
   // Use event delegation so handlers work even when cite links are injected

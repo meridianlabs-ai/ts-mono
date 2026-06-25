@@ -164,7 +164,7 @@ export const SamplesPanel: FC = () => {
   }, [logPreviews, currentDirLogFiles]);
 
   useEffect(() => {
-    loadLogs(samplesPath);
+    void loadLogs(samplesPath);
   }, [loadLogs, samplesPath]);
 
   // Filter logDetails based on samplesPath.

@@ -8,6 +8,8 @@ import { FC, useEffect, useState } from "react";
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { useDebouncedCallback } from "@tsmono/react/hooks";
 
+import { valueAsString } from "../../utils/format";
+
 type TargetMode = "true" | "false" | "other" | "unset";
 
 /**
@@ -52,7 +54,7 @@ export const ValidationCaseTargetEditor: FC<
     onModeChange?.(mode === "other");
   }, [mode, onModeChange]);
   const [customValue, setCustomValue] = useState(() =>
-    getTargetMode(target) === "other" ? String(target ?? "") : ""
+    getTargetMode(target) === "other" ? valueAsString(target ?? "") : ""
   );
   // Track when user is typing to prevent sync from overwriting during debounce
   const [isTyping, setIsTyping] = useState(false);
@@ -68,7 +70,7 @@ export const ValidationCaseTargetEditor: FC<
     /* eslint-disable react-hooks/set-state-in-effect */
     setMode(newMode);
     if (newMode === "other") {
-      setCustomValue(String(target ?? ""));
+      setCustomValue(valueAsString(target ?? ""));
     } else {
       setCustomValue("");
     }

@@ -37,7 +37,7 @@ export class TranscriptColumns {
 
         // Check if predefined field exists
         if (prop in target) {
-          return Reflect.get(target, prop);
+          return Reflect.get(target, prop) as Column;
         }
 
         // Dynamic field creation for custom transcript fields

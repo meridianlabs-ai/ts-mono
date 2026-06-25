@@ -86,7 +86,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
             <div className={clsx(styles.cell, "text-size-base")}>{answer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>
               <SampleScores
-                sample={evalSample as any as SampleSummary}
+                sample={evalSample as unknown as SampleSummary}
                 scorer={scorer}
               />
             </div>

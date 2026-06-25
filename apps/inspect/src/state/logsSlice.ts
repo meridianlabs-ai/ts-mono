@@ -14,6 +14,7 @@ import {
   EvalHeader,
   LogDetails,
   LogPreview,
+  SampleSummary,
 } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
@@ -43,12 +44,12 @@ export interface LogsSlice {
     clearSelectedLogFile: () => void;
 
     // Cross-file sample operations
-    getAllCachedSamples: () => Promise<any[]>;
+    getAllCachedSamples: () => Promise<SampleSummary[]>;
     queryCachedSamples: (filter?: {
       completed?: boolean;
       hasError?: boolean;
       scoreRange?: { min: number; max: number; scoreName?: string };
-    }) => Promise<any[]>;
+    }) => Promise<SampleSummary[]>;
 
     // Try to fetch an eval-set
     syncEvalSetInfo: (logPath?: string) => Promise<EvalSet | undefined>;
@@ -111,7 +112,7 @@ const initialState: LogsState = {
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: any,
+  _store: unknown,
   api: ClientAPI
 ): [LogsSlice, () => void] => {
   const slice = {

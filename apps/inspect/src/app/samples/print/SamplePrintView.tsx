@@ -31,10 +31,10 @@ import { useLoadSample } from "../../../state/useLoadSample";
 import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
-import { printHeadingHtml } from "../../utils/print";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 
+import { PrintHeading } from "./PrintHeading";
 import styles from "./SamplePrintView.module.css";
 
 /**
@@ -147,12 +147,11 @@ export const SamplePrintView: FC = () => {
   }
 
   const sampleMessages = sample.messages || [];
-  const headingHtml = printHeadingHtml(evalSpec);
 
   return (
     <div className={styles.container} ref={contentRef}>
       <div className={styles.header}>
-        <div dangerouslySetInnerHTML={{ __html: headingHtml }} />
+        <PrintHeading evalSpec={evalSpec} />
         {sampleId && epoch && (
           <div className={styles.sampleInfo}>
             Sample {sampleId} (Epoch {epoch})

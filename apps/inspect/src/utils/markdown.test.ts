@@ -22,8 +22,10 @@ describe("truncateMarkdown", () => {
     });
 
     it("should handle null/undefined gracefully", () => {
-      expect(truncateMarkdown(null as any, 50)).toBe(null);
-      expect(truncateMarkdown(undefined as any, 50)).toBe(undefined);
+      expect(truncateMarkdown(null as unknown as string, 50)).toBe(null);
+      expect(truncateMarkdown(undefined as unknown as string, 50)).toBe(
+        undefined
+      );
     });
   });
 

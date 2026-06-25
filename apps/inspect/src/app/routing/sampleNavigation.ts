@@ -29,11 +29,11 @@ export const useLogNavigation = () => {
       if (loadedLog && routeLogPath) {
         // We already have the logPath from params, just navigate to the tab
         const url = logsUrlRaw(routeLogPath, tabId, prefix);
-        navigate(url);
+        void navigate(url);
       } else if (loadedLog) {
         // Fallback to constructing the path if needed
         const url = logsUrlRaw(makeLogsPath(loadedLog, logDir), tabId, prefix);
-        navigate(url);
+        void navigate(url);
       }
     },
     [loadedLog, routeLogPath, logDir, navigate, prefix]
@@ -163,7 +163,7 @@ export const useSampleNavigation = () => {
         );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
-        navigate(url);
+        void navigate(url);
       }
     },
     [resolveLogPath, selectSample, navigate, sampleTabId, prefix]
@@ -233,7 +233,7 @@ export const useSampleNavigation = () => {
     const resolvedPath = resolveLogPath();
     if (resolvedPath) {
       const url = logsUrlRaw(resolvedPath, tabId, prefix);
-      navigate(url);
+      void navigate(url);
     }
   }, [resolveLogPath, navigate, tabId, prefix]);
 
@@ -283,7 +283,7 @@ export const useSamplesGridNavigation = () => {
         // Open in new window/tab
         openInNewTab(url);
       } else {
-        navigate(url);
+        void navigate(url);
       }
     },
     [navigate, logDirectory]
@@ -350,7 +350,7 @@ export const useLogSampleNavigation = () => {
         sampleTabId,
         prefix
       );
-      navigate(url);
+      void navigate(url);
     }
   }, [
     hasPrevious,
@@ -377,7 +377,7 @@ export const useLogSampleNavigation = () => {
         sampleTabId,
         prefix
       );
-      navigate(url);
+      void navigate(url);
     }
   }, [
     hasNext,

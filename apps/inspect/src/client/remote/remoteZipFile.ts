@@ -281,7 +281,7 @@ export const openRemoteZipFile = async (
 /**
  * Opens an in-memory ZIP buffer and provides a method to read files within it.
  */
-export const openZipFileFromBuffer = async (
+export const openZipFileFromBuffer = (
   bytes: Uint8Array
 ): Promise<{
   centralDirectory: Map<string, CentralDirectoryEntry>;
@@ -321,9 +321,9 @@ export const openZipFileFromBuffer = async (
     bytes.slice(centralDirOffset, centralDirOffset + centralDirSize)
   );
 
-  return {
+  return Promise.resolve({
     centralDirectory,
-    readFile: async (file, maxBytes): Promise<Uint8Array> => {
+    readFile: async (file: string, maxBytes?: number): Promise<Uint8Array> => {
       const entry = centralDirectory.get(file);
       if (!entry) {
         throw new Error(`File not found: ${file}`);
@@ -353,7 +353,7 @@ export const openZipFileFromBuffer = async (
         file
       );
     },
-  };
+  });
 };
 
 export const fetchSize = async (url: string): Promise<number> => {
@@ -396,7 +396,7 @@ export { fetchRange };
 /**
  * Extracts and parses the header and data of a compressed ZIP entry from raw binary data.
  */
-const parseZipFileEntry = async (
+const parseZipFileEntry = (
   file: string,
   rawData: Uint8Array
 ): Promise<ZipFileEntry> => {
@@ -478,7 +478,7 @@ const parseZipFileEntry = async (
   offset += filenameLength + extraFieldLength;
 
   const data = rawData.subarray(offset, offset + compressedSize);
-  return {
+  return Promise.resolve({
     versionNeeded,
     bitFlag,
     compressionMethod,
@@ -488,17 +488,19 @@ const parseZipFileEntry = async (
     filenameLength,
     extraFieldLength,
     data,
-  };
+  });
 };
 
 const kFileHeaderSize = 46;
 /**
  * Parses the central directory of a ZIP file from the provided buffer and returns a map of entries.
  */
-const parseCentralDirectory = (buffer: Uint8Array) => {
+const parseCentralDirectory = (
+  buffer: Uint8Array
+): Map<string, CentralDirectoryEntry> => {
   let offset = 0;
   const view = new DataView(buffer.buffer);
-  const entries = new Map();
+  const entries = new Map<string, CentralDirectoryEntry>();
 
   while (offset < buffer.length) {
     // Central Directory signature

@@ -23,7 +23,9 @@ export const isCurrentSample = (
   id: string | number,
   epoch: number
 ): boolean =>
-  handle !== undefined && handle.epoch === epoch && sampleIdsEqual(handle.id, id);
+  handle !== undefined &&
+  handle.epoch === epoch &&
+  sampleIdsEqual(handle.id, id);
 
 export const sampleHandlesEqual = (
   sample1?: SampleHandle,

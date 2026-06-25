@@ -459,7 +459,7 @@ export const clientApi = (
 
   const middleware = debug
     ? createMiddlewareWrapper([debugMiddleware])
-    : <T extends (...args: any[]) => any>(_name: string, fn: T): T => fn;
+    : <T extends AnyFn>(_name: string, fn: T): T => fn;
 
   return {
     client_events: middleware("client_events", () => {
@@ -604,17 +604,21 @@ export const clientApi = (
   };
 };
 
-type Middleware<T extends (...args: any[]) => any> = (
+// Top type for "any function" — every function is assignable to it, so it
+// works as the generic constraint for the middleware plumbing.
+type AnyFn = (...args: never[]) => unknown;
+
+type Middleware<T extends AnyFn> = (
   name: string,
   fn: T,
   args: Parameters<T>,
   result: ReturnType<T>
 ) => ReturnType<T>;
 
-const debugMiddleware: Middleware<any> = (name, _fn, args, result) => {
+const debugMiddleware: Middleware<AnyFn> = (name, _fn, args, result) => {
   if (result instanceof Promise) {
     const startTime = performance.now();
-    return result.then((returned) => {
+    return result.then((returned: unknown) => {
       const duration = performance.now() - startTime;
       console.log(`[ClientAPI] ${name}`, {
         args,
@@ -629,7 +633,7 @@ const debugMiddleware: Middleware<any> = (name, _fn, args, result) => {
   }
 };
 
-const applyMiddleware = <T extends (...args: any[]) => any>(
+const applyMiddleware = <T extends AnyFn>(
   name: string,
   fn: T,
   middlewares: Middleware<T>[]
@@ -637,7 +641,7 @@ const applyMiddleware = <T extends (...args: any[]) => any>(
   if (middlewares.length === 0) return fn;
 
   return ((...args: Parameters<T>) => {
-    let result = fn(...args);
+    let result: ReturnType<T> = fn(...args) as ReturnType<T>;
 
     for (const middleware of middlewares) {
       result = middleware(name, fn, args, result);
@@ -647,8 +651,10 @@ const applyMiddleware = <T extends (...args: any[]) => any>(
   }) as T;
 };
 
-const createMiddlewareWrapper = (middlewares: Middleware<any>[]) => {
-  return <T extends (...args: any[]) => any>(name: string, fn: T): T => {
-    return applyMiddleware(name, fn, middlewares);
+const createMiddlewareWrapper = (middlewares: Middleware<AnyFn>[]) => {
+  return <T extends AnyFn>(name: string, fn: T): T => {
+    // The middleware list is heterogeneous w.r.t. the wrapped function; the
+    // mixed-variance Middleware<AnyFn> → Middleware<T> reshape is sound here.
+    return applyMiddleware(name, fn, middlewares as Middleware<T>[]);
   };
 };

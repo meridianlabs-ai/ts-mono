@@ -27,8 +27,13 @@ const log = (
 
 const preview = (status: EvalLogStatus) => ({ status });
 
-const s = (id: string | number, epoch: number): SampleSummary =>
-  ({ id, epoch, input: "", target: "", scores: null });
+const s = (id: string | number, epoch: number): SampleSummary => ({
+  id,
+  epoch,
+  input: "",
+  target: "",
+  scores: null,
+});
 
 describe("compareSamples / samplesAreSorted", () => {
   it("orders numeric ids ascending then epoch ascending", () => {

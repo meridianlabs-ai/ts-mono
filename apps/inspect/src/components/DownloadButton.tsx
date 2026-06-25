@@ -19,8 +19,8 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
   return (
     <button
       className={"btn btn-outline-primary download-button"}
-      onClick={async () => {
-        await api.download_file(fileName, fileContents);
+      onClick={() => {
+        void api.download_file(fileName, fileContents);
       }}
     >
       {label}

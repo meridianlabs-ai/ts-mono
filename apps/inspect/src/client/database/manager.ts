@@ -79,13 +79,14 @@ export class DatabaseManager {
   /**
    * Close the current database connection.
    */
-  async close(): Promise<void> {
+  close(): Promise<void> {
     if (this.database) {
       log.debug(`Closing database for: ${this.databaseHandle}`);
       this.database.close();
       this.database = null;
       this.databaseHandle = null;
     }
+    return Promise.resolve();
   }
 
   /**

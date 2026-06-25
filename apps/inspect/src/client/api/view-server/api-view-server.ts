@@ -1,6 +1,8 @@
 import {
   AppConfig,
   EvalLog,
+  EvalSet,
+  LogFilesResponse,
   LogInfo,
   LogUpdate,
   Result,
@@ -20,6 +22,7 @@ import {
   EvalHeader,
   LogContents,
   LogPreview,
+  LogRoot,
   LogViewAPI,
   PendingSampleResponse,
   PendingSamples,
@@ -36,6 +39,8 @@ import {
   Request,
   serverRequestApi,
   unwrapFastapiDetail,
+  VIEW_REQUEST_HEADER,
+  VIEW_REQUEST_HEADER_VALUE,
 } from "./request";
 
 // The time that the view was initially loaded
@@ -69,15 +74,17 @@ export function viewServerApi(
       "GET",
       `/events?${params.toString()}`
     );
-    return result.parsed;
+    return result.parsed as string[];
   };
 
   const get_log_dir = async () => {
     if (logDir) {
       return logDir;
     }
-    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed;
-    return obj.log_dir as string | undefined;
+    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed as {
+      log_dir?: string;
+    };
+    return obj.log_dir;
   };
 
   const get_log_root = async () => {
@@ -89,7 +96,7 @@ export function viewServerApi(
     // Note the last request time so we can get events
     // since the last request
     lastEvalTime = Date.now();
-    return logs.parsed;
+    return logs.parsed as LogRoot | undefined;
   };
 
   const get_logs = async (mtime: number, clientFileCount: number) => {
@@ -108,7 +115,7 @@ export function viewServerApi(
     lastEvalTime = Date.now();
 
     const envelope = await requestApi.fetchString("GET", path, headers);
-    return envelope.parsed;
+    return envelope.parsed as LogFilesResponse;
   };
 
   const log_file_token = (mtime: number, fileCount: number) => {
@@ -131,7 +138,7 @@ export function viewServerApi(
 
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed;
+      return result.parsed as EvalSet;
     } catch (error) {
       // if the eval set is not found, no biggee as not all
       // log directories will have an eval set.
@@ -182,7 +189,7 @@ export function viewServerApi(
       "GET",
       `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`
     );
-    return result;
+    return result as LogContents;
   };
 
   const get_log_info = async (file: string): Promise<LogInfo> => {
@@ -190,7 +197,7 @@ export function viewServerApi(
       "GET",
       `/log-info/${encodeURIComponent(file)}`
     );
-    return result.parsed;
+    return result.parsed as LogInfo;
   };
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
@@ -249,7 +256,7 @@ export function viewServerApi(
       "GET",
       `/log-headers?${params.toString()}`
     );
-    const logHeaders: EvalHeader[] = result.parsed;
+    const logHeaders = result.parsed as EvalHeader[];
     return logHeaders.map(toLogPreview);
   };
 
@@ -265,15 +272,15 @@ export function viewServerApi(
       headers: {
         "Content-Type": "text/plain",
       },
-      parse: async (text: string) => {
+      parse: (text: string) => {
         if (text !== "") {
           throw new Error(`Unexpected response from log_message: ${text}`);
         }
-        return;
+        return Promise.resolve();
       },
     };
     await requestApi.fetchType<void>(
-      "GET",
+      "POST",
       `/log-message?${params.toString()}`,
       request
     );
@@ -482,6 +489,7 @@ export function viewServerApi(
     if (headerProvider) {
       Object.assign(headers, await headerProvider());
     }
+    headers[VIEW_REQUEST_HEADER] = VIEW_REQUEST_HEADER_VALUE;
 
     const isCrossOrigin = Boolean(
       apiBaseUrl &&
@@ -540,7 +548,7 @@ export function viewServerApi(
       "GET",
       `/scout/searches?${params.toString()}`
     );
-    return result.parsed;
+    return result.parsed as SearchInputListResponse;
   };
 
   const post_search = async (
@@ -554,7 +562,7 @@ export function viewServerApi(
       { "Content-Type": "application/json" },
       JSON.stringify(request)
     );
-    return result.parsed;
+    return result.parsed as SearchResponse;
   };
 
   const get_search_result = async (
@@ -572,7 +580,7 @@ export function viewServerApi(
       `/searches/${encodeURIComponent(search_id)}${query ? `?${query}` : ""}`;
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed;
+      return result.parsed as Result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         return null;
@@ -581,7 +589,7 @@ export function viewServerApi(
     }
   };
 
-  const download_log = async (log_file: string): Promise<void> => {
+  const download_log = (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
 
@@ -591,6 +599,7 @@ export function viewServerApi(
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    return Promise.resolve();
   };
 
   return {

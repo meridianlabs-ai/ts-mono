@@ -6,6 +6,7 @@ import { Modal } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
+import { valueAsString } from "../utils/format";
 
 import styles from "./AllScoresDialog.module.css";
 
@@ -26,7 +27,7 @@ const flattenScores = (score: JsonValue): ScoreEntry[] => {
 
 const compareValues = (a: unknown, b: unknown): number => {
   if (typeof a === "number" && typeof b === "number") return a - b;
-  return String(a ?? "").localeCompare(String(b ?? ""));
+  return valueAsString(a ?? "").localeCompare(valueAsString(b ?? ""));
 };
 
 interface AllScoresDialogProps {

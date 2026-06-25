@@ -76,15 +76,11 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    taskInformation[
-      `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`
-    ] = {
-      _html: (
-        <a href={ghCommitUrl(revision.origin, revision.commit)}>
-          {revision.commit}
-        </a>
-      ),
-    };
+    const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
+    const commitUrl = ghCommitUrl(revision.origin, revision.commit);
+    taskInformation[revisionKey] = commitUrl
+      ? { _html: <a href={commitUrl}>{revision.commit}</a> }
+      : revision.commit;
   }
   if (packages) {
     const names = Object.keys(packages).map((key) => {

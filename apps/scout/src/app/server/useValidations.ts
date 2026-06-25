@@ -246,7 +246,7 @@ export const useBulkDeleteValidationCases = (uri: string) => {
       if (failed === results.length) {
         const errors = results
           .filter((r): r is PromiseRejectedResult => r.status === "rejected")
-          .map((r) => r.reason);
+          .map((r) => String(r.reason));
         throw new Error(`All deletions failed: ${errors.join(", ")}`);
       }
 

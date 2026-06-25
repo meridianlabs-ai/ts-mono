@@ -14,6 +14,7 @@ import { MessageBand } from "../../../components/MessageBand";
 import { useDocumentTitle } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
+import { openInNewTab } from "../../shared/openInNewTab";
 import { isCurrentSample } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
@@ -90,7 +91,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     (row: SampleRow, opts: { newWindow: boolean }) => {
       if (opts.newWindow) {
         const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
-        if (url) window.open(url, "_blank");
+        if (url) openInNewTab(url);
       } else {
         // Re-clicking the open sample would re-run selectSample + navigate and
         // trigger a redundant reload of the same sample — skip it.
@@ -201,3 +202,5 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     </div>
   );
 });
+
+SampleList.displayName = "SampleList";

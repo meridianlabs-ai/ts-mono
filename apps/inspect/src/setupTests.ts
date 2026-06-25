@@ -10,10 +10,3 @@ global.TextEncoder = TextEncoder;
 // Mock build-time constants used by logger
 (global as Record<string, unknown>).__LOGGING_FILTER__ = "";
 (global as Record<string, unknown>).__DEV_WATCH__ = false;
-
-// Polyfill structuredClone for Node.js versions that don't have it
-if (typeof global.structuredClone === "undefined") {
-  global.structuredClone = (obj) => {
-    return JSON.parse(JSON.stringify(obj));
-  };
-}

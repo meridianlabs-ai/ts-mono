@@ -15,6 +15,7 @@ import { Status } from "../../../../types/api-types";
 import { useScanResultSummaries } from "../../../hooks/useScanResultSummaries";
 import { useScanRoute } from "../../../hooks/useScanRoute";
 import { ScanResultSummary, SortColumn } from "../../../types";
+import { valueAsString } from "../../../utils/format";
 import {
   resultIdentifierStr,
   resultLog,
@@ -459,8 +460,11 @@ const optimalColumnLayout = (
       }, 0);
 
       // measure the length of the longest value
-      const maxValueLen = Object.values(obj).reduce((max, val) => {
-        const valStr = val !== undefined && val !== null ? String(val) : "";
+      const maxValueLen = Object.values(
+        obj as Record<string, unknown>
+      ).reduce<number>((max, val) => {
+        const valStr =
+          val !== undefined && val !== null ? valueAsString(val) : "";
         return Math.max(max, valStr.length);
       }, 0);
 
@@ -474,13 +478,16 @@ const optimalColumnLayout = (
     const maxValueLen = scannerSummaries.reduce((max: number, s) => {
       if (s.valueType === "array") {
         const len = (s.value as unknown[]).reduce<number>((prev, val) => {
-          const valStr = val !== undefined && val !== null ? String(val) : "";
+          const valStr =
+            val !== undefined && val !== null ? valueAsString(val) : "";
           return Math.max(prev, valStr.length);
         }, 0);
         return Math.max(max, len);
       } else {
         const valStr =
-          s.value !== undefined && s.value !== null ? String(s.value) : "";
+          s.value !== undefined && s.value !== null
+            ? valueAsString(s.value)
+            : "";
         return Math.max(max, valStr.length);
       }
     }, 0);

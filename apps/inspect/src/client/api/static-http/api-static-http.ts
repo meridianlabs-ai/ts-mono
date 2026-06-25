@@ -148,8 +148,9 @@ function staticHttpApiForLog(logInfo: {
         }
       );
     },
-    log_message: async (log_file: string, message: string) => {
+    log_message: (log_file: string, message: string) => {
       console.log(`[CLIENT MESSAGE] (${log_file}): ${message}`);
+      return Promise.resolve();
     },
     get_log_contents: async (
       log_file: string,
@@ -211,7 +212,7 @@ function staticHttpApiForLog(logInfo: {
         `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`
       );
     },
-    get_app_config: async () => app_config,
+    get_app_config: () => Promise.resolve(app_config),
     download_file,
     open_log_file,
   };

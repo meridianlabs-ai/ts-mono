@@ -45,9 +45,7 @@ const clusterMetricModifier: MetricModifier = (
     return undefined;
   }
 
-  const clusterValue = ((metric.params || {}) as Record<string, unknown>)[
-    "cluster"
-  ];
+  const clusterValue = metric.params?.["cluster"];
   if (clusterValue === undefined || typeof clusterValue !== "string") {
     return undefined;
   }
@@ -55,15 +53,11 @@ const clusterMetricModifier: MetricModifier = (
 };
 
 const groupMetricModifier: MetricModifier = (metric: MetricSummary) => {
-  const groupKey = ((metric.params || {}) as Record<string, unknown>)[
-    "group_key"
-  ];
+  const groupKey = metric.params?.["group_key"];
   if (groupKey === undefined || typeof groupKey !== "string") {
     return undefined;
   }
-  const metricRaw = ((metric.params || {}) as Record<string, unknown>)[
-    "metric"
-  ];
+  const metricRaw = metric.params?.["metric"];
   if (metricRaw === undefined || typeof metricRaw !== "object") {
     return undefined;
   }
@@ -107,7 +101,7 @@ const isGroupedMetric = (metric: MetricSummary): boolean => {
   if (!metric.params) {
     return false;
   }
-  const params = metric.params as Record<string, unknown>;
+  const params = metric.params;
   return params["group_key"] !== undefined && params["metric"] !== undefined;
 };
 
@@ -115,7 +109,7 @@ const getBaseMetricName = (metric: MetricSummary): string | undefined => {
   if (!metric.params) {
     return undefined;
   }
-  const params = metric.params as Record<string, unknown>;
+  const params = metric.params;
   const metricObj = params["metric"] as Record<string, unknown> | undefined;
   if (!metricObj || typeof metricObj !== "object") {
     return undefined;

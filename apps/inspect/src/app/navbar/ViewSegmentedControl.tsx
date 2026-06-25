@@ -39,11 +39,11 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
         const path = logPath || samplesPath || tasksPath || "";
 
         if (segment === "logs") {
-          navigate(logsUrl(path));
+          void navigate(logsUrl(path));
         } else if (segment === "tasks") {
-          navigate(tasksUrl(path));
+          void navigate(tasksUrl(path));
         } else {
-          navigate(samplesUrl(path));
+          void navigate(samplesUrl(path));
         }
       }}
     />

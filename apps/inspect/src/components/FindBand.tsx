@@ -15,8 +15,6 @@ import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
 
 import { FindBandUI } from "./FindBandUI";
 
-interface FindBandProps {}
-
 const findConfig = {
   caseSensitive: false,
   wrapAround: false,
@@ -25,7 +23,7 @@ const findConfig = {
   showDialog: false,
 };
 
-export const FindBand: FC<FindBandProps> = () => {
+export const FindBand: FC = () => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const storeHideFind = useStore((state) => state.appActions.hideFind);
   const { extendedFindTerm, countAllMatches } = useExtendedFind();
@@ -239,7 +237,7 @@ export const FindBand: FC<FindBandProps> = () => {
   // and the compiler can't prove debounce() won't invoke it during render.
   const debouncedSearchRef = useRef<(() => void) | null>(null);
   useEffect(() => {
-    debouncedSearchRef.current = debounce(runDebouncedSearch, 100);
+    debouncedSearchRef.current = debounce(() => void runDebouncedSearch(), 100);
   }, [runDebouncedSearch]);
 
   const handleInputChange = useCallback(() => {
@@ -342,8 +340,22 @@ export const FindBand: FC<FindBandProps> = () => {
     />
   );
 };
+// `Window.find` is a non-standard but widely-supported API not in lib.dom.
+declare global {
+  interface Window {
+    find(
+      searchTerm?: string,
+      caseSensitive?: boolean,
+      backwards?: boolean,
+      wrapAround?: boolean,
+      wholeWord?: boolean,
+      searchInFrames?: boolean,
+      showDialog?: boolean
+    ): boolean;
+  }
+}
+
 function windowFind(searchTerm: string, back: boolean): boolean {
-  // @ts-expect-error: `Window.find` is non-standard
   return window.find(
     searchTerm,
     findConfig.caseSensitive,
@@ -352,7 +364,7 @@ function windowFind(searchTerm: string, back: boolean): boolean {
     findConfig.wholeWord,
     findConfig.searchInFrames,
     findConfig.showDialog
-  ) as boolean;
+  );
 }
 
 function positionSelectionForWrap(back: boolean): void {

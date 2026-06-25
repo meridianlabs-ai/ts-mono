@@ -87,7 +87,7 @@ export const SampleDetailView: FC = () => {
         prev.epoch,
         tabId
       );
-      navigate(url);
+      void navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
@@ -107,7 +107,7 @@ export const SampleDetailView: FC = () => {
         next.epoch,
         tabId
       );
-      navigate(url);
+      void navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
