@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import {
+  kSampleEventTabId,
   kSampleMessagesTabId,
   kSampleTabIds,
   kSampleTranscriptTabId,
@@ -413,6 +414,31 @@ export const sampleEventUrl = (
     sampleId,
     sampleEpoch,
     kSampleTranscriptTabId
+  );
+  return `${baseUrl}?event=${eventId}`;
+};
+
+/**
+ * Hash route for the standalone single-event page (open-in-new-tab). Renders
+ * only the given event and its descendants.
+ *
+ * Always uses the `/logs` prefix so the link resolves through `RouteDispatcher`
+ * no matter which surface (`/logs`, `/tasks`, `/samples`) it was opened from —
+ * the standalone page loads its own sample, so the surface is irrelevant. (Only
+ * `RouteDispatcher` wires the `event` tab; `/samples` doesn't even wire print.)
+ */
+export const sampleEventFocusUrl = (
+  eventId: string,
+  logPath: string,
+  sampleId?: string | number,
+  sampleEpoch?: string | number
+) => {
+  const baseUrl = logSamplesUrl(
+    logPath,
+    sampleId,
+    sampleEpoch,
+    kSampleEventTabId,
+    "/logs"
   );
   return `${baseUrl}?event=${eventId}`;
 };

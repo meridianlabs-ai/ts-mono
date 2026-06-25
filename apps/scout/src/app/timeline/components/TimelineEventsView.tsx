@@ -60,6 +60,8 @@ interface TimelineEventsViewProps {
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
   /** Callback to generate a full deep-link URL for an event. */
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Builds a single-event standalone-page URL for the open-in-new-tab control. */
+  getEventFocusUrl?: (eventId: string) => string | undefined;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
   /** Per-message labels rendered in model-call message gutters. */
@@ -92,6 +94,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   headroomHidden,
   onHeadroomResetAnchor,
   getEventUrl,
+  getEventFocusUrl,
   linkingEnabled,
   messageLabels,
   eventLabels,
@@ -244,6 +247,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       initialMessageId={initialMessageId}
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
+      getEventFocusUrl={getEventFocusUrl}
       linkingEnabled={linkingEnabled}
       eventNodeContext={eventNodeContext}
       bulkCollapse={bulkCollapse}

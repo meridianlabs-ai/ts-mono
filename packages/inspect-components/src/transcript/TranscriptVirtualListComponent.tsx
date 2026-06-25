@@ -42,6 +42,11 @@ interface TranscriptVirtualListComponentProps {
   eventNodeContext?: Partial<EventNodeContext>;
   /** External ref filled with Virtuoso's current visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
+  /** Called whenever the visible range changes (e.g. to track the top turn). */
+  onVisibleRangeChange?: (range: {
+    startIndex: number;
+    endIndex: number;
+  }) => void;
 }
 
 /**
@@ -66,6 +71,7 @@ export const TranscriptVirtualListComponent: FC<
   eventCallbacks,
   eventNodeContext,
   visibleRangeRef,
+  onVisibleRangeChange,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
   // (`running || eventNodes.length > 100`) skipped virtualization for short
@@ -228,6 +234,7 @@ export const TranscriptVirtualListComponent: FC<
         components={components}
         onVisibleRangeChange={(range) => {
           if (visibleRangeRef) visibleRangeRef.current = range;
+          onVisibleRangeChange?.(range);
         }}
       />
     );

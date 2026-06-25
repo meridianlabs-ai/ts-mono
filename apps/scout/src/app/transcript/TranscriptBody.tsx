@@ -93,7 +93,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl, getFullEventUrl, getFullMessageUrl } =
+  const { getEventUrl, getFullEventUrl, getFullMessageUrl, getEventFocusUrl } =
     useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
@@ -471,6 +471,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
         getEventUrl={getFullEventUrl}
+        getEventFocusUrl={getEventFocusUrl}
         linkingEnabled={isHostedEnvironment()}
         messageLabels={eventsReferenceLabels?.messageLabels}
         eventLabels={eventsReferenceLabels?.eventLabels}

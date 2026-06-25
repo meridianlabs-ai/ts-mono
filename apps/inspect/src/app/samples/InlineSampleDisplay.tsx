@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, RefObject, useRef } from "react";
 
-import { ErrorPanel, StickyScrollProvider } from "@tsmono/react/components";
+import { ErrorPanel } from "@tsmono/react/components";
 import { useStatefulScrollPosition } from "@tsmono/react/hooks";
 
 import { useSampleData } from "../../state/hooks";
@@ -62,23 +62,21 @@ export const InlineSampleComponent: FC<InlineSampleDisplayProps> = ({
   return (
     <div className={clsx(className, styles.container)}>
       <div className={clsx(styles.scroller)} ref={scrollRef}>
-        <StickyScrollProvider value={scrollRef}>
-          <div className={styles.body}>
-            {sampleData.error ? (
-              <ErrorPanel
-                title="Unable to load sample"
-                error={sampleData.error}
-              />
-            ) : (
-              <SampleDisplay
-                id={"inline-sample-display"}
-                showActivity={!!showActivity}
-                progress={sampleProgress}
-                scrollRef={scrollRef}
-              />
-            )}
-          </div>
-        </StickyScrollProvider>
+        <div className={styles.body}>
+          {sampleData.error ? (
+            <ErrorPanel
+              title="Unable to load sample"
+              error={sampleData.error}
+            />
+          ) : (
+            <SampleDisplay
+              id={"inline-sample-display"}
+              showActivity={!!showActivity}
+              progress={sampleProgress}
+              scrollRef={scrollRef}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

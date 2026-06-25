@@ -299,10 +299,15 @@ export const useSamplesGridNavigation = () => {
  * Hook for sample navigation within the log context (LogSampleDetailView).
  * Uses filteredSamples to navigate between samples respecting current filters.
  */
-export const useLogSampleNavigation = () => {
+export const useLogSampleNavigation = (targetSampleTabId?: string) => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
-  const { logPath: routeLogPath, sampleTabId } = useLogRouteParams();
+  const { logPath: routeLogPath, sampleTabId: routeSampleTabId } =
+    useLogRouteParams();
+  // The focus (single-event) page has no event on a sibling sample, so callers
+  // can redirect prev/next to a concrete tab (e.g. the transcript) instead of
+  // landing on a parameterless `event` URL.
+  const sampleTabId = targetSampleTabId ?? routeSampleTabId;
 
   // Fall back to selectedLogFile for VSCode single-file mode where route params aren't available
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);

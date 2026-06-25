@@ -172,6 +172,9 @@ export interface TranscriptLayoutProps {
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  /** Builds a single-event standalone-page URL for the header's
+   *  open-in-new-tab control. Omit to hide that control. */
+  getEventFocusUrl?: (eventId: string) => string | undefined;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -312,6 +315,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   eventsListRef,
   getEventUrl,
   linkingEnabled,
+  getEventFocusUrl,
   bulkCollapse,
   collapseState,
   outline,
@@ -916,9 +920,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // When a sidebar toggles, the layout reflows but no scroll/resize event
-  // fires — so sticky-state observers (useStickyObserver, StickyScroll)
-  // keep stale state. Dispatch a synthetic scroll event after the DOM has
-  // settled to force them to re-measure.
+  // fires — so the StickyScroll component keeps stale state. Dispatch a
+  // synthetic scroll event after the DOM has settled to force a re-measure.
   const outlineCollapsedFlag = outline?.collapsed ?? null;
   const railPanelOpenFlag = rightRail?.panel != null;
   useEffect(() => {
@@ -1198,8 +1201,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
                   getEventUrl={getEventUrl}
                   linkingEnabled={linkingEnabled}
+                  getEventFocusUrl={getEventFocusUrl}
                   collapsedTranscript={collapseState?.transcript}
-                  collapsedOutline={collapseState?.outline}
                   onCollapseTranscript={onCollapseTranscript}
                   onExpandNodes={
                     onSetTranscriptCollapsed ? onExpandNodes : undefined

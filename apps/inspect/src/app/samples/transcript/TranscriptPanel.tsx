@@ -29,6 +29,7 @@ import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
   makeLogsPath,
+  sampleEventFocusUrl,
   sampleEventUrl,
   useLogOrSampleRouteParams,
   useLogRouteParams,
@@ -285,6 +286,23 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
+  // Hash-route href for the open-in-new-tab control. Relative `#…` so a normal
+  // ctrl/cmd-click or middle-click opens it in a new tab of the same SPA.
+  const getEventFocusUrl = useCallback(
+    (eventId: string) => {
+      let targetLogPath = urlLogPath;
+      if (!targetLogPath && logFile) {
+        targetLogPath = makeLogsPath(logFile, logDir);
+      }
+      // The focus route is keyed by sample id + epoch; without them (e.g. a
+      // uuid-based sample URL) it can't be built — hide the control instead.
+      if (!targetLogPath || urlSampleId === undefined || urlEpoch === undefined)
+        return undefined;
+      return `#${sampleEventFocusUrl(eventId, targetLogPath, urlSampleId, urlEpoch)}`;
+    },
+    [urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
+  );
+
   // Outline link clicks are in-view navigation (jumping to an event in the
   // same transcript), so use `replace` to keep the back button clean.
   const renderLink = useCallback(
@@ -348,6 +366,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       initialEventId={initialEventId}
       initialMessageId={initialMessageId}
       getEventUrl={getEventUrl}
+      getEventFocusUrl={getEventFocusUrl}
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}

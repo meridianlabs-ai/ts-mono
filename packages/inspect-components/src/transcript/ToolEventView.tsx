@@ -75,10 +75,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const displayName = resolvedView?.title || title || name;
   const panelTitle = displayName ? `Tool: ${displayName}` : "Tool";
 
-  const turnLabel = context?.turnInfo
-    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
-    : undefined;
-
   const toolLabels = useMemo<ChatViewLabelOptions>(() => {
     const messageLabels = context?.messageLabels;
     if (!messageLabels) return { show: false };
@@ -129,7 +125,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       icon={TranscriptIcons.solvers.use_tools}
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
-      turnLabel={turnLabel}
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>
