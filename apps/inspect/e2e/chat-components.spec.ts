@@ -17,6 +17,7 @@ import {
 } from "./fixtures/test-data";
 
 const LOG_FILE = "test-chat.json";
+const MEDIA_ORIGIN = "https://media.invalid";
 
 /**
  * Set up mock handlers for a single log file containing one sample,
@@ -172,6 +173,73 @@ test.describe("chat message rendering", () => {
 
     await expect(page.getByText("Describe this image:")).toBeVisible();
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
+  });
+
+  test("does not automatically load remote message media", async ({
+    page,
+    network,
+  }) => {
+    const mediaRequests: string[] = [];
+    await page.context().route(`${MEDIA_ORIGIN}/**`, async (route) => {
+      mediaRequests.push(route.request().url());
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<title>media</title>",
+      });
+    });
+
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        source: "generate",
+        content: [
+          {
+            type: "text",
+            text: `![markdown image](${MEDIA_ORIGIN}/markdown.png)`,
+          },
+          {
+            type: "image",
+            image: `${MEDIA_ORIGIN}/image.png`,
+            detail: "auto",
+          },
+          {
+            type: "audio",
+            audio: `${MEDIA_ORIGIN}/audio.mp3`,
+            format: "mp3",
+          },
+          {
+            type: "video",
+            video: `${MEDIA_ORIGIN}/video.mp4`,
+            format: "mp4",
+          },
+          {
+            type: "document",
+            document: `${MEDIA_ORIGIN}/document.png`,
+            filename: "document.png",
+            mime_type: "image/png",
+          },
+        ],
+      },
+    ]);
+
+    const markdownLink = page.locator(`a[href="${MEDIA_ORIGIN}/markdown.png"]`);
+    await expect(markdownLink).toBeVisible();
+    await expect(page.locator(`a[href^="${MEDIA_ORIGIN}/"]`)).toHaveCount(5);
+    await expect(
+      page.locator(
+        `img[src^="${MEDIA_ORIGIN}/"], audio source[src^="${MEDIA_ORIGIN}/"], video source[src^="${MEDIA_ORIGIN}/"]`
+      )
+    ).toHaveCount(0);
+    expect(mediaRequests).toEqual([]);
+
+    const popupPromise = page.waitForEvent("popup");
+    await markdownLink.click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState("domcontentloaded");
+
+    expect(mediaRequests).toEqual([`${MEDIA_ORIGIN}/markdown.png`]);
+    await popup.close();
   });
 });
 

@@ -15,6 +15,7 @@ import { useDocumentTitle } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
 import { openInNewTab } from "../../shared/openInNewTab";
+import { isCurrentSample } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
 
@@ -92,10 +93,15 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
         if (url) openInNewTab(url);
       } else {
+        // Re-clicking the open sample would re-run selectSample + navigate and
+        // trigger a redundant reload of the same sample — skip it.
+        if (isCurrentSample(selectedSampleHandle, row.sampleId, row.epoch)) {
+          return;
+        }
         sampleNavigation.showSample(row.sampleId, row.epoch);
       }
     },
-    [sampleNavigation]
+    [sampleNavigation, selectedSampleHandle]
   );
 
   const getRowId = useCallback(
@@ -125,14 +131,16 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   const sampleCount = items.length;
 
   const warnings = useMemo(() => {
-    const errorCount = items.reduce(
-      (prev, item) => (item.error || item.data?.error ? prev + 1 : prev),
-      0
-    );
-    const limitCount = items.reduce(
-      (prev, item) => (item.limit || item.data?.limit ? prev + 1 : prev),
-      0
-    );
+    let errorCount = 0;
+    let limitCount = 0;
+    for (const item of items) {
+      if (item.error || item.data?.error) {
+        errorCount += 1;
+      }
+      if (item.limit || item.data?.limit) {
+        limitCount += 1;
+      }
+    }
     const percentError = sampleCount > 0 ? (errorCount / sampleCount) * 100 : 0;
     const percentLimit = sampleCount > 0 ? (limitCount / sampleCount) * 100 : 0;
 
@@ -160,12 +168,12 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   return (
     <div className={styles.mainLayout}>
-      {warnings.map((warning, index) => (
+      {warnings.map((warning) => (
         <MessageBand
-          id={`sample-warning-message-${index}`}
+          id={`sample-warning-message-${warning.type}-${warning.msg}`}
           message={warning.msg}
           type={warning.type as "info" | "warning" | "error"}
-          key={`sample-warning-message-${index}`}
+          key={`sample-warning-message-${warning.type}-${warning.msg}`}
         />
       ))}
       <SamplesGrid<SampleRow>

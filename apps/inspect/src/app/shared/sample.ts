@@ -18,6 +18,15 @@ export const sampleIdsEqual = (
   return String(id) === String(otherId);
 };
 
+export const isCurrentSample = (
+  handle: SampleHandle | undefined,
+  id: string | number,
+  epoch: number
+): boolean =>
+  handle !== undefined &&
+  handle.epoch === epoch &&
+  sampleIdsEqual(handle.id, id);
+
 export const sampleHandlesEqual = (
   sample1?: SampleHandle,
   sample2?: SampleHandle

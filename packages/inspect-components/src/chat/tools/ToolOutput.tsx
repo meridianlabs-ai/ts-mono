@@ -6,6 +6,8 @@ import { ANSIDisplay } from "@tsmono/react/components";
 import { isAnsiOutput, isJson } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
+import { MediaReference } from "../../media/MediaReference";
+import { isRenderableImageSource } from "../../media/mediaSource";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 
@@ -47,12 +49,12 @@ export const ToolOutput: FC<ToolOutputProps> = ({
           />
         );
       } else if (out.type === "image") {
-        if (out.image.startsWith("data:")) {
+        if (isRenderableImageSource(out.image)) {
           outputs.push(
             <img className={clsx(styles.toolImage)} src={out.image} key={key} />
           );
         } else {
-          outputs.push(<ToolTextOutput text={String(out.image)} key={key} />);
+          outputs.push(<MediaReference source={out.image} key={key} />);
         }
       } else if (out.type === "reasoning") {
         if (out.reasoning) {
