@@ -73,10 +73,12 @@ export const fetchLogFile = async (
         untypedLog.results.scorer.scorer = untypedLog.results.scorer.name;
         log.results.scores.push(untypedLog.results.scorer);
         delete untypedLog.results.scorer;
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         log.results.scores[0].metrics = untypedLog.results.metrics;
         delete untypedLog.results.metrics;
 
         // migrate samples
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const scorerName = log.results.scores[0].name;
         log.samples?.forEach((sample) => {
           const untypedSample = sample as any;

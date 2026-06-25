@@ -519,6 +519,7 @@ export const useSetSelectedLogIndex = () => {
       clearSelectedLogDetails();
 
       const logHandle = allLogFiles[index];
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       setSelectedLogFile(logHandle.name);
     },
     [
@@ -720,6 +721,7 @@ export const computeLogsWithRetried = (
         const parent = slash >= 0 ? log.name.substring(0, slash) : "";
         const key = `${parent}|${taskId}`;
         if (!(key in acc)) acc[key] = [];
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         acc[key].push(log);
       }
       return acc;
@@ -738,8 +740,10 @@ export const computeLogsWithRetried = (
       if (aActive !== bActive) return aActive ? -1 : 1;
       return b.name.localeCompare(a.name);
     });
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     const { name } = items[0];
-    bestByName[name] = { ...items[0], retried: false };
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+    bestByName[name] = { ...items[0], retried: false }; // eslint-disable-line @typescript-eslint/no-unsafe-member-access -- TODO: pre-existing noUncheckedIndexedAccess fallout
   }
 
   // Rebuild logs maintaining order, marking duplicates as skippable

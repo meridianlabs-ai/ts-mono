@@ -23,7 +23,9 @@ export const parseLogFileName = (logFileName: string): ParsedLogFileName => {
   }
 
   return {
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     timestamp: new Date(Date.parse(match[1])),
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     name: match[2],
     taskId: match[3],
     extension: match[4] as "eval" | "json",

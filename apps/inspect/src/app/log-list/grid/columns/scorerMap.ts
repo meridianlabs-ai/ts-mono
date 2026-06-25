@@ -79,8 +79,11 @@ export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
     const bv = b[key];
     if (
       !bv ||
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.scorerName !== bv.scorerName ||
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.metricName !== bv.metricName ||
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.valueType !== bv.valueType
     ) {
       return false;

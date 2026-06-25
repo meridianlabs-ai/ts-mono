@@ -72,6 +72,7 @@ const parseRegexLiteral = (
       ch === "[" &&
       i + 2 < s.length &&
       s[i + 2] === "]" &&
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       META_FOR_CLASS.includes(s[i + 1])
     ) {
       literal += s[i + 1];
@@ -84,6 +85,7 @@ const parseRegexLiteral = (
       i += 2;
       continue;
     }
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     if (REGEX_META.includes(ch)) return null; // unescaped metachar
     literal += ch;
     i++;
@@ -143,6 +145,7 @@ const predicateToConditionInner = (
   if (ast.kind === "call" && ast.args.length === 1) {
     const fn = ast.fn;
     const arg = ast.args[0];
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     if (arg.kind !== "str") return null;
     const colId = colIdForContainsFn(fn, registry);
     if (!colId) return null;
@@ -150,7 +153,8 @@ const predicateToConditionInner = (
     // The synthesizer regex-escapes the value before emitting; reverse
     // that here so the FilterModel round-trips to the user's input. If
     // the literal isn't a plain regex-escaped string, skip.
-    const parsed = parseRegexLiteral(arg.value);
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+    const parsed = parseRegexLiteral(arg.value); // eslint-disable-line @typescript-eslint/no-unsafe-argument -- TODO: pre-existing noUncheckedIndexedAccess fallout
     if (!parsed || parsed.anchor !== "none") return null;
     return {
       colId,
@@ -284,9 +288,13 @@ const tryInRange = (conds: SimpleCondition[]): SimpleCondition | null => {
   let lower: number | undefined;
   let upper: number | undefined;
   for (const c of [a, b]) {
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     if (c.type === "greaterThanOrEqual" && typeof c.filter === "number") {
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       lower = c.filter;
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     } else if (c.type === "lessThanOrEqual" && typeof c.filter === "number") {
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       upper = c.filter;
     }
   }

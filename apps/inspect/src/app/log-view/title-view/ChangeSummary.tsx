@@ -43,11 +43,7 @@ const Line: FC<{
   label: string;
   accent: string | undefined;
   items: string[];
-}> = ({
-  label,
-  accent,
-  items,
-}) => {
+}> = ({ label, accent, items }) => {
   const joined = items.join(", ");
   return (
     // The full list lives in the `title` attribute so a truncated line

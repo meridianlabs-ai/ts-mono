@@ -59,6 +59,7 @@ function validateZstdWindowSize(data: Uint8Array): void {
   }
 
   // Check magic number (0xFD2FB528, little-endian)
+  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
   const magic = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
   if (magic !== 0xfd2fb528) {
     return; // Not a zstd frame, let fzstd handle it
@@ -68,6 +69,7 @@ function validateZstdWindowSize(data: Uint8Array): void {
   const descriptor = data[4];
 
   // Single_Segment_flag is bit 5
+  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
   const singleSegmentFlag = (descriptor >> 5) & 1;
 
   if (singleSegmentFlag) {
@@ -83,6 +85,7 @@ function validateZstdWindowSize(data: Uint8Array): void {
   }
 
   const windowDescriptor = data[5];
+  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
   const exponent = windowDescriptor >> 3; // bits 7-3
   const windowLog = 10 + exponent;
 

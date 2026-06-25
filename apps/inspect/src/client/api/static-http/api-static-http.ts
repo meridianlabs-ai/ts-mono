@@ -200,6 +200,7 @@ function staticHttpApiForLog(logInfo: {
               return file.endsWith(key);
             });
             if (fileKey) {
+              // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
               result.push(manifest[fileKey]);
             }
           });

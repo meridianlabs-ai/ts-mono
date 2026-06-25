@@ -448,6 +448,7 @@ export function getCompletions(
     ? tokens.length - 1
     : tokens.length;
 
+  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
   const prevToken = (index: number): Token => tokens[currentTokenIndex - index];
   const currentToken = prevToken(0);
   const completionStart = currentToken ? currentToken.from : context.pos;

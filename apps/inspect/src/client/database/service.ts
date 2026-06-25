@@ -147,6 +147,7 @@ export class DatabaseService {
     }));
 
     log.debug(`Caching ${records.length} log previews`);
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     await db.log_previews.bulkPut(records);
   }
 

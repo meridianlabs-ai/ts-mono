@@ -80,7 +80,8 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
   const expandedScorers = expandGroupedMetrics(scorers);
 
   // Get the display scorers
-  const onlyScorer = expandedScorers.length === 1 ? expandedScorers[0] : undefined;
+  const onlyScorer =
+    expandedScorers.length === 1 ? expandedScorers[0] : undefined;
   if (onlyScorer) {
     const showReducer = !!onlyScorer.reducer;
     const metrics = onlyScorer.metrics;

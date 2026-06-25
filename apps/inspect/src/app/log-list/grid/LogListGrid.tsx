@@ -490,6 +490,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
       setMatchIds(foundIds);
       setCurrentMatchIndex(0);
       if (foundIds.length > 0) {
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const firstNode = api.getRowNode(foundIds[0]);
         if (firstNode) {
           api.deselectAll();
@@ -509,6 +510,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
       setCurrentMatchIndex(idx);
       const api = gridRef.current?.api;
       if (!api) return;
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       const node = api.getRowNode(matchIds[idx]);
       if (node) {
         api.deselectAll();

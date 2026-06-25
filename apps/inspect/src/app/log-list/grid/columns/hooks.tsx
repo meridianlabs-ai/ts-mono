@@ -256,6 +256,7 @@ export const useLogListColumns = (
           }
           const roles = displayModelRoles(item);
           if (roles.length > 0) {
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
             const [, primary] = roles[0];
             const extras = roles.length - 1;
             return (
@@ -644,11 +645,12 @@ export const useLogListColumns = (
       a.localeCompare(b)
     );
     const perScorerColumns: ColDef<LogListRow>[] = scorerKeys.map((key) => {
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       const { scorerName, metricName, valueType } = scorerMap[key];
-      const scoreType = valueType;
+      const scoreType = valueType; // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- TODO: pre-existing noUncheckedIndexedAccess fallout
       return {
         field: `score_${key}`,
-        headerName: scorerMetricHeader(scorerName, metricName),
+        headerName: scorerMetricHeader(scorerName, metricName), // eslint-disable-line @typescript-eslint/no-unsafe-argument -- TODO: pre-existing noUncheckedIndexedAccess fallout
         initialWidth: 100,
         minWidth: 100,
         sortable: true,
@@ -763,6 +765,7 @@ export const useLogListColumns = (
           cellRenderer: (params: ICellRendererParams<LogListRow>) => {
             const contributors = readContributors(params.data);
             if (contributors.length === 0) return <EmptyCell />;
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
             const primary = contributors[0].value;
             const extras = contributors.slice(1);
             const primaryText =
@@ -850,6 +853,7 @@ export const useLogListColumns = (
       const nameIdx = allCols.findIndex((col) => col.field === "name");
       if (nameIdx > 1) {
         const [nameCol] = allCols.splice(nameIdx, 1);
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         allCols.splice(1, 0, nameCol);
       }
 
@@ -857,6 +861,7 @@ export const useLogListColumns = (
       const statusIdx = allCols.findIndex((col) => col.field === "status");
       if (statusIdx > 2) {
         const [statusCol] = allCols.splice(statusIdx, 1);
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         allCols.splice(2, 0, statusCol);
       }
     }
