@@ -79,13 +79,9 @@ export const clientApi = (
     remoteLog: undefined,
   };
 
-  // Single-slot prefetch for the sample the route points at, populated by
-  // `warm_log_sample` as soon as the route handle is known. Lets the
-  // sample bytes download in parallel with summaries.json instead of
-  // serialised behind it; the unchanged `loadSample` flow then resolves
-  // from this promise instead of issuing a second fetch. A miss
-  // (`undefined`) is not reused — the real call falls through so its
-  // `retryUncached` semantics still apply.
+  // Lets the sample download in parallel with summaries.json instead of
+  // serialised behind it. A warmed miss (`undefined`) is not reused —
+  // the real call falls through so its `retryUncached` semantics apply.
   let warmedSample:
     | { key: string; promise: Promise<EvalSample | undefined> }
     | undefined;
@@ -127,7 +123,6 @@ export const clientApi = (
         if (loadedEvalFile.remoteLog === remoteLog) {
           loadedEvalFile.file = undefined;
           loadedEvalFile.remoteLog = undefined;
-          loadedEvalFile.resolved = undefined;
         }
       }
     );
@@ -633,11 +628,8 @@ export const clientApi = (
             if (loadedEvalFile.file === log_file) {
               loadedEvalFile.file = undefined;
               loadedEvalFile.remoteLog = undefined;
-              loadedEvalFile.resolved = undefined;
             }
-            if (warmedSample?.key.startsWith(`${log_file}\0`)) {
-              warmedSample = undefined;
-            }
+            warmedSample = undefined;
             return result;
           }
         )

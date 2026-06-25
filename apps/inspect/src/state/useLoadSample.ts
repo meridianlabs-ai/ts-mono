@@ -38,33 +38,27 @@ export function useLoadSample() {
   const getSelectedSample = useStore(
     (state) => state.sampleActions.getSelectedSample
   );
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const handle = useStore((state) => state.log.selectedSampleHandle);
+  const handleLogFile = handle?.logFile;
+  const handleId = handle?.id;
+  const handleEpoch = handle?.epoch;
 
-  // Kick off the sample fetch as soon as the route handle resolves so it
-  // downloads in parallel with summaries.json (rather than serialised
-  // behind it). The unchanged load flow below then finds the bytes in
-  // client-api's warm cache. Separate effect with its own deps so it
-  // never re-runs on summary/status churn.
+  // Separate effect so the prefetch fires once per (file, id, epoch)
+  // and isn't re-triggered by the load flow's summary/status churn.
+  // The endsWith gate skips the transient window where the handle has
+  // updated to a new log but `selectedLogFile` (set by an async action)
+  // still points at the previous one.
   useEffect(() => {
     if (
       logSelection.logFile &&
-      selectedSampleHandle?.id !== undefined &&
-      selectedSampleHandle.epoch !== undefined
+      handleLogFile &&
+      handleId !== undefined &&
+      handleEpoch !== undefined &&
+      logSelection.logFile.endsWith(handleLogFile)
     ) {
-      api.warm_log_sample(
-        logSelection.logFile,
-        selectedSampleHandle.id,
-        selectedSampleHandle.epoch
-      );
+      api.warm_log_sample(logSelection.logFile, handleId, handleEpoch);
     }
-  }, [
-    api,
-    logSelection.logFile,
-    selectedSampleHandle?.id,
-    selectedSampleHandle?.epoch,
-  ]);
+  }, [api, logSelection.logFile, handleLogFile, handleId, handleEpoch]);
 
   // Extract sample properties to avoid object reference issues
   const sampleId = logSelection.sample?.id;
