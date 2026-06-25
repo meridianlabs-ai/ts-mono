@@ -11,6 +11,19 @@ interface TruncatedBreadcrumbs {
   showEllipsis: boolean;
 }
 
+const replaceMeasurementItems = (
+  element: HTMLOListElement,
+  labels: string[]
+) => {
+  const items = labels.map((label) => {
+    const item = document.createElement("li");
+    item.className = "breadcrumb-item";
+    item.textContent = label;
+    return item;
+  });
+  element.replaceChildren(...items);
+};
+
 export const useBreadcrumbTruncation = (
   segments: BreadcrumbSegment[],
   containerRef: RefObject<HTMLElement | null>
@@ -47,9 +60,10 @@ export const useBreadcrumbTruncation = (
       container.appendChild(testElement);
 
       // Test if all segments fit
-      testElement.innerHTML = segments
-        .map((segment) => `<li class="breadcrumb-item">${segment.text}</li>`)
-        .join("");
+      replaceMeasurementItems(
+        testElement,
+        segments.map((segment) => segment.text)
+      );
 
       if (testElement.scrollWidth <= containerWidth) {
         container.removeChild(testElement);
@@ -82,16 +96,14 @@ export const useBreadcrumbTruncation = (
         ];
 
         // Test with ellipsis
-        const testHTML = [
-          `<li class="breadcrumb-item">${firstSegment.text}</li>`,
-          `<li class="breadcrumb-item">...</li>`,
+        replaceMeasurementItems(testElement, [
+          firstSegment.text,
+          "...",
           ...segments
             .slice(segments.length - 1 - endCount, -1)
-            .map((s) => `<li class="breadcrumb-item">${s.text}</li>`),
-          `<li class="breadcrumb-item">${lastSegment.text}</li>`,
-        ].join("");
-
-        testElement.innerHTML = testHTML;
+            .map((segment) => segment.text),
+          lastSegment.text,
+        ]);
 
         if (testElement.scrollWidth <= containerWidth) {
           maxVisible = candidateSegments.length;
