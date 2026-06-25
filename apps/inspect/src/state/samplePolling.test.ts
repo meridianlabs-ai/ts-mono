@@ -515,7 +515,9 @@ describe("createSamplePolling", () => {
 
     expect(mockApi.get_log_sample).toHaveBeenCalled();
     expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
-    const [synthesizedSample] = sampleActions.setSelectedSample.mock.calls[0];
+    const firstCall = sampleActions.setSelectedSample.mock.calls[0];
+    if (firstCall === undefined) throw new Error("expected a call");
+    const [synthesizedSample] = firstCall;
     expect(synthesizedSample.error?.message).toBe(
       "RuntimeError: server.py exited before becoming ready"
     );
@@ -577,7 +579,9 @@ describe("createSamplePolling", () => {
     await flushPromises();
 
     expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1);
-    const [passedSample] = sampleActions.setSelectedSample.mock.calls[0];
+    const firstCall = sampleActions.setSelectedSample.mock.calls[0];
+    if (firstCall === undefined) throw new Error("expected a call");
+    const [passedSample] = firstCall;
     expect(passedSample.error?.message).toBe(
       "real sample error from .eval body"
     );

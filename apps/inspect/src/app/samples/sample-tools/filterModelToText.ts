@@ -134,7 +134,7 @@ const columnFilterToFiltrex = (
       .map((c) => conditionToFiltrex(mapping, c))
       .filter((p): p is string => p !== null);
     if (parts.length === 0) return null;
-    if (parts.length === 1) return parts[0];
+    if (parts.length === 1) return parts[0] ?? null;
     return `(${parts.join(" and ")})`;
   }
 
@@ -171,6 +171,6 @@ export const filterModelToText = (
     if (text === null) return null;
     parts.push(text);
   }
-  if (parts.length === 1) return parts[0];
+  if (parts.length === 1) return parts[0] ?? null;
   return parts.join(" and ");
 };

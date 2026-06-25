@@ -43,11 +43,7 @@ import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
 
 const rootName = (relativePath: string) => {
-  const parts = relativePath.split("/");
-  if (parts.length === 0) {
-    return "";
-  }
-  return parts[0];
+  return relativePath.split("/")[0] ?? "";
 };
 
 export type LogsPanelMode = "logs" | "tasks";
@@ -199,7 +195,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       let hi = sortedNames.length;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
-        if (sortedNames[mid] < target) lo = mid + 1;
+        const name = sortedNames[mid];
+        if (name !== undefined && name < target) lo = mid + 1;
         else hi = mid;
       }
       return lo;
@@ -386,11 +383,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const hasFilter = filteredFields.length > 0;
 
   useEffect(() => {
-    if (maybeShowSingleLog && logItems.length === 1) {
-      const onlyItem = logItems[0];
-      if (onlyItem.url) {
-        void navigate(onlyItem.url);
-      }
+    const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
+    if (maybeShowSingleLog && onlyItem?.url) {
+      void navigate(onlyItem.url);
     }
   }, [logItems, maybeShowSingleLog, navigate]);
 

@@ -532,10 +532,15 @@ const displaySamplesEqual = (
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
+    const sampleA = a[i];
+    const sampleB = b[i];
+    if (sampleA === undefined || sampleB === undefined) {
+      return false;
+    }
     if (
-      a[i].logFile !== b[i].logFile ||
-      a[i].sampleId !== b[i].sampleId ||
-      a[i].epoch !== b[i].epoch
+      sampleA.logFile !== sampleB.logFile ||
+      sampleA.sampleId !== sampleB.sampleId ||
+      sampleA.epoch !== sampleB.epoch
     ) {
       return false;
     }

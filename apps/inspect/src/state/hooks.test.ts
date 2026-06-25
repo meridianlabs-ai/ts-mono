@@ -26,21 +26,21 @@ const preview = (status: EvalLogStatus) => ({ status });
 
 describe("computeLogsWithRetried", () => {
   it("marks a lone log as not retried", () => {
-    const logs = [log({ name: "/a/flow/2026_task_abc.eval", task_id: "abc" })];
+    const only = log({ name: "/a/flow/2026_task_abc.eval", task_id: "abc" });
+    const logs = [only];
     const result = computeLogsWithRetried(logs, {
-      [logs[0].name]: preview("success"),
+      [only.name]: preview("success"),
     });
-    expect(result).toEqual([{ ...logs[0], retried: false }]);
+    expect(result).toEqual([{ ...only, retried: false }]);
   });
 
   it("does not flag logs with distinct task_ids in the same folder", () => {
-    const logs = [
-      log({ name: "/a/flow/2026_one_abc.eval", task_id: "abc" }),
-      log({ name: "/a/flow/2026_two_def.eval", task_id: "def" }),
-    ];
+    const one = log({ name: "/a/flow/2026_one_abc.eval", task_id: "abc" });
+    const two = log({ name: "/a/flow/2026_two_def.eval", task_id: "def" });
+    const logs = [one, two];
     const result = computeLogsWithRetried(logs, {
-      [logs[0].name]: preview("success"),
-      [logs[1].name]: preview("success"),
+      [one.name]: preview("success"),
+      [two.name]: preview("success"),
     });
     expect(result.map((r) => r.retried)).toEqual([false, false]);
   });
@@ -175,13 +175,12 @@ describe("computeLogsWithRetried", () => {
   // collide. This happens when the view is opened on a parent directory that
   // contains multiple copies of an eval-set, each in its own subfolder.
   it("does not dedupe across different parent folders", () => {
-    const logs = [
-      log({ name: "/a/flow_a/2026_task_abc.eval", task_id: "abc" }),
-      log({ name: "/a/flow_b/2026_task_abc.eval", task_id: "abc" }),
-    ];
+    const flowA = log({ name: "/a/flow_a/2026_task_abc.eval", task_id: "abc" });
+    const flowB = log({ name: "/a/flow_b/2026_task_abc.eval", task_id: "abc" });
+    const logs = [flowA, flowB];
     const result = computeLogsWithRetried(logs, {
-      [logs[0].name]: preview("success"),
-      [logs[1].name]: preview("success"),
+      [flowA.name]: preview("success"),
+      [flowB.name]: preview("success"),
     });
     expect(result.map((r) => r.retried)).toEqual([false, false]);
   });
@@ -213,11 +212,14 @@ describe("computeLogsWithRetried", () => {
   });
 
   it("leaves logs without task_id untouched (retried: undefined)", () => {
-    const logs = [log({ name: "/a/flow/legacy.eval" })];
+    const legacy = log({ name: "/a/flow/legacy.eval" });
+    const logs = [legacy];
     const result = computeLogsWithRetried(logs, {
-      [logs[0].name]: preview("success"),
+      [legacy.name]: preview("success"),
     });
-    expect(result[0].retried).toBeUndefined();
+    const first = result[0];
+    if (first === undefined) throw new Error("expected a result");
+    expect(first.retried).toBeUndefined();
   });
 
   it("preserves input order", () => {

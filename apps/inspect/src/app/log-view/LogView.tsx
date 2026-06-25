@@ -88,7 +88,7 @@ export const LogView: FC = () => {
   const scrollRefs = useMemo(() => {
     const refs: RefObject<HTMLElement | null>[] = [];
     for (const key of Object.keys(tabs)) {
-      const ref = tabs[key].scrollRef;
+      const ref = tabs[key]?.scrollRef;
       if (ref) refs.push(ref);
     }
     return refs;
@@ -118,11 +118,8 @@ export const LogView: FC = () => {
   if (evalSpec === undefined) {
     return <EmptyPanel />;
   } else {
-    const tabTools = Object.keys(tabs)
-      .map((key) => {
-        const tab = tabs[key];
-        return tab;
-      })
+    const tabTools = Object.values(tabs)
+      .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;
       })
@@ -159,6 +156,7 @@ export const LogView: FC = () => {
             >
               {Object.keys(tabs).map((key) => {
                 const tab = tabs[key];
+                if (tab === undefined) return null;
                 return (
                   <TabPanel
                     key={tab.id}

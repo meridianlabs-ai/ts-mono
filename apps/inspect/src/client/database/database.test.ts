@@ -145,8 +145,8 @@ describe("Database Service", () => {
 
       expect(files).not.toBeNull();
       expect(files).toHaveLength(2);
-      expect(files?.[0].name).toBe("/test/logs/eval1.json");
-      expect(files?.[0].task).toBe("test-task-1");
+      expect(files?.[0]?.name).toBe("/test/logs/eval1.json");
+      expect(files?.[0]?.task).toBe("test-task-1");
     });
 
     test("should update existing cached log files", async () => {
@@ -194,8 +194,8 @@ describe("Database Service", () => {
 
       expect(Object.keys(cached)).toHaveLength(2);
       expect(cached["/test/logs/eval1.json"]).toBeDefined();
-      expect(cached["/test/logs/eval1.json"].eval_id).toBe("eval-1");
-      expect(cached["/test/logs/eval2.json"].task).toBe("task-2");
+      expect(cached["/test/logs/eval1.json"]?.eval_id).toBe("eval-1");
+      expect(cached["/test/logs/eval2.json"]?.task).toBe("task-2");
     });
 
     test("should handle partial cache hits", async () => {
@@ -254,7 +254,7 @@ describe("Database Service", () => {
       expect(cached).not.toBeNull();
       expect(cached?.eval.eval_id).toBe("eval-1");
       expect(cached?.sampleSummaries).toHaveLength(2);
-      expect(cached?.sampleSummaries[0].id).toBe(1);
+      expect(cached?.sampleSummaries[0]?.id).toBe(1);
     });
 
     test("should return null for non-cached log info", async () => {
@@ -286,9 +286,9 @@ describe("Database Service", () => {
       );
 
       expect(retrievedSamples).toHaveLength(3);
-      expect(retrievedSamples[0].id).toBe(1);
-      expect(retrievedSamples[1].completed).toBe(false);
-      expect(retrievedSamples[2].error).toBe("timeout");
+      expect(retrievedSamples[0]?.id).toBe(1);
+      expect(retrievedSamples[1]?.completed).toBe(false);
+      expect(retrievedSamples[2]?.error).toBe("timeout");
     });
 
     test("should return empty array for file without cached info", async () => {
@@ -376,15 +376,15 @@ describe("Database Service", () => {
         hasError: true,
       });
       expect(errorSamples).toHaveLength(1);
-      expect(errorSamples[0].id).toBe(3);
+      expect(errorSamples[0]?.id).toBe(3);
 
       // Test score range filter
       const highScoreSamples = await databaseService.querySampleSummaries({
         scoreRange: { min: 0.8, max: 1.0, scoreName: "accuracy" },
       });
       expect(highScoreSamples).toHaveLength(2);
-      expect(highScoreSamples[0].id).toBe(1);
-      expect(highScoreSamples[1].id).toBe(3);
+      expect(highScoreSamples[0]?.id).toBe(1);
+      expect(highScoreSamples[1]?.id).toBe(3);
     });
   });
 
