@@ -54,4 +54,6 @@ export {
   type TimeMapping,
 } from "./timeMapping";
 
+export { computeBranchMappings } from "./hooks/useTranscriptTimeline";
+
 export type { MarkerDepth, MarkerKind } from "./markers";

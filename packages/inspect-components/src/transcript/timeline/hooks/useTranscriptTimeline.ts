@@ -396,7 +396,7 @@ const kBranchKeyPattern = /\/branch-([^/]*)-(\d+)$/;
  * the full width regardless of how root content and branch execution times
  * relate in wall-clock terms.
  */
-function computeBranchMappings(
+export function computeBranchMappings(
   rows: ReadonlyArray<SwimlaneRow>,
   trunkMapping: TimeMapping
 ): ReadonlyMap<string, TimeMapping> | undefined {
