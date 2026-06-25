@@ -128,13 +128,35 @@ describe("MarkdownDiv XSS security", () => {
   });
 
   describe("renderer scenarios", () => {
-    it("fragment renderer omits markdown images", () => {
+    it.each(["full", "fragment"] as const)(
+      "%s renderer replaces remote markdown images with links",
+      (renderer) => {
+        const result = renderPipeline(
+          "![alt](https://example.com/image.png)",
+          renderer
+        );
+        expect(result).not.toContain("<img");
+        expect(result).toContain('href="https://example.com/image.png"');
+        expect(result).toContain('target="_blank"');
+        expect(result).toContain('rel="noopener noreferrer"');
+        expect(result).toContain("alt");
+      }
+    );
+
+    it("does not link data-image markdown", () => {
       const result = renderPipeline(
-        "![alt](https://example.com/image.png)",
-        "fragment"
+        "![alt](data:image/png;base64,AAAA)",
+        "full"
       );
       expect(result).not.toContain("<img");
+      expect(result).not.toContain("<a ");
       expect(result).toContain("alt");
+    });
+
+    it("does not auto-link plain URL text", () => {
+      const result = renderPipeline("https://example.com/image.png", "full");
+      expect(result).not.toContain("<a ");
+      expect(result).toContain("https://example.com/image.png");
     });
 
     it("textOnly renderer supports emphasis and newlines only", () => {
