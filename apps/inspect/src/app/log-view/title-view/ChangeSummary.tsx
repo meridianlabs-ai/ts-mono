@@ -39,7 +39,11 @@ export const ChangeSummary: FC<ChangeSummaryProps> = ({
   );
 };
 
-const Line: FC<{ label: string; accent: string; items: string[] }> = ({
+const Line: FC<{
+  label: string;
+  accent: string | undefined;
+  items: string[];
+}> = ({
   label,
   accent,
   items,
