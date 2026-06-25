@@ -21,3 +21,6 @@ export const kMethodLogMessage = "log_message";
 export const kMethodEditLog = "edit_log";
 export const kMethodGetUserInfo = "get_user_info";
 export const kMethodAppConfig = "app_config";
+export const kMethodListSearches = "list_searches";
+export const kMethodPostSearch = "post_search";
+export const kMethodGetSearchResult = "get_search_result";
