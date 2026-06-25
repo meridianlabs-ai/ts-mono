@@ -40,24 +40,27 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.innerHTML).not.toContain("javascript:");
   });
 
-  it("adds opener protection to new-context links", async () => {
-    const { container } = render(
-      <MarkdownDiv
-        markdown="safe"
-        postProcess={() =>
-          '<a href="https://example.com" target="_blank">external</a>'
-        }
-      />
-    );
+  it.each(["_blank", "_BLANK", "_BlAnK"])(
+    "adds opener protection to %s new-context links",
+    async (target) => {
+      const { container } = render(
+        <MarkdownDiv
+          markdown="safe"
+          postProcess={() =>
+            `<a href="https://example.com" target="${target}">external</a>`
+          }
+        />
+      );
 
-    await waitFor(() => {
-      expect(container.querySelector("a")).not.toBeNull();
-    });
+      await waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
 
-    expect(container.querySelector("a")?.getAttribute("rel")).toBe(
-      "noopener noreferrer"
-    );
-  });
+      expect(container.querySelector("a")?.getAttribute("rel")).toBe(
+        "noopener noreferrer"
+      );
+    }
+  );
 
   it("replaces remote markdown images with external links", async () => {
     const { container } = render(

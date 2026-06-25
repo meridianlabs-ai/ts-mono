@@ -86,20 +86,23 @@ describe("typed media rendering", () => {
     );
   });
 
-  it("previews matching inline image documents", () => {
-    const document = {
-      type: "document",
-      document: "data:image/png;base64,AAAA",
-      filename: "inline.png",
-      mime_type: "image/png",
-    } as ContentDocument;
-    const { container } = render(
-      <ContentDocumentView id="document" document={document} />
-    );
+  it.each(["image/png", "IMAGE/PNG"])(
+    "previews inline image documents with matching MIME type %s",
+    (mimeType) => {
+      const document = {
+        type: "document",
+        document: "data:image/png;base64,AAAA",
+        filename: "inline.png",
+        mime_type: mimeType,
+      } as ContentDocument;
+      const { container } = render(
+        <ContentDocumentView id="document" document={document} />
+      );
 
-    expect(container.querySelector("img")).not.toBeNull();
-    expect(container.querySelector("a")).toBeNull();
-  });
+      expect(container.querySelector("img")).not.toBeNull();
+      expect(container.querySelector("a")).toBeNull();
+    }
+  );
 
   it("renders remote legacy tool images as links", () => {
     const { container } = render(
