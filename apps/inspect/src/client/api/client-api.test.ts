@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { openRemoteLogFile } from "../remote/remoteLogFile";
+import {
+  openRemoteLogFile,
+  SampleNotFoundError,
+} from "../remote/remoteLogFile";
 
 import { clientApi } from "./client-api";
 import {
@@ -520,5 +523,89 @@ describe("clientApi.remoteEvalFile promise memoisation", () => {
     // Retry should re-attempt rather than return the cached rejection.
     await client.get_log_details("log.eval", true);
     expect(openMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("clientApi.warm_log_sample", () => {
+  // The warm call lets the sample bytes download in parallel with
+  // summaries; the unchanged loadSample flow then resolves from the
+  // warmed promise instead of issuing a second fetch.
+
+  const sample = { id: "1", epoch: 1 } as const;
+  const setup = (readSample: ReturnType<typeof vi.fn>) => {
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue({
+      readSample,
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+    return { openMock, client: clientApi(baseApi()) };
+  };
+
+  test("get_log_sample returns the warmed result without a second read", async () => {
+    const readSample = vi.fn().mockResolvedValue(sample);
+    const { client, openMock } = setup(readSample);
+
+    client.warm_log_sample("log.eval", "1", 1);
+    const got = await client.get_log_sample("log.eval", "1", 1);
+
+    expect(got).toBe(sample);
+    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(readSample).toHaveBeenCalledTimes(1);
+  });
+
+  test("a warmed miss is not reused — the real call falls through", async () => {
+    // Warm fired before summaries arrived; the sample wasn't in the
+    // (cached) cdir yet. The later real call must still try (and may
+    // re-open uncached) rather than short-circuit on the warmed
+    // `undefined`.
+    const readSample = vi
+      .fn()
+      .mockRejectedValueOnce(new SampleNotFoundError("nope"))
+      .mockResolvedValueOnce(sample);
+    const { client } = setup(readSample);
+
+    client.warm_log_sample("log.eval", "1", 1);
+    const got = await client.get_log_sample("log.eval", "1", 1);
+
+    expect(got).toBe(sample);
+    expect(readSample).toHaveBeenCalledTimes(2);
+  });
+
+  test("warm is single-slot — a different (file,id,epoch) ignores it", async () => {
+    const readSample = vi.fn().mockResolvedValue(sample);
+    const { client } = setup(readSample);
+
+    client.warm_log_sample("log.eval", "1", 1);
+    await client.get_log_sample("log.eval", "2", 1);
+
+    // One read for the warm, one for the real (different) sample.
+    expect(readSample).toHaveBeenCalledTimes(2);
+  });
+
+  test("edit_log on the same file drops the warmed sample", async () => {
+    const readSample = vi.fn().mockResolvedValue(sample);
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue({
+      readSample,
+      readLogSummary: vi
+        .fn()
+        .mockResolvedValue({ tags: [], sampleSummaries: [] }),
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+
+    const edit_log = vi
+      .fn<NonNullable<LogViewAPI["edit_log"]>>()
+      .mockResolvedValue({ log: {} as unknown as EditLogResult["log"] });
+    const client = clientApi({ ...baseApi(), edit_log });
+
+    client.warm_log_sample("log.eval", "1", 1);
+    await client.edit_log!("log.eval", {
+      edits: [],
+      provenance: { author: "a", metadata: {}, timestamp: "t" },
+    });
+    await client.get_log_sample("log.eval", "1", 1);
+
+    // Warm read + post-edit fresh read.
+    expect(readSample).toHaveBeenCalledTimes(2);
   });
 });

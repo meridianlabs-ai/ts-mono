@@ -79,6 +79,19 @@ export const clientApi = (
     remoteLog: undefined,
   };
 
+  // Single-slot prefetch for the sample the route points at, populated by
+  // `warm_log_sample` as soon as the route handle is known. Lets the
+  // sample bytes download in parallel with summaries.json instead of
+  // serialised behind it; the unchanged `loadSample` flow then resolves
+  // from this promise instead of issuing a second fetch. A miss
+  // (`undefined`) is not reused — the real call falls through so its
+  // `retryUncached` semantics still apply.
+  let warmedSample:
+    | { key: string; promise: Promise<EvalSample | undefined> }
+    | undefined;
+  const sampleKey = (file: string, id: string | number, epoch: number) =>
+    `${file}\0${id}\0${epoch}`;
+
   const remoteEvalFile = (
     log_file: string,
     cached: boolean = false
@@ -212,6 +225,13 @@ export const clientApi = (
     onProgress?: ProgressCallback,
     retryUncached: boolean = true
   ): Promise<EvalSample | undefined> => {
+    const key = sampleKey(log_file, id, epoch);
+    if (warmedSample?.key === key) {
+      const warmed = warmedSample;
+      warmedSample = undefined;
+      const hit = await warmed.promise;
+      if (hit) return hit;
+    }
     if (isEvalFile(log_file)) {
       async function fetchSample(useCache: boolean) {
         const remoteLogFile = await remoteEvalFile(log_file, useCache);
@@ -255,6 +275,21 @@ export const clientApi = (
       }
     }
     return undefined;
+  };
+
+  const warm_log_sample = (
+    log_file: string,
+    id: string | number,
+    epoch: number
+  ): void => {
+    const key = sampleKey(log_file, id, epoch);
+    if (warmedSample?.key === key) return;
+    warmedSample = {
+      key,
+      promise: get_log_sample(log_file, id, epoch, undefined, false).catch(
+        () => undefined
+      ),
+    };
   };
 
   const read_eval_file_log_summary = async (log_file: string) => {
@@ -525,6 +560,7 @@ export const clientApi = (
       }
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
+    warm_log_sample,
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);
     }),
@@ -598,6 +634,9 @@ export const clientApi = (
               loadedEvalFile.file = undefined;
               loadedEvalFile.remoteLog = undefined;
               loadedEvalFile.resolved = undefined;
+            }
+            if (warmedSample?.key.startsWith(`${log_file}\0`)) {
+              warmedSample = undefined;
             }
             return result;
           }
