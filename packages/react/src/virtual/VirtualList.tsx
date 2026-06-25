@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -58,6 +59,33 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
   }
   return <>{chunks}</>;
 }
+
+// Count occurrences of `lowerTerm` across pre-lowercased per-item text
+// arrays. Lifted out of the component so the hot find-counter path is
+// unit-testable and the lowercasing happens once (in the memo below) rather
+// than on every keystroke. `lowerTerm` must already be lowercased.
+export const countMatchesInTexts = (
+  lowerTextsByItem: string[][],
+  lowerTerm: string
+): number => {
+  // An empty term makes indexOf return its start position forever (pos += 0),
+  // so guard before the scan loop — this helper is exported and unit-tested
+  // directly, where the FindBand caller's own empty-term guard would not apply.
+  if (lowerTerm.length === 0) {
+    return 0;
+  }
+  let total = 0;
+  for (const texts of lowerTextsByItem) {
+    for (const lowerText of texts) {
+      let pos = 0;
+      while ((pos = lowerText.indexOf(lowerTerm, pos)) !== -1) {
+        total++;
+        pos += lowerTerm.length;
+      }
+    }
+  }
+  return total;
+};
 
 export function VirtualList<T>({
   persistenceKey,
@@ -490,27 +518,24 @@ export function VirtualList<T>({
     [data, itemSearchText, virtualizer]
   );
 
+  // Pre-compute lowercased search text for every item once per data /
+  // accessor change, so the FindBand counter doesn't re-extract and
+  // re-lowercase the whole list on each keystroke.
+  const precomputedSearchTexts = useMemo(() => {
+    const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
+    return data.map((item) => {
+      const texts = getText(item);
+      const textArray = Array.isArray(texts) ? texts : [texts];
+      return textArray.map((t) => t.toLowerCase());
+    });
+  }, [data, itemSearchText]);
+
   const countMatchesInData = useCallback<ExtendedCountFn>(
     (term) => {
-      if (!term || data.length === 0) return 0;
-      const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
-      const lower = term.toLowerCase();
-      let total = 0;
-      for (const item of data) {
-        const texts = getText(item);
-        const textArray = Array.isArray(texts) ? texts : [texts];
-        for (const text of textArray) {
-          const lowerText = text.toLowerCase();
-          let pos = 0;
-          while ((pos = lowerText.indexOf(lower, pos)) !== -1) {
-            total++;
-            pos += lower.length;
-          }
-        }
-      }
-      return total;
+      if (!term || precomputedSearchTexts.length === 0) return 0;
+      return countMatchesInTexts(precomputedSearchTexts, term.toLowerCase());
     },
-    [data, itemSearchText]
+    [precomputedSearchTexts]
   );
 
   useEffect(() => {

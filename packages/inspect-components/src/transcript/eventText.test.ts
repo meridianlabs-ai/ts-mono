@@ -144,6 +144,22 @@ describe("eventsToStr — tool_use content", () => {
   });
 });
 
+describe("extractEventFields — model error / traceback", () => {
+  it("includes the model event error and traceback in search text", () => {
+    const node = {
+      event: {
+        event: "model",
+        model: "test/model",
+        error: "API rate limit exceeded",
+        traceback: "Traceback (most recent call last): ...",
+      },
+    } as unknown as EventNode;
+    const texts = eventSearchText(node);
+    expect(texts).toContain("API rate limit exceeded");
+    expect(texts).toContain("Traceback (most recent call last): ...");
+  });
+});
+
 describe("eventsToStr — multimodal content placeholders", () => {
   const data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA_LONG_BLOB_";
   const image: ContentImage = {
