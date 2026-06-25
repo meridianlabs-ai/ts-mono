@@ -310,17 +310,11 @@ export const compareSamples = (a: SampleSummary, b: SampleSummary): number => {
 
 // Server summaries usually arrive already sorted; this lets useFilteredSamples
 // skip an O(n log n) clone + sort on every filter/store change.
-export const samplesAreSorted = (samples: SampleSummary[]): boolean => {
-  for (let i = 1; i < samples.length; i++) {
+export const samplesAreSorted = (samples: SampleSummary[]): boolean =>
+  samples.every((curr, i) => {
     const prev = samples[i - 1];
-    const curr = samples[i];
-    if (prev === undefined || curr === undefined) continue;
-    if (compareSamples(prev, curr) > 0) {
-      return false;
-    }
-  }
-  return true;
-};
+    return prev === undefined || compareSamples(prev, curr) <= 0;
+  });
 
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
