@@ -5,6 +5,8 @@ import type { ContentDocument } from "@tsmono/inspect-common/types";
 import { isImage } from "@tsmono/util";
 
 import { useContentIcons } from "../../content/IconsContext";
+import { MediaReference } from "../../media/MediaReference";
+import { isRenderableImageDocument } from "../../media/mediaSource";
 
 import styles from "./ContentDocumentView.module.css";
 
@@ -20,14 +22,23 @@ export const ContentDocumentView: FC<ContentDocumentProps> = ({
   onDownloadFile,
 }) => {
   if (isImage(document.mime_type || "")) {
+    const preview = isRenderableImageDocument(
+      document.document,
+      document.mime_type || ""
+    ) ? (
+      <img
+        className={clsx(styles.imageDocument)}
+        src={document.document}
+        alt={document.filename}
+        id={id}
+      />
+    ) : (
+      <MediaReference source={document.document} />
+    );
+
     return (
       <ContentDocumentFrame document={document} onDownloadFile={onDownloadFile}>
-        <img
-          className={clsx(styles.imageDocument)}
-          src={document.document}
-          alt={document.filename}
-          id={id}
-        />
+        {preview}
       </ContentDocumentFrame>
     );
   } else {

@@ -6,6 +6,8 @@
 import MarkdownIt from "markdown-it";
 import markdownitMathjax3 from "markdown-it-mathjax3";
 
+import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
+
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
 
@@ -40,6 +42,31 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
   }
 
   const md = new MarkdownIt({ breaks: true, html: true });
+  md.renderer.rules.image = (tokens, idx) => {
+    const token = tokens[idx];
+    if (!token) {
+      return "";
+    }
+
+    const source = token.attrGet("src") ?? "";
+    const href = parseAbsoluteHttpUrl(source);
+    const dataUri = parseDataUri(source);
+    const visibleSource =
+      href ??
+      (dataUri
+        ? `data:${dataUri.mimeType}${dataUri.base64 ? ";base64" : ""},...`
+        : source);
+    const alt = token.content.trim();
+    const label = alt ? `${alt} (${visibleSource})` : visibleSource;
+    const escapedLabel = md.utils.escapeHtml(label);
+
+    if (!href) {
+      return escapedLabel;
+    }
+
+    return `<a href="${md.utils.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapedLabel}</a>`;
+  };
+
   if (renderer === "full" || renderer === "fragment") {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
     md.use(markdownitMathjax3);
@@ -70,9 +97,6 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
         return origBlock(tokens, idx, options, env, self);
       };
     }
-  }
-  if (renderer === "fragment") {
-    md.disable(["image"]);
   }
   mdInstanceCache[renderer] = md;
 

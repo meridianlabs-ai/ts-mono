@@ -16,11 +16,14 @@ const FORBIDDEN_TAGS = [
   "foreignobject",
   "form",
   "iframe",
+  "image",
+  "img",
   "input",
   "link",
   "meta",
   "mpath",
   "object",
+  "picture",
   "script",
   "select",
   "set",
@@ -101,8 +104,7 @@ const UNSAFE_CSS_PATTERN =
   /@import|behavior\s*:|binding\s*:|expression\s*\(|javascript\s*:|vbscript\s*:|url\s*\(/i;
 
 const PURIFY_CONFIG: Config = {
-  ADD_ATTR: MATHJAX_ATTRS,
-  ADD_DATA_URI_TAGS: ["img", "image"],
+  ADD_ATTR: [...MATHJAX_ATTRS, "target"],
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
@@ -179,10 +181,20 @@ const installHooks = (purify: DOMPurifyInstance): void => {
       sanitizeStyleAttributeHook(node, hookEvent);
     } else if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
-      !isSafeUrlAttribute(node, hookEvent.attrValue)
+      !isSafeUrlAttribute(hookEvent.attrValue)
     ) {
       hookEvent.keepAttr = false;
       node.removeAttribute(hookEvent.attrName);
+    }
+  });
+
+  purify.addHook("afterSanitizeAttributes", (node) => {
+    if (
+      node instanceof Element &&
+      node.tagName.toLowerCase() === "a" &&
+      node.getAttribute("target") === "_blank"
+    ) {
+      node.setAttribute("rel", "noopener noreferrer");
     }
   });
 };
@@ -200,7 +212,7 @@ const sanitizeStyleAttributeHook = (
   }
 };
 
-const isSafeUrlAttribute = (node: Element, value: string): boolean => {
+const isSafeUrlAttribute = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) {
     return true;
@@ -218,10 +230,7 @@ const isSafeUrlAttribute = (node: Element, value: string): boolean => {
     .join("");
 
   if (/^data:/i.test(normalized)) {
-    return (
-      ["img", "image"].includes(node.tagName.toLowerCase()) &&
-      /^data:image\//i.test(normalized)
-    );
+    return false;
   }
 
   return !/^(?:javascript|vbscript):/i.test(normalized);

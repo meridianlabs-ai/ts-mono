@@ -18,6 +18,7 @@ export * from "./json";
 export * from "./json-value";
 export * from "./json-worker";
 export * from "./logger";
+export * from "./media";
 export * from "./numeric";
 export * from "./mime";
 export * from "./object";

@@ -19,6 +19,14 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isJson } from "@tsmono/util";
 
 import { RenderedText } from "../content/RenderedText";
+import { MediaReference } from "../media/MediaReference";
+import {
+  audioMimeTypeForFormat,
+  isRenderableAudioSource,
+  isRenderableImageSource,
+  isRenderableVideoSource,
+  videoMimeTypeForFormat,
+} from "../media/mediaSource";
 
 import { ContentDataView } from "./content-data/ContentDataView";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
@@ -233,19 +241,22 @@ const messageRenderers: Record<string, MessageRenderer> = {
   image: {
     render: (key, content) => {
       const c = content as ContentImage;
-      if (c.image.startsWith("data:")) {
+      if (isRenderableImageSource(c.image)) {
         return <img src={c.image} className={styles.contentImage} key={key} />;
       } else {
-        return <code key={key}>{c.image}</code>;
+        return <MediaReference source={c.image} key={key} />;
       }
     },
   },
   audio: {
     render: (key, content) => {
       const c = content as ContentAudio;
+      if (!isRenderableAudioSource(c.audio, c.format)) {
+        return <MediaReference source={c.audio} key={key} />;
+      }
       return (
         <audio controls key={key}>
-          <source src={c.audio} type={mimeTypeForFormat(c.format)} />
+          <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
         </audio>
       );
     },
@@ -253,9 +264,12 @@ const messageRenderers: Record<string, MessageRenderer> = {
   video: {
     render: (key, content) => {
       const c = content as ContentVideo;
+      if (!isRenderableVideoSource(c.video, c.format)) {
+        return <MediaReference source={c.video} key={key} />;
+      }
       return (
         <video width="500" height="375" controls key={key}>
-          <source src={c.video} type={mimeTypeForFormat(c.format)} />
+          <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
         </video>
       );
     },
@@ -293,25 +307,6 @@ const messageRenderers: Record<string, MessageRenderer> = {
  * Renders message content based on its type.
  * Supports rendering strings, images, and tools using specific renderers.
  */
-const mimeTypeForFormat = (
-  format: ContentAudio["format"] | ContentVideo["format"]
-): string => {
-  switch (format) {
-    case "mov":
-      return "video/quicktime";
-    case "wav":
-      return "audio/wav";
-    case "mp3":
-      return "audio/mpeg";
-    case "mp4":
-      return "video/mp4";
-    case "mpeg":
-      return "video/mpeg";
-    default:
-      return "video/mp4"; // Default to mp4 for unknown formats
-  }
-};
-
 // This collapses sequential runs of text content into a single text content,
 // adding citations as superscript counters at the end of the text for each block
 // containing citations. The citations are then attached to the content where
