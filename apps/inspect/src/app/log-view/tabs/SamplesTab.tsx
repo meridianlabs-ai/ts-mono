@@ -373,8 +373,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
   useEffect(() => {
-    if (sampleSummaries.length === 1 && selectedLogFile) {
-      const sample = sampleSummaries[0];
+    const sample =
+      sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;
+    if (sample && selectedLogFile) {
       selectSample(sample.id, sample.epoch, selectedLogFile);
     }
   }, [sampleSummaries, selectSample, selectedLogFile]);

@@ -202,6 +202,9 @@ importers:
       '@tsmono/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      '@tsmono/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util

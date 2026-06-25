@@ -238,9 +238,10 @@ export const mergeColumnVisibility = (
   visibility: Record<string, boolean>
 ): SamplesViewState => ({
   ...view,
-  columns: view.columns.map((c) =>
-    c.id in visibility ? { ...c, visible: visibility[c.id] } : c
-  ),
+  columns: view.columns.map((c) => {
+    const nextVisible = visibility[c.id];
+    return nextVisible !== undefined ? { ...c, visible: nextVisible } : c;
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -326,11 +327,11 @@ export const legacyToView = (
   // the order list (preserving authored order from the legacy map).
   const orderedFromGrid = orderedColIds.map((id) => ({
     id,
-    visible: id in visibilityMap ? visibilityMap[id] : !hiddenColIds.has(id),
+    visible: visibilityMap[id] ?? !hiddenColIds.has(id),
   }));
   const trailingFromMap = visibilityKeys
     .filter((id) => !orderedColIds.includes(id))
-    .map((id) => ({ id, visible: visibilityMap[id] }));
+    .map((id) => ({ id, visible: visibilityMap[id] ?? false }));
   const columns = [...orderedFromGrid, ...trailingFromMap];
 
   const sort = (grid?.sort?.sortModel ?? []).map((s) => ({

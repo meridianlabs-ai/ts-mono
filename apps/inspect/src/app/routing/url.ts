@@ -104,7 +104,7 @@ export const useLogRouteParams = () => {
 
     // Extract the splat path (everything after /logs/ or /tasks/)
     const logsMatch = rawPath.match(/^\/(logs|tasks)\/(.*)$/);
-    const splatPath = logsMatch ? logsMatch[2] : "";
+    const splatPath = logsMatch?.[2] ?? "";
 
     // Check for sample UUID route pattern
     const sampleUuidMatch = splatPath.match(
@@ -205,6 +205,7 @@ export const useLogRouteParams = () => {
 
     for (let i = pathSegments.length - 1; i >= 0; i--) {
       const segment = pathSegments[i];
+      if (segment === undefined) continue;
       const decodedSegment = decodeUrlParam(segment) || segment;
 
       if (validTabIds.has(decodedSegment)) {
@@ -263,7 +264,7 @@ export const useSamplesRouteParams = () => {
 
     // Extract the splat path (everything after /samples/)
     const samplesMatch = rawPath.match(/^\/samples\/(.*)$/);
-    const splatPath = samplesMatch ? samplesMatch[1] : "";
+    const splatPath = samplesMatch?.[1] ?? "";
 
     const sampleMatch = splatPath.match(
       /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
@@ -536,7 +537,7 @@ export const useTasksRouteParams = () => {
 
     // Extract the splat path (everything after /tasks/)
     const tasksMatch = rawPath.match(/^\/tasks\/(.*)$/);
-    const splatPath = tasksMatch ? tasksMatch[1] : "";
+    const splatPath = tasksMatch?.[1] ?? "";
 
     // Check for sample detail route: /tasks/path/to/file.eval/sample/id/epoch/tabId
     const sampleMatch = splatPath.match(

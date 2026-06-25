@@ -310,14 +310,11 @@ export const compareSamples = (a: SampleSummary, b: SampleSummary): number => {
 
 // Server summaries usually arrive already sorted; this lets useFilteredSamples
 // skip an O(n log n) clone + sort on every filter/store change.
-export const samplesAreSorted = (samples: SampleSummary[]): boolean => {
-  for (let i = 1; i < samples.length; i++) {
-    if (compareSamples(samples[i - 1], samples[i]) > 0) {
-      return false;
-    }
-  }
-  return true;
-};
+export const samplesAreSorted = (samples: SampleSummary[]): boolean =>
+  samples.every((curr, i) => {
+    const prev = samples[i - 1];
+    return prev === undefined || compareSamples(prev, curr) <= 0;
+  });
 
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
@@ -537,6 +534,7 @@ export const useSetSelectedLogIndex = () => {
       clearSelectedLogDetails();
 
       const logHandle = allLogFiles[index];
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       setSelectedLogFile(logHandle.name);
     },
     [
@@ -738,6 +736,7 @@ export const computeLogsWithRetried = (
         const parent = slash >= 0 ? log.name.substring(0, slash) : "";
         const key = `${parent}|${taskId}`;
         if (!(key in acc)) acc[key] = [];
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         acc[key].push(log);
       }
       return acc;
@@ -756,8 +755,10 @@ export const computeLogsWithRetried = (
       if (aActive !== bActive) return aActive ? -1 : 1;
       return b.name.localeCompare(a.name);
     });
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     const { name } = items[0];
-    bestByName[name] = { ...items[0], retried: false };
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+    bestByName[name] = { ...items[0], retried: false }; // eslint-disable-line @typescript-eslint/no-unsafe-member-access -- TODO: pre-existing noUncheckedIndexedAccess fallout
   }
 
   // Rebuild logs maintaining order, marking duplicates as skippable

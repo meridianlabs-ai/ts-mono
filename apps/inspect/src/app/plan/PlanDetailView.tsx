@@ -27,7 +27,7 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
 
   const taskColumns: {
     title: string;
-    className: string | string[];
+    className: string | string[] | undefined;
     contents: ReactNode;
   }[] = [];
   taskColumns.push({
@@ -47,13 +47,14 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
   if (scores) {
     const scorers = scores.reduce(
       (accum, score) => {
-        if (!accum[score.scorer]) {
+        const existing = accum[score.scorer];
+        if (existing === undefined) {
           accum[score.scorer] = {
             scores: [score.name],
             params: score.params,
           };
         } else {
-          accum[score.scorer].scores.push(score.name);
+          existing.scores.push(score.name);
         }
         return accum;
       },
@@ -66,12 +67,16 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
     if (Object.keys(scorers).length > 0) {
       const label = Object.keys(scorers).length === 1 ? "Scorer" : "Scorers";
       const scorerPanels = Object.keys(scorers).map((key) => {
+        const scorer = scorers[key];
+        if (scorer === undefined) {
+          return null;
+        }
         return (
           <ScorerDetailView
             key={key}
             name={key}
-            scores={scorers[key].scores}
-            params={scorers[key].params}
+            scores={scorer.scores}
+            params={scorer.params}
           />
         );
       });
@@ -110,7 +115,7 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
 
 interface PlanColumnProps {
   title: string;
-  className: string | string[];
+  className: string | string[] | undefined;
   children: ReactNode;
 }
 

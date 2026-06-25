@@ -84,11 +84,11 @@ function staticHttpApiForLog(logInfo: {
       if (log_dir) {
         const manifest = await getManifest();
         if (manifest) {
-          const logs = Object.keys(manifest).map((key) => {
+          const logs = Object.entries(manifest).map(([key, preview]) => {
             return {
               name: joinURI(log_dir, key),
-              task: manifest[key].task,
-              task_id: manifest[key].task_id,
+              task: preview.task,
+              task_id: preview.task_id,
             };
           });
           return Promise.resolve({
@@ -175,8 +175,8 @@ function staticHttpApiForLog(logInfo: {
       const manifest = await getManifest();
       if (manifest) {
         const manifestAbs: Record<string, LogPreview> = {};
-        Object.keys(manifest).forEach((key) => {
-          manifestAbs[joinURI(log_dir || "", key)] = manifest[key];
+        Object.entries(manifest).forEach(([key, preview]) => {
+          manifestAbs[joinURI(log_dir || "", key)] = preview;
         });
         const header = manifestAbs[log_file];
         if (header) {
@@ -200,6 +200,7 @@ function staticHttpApiForLog(logInfo: {
               return file.endsWith(key);
             });
             if (fileKey) {
+              // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
               result.push(manifest[fileKey]);
             }
           });

@@ -119,8 +119,9 @@ export const useTranscriptFilter = () => {
 
     for (let row = 0; row < maxItemsInColumn; row++) {
       for (let col = 0; col < columns; col++) {
-        if (row < columnArrays[col].length) {
-          arrangedKeys.push(columnArrays[col][row]);
+        const item = columnArrays[col]?.[row];
+        if (item !== undefined) {
+          arrangedKeys.push(item);
         }
       }
     }

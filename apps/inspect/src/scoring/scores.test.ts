@@ -17,8 +17,10 @@ describe("groupMetricRuns", () => {
       m("unsure", "frequency"),
     ]);
     expect(runs).toHaveLength(1);
-    expect(runs[0].group).toBe("frequency");
-    expect(runs[0].metrics.map((x) => x.name)).toEqual(["yes", "no", "unsure"]);
+    const run = runs[0];
+    if (run === undefined) throw new Error("expected a run");
+    expect(run.group).toBe("frequency");
+    expect(run.metrics.map((x) => x.name)).toEqual(["yes", "no", "unsure"]);
   });
 
   test("splits on group boundary", () => {
@@ -29,7 +31,9 @@ describe("groupMetricRuns", () => {
       m("stderr"),
     ]);
     expect(runs.map((r) => r.group ?? null)).toEqual([null, "frequency", null]);
-    expect(runs[1].metrics).toHaveLength(2);
+    const frequencyRun = runs[1];
+    if (frequencyRun === undefined) throw new Error("expected a run");
+    expect(frequencyRun.metrics).toHaveLength(2);
   });
 
   test("treats undefined and null group as same run", () => {

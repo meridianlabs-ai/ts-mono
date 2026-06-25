@@ -62,6 +62,7 @@
     "@tsmono/react": "workspace:*",
     "@tsmono/scout-components": "workspace:*",
     "@tsmono/theme": "workspace:*",
+    "@tsmono/tsconfig": "workspace:*",
     "@tsmono/util": "workspace:*",
     "@types/bootstrap": "^5.2.11",
     "@types/clipboard": "^2.0.10",

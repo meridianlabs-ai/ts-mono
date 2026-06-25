@@ -105,8 +105,8 @@ export const createAppSlice = (
     name: string,
     defaultValue?: boolean
   ) => {
-    if (Object.keys(record).includes(name)) {
-      return record[name];
+    if (Object.hasOwn(record, name)) {
+      return record[name] ?? false;
     } else {
       return defaultValue || false;
     }
@@ -239,8 +239,14 @@ export const createAppSlice = (
       },
       getVisibleRange: (name: string) => {
         const state = get();
-        if (Object.keys(state.app.visibleRanges).includes(name)) {
-          return state.app.visibleRanges[name];
+        if (Object.hasOwn(state.app.visibleRanges, name)) {
+          return (
+            state.app.visibleRanges[name] ?? {
+              startIndex: 0,
+              endIndex: 0,
+              totalCount: 0,
+            }
+          );
         } else {
           return { startIndex: 0, endIndex: 0, totalCount: 0 };
         }

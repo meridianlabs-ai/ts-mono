@@ -294,7 +294,8 @@ export const clientApi = (
       .get_log_summaries(Object.keys(json_files))
       .then((summaries) =>
         summaries.map((summary, i) => ({
-          index: json_files[Object.keys(json_files)[i]], // Store original index
+          // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+          index: json_files[Object.keys(json_files)[i]], // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- Store original index; TODO pre-existing noUncheckedIndexedAccess fallout
           summary,
         }))
       );

@@ -192,8 +192,9 @@ export function useSamplesView<TRow>(
       const seen = new Set<string>();
       const nextColumns: SamplesViewState["columns"] = [];
       for (const c of view.columns) {
+        const nextVisible = visibility[c.id];
         nextColumns.push(
-          c.id in visibility ? { id: c.id, visible: visibility[c.id] } : c
+          nextVisible !== undefined ? { id: c.id, visible: nextVisible } : c
         );
         seen.add(c.id);
       }

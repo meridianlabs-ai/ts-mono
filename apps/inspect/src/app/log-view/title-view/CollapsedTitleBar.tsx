@@ -159,7 +159,7 @@ const StatusBadge: FC<StatusBadgeProps> = ({ status, sampleCount }) => {
 
 const statusDisplay = (
   status?: EvalLogStatus
-): { icon: string; label: string } | undefined => {
+): { icon: string | undefined; label: string } | undefined => {
   switch (status) {
     case "started":
       return { icon: ApplicationIcons.running, label: "Running" };

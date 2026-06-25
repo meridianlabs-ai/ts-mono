@@ -695,7 +695,8 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   }
   const scoreNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
   return scoreNames.map((name) => {
-    const isUniformNumber = types[name].size === 1 && types[name].has("number");
+    const nameTypes = types[name];
+    const isUniformNumber = nameTypes?.size === 1 && nameTypes.has("number");
     const compactWidth = isUniformNumber ? 40 : 55;
     // Numeric raw scores can use a colour-scale gradient against the
     // observed min/max; non-numeric raw scores accept categorical maps

@@ -77,7 +77,9 @@ describe("viewServerApi mutation requests", () => {
     await api.log_message("log.eval", "hello");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("fetch was not called");
+    const [url, init] = call;
     expect(url).toContain("/log-message?");
     expect(init).toMatchObject({
       method: "POST",
@@ -110,7 +112,9 @@ describe("viewServerApi mutation requests", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("fetch was not called");
+    const [, init] = call;
     expect(init).toMatchObject({
       method: "POST",
       headers: {

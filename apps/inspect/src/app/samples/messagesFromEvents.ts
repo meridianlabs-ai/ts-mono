@@ -32,7 +32,7 @@ const insertAt = (
   // Reindex everything from `index` onward; the splice shifted all
   // following messages right by one slot.
   for (let i = index; i < state.messages.length; i++) {
-    const id = state.messages[i].id;
+    const id = state.messages[i]?.id;
     if (id) state.positions.set(id, i);
   }
 };
@@ -126,7 +126,7 @@ export const messagesFromEvents = (
   const priorLen = state.messages.length;
   for (let i = startFrom; i < events.length; i++) {
     const e = events[i];
-    if (isSuccessfulModelEvent(e)) processEvent(state, e);
+    if (e !== undefined && isSuccessfulModelEvent(e)) processEvent(state, e);
   }
 
   state.events = events;

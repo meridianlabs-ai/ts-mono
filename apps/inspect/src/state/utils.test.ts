@@ -12,7 +12,9 @@ describe("mergeSampleSummaries", () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0].completed).toBe(false);
+    const merged = result[0];
+    if (merged === undefined) throw new Error("expected a merged summary");
+    expect(merged.completed).toBe(false);
   });
 
   test("prefers log summaries over pending summaries for the same sample", () => {
@@ -43,8 +45,10 @@ describe("mergeSampleSummaries", () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0].completed).toBe(true);
-    expect(result[0].error).toBe(
+    const merged = result[0];
+    if (merged === undefined) throw new Error("expected a merged summary");
+    expect(merged.completed).toBe(true);
+    expect(merged.error).toBe(
       "RuntimeError: server.py exited before becoming ready"
     );
   });

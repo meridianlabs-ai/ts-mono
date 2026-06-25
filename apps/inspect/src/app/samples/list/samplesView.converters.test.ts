@@ -453,7 +453,11 @@ describe("mergeColumnVisibility", () => {
   test("returns a new object — does not mutate input", () => {
     const state = sampleState({ columns: [{ id: "a", visible: true }] });
     const next = mergeColumnVisibility(state, { a: false });
-    expect(state.columns[0].visible).toBe(true);
+    const firstColumn = state.columns[0];
+    if (firstColumn === undefined) {
+      throw new Error("expected a column");
+    }
+    expect(firstColumn.visible).toBe(true);
     expect(next).not.toBe(state);
   });
 });

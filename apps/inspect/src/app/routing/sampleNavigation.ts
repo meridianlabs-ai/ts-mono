@@ -176,6 +176,7 @@ export const useSampleNavigation = () => {
         // Use logPath from url, otherwise fall back to selectedLogFile
         const logFile = logPath || selectedLogFile;
         if (logFile) {
+          // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
           selectSample(summary.id, summary.epoch, logFile);
         }
       }

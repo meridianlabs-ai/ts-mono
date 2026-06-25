@@ -34,8 +34,9 @@ export const createGridKeyboardHandler = <T>({
     const totalRows = api.getDisplayedRowCount();
 
     let currentRowIndex = -1;
-    if (selectedRows.length > 0 && selectedRows[0].rowIndex !== null) {
-      currentRowIndex = selectedRows[0].rowIndex;
+    const firstSelected = selectedRows[0];
+    if (firstSelected && firstSelected.rowIndex !== null) {
+      currentRowIndex = firstSelected.rowIndex;
     }
 
     let targetRowIndex: number | null = null;

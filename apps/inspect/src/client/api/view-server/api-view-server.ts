@@ -202,7 +202,7 @@ export function viewServerApi(
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
     const scores: EvalScores = Object.values(header.results?.scores || {});
-    const metric = scores.length > 0 ? scores[0].metrics : undefined;
+    const metric = scores[0]?.metrics;
     const evalMetrics = Object.values(metric || {});
     const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
 

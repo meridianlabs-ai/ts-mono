@@ -80,10 +80,13 @@ export const SampleDetailView: FC = () => {
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0 && displayedSamples && routeLogPath && logDir) {
       const prev = displayedSamples[currentIndex - 1];
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       const relativePath = directoryRelativeUrl(prev.logFile, logDir);
       const url = samplesSampleUrl(
         relativePath,
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         prev.sampleId,
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         prev.epoch,
         tabId
       );
@@ -100,10 +103,13 @@ export const SampleDetailView: FC = () => {
       logDir
     ) {
       const next = displayedSamples[currentIndex + 1];
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       const relativePath = directoryRelativeUrl(next.logFile, logDir);
       const url = samplesSampleUrl(
         relativePath,
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         next.sampleId,
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         next.epoch,
         tabId
       );
