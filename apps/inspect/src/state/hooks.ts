@@ -312,7 +312,10 @@ export const compareSamples = (a: SampleSummary, b: SampleSummary): number => {
 // skip an O(n log n) clone + sort on every filter/store change.
 export const samplesAreSorted = (samples: SampleSummary[]): boolean => {
   for (let i = 1; i < samples.length; i++) {
-    if (compareSamples(samples[i - 1], samples[i]) > 0) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    if (prev === undefined || curr === undefined) continue;
+    if (compareSamples(prev, curr) > 0) {
       return false;
     }
   }
