@@ -146,6 +146,6 @@ describe("openRemoteZipFile tail-window cache", () => {
     const got = await z.readFile("first.json");
     expect(new TextDecoder().decode(got)).toBe('{"first":true}');
     expect(calls.length).toBe(2);
-    expect(calls[1][0]).toBe(0);
+    expect(calls[1]?.[0]).toBe(0);
   });
 });
