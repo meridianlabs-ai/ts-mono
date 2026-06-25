@@ -9,7 +9,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { eventSearchText, eventsToStr } from "./eventText";
+import { eventSearchText, eventsToStr, extractEventFields } from "./eventText";
 import { EventNode } from "./types";
 
 const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
@@ -280,15 +280,15 @@ const toolEvent = (result: unknown): ToolEvent =>
   }) as unknown as ToolEvent;
 
 describe("eventsToStr — extractEventFields sanitization", () => {
-  it("sanitizes tool result containing image content", () => {
+  it("walks a tool result array: text renders, data: image drops (no placeholder, no leak)", () => {
     const out = eventsToStr([
       toolEvent([
         { type: "image", image: "data:image/png;base64,_HUGE_PNG_" },
         { type: "text", text: "see image" },
       ]),
     ]);
-    expect(out).toContain("<image />");
     expect(out).toContain("see image");
+    expect(out).not.toContain("<image />");
     expect(out).not.toContain("_HUGE_PNG_");
   });
 });
@@ -660,6 +660,102 @@ describe("eventSearchText", () => {
     );
     expect(texts).toContain("Web Search");
     expect(texts).toContain("search");
+  });
+
+  test("tool: array result yields one ordered search segment per rendered block", () => {
+    const node = makeNode({
+      event: "tool",
+      function: "browser",
+      view: { title: "Browser" },
+      arguments: { action: "get_page_text" },
+      result: [
+        { type: "text", text: "Revenue Recognition in policy docs" },
+        {
+          type: "tool",
+          content: [
+            { type: "text", text: "Revenue Recognition in extracted page" },
+          ],
+        },
+        { type: "image", image: "data:image/png;base64,abc123" },
+      ],
+      error: null,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+
+    const resultSegments = extractEventFields(node.event)
+      .filter(([key]) => key === "result")
+      .map(([, value]) => value);
+    expect(resultSegments).toEqual([
+      "Revenue Recognition in policy docs",
+      "Revenue Recognition in extracted page",
+    ]);
+
+    const texts = eventSearchText(node);
+    expect(texts).toContain('{"action":"get_page_text"}');
+    expect(texts.join("\n")).not.toContain("data:image/png;base64");
+  });
+
+  test("tool: array document renders its filename; audio/video render no text", () => {
+    const node = makeNode({
+      event: "tool",
+      function: "fetch",
+      arguments: null,
+      result: [
+        {
+          type: "document",
+          filename: "report.pdf",
+          document: "data:application/pdf;base64,_DOC_BLOB_",
+          mime_type: "application/pdf",
+        },
+        { type: "audio", audio: "data:audio/mp3;base64,_AUDIO_BLOB_" },
+        { type: "video", video: "data:video/mp4;base64,_VIDEO_BLOB_" },
+      ],
+      error: null,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+    const resultSegments = extractEventFields(node.event)
+      .filter(([key]) => key === "result")
+      .map(([, value]) => value);
+    expect(resultSegments).toEqual(["report.pdf"]);
+    const joined = resultSegments.join("\n");
+    expect(joined).not.toContain("_AUDIO_BLOB_");
+    expect(joined).not.toContain("_VIDEO_BLOB_");
+    expect(joined).not.toContain("_DOC_BLOB_");
+  });
+
+  test("tool: excluded hard cases stay safe (no payload leak), not renderer-exact", () => {
+    const imageNode = makeNode({
+      event: "tool",
+      function: "view_image",
+      arguments: null,
+      result: { type: "image", image: "data:image/png;base64,_HUGE_BLOB_" },
+      error: null,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+    expect(eventSearchText(imageNode).join("\n")).not.toContain("_HUGE_BLOB_");
+
+    const dataNode = makeNode({
+      event: "tool",
+      function: "fetch",
+      arguments: null,
+      result: [{ type: "data", data: { secret: "_DATA_VALUE_" } }],
+      error: null,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+    expect(eventSearchText(dataNode).join("\n")).not.toContain("_DATA_VALUE_");
+
+    const objectNode = makeNode({
+      event: "tool",
+      function: "calc",
+      arguments: null,
+      result: { answer: 42, label: "ok" },
+      error: null,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+    const objectSegments = extractEventFields(objectNode.event)
+      .filter(([key]) => key === "result")
+      .map(([, value]) => value);
+    expect(objectSegments).toEqual(['{"answer":42,"label":"ok"}']);
   });
 
   test("error: includes error message", () => {
