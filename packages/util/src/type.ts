@@ -25,11 +25,3 @@ export const toArray = <T>(val: T | T[]): Array<T> => {
 export const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 };
-
-export const defined = <T>(value: T | undefined): T => {
-  if (value === undefined) {
-    // Conservative noUncheckedIndexedAccess bridge: preserve the old throwy path until callers can be refactored to prove the invariant locally.
-    throw new Error("Expected value to be defined");
-  }
-  return value;
-};
