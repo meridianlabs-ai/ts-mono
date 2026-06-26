@@ -191,6 +191,7 @@ export function DataGrid<TRow>({
                             "bi bi-caret-up-fill",
                             styles.sortIcon
                           )}
+                          aria-hidden="true"
                         />
                       )}
                       {header.column.getIsSorted() === "desc" && (
@@ -199,6 +200,7 @@ export function DataGrid<TRow>({
                             "bi bi-caret-down-fill",
                             styles.sortIcon
                           )}
+                          aria-hidden="true"
                         />
                       )}
                     </div>

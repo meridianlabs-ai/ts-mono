@@ -278,3 +278,40 @@ test.describe("Top-level views", () => {
     await expect(gridCell(page, "task-beta")).toBeVisible();
   });
 });
+
+test.describe("Sorting", () => {
+  // Text of the first data row (tbody is the grid's last rowgroup; the first
+  // rendered row is the top of the sorted order).
+  const firstRowText = (
+    page: Parameters<Parameters<typeof test>[2]>[0]["page"]
+  ) =>
+    page
+      .getByRole("grid")
+      .getByRole("rowgroup")
+      .last()
+      .getByRole("row")
+      .first()
+      .textContent();
+
+  test("clicking the Task header sorts rows ascending then descending", async ({
+    page,
+    network,
+  }) => {
+    setupHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+
+    const taskHeader = page.getByRole("columnheader", {
+      name: "Task",
+      exact: true,
+    });
+
+    // Ascending: task-alpha sorts first.
+    await taskHeader.click();
+    await expect.poll(() => firstRowText(page)).toContain("task-alpha");
+
+    // Descending: task-gamma sorts first.
+    await taskHeader.click();
+    await expect.poll(() => firstRowText(page)).toContain("task-gamma");
+  });
+});
