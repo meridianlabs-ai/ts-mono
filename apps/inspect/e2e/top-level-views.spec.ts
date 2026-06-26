@@ -260,9 +260,7 @@ test.describe("Top-level views", () => {
 
     // "subdir" should NOT appear as a separate folder row
     // (task-gamma is in subdir/ but should show as a flat entry)
-    const folderRows = page
-      .getByRole("row")
-      .filter({ hasText: /^subdir$/ });
+    const folderRows = page.getByRole("row").filter({ hasText: /^subdir$/ });
     await expect(folderRows).toHaveCount(0);
   });
 
@@ -292,6 +290,22 @@ test.describe("Sorting", () => {
       .getByRole("row")
       .first()
       .textContent();
+
+  test("defaults to a Completed (descending) sort indicator on load", async ({
+    page,
+    network,
+  }) => {
+    setupHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+
+    // Caret is aria-hidden, so locate it within the Completed header by class.
+    const completedHeader = page.getByRole("columnheader", {
+      name: "Completed",
+      exact: true,
+    });
+    await expect(completedHeader.locator("i.bi-caret-down-fill")).toBeVisible();
+  });
 
   test("clicking the Task header sorts rows ascending then descending", async ({
     page,

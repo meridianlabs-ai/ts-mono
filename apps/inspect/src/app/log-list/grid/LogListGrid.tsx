@@ -38,6 +38,10 @@ interface LogListGridProps {
 
 type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
 
+// Default sort for a scope with no persisted state: most-recently-completed
+// first (mirrors the samples view's `completed_at desc` default).
+const kDefaultSorting: SortingState = [{ id: "completedAt", desc: true }];
+
 const detailsForItem = (
   item: LogListItem,
   logDetails: Record<string, LogDetails>
@@ -244,11 +248,15 @@ export const LogListGrid: FC<LogListGridProps> = ({
     setWatchedLogs(logFiles);
   }, [logFiles, setWatchedLogs]);
 
-  // Persisted sort for this scope drives the listing query's orderBy.
-  const sorting = useMemo<SortingState>(
-    () => (scopeKey ? (gridStateByScope[scopeKey]?.sorting ?? []) : []),
-    [gridStateByScope, scopeKey]
-  );
+  // Default to Completed (descending) until the user picks a sort — matches
+  // the samples view. A persisted entry (including an explicitly-cleared empty
+  // sort) takes over once this scope has one.
+  const sorting = useMemo<SortingState>(() => {
+    const persisted = scopeKey
+      ? gridStateByScope[scopeKey]?.sorting
+      : undefined;
+    return persisted ?? kDefaultSorting;
+  }, [gridStateByScope, scopeKey]);
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
   // Folders (logs mode) are presentation: pinned on top, independent of sort.
