@@ -110,7 +110,7 @@ const varyBody = (label: string, lines: number) =>
 const manyTurns: Events = Array.from({ length: 20 }, (_, i) =>
   createModelEvent(
     `turn-${String(i).padStart(2, "0")}`,
-    varyBody(`Turn ${i} response`, [3, 160, 8, 220, 30, 120][i % 6])
+    varyBody(`Turn ${i} response`, [3, 160, 8, 220, 30, 120][i % 6] ?? 60)
   )
 );
 

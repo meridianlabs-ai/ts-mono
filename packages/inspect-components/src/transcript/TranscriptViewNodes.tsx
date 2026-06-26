@@ -17,7 +17,11 @@ import {
 } from "react";
 
 import { StickyScrollProvider } from "@tsmono/react/components";
-import { useListKeyboardNavigation, useProperty } from "@tsmono/react/hooks";
+import {
+  useListKeyboardNavigation,
+  useProperty,
+  useScrollTrack,
+} from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import { modelEventTabNames } from "./ModelEventView";
@@ -28,7 +32,6 @@ import { TurnHeader } from "./TurnHeader";
 import {
   computeTranscriptTurns,
   computeTurnAnchorIds,
-  pickCurrentAnchorIndex,
 } from "./turnNavigation";
 import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
@@ -73,7 +76,7 @@ export interface TranscriptViewNodesHandle {
   scrollToEvent: (eventId: string) => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
-  /** Read-only accessor for Virtuoso's currently-rendered visible range. */
+  /** Read-only accessor for the virtual list's currently-rendered visible range. */
   getVisibleRange: () => { startIndex: number; endIndex: number };
 }
 
@@ -172,59 +175,17 @@ export const TranscriptViewNodes = forwardRef<
     return { computedTurnMap: computed, turnAnchorIds: anchorIds };
   }, [turnMap, eventNodes, flattenedNodes, defaultCollapsedIds]);
 
-  // The one scroll primitive: put a flattened-list row's event panel top at the
-  // sticky line (just under the `offsetTop` chrome). Used for deep-link/outline/
-  // sidebar jumps, search/timeline clicks (via scrollToEvent), and j/k turn nav.
-  //
-  // scrollToIndex gets the row into view (and mounts it — the target may not be
-  // in the DOM yet, so a plain `#id` scroll can't work) but does NOT land it
-  // precisely: it positions by the virtualizer's *estimated* row heights and
-  // keeps re-adjusting over the next frames as the now-mounted rows measure their
-  // real height, so a one-shot scroll settles at an estimate-/history-dependent
-  // spot (jumping to a turn from far vs from nearby lands it differently — the
-  // re-navigation drift). Re-assert the exact line from the panel's real DOM rect
-  // each frame until stable, capped so a row that physically can't reach the line
-  // (e.g. the last row, near the end of the list) stops.
-  //
-  // We measure the event panel by its `[id]` — the same element currentTurnFrom-
-  // Viewport uses to decide the current turn — so the landing and the "turn N/M"
-  // label agree (the row wrapper's top sits a few px above the panel, which would
-  // otherwise leave the target one turn off).
-  const scrollRowToTop = useCallback(
-    (index: number) => {
-      const container = scrollRef?.current;
-      listHandle.current?.scrollToIndex({
-        index,
-        align: "start",
-        behavior: "auto",
-        offset: offsetTop ? -offsetTop : undefined,
-      });
-      const id = flattenedNodesLatest.current[index]?.id;
-      if (!container || !id) return;
-      // Keep re-asserting across the whole window rather than bailing at the
-      // first aligned frame: the row mounts a frame or two in, and a competing
-      // mount-time scroll (the VirtualList's own initialIndex deep-link) can fire
-      // *after* we've aligned and knock the row off the line — re-correcting each
-      // frame catches that. The window is short enough not to fight a real user
-      // scroll (j/k/deep-link is itself a scroll command, not hand-scrolling).
-      let frames = 0;
-      const settle = () => {
-        const panel = container.querySelector<HTMLElement>(
-          `[id="${escapeAttr(id)}"]`
-        );
-        if (panel) {
-          const delta =
-            panel.getBoundingClientRect().top -
-            container.getBoundingClientRect().top -
-            (offsetTop ?? 0);
-          if (Math.abs(delta) > 1) container.scrollBy({ top: delta });
-        }
-        if (++frames < 12) requestAnimationFrame(settle);
-      };
-      requestAnimationFrame(settle);
-    },
-    [offsetTop, scrollRef]
-  );
+  // The one scroll primitive: scroll a flattened-list row to the top. VirtualList's
+  // scrollPaddingStart lands it just below the sticky chrome (and survives the
+  // virtualizer's reconcile). Used for deep-link/outline/sidebar jumps,
+  // search/timeline clicks (via scrollToEvent), and j/k turn nav.
+  const scrollRowToTop = useCallback((index: number) => {
+    listHandle.current?.scrollToIndex({
+      index,
+      align: "start",
+      behavior: "auto",
+    });
+  }, []);
 
   const scrollToEvent = useCallback(
     (eventId: string) => {
@@ -347,17 +308,12 @@ export const TranscriptViewNodes = forwardRef<
   ]);
 
   // Turn shown in the sticky header — the turn at the top of the viewport,
-  // tracked from DOM positions on every scroll (handleVisibleRange below).
+  // tracked by useScrollTrack below.
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const currentTurnIndexRef = useRef(0);
   useEffect(() => {
     currentTurnIndexRef.current = currentTurnIndex;
   }, [currentTurnIndex]);
-
-  const offsetTopRef = useRef(offsetTop);
-  useEffect(() => {
-    offsetTopRef.current = offsetTop;
-  }, [offsetTop]);
 
   // Runtime URL→event scroll (deep link / outline / sidebar turn link). Dedup by
   // target so re-renders from filter/collapse don't re-fire an already-handled
@@ -372,53 +328,13 @@ export const TranscriptViewNodes = forwardRef<
     if (lastScrolledKeyRef.current === targetKey) return;
     const idx = flattenedNodes.findIndex((n) => n.id === scrollEventId);
     if (idx === -1) return;
-    const container = scrollRef?.current;
     lastScrolledKeyRef.current = targetKey;
     scrollRowToTop(idx);
-    // Message-level deep link (scan citation): once the row mounts, bring the
-    // specific message to the sticky line. scrollIntoView lands it at the
-    // container top (0); nudge down by offsetTop so it clears the sticky chrome.
-    if (initialMessageId && container) {
-      requestAnimationFrame(() => {
-        const el = container.querySelector<HTMLElement>(
-          `[data-message-id="${escapeAttr(initialMessageId)}"]`
-        );
-        if (!el) return;
-        el.scrollIntoView({ block: "start", behavior: "auto" });
-        if (offsetTopRef.current) {
-          container.scrollBy({ top: -offsetTopRef.current, behavior: "auto" });
-        }
-      });
-    }
-  }, [scrollEventId, initialMessageId, flattenedNodes, scrollRef, scrollRowToTop]);
+  }, [scrollEventId, initialMessageId, flattenedNodes, scrollRowToTop]);
 
   // ---------------------------------------------------------------------------
   // Turn navigation (j/k + header chevrons)
   // ---------------------------------------------------------------------------
-
-  const anchorIndexById = useMemo(() => {
-    const m = new Map<string, number>();
-    turnAnchorIds.forEach((id, i) => m.set(id, i));
-    return m;
-  }, [turnAnchorIds]);
-
-  // The turn at the top of the viewport, from the on-screen turn-anchor rows' DOM
-  // positions. The activation `line` uses the same `offsetTop` that scrollRowToTop
-  // scrolls to, so the current turn matches where a jump lands.
-  const currentTurnFromViewport = useCallback((): number => {
-    const container = scrollRef?.current;
-    if (!container) return -1;
-    const line =
-      container.getBoundingClientRect().top + (offsetTopRef.current ?? 0);
-    const anchors: { index: number; top: number }[] = [];
-    for (const el of container.querySelectorAll<HTMLElement>("[id]")) {
-      const ai = anchorIndexById.get(el.id);
-      if (ai !== undefined) {
-        anchors.push({ index: ai, top: el.getBoundingClientRect().top });
-      }
-    }
-    return pickCurrentAnchorIndex(anchors, line);
-  }, [anchorIndexById, scrollRef]);
 
   const goToTurn = useCallback(
     (index: number) => {
@@ -434,20 +350,14 @@ export const TranscriptViewNodes = forwardRef<
     [turnAnchorIds, scrollRowToTop]
   );
 
-  // Step from the *tracked* current turn, not a fresh viewport read. handle-
-  // VisibleRange keeps currentTurnIndex in sync with the viewport as you scroll
-  // (incl. free scroll), settling on the stable turn; a synchronous read here can
-  // instead catch a transient value while a prior jump's scroll is still settling
-  // (which made j/k step the wrong way / stall when turns are short and dense).
-  const stepTurn = useCallback(
-    (delta: 1 | -1) => {
-      goToTurn(currentTurnIndexRef.current + delta);
-    },
+  const onNext = useCallback(
+    () => goToTurn(currentTurnIndexRef.current + 1),
     [goToTurn]
   );
-
-  const onNext = useCallback(() => stepTurn(1), [stepTurn]);
-  const onPrev = useCallback(() => stepTurn(-1), [stepTurn]);
+  const onPrev = useCallback(
+    () => goToTurn(currentTurnIndexRef.current - 1),
+    [goToTurn]
+  );
 
   const eventCallbacks = useMemo<EventPanelCallbacks>(
     () => ({
@@ -467,12 +377,27 @@ export const TranscriptViewNodes = forwardRef<
     onPrev,
   });
 
-  // The sticky strip reflects the turn topping the viewport — recomputed on
-  // every visible-range change (which fires while scrolling).
-  const handleVisibleRange = useCallback(() => {
-    const idx = currentTurnFromViewport();
-    if (idx !== -1) setCurrentTurnIndex((prev) => (prev === idx ? prev : idx));
-  }, [currentTurnFromViewport]);
+  // The sticky strip reflects the turn at the top of the viewport — tracked off
+  // the topmost visible row via the same useScrollTrack the outline uses (works
+  // for virtual and non-virtual, and slides its detection point near the bottom
+  // so the final turns can become current too). Track *every* row, not just turn
+  // anchors: computedTurnMap maps tool/content rows to their model's turn, so a
+  // long turn whose anchor has scrolled out of the DOM still reads correctly;
+  // rows above the first turn default to turn 1.
+  const trackedEventIds = useMemo(
+    () => flattenedNodes.map((n) => n.id),
+    [flattenedNodes]
+  );
+  const onTopEvent = useCallback(
+    (eventId: string) => {
+      const idx = (computedTurnMap.get(eventId)?.turnNumber ?? 1) - 1;
+      setCurrentTurnIndex((prev) => (prev === idx ? prev : idx));
+    },
+    [computedTurnMap]
+  );
+  useScrollTrack(trackedEventIds, onTopEvent, scrollRef, {
+    topOffset: offsetTop,
+  });
 
   const showTurnHeader = turnAnchorIds.length > 0;
   const turnIndex = Math.min(currentTurnIndex, turnAnchorIds.length - 1);
@@ -540,7 +465,6 @@ export const TranscriptViewNodes = forwardRef<
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
           visibleRangeRef={visibleRangeRef}
-          onVisibleRangeChange={handleVisibleRange}
         />
       </div>
     </StickyScrollProvider>

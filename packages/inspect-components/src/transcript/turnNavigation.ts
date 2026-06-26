@@ -8,6 +8,8 @@ import { kSandboxSignalName } from "./transform/fixups";
 import { flatTree } from "./transform/flatten";
 import type { EventNode } from "./types";
 
+export const kTranscriptScrollPaddingStart = -50;
+
 // Structural / non-turn-content event types the transcript hides by default.
 // Excluding them from the focused-turn slice keeps the model event adjacent to
 // its tool events (so it renders its compact summary, not inline tool calls)
@@ -84,44 +86,6 @@ export function computeTurnAnchorIds(
     }
   }
   return ids;
-}
-
-/**
- * Pick the turn anchor occupying the top of the viewport from the on-screen
- * anchor rows' vertical positions, for the sticky "turn N/M" label.
- *
- * `line` is the activation line in viewport y — the position where scroll-to-
- * turn lands a turn's header (just below the sticky strip). The current turn is
- * the LAST anchor whose header has reached that line (greatest `top` ≤ line):
- * the turn you're inside stays current as its header scrolls up past the strip,
- * and only flips when the next turn's header arrives at the line. Before the
- * first turn reaches the line (very top of the transcript) the first one below
- * wins.
- *
- * Computed from DOM rects, not the virtualizer index range, which includes
- * off-screen overscan and so lags the visible turn.
- */
-export function pickCurrentAnchorIndex(
-  anchors: { index: number; top: number }[],
-  line: number
-): number {
-  const epsilon = 2;
-  let reached = -1;
-  let reachedTop = -Infinity;
-  let firstBelow = -1;
-  let firstBelowTop = Infinity;
-  for (const { index, top } of anchors) {
-    if (top <= line + epsilon) {
-      if (top > reachedTop) {
-        reachedTop = top;
-        reached = index;
-      }
-    } else if (top < firstBelowTop) {
-      firstBelowTop = top;
-      firstBelow = index;
-    }
-  }
-  return reached !== -1 ? reached : firstBelow;
 }
 
 /**

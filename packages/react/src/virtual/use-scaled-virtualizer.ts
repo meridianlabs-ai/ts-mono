@@ -8,6 +8,7 @@ export type ScaledVirtualizerOptions = {
   estimateSize: () => number;
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
+  scrollPaddingStart?: number;
 };
 
 export type ScaledVirtualizerResult = {
@@ -82,6 +83,7 @@ export function useScaledVirtualizer(
     estimateSize: opts.estimateSize,
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
+    scrollPaddingStart: opts.scrollPaddingStart ?? 0,
     observeElementOffset: scaledObserveElementOffset,
     scrollToFn: scaledScrollToFn,
   });

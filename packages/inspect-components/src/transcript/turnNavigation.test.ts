@@ -3,11 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import type { TurnInfo } from "./outline/tree-visitors";
-import {
-  computeTurnAnchorIds,
-  focusedTurnNodes,
-  pickCurrentAnchorIndex,
-} from "./turnNavigation";
+import { computeTurnAnchorIds, focusedTurnNodes } from "./turnNavigation";
 import { EventNode } from "./types";
 
 const node = (id: string): EventNode => ({ id }) as unknown as EventNode;
@@ -95,45 +91,5 @@ describe("focusedTurnNodes", () => {
 
   it("returns an empty list for an unknown event id", () => {
     expect(focusedTurnNodes(tree(), "nope")).toEqual([]);
-  });
-});
-
-describe("pickCurrentAnchorIndex", () => {
-  // `line` is where scroll-to-turn lands a header. Current = last anchor at/above it.
-  const line = 200;
-
-  it("keeps the current turn while its header scrolls up past the line", () => {
-    // turn 4 above the line, turn 5 still below → current is 4 (the off-by-one
-    // Peter hit: the strip used to flip to 5 here).
-    const anchors = [
-      { index: 3, top: -700 },
-      { index: 4, top: -100 },
-      { index: 5, top: 760 },
-    ];
-    expect(pickCurrentAnchorIndex(anchors, line)).toBe(4);
-  });
-
-  it("treats a just-landed header (at the line) as the current turn", () => {
-    const anchors = [
-      { index: 3, top: -400 },
-      { index: 4, top: 200 },
-    ];
-    expect(pickCurrentAnchorIndex(anchors, line)).toBe(4);
-  });
-
-  it("flips to the next turn once its header reaches the line", () => {
-    const anchors = [
-      { index: 4, top: -300 },
-      { index: 5, top: 200 },
-    ];
-    expect(pickCurrentAnchorIndex(anchors, line)).toBe(5);
-  });
-
-  it("uses the first turn below the line at the very top of the transcript", () => {
-    expect(pickCurrentAnchorIndex([{ index: 1, top: 400 }], line)).toBe(1);
-  });
-
-  it("returns -1 when there are no anchors", () => {
-    expect(pickCurrentAnchorIndex([], line)).toBe(-1);
   });
 });
