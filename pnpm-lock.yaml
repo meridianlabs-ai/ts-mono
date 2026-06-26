@@ -290,8 +290,8 @@ importers:
   apps/scout:
     dependencies:
       '@duckdb/duckdb-wasm':
-        specifier: 1.33.1-dev45.0
-        version: 1.33.1-dev45.0
+        specifier: 1.33.1-dev56.0
+        version: 1.33.1-dev56.0
       '@popperjs/core':
         specifier: ^2.11.8
         version: 2.11.8
@@ -1096,8 +1096,8 @@ packages:
   '@dmsnell/diff-match-patch@1.1.0':
     resolution: {integrity: sha512-yejLPmM5pjsGvxS9gXablUSbInW7H976c/FJ4iQxWIm7/38xBySRemTPDe34lhg1gVLbJntX0+sH0jYfU+PN9A==}
 
-  '@duckdb/duckdb-wasm@1.33.1-dev45.0':
-    resolution: {integrity: sha512-ETlrjhiGQzNdaOhpro/Y9u/RCcK+iyuczLy7uOn0kG5Mqlj8C+gTuhBXjs4JpK9ocdUgr3oT8zYYIbUnFD9AYA==}
+  '@duckdb/duckdb-wasm@1.33.1-dev56.0':
+    resolution: {integrity: sha512-eu6T3Z4Gn4LIarRqJpL85/NRNUNVq2w9ZwKDdd+C+QpbprsNpQ7Jzr/wJt9zZ9hdnfHkR+kZuQtgnx2DNf7XLw==}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -5703,7 +5703,7 @@ snapshots:
 
   '@dmsnell/diff-match-patch@1.1.0': {}
 
-  '@duckdb/duckdb-wasm@1.33.1-dev45.0':
+  '@duckdb/duckdb-wasm@1.33.1-dev56.0':
     dependencies:
       apache-arrow: 17.0.0
       qs: 6.15.2
