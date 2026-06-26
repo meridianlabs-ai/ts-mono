@@ -1,5 +1,4 @@
-import type { ColDef, GridApi } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
 import {
   FC,
   Fragment,
@@ -34,27 +33,15 @@ import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
   useSamplesView,
-  useSamplesViewColorScalesEnabled,
-  useSamplesViewCompactScores,
   useSamplesViewMultiline,
-  useSamplesViewScoreColorScales,
-  useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
-import {
-  astToFilterModel,
-  FilterModel,
-} from "../../samples/sample-tools/astToFilterModel.ts";
-import { parseFilter } from "../../samples/sample-tools/filterAst.ts";
-import { filterModelToText } from "../../samples/sample-tools/filterModelToText.ts";
-import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { getFieldKey } from "../../shared/gridUtils.ts";
+import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
 import {
   buildSampleColumns,
   perScorerFieldKey,
 } from "../../shared/samples-grid/columns.tsx";
 import { SampleRow } from "../../shared/samples-grid/types.ts";
-import { clearFiltersForHiddenColumns } from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 
@@ -63,6 +50,16 @@ interface SamplesTabExtraProps {
   setShowColumnSelector: (showing: boolean) => void;
   columnButtonEl: HTMLButtonElement | null;
 }
+
+// AG-shaped shim of the column list for the still-AG `useSamplesView` /
+// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
+const toPickerColumns = (
+  columns: ExtendedColumnDef<SampleRow>[]
+): ColDef<SampleRow>[] =>
+  columns.map((col) => ({
+    colId: col.id,
+    headerName: typeof col.header === "string" ? col.header : "",
+  }));
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
@@ -133,11 +130,9 @@ export const useSamplesTabConfig = (
                 ),
               ],
     };
-    // `scrollRef` and `setShowColumnSelector` are intentionally omitted —
-    // refs and React state setters have stable identity across renders, so
-    // including them only churns the memo without changing behavior. If
-    // `componentProps` ever gains a non-stable value, add it to the deps
-    // list.
+    // `setShowColumnSelector` is intentionally omitted — React state setters
+    // have stable identity across renders, so including it only churns the
+    // memo without changing behavior.
   }, [
     evalStatus,
     refreshLog,
@@ -197,22 +192,12 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const selectSample = useStore((state) => state.logActions.selectSample);
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
-  const sampleListHandle = useRef<AgGridReact<SampleRow> | null>(null);
-
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
   // currently selected) is applied via the column-visibility map below.
   // Multiline determines column rendering: list-style uses
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
-  const compactScores = useSamplesViewCompactScores();
-  const scoreLabels = useSamplesViewScoreLabels();
-  const wireScoreColorScales = useSamplesViewScoreColorScales();
-  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
-  const scoreColorScales = useMemo(
-    () => (colorScalesEnabled ? wireScoreColorScales : {}),
-    [colorScalesEnabled, wireScoreColorScales]
-  );
 
   const allColumns = useMemo(
     () =>
@@ -222,19 +207,13 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         descriptor: samplesDescriptor,
         scores,
         epochs,
-        compactScores,
-        scoreLabels,
-        scoreColorScales,
       }),
-    [
-      multiline,
-      samplesDescriptor,
-      scores,
-      epochs,
-      compactScores,
-      scoreLabels,
-      scoreColorScales,
-    ]
+    [multiline, samplesDescriptor, scores, epochs]
+  );
+
+  const pickerColumns = useMemo(
+    () => toPickerColumns(allColumns),
+    [allColumns]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -246,9 +225,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const defaultsForUnseededColumns = useCallback(
     (col: ColDef<SampleRow>) => {
       const id = col.colId;
-      // Mirror the col.hide for epoch so the seeded visibility matches
-      // and we don't get a flash of "visible → hidden" once seeding
-      // persists `epoch: true` into the store.
       if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
@@ -260,16 +236,10 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [shape, epochs]
   );
 
-  const {
-    view,
-    columnVisibility,
-    gridState,
-    setColumnVisibility,
-    setGridState,
-    resetColumns,
-  } = useSamplesView<SampleRow>(allColumns, {
-    seedDefaultVisibility: defaultsForUnseededColumns,
-  });
+  const { view, columnVisibility, setColumnVisibility, resetColumns } =
+    useSamplesView<SampleRow>(pickerColumns, {
+      seedDefaultVisibility: defaultsForUnseededColumns,
+    });
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
@@ -280,15 +250,13 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [selectedScores]
   );
 
-  // Visibility map applied via the grid's api so column defs stay
-  // stable across visibility/score-selection changes — necessary for
-  // user-driven width and reorder to persist.
+  // Controlled visibility map keyed by column id, consumed by the DataGrid.
   const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const key = getFieldKey(col);
+      const key = col.id ?? "";
       const seeded = columnVisibility[key];
-      v[key] = seeded === undefined ? !col.hide : seeded;
+      v[key] = seeded === undefined ? true : seeded;
     }
     for (const label of scores) {
       const id = perScorerFieldKey(label);
@@ -307,13 +275,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // column visibility.
   const handleVisibilityChange = useCallback(
     (next: Record<string, boolean>) => {
-      // Clear filters for ANY column being hidden — including score
-      // columns, whose visibility lives in `selectedScores` rather than
-      // the persisted columnVisibility map. (The setColumnVisibility
-      // wrapper below would otherwise only see the non-score subset.)
-      const api = sampleListHandle.current?.api;
-      if (api) clearFiltersForHiddenColumns(api, next);
-
       const newSelected = scores.filter(
         (label) => next[perScorerFieldKey(label)] !== false
       );
@@ -380,136 +341,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     }
   }, [sampleSummaries, selectSample, selectedLogFile]);
 
-  // Tracked here so the column selector can mark filtered columns.
-  // Updated via the grid's onFilterChanged callback.
-  const [filteredFields, setFilteredFields] = useState<string[]>([]);
-
-  // Bidirectional filter sync (phases 2b + 2c). The toolbar text filter
-  // and the column `FilterModel` describe the same logical narrowing;
-  // this block keeps them in lock-step:
-  //
-  //   columns →  text:  on every grid filter change, synthesize a filtrex
-  //                     expression from the FilterModel and push to text.
-  //   text    → columns: when the text changes (and is round-trippable),
-  //                     parse it into a FilterModel and apply it to the
-  //                     grid. Non-round-trippable text clears the column
-  //                     filters so they don't double-narrow.
-  //
-  // The feedback loop is broken at each boundary by comparing the value
-  // we'd write against the value already there — the two sides are the
-  // canonical state, no separate trackers needed.
-  const filterRegistry = useMemo(
-    () => buildSampleFilterRegistry(samplesDescriptor?.evalDescriptor),
-    [samplesDescriptor]
-  );
-  const setFilter = useStore((state) => state.logActions.setFilter);
-  const currentFilter = useStore((state) => state.log.filter);
-  const currentFilterRef = useRef(currentFilter);
-  useEffect(() => {
-    currentFilterRef.current = currentFilter;
-  }, [currentFilter]);
-
-  /** Parse `text` and project it to the FilterModel the column UI
-   *  should be holding — `{}` for empty or non-round-trippable text. */
-  const filterModelFromText = useCallback(
-    (text: string): FilterModel => {
-      const { ast } = parseFilter(text);
-      return ast ? (astToFilterModel(ast, filterRegistry) ?? {}) : {};
-    },
-    [filterRegistry]
-  );
-
-  const handleFilterChanged = useCallback(
-    (api: GridApi<SampleRow>) => {
-      const model = api.getFilterModel() ?? {};
-      setFilteredFields(Object.keys(model));
-
-      // If `currentFilter` already projects to the model we're seeing,
-      // the two sides are aligned — no echo needed. This covers both the
-      // round-trippable case (`tokens > 50` ↔ `{tokens: gt 50}`) and the
-      // expression-only case where text stays put while columns are `{}`.
-      const fromText = filterModelFromText(currentFilterRef.current);
-      if (JSON.stringify(fromText) === JSON.stringify(model)) return;
-
-      const synthesized = filterModelToText(model, filterRegistry);
-      // Columns are filtered but none are representable — leave text alone.
-      if (synthesized === null) return;
-      if (synthesized !== currentFilterRef.current) setFilter(synthesized);
-    },
-    [filterRegistry, filterModelFromText, setFilter]
-  );
-
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    const desired = filterModelFromText(currentFilter);
-    const current: FilterModel = api.getFilterModel() ?? {};
-    // Preserve current model entries that the synthesizer would have
-    // skipped — they live only in the column UI and must not be wiped
-    // by a text-driven update. Entries the user can express in text
-    // (round-trippable ones) are governed by `desired`.
-    const merged: FilterModel = { ...desired };
-    for (const [colId, filter] of Object.entries(current)) {
-      const isRepresentable =
-        filterModelToText({ [colId]: filter }, filterRegistry) !== null;
-      if (!isRepresentable && !(colId in desired)) {
-        merged[colId] = filter;
-      }
-    }
-    if (JSON.stringify(current) === JSON.stringify(merged)) return;
-    api.setFilterModel(merged);
-  }, [currentFilter, filterModelFromText, filterRegistry]);
-
-  // Snap score columns to their target width when `compactScores`
-  // toggles. ag-grid ignores `initialWidth` once a column has been
-  // sized, so we apply `width = initialWidth` explicitly. Flex
-  // columns (input/target/answer) redistribute on their own as the
-  // score columns shrink/grow, so we leave them alone — that also
-  // preserves any user resize on those columns.
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    const cols = api.getColumns();
-    if (!cols) return;
-    const state = cols.flatMap((c) => {
-      const colId = c.getColId();
-      if (!colId.startsWith("score_")) return [];
-      const w = c.getColDef().initialWidth;
-      return w === undefined ? [] : [{ colId, width: w, flex: null }];
-    });
-    if (state.length > 0) api.applyColumnState({ state });
-  }, [compactScores]);
-
-  // ag-grid caches `cellStyle` output as inline styles; the new
-  // column def alone doesn't clear them. `redrawRows` does.
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    api.redrawRows();
-  }, [colorScalesEnabled, scoreColorScales]);
-
-  // When the toolbar text is a non-round-trippable expression, hide the
-  // column-header filter buttons. Using one would overwrite the typed
-  // text with a much narrower synthesized version. Empty text and
-  // round-trippable text both leave the headers usable.
-  const columnFilteringAllowed = useMemo(() => {
-    if (!currentFilter.trim()) return true;
-    const { ast } = parseFilter(currentFilter);
-    if (!ast) return false;
-    return astToFilterModel(ast, filterRegistry) !== null;
-  }, [currentFilter, filterRegistry]);
-
-  const gridColumns = useMemo(
-    () =>
-      columnFilteringAllowed
-        ? allColumns
-        : allColumns.map((col) => ({
-            ...col,
-            suppressHeaderFilterButton: true,
-          })),
-    [allColumns, columnFilteringAllowed]
-  );
-
   if (totalSampleCount === 0) {
     if (running) {
       return <RunningNoSamples />;
@@ -533,17 +364,12 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       ) : null}
       {listDisplay ? (
         <SampleList
-          listHandle={sampleListHandle}
           items={items}
-          columns={gridColumns}
+          columns={allColumns}
           columnVisibility={visibilityForGrid}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}
-          scrollRef={scrollRef}
-          gridState={gridState}
-          onGridStateChange={setGridState}
-          onFilterChanged={handleFilterChanged}
           multiline={view.multiline}
         />
       ) : null}
@@ -551,11 +377,10 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         <ColumnSelectorPopover
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
-          columns={allColumns}
+          columns={pickerColumns}
           visibility={visibilityForGrid}
           onVisibilityChange={handleVisibilityChange}
           positionEl={columnButtonEl}
-          filteredFields={filteredFields}
           scoresHeading="Scores"
           onResetToDefault={resetColumns}
         />

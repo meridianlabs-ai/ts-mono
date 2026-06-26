@@ -22,8 +22,8 @@ test.describe("Server error state", () => {
     const errorPanel = page.locator("[data-testid='error-panel']");
     await expect(errorPanel).toBeVisible({ timeout: 10_000 });
 
-    // The AG Grid should NOT be visible
-    const grid = page.locator(".ag-root");
+    // The grid should NOT be visible
+    const grid = page.getByRole("grid");
     await expect(grid).not.toBeVisible();
   });
 
@@ -31,8 +31,13 @@ test.describe("Server error state", () => {
     page,
     network,
   }) => {
-    // First load: server error
+    // First load: server error. Stub /api/logs so initLogDir succeeds and the
+    // error comes from the log-files endpoint (not a log-root failure); without
+    // it the retry below 502s on get_log_root and the grid never renders.
     network.use(
+      http.get("*/api/logs*", () => {
+        return HttpResponse.json({ log_dir: "/home/test/logs" });
+      }),
       http.get("*/api/log-files*", () => {
         return HttpResponse.json(
           { error: "Internal Server Error" },
@@ -55,7 +60,7 @@ test.describe("Server error state", () => {
     // Navigate away and back to trigger a fresh load
     await page.goto("/");
     await expect(errorPanel).not.toBeVisible({ timeout: 10_000 });
-    await expect(page.locator(".ag-root")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("grid")).toBeVisible({ timeout: 10_000 });
   });
 
   test("shows ActivityBar, Loading..., then ErrorPanel after a delayed 500", async ({

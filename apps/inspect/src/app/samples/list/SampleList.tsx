@@ -1,11 +1,4 @@
-import type {
-  ColDef,
-  GetRowIdParams,
-  GridApi,
-  GridState,
-} from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
-import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
+import { FC, memo, useCallback, useEffect, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
@@ -14,7 +7,7 @@ import { MessageBand } from "../../../components/MessageBand";
 import { useDocumentTitle } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
-import { openInNewTab } from "../../shared/openInNewTab";
+import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { isCurrentSample } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
@@ -24,34 +17,18 @@ import styles from "./SampleList.module.css";
 
 interface SampleListProps {
   items: SampleRow[];
-  columns: ColDef<SampleRow>[];
+  columns: ExtendedColumnDef<SampleRow>[];
   columnVisibility?: Record<string, boolean>;
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
   className?: string;
-  listHandle: RefObject<AgGridReact<SampleRow> | null>;
-  /** Optional ref that receives the AgGrid `.ag-body-viewport` DOM element
-   *  once the grid is ready, so callers can hook scroll listeners on the
-   *  actual scrolling viewport. */
-  scrollRef?: RefObject<HTMLDivElement | null>;
-  gridState?: GridState;
-  onGridStateChange?: (state: GridState) => void;
-  onFilterChanged?: (api: GridApi<SampleRow>) => void;
   /** Row layout. `true` = list-style multi-line rows; `false` = compact. */
   multiline?: boolean;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
   `${id}-${epoch}`.replace(/\s+/g, "_");
-
-// Module-level so the grid sees a stable identity across renders.
-const kDefaultColDef: ColDef<SampleRow> = {
-  sortable: true,
-  filter: true,
-  resizable: true,
-  headerTooltipValueGetter: (params) => params.colDef?.headerName,
-};
 
 export const SampleList: FC<SampleListProps> = memo((props) => {
   const {
@@ -62,18 +39,8 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     totalItemCount,
     running,
     className,
-    listHandle,
-    scrollRef,
-    gridState,
-    onGridStateChange,
-    onFilterChanged,
     multiline,
   } = props;
-
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  useEffect(() => {
-    listHandle.current?.api?.ensureIndexVisible(0, "top");
-  }, [listHandle, selectedLogFile]);
 
   const sampleNavigation = useSampleNavigation();
   const selectedSampleHandle = useStore(
@@ -88,45 +55,25 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   }, [setDocumentTitle, evalSpec]);
 
   const handleRowOpen = useCallback(
-    (row: SampleRow, opts: { newWindow: boolean }) => {
-      if (opts.newWindow) {
-        const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
-        if (url) openInNewTab(url);
-      } else {
-        // Re-clicking the open sample would re-run selectSample + navigate and
-        // trigger a redundant reload of the same sample — skip it.
-        if (isCurrentSample(selectedSampleHandle, row.sampleId, row.epoch)) {
-          return;
-        }
-        sampleNavigation.showSample(row.sampleId, row.epoch);
+    (row: SampleRow) => {
+      // Re-clicking the open sample would re-run selectSample + navigate and
+      // trigger a redundant reload of the same sample — skip it.
+      if (isCurrentSample(selectedSampleHandle, row.sampleId, row.epoch)) {
+        return;
       }
+      sampleNavigation.showSample(row.sampleId, row.epoch);
     },
     [sampleNavigation, selectedSampleHandle]
   );
 
   const getRowId = useCallback(
-    (params: GetRowIdParams<SampleRow>) =>
-      makeSampleRowId(params.data.sampleId, params.data.epoch),
+    (row: SampleRow) => makeSampleRowId(row.sampleId, row.epoch),
     []
   );
 
   const selectedRowId = selectedSampleHandle
     ? makeSampleRowId(selectedSampleHandle.id, selectedSampleHandle.epoch)
     : undefined;
-
-  const handleStateUpdated = useCallback(
-    (state: GridState) => {
-      onGridStateChange?.(state);
-    },
-    [onGridStateChange]
-  );
-
-  const handleFilterChanged = useCallback(
-    (api: GridApi<SampleRow>) => {
-      onFilterChanged?.(api);
-    },
-    [onFilterChanged]
-  );
 
   const sampleCount = items.length;
 
@@ -180,18 +127,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         rowData={items}
         columnDefs={columns}
         columnVisibility={columnVisibility}
-        defaultColDef={kDefaultColDef}
         viewMode="list"
         multiline={multiline}
-        gridRef={listHandle}
         getRowId={getRowId}
         selectedRowId={selectedRowId}
         onRowOpen={handleRowOpen}
-        followOutput={running}
-        scrollRef={scrollRef}
-        initialState={gridState}
-        onStateUpdated={onGridStateChange ? handleStateUpdated : undefined}
-        onFilterChanged={handleFilterChanged}
         className={className}
       />
       <SampleFooter

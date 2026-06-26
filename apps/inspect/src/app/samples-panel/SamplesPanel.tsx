@@ -1,12 +1,7 @@
-import type {
-  ColDef,
-  GetRowIdParams,
-  GridApi,
-  GridState,
-} from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import type { SortingState } from "@tanstack/react-table";
+import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { ProgressBar } from "@tsmono/react/components";
@@ -32,7 +27,7 @@ import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigation } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
-import { getFieldKey } from "../shared/gridUtils";
+import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -40,9 +35,13 @@ import {
 import { SamplesGrid } from "../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../shared/samples-grid/types";
 import { useSampleGridState } from "../shared/samples-grid/useSampleGridState";
-import { DisplayedSample } from "../types";
 
 import styles from "./SamplesPanel.module.css";
+
+// Cross-log default: most-recently-completed first (matches the prior AG view).
+const kSamplesPanelDefaultSorting: SortingState = [
+  { id: "completed_at", desc: true },
+];
 
 const sampleRowId = (
   logFile: string,
@@ -50,20 +49,19 @@ const sampleRowId = (
   epoch: number
 ) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
 
-const gridDisplayedSamples = (api: GridApi<SampleRow>): DisplayedSample[] => {
-  const out: DisplayedSample[] = [];
-  const count = api.getDisplayedRowCount();
-  for (let i = 0; i < count; i++) {
-    const node = api.getDisplayedRowAtIndex(i);
-    if (node?.data) {
-      out.push({
-        logFile: node.data.logFile,
-        sampleId: node.data.sampleId,
-        epoch: node.data.epoch,
-      });
-    }
-  }
-  return out;
+// AG-shaped shim of the column list for the still-AG `useSampleGridState` /
+// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
+const toPickerColumns = (
+  columns: ExtendedColumnDef<SampleRow>[]
+): ColDef<SampleRow>[] =>
+  columns.map((col) => ({
+    colId: col.id,
+    headerName: typeof col.header === "string" ? col.header : "",
+  }));
+
+const completedAtTime = (row: SampleRow): number => {
+  const v = row.data?.completed_at;
+  return v ? new Date(v).getTime() : 0;
 };
 
 export const SamplesPanel: FC = () => {
@@ -105,7 +103,6 @@ export const SamplesPanel: FC = () => {
     (state) => state.log.selectedSampleHandle
   );
 
-  const gridRef = useRef<AgGridReact<SampleRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
@@ -194,6 +191,11 @@ export const SamplesPanel: FC = () => {
     [logDetailsInPath]
   );
 
+  const pickerColumns = useMemo(
+    () => toPickerColumns(allColumns),
+    [allColumns]
+  );
+
   // Default visibility for unseeded columns. `error`/`limit`/`retries`/
   // `fallbacks` auto-promote to visible when at least one sample carries
   // that field.
@@ -229,50 +231,21 @@ export const SamplesPanel: FC = () => {
     [optionalHasData]
   );
 
-  const { columnVisibility, setColumnVisibility, gridState, setGridState } =
-    useSampleGridState<SampleRow>("samplesPanel", allColumns, {
+  const { columnVisibility, setColumnVisibility } =
+    useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
       defaultsForUnseededColumns,
-      gridRef,
     });
 
-  // Visibility is applied inside `<SamplesGrid>` via the ag-grid api so
-  // the column defs themselves stay stable across visibility changes —
-  // necessary for user-driven width/reorder to persist.
+  // Controlled visibility map keyed by column id, consumed by the DataGrid.
   const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const key = getFieldKey(col);
+      const key = col.id ?? "";
       const seeded = columnVisibility[key];
-      v[key] = seeded === undefined ? !col.hide : seeded;
+      v[key] = seeded === undefined ? true : seeded;
     }
     return v;
   }, [allColumns, columnVisibility]);
-
-  // Drop the persisted filter when samplesPath changes — surviving
-  // column / sort settings are still useful, but a filter scoped to the
-  // prior directory isn't. Pure: state mutations live in the effects
-  // below.
-  const initialState = useMemo<GridState | undefined>(() => {
-    const base =
-      previousSamplesPath !== undefined && previousSamplesPath !== samplesPath
-        ? (() => {
-            const result = { ...gridState };
-            delete result?.filter;
-            return result;
-          })()
-        : gridState;
-
-    // Default sort: completed desc when nothing is persisted. Once the
-    // user changes it, the new sort gets persisted into gridState and
-    // takes over from here.
-    if (!base?.sort?.sortModel?.length) {
-      return {
-        ...base,
-        sort: { sortModel: [{ colId: "completed_at", sort: "desc" }] },
-      };
-    }
-    return base;
-  }, [previousSamplesPath, samplesPath, gridState]);
 
   useEffect(() => {
     if (samplesPath === previousSamplesPath) return;
@@ -285,7 +258,8 @@ export const SamplesPanel: FC = () => {
     setPreviousSamplesPath,
   ]);
 
-  // Transform logDetails into flat rows.
+  // Transform logDetails into flat rows, pre-sorted by completion time
+  // (descending) since interactive sorting is deferred.
   const [sampleRows, hasRetriedLogs] = useMemo(() => {
     const allRows: SampleRow[] = [];
     let displayIndex = 1;
@@ -313,7 +287,6 @@ export const SamplesPanel: FC = () => {
           sampleId: sample.id,
           epoch: sample.epoch,
           data: sample,
-          displayIndex: displayIndex++,
           created: logDetail.eval.created,
           task: logDetail.eval.task || "",
           model: logDetail.eval.model || "",
@@ -342,6 +315,12 @@ export const SamplesPanel: FC = () => {
     const _sampleRows = allRows.filter(
       (row) => row.logFile in logInCurrentDirByName
     );
+    // Sort by completion time descending, then assign the display index so
+    // the `#` column matches the rendered order.
+    _sampleRows.sort((a, b) => completedAtTime(b) - completedAtTime(a));
+    for (const row of _sampleRows) {
+      row.displayIndex = displayIndex++;
+    }
     const _hasRetriedLogs =
       _sampleRows.length < allRows.length || anyLogInCurrentDirCouldBeSkipped;
 
@@ -361,33 +340,25 @@ export const SamplesPanel: FC = () => {
     [navigateToSampleDetail]
   );
 
-  // Tracked here (not read straight off `gridRef.current.api`) so the
-  // navbar's Reset Filters button and the column-selector's filter-icon
-  // re-render when filters actually change.
-  const [filteredFields, setFilteredFields] = useState<string[]>([]);
-  const hasFilter = filteredFields.length > 0;
+  // Reflect the rendered row set into store-backed displayed-samples state
+  // (drives footer count + cross-tab navigation). Filtering is deferred, so
+  // every flattened row is "displayed".
+  useEffect(() => {
+    const displayed = sampleRows.map((row) => ({
+      logFile: row.logFile,
+      sampleId: row.sampleId,
+      epoch: row.epoch,
+    }));
+    setFilteredSampleCount(displayed.length);
+    setDisplayedSamples(displayed);
+  }, [sampleRows, setFilteredSampleCount, setDisplayedSamples]);
 
-  const updateDisplayedFromApi = useCallback(
-    (api: GridApi<SampleRow>) => {
-      const displayed = gridDisplayedSamples(api);
-      setFilteredSampleCount(displayed.length);
-      setDisplayedSamples(displayed);
-      setFilteredFields(Object.keys(api.getFilterModel() ?? {}));
-    },
-    [setFilteredSampleCount, setDisplayedSamples]
-  );
-
-  const handleFirstDataRendered = useCallback(
-    (api: GridApi<SampleRow>) => {
-      updateDisplayedFromApi(api);
-      clearSelectedSample();
-    },
-    [updateDisplayedFromApi, clearSelectedSample]
-  );
+  useEffect(() => {
+    clearSelectedSample();
+  }, [samplesPath, clearSelectedSample]);
 
   const getRowId = useCallback(
-    (params: GetRowIdParams<SampleRow>) =>
-      sampleRowId(params.data.logFile, params.data.sampleId, params.data.epoch),
+    (row: SampleRow) => sampleRowId(row.logFile, row.sampleId, row.epoch),
     []
   );
 
@@ -402,22 +373,9 @@ export const SamplesPanel: FC = () => {
 
   const isEmptyAndLoading = sampleRows.length === 0 && (loading > 0 || syncing);
 
-  const handleResetFilters = () => {
-    if (gridRef.current?.api) gridRef.current.api.setFilterModel(null);
-  };
-
   return (
     <div className={clsx(styles.panel)}>
       <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
-        {hasFilter && (
-          <NavbarButton
-            key="reset-filters"
-            label="Reset Filters"
-            icon={ApplicationIcons.filter}
-            onClick={handleResetFilters}
-          />
-        )}
-
         {hasRetriedLogs && (
           <NavbarButton
             key="show-retried"
@@ -431,13 +389,6 @@ export const SamplesPanel: FC = () => {
             subtle
             onClick={() => {
               setShowRetriedLogs(!showRetriedLogs);
-              setTimeout(() => {
-                if (gridRef.current) {
-                  setFilteredSampleCount(
-                    gridRef.current.api.getDisplayedRowCount()
-                  );
-                }
-              }, 10);
             }}
           />
         )}
@@ -461,11 +412,10 @@ export const SamplesPanel: FC = () => {
       <ColumnSelectorPopover
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
-        columns={allColumns}
+        columns={pickerColumns}
         visibility={visibilityForGrid}
         onVisibilityChange={setColumnVisibility}
         positionEl={columnButtonEl}
-        filteredFields={filteredFields}
         scoresHeading="Scores"
       />
 
@@ -475,20 +425,12 @@ export const SamplesPanel: FC = () => {
           rowData={sampleRows}
           columnDefs={allColumns}
           columnVisibility={visibilityForGrid}
-          defaultColDef={{ sortable: true, filter: true, resizable: true }}
           viewMode="grid"
-          gridRef={gridRef}
+          defaultSorting={kSamplesPanelDefaultSorting}
           getRowId={getRowId}
           selectedRowId={selectedRowId}
           onRowOpen={handleRowOpen}
-          initialState={initialState}
-          onStateUpdated={setGridState}
-          onFilterChanged={updateDisplayedFromApi}
-          onFirstDataRendered={handleFirstDataRendered}
           loading={isEmptyAndLoading}
-          autoSizeStrategy={{
-            type: "fitGridWidth",
-          }}
         />
       </div>
 

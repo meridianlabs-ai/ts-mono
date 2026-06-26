@@ -1,424 +1,152 @@
+import type { SortingState } from "@tanstack/react-table";
+import { ReactElement, useCallback, useMemo, useState } from "react";
+
+import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
-  CellMouseDownEvent,
-  ColDef,
-  GetRowIdParams,
-  GridApi,
-  GridColumnsChangedEvent,
-  GridState,
-  IRowNode,
-  RowClickedEvent,
-  SizeColumnsToContentStrategy,
-  SizeColumnsToFitGridStrategy,
-  SizeColumnsToFitProvidedWidthStrategy,
-  StateUpdatedEvent,
-} from "ag-grid-community";
-import { themeBalham } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
-import clsx from "clsx";
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
+
+import { combineFilters } from "../../log-list/listing/combineFilters";
+import type { ValueComparator } from "../../log-list/listing/types";
 import {
-  ReactElement,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
-
-import "../agGrid";
-
-import { createGridKeyboardHandler } from "../gridKeyboardNavigation";
-import { createGridColumnResizer } from "../gridUtils";
-import { useApplyColumnVisibility } from "../useApplyColumnVisibility";
-
-import styles from "./SamplesGrid.module.css";
-
-type AutoSizeStrategy =
-  | SizeColumnsToFitGridStrategy
-  | SizeColumnsToFitProvidedWidthStrategy
-  | SizeColumnsToContentStrategy;
+  sortingStateToOrderBy,
+  useLogsListingQuery,
+} from "../../log-list/listing/useLogsListingQuery";
+import { ExtendedColumnDef } from "../data-grid/columnTypes";
+import { DataGrid } from "../data-grid/DataGrid";
 
 export type SamplesGridViewMode = "list" | "grid";
 
 const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
-const kDefaultHeaderHeight = 25;
-// Tall enough to host a 110px-wide rotated label (≈ 78px tall at 45°)
-// plus padding and breathing room. See `.rotatedHeader` in
-// SamplesGrid.module.css.
-const kRotatedHeaderHeight = 115;
-
-const rowHeightForMode = (mode: SamplesGridViewMode): number =>
-  mode === "list" ? kListModeRowHeight : kGridModeRowHeight;
-
-// Module-level so the grid sees a stable identity across renders.
-const kRowSelection = { mode: "singleRow", checkboxes: false } as const;
 
 interface SamplesGridProps<TRow> {
   rowData: TRow[];
-  columnDefs: ColDef<TRow>[];
-  /** Visibility applied via ag-grid api so changes don't rebuild
-   *  `columnDefs` (which would reset user-driven width/order state).
-   *  Keys are colIds; missing entries default to visible. */
+  columnDefs: ExtendedColumnDef<TRow>[];
+  /** Controlled column visibility keyed by column id; missing entries
+   *  default to visible. */
   columnVisibility?: Record<string, boolean>;
-  defaultColDef?: ColDef<TRow>;
   viewMode: SamplesGridViewMode;
-  rowHeight?: number;
-  /** `true` = list-style 88px rows; `false` = compact 30px rows. */
+  /** `true` = list-style tall rows; `false` = compact rows. Falls back to
+   *  `viewMode === "list"` when unset. Affects row height only. */
   multiline?: boolean;
-
-  getRowId: (params: GetRowIdParams<TRow>) => string;
+  /** Initial sort applied until the user clicks a header (e.g. the cross-log
+   *  panel seeds Completed-desc). */
+  defaultSorting?: SortingState;
+  getRowId: (row: TRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
-
   onRowOpen: (
     row: TRow,
     opts: { newWindow: boolean; via: "click" | "key" }
   ) => void;
-
-  /** Auto-scroll to bottom as new rows arrive while this is true. */
-  followOutput?: boolean;
-  /** Receives the `.ag-body-viewport` once the grid is ready. */
-  scrollRef?: RefObject<HTMLDivElement | null>;
-
-  /** Side effects after the grid first renders data. */
-  onFirstDataRendered?: (api: GridApi<TRow>) => void;
-
-  /** Optional grid-state persistence. */
-  initialState?: GridState;
-  onStateUpdated?: (state: GridState) => void;
-  onFilterChanged?: (api: GridApi<TRow>) => void;
-
   loading?: boolean;
-
-  /** Opt-in: auto-size columns to fit (used by grid mode where columns
-   *  declare fixed widths rather than flex). */
-  autoSizeStrategy?: AutoSizeStrategy;
-  /** When true, refit columns on viewport resize and when new columns
-   *  appear (e.g. after score-column discovery). Pairs with
-   *  `autoSizeStrategy`. */
-  refitOnSizeChange?: boolean;
-
-  gridRef?: RefObject<AgGridReact<TRow> | null>;
   className?: string;
 }
 
-const makeKeyboardHandler = <TRow,>(
-  gridRef: RefObject<AgGridReact<TRow> | null>,
-  onRowOpen: SamplesGridProps<TRow>["onRowOpen"]
-) =>
-  createGridKeyboardHandler<TRow>({
-    gridRef,
-    onOpenRow: (rowNode: IRowNode<TRow>, e: KeyboardEvent) => {
-      if (rowNode.data) {
-        const newWindow = e.metaKey || e.ctrlKey || e.shiftKey;
-        onRowOpen(rowNode.data, { newWindow, via: "key" });
+/**
+ * Shared samples grid: a `DataGrid` wrapper that runs client-side sort +
+ * per-column filtering over `rowData` via the listing query (the same engine
+ * the log list uses). Sort/filter state is local to the grid; persistence is
+ * not wired yet.
+ */
+export const SamplesGrid = <TRow,>({
+  rowData,
+  columnDefs,
+  columnVisibility,
+  viewMode,
+  multiline,
+  defaultSorting,
+  getRowId,
+  selectedRowId,
+  onRowOpen,
+  loading,
+  className,
+}: SamplesGridProps<TRow>): ReactElement => {
+  const isTall = multiline ?? viewMode === "list";
+  const rowHeight = isTall ? kListModeRowHeight : kGridModeRowHeight;
+
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, ColumnFilter>
+  >({});
+
+  // Listing-query accessors derived from the column defs.
+  const columnsById = useMemo(() => {
+    const map = new Map<string, ExtendedColumnDef<TRow>>();
+    for (const col of columnDefs) {
+      if (col.id) map.set(col.id, col);
+    }
+    return map;
+  }, [columnDefs]);
+
+  const getValue = useCallback(
+    (row: TRow, columnId: string): unknown => {
+      const col = columnsById.get(columnId);
+      if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
+        return col.accessorFn(row, 0);
       }
+      return undefined;
     },
+    [columnsById]
+  );
+  const getComparator = useCallback(
+    (columnId: string): ValueComparator | undefined =>
+      columnsById.get(columnId)?.meta?.sortComparator,
+    [columnsById]
+  );
+  const getFilterType = useCallback(
+    (columnId: string): FilterType | undefined =>
+      columnsById.get(columnId)?.meta?.filterType,
+    [columnsById]
+  );
+
+  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
+  const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
+
+  const { items } = useLogsListingQuery<TRow>({
+    rows: rowData,
+    filter,
+    orderBy,
+    getValue,
+    getComparator,
+    getFilterType,
   });
 
-export const SamplesGrid = <TRow,>(
-  props: SamplesGridProps<TRow>
-): ReactElement => {
-  const {
-    rowData,
-    columnDefs,
-    columnVisibility,
-    defaultColDef,
-    viewMode,
-    rowHeight,
-    multiline,
-    getRowId,
-    selectedRowId,
-    onRowOpen,
-    followOutput = false,
-    scrollRef,
-    onFirstDataRendered,
-    initialState,
-    onStateUpdated,
-    onFilterChanged,
-    loading,
-    autoSizeStrategy,
-    refitOnSizeChange = false,
-    gridRef: externalGridRef,
-    className,
-  } = props;
-
-  const gridRef = useRef<AgGridReact<TRow>>(null);
-  // Bridge the grid instance to the optional external ref while keeping a
-  // true local ref. The previous `externalGridRef ?? internalGridRef`
-  // conditional isn't recognized as a ref by the React Compiler, which
-  // forced `gridRef.current` into every callback's inferred dependencies.
-  const attachGridRef = useCallback(
-    (instance: AgGridReact<TRow> | null) => {
-      gridRef.current = instance;
-      if (externalGridRef) externalGridRef.current = instance;
+  const handleColumnFilterChange = useCallback(
+    (
+      columnId: string,
+      filterType: FilterType,
+      condition: SimpleCondition | null
+    ) => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        if (condition === null) delete next[columnId];
+        else next[columnId] = { columnId, filterType, condition };
+        return next;
+      });
     },
-    [externalGridRef]
+    []
   );
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-
-  // Focus the grid container on mount so keyboard nav works without a click.
-  useEffect(() => {
-    gridContainerRef.current?.focus();
-  }, []);
-
-  // Keyboard nav. The handler is created inside the effect because it
-  // closes over the grid ref, which render-phase code must not touch.
-  useEffect(() => {
-    const el = gridContainerRef.current;
-    if (!el) return;
-    const handleKeyDown = makeKeyboardHandler(gridRef, onRowOpen);
-    el.addEventListener("keydown", handleKeyDown);
-    return () => el.removeEventListener("keydown", handleKeyDown);
-  }, [onRowOpen]);
-
-  // Row click → select + open. Modifier keys / middle button open in new window.
-  const handleRowClick = useCallback(
-    (e: RowClickedEvent<TRow>) => {
-      if (!e.data || !e.node || !gridRef.current?.api) return;
-      gridRef.current.api.deselectAll();
-      e.node.setSelected(true);
-      const me = e.event as MouseEvent | undefined;
-      const newWindow = !!(
-        me?.metaKey ||
-        me?.ctrlKey ||
-        me?.shiftKey ||
-        me?.button === 1
-      );
-      onRowOpen(e.data, { newWindow, via: "click" });
-    },
-    [onRowOpen]
-  );
-
-  const handleCellMouseDown = useCallback(
-    (e: CellMouseDownEvent<TRow>) => {
-      const me = e.event as MouseEvent | undefined;
-      if (me?.button === 1 && e.data) {
-        me.preventDefault();
-        onRowOpen(e.data, { newWindow: true, via: "click" });
-      }
-    },
-    [onRowOpen]
-  );
-
-  // Highlight + scroll to the externally selected row when it changes.
-  const selectExternalRow = useCallback(() => {
-    if (!gridRef.current?.api || !selectedRowId) return;
-    const node = gridRef.current.api.getRowNode(selectedRowId);
-    if (node) {
-      gridRef.current.api.deselectAll();
-      node.setSelected(true);
-      gridRef.current.api.ensureNodeVisible(node, "middle");
-    }
-  }, [selectedRowId]);
-  useEffect(() => {
-    selectExternalRow();
-  }, [selectExternalRow]);
-
-  // Follow-output: auto-scroll to bottom as new rows arrive while running.
-  // The "user has scrolled away" detection lives in `onBodyScroll`.
-  const followingRef = useRef(followOutput);
-  const prevCountRef = useRef(rowData.length);
-  useEffect(() => {
-    if (followOutput) followingRef.current = true;
-  }, [followOutput]);
-  useEffect(() => {
-    if (
-      followOutput &&
-      followingRef.current &&
-      rowData.length > prevCountRef.current &&
-      gridRef.current?.api
-    ) {
-      gridRef.current.api.ensureIndexVisible(rowData.length - 1, "bottom");
-    }
-    prevCountRef.current = rowData.length;
-  }, [rowData.length, followOutput]);
-
-  // When followOutput transitions from true → false (eval finished), scroll
-  // to top so the user starts at the beginning of the now-static list.
-  const prevFollowRef = useRef(followOutput);
-  useEffect(() => {
-    if (!followOutput && prevFollowRef.current && gridRef.current?.api) {
-      followingRef.current = false;
-      setTimeout(() => {
-        gridRef.current?.api?.ensureIndexVisible(0, "top");
-      }, 100);
-    }
-    prevFollowRef.current = followOutput;
-  }, [followOutput]);
-
-  const effectiveRowHeight =
-    rowHeight ??
-    (multiline !== undefined
-      ? multiline
-        ? kListModeRowHeight
-        : kGridModeRowHeight
-      : rowHeightForMode(viewMode));
-
-  const handleBodyScroll = useCallback(() => {
-    if (!followOutput || !gridRef.current?.api) return;
-    const api = gridRef.current.api;
-    const v = api.getVerticalPixelRange();
-    const totalH = api.getDisplayedRowCount() * effectiveRowHeight;
-    const viewportH = v.bottom - v.top;
-    followingRef.current = v.bottom >= totalH - viewportH * 0.1;
-  }, [followOutput, effectiveRowHeight]);
-
-  const applyVisibility = useApplyColumnVisibility(
-    gridRef,
-    columnDefs,
-    columnVisibility
-  );
-
-  // Grow the header row when any column opts into rotated headers so
-  // labels aren't clipped by the .ag-header viewport's overflow:hidden.
-  const headerHeight = useMemo(
-    () =>
-      columnDefs.some((c) => c.headerClass === styles.rotatedHeader)
-        ? kRotatedHeaderHeight
-        : kDefaultHeaderHeight,
-    [columnDefs]
-  );
-
-  // Bake column visibility into ag-grid's `initialState.columnVisibility`
-  // so it's applied synchronously on first render. Without this, the grid
-  // paints with all columns visible at their initial widths, then
-  // `applyColumnState` runs from `onGridReady` and the flex columns
-  // visibly redistribute — a "growing left-to-right" animation. Saved
-  // state from `initialState.columnVisibility` is preserved when our
-  // visibility map is absent.
-  const mergedInitialState = useMemo<GridState | undefined>(() => {
-    if (!columnVisibility) return initialState;
-    const hiddenColIds = Object.entries(columnVisibility)
-      .filter(([, visible]) => !visible)
-      .map(([id]) => id);
-    return { ...initialState, columnVisibility: { hiddenColIds } };
-  }, [initialState, columnVisibility]);
-
-  // Only forward column/sort/filter changes. Transient sources like
-  // `focusedCell` fire on mousedown; round-tripping that through the store
-  // re-renders the grid mid-click, leaving the trailing `click` event
-  // pointed at a stale row and suppressing `onRowClicked` entirely.
-  const handleStateUpdated = useCallback(
-    (e: StateUpdatedEvent<TRow>) => {
-      const persistable = e.sources.some(
-        (s) =>
-          s === "columnVisibility" ||
-          s === "columnOrder" ||
-          s === "columnPinning" ||
-          s === "columnSizing" ||
-          s === "sort" ||
-          s === "filter"
-      );
-      if (!persistable) return;
-      onStateUpdated?.(e.state);
-    },
-    [onStateUpdated]
-  );
-
-  const handleFilterChanged = useCallback(() => {
-    if (gridRef.current?.api) onFilterChanged?.(gridRef.current.api);
-  }, [onFilterChanged]);
-
-  // Re-fit columns when the grid is resized or new columns appear
-  // (e.g. score columns discovered on first data load). Only active when
-  // `refitOnSizeChange` is set.
-  // Lazily created on first use: creating it during render would pass the
-  // grid ref into non-React code, and the single instance must survive
-  // re-renders so the debounce timer isn't reset.
-  const resizerRef = useRef<(() => void) | null>(null);
-  const refitColumns = useCallback(() => {
-    resizerRef.current ??= createGridColumnResizer(gridRef);
-    resizerRef.current();
-  }, []);
-  const maxColCount = useRef(0);
-  const handleGridColumnsChanged = useCallback(
-    (e: GridColumnsChangedEvent<TRow>) => {
-      if (!refitOnSizeChange) return;
-      const cols = e.api.getColumnDefs();
-      if (cols && cols.length > maxColCount.current) {
-        maxColCount.current = cols.length;
-        refitColumns();
-      }
-    },
-    [refitOnSizeChange, refitColumns]
-  );
-  const handleGridSizeChanged = useCallback(() => {
-    if (refitOnSizeChange) refitColumns();
-  }, [refitOnSizeChange, refitColumns]);
-  // Refit when columnDefs themselves change (column hide/show via prop).
-  useEffect(() => {
-    if (refitOnSizeChange) refitColumns();
-  }, [columnDefs, refitOnSizeChange, refitColumns]);
-
-  const handleGridReady = useCallback(() => {
-    if (scrollRef) {
-      const viewport = gridContainerRef.current?.querySelector(
-        ".ag-body-viewport"
-      ) as HTMLDivElement | null;
-      scrollRef.current = viewport ?? null;
-    }
-    // The visibility effect above ran before the api was ready; apply
-    // now that it is.
-    applyVisibility();
-  }, [scrollRef, applyVisibility]);
-
-  const handleFirstDataRendered = useCallback(() => {
-    if (followOutput && followingRef.current && gridRef.current?.api) {
-      gridRef.current.api.ensureIndexVisible(rowData.length - 1, "bottom");
-    }
-    selectExternalRow();
-    if (gridRef.current?.api) onFirstDataRendered?.(gridRef.current.api);
-  }, [followOutput, rowData.length, selectExternalRow, onFirstDataRendered]);
 
   return (
-    <div className={clsx(styles.gridWrapper, className)}>
-      <div
-        ref={gridContainerRef}
-        className={clsx(
-          styles.gridContainer,
-          styles.gridChrome,
-          // `multiline` (when set) wins over `viewMode` for the cell
-          // layout class so a list-mode grid in compact mode gets
-          // centered, low-padding cells instead of the listMode
-          // top-aligned 0.5rem padding (which clips at 30px row height).
-          (multiline !== undefined ? multiline : viewMode === "list")
-            ? styles.listMode
-            : styles.gridMode
-        )}
-        tabIndex={0}
-      >
-        <AgGridReact<TRow>
-          ref={attachGridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          maintainColumnOrder={true}
-          theme={themeBalham}
-          animateRows={false}
-          suppressColumnMoveAnimation={true}
-          tooltipShowDelay={300}
-          headerHeight={headerHeight}
-          rowHeight={effectiveRowHeight}
-          getRowId={getRowId as (p: GetRowIdParams<TRow>) => string}
-          rowSelection={kRowSelection}
-          enableCellTextSelection={true}
-          suppressCellFocus={true}
-          domLayout="normal"
-          initialState={mergedInitialState}
-          onRowClicked={handleRowClick}
-          onCellMouseDown={handleCellMouseDown}
-          onStateUpdated={handleStateUpdated}
-          onFilterChanged={handleFilterChanged}
-          onBodyScroll={handleBodyScroll}
-          onGridReady={handleGridReady}
-          onFirstDataRendered={handleFirstDataRendered}
-          onGridColumnsChanged={handleGridColumnsChanged}
-          onGridSizeChanged={handleGridSizeChanged}
-          autoSizeStrategy={autoSizeStrategy}
-          loading={loading}
-        />
-      </div>
-    </div>
+    <DataGrid<TRow>
+      data={items}
+      columns={columnDefs}
+      getRowId={getRowId}
+      columnVisibility={columnVisibility}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      columnFilters={columnFilters}
+      onColumnFilterChange={handleColumnFilterChange}
+      selectedRowId={selectedRowId}
+      onRowActivate={(row) =>
+        onRowOpen(row, { newWindow: false, via: "click" })
+      }
+      rowHeight={rowHeight}
+      loading={loading}
+      className={className}
+    />
   );
 };
