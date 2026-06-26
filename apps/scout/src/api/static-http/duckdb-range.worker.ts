@@ -32,9 +32,13 @@ interface PatchedRequestState {
 
 const requestState = new WeakMap<XMLHttpRequest, PatchedRequestState>();
 const xhrProto = XMLHttpRequest.prototype;
+// Re-dispatched below via `.call(this, ...)`, so the unbound-method concern
+// (losing `this`) doesn't apply to these captured native methods.
+/* eslint-disable @typescript-eslint/unbound-method */
 const nativeOpen = xhrProto.open;
 const nativeSetRequestHeader = xhrProto.setRequestHeader;
 const nativeSend = xhrProto.send;
+/* eslint-enable @typescript-eslint/unbound-method */
 
 xhrProto.open = function (
   this: XMLHttpRequest,
