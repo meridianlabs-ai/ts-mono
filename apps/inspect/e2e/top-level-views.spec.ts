@@ -369,3 +369,36 @@ test.describe("Filtering", () => {
     await expect(gridCell(page, "task-beta")).toBeVisible();
   });
 });
+
+test.describe("Keyboard navigation", () => {
+  test("arrows move the selection and Enter opens the row", async ({
+    page,
+    network,
+  }) => {
+    setupHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+
+    await page.getByRole("grid").focus();
+    const selectedRow = page.locator('[role="row"][aria-selected="true"]');
+
+    // First ArrowDown selects the first row.
+    await page.keyboard.press("ArrowDown");
+    await expect(selectedRow).toHaveCount(1);
+    const firstText = (await selectedRow.textContent()) ?? "";
+
+    // ArrowDown again moves to a different row.
+    await page.keyboard.press("ArrowDown");
+    await expect(selectedRow).toHaveCount(1);
+    await expect(selectedRow).not.toHaveText(firstText);
+
+    // ArrowUp returns to the first row.
+    await page.keyboard.press("ArrowUp");
+    await expect(selectedRow).toHaveText(firstText);
+
+    // Enter opens the selected row (navigates into it, under /tasks/).
+    await page.keyboard.press("Enter");
+    await page.waitForURL(/#\/tasks\/.+/);
+    expect(page.url()).toMatch(/#\/tasks\/.+/);
+  });
+});

@@ -10,6 +10,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import {
+  KeyboardEvent,
   MouseEvent,
   ReactElement,
   useCallback,
@@ -27,8 +28,10 @@ import {
 
 import { ExtendedColumnDef } from "./columnTypes";
 import styles from "./DataGrid.module.css";
+import { resolveKeyboardNavTarget } from "./keyboardNav";
 
 const kRowHeight = 30;
+const kPageJump = 10;
 const kHeaderHeight = 25;
 
 export interface DataGridProps<TRow> {
@@ -151,10 +154,63 @@ export function DataGrid<TRow>({
       // Modifier / middle clicks are handled by the in-cell <a> overlay
       // (native open-in-new-tab); a plain left click selects + activates.
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      // Pull focus to the grid so arrow-key navigation works after a click
+      // (relevant when onRowActivate doesn't navigate away).
+      containerRef.current?.focus();
       setSelectedId(rowId);
       onRowActivate(row);
     },
     [onRowActivate]
+  );
+
+  // Keyboard navigation (arrows / Home / End / PgUp-Dn move the selection;
+  // Enter/Space activates), matching the prior AG-grid behavior. Bound to the
+  // grid container (tabIndex=0); ignored while focus is in a form control so
+  // typing in a filter popover doesn't move the selection.
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      const active = document.activeElement;
+      if (
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT")
+      ) {
+        return;
+      }
+
+      const rowCount = rows.length;
+      if (rowCount === 0) return;
+
+      const currentIndex = selectedId
+        ? rows.findIndex((r) => r.id === selectedId)
+        : -1;
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const row = currentIndex === -1 ? undefined : rows[currentIndex];
+        if (row) onRowActivate(row.original);
+        return;
+      }
+
+      const target = resolveKeyboardNavTarget({
+        key: e.key,
+        metaKey: e.metaKey,
+        ctrlKey: e.ctrlKey,
+        currentIndex,
+        rowCount,
+        pageJump: kPageJump,
+      });
+      if (target === null) return;
+      e.preventDefault();
+      if (target === currentIndex) return;
+
+      const targetRow = rows[target];
+      if (!targetRow) return;
+      setSelectedId(targetRow.id);
+      rowVirtualizer.scrollToIndex(target, { align: "center" });
+    },
+    [rows, selectedId, onRowActivate, rowVirtualizer]
   );
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -165,6 +221,8 @@ export function DataGrid<TRow>({
       ref={containerRef}
       className={clsx(styles.container, className)}
       role="grid"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
     >
       <div className={styles.table} style={{ width: totalWidth }}>
         <div
