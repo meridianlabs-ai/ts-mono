@@ -2,6 +2,8 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  OnChangeFn,
+  SortingState,
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
@@ -28,6 +30,10 @@ export interface DataGridProps<TRow> {
   getRowId: (row: TRow) => string;
   /** Controlled column visibility (keyed by column id). Owned by the caller. */
   columnVisibility?: VisibilityState;
+  /** Controlled sort state. Rows arrive already sorted (manualSorting); this
+   *  drives only the header indicators. */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
   /** Plain left-click on a row (modifier/middle clicks are left to in-cell
@@ -53,6 +59,8 @@ export function DataGrid<TRow>({
   columns,
   getRowId,
   columnVisibility,
+  sorting,
+  onSortingChange,
   selectedRowId,
   onRowActivate,
   rowHeight = kRowHeight,
@@ -73,6 +81,18 @@ export function DataGrid<TRow>({
     if (selectedRowId !== undefined) setSelectedId(selectedRowId);
   }, [selectedRowId]);
 
+  // Sorting is done by the caller (rows arrive pre-sorted); the table only
+  // tracks sort state to drive header indicators (manualSorting).
+  const handleSortingChange: OnChangeFn<SortingState> = useCallback(
+    (updater) => {
+      if (!onSortingChange) return;
+      onSortingChange(
+        typeof updater === "function" ? updater(sorting ?? []) : updater
+      );
+    },
+    [onSortingChange, sorting]
+  );
+
   // useReactTable returns unmemoizable functions
   // https://github.com/TanStack/table/issues/5567
   // https://github.com/facebook/react/issues/33057
@@ -82,7 +102,14 @@ export function DataGrid<TRow>({
     columns: columns as ColumnDef<TRow>[],
     getCoreRowModel: getCoreRowModel(),
     getRowId,
-    state: { columnVisibility: columnVisibility ?? {} },
+    manualSorting: true,
+    enableMultiSort: true,
+    enableSortingRemoval: true,
+    state: {
+      columnVisibility: columnVisibility ?? {},
+      sorting: sorting ?? [],
+    },
+    onSortingChange: handleSortingChange,
   });
 
   const { rows } = table.getRowModel();
@@ -148,6 +175,7 @@ export function DataGrid<TRow>({
                         styles.headerContent,
                         align === "center" && styles.headerCellCenter
                       )}
+                      onClick={header.column.getToggleSortingHandler()}
                     >
                       <span className={styles.headerText}>
                         {header.isPlaceholder
@@ -157,6 +185,22 @@ export function DataGrid<TRow>({
                               header.getContext()
                             )}
                       </span>
+                      {header.column.getIsSorted() === "asc" && (
+                        <i
+                          className={clsx(
+                            "bi bi-caret-up-fill",
+                            styles.sortIcon
+                          )}
+                        />
+                      )}
+                      {header.column.getIsSorted() === "desc" && (
+                        <i
+                          className={clsx(
+                            "bi bi-caret-down-fill",
+                            styles.sortIcon
+                          )}
+                        />
+                      )}
                     </div>
                   </div>
                 );

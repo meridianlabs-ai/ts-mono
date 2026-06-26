@@ -1,3 +1,4 @@
+import { SortingState } from "@tanstack/react-table";
 import { GridState } from "ag-grid-community";
 
 import {
@@ -110,14 +111,20 @@ export interface LogsState {
   flowDir?: string;
 }
 
+/** Per-scope log-list grid state (TanStack). Extend with columnFilters when
+ *  the filter UI lands. */
+export interface LogListGridState {
+  sorting: SortingState;
+}
+
 export interface LogsListing {
   filteredCount?: number;
   watchedLogs?: LogHandle[];
   selectedRowIndex?: number | null;
-  // AG-Grid state stored independently per scope (Tasks vs Folders, each
-  // folder, etc.). Switching between scopes loads that scope's own state;
-  // switching back restores it. Keyed by `${mode}::${currentDir}`.
-  gridStateByScope: Record<string, GridState>;
+  // Grid state stored independently per scope (Tasks vs Folders, each folder,
+  // etc.). Switching between scopes loads that scope's own state; switching
+  // back restores it. Keyed by `${mode}::${currentDir}`.
+  gridStateByScope: Record<string, LogListGridState>;
   columnVisibility: Record<string, boolean>;
 }
 

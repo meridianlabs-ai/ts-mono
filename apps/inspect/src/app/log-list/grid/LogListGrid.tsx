@@ -1,3 +1,4 @@
+import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FC, useCallback, useDeferredValue, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,10 @@ import { useStore } from "../../../state/store";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
+import {
+  sortingStateToOrderBy,
+  useLogsListingQuery,
+} from "../listing/useLogsListingQuery";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
@@ -170,7 +175,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   scopeKey,
   mode = "logs",
 }) => {
-  const { setFilteredCount } = useLogsListing();
+  const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);
@@ -200,7 +205,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns, visibility } = useLogListColumns(
+  const { columns, visibility, getValue, getComparator } = useLogListColumns(
     mode,
     scopePrefix,
     scoresViewMode
@@ -239,20 +244,58 @@ export const LogListGrid: FC<LogListGridProps> = ({
     setWatchedLogs(logFiles);
   }, [logFiles, setWatchedLogs]);
 
-  // No client-side filtering yet (phase 1), so the displayed count is just
-  // the row count. Keeps the footer's "N items" accurate.
+  // Persisted sort for this scope drives the listing query's orderBy.
+  const sorting = useMemo<SortingState>(
+    () => (scopeKey ? (gridStateByScope[scopeKey]?.sorting ?? []) : []),
+    [gridStateByScope, scopeKey]
+  );
+  const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
+
+  // Folders (logs mode) are presentation: pinned on top, independent of sort.
+  // Sort/filter/paginate runs over the file rows only.
+  const { folders, files } = useMemo(() => {
+    const folders: LogListRow[] = [];
+    const files: LogListRow[] = [];
+    for (const row of data) {
+      (row.type === "folder" ? folders : files).push(row);
+    }
+    return { folders, files };
+  }, [data]);
+
+  const { items: sortedFiles, total_count } = useLogsListingQuery({
+    rows: files,
+    orderBy,
+    getValue,
+    getComparator,
+  });
+
+  const displayRows = useMemo(
+    () => (folders.length > 0 ? [...folders, ...sortedFiles] : sortedFiles),
+    [folders, sortedFiles]
+  );
+
+  const handleSortingChange = useCallback(
+    (next: SortingState) => {
+      if (scopeKey) setGridState(scopeKey, { sorting: next });
+    },
+    [scopeKey, setGridState]
+  );
+
+  // Footer count = folders + matching files (no filtering yet → all files).
   useEffect(() => {
-    setFilteredCount(data.length);
-  }, [data.length, setFilteredCount]);
+    setFilteredCount(folders.length + total_count);
+  }, [folders.length, total_count, setFilteredCount]);
 
   return (
     <div className={clsx(gridStyles.gridWrapper)}>
       <div className={clsx(gridStyles.gridContainer)}>
         <DataGrid<LogListRow>
           key={scopeKey ?? "pending"}
-          data={data}
+          data={displayRows}
           columns={columns}
           columnVisibility={visibility}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
           loading={data.length === 0 && (loading > 0 || syncing)}

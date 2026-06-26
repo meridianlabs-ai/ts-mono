@@ -8,7 +8,7 @@ import {
   deriveSingleFileLogDir,
   isSingleFileMode,
 } from "../app/singleFileMode";
-import { DisplayedSample, LogsState } from "../app/types";
+import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import {
   ClientAPI,
   EvalHeader,
@@ -62,7 +62,7 @@ export interface LogsSlice {
     clearWatchedLogs: () => void;
     setSelectedRowIndex: (index: number | null) => void;
 
-    setLogsGridState: (scope: string, gridState: GridState) => void;
+    setLogsGridState: (scope: string, gridState: LogListGridState) => void;
     clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
@@ -433,7 +433,7 @@ export const createLogsSlice = (
           state.logs.listing.selectedRowIndex = index;
         });
       },
-      setLogsGridState: (scope: string, gridState: GridState) => {
+      setLogsGridState: (scope: string, gridState: LogListGridState) => {
         set((state) => {
           state.logs.listing.gridStateByScope[scope] = gridState;
         });

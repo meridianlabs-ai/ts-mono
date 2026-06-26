@@ -60,6 +60,12 @@
   gap: 4px;
   user-select: none;
   min-width: 0;
+  cursor: pointer;
+}
+
+.sortIcon {
+  font-size: 9px;
+  flex: 0 0 auto;
 }
 
 .headerText {
