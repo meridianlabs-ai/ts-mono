@@ -18,6 +18,13 @@ import {
   useState,
 } from "react";
 
+import type { SimpleCondition } from "@tsmono/inspect-common/query";
+import {
+  ColumnFilterControl,
+  type ColumnFilter,
+  type FilterType,
+} from "@tsmono/inspect-components/columnFilter";
+
 import { ExtendedColumnDef } from "./columnTypes";
 import styles from "./DataGrid.module.css";
 
@@ -34,6 +41,13 @@ export interface DataGridProps<TRow> {
    *  drives only the header indicators. */
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
+  /** Controlled per-column filters (keyed by column id). */
+  columnFilters?: Record<string, ColumnFilter>;
+  onColumnFilterChange?: (
+    columnId: string,
+    filterType: FilterType,
+    condition: SimpleCondition | null
+  ) => void;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
   /** Plain left-click on a row (modifier/middle clicks are left to in-cell
@@ -61,6 +75,8 @@ export function DataGrid<TRow>({
   columnVisibility,
   sorting,
   onSortingChange,
+  columnFilters,
+  onColumnFilterChange,
   selectedRowId,
   onRowActivate,
   rowHeight = kRowHeight,
@@ -162,6 +178,9 @@ export function DataGrid<TRow>({
                 const columnDef = header.column
                   .columnDef as ExtendedColumnDef<TRow>;
                 const align = columnDef.meta?.align;
+                const filterType = columnDef.meta?.filterType;
+                const filterCondition =
+                  columnFilters?.[header.column.id]?.condition ?? null;
                 return (
                   <div
                     key={header.id}
@@ -204,6 +223,27 @@ export function DataGrid<TRow>({
                         />
                       )}
                     </div>
+                    {columnDef.meta?.filterable && filterType && (
+                      <div
+                        className={clsx(
+                          styles.headerFilter,
+                          filterCondition && styles.headerFilterActive
+                        )}
+                      >
+                        <ColumnFilterControl
+                          columnId={header.column.id}
+                          filterType={filterType}
+                          condition={filterCondition}
+                          onChange={(condition) =>
+                            onColumnFilterChange?.(
+                              header.column.id,
+                              filterType,
+                              condition
+                            )
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

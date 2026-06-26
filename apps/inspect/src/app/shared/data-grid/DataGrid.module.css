@@ -68,6 +68,21 @@
   flex: 0 0 auto;
 }
 
+/* Filter funnel: hidden until the header is hovered, but stays visible when
+ * the column has an active filter (matches the prior grid). */
+.headerFilter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.headerCell:hover .headerFilter,
+.headerFilterActive {
+  opacity: 1;
+}
+
 .headerText {
   white-space: nowrap;
   overflow: hidden;

@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { Column, ConditionBuilder } from "@tsmono/inspect-common/query";
 import type { Condition } from "@tsmono/inspect-common/query";
+import type {
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 
 import { applyListingQuery } from "./applyListingQuery";
+import { combineFilters } from "./combineFilters";
 import { evaluateCondition } from "./evaluator";
 import type { ValueComparator } from "./types";
 
@@ -141,5 +146,68 @@ describe("applyListingQuery", () => {
     const filter = ConditionBuilder.simple("name", "=", "a");
     const res = applyListingQuery(rows, { filter, getValue, getComparator });
     expect(res.items).toHaveLength(1);
+  });
+});
+
+describe("type-aware filtering", () => {
+  const getFilterType = (id: string): FilterType | undefined =>
+    id === "score" ? "number" : id === "completed" ? "date" : "string";
+  const ev = (c: Condition, row: Row) =>
+    evaluateCondition(row, c, getValue, getFilterType);
+
+  const early: Row = {
+    name: "x",
+    model: "m",
+    completed: "2025-01-10T09:00:00Z",
+  };
+  const late: Row = {
+    name: "y",
+    model: "m",
+    completed: "2025-01-20T23:30:00Z",
+  };
+
+  it("LIKE matches a wildcard substring", () => {
+    expect(ev(new Column("model").like("%pt-4%"), r0)).toBe(true);
+    expect(ev(new Column("model").like("%pt-4%"), r1)).toBe(false);
+  });
+
+  it("number IN coerces operands", () => {
+    expect(ev(new Column("score").in([0.9, 0.1]), r0)).toBe(true);
+    expect(ev(new Column("score").in([0.1]), r0)).toBe(false);
+  });
+
+  it("date < compares by day", () => {
+    expect(ev(new Column("completed").lt("2025-01-15"), early)).toBe(true);
+    expect(ev(new Column("completed").lt("2025-01-15"), late)).toBe(false);
+  });
+
+  it("date BETWEEN is day-granular", () => {
+    const c = new Column("completed").between("2025-01-09", "2025-01-12");
+    expect(ev(c, early)).toBe(true);
+    expect(ev(c, late)).toBe(false);
+  });
+
+  it("combineFilters ANDs column conditions", () => {
+    const columnFilters: Record<string, ColumnFilter> = {
+      model: {
+        columnId: "model",
+        filterType: "string",
+        condition: ConditionBuilder.simple("model", "=", "gpt-4"),
+      },
+      score: {
+        columnId: "score",
+        filterType: "number",
+        condition: ConditionBuilder.simple("score", ">", 0.5),
+      },
+    };
+    const filter = combineFilters(columnFilters);
+    const res = applyListingQuery(rows, {
+      filter,
+      getValue,
+      getComparator,
+      getFilterType,
+    });
+    // r0 = gpt-4 & 0.9 matches; r2 = gpt-4 but missing score; others non-gpt-4.
+    expect(res.items.map((r) => r.name)).toEqual(["a"]);
   });
 });

@@ -3,8 +3,13 @@ import type {
   OperatorModel,
   OrderByModel,
 } from "@tsmono/inspect-common/query";
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 
-import type { ValueAccessor, ValueComparator } from "./types";
+import type {
+  FilterTypeAccessor,
+  ValueAccessor,
+  ValueComparator,
+} from "./types";
 
 /**
  * TRANSITIONAL: client-side evaluation of a `Condition` / `OrderBy` against
@@ -40,11 +45,55 @@ const lt = (a: unknown, b: unknown): boolean => {
   return false;
 };
 
+const toDate = (v: unknown): Date | null =>
+  typeof v === "number" || typeof v === "string" || v instanceof Date
+    ? new Date(v)
+    : null;
+
+/**
+ * Coerce a value to a comparable form for the column's filter type, so the
+ * row value and the filter operand compare like-for-like (numbers
+ * numerically, dates by timestamp — day-truncated for `date`). Strings pass
+ * through unchanged.
+ */
+const coerce = (v: unknown, filterType: FilterType | undefined): unknown => {
+  if (v === null || v === undefined) return v;
+  switch (filterType) {
+    case "number":
+    case "duration":
+      return typeof v === "number" ? v : Number(v);
+    case "date": {
+      const d = toDate(v);
+      return d
+        ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+        : NaN;
+    }
+    case "datetime": {
+      const d = toDate(v);
+      return d ? d.getTime() : NaN;
+    }
+    case "boolean":
+      return typeof v === "boolean" ? v : v === "true";
+    default:
+      return v;
+  }
+};
+
 const applyOperator = (
-  value: unknown,
+  rawValue: unknown,
   operator: OperatorModel,
-  right: unknown
+  rawRight: unknown,
+  filterType: FilterType | undefined
 ): boolean => {
+  // IS NULL / IS NOT NULL test the raw value before any coercion.
+  if (operator === "IS NULL") return isNullish(rawValue);
+  if (operator === "IS NOT NULL") return !isNullish(rawValue);
+
+  const value = coerce(rawValue, filterType);
+  const right = Array.isArray(rawRight)
+    ? rawRight.map((r) => coerce(r, filterType))
+    : coerce(rawRight, filterType);
+
   switch (operator) {
     case "=":
       return value === right;
@@ -70,10 +119,6 @@ const applyOperator = (
       return matchesLike(value, right, true);
     case "NOT ILIKE":
       return !matchesLike(value, right, true);
-    case "IS NULL":
-      return isNullish(value);
-    case "IS NOT NULL":
-      return !isNullish(value);
     case "BETWEEN":
       return (
         Array.isArray(right) &&
@@ -93,28 +138,30 @@ const applyOperator = (
   }
 };
 
-/** Evaluate a `Condition` tree against a row. */
+/** Evaluate a `Condition` tree against a row. `getFilterType` enables
+ *  type-aware coercion of the compared values (dates/numbers). */
 export function evaluateCondition<TRow>(
   row: TRow,
   condition: Condition,
-  getValue: ValueAccessor<TRow>
+  getValue: ValueAccessor<TRow>,
+  getFilterType?: FilterTypeAccessor
 ): boolean {
   if (condition.compound) {
     switch (condition.operator) {
       case "AND":
         return (
-          evaluateCondition(row, condition.left, getValue) &&
+          evaluateCondition(row, condition.left, getValue, getFilterType) &&
           (condition.right == null ||
-            evaluateCondition(row, condition.right, getValue))
+            evaluateCondition(row, condition.right, getValue, getFilterType))
         );
       case "OR":
         return (
-          evaluateCondition(row, condition.left, getValue) ||
+          evaluateCondition(row, condition.left, getValue, getFilterType) ||
           (condition.right != null &&
-            evaluateCondition(row, condition.right, getValue))
+            evaluateCondition(row, condition.right, getValue, getFilterType))
         );
       case "NOT":
-        return !evaluateCondition(row, condition.left, getValue);
+        return !evaluateCondition(row, condition.left, getValue, getFilterType);
       default:
         return true;
     }
@@ -122,7 +169,8 @@ export function evaluateCondition<TRow>(
   return applyOperator(
     getValue(row, condition.left),
     condition.operator,
-    condition.right
+    condition.right,
+    getFilterType?.(condition.left)
   );
 }
 

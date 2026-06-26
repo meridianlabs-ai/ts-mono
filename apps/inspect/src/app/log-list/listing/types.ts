@@ -3,6 +3,7 @@ import type {
   OrderByModel,
   Pagination,
 } from "@tsmono/inspect-common/query";
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 
 /**
  * Opaque pagination cursor for the client-side listing query. Mirrors scout's
@@ -41,6 +42,9 @@ export type ValueComparator = (
 /** Reads a row's value for a column id (built from the column defs). */
 export type ValueAccessor<TRow> = (row: TRow, columnId: string) => unknown;
 
+/** Reads a column's filter type (for type-aware filter coercion). */
+export type FilterTypeAccessor = (columnId: string) => FilterType | undefined;
+
 export interface ListingQuery<TRow> {
   filter?: Condition;
   orderBy?: OrderByModel | OrderByModel[];
@@ -48,4 +52,6 @@ export interface ListingQuery<TRow> {
   getValue: ValueAccessor<TRow>;
   /** Per-column value comparator; falls back to a default compare. */
   getComparator: (columnId: string) => ValueComparator | undefined;
+  /** Per-column filter type; enables type-aware coercion when filtering. */
+  getFilterType?: FilterTypeAccessor;
 }

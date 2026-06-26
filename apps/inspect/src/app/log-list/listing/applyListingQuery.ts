@@ -30,10 +30,19 @@ export function applyListingQuery<TRow>(
   rows: TRow[],
   query: ListingQuery<TRow>
 ): LogsListingResult<TRow> {
-  const { filter, orderBy, pagination, getValue, getComparator } = query;
+  const {
+    filter,
+    orderBy,
+    pagination,
+    getValue,
+    getComparator,
+    getFilterType,
+  } = query;
 
   let result = filter
-    ? rows.filter((row) => evaluateCondition(row, filter, getValue))
+    ? rows.filter((row) =>
+        evaluateCondition(row, filter, getValue, getFilterType)
+      )
     : rows;
 
   if (orderBy) {

@@ -72,7 +72,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.
   const deferredLogPreviews = useDeferredValue(logPreviews);
-  const { filteredCount } = useLogsListing();
+  const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const syncing = useStore((state) => state.app.status.syncing);
   const error = useStore((state) => state.app.status.error);
@@ -307,18 +307,62 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.logs.listing.columnVisibility
   );
 
+  // Active per-column filters for this scope (drives the Reset button + the
+  // Columns popover's filter markers).
+  const scopeFilters = scopeKey
+    ? gridStateByScope[scopeKey]?.columnFilters
+    : undefined;
+  const filteredFields = useMemo(
+    () => Object.keys(scopeFilters ?? {}),
+    [scopeFilters]
+  );
+  const hasFilter = filteredFields.length > 0;
+
+  const handleResetFilters = useCallback(() => {
+    if (!scopeKey) return;
+    const entry = gridStateByScope[scopeKey];
+    setGridState(scopeKey, {
+      sorting: entry?.sorting ?? [],
+      columnFilters: {},
+    });
+  }, [scopeKey, gridStateByScope, setGridState]);
+
   // The popover only sees `pickerColumns` (the active view mode), so the
-  // visibility map it emits is scoped to those fields. Merge it into the
-  // full stored map so toggles in one view don't wipe the other view's
-  // entries.
+  // visibility map it emits is scoped to those fields. Merge it into the full
+  // stored map. Hiding a column also clears any active filter on it (matches
+  // the prior grid — a hidden column shouldn't keep filtering invisibly).
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      setColumnVisibility({
-        ...currentColumnVisibility,
-        ...newVisibility,
-      });
+      const merged = { ...currentColumnVisibility, ...newVisibility };
+      if (scopeKey) {
+        const entry = gridStateByScope[scopeKey];
+        const cf = entry?.columnFilters;
+        if (cf) {
+          const next = { ...cf };
+          let changed = false;
+          for (const id of Object.keys(cf)) {
+            if (merged[id] === false) {
+              delete next[id];
+              changed = true;
+            }
+          }
+          if (changed) {
+            setGridState(scopeKey, {
+              sorting: entry?.sorting ?? [],
+              columnFilters: next,
+            });
+          }
+        }
+      }
+      setColumnVisibility(merged);
     },
-    [currentColumnVisibility, setColumnVisibility]
+    [
+      currentColumnVisibility,
+      setColumnVisibility,
+      scopeKey,
+      gridStateByScope,
+      setGridState,
+    ]
   );
 
   const progress = useMemo(() => {
@@ -359,6 +403,15 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         currentPath={mode === "tasks" ? undefined : logPath}
         showActivity="log"
       >
+        {hasFilter && (
+          <NavbarButton
+            key="reset-filters"
+            label="Reset Filters"
+            icon={ApplicationIcons.filter}
+            onClick={handleResetFilters}
+          />
+        )}
+
         {hasRetriedLogs && (
           <NavbarButton
             key="show-retried"
@@ -400,6 +453,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         visibility={visibility}
         onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonEl}
+        filteredFields={filteredFields}
         scoresHeading="Metrics"
         groupableScores
         scoresViewMode={scoresViewMode}

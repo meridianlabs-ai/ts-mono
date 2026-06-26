@@ -9,6 +9,7 @@ import type {
 
 import { applyListingQuery } from "./applyListingQuery";
 import type {
+  FilterTypeAccessor,
   LogsListingResult,
   ValueAccessor,
   ValueComparator,
@@ -26,6 +27,7 @@ interface UseLogsListingParams<TRow> {
   pagination?: Pagination;
   getValue: ValueAccessor<TRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
+  getFilterType?: FilterTypeAccessor;
 }
 
 /**
@@ -44,6 +46,7 @@ export function useLogsListingQuery<TRow>({
   pagination,
   getValue,
   getComparator,
+  getFilterType,
 }: UseLogsListingParams<TRow>): LogsListingResult<TRow> {
   return useMemo(
     () =>
@@ -53,7 +56,8 @@ export function useLogsListingQuery<TRow>({
         pagination,
         getValue,
         getComparator,
+        getFilterType,
       }),
-    [rows, filter, orderBy, pagination, getValue, getComparator]
+    [rows, filter, orderBy, pagination, getValue, getComparator, getFilterType]
   );
 }

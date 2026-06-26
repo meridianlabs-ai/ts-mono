@@ -128,12 +128,14 @@ function setupHandlers(
 // Tests
 // ---------------------------------------------------------------------------
 
-// Helper to click a segment button by name (avoids matching column headers)
+// Helper to click a segment button by name. Scoped to the navbar so it doesn't
+// collide with the grid's per-column filter funnels (whose aria-labels like
+// "Filter totalSamples" substring-match segment names like "Samples").
 function segmentButton(
   page: Parameters<Parameters<typeof test>[2]>[0]["page"],
   name: string
 ) {
-  return page.getByRole("button", { name });
+  return page.getByRole("navigation").getByRole("button", { name });
 }
 
 // Helper to find a cell in the grid's File Name column
@@ -142,6 +144,18 @@ function gridCell(
   text: string
 ) {
   return page.getByRole("gridcell").filter({ hasText: text }).first();
+}
+
+// Find a column header by its exact label text. Matching by accessible name is
+// unreliable because the (always-present) filter funnel button's aria-label
+// bleeds into the header's accessible name; match the header text node instead.
+function columnHeader(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  label: string
+) {
+  return page
+    .getByRole("columnheader")
+    .filter({ has: page.getByText(label, { exact: true }) });
 }
 
 test.describe("Top-level views", () => {
@@ -300,10 +314,7 @@ test.describe("Sorting", () => {
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
     // Caret is aria-hidden, so locate it within the Completed header by class.
-    const completedHeader = page.getByRole("columnheader", {
-      name: "Completed",
-      exact: true,
-    });
+    const completedHeader = columnHeader(page, "Completed");
     await expect(completedHeader.locator("i.bi-caret-down-fill")).toBeVisible();
   });
 
@@ -315,10 +326,7 @@ test.describe("Sorting", () => {
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
-    const taskHeader = page.getByRole("columnheader", {
-      name: "Task",
-      exact: true,
-    });
+    const taskHeader = columnHeader(page, "Task");
 
     // Ascending: task-alpha sorts first.
     await taskHeader.click();
@@ -327,5 +335,37 @@ test.describe("Sorting", () => {
     // Descending: task-gamma sorts first.
     await taskHeader.click();
     await expect.poll(() => firstRowText(page)).toContain("task-gamma");
+  });
+});
+
+test.describe("Filtering", () => {
+  test("filtering the Task column narrows rows; Reset Filters clears", async ({
+    page,
+    network,
+  }) => {
+    setupHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+    await expect(gridCell(page, "task-beta")).toBeVisible();
+
+    // Open the Task column's filter funnel (hover-revealed) and apply a
+    // "contains task-alpha" filter. LIKE (not =) so the test is robust to the
+    // Task cell rendering the full file name rather than the bare task name.
+    const taskHeader = columnHeader(page, "Task");
+    await taskHeader.hover();
+    await taskHeader
+      .getByRole("button", { name: "Filter task", exact: true })
+      .click();
+    await page.locator("#task-op").selectOption("LIKE");
+    await page.getByPlaceholder("Filter").fill("task-alpha");
+    await page.getByRole("button", { name: "Apply" }).click();
+
+    // Only the matching row remains.
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+    await expect(gridCell(page, "task-beta")).toHaveCount(0);
+
+    // Reset Filters restores all rows.
+    await page.getByRole("button", { name: "Reset Filters" }).click();
+    await expect(gridCell(page, "task-beta")).toBeVisible();
   });
 });

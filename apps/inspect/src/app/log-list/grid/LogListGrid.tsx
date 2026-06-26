@@ -3,6 +3,11 @@ import clsx from "clsx";
 import { FC, useCallback, useDeferredValue, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type { SimpleCondition } from "@tsmono/inspect-common/query";
+import type {
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { LogDetails } from "../../../client/api/types";
@@ -12,6 +17,7 @@ import { useStore } from "../../../state/store";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
+import { combineFilters } from "../listing/combineFilters";
 import {
   sortingStateToOrderBy,
   useLogsListingQuery,
@@ -209,11 +215,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns, visibility, getValue, getComparator } = useLogListColumns(
-    mode,
-    scopePrefix,
-    scoresViewMode
-  );
+  const { columns, visibility, getValue, getComparator, getFilterType } =
+    useLogListColumns(mode, scopePrefix, scoresViewMode);
 
   // Reuse the prior row object for any item whose display inputs (preview,
   // details, structural fields) are unchanged, so only changed rows pay the
@@ -259,6 +262,13 @@ export const LogListGrid: FC<LogListGridProps> = ({
   }, [gridStateByScope, scopeKey]);
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
+  // Per-scope column filters (persisted), AND-combined into one condition.
+  const columnFilters = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.columnFilters : undefined),
+    [gridStateByScope, scopeKey]
+  );
+  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
+
   // Folders (logs mode) are presentation: pinned on top, independent of sort.
   // Sort/filter/paginate runs over the file rows only.
   const { folders, files } = useMemo(() => {
@@ -272,9 +282,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const { items: sortedFiles, total_count } = useLogsListingQuery({
     rows: files,
+    filter,
     orderBy,
     getValue,
     getComparator,
+    getFilterType,
   });
 
   const displayRows = useMemo(
@@ -284,12 +296,30 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleSortingChange = useCallback(
     (next: SortingState) => {
-      if (scopeKey) setGridState(scopeKey, { sorting: next });
+      if (scopeKey) setGridState(scopeKey, { sorting: next, columnFilters });
     },
-    [scopeKey, setGridState]
+    [scopeKey, setGridState, columnFilters]
   );
 
-  // Footer count = folders + matching files (no filtering yet → all files).
+  const handleColumnFilterChange = useCallback(
+    (
+      columnId: string,
+      filterType: FilterType,
+      condition: SimpleCondition | null
+    ) => {
+      if (!scopeKey) return;
+      const next: Record<string, ColumnFilter> = { ...columnFilters };
+      if (condition === null) {
+        delete next[columnId];
+      } else {
+        next[columnId] = { columnId, filterType, condition };
+      }
+      setGridState(scopeKey, { sorting, columnFilters: next });
+    },
+    [scopeKey, setGridState, sorting, columnFilters]
+  );
+
+  // Footer count = folders + matching files (reflects any active filter).
   useEffect(() => {
     setFilteredCount(folders.length + total_count);
   }, [folders.length, total_count, setFilteredCount]);
@@ -304,6 +334,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnVisibility={visibility}
           sorting={sorting}
           onSortingChange={handleSortingChange}
+          columnFilters={columnFilters}
+          onColumnFilterChange={handleColumnFilterChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
           loading={data.length === 0 && (loading > 0 || syncing)}

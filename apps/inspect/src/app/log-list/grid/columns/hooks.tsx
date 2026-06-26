@@ -2,6 +2,7 @@ import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo } from "react";
 
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { kModelNone } from "../../../../constants";
@@ -92,6 +93,8 @@ export const useLogListColumns = (
   getValue: (row: LogListRow, columnId: string) => unknown;
   /** Per-column value comparator (from column meta) for client-side sort. */
   getComparator: (columnId: string) => ColumnComparator | undefined;
+  /** Per-column filter type (from column meta) for client-side filtering. */
+  getFilterType: (columnId: string) => FilterType | undefined;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -763,6 +766,22 @@ export const useLogListColumns = (
       }
     }
 
+    // Every column except the type icon is filterable (matches origin/main's
+    // `defaultColDef.filter: true` with the type column opted out). Derive the
+    // filter type from the sort comparator: numeric / date columns get their
+    // typed editors; everything else filters as text.
+    for (const col of allCols) {
+      if (col.id === "type") continue;
+      const cmp = col.meta?.sortComparator;
+      const filterType: FilterType =
+        cmp === numberCompare
+          ? "number"
+          : cmp === dateCompare
+            ? "date"
+            : "string";
+      col.meta = { ...col.meta, filterable: true, filterType };
+    }
+
     return allCols;
   }, [scorerMap, mode]);
 
@@ -865,12 +884,19 @@ export const useLogListColumns = (
     [columnsById]
   );
 
+  const getFilterType = useCallback(
+    (columnId: string): FilterType | undefined =>
+      columnsById.get(columnId)?.meta?.filterType,
+    [columnsById]
+  );
+
   return {
     columns: allColumns,
     visibility,
     pickerColumns,
     getValue,
     getComparator,
+    getFilterType,
     setColumnVisibility,
   };
 };

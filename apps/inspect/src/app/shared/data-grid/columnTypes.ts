@@ -1,5 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+
 /**
  * Value comparator carried on a column for client-side sorting. Sorts
  * ascending; the caller negates for descending. `isDescending` lets the
@@ -18,6 +20,10 @@ export interface BaseColumnMeta {
   align?: "left" | "center" | "right";
   /** Client-side sort comparator (consumed by the listing query). */
   sortComparator?: ColumnComparator;
+  /** Whether the column offers a header filter. */
+  filterable?: boolean;
+  /** Filter editor + operator set for the column (when `filterable`). */
+  filterType?: FilterType;
 }
 
 /**

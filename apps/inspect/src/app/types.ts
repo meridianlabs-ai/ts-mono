@@ -28,6 +28,7 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
 import {
@@ -111,10 +112,11 @@ export interface LogsState {
   flowDir?: string;
 }
 
-/** Per-scope log-list grid state (TanStack). Extend with columnFilters when
- *  the filter UI lands. */
+/** Per-scope log-list grid state (TanStack). */
 export interface LogListGridState {
   sorting: SortingState;
+  /** Active per-column filters, keyed by column id. */
+  columnFilters?: Record<string, ColumnFilter>;
 }
 
 export interface LogsListing {
