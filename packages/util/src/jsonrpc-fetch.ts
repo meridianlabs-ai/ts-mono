@@ -4,8 +4,7 @@
  * extension host can forward them to the local view server.
  */
 
-import { JsonValue } from "./json-value";
-import { JsonRpcParams } from "./jsonrpc";
+import { JsonRpcClient } from "./jsonrpc";
 
 export const kMethodHttpRequest = "http_request";
 
@@ -63,9 +62,7 @@ function toHttpMethod(method: string): HttpProxyRequest["method"] {
  * Creates a fetch function that proxies requests through JSON-RPC.
  * Used in VS Code webview to route HTTP requests through the extension host.
  */
-export function createJsonRpcFetch(
-  rpcClient: (method: string, params?: JsonRpcParams) => Promise<JsonValue>
-): typeof fetch {
+export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
   return async (
     input: RequestInfo | URL,
     init?: RequestInit
