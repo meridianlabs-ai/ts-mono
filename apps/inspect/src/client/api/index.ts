@@ -1,7 +1,7 @@
 import JSON5 from "json5";
 
 import { AppConfig } from "@tsmono/inspect-common/types";
-import { dirname, getVscodeApi } from "@tsmono/util";
+import { dirname, getVscodeApi, kMethodHttpRequest } from "@tsmono/util";
 
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";
@@ -10,7 +10,6 @@ import { viewServerApi } from "./view-server/api-view-server";
 import vscodeApi from "./vscode/api-vscode";
 import { apiVscodeHttp } from "./vscode/api-vscode-http";
 import { readHostCapabilities } from "./vscode/host-capabilities";
-import { kMethodHttpRequest } from "./vscode/jsonrpc";
 
 // Shape of the JSON embedded in the #log_dir_context script element.
 interface LogDirContext {

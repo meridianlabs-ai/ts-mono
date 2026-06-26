@@ -1,10 +1,11 @@
-import { VSCodeApi } from "@tsmono/util";
+import {
+  createJsonRpcFetch,
+  VSCodeApi,
+  webViewJsonRpcClient,
+} from "@tsmono/util";
 
 import { LogViewAPI } from "../types";
 import { viewServerApi } from "../view-server/api-view-server";
-
-import { webViewJsonRpcClient } from "./jsonrpc";
-import { createJsonRpcFetch } from "./jsonrpc-fetch";
 
 /**
  * VS Code API that routes all data calls through the generic `http_request`

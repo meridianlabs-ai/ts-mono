@@ -7,7 +7,12 @@ import {
   LogInfo,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
-import { getVscodeApi } from "@tsmono/util";
+import {
+  getVscodeApi,
+  JsonRpcParams,
+  kJsonRpcMethodNotFound,
+  webViewJsonRpcClient,
+} from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
 import {
@@ -26,7 +31,6 @@ import {
 import { ApiError } from "../view-server/request";
 
 import {
-  kJsonRpcMethodNotFound,
   kMethodAppConfig,
   kMethodEditLog,
   kMethodEvalLog,
@@ -40,7 +44,6 @@ import {
   kMethodLogMessage,
   kMethodPendingSamples,
   kMethodSampleData,
-  webViewJsonRpcClient,
 } from "./jsonrpc";
 
 const kNotFoundSignal = "NotFound";
@@ -51,7 +54,14 @@ const kNotModifiedSignal = "NotModified";
 const asRpcError = (e: unknown): { code?: number; message?: string } =>
   typeof e === "object" && e !== null ? e : {};
 
-const vscodeClient = webViewJsonRpcClient(getVscodeApi());
+// Legacy named-RPC payloads carry optional (undefined) positional args and
+// nested unknown metadata that predate the shared client's strict
+// JsonRpcParams contract. Wrap it to keep the historical loose call ergonomics
+// (unknown[] in, unknown out) — the values are structured-cloned over
+// postMessage, not JSON-serialized, so undefined survives.
+const rpcClient = webViewJsonRpcClient(getVscodeApi());
+const vscodeClient = (method: string, params: unknown[]): Promise<unknown> =>
+  rpcClient(method, params as JsonRpcParams);
 
 function client_events(): Promise<string[]> {
   return Promise.resolve([]);
