@@ -134,11 +134,22 @@ export function DataGrid<TRow>({
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
 
+  // The sticky header occupies layout space at the top of the scroll
+  // container, so the virtualized rows start `headerHeight` px down. Two knobs
+  // keep scrollToIndex in the same coordinate space as the DOM:
+  //  - scrollMargin shifts the virtual offsets down by the header, so a row
+  //    aligned to the bottom ("end"/"auto") isn't a header's-height too low
+  //    (which clipped it at the bottom edge);
+  //  - scrollPaddingStart reserves the header's height when aligning to the
+  //    top ("start"/"auto"), so a row scrolled in from above sits below the
+  //    sticky header instead of behind it.
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
     estimateSize: () => rowHeight,
     overscan: 12,
+    scrollMargin: headerHeight,
+    scrollPaddingStart: headerHeight,
     getItemKey: (index) => rows[index]?.id ?? String(index),
   });
 
@@ -207,10 +218,12 @@ export function DataGrid<TRow>({
 
       const targetRow = rows[target];
       if (!targetRow) return;
+      // The selection change drives the scroll-into-view effect below; doing
+      // the scroll here too is redundant (react-virtual keeps only the last
+      // pending scrollToIndex, so the effect's call wins anyway).
       setSelectedId(targetRow.id);
-      rowVirtualizer.scrollToIndex(target, { align: "center" });
     },
-    [rows, selectedId, onRowActivate, rowVirtualizer]
+    [rows, selectedId, onRowActivate]
   );
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -310,7 +323,10 @@ export function DataGrid<TRow>({
         </div>
         <div
           className={styles.tbody}
-          style={{ height: totalSize, width: totalWidth }}
+          style={{
+            height: Math.max(0, totalSize - headerHeight),
+            width: totalWidth,
+          }}
           role="rowgroup"
         >
           {virtualItems.map((virtualRow) => {
@@ -324,7 +340,9 @@ export function DataGrid<TRow>({
                 style={{
                   height: rowHeight,
                   width: totalWidth,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  // scrollMargin shifts virtual offsets by headerHeight; the
+                  // tbody already sits below the in-flow header, so subtract it.
+                  transform: `translateY(${virtualRow.start - headerHeight}px)`,
                 }}
                 onClick={(e) => handleRowClick(e, row.id, row.original)}
                 role="row"
