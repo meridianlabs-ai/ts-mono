@@ -8,6 +8,9 @@ import staticHttpApi from "./static-http/api-static-http";
 import { ClientAPI } from "./types";
 import { viewServerApi } from "./view-server/api-view-server";
 import vscodeApi from "./vscode/api-vscode";
+import { apiVscodeHttp } from "./vscode/api-vscode-http";
+import { readHostCapabilities } from "./vscode/host-capabilities";
+import { kMethodHttpRequest } from "./vscode/jsonrpc";
 
 // Shape of the JSON embedded in the #log_dir_context script element.
 interface LogDirContext {
@@ -23,8 +26,14 @@ interface LogDirContext {
 const resolveApi = (): ClientAPI => {
   const debug = false;
   if (getVscodeApi()) {
-    // This is VSCode
-    return clientApi(vscodeApi, undefined, debug);
+    // VS Code. Prefer the generic http_request proxy API when the extension
+    // host advertises it; otherwise fall back to the legacy named-RPC API so
+    // newer viewers keep working on older extensions.
+    const capabilities = readHostCapabilities();
+    const api = capabilities.includes(kMethodHttpRequest)
+      ? apiVscodeHttp(getVscodeApi())
+      : vscodeApi;
+    return clientApi(api, undefined, debug);
   } else {
     // See if there is an log_file, log_dir embedded in the
     // document or passed via URL (could be hosted)
