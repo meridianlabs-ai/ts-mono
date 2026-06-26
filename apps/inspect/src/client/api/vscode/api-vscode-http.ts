@@ -12,7 +12,7 @@ import { viewServerApi } from "../view-server/api-view-server";
  * JSON-RPC proxy (mirrors apps/scout/src/api/api-vscode.ts). Only genuine host
  * actions and the disabled live-event channel are overridden.
  */
-export function apiVscodeHttp(vscode: VSCodeApi | undefined): LogViewAPI {
+export function apiVscodeHttp(vscode: VSCodeApi): LogViewAPI {
   const rpcClient = webViewJsonRpcClient(vscode);
   const serverApi = viewServerApi({
     customFetch: createJsonRpcFetch(rpcClient),
@@ -21,7 +21,7 @@ export function apiVscodeHttp(vscode: VSCodeApi | undefined): LogViewAPI {
   // Host action: open a log file in the editor. One-way message handled by the
   // extension's handleWebviewPanelOpenMessages — no server equivalent.
   const open_log_file = (log_file: string, log_dir: string): Promise<void> => {
-    vscode?.postMessage({ type: "displayLogFile", url: log_file, log_dir });
+    vscode.postMessage({ type: "displayLogFile", url: log_file, log_dir });
     return Promise.resolve();
   };
 

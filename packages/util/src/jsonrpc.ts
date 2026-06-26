@@ -65,12 +65,10 @@ export const kJsonRpcInvalidParams = -32602;
 export const kJsonRpcInternalError = -32603;
 export const kJsonRpcVersion = "2.0";
 
-export function webViewJsonRpcClient(
-  vscode: VSCodeApi | undefined
-): JsonRpcClient {
+export function webViewJsonRpcClient(vscode: VSCodeApi): JsonRpcClient {
   const target: PostMessageTarget = {
     postMessage: (data: unknown) => {
-      vscode?.postMessage(data);
+      vscode.postMessage(data);
     },
     onMessage: (handler: (data: unknown) => void) => {
       const onMessage = (ev: MessageEvent) => {

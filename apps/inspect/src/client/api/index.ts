@@ -24,13 +24,14 @@ interface LogDirContext {
  */
 const resolveApi = (): ClientAPI => {
   const debug = false;
-  if (getVscodeApi()) {
+  const vscode = getVscodeApi();
+  if (vscode) {
     // VS Code. Prefer the generic http_request proxy API when the extension
     // host advertises it; otherwise fall back to the legacy named-RPC API so
     // newer viewers keep working on older extensions.
     const capabilities = readHostCapabilities();
     const api = capabilities.includes(kMethodHttpRequest)
-      ? apiVscodeHttp(getVscodeApi())
+      ? apiVscodeHttp(vscode)
       : vscodeApi;
     return clientApi(api, undefined, debug);
   } else {
