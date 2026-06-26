@@ -19,6 +19,7 @@ import {
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 
+import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
 
 const log = createLogger("Log Slice");
@@ -87,9 +88,6 @@ export interface LogsSlice {
 
 const initialState: LogsState = {
   logDir: undefined,
-  logs: [],
-  logPreviews: {},
-  logDetails: {},
   selectedLogFile: undefined as string | undefined,
   listing: {
     columnVisibility: {},
@@ -142,10 +140,11 @@ export const createLogsSlice = (
           }
         });
       },
+      // Log content (handles/previews/details) lives in the react-query cache,
+      // not zustand. These actions are thin shims so the sync context, the
+      // singular log slice, and App callers keep their existing call sites.
       setLogHandles: (logs: LogHandle[]) =>
-        set((state) => {
-          state.logs.logs = logs;
-        }),
+        logsContent.setLogHandles(get().logs.logDir, logs),
       syncLogPreviews: async (logs: LogHandle[]) => {
         const state = get();
         if (!state.replicationService) {
@@ -159,20 +158,10 @@ export const createLogsSlice = (
         }
       },
       updateLogPreviews: (previews: Record<string, LogPreview>) =>
-        set((state) => {
-          state.logs.logPreviews = {
-            ...get().logs.logPreviews,
-            ...previews,
-          };
-        }),
+        logsContent.mergeLogPreviews(get().logs.logDir, previews),
 
       updateLogDetails: (details: Record<string, LogDetails>) =>
-        set((state) => {
-          state.logs.logDetails = {
-            ...get().logs.logDetails,
-            ...details,
-          };
-        }),
+        logsContent.mergeLogDetails(get().logs.logDir, details),
       setSamplesGridState: (
         scope: "samplesPanel",
         gridState: GridState | undefined
@@ -338,9 +327,11 @@ export const createLogsSlice = (
                 if (!state.logs.selectedLogFile) {
                   return undefined;
                 }
-                return state.logs.logs.find((handle) => {
-                  return handle.name.endsWith(state.logs.selectedLogFile!);
-                });
+                return logsContent
+                  .getLogsContent(state.logs.logDir)
+                  .handles.find((handle) =>
+                    handle.name.endsWith(state.logs.selectedLogFile!)
+                  );
               },
               setSelectedLogFile: (logFile: string) => {
                 const state = get();
@@ -398,16 +389,16 @@ export const createLogsSlice = (
       setSelectedLogFile: async (logFile: string) => {
         const state = get();
         const isInFileList =
-          state.logs.logs.findIndex((val: { name: string }) =>
-            val.name.endsWith(logFile)
-          ) !== -1;
+          logsContent
+            .getLogsContent(state.logs.logDir)
+            .handles.findIndex((val) => val.name.endsWith(logFile)) !== -1;
 
         if (!isInFileList) {
           if (state.replicationService?.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
-            const logHandle = get().logs.logs.find((val: { name: string }) =>
-              val.name.endsWith(logFile)
-            );
+            const logHandle = logsContent
+              .getLogsContent(get().logs.logDir)
+              .handles.find((val) => val.name.endsWith(logFile));
             if (!logHandle) {
               throw new Error(`Log file not found: ${logFile}`);
             }

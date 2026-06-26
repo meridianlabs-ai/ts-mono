@@ -1,24 +1,23 @@
 import { ColumnDef } from "@tanstack/react-table";
 
 /**
- * Comparator carried on a column for client-side sorting. Mirrors the AG Grid
- * comparator signature so the existing `gridComparators` helpers can be reused
- * verbatim. Unused in phase 1 (no sorting yet); consumed by LogListGrid's sort
- * memo in phase 2.
+ * Value comparator carried on a column for client-side sorting. Sorts
+ * ascending; the caller negates for descending. `isDescending` lets the
+ * comparator pin missing values last regardless of direction (the AG
+ * `gridComparators` contract, reused here). Folder grouping is handled by the
+ * panel, so comparators are value-only (no row params).
  */
-export type ColumnComparator<TRow> = (
-  valueA: unknown,
-  valueB: unknown,
-  rowA: TRow,
-  rowB: TRow,
+export type ColumnComparator = (
+  a: unknown,
+  b: unknown,
   isDescending: boolean
 ) => number;
 
-export interface BaseColumnMeta<TRow> {
+export interface BaseColumnMeta {
   /** Text alignment for the column. */
   align?: "left" | "center" | "right";
-  /** Client-side sort comparator (phase 2). */
-  sortComparator?: ColumnComparator<TRow>;
+  /** Client-side sort comparator (consumed by the listing query). */
+  sortComparator?: ColumnComparator;
 }
 
 /**
@@ -27,7 +26,7 @@ export interface BaseColumnMeta<TRow> {
  * TanStack's own `ColumnDef`.
  */
 export type ExtendedColumnDef<TRow> = ColumnDef<TRow> & {
-  meta?: BaseColumnMeta<TRow>;
+  meta?: BaseColumnMeta;
   /** Tooltip text for the column header. */
   headerTitle?: string;
   /** Tooltip text for a cell, derived from the full row. */

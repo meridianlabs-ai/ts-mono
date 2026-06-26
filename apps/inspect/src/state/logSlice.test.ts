@@ -23,14 +23,11 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
   });
   const get = () => state;
 
-  const updateLogPreviews = vi.fn((previews: Record<string, LogPreview>) => {
-    set((state) => {
-      state.logs.logPreviews = {
-        ...state.logs.logPreviews,
-        ...previews,
-      };
-    });
-  });
+  // Log content lives in the react-query cache now; the slice calls this
+  // action shim, so the mock just records the call for assertions.
+  const updateLogPreviews = vi.fn(
+    (_previews: Record<string, LogPreview>) => {}
+  );
 
   const databaseService = {
     opened: vi.fn(() => true),
@@ -49,7 +46,6 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     databaseService,
     logs: {
       logDir: "/logs",
-      logPreviews: {},
       selectedLogFile: "/logs/run.eval",
     },
     logsActions: {

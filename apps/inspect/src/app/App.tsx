@@ -16,13 +16,12 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./App.css";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
-import { defaultRetry } from "@tsmono/react";
 import {
   ComponentIconProvider,
   ComponentIcons,
@@ -33,6 +32,7 @@ import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
+import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
@@ -43,11 +43,6 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-
-// app-config (and future server data) flow through this client.
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: defaultRetry } },
-});
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,

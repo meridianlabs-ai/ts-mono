@@ -37,6 +37,22 @@
   text-transform: uppercase;
 }
 
+/* Short vertical separator between column headers (matches the prior grid). */
+.headerCell::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 60%;
+  width: 1px;
+  background: var(--bs-border-color);
+}
+
+.headerCell:first-child::before {
+  display: none;
+}
+
 .headerContent {
   flex: 1;
   display: flex;

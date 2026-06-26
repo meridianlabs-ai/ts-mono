@@ -172,6 +172,13 @@ export type EarlyStoppingSummary = S["EarlyStoppingSummary"];
 export type Outline = S["Outline"];
 export type OutlineNode = S["OutlineNode"];
 
+// Query types (filter / order / paginate)
+export type Condition = S["Condition"];
+export type Operator = S["Operator"];
+export type LogicalOperator = S["LogicalOperator"];
+export type OrderBy = S["OrderBy"];
+export type Pagination = S["Pagination"];
+
 // Search types
 export type GrepSearchInput = S["GrepSearchInput"];
 export type LlmSearchInput = S["LlmSearchInput"];

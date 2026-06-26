@@ -18,6 +18,7 @@ import {
   useLogs,
   useLogsWithretried,
 } from "../../state/hooks";
+import { useLogDetails, useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
@@ -109,7 +110,7 @@ export const SamplesPanel: FC = () => {
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
 
-  const logDetails = useStore((state) => state.logs.logDetails);
+  const logDetails = useLogDetails(logDir);
 
   // Polling for updated log files.
   const { startPolling, stopPolling } = useClientEvents();
@@ -127,7 +128,7 @@ export const SamplesPanel: FC = () => {
 
   const evalSet = useStore((state) => state.logs.evalSet);
   const logFiles = useLogsWithretried();
-  const logPreviews = useStore((state) => state.logs.logPreviews);
+  const logPreviews = useLogPreviews(logDir);
 
   const currentDirLogFiles = useMemo(() => {
     const files = [];

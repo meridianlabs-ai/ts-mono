@@ -22,6 +22,7 @@ import {
   useLogsListing,
   useLogsWithretried,
 } from "../../state/hooks";
+import { useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
@@ -67,7 +68,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const logDir = useStore((state) => state.logs.logDir);
   const logFiles = useLogsWithretried();
   const evalSet = useStore((state) => state.logs.evalSet);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
+  const logPreviews = useLogPreviews(logDir);
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.
   const deferredLogPreviews = useDeferredValue(logPreviews);

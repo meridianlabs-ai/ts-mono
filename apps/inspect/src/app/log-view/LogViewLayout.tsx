@@ -9,6 +9,7 @@ import {
 
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
+import { useLogHandles } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
@@ -31,7 +32,7 @@ export const LogViewLayout: FC = () => {
 
   // Logs Data
   const logDir = useStore((state) => state.logs.logDir);
-  const logFiles = useStore((state) => state.logs.logs);
+  const logFiles = useLogHandles(logDir);
 
   // Route params
   const { logPath } = useLogRouteParams();

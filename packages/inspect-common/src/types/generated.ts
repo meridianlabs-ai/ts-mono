@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/condition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Condition */
+        get: operations["_condition_condition_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/content": {
         parameters: {
             query?: never;
@@ -336,6 +353,40 @@ export interface paths {
         };
         /** Api Log */
         get: operations["api_log_logs__log__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/order-by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Order By */
+        get: operations["_order_by_order_by_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pagination": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pagination */
+        get: operations["_pagination_pagination_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1017,6 +1068,26 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * Condition
+         * @description WHERE clause condition that can be combined with others.
+         */
+        Condition: {
+            /**
+             * Is Compound
+             * @default false
+             */
+            is_compound: boolean;
+            /** Left */
+            left?: string | components["schemas"]["Condition"] | null;
+            /** Operator */
+            operator?: components["schemas"]["Operator"] | components["schemas"]["LogicalOperator"] | null;
+            /** Right */
+            right?: components["schemas"]["Condition"] | (string | number | boolean | null)[] | [
+                string | number | boolean | null,
+                string | number | boolean | null
+            ] | string | number | boolean | null;
         };
         /**
          * ConnectionLimitChange
@@ -2485,6 +2556,12 @@ export interface components {
             name?: string | null;
         };
         /**
+         * LogicalOperator
+         * @description Logical operators for combining conditions.
+         * @enum {string}
+         */
+        LogicalOperator: "AND" | "OR" | "NOT";
+        /**
          * Logprob
          * @description Log probability for a token.
          */
@@ -2740,6 +2817,22 @@ export interface components {
             total_tokens: number;
         };
         /**
+         * Operator
+         * @description SQL comparison operators.
+         * @enum {string}
+         */
+        Operator: "=" | "!=" | "<" | "<=" | ">" | ">=" | "IN" | "NOT IN" | "LIKE" | "NOT LIKE" | "ILIKE" | "NOT ILIKE" | "IS NULL" | "IS NOT NULL" | "BETWEEN" | "NOT BETWEEN";
+        /** OrderBy */
+        OrderBy: {
+            /** Column */
+            column: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "ASC" | "DESC";
+        };
+        /**
          * Outline
          * @description Hierarchical outline of events for an agent.
          */
@@ -2756,6 +2849,20 @@ export interface components {
             children: components["schemas"]["OutlineNode"][];
             /** Event */
             event: string;
+        };
+        /** Pagination */
+        Pagination: {
+            /** Cursor */
+            cursor?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "forward" | "backward";
+            /** Limit */
+            limit: number;
         };
         /** PendingSampleUrls */
         PendingSampleUrls: {
@@ -4034,6 +4141,26 @@ export interface operations {
             };
         };
     };
+    _condition_condition_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Condition"];
+                };
+            };
+        };
+    };
     _content_content_get: {
         parameters: {
             query?: never;
@@ -4412,6 +4539,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvalLog"];
+                };
+            };
+        };
+    };
+    _order_by_order_by_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBy"];
+                };
+            };
+        };
+    };
+    _pagination_pagination_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"];
                 };
             };
         };

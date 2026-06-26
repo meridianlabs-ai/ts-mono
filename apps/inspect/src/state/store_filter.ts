@@ -9,7 +9,7 @@ export function filterState(state: PersistedState) {
   }
 
   // When saving state, we can't store vast amounts of data (like a large sample)
-  const filters = [filterLargeLogDetails, filtersLogsDetails];
+  const filters = [filterLargeLogDetails];
   return filters.reduce(
     (filteredState, filter) => filter(filteredState),
     state
@@ -85,18 +85,4 @@ function filterLargeLogDetails(state: PersistedState): PersistedState {
   } else {
     return state;
   }
-}
-
-function filtersLogsDetails(state: PersistedState): PersistedState {
-  if (!state || !state.logs) {
-    return state;
-  }
-
-  return {
-    ...state,
-    logs: {
-      ...state.logs,
-      logDetails: {},
-    },
-  };
 }

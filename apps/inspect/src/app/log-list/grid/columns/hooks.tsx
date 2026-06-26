@@ -1,16 +1,21 @@
 import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { kModelNone } from "../../../../constants";
+import { useLogDetails } from "../../../../state/logsContent";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
-import { ExtendedColumnDef } from "../../../shared/data-grid/columnTypes";
+import {
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
+import { comparators } from "../../../shared/gridComparators";
 import { useStableValue } from "../../../shared/useStableValue";
 
 import localStyles from "./columns.module.css";
@@ -20,6 +25,13 @@ import { LogListRow } from "./types";
 const styles = { ...sharedStyles, ...localStyles };
 
 type LogListColumn = ExtendedColumnDef<LogListRow>;
+
+// Value comparators for client-side sorting. `gridComparators` follows the AG
+// contract (`isDescending` flips the missing-value sentinel so missing sorts
+// last in both directions); the listing query negates the result for descending.
+const numberCompare: ColumnComparator = (a, b, isDescending) =>
+  comparators.number(a, b, undefined, undefined, isDescending);
+const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 
 const EmptyCell = () => <div>-</div>;
 
@@ -76,6 +88,10 @@ export const useLogListColumns = (
    *  shim (`colId` + `headerName`) so the still-AG ColumnSelectorPopover is
    *  untouched during the migration. */
   pickerColumns: ColDef<LogListRow>[];
+  /** Reads a row's raw value for a column id (for client-side filter/sort). */
+  getValue: (row: LogListRow, columnId: string) => unknown;
+  /** Per-column value comparator (from column meta) for client-side sort. */
+  getComparator: (columnId: string) => ColumnComparator | undefined;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -84,7 +100,8 @@ export const useLogListColumns = (
   const setColumnVisibility = useStore(
     (state) => state.logsActions.setLogsColumnVisibility
   );
-  const logDetails = useStore((state) => state.logs.logDetails);
+  const logDir = useStore((state) => state.logs.logDir);
+  const logDetails = useLogDetails(logDir);
 
   // `logDetails` gets a new identity on every detail flush while a
   // directory loads, so the memo alone would return a fresh map (and
@@ -258,6 +275,7 @@ export const useLogListColumns = (
         size: 80,
         minSize: 60,
         maxSize: 120,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.score,
         cell: ({ row }) => {
           const item = row.original;
@@ -327,8 +345,9 @@ export const useLogListColumns = (
         size: 130,
         minSize: 80,
         maxSize: 140,
-        accessorFn: (row) =>
-          row.completedAt ? formatDateTime(new Date(row.completedAt)) : "",
+        meta: { sortComparator: dateCompare },
+        // Raw value for sort/filter; the cell formats from row.original.
+        accessorFn: (row) => row.completedAt,
         cell: ({ row }) => {
           const completed = row.original.completedAt;
           if (!completed) {
@@ -390,6 +409,7 @@ export const useLogListColumns = (
         size: 90,
         minSize: 60,
         maxSize: 120,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -405,6 +425,7 @@ export const useLogListColumns = (
         size: 130,
         minSize: 80,
         maxSize: 160,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -433,6 +454,7 @@ export const useLogListColumns = (
         size: 100,
         minSize: 60,
         maxSize: 140,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -448,6 +470,7 @@ export const useLogListColumns = (
         size: 120,
         minSize: 70,
         maxSize: 160,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.duration,
         titleValue: (row) =>
           row.duration === undefined ? undefined : formatTime(row.duration),
@@ -509,6 +532,7 @@ export const useLogListColumns = (
         size: 110,
         minSize: 80,
         maxSize: 140,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.percentCompleted,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -524,6 +548,7 @@ export const useLogListColumns = (
         size: 110,
         minSize: 60,
         maxSize: 140,
+        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -565,12 +590,16 @@ export const useLogListColumns = (
     // order so the column sequence is stable regardless of log iteration.
     const perScorerColumns: LogListColumn[] = Object.entries(scorerMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, { scorerName, metricName }]) => {
+      .map(([key, { scorerName, metricName, valueType }]) => {
         return {
           id: `score_${key}`,
           header: scorerMetricHeader(scorerName, metricName),
           size: 100,
           minSize: 100,
+          meta:
+            valueType === "number"
+              ? { sortComparator: numberCompare }
+              : undefined,
           accessorFn: (row) => row[`score_${key}`],
           cell: ({ getValue }) => {
             const value = getValue<
@@ -613,6 +642,7 @@ export const useLogListColumns = (
         const scorerOrder = entries
           .map((e) => e.scorerName)
           .sort((a, b) => a.localeCompare(b));
+        const allNumeric = entries.every((e) => e.valueType === "number");
 
         const readContributors = (
           row: LogListRow | undefined
@@ -639,6 +669,7 @@ export const useLogListColumns = (
           header: metricName,
           size: 100,
           minSize: 100,
+          meta: allNumeric ? { sortComparator: numberCompare } : undefined,
           accessorFn: (row) => readContributors(row)[0]?.value,
           cell: ({ row }) => {
             const [first, ...extras] = readContributors(row.original);
@@ -807,10 +838,39 @@ export const useLogListColumns = (
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
 
+  // Lookup by column id for the client-side listing query's value/comparator
+  // accessors.
+  const columnsById = useMemo(() => {
+    const byId = new Map<string, LogListColumn>();
+    for (const col of allColumns) {
+      if (col.id) byId.set(col.id, col);
+    }
+    return byId;
+  }, [allColumns]);
+
+  const getValue = useCallback(
+    (row: LogListRow, columnId: string): unknown => {
+      const col = columnsById.get(columnId);
+      if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
+        return col.accessorFn(row, 0);
+      }
+      return row[columnId];
+    },
+    [columnsById]
+  );
+
+  const getComparator = useCallback(
+    (columnId: string): ColumnComparator | undefined =>
+      columnsById.get(columnId)?.meta?.sortComparator,
+    [columnsById]
+  );
+
   return {
     columns: allColumns,
     visibility,
     pickerColumns,
+    getValue,
+    getComparator,
     setColumnVisibility,
   };
 };

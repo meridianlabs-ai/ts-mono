@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useSamplesRouteParams } from "../app/routing/url";
 
 import { useLogs } from "./hooks";
+import { useLogHandles } from "./logsContent";
 import { useStore } from "./store";
 
 // Load the log file and select the sample
@@ -15,9 +16,9 @@ export const useLoadLog = () => {
   const { loadLogs } = useLogs();
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const selectSample = useStore((state) => state.logActions.selectSample);
-  const logs = useStore((state) => state.logs.logs);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
+  const logs = useLogHandles(logDir);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );

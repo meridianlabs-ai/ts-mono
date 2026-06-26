@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/types/index.ts",
     "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./query": "./src/query/index.ts"
   },
   "scripts": {
     "types:generate": "node scripts/generate-types.js",

@@ -14,6 +14,7 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
+import { useLogHandles, useLogsContent } from "./logsContent";
 import { getAvailableScorers } from "./scoring";
 import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -525,7 +526,8 @@ export const useSetSelectedLogIndex = () => {
   const clearCollapsedEvents = useStore(
     (state) => state.sampleActions.clearCollapsedEvents
   );
-  const allLogFiles = useStore((state) => state.logs.logs);
+  const logDir = useStore((state) => state.logs.logDir);
+  const allLogFiles = useLogHandles(logDir);
 
   return useCallback(
     (index: number) => {
@@ -626,8 +628,9 @@ export const useLogs = () => {
   const syncLogPreviews = useStore(
     (state) => state.logsActions.syncLogPreviews
   );
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-  const allLogFiles = useStore((state) => state.logs.logs);
+  const logDir = useStore((state) => state.logs.logDir);
+  const { handles: allLogFiles, previews: logPreviews } =
+    useLogsContent(logDir);
 
   const loadLogOverviews = useCallback(
     async (logs: LogHandle[] = allLogFiles) => {
@@ -773,8 +776,8 @@ export const computeLogsWithRetried = (
 };
 
 export const useLogsWithretried = (): LogHandleWithretried[] => {
-  const logs = useStore((state) => state.logs.logs);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
+  const logDir = useStore((state) => state.logs.logDir);
+  const { handles: logs, previews: logPreviews } = useLogsContent(logDir);
 
   return useMemo(
     () => computeLogsWithRetried(logs, logPreviews),

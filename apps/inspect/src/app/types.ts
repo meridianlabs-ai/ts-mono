@@ -32,7 +32,6 @@ import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 import {
   EvalHeader,
   LogDetails,
-  LogPreview,
   PendingSamples,
   SampleSummary,
 } from "../client/api/types";
@@ -80,9 +79,6 @@ export interface DisplayedSample {
 export interface LogsState {
   logDir?: string;
   absLogDir?: string;
-  logs: LogHandle[];
-  logPreviews: Record<string, LogPreview>;
-  logDetails: Record<string, LogDetails>;
   evalSet?: EvalSet;
   selectedLogFile?: string;
   listing: LogsListing;
