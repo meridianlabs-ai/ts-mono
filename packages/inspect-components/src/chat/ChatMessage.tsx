@@ -14,6 +14,7 @@ import {
   type MarkdownReference,
 } from "@tsmono/react/components";
 
+import { useDisplayMode } from "../content/DisplayModeContext";
 import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
@@ -55,6 +56,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const linkingEnabled = linking?.enabled ?? false;
   const getMessageUrl = linking?.getMessageUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
+  const displayMode = useDisplayMode();
 
   const messageUrl = getMessageUrl?.(message.id || "");
 
@@ -73,12 +75,17 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
-  // Codex tool results get friendlier rendering than the raw JSON/text dump:
+  // Codex tool results get friendlier rendering in rendered mode:
   // tool_search → a collapsible catalog component; sub-agent management answers
-  // → markdown. The raw content stays available in the JSON tab.
+  // → markdown. Raw mode keeps the original message content.
   let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
   let toolMarkdown: string | undefined;
-  if (isNonSubagentTool && message.role === "tool" && message.function) {
+  if (
+    displayMode === "rendered" &&
+    isNonSubagentTool &&
+    message.role === "tool" &&
+    message.function
+  ) {
     if (message.function === "tool_search") {
       toolSearchNamespaces = parseToolSearchCatalog(message.content);
     } else {
@@ -88,9 +95,9 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   // Codex sub-agent completion notifications (user messages) collapse to a
   // compact status line — the answer itself is shown by the paired wait/close
-  // result; the raw notification stays in the JSON tab.
+  // result. Raw mode keeps the original notification.
   const subagentNotifications =
-    message.role === "user"
+    displayMode === "rendered" && message.role === "user"
       ? formatSubagentNotifications(message.content)
       : undefined;
 

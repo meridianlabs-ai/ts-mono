@@ -13,6 +13,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 
+import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
 import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
@@ -77,6 +78,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   section = "all",
   getCustomToolView,
 }) => {
+  const displayMode = useDisplayMode();
+
   // don't collapse if output includes an image
   function isContentImage(
     value:
@@ -110,13 +113,13 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   const collapse = Array.isArray(output)
     ? output.every((item) => !isContentImage(item))
     : !isContentImage(output);
-  // Render-time reshape of tool output (e.g. surface Codex sub-agent answers /
-  // tool_search catalog). Does not mutate stored data — the raw output remains
-  // visible in the JSON tab.
+  // Render-time reshape of tool output (e.g. surface Codex sub-agent answers).
+  // Raw mode keeps the original output.
   const normalizedContent = useMemo(() => {
-    const markdown = codexToolMarkdown(tool, output);
+    const markdown =
+      displayMode === "rendered" ? codexToolMarkdown(tool, output) : undefined;
     return normalizeContent(markdown !== undefined ? markdown : output);
-  }, [tool, output]);
+  }, [displayMode, tool, output]);
 
   const hasContent = normalizedContent.find((c) => {
     if (c.type === "tool") {
@@ -147,7 +150,9 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     mode,
   };
   const customView =
-    getCustomToolView?.(props) ?? getDefaultCustomToolView(props);
+    displayMode === "rendered"
+      ? (getCustomToolView?.(props) ?? getDefaultCustomToolView(props))
+      : undefined;
   if (customView) {
     // A custom view renders the call and its result together, so it belongs to
     // the call section; the output section then contributes nothing.
@@ -184,7 +189,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   );
 
   const outputSection =
-    contentType === "markdown" && hasContent ? (
+    displayMode === "rendered" && contentType === "markdown" && hasContent ? (
       <ExpandablePanel
         id={`${id}-tool-content`}
         collapse={collapse}

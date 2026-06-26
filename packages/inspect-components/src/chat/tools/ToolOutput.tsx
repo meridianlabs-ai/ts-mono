@@ -6,6 +6,7 @@ import { ANSIDisplay } from "@tsmono/react/components";
 import { isAnsiOutput, isJson } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
+import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { isRenderableImageSource } from "../../media/mediaSource";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
@@ -82,13 +83,15 @@ interface ToolTextOutputProps {
  * Renders the ToolTextOutput component.
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
-  if (isJson(text)) {
+  const displayMode = useDisplayMode();
+
+  if (displayMode === "rendered" && isJson(text)) {
     const obj = JSON.parse(text) as Record<string, unknown>;
     return <JsonMessageContent id={`1-json`} json={obj} />;
   }
 
   // It could have ANSI codes
-  if (isAnsiOutput(text)) {
+  if (displayMode === "rendered" && isAnsiOutput(text)) {
     return (
       <ANSIDisplay
         className={styles.ansiOutput}
@@ -108,7 +111,7 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     <>
       <pre className={clsx(styles.textOutput, "tool-output")}>
         <code className={clsx("sourceCode", styles.textCode)}>
-          {capped.trim()}
+          {displayMode === "raw" ? capped : capped.trim()}
         </code>
       </pre>
       {notice}
