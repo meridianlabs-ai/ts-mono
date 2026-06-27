@@ -1,5 +1,6 @@
 import { createLogger } from "@tsmono/util";
 
+import { getLogDir } from "../app/server/useLogDir";
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
 import { ClientAPI, LogDetails, PendingSamples } from "../client/api/types";
@@ -8,6 +9,7 @@ import { kLogViewInfoTabId } from "../constants";
 import { isUri, join } from "../utils/uri";
 
 import { createLogPolling } from "./logPolling";
+import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
 
 const log = createLogger("logSlice");
@@ -186,9 +188,10 @@ export const createLogSlice = (
       syncLog: async (logFileName: string) => {
         const state = get();
 
-        // Ensure there is a log dir
-        let logDir = state.logs.logDir;
-        if (state.logs.logDir === undefined) {
+        // Ensure there is a log dir. Dir mode resolves it via the gated query;
+        // single-file mode derives it on demand through initLogDir.
+        let logDir = getLogDir();
+        if (logDir === undefined) {
           logDir = await state.logsActions.initLogDir();
         }
 
@@ -217,7 +220,7 @@ export const createLogSlice = (
                 });
                 // Repaint the listing preview from the fresh status: a log
                 // cached as "started" may have since finished.
-                state.logsActions.updateLogPreviews({
+                logsContent.mergeLogPreviews(logDir, {
                   [logFileName]: toLogPreview(logDetails),
                 });
               };
@@ -228,7 +231,7 @@ export const createLogSlice = (
                 await refreshLogDetails();
               } else {
                 state.logActions.setSelectedLogDetails(cachedInfo);
-                state.logsActions.updateLogPreviews({
+                logsContent.mergeLogPreviews(logDir, {
                   [logFileName]: toLogPreview(cachedInfo),
                 });
                 // Still fetch fresh data in background to update cache
@@ -267,7 +270,7 @@ export const createLogSlice = (
             [logFileName]: toLogPreview(logDetails),
           };
 
-          state.logsActions.updateLogPreviews(header);
+          logsContent.mergeLogPreviews(logDir, header);
           set((state) => {
             state.log.loadedLog = logFileName;
           });

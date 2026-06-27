@@ -55,7 +55,6 @@ export const LogSampleDetailView: FC = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -74,14 +73,14 @@ export const LogSampleDetailView: FC = () => {
   useEffect(() => {
     const loadLogAndSample = async () => {
       if (routeLogPath && routeSampleId && routeEpoch) {
-        // Initialize log directory if needed
-        await initLogDir();
+        // Single-file mode derives its log dir here; dir mode resolves it via
+        // the gated query and owns replication through <ReplicationController>.
+        if (isSingleFileMode) {
+          await initLogDir();
+        }
 
         // Set the selected log file
         setSelectedLogFile(routeLogPath);
-
-        // Sync logs to ensure we have the latest data
-        void syncLogs();
 
         // Select the sample
         const targetEpoch = parseInt(routeEpoch, 10);
@@ -100,7 +99,6 @@ export const LogSampleDetailView: FC = () => {
     routeEpoch,
     initLogDir,
     setSelectedLogFile,
-    syncLogs,
     selectSample,
   ]);
 

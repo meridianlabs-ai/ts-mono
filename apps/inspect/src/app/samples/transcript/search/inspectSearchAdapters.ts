@@ -24,6 +24,7 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../../routing/url";
+import { useLogDir } from "../../../server/useLogDir";
 
 /**
  * inspect_scout's search endpoints (proxied by inspect_ai under /scout/...)
@@ -65,7 +66,7 @@ export const useInspectSearchContext = (
 ): InspectSearchContext | null => {
   const api = useApi();
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
-  const logDir = useStore((s) => s.logs.logDir);
+  const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
 
   // Depend on the scalar fields, not the sample object: polling a running

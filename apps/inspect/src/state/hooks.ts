@@ -10,6 +10,7 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
+import { useLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
@@ -526,7 +527,7 @@ export const useSetSelectedLogIndex = () => {
   const clearCollapsedEvents = useStore(
     (state) => state.sampleActions.clearCollapsedEvents
   );
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const allLogFiles = useLogHandles(logDir);
 
   return useCallback(
@@ -628,7 +629,7 @@ export const useLogs = () => {
   const syncLogPreviews = useStore(
     (state) => state.logsActions.syncLogPreviews
   );
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const { handles: allLogFiles, previews: logPreviews } =
     useLogsContent(logDir);
 
@@ -776,7 +777,7 @@ export const computeLogsWithRetried = (
 };
 
 export const useLogsWithretried = (): LogHandleWithretried[] => {
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const { handles: logs, previews: logPreviews } = useLogsContent(logDir);
 
   return useMemo(

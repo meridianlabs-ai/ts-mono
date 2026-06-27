@@ -33,6 +33,7 @@ import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
+import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
@@ -65,7 +66,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs
   );
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logFiles = useLogsWithretried();
   const evalSet = useStore((state) => state.logs.evalSet);
   const logPreviews = useLogPreviews(logDir);

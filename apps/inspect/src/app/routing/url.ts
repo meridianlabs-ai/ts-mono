@@ -9,6 +9,7 @@ import {
 } from "../../constants";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl, encodePathParts } from "../../utils/uri";
+import { useLogDir } from "../server/useLogDir";
 
 /**
  * Decodes a URL parameter that may be URL-encoded.
@@ -430,7 +431,7 @@ export const useSampleMessageUrl = (
   const builder = useSampleUrlBuilder();
 
   const log_file = useStore((state) => state.logs.selectedLogFile);
-  const log_dir = useStore((state) => state.logs.logDir);
+  const log_dir = useLogDir();
 
   let targetLogPath = urlLogPath;
   if (!targetLogPath && log_file) {
@@ -472,7 +473,7 @@ export const useSampleEventUrl = (
   const builder = useSampleUrlBuilder();
 
   const log_file = useStore((state) => state.logs.selectedLogFile);
-  const log_dir = useStore((state) => state.logs.logDir);
+  const log_dir = useLogDir();
 
   let targetLogPath = urlLogPath;
   if (!targetLogPath && log_file) {

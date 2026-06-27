@@ -32,6 +32,7 @@ import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
+import * as logsContent from "../state/logsContent.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
@@ -43,6 +44,7 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
+import { getLogDir, useLogDir } from "./server/useLogDir.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -105,7 +107,7 @@ const AppContent: FC = () => {
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const loadedLogFile = useStore((state) => state.log.loadedLog);
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
@@ -116,7 +118,6 @@ const AppContent: FC = () => {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
-  const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
@@ -250,7 +251,7 @@ const AppContent: FC = () => {
           // Clear any log dir
           setLogDir(undefined);
           // Load just the passed file
-          setLogFiles([{ name: resolvedLogPath }]);
+          logsContent.setLogHandles(getLogDir(), [{ name: resolvedLogPath }]);
         } else {
           // If a log file was passed, select it
           const log_file = urlParams.get("log_file");
@@ -266,14 +267,7 @@ const AppContent: FC = () => {
     };
 
     void loadLogsAndState();
-  }, [
-    setLogDir,
-    setLogFiles,
-    setSelectedLogFile,
-    initLogDir,
-    syncLogs,
-    onMessage,
-  ]);
+  }, [setLogDir, setSelectedLogFile, initLogDir, syncLogs, onMessage]);
 
   return (
     <ComponentIconProvider icons={componentIcons}>

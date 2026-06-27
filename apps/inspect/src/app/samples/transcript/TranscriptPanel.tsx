@@ -34,6 +34,7 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
+import { useLogDir } from "../../server/useLogDir";
 
 import { useTranscriptFilter } from "./hooks";
 
@@ -265,7 +266,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
   const logFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const getEventUrl = useCallback(
     (eventId: string) => {

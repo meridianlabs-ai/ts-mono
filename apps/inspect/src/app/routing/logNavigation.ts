@@ -2,13 +2,14 @@ import { useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useStore } from "../../state/store";
+import { useLogDir } from "../server/useLogDir";
 
 import { logsUrl, logsUrlRaw, useRoutePrefix } from "./url";
 
 export const useLogNavigation = () => {
   const navigate = useNavigate();
   const { logPath } = useParams<{ logPath: string }>();
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const loadedLog = useStore((state) => state.log.loadedLog);
   const prefix = useRoutePrefix();
 

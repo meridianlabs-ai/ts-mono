@@ -14,6 +14,7 @@ import { LogDetails } from "../../../client/api/types";
 import { useLogsListing } from "../../../state/hooks";
 import { useLogDetails } from "../../../state/logsContent";
 import { useStore } from "../../../state/store";
+import { useLogDir } from "../../server/useLogDir";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
@@ -191,7 +192,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const syncing = useStore((state) => state.app.status.syncing);
   const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logDetails = useLogDetails(logDir);
   // Defer the detail map so a burst of detail flushes during initial sync
   // can't block click/scroll input — the grid renders from the prior value

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 
 import { useSamplesRouteParams } from "../app/routing/url";
+import { useLogDir } from "../app/server/useLogDir";
+import { isSingleFileMode } from "../app/singleFileMode";
 
 import { useLogs } from "./hooks";
 import { useLogHandles } from "./logsContent";
@@ -17,7 +19,7 @@ export const useLoadLog = () => {
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const selectSample = useStore((state) => state.logActions.selectSample);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logs = useLogHandles(logDir);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
@@ -26,7 +28,9 @@ export const useLoadLog = () => {
   useEffect(() => {
     const exec = async () => {
       if (routeLogPath && sampleId && epoch) {
-        if (!logDir) {
+        // Dir mode resolves logDir via the gated query before this route
+        // mounts; only single-file mode needs to derive it on demand.
+        if (isSingleFileMode && !logDir) {
           await initLogDir();
         }
 

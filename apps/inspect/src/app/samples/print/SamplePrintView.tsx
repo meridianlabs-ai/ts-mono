@@ -31,6 +31,7 @@ import { useLoadSample } from "../../../state/useLoadSample";
 import { usePollSample } from "../../../state/usePollSample";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
+import { isSingleFileMode } from "../../singleFileMode";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 
@@ -56,15 +57,17 @@ export const SamplePrintView: FC = () => {
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   useEffect(() => {
     const loadLogAndSample = async () => {
       if (logPath && sampleId && epoch) {
-        await initLogDir();
+        // Single-file mode derives its log dir here; dir mode resolves it via
+        // the gated query and owns replication through <ReplicationController>.
+        if (isSingleFileMode) {
+          await initLogDir();
+        }
         setSelectedLogFile(logPath);
-        void syncLogs();
 
         const targetEpoch = parseInt(epoch, 10);
         if (!isNaN(targetEpoch)) {
@@ -73,15 +76,7 @@ export const SamplePrintView: FC = () => {
       }
     };
     void loadLogAndSample();
-  }, [
-    logPath,
-    sampleId,
-    epoch,
-    initLogDir,
-    setSelectedLogFile,
-    syncLogs,
-    selectSample,
-  ]);
+  }, [logPath, sampleId, epoch, initLogDir, setSelectedLogFile, selectSample]);
 
   // Get sample data
   const sampleData = useSampleData();

@@ -4,6 +4,7 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
+import { getLogDir } from "../app/server/useLogDir";
 import {
   deriveSingleFileLogDir,
   isSingleFileMode,
@@ -21,24 +22,26 @@ import { isUri, join } from "../utils/uri";
 
 import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
-import { replicationService } from "./sync/replicationService";
+import {
+  ApplicationContext,
+  replicationService,
+} from "./sync/replicationService";
 
 const log = createLogger("Log Slice");
 
 export interface LogsSlice {
   logs: LogsState;
   logsActions: {
-    // Update State
+    // Update State (single-file mode only; dir mode sources logDir from the
+    // gated `["log-dir"]` query — see useLogDir.ts).
     setLogDir: (logDir?: string) => void;
-    setLogHandles: (logHandles: LogHandle[]) => void;
 
-    updateLogPreviews: (previews: Record<string, LogPreview>) => void;
     syncLogPreviews: (logs: LogHandle[]) => Promise<void>;
-
-    updateLogDetails: (details: Record<string, LogDetails>) => void;
 
     // Fetch or update logs
     initLogDir: () => Promise<string | undefined>;
+    activateReplication: (logDir: string) => Promise<void>;
+    deactivateReplication: () => void;
     ensureReplication: () => Promise<void>;
     syncLogs: () => Promise<LogHandle[]>;
 
@@ -114,6 +117,66 @@ export const createLogsSlice = (
   _store: unknown,
   api: ClientAPI
 ): [LogsSlice, () => void] => {
+  // Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
+  // DatabaseService once its database is open, or undefined if unavailable.
+  const openLogDirDatabase = async (
+    logDir: string
+  ): Promise<DatabaseService | undefined> => {
+    const databaseService = get().databaseService;
+    if (!databaseService) {
+      return undefined;
+    }
+    try {
+      await databaseService.openDatabase(api.get_log_dir_handle(logDir));
+      return databaseService;
+    } catch (e) {
+      console.log(e);
+      get().appActions.setLoading(false, e as Error);
+      return undefined;
+    }
+  };
+
+  // Build the replication context for `logDir`. Content writes go straight to
+  // the react-query cache (`logsContent.*`) keyed by the captured `logDir`; the
+  // remaining callbacks bridge to zustand UI state.
+  const replicationContext = (logDir: string): ApplicationContext => ({
+    setLogHandles: (logs: LogHandle[]) =>
+      logsContent.setLogHandles(logDir, logs),
+    getSelectedLog: () => {
+      const selectedLogFile = get().logs.selectedLogFile;
+      if (!selectedLogFile) {
+        return undefined;
+      }
+      return logsContent
+        .getLogsContent(logDir)
+        .handles.find((handle) => handle.name.endsWith(selectedLogFile));
+    },
+    setSelectedLogFile: (logFile: string) => {
+      get().logsActions.setSelectedLogFile(logFile);
+    },
+    updateLogPreviews: (previews: Record<string, LogPreview>) =>
+      logsContent.mergeLogPreviews(logDir, previews),
+    updateLogDetails: (details: Record<string, LogDetails>) =>
+      logsContent.mergeLogDetails(logDir, details),
+    setLoading(loading: boolean) {
+      get().appActions.setLoading(loading);
+    },
+    setBackgroundSyncing(syncing: boolean) {
+      set((state) => {
+        state.app.status.syncing = syncing;
+      });
+    },
+    setDbStats(stats: {
+      logCount: number;
+      previewCount: number;
+      detailsCount: number;
+    }) {
+      set((state) => {
+        state.logs.dbStats = stats;
+      });
+    },
+  });
+
   const slice = {
     // State
     logs: initialState,
@@ -141,12 +204,6 @@ export const createLogsSlice = (
           }
         });
       },
-      // Log content (handles/previews/details) lives in the react-query cache,
-      // not zustand. These actions are thin shims still used by the single-log
-      // slice and App callers (the replication sync context now writes
-      // logsContent directly); they retire in the logDir-extraction phase.
-      setLogHandles: (logs: LogHandle[]) =>
-        logsContent.setLogHandles(get().logs.logDir, logs),
       syncLogPreviews: async (logs: LogHandle[]) => {
         try {
           await replicationService.loadLogPreviews({ logs });
@@ -154,11 +211,6 @@ export const createLogsSlice = (
           console.error("Failed to sync log previews", e);
         }
       },
-      updateLogPreviews: (previews: Record<string, LogPreview>) =>
-        logsContent.mergeLogPreviews(get().logs.logDir, previews),
-
-      updateLogDetails: (details: Record<string, LogDetails>) =>
-        logsContent.mergeLogDetails(get().logs.logDir, details),
       setSamplesGridState: (
         scope: "samplesPanel",
         gridState: GridState | undefined
@@ -205,159 +257,105 @@ export const createLogsSlice = (
           state.logs.samplesListState.previousSamplesPath = path;
         });
       },
+      // Single-file mode only: derive the log dir from the selected file and
+      // store it in zustand (where `useLogDir`/`getLogDir`'s single-file branch
+      // reads it). In dir mode the log dir comes from the gated `["log-dir"]`
+      // query, not here, so this is a no-op there.
       initLogDir: async () => {
+        if (!isSingleFileMode) {
+          return getLogDir();
+        }
+
         const state = get();
-
-        let logDir: string | undefined;
-        let absLogDir: string | undefined;
-
-        if (isSingleFileMode) {
-          // No directory listing to fetch — derive the log dir from the
-          // selected file. Re-deriving against the same file would just
-          // produce the same answer, so short-circuit if it's already set.
-          if (state.logs.logDir !== undefined) return state.logs.logDir;
-          logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
-          // For bare-basename deep links there's no dir to derive; fall back
-          // to the server's configured log dir (cheap — no walk).
-          if (logDir === undefined) {
-            try {
-              logDir = await api.get_log_dir();
-            } catch (e) {
-              console.log(e);
-            }
-          }
-        } else {
+        // Re-deriving against the same file would just produce the same answer,
+        // so short-circuit if it's already set.
+        if (state.logs.logDir !== undefined) return state.logs.logDir;
+        let logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+        // For bare-basename deep links there's no dir to derive; fall back
+        // to the server's configured log dir (cheap — no walk).
+        if (logDir === undefined) {
           try {
-            const root = await api.get_log_root();
-            logDir = root.log_dir;
-            absLogDir = root.abs_log_dir;
+            logDir = await api.get_log_dir();
           } catch (e) {
             console.log(e);
-            get().appActions.setLoading(false, e as Error);
-            // Fall through with undefined to clear any stale state below.
           }
         }
 
         if (get().logs.logDir !== logDir) {
           get().logsActions.setLogDir(logDir);
         }
-        if (get().logs.absLogDir !== absLogDir) {
-          set((state) => {
-            state.logs.absLogDir = absLogDir;
-          });
-        }
         return logDir;
       },
+      // Open the per-dir database and start dir-mode replication for `logDir`,
+      // then run an initial sync. Owned by <ReplicationController>, which calls
+      // this on mount (dir mode only). Idempotent: if replication is already
+      // active for this dir's database, it just re-syncs.
+      activateReplication: async (logDir: string) => {
+        const databaseService = await openLogDirDatabase(logDir);
+        if (!databaseService) {
+          throw new Error("Database service not available");
+        }
+
+        await replicationService.startReplication(
+          databaseService,
+          api,
+          replicationContext(logDir)
+        );
+
+        await replicationService.sync(true);
+      },
+      deactivateReplication: () => {
+        replicationService.stopReplication();
+      },
+      // Re-sync the current dir-mode session (replication is activated by
+      // <ReplicationController>). In single-file mode there's no dir listing to
+      // sync, so this is a no-op beyond clearing the loading flag.
       ensureReplication: async () => {
-        const state = get();
-        if (state.logs.logDir) {
-          await state.logsActions.syncLogs();
+        if (getLogDir()) {
+          await get().logsActions.syncLogs();
         }
       },
       syncLogs: async () => {
-        const databaseService = get().databaseService;
         get().appActions.setLoading(true);
 
-        // Determine the log directory
-        const logDir = await get().logsActions.initLogDir();
-        const databaseHandle = api.get_log_dir_handle(logDir);
+        const logDir = getLogDir();
 
-        // Setup up the database service
-        const initDatabase =
+        // No dir listing in single-file mode (or when no root is configured) —
+        // nothing to replicate. Clear loading unless an error is already set.
+        if (!logDir || isSingleFileMode) {
+          if (!get().app.status.error) {
+            get().appActions.setLoading(false);
+          }
+          return [];
+        }
+
+        // Ensure the per-dir DB is open and replication is active. The
+        // controller normally does this on mount; re-do it here defensively so
+        // a re-sync triggered before activation (or after a teardown) still
+        // works. startReplication is idempotent.
+        const databaseService = get().databaseService;
+        const databaseHandle = api.get_log_dir_handle(logDir);
+        const needsActivation =
+          !replicationService.isReplicating() ||
           !databaseService ||
           databaseService.getDatabaseHandle() !== databaseHandle;
 
-        if (initDatabase) {
-          // Initialize the database
-          const initializeDatabase = async (
-            logDir?: string
-          ): Promise<DatabaseService | undefined> => {
-            if (!logDir) {
-              // No database service available
-              return undefined;
-            }
-
-            try {
-              const databaseService = get().databaseService;
-              if (!databaseService) {
-                return undefined;
-              }
-              await databaseService.openDatabase(databaseHandle);
-              return databaseService;
-            } catch (e) {
-              console.log(e);
-              get().appActions.setLoading(false, e as Error);
-              return;
-            }
-          };
-
-          // Don't enable syncing if there is no log directory.
-          // initLogDir may have already called setLoading(false, e) via its own
-          // catch block; the counter is clamped at zero so the extra decrement
-          // here is safe, and we avoid overwriting a non-null error by only
-          // calling setLoading(false) when no error was already recorded.
-          if (!logDir || isSingleFileMode) {
-            if (!get().app.status.error) {
-              get().appActions.setLoading(false);
-            }
-            return [];
-          }
-
-          // Activate the database for this log directory
-          const databaseService = await initializeDatabase(logDir);
-          if (!databaseService) {
-            // No database service available
+        if (needsActivation) {
+          const opened = await openLogDirDatabase(logDir);
+          if (!opened) {
             throw new Error("Database service not available");
           }
-
-          // Activate replication for this database
-          await replicationService.startReplication(databaseService, api, {
-            setLogHandles: (logs: LogHandle[]) =>
-              logsContent.setLogHandles(logDir, logs),
-            getSelectedLog: () => {
-              const state = get();
-              if (!state.logs.selectedLogFile) {
-                return undefined;
-              }
-              return logsContent
-                .getLogsContent(state.logs.logDir)
-                .handles.find((handle) =>
-                  handle.name.endsWith(state.logs.selectedLogFile!)
-                );
-            },
-            setSelectedLogFile: (logFile: string) => {
-              const state = get();
-              state.logsActions.setSelectedLogFile(logFile);
-            },
-            updateLogPreviews: (previews: Record<string, LogPreview>) =>
-              logsContent.mergeLogPreviews(logDir, previews),
-            updateLogDetails: (details: Record<string, LogDetails>) =>
-              logsContent.mergeLogDetails(logDir, details),
-            setLoading(loading: boolean) {
-              const state = get();
-              state.appActions.setLoading(loading);
-            },
-            setBackgroundSyncing(syncing: boolean) {
-              set((state) => {
-                state.app.status.syncing = syncing;
-              });
-            },
-            setDbStats(stats: {
-              logCount: number;
-              previewCount: number;
-              detailsCount: number;
-            }) {
-              set((state) => {
-                state.logs.dbStats = stats;
-              });
-            },
-          });
+          await replicationService.startReplication(
+            opened,
+            api,
+            replicationContext(logDir)
+          );
         }
 
         get().appActions.setLoading(false);
 
-        // Sync
-        return (await replicationService.sync(initDatabase)) || [];
+        // Sync (show progress when we just (re)activated replication)
+        return (await replicationService.sync(needsActivation)) || [];
       },
       syncEvalSetInfo: async (logPath?: string) => {
         const info = await api.get_eval_set(logPath);
@@ -375,28 +373,29 @@ export const createLogsSlice = (
       // Select a specific log file
       setSelectedLogFile: async (logFile: string) => {
         const state = get();
+        const logDir = getLogDir();
         const isInFileList =
           logsContent
-            .getLogsContent(state.logs.logDir)
+            .getLogsContent(logDir)
             .handles.findIndex((val) => val.name.endsWith(logFile)) !== -1;
 
         if (!isInFileList) {
           if (replicationService.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = logsContent
-              .getLogsContent(get().logs.logDir)
+              .getLogsContent(getLogDir())
               .handles.find((val) => val.name.endsWith(logFile));
             if (!logHandle) {
               throw new Error(`Log file not found: ${logFile}`);
             }
           } else {
-            state.logsActions.setLogHandles([{ name: logFile }]);
+            logsContent.setLogHandles(logDir, [{ name: logFile }]);
           }
         }
         set((state) => {
           const absoluteLogfile = isUri(logFile)
             ? logFile
-            : join(logFile, state.logs.logDir);
+            : join(logFile, getLogDir());
           state.logs.selectedLogFile = absoluteLogfile;
         });
       },

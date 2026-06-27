@@ -11,6 +11,7 @@ import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useStore } from "../../../state/store";
+import { useAbsLogDir, useLogDir } from "../../server/useLogDir";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
@@ -38,9 +39,9 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
-  const absLogDir = useStore((state) => state.logs.absLogDir);
+  const absLogDir = useAbsLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
   const tagList = tags ?? [];

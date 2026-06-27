@@ -1,7 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
+import { ClientAPI, LogDetails } from "../client/api/types";
 
+import * as logsContent from "./logsContent";
 import { createLogSlice } from "./logSlice";
 import { StoreState } from "./store";
 
@@ -23,11 +24,11 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
   });
   const get = () => state;
 
-  // Log content lives in the react-query cache now; the slice calls this
-  // action shim, so the mock just records the call for assertions.
-  const updateLogPreviews = vi.fn(
-    (_previews: Record<string, LogPreview>) => {}
-  );
+  // Log content lives in the react-query cache; syncLog writes previews
+  // directly via logsContent. Spy on the merge so we can assert against it.
+  const mergeLogPreviews = vi
+    .spyOn(logsContent, "mergeLogPreviews")
+    .mockImplementation(() => {});
 
   const databaseService = {
     opened: vi.fn(() => true),
@@ -50,7 +51,6 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     },
     logsActions: {
       initLogDir: vi.fn().mockResolvedValue("/logs"),
-      updateLogPreviews,
     },
   } as unknown as StoreState);
 
@@ -63,7 +63,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     cleanup,
     databaseService,
     state,
-    updateLogPreviews,
+    mergeLogPreviews,
   };
 };
 
@@ -80,12 +80,13 @@ describe("logSlice.syncLog", () => {
       "/logs/run.eval",
       false
     );
-    expect(harness.updateLogPreviews).toHaveBeenCalledTimes(1);
+    expect(harness.mergeLogPreviews).toHaveBeenCalledTimes(1);
     expect(
-      harness.updateLogPreviews.mock.calls[0]?.[0]["run.eval"]?.status
+      harness.mergeLogPreviews.mock.calls[0]?.[1]["run.eval"]?.status
     ).toBe("success");
     expect(harness.state.log.selectedLogDetails?.status).toBe("success");
 
+    harness.mergeLogPreviews.mockRestore();
     harness.cleanup();
   });
 });

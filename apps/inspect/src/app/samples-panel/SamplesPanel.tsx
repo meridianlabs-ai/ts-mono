@@ -26,6 +26,7 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigation } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import {
@@ -67,7 +68,7 @@ const completedAtTime = (row: SampleRow): number => {
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
   const { loadLogs } = useLogs();
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const loading = useStore((state) => state.app.status.loading);
   const syncing = useStore((state) => state.app.status.syncing);

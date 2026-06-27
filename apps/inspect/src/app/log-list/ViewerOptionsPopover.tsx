@@ -7,6 +7,7 @@ import { DB_VERSION } from "../../client/database/schema";
 import { useStore } from "../../state/store";
 import { replicationService } from "../../state/sync/replicationService";
 import { useAppConfig } from "../server/useAppConfig";
+import { useLogDir } from "../server/useLogDir";
 
 import styles from "./ViewerOptionsPopover.module.css";
 
@@ -26,7 +27,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
   const dbStats = useStore((state) => state.logs.dbStats);
   const appConfig = useAppConfig();
 
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const handleClearDatabase = () => {
     setIsClearing(true);

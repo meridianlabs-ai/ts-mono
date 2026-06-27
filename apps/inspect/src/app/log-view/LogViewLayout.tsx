@@ -13,6 +13,7 @@ import { useLogHandles } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
+import { useLogDir } from "../server/useLogDir";
 import { isSingleFileMode } from "../singleFileMode";
 
 import { LogView } from "./LogView";
@@ -31,7 +32,7 @@ export const LogViewLayout: FC = () => {
   const hideFind = useStore((state) => state.appActions.hideFind);
 
   // Logs Data
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logFiles = useLogHandles(logDir);
 
   // Route params

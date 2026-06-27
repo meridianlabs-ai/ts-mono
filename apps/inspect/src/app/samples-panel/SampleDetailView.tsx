@@ -12,6 +12,7 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
+import { useLogDir } from "../server/useLogDir";
 import { isSingleFileMode } from "../singleFileMode";
 
 /**
@@ -43,7 +44,7 @@ export const SampleDetailView: FC = () => {
 
   // Get store state for navigation
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const displayedSamples = useStore(
     (state) => state.logs.samplesListState.displayedSamples
   );

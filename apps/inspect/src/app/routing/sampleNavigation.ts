@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFilteredSamples } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl } from "../../utils/uri";
+import { useLogDir } from "../server/useLogDir";
 import { openInNewTab } from "../shared/openInNewTab";
 import { sampleIdsEqual } from "../shared/sample";
 
@@ -19,7 +20,7 @@ import {
 export const useLogNavigation = () => {
   const navigate = useNavigate();
   const { logPath: routeLogPath } = useLogRouteParams();
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const loadedLog = useStore((state) => state.log.loadedLog);
   const prefix = useRoutePrefix();
 
@@ -48,7 +49,7 @@ export const useSampleUrl = () => {
   const { logPath, sampleTabId } = useLogRouteParams();
   const prefix = useRoutePrefix();
 
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
@@ -101,7 +102,7 @@ export const useSampleNavigation = () => {
   const prefix = useRoutePrefix();
 
   // The log directory
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   // The log
   const { logPath, tabId, sampleTabId } = useLogRouteParams();
@@ -267,7 +268,7 @@ export const useSampleDetailNavigation = () => {
  */
 export const useSamplesGridNavigation = () => {
   const navigate = useNavigate();
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   const navigateToSampleDetail = useCallback(
     (

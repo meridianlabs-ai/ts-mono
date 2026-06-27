@@ -11,6 +11,7 @@ import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
+import { useLogDir } from "../../../server/useLogDir";
 import {
   ColumnComparator,
   ExtendedColumnDef,
@@ -103,7 +104,7 @@ export const useLogListColumns = (
   const setColumnVisibility = useStore(
     (state) => state.logsActions.setLogsColumnVisibility
   );
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logDetails = useLogDetails(logDir);
 
   // `logDetails` gets a new identity on every detail flush while a
