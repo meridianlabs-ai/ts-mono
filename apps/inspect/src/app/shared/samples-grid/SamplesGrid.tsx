@@ -16,56 +16,46 @@ import {
 import { ExtendedColumnDef } from "../data-grid/columnTypes";
 import { DataGrid } from "../data-grid/DataGrid";
 
-export type SamplesGridViewMode = "list" | "grid";
+import { SampleRow } from "./types";
 
 const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
 
-interface SamplesGridProps<TRow> {
-  rowData: TRow[];
-  columnDefs: ExtendedColumnDef<TRow>[];
+interface SamplesGridProps {
+  rowData: SampleRow[];
+  columnDefs: ExtendedColumnDef<SampleRow>[];
   /** Controlled column visibility keyed by column id; missing entries
    *  default to visible. */
   columnVisibility?: Record<string, boolean>;
-  viewMode: SamplesGridViewMode;
-  /** `true` = list-style tall rows; `false` = compact rows. Falls back to
-   *  `viewMode === "list"` when unset. Affects row height only. */
+  /** `true` = list-style tall rows; otherwise compact. Affects row height. */
   multiline?: boolean;
   /** Initial sort applied until the user clicks a header (e.g. the cross-log
    *  panel seeds Completed-desc). */
   defaultSorting?: SortingState;
-  getRowId: (row: TRow) => string;
+  getRowId: (row: SampleRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
-  onRowOpen: (
-    row: TRow,
-    opts: { newWindow: boolean; via: "click" | "key" }
-  ) => void;
+  onRowOpen: (row: SampleRow) => void;
   loading?: boolean;
-  className?: string;
 }
 
 /**
  * Shared samples grid: a `DataGrid` wrapper that runs client-side sort +
- * per-column filtering over `rowData` via the listing query (the same engine
- * the log list uses). Sort/filter state is local to the grid; persistence is
- * not wired yet.
+ * per-column filtering over its rows via the same listing query the log list
+ * uses. Sort/filter state is local to the grid; persistence is not wired yet.
  */
-export const SamplesGrid = <TRow,>({
+export const SamplesGrid = ({
   rowData,
   columnDefs,
   columnVisibility,
-  viewMode,
   multiline,
   defaultSorting,
   getRowId,
   selectedRowId,
   onRowOpen,
   loading,
-  className,
-}: SamplesGridProps<TRow>): ReactElement => {
-  const isTall = multiline ?? viewMode === "list";
-  const rowHeight = isTall ? kListModeRowHeight : kGridModeRowHeight;
+}: SamplesGridProps): ReactElement => {
+  const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
   const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
   const [columnFilters, setColumnFilters] = useState<
@@ -74,7 +64,7 @@ export const SamplesGrid = <TRow,>({
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
-    const map = new Map<string, ExtendedColumnDef<TRow>>();
+    const map = new Map<string, ExtendedColumnDef<SampleRow>>();
     for (const col of columnDefs) {
       if (col.id) map.set(col.id, col);
     }
@@ -82,7 +72,7 @@ export const SamplesGrid = <TRow,>({
   }, [columnDefs]);
 
   const getValue = useCallback(
-    (row: TRow, columnId: string): unknown => {
+    (row: SampleRow, columnId: string): unknown => {
       const col = columnsById.get(columnId);
       if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
         return col.accessorFn(row, 0);
@@ -105,7 +95,7 @@ export const SamplesGrid = <TRow,>({
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
-  const { items } = useLogsListingQuery<TRow>({
+  const { items } = useLogsListingQuery<SampleRow>({
     rows: rowData,
     filter,
     orderBy,
@@ -131,7 +121,7 @@ export const SamplesGrid = <TRow,>({
   );
 
   return (
-    <DataGrid<TRow>
+    <DataGrid<SampleRow>
       data={items}
       columns={columnDefs}
       getRowId={getRowId}
@@ -141,12 +131,9 @@ export const SamplesGrid = <TRow,>({
       columnFilters={columnFilters}
       onColumnFilterChange={handleColumnFilterChange}
       selectedRowId={selectedRowId}
-      onRowActivate={(row) =>
-        onRowOpen(row, { newWindow: false, via: "click" })
-      }
+      onRowActivate={onRowOpen}
       rowHeight={rowHeight}
       loading={loading}
-      className={className}
     />
   );
 };

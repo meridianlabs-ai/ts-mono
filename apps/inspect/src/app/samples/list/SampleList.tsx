@@ -22,7 +22,6 @@ interface SampleListProps {
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
-  className?: string;
   /** Row layout. `true` = list-style multi-line rows; `false` = compact. */
   multiline?: boolean;
 }
@@ -38,7 +37,6 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     earlyStopping,
     totalItemCount,
     running,
-    className,
     multiline,
   } = props;
 
@@ -123,16 +121,14 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
           key={`sample-warning-message-${warning.type}-${warning.msg}`}
         />
       ))}
-      <SamplesGrid<SampleRow>
+      <SamplesGrid
         rowData={items}
         columnDefs={columns}
         columnVisibility={columnVisibility}
-        viewMode="list"
         multiline={multiline}
         getRowId={getRowId}
         selectedRowId={selectedRowId}
         onRowOpen={handleRowOpen}
-        className={className}
       />
       <SampleFooter
         sampleCount={sampleCount}

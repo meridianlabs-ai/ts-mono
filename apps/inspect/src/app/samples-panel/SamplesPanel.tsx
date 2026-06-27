@@ -329,13 +329,8 @@ export const SamplesPanel: FC = () => {
 
   const { navigateToSampleDetail } = useSamplesGridNavigation();
   const handleRowOpen = useCallback(
-    (row: SampleRow, opts: { newWindow: boolean }) => {
-      navigateToSampleDetail(
-        row.logFile,
-        row.sampleId,
-        row.epoch,
-        opts.newWindow
-      );
+    (row: SampleRow) => {
+      navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);
     },
     [navigateToSampleDetail]
   );
@@ -421,11 +416,10 @@ export const SamplesPanel: FC = () => {
 
       <ActivityBar animating={!!loading} />
       <div className={clsx(styles.list, "text-size-smaller")}>
-        <SamplesGrid<SampleRow>
+        <SamplesGrid
           rowData={sampleRows}
           columnDefs={allColumns}
           columnVisibility={visibilityForGrid}
-          viewMode="grid"
           defaultSorting={kSamplesPanelDefaultSorting}
           getRowId={getRowId}
           selectedRowId={selectedRowId}
