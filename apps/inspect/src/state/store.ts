@@ -21,7 +21,6 @@ import {
 } from "./sampleSlice";
 import { createSearchSlice, SearchSlice } from "./searchSlice";
 import { filterState } from "./store_filter";
-import { ReplicationService } from "./sync/replicationService";
 
 const log = createLogger("store");
 
@@ -29,9 +28,6 @@ export interface StoreState
   extends AppSlice, LogsSlice, LogSlice, SampleSlice, SearchSlice {
   // The shared database service
   databaseService?: DatabaseService | null;
-
-  // The shared replication service
-  replicationService?: ReplicationService | null;
 
   // Global actions
   initialize: (capabilities: Capabilities) => void;
@@ -123,19 +119,14 @@ export const initializeStore = (
           // Create a shared database service instance
           const databaseService = createDatabaseService();
 
-          // The replication service
-          const replicationService = new ReplicationService();
-
           return {
             // Shared state
             databaseService,
-            replicationService,
 
             // Initialize
             initialize: (capabilities) => {
               set((state) => {
                 state.databaseService = databaseService;
-                state.replicationService = replicationService;
               });
 
               // Initialize application slices

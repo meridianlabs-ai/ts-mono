@@ -5,6 +5,7 @@ import { PopOver } from "@tsmono/react/components";
 
 import { DB_VERSION } from "../../client/database/schema";
 import { useStore } from "../../state/store";
+import { replicationService } from "../../state/sync/replicationService";
 import { useAppConfig } from "../server/useAppConfig";
 
 import styles from "./ViewerOptionsPopover.module.css";
@@ -22,19 +23,12 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
-  const replicationService = useStore((state) => state.replicationService);
   const dbStats = useStore((state) => state.logs.dbStats);
   const appConfig = useAppConfig();
 
   const logDir = useStore((state) => state.logs.logDir);
 
   const handleClearDatabase = () => {
-    if (!replicationService) {
-      setClearMessage("Database service not available");
-      setTimeout(() => setClearMessage(null), 3000);
-      return;
-    }
-
     setIsClearing(true);
     setClearMessage(null);
 

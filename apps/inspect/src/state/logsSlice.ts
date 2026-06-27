@@ -21,6 +21,7 @@ import { isUri, join } from "../utils/uri";
 
 import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
+import { replicationService } from "./sync/replicationService";
 
 const log = createLogger("Log Slice");
 
@@ -141,18 +142,14 @@ export const createLogsSlice = (
         });
       },
       // Log content (handles/previews/details) lives in the react-query cache,
-      // not zustand. These actions are thin shims so the sync context, the
-      // singular log slice, and App callers keep their existing call sites.
+      // not zustand. These actions are thin shims still used by the single-log
+      // slice and App callers (the replication sync context now writes
+      // logsContent directly); they retire in the logDir-extraction phase.
       setLogHandles: (logs: LogHandle[]) =>
         logsContent.setLogHandles(get().logs.logDir, logs),
       syncLogPreviews: async (logs: LogHandle[]) => {
-        const state = get();
-        if (!state.replicationService) {
-          console.error("Replication service not initialized in LogsStore");
-          return;
-        }
         try {
-          await state.replicationService?.loadLogPreviews({ logs });
+          await replicationService.loadLogPreviews({ logs });
         } catch (e) {
           console.error("Failed to sync log previews", e);
         }
@@ -314,57 +311,53 @@ export const createLogsSlice = (
           }
 
           // Activate replication for this database
-          await get().replicationService?.startReplication(
-            databaseService,
-            api,
-            {
-              setLogHandles: (logs: LogHandle[]) =>
-                logsContent.setLogHandles(logDir, logs),
-              getSelectedLog: () => {
-                const state = get();
-                if (!state.logs.selectedLogFile) {
-                  return undefined;
-                }
-                return logsContent
-                  .getLogsContent(state.logs.logDir)
-                  .handles.find((handle) =>
-                    handle.name.endsWith(state.logs.selectedLogFile!)
-                  );
-              },
-              setSelectedLogFile: (logFile: string) => {
-                const state = get();
-                state.logsActions.setSelectedLogFile(logFile);
-              },
-              updateLogPreviews: (previews: Record<string, LogPreview>) =>
-                logsContent.mergeLogPreviews(logDir, previews),
-              updateLogDetails: (details: Record<string, LogDetails>) =>
-                logsContent.mergeLogDetails(logDir, details),
-              setLoading(loading: boolean) {
-                const state = get();
-                state.appActions.setLoading(loading);
-              },
-              setBackgroundSyncing(syncing: boolean) {
-                set((state) => {
-                  state.app.status.syncing = syncing;
-                });
-              },
-              setDbStats(stats: {
-                logCount: number;
-                previewCount: number;
-                detailsCount: number;
-              }) {
-                set((state) => {
-                  state.logs.dbStats = stats;
-                });
-              },
-            }
-          );
+          await replicationService.startReplication(databaseService, api, {
+            setLogHandles: (logs: LogHandle[]) =>
+              logsContent.setLogHandles(logDir, logs),
+            getSelectedLog: () => {
+              const state = get();
+              if (!state.logs.selectedLogFile) {
+                return undefined;
+              }
+              return logsContent
+                .getLogsContent(state.logs.logDir)
+                .handles.find((handle) =>
+                  handle.name.endsWith(state.logs.selectedLogFile!)
+                );
+            },
+            setSelectedLogFile: (logFile: string) => {
+              const state = get();
+              state.logsActions.setSelectedLogFile(logFile);
+            },
+            updateLogPreviews: (previews: Record<string, LogPreview>) =>
+              logsContent.mergeLogPreviews(logDir, previews),
+            updateLogDetails: (details: Record<string, LogDetails>) =>
+              logsContent.mergeLogDetails(logDir, details),
+            setLoading(loading: boolean) {
+              const state = get();
+              state.appActions.setLoading(loading);
+            },
+            setBackgroundSyncing(syncing: boolean) {
+              set((state) => {
+                state.app.status.syncing = syncing;
+              });
+            },
+            setDbStats(stats: {
+              logCount: number;
+              previewCount: number;
+              detailsCount: number;
+            }) {
+              set((state) => {
+                state.logs.dbStats = stats;
+              });
+            },
+          });
         }
 
         get().appActions.setLoading(false);
 
         // Sync
-        return (await get().replicationService?.sync(initDatabase)) || [];
+        return (await replicationService.sync(initDatabase)) || [];
       },
       syncEvalSetInfo: async (logPath?: string) => {
         const info = await api.get_eval_set(logPath);
@@ -388,7 +381,7 @@ export const createLogsSlice = (
             .handles.findIndex((val) => val.name.endsWith(logFile)) !== -1;
 
         if (!isInFileList) {
-          if (state.replicationService?.isReplicating() && !isSingleFileMode) {
+          if (replicationService.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = logsContent
               .getLogsContent(get().logs.logDir)

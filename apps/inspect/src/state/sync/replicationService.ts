@@ -550,3 +550,11 @@ export class ReplicationService {
     this._detailQueue.enqueue(logs, priority);
   }
 }
+
+/**
+ * Shared ReplicationService singleton. It's a server-replication helper, not
+ * client state, so it lives as a module singleton (like `queryClient`) rather
+ * than in the zustand store. Born inert; `startReplication(db, api, context)`
+ * injects its dependencies.
+ */
+export const replicationService = new ReplicationService();
