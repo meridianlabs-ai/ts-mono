@@ -7,7 +7,12 @@ import {
   LogInfo,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
-import { getVscodeApi } from "@tsmono/util";
+import {
+  getVscodeApi,
+  JsonRpcClient,
+  kJsonRpcMethodNotFound,
+  webViewJsonRpcClient,
+} from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
 import {
@@ -26,7 +31,6 @@ import {
 import { ApiError } from "../view-server/request";
 
 import {
-  kJsonRpcMethodNotFound,
   kMethodAppConfig,
   kMethodEditLog,
   kMethodEvalLog,
@@ -40,7 +44,6 @@ import {
   kMethodLogMessage,
   kMethodPendingSamples,
   kMethodSampleData,
-  webViewJsonRpcClient,
 } from "./jsonrpc";
 
 const kNotFoundSignal = "NotFound";
@@ -51,7 +54,21 @@ const kNotModifiedSignal = "NotModified";
 const asRpcError = (e: unknown): { code?: number; message?: string } =>
   typeof e === "object" && e !== null ? e : {};
 
-const vscodeClient = webViewJsonRpcClient(getVscodeApi());
+// This module is imported eagerly even outside VS Code, but the client is only
+// ever exercised from the VS Code branch of resolveApi(). Build it lazily so
+// the transport receives a definite VSCodeApi rather than threading
+// `| undefined` through every signature.
+let _vscodeClient: JsonRpcClient | undefined;
+const vscodeClient: JsonRpcClient = (method, params) => {
+  if (!_vscodeClient) {
+    const vscode = getVscodeApi();
+    if (!vscode) {
+      throw new Error("VS Code API is not available in this environment.");
+    }
+    _vscodeClient = webViewJsonRpcClient(vscode);
+  }
+  return _vscodeClient(method, params);
+};
 
 function client_events(): Promise<string[]> {
   return Promise.resolve([]);
