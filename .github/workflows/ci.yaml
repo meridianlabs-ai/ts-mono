@@ -13,9 +13,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -42,9 +42,9 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -53,7 +53,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -68,9 +68,9 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -79,7 +79,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -94,9 +94,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -105,7 +105,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -120,9 +120,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -131,7 +131,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -147,9 +147,9 @@ jobs:
     continue-on-error: true  # TODO: remove once e2e tests prove stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -166,7 +166,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: apps/scout/playwright-report/
