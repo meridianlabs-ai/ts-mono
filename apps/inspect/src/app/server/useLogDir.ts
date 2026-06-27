@@ -3,16 +3,17 @@ import { AsyncData } from "@tsmono/util";
 
 import { LogRoot } from "../../client/api/types";
 import { queryClient } from "../../state/queryClient";
-import { storeImplementation, useApi, useStore } from "../../state/store";
+import { useApi } from "../../state/store";
 import { isSingleFileMode } from "../singleFileMode";
 
 export const logDirKey = ["log-dir"] as const;
 
 /**
- * Loads the server log root (`log_dir` + `abs_log_dir`) asynchronously. Gated in
- * `AppLayout`'s dir-mode branch — see
- * `design/migration/loglist-content-zustand-extraction.md`. Disabled in
- * single-file mode, where the log dir is route-derived (not `get_log_root`).
+ * Loads the server log root (`log_dir` + `abs_log_dir`). In dir mode the gated
+ * `["log-dir"]` query fetches it via `get_log_root`; in single-file mode the
+ * query is disabled and the value is seeded by `setLogDir` (the single-file
+ * loader derives the dir from the selected file). Either way it lands in the
+ * same cache, so the accessors below are mode-agnostic.
  */
 export const useLogRootAsync = (): AsyncData<LogRoot> => {
   const api = useApi();
@@ -28,35 +29,28 @@ const cachedLogRoot = (): LogRoot | undefined =>
   queryClient.getQueryData<LogRoot>(logDirKey);
 
 /**
- * The current log directory. In dir mode it comes from the gated log-root query
- * (resolved below `AppLayout`'s gate); in single-file mode it's the route-derived
- * value the legacy flow stores in zustand. Both hooks are called unconditionally
- * — the branch is a stable module constant.
+ * Seeds the log dir into the `["log-dir"]` cache. Used in single-file mode,
+ * where the dir is derived from the selected file rather than fetched from the
+ * server; dir mode populates the same cache through the query's `queryFn`.
  */
-export const useLogDir = (): string | undefined => {
-  const singleFileLogDir = useStore((s) =>
-    isSingleFileMode ? s.logs.logDir : undefined
-  );
-  const root = useLogRootAsync();
-  return isSingleFileMode ? singleFileLogDir : root.data?.log_dir;
+export const setLogDir = (logDir?: string, absLogDir?: string): void => {
+  queryClient.setQueryData<LogRoot>(logDirKey, {
+    logs: [],
+    log_dir: logDir,
+    abs_log_dir: absLogDir,
+  });
 };
+
+/** The current log directory (from the `["log-dir"]` cache, both modes). */
+export const useLogDir = (): string | undefined =>
+  useLogRootAsync().data?.log_dir;
 
 /** The absolute log directory (dir mode only; single-file leaves it unset). */
-export const useAbsLogDir = (): string | undefined => {
-  const singleFileAbs = useStore((s) =>
-    isSingleFileMode ? s.logs.absLogDir : undefined
-  );
-  const root = useLogRootAsync();
-  return isSingleFileMode ? singleFileAbs : root.data?.abs_log_dir;
-};
+export const useAbsLogDir = (): string | undefined =>
+  useLogRootAsync().data?.abs_log_dir;
 
 /** Non-React accessor for slice / routing code. */
-export const getLogDir = (): string | undefined =>
-  isSingleFileMode
-    ? storeImplementation?.getState().logs.logDir
-    : cachedLogRoot()?.log_dir;
+export const getLogDir = (): string | undefined => cachedLogRoot()?.log_dir;
 
 export const getAbsLogDir = (): string | undefined =>
-  isSingleFileMode
-    ? storeImplementation?.getState().logs.absLogDir
-    : cachedLogRoot()?.abs_log_dir;
+  cachedLogRoot()?.abs_log_dir;

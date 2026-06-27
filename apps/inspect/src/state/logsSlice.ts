@@ -4,7 +4,7 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { getLogDir } from "../app/server/useLogDir";
+import { getLogDir, setLogDir } from "../app/server/useLogDir";
 import {
   deriveSingleFileLogDir,
   isSingleFileMode,
@@ -32,10 +32,6 @@ const log = createLogger("Log Slice");
 export interface LogsSlice {
   logs: LogsState;
   logsActions: {
-    // Update State (single-file mode only; dir mode sources logDir from the
-    // gated `["log-dir"]` query — see useLogDir.ts).
-    setLogDir: (logDir?: string) => void;
-
     syncLogPreviews: (logs: LogHandle[]) => Promise<void>;
 
     // Fetch or update logs
@@ -91,7 +87,6 @@ export interface LogsSlice {
 }
 
 const initialState: LogsState = {
-  logDir: undefined,
   selectedLogFile: undefined as string | undefined,
   listing: {
     columnVisibility: {},
@@ -183,27 +178,6 @@ export const createLogsSlice = (
 
     // Actions
     logsActions: {
-      setLogDir: (logDir?: string) => {
-        set((state) => {
-          const prev = state.logs.logDir;
-          if (logDir === prev) return;
-          state.logs.logDir = logDir;
-          // Only wipe on real dir-to-dir transitions. undefined/"" are
-          // initialization signals (two competing sources race during load
-          // and rehydration) — wiping then would clobber the persisted sort.
-          const realPrev = prev !== undefined && prev !== "";
-          const realNew = logDir !== undefined && logDir !== "";
-          if (realPrev && realNew) {
-            state.logs.samplesListState.byScope.samplesPanel.gridState =
-              undefined;
-            // SampleList per-log state survives the dir change — each log
-            // still owns its own bucket via `byLog[logFile]`. No need to
-            // reset filters/sort here.
-            // listing.gridStateByScope keys are old logDir paths.
-            state.logs.listing.gridStateByScope = {};
-          }
-        });
-      },
       syncLogPreviews: async (logs: LogHandle[]) => {
         try {
           await replicationService.loadLogPreviews({ logs });
@@ -266,11 +240,11 @@ export const createLogsSlice = (
           return getLogDir();
         }
 
-        const state = get();
         // Re-deriving against the same file would just produce the same answer,
-        // so short-circuit if it's already set.
-        if (state.logs.logDir !== undefined) return state.logs.logDir;
-        let logDir = deriveSingleFileLogDir(state.logs.selectedLogFile);
+        // so short-circuit if it's already seeded.
+        const existing = getLogDir();
+        if (existing !== undefined) return existing;
+        let logDir = deriveSingleFileLogDir(get().logs.selectedLogFile);
         // For bare-basename deep links there's no dir to derive; fall back
         // to the server's configured log dir (cheap — no walk).
         if (logDir === undefined) {
@@ -281,9 +255,7 @@ export const createLogsSlice = (
           }
         }
 
-        if (get().logs.logDir !== logDir) {
-          get().logsActions.setLogDir(logDir);
-        }
+        setLogDir(logDir);
         return logDir;
       },
       // Open the per-dir database and start dir-mode replication for `logDir`,

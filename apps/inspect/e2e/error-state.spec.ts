@@ -8,6 +8,12 @@ test.describe("Server error state", () => {
     network,
   }) => {
     network.use(
+      // Stub /api/logs so get_log_root succeeds and the dir-mode gate passes;
+      // the error under test then comes from the log-files endpoint, not a
+      // log-root failure (which the gate would surface differently).
+      http.get("*/api/logs*", () => {
+        return HttpResponse.json({ log_dir: "/home/test/logs" });
+      }),
       http.get("*/api/log-files*", () => {
         return HttpResponse.json(
           { error: "Internal Server Error: database connection failed" },

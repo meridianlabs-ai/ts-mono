@@ -1,19 +1,20 @@
-import { FC, useEffect } from "react";
+import { FC, ReactNode, useEffect } from "react";
 
 import * as logsContent from "../../state/logsContent";
 import { useStore } from "../../state/store";
-import { getLogDir } from "../server/useLogDir";
+import { getLogDir, setLogDir } from "../server/useLogDir";
 
 /**
- * Owns the single-file (direct-load) bootstrap: the legacy URL-param path
- * (`?task_file=` / `?log_file=`) that selects the one log to view. Rendered only
- * in single-file mode (by <LoaderHost>), mirroring <ReplicationController> for
- * the directory loader. The embedded-state (`#logview-state` / VS Code)
- * bootstrap stays in <App>, coupled to the persistent host-message bridge; when
- * it's present this controller defers to it. Returns null.
+ * Single-file (direct-load) loader host. Runs the legacy URL-param bootstrap
+ * (`?task_file=` / `?log_file=`) that selects the one log to view, then renders
+ * its children. Mirrors <DirModeLoaderHost> for the directory loader, and takes
+ * `children` so it can grow into a provider. The embedded-state
+ * (`#logview-state` / VS Code) bootstrap stays in <App>, coupled to the
+ * persistent host-message bridge; when it's present this host defers to it.
  */
-export const DirectLoadController: FC = () => {
-  const setLogDir = useStore((state) => state.logsActions.setLogDir);
+export const SingleFileLoaderHost: FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
@@ -48,7 +49,7 @@ export const DirectLoadController: FC = () => {
     };
 
     void load();
-  }, [setLogDir, initLogDir, setSelectedLogFile]);
+  }, [initLogDir, setSelectedLogFile]);
 
-  return null;
+  return <>{children}</>;
 };

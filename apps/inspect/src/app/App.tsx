@@ -43,7 +43,7 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-import { useLogDir } from "./server/useLogDir.ts";
+import { setLogDir, useLogDir } from "./server/useLogDir.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -115,7 +115,6 @@ const AppContent: FC = () => {
   const setLoading = useStore((state) => state.appActions.setLoading);
 
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
@@ -207,15 +206,7 @@ const AppContent: FC = () => {
         }
       }
     },
-    [
-      setInitialState,
-      setLogDir,
-      logDir,
-      setSelectedLogFile,
-      api,
-      syncLogs,
-      rehydrated,
-    ]
+    [setInitialState, logDir, setSelectedLogFile, api, syncLogs, rehydrated]
   );
 
   // listen for updateState messages from vscode

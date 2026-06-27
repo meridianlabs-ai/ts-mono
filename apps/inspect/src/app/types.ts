@@ -79,8 +79,6 @@ export interface DisplayedSample {
 }
 
 export interface LogsState {
-  logDir?: string;
-  absLogDir?: string;
   evalSet?: EvalSet;
   selectedLogFile?: string;
   listing: LogsListing;

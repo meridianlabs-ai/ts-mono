@@ -20,10 +20,10 @@ import { LogViewContainer } from "../log-view/LogViewContainer";
 import { useLogRootAsync } from "../server/useLogDir";
 import { isSingleFileMode } from "../singleFileMode";
 
-import { DirectLoadController } from "./DirectLoadController";
 import { ReplicationController } from "./ReplicationController";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
+import { SingleFileLoaderHost } from "./SingleFileLoaderHost";
 import { TasksRouter } from "./TasksRouter";
 import {
   kLogRouteUrlPattern,
@@ -73,27 +73,14 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderHost>{content}</LoaderHost>
+        {isSingleFileMode ? (
+          <SingleFileLoaderHost>{content}</SingleFileLoaderHost>
+        ) : (
+          <DirectoryLoaderHost>{content}</DirectoryLoaderHost>
+        )}
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );
-};
-
-/**
- * Selects the content loader in one place (mirroring the doc's "single-file mode
- * picks the loader"): mounts <DirectLoadController> in single-file mode or
- * <ReplicationController> in directory mode, as a sibling of `children`.
- */
-const LoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
-  if (isSingleFileMode) {
-    return (
-      <>
-        <DirectLoadController />
-        {children}
-      </>
-    );
-  }
-  return <DirModeLoaderHost>{children}</DirModeLoaderHost>;
 };
 
 /**
@@ -103,7 +90,7 @@ const LoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
  * directory mode (single-file's log dir is route-derived, and the `["log-dir"]`
  * query is disabled there).
  */
-const DirModeLoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
+const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
   const logRoot = useLogRootAsync();
 
   if (logRoot.error) {
