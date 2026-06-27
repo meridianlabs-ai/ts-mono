@@ -37,6 +37,9 @@ async function openSample(
   const logDetails = createLogDetails(evalLog);
 
   network.use(
+    // get_log_root — the dir-mode gate blocks on this.
+    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
+
     // Log file listing — return our single log
     http.get("*/api/log-files*", () => {
       return HttpResponse.json({
