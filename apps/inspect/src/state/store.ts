@@ -7,11 +7,15 @@ import { immer } from "zustand/middleware/immer";
 import { createLogger, debounce } from "@tsmono/util";
 
 import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
-import { createDatabaseService, DatabaseService } from "../client/database";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
+import {
+  cleanupDatabaseService,
+  initDatabaseService,
+} from "./databaseServiceInstance";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
+import { setReplicationApi } from "./replicationControl";
 import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,
@@ -25,9 +29,6 @@ const log = createLogger("store");
 
 export interface StoreState
   extends AppSlice, LogsSlice, LogSlice, SampleSlice, SearchSlice {
-  // The shared database service
-  databaseService?: DatabaseService | null;
-
   // Global actions
   initialize: (capabilities: Capabilities) => void;
   cleanup: () => void;
@@ -84,59 +85,29 @@ export const initializeStore = (
     devtools(
       persist(
         immer((set, get, store) => {
-          const [appSlice, appCleanup] = createAppSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store
-          );
+          const [appSlice, appCleanup] = createAppSlice(set, get, store);
           const [logsSlice, logsCleanup] = createLogsSlice(
-            set as (fn: (state: StoreState) => void) => void,
+            set,
             get,
             store,
             api
           );
-          const [logSlice, logCleanup] = createLogSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store,
-            api
-          );
+          const [logSlice, logCleanup] = createLogSlice(set, get, store, api);
           const [sampleSlice, sampleCleanup] = createSampleSlice(
-            set as (fn: (state: StoreState) => void) => void,
+            set,
             get,
             store
           );
-          const [searchSlice, searchCleanup] = createSearchSlice(
-            set as (fn: (state: StoreState) => void) => void
-          );
-
-          // Create a shared database service instance
-          const databaseService = createDatabaseService();
+          const [searchSlice, searchCleanup] = createSearchSlice(set);
 
           return {
-            // Shared state
-            databaseService,
-
             // Initialize
             initialize: (capabilities) => {
-              set((state) => {
-                state.databaseService = databaseService;
-              });
-
               // Initialize application slices
-              initializeAppSlice(
-                set as (fn: (state: StoreState) => void) => void,
-                capabilities
-              );
-              initializeLogsSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
-              initalializeLogSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
-              initializeSampleSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
+              initializeAppSlice(set, capabilities);
+              initializeLogsSlice(set);
+              initalializeLogSlice(set);
+              initializeSampleSlice(set);
             },
 
             // Create the slices and merge them in
@@ -148,7 +119,7 @@ export const initializeStore = (
 
             cleanup: async () => {
               // Close database before cleaning up slices
-              await databaseService.closeDatabase();
+              await cleanupDatabaseService();
 
               appCleanup();
               logsCleanup();
@@ -186,8 +157,10 @@ export const initializeStore = (
   );
 
   // Set the implementation and initialize it
-  storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
+  storeImplementation = store;
+  initDatabaseService();
   setSamplePollingApi(api);
+  setReplicationApi(api);
   store.getState().initialize(capabilities);
 };
 

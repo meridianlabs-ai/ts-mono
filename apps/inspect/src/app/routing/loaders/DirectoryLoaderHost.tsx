@@ -2,7 +2,10 @@ import { FC, ReactNode, useEffect } from "react";
 
 import { PulsingDots } from "@tsmono/react/components";
 
-import { useStore } from "../../../state/store";
+import {
+  activateReplication,
+  deactivateReplication,
+} from "../../../state/replicationControl";
 import { useLogRootAsync } from "../../server/useLogDir";
 
 /**
@@ -58,17 +61,10 @@ export const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({
  * cleanup it stops replication. Returns null.
  */
 const ReplicationController: FC<{ logDir: string }> = ({ logDir }) => {
-  const activateReplication = useStore(
-    (state) => state.logsActions.activateReplication
-  );
-  const deactivateReplication = useStore(
-    (state) => state.logsActions.deactivateReplication
-  );
-
   useEffect(() => {
     void activateReplication(logDir);
     return () => deactivateReplication();
-  }, [logDir, activateReplication, deactivateReplication]);
+  }, [logDir]);
 
   return null;
 };

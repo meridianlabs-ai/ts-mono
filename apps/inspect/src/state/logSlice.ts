@@ -8,6 +8,7 @@ import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
 import { isUri, join } from "../utils/uri";
 
+import { getDatabaseService } from "./databaseServiceInstance";
 import { createLogPolling } from "./logPolling";
 import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
@@ -193,7 +194,7 @@ export const createLogSlice = (
         log.debug(`Load log: ${logAbsPath}`);
 
         // Try reading the data in the database first
-        const dbService = state.databaseService;
+        const dbService = getDatabaseService();
         if (dbService && dbService.opened()) {
           try {
             const cachedInfo =
@@ -319,7 +320,7 @@ export const createLogSlice = (
           const logDir = getLogDir();
           void logsContent
             .writeDetail(
-              state.databaseService,
+              getDatabaseService(),
               logDir,
               logsContent.resolveLogKey(logDir, selectedLogFile),
               logDetails

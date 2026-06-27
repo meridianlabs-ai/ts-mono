@@ -1,7 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { ClientAPI, LogDetails } from "../client/api/types";
+import { DatabaseService } from "../client/database";
 
+import { initDatabaseService } from "./databaseServiceInstance";
 import * as logsContent from "./logsContent";
 import { createLogSlice } from "./logSlice";
 import { StoreState } from "./store";
@@ -42,6 +44,10 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     writeLogDetail: vi.fn().mockResolvedValue(undefined),
   };
 
+  // logSlice reads the shared DatabaseService from the module singleton rather
+  // than zustand state; inject the fake via the singleton's init seam.
+  initDatabaseService(databaseService as unknown as DatabaseService);
+
   const api = {
     get_log_details: vi.fn().mockResolvedValue(freshInfo),
   } as unknown as ClientAPI;
@@ -50,7 +56,6 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     appActions: {
       setWorkspaceTab: vi.fn(),
     },
-    databaseService,
     logs: {
       logDir: "/logs",
       selectedLogFile: "/logs/run.eval",

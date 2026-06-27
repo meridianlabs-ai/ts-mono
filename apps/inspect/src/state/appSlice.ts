@@ -12,6 +12,7 @@ export interface AppSlice {
   capabilities: Capabilities;
   appActions: {
     setLoading: (loading: boolean, error?: Error) => void;
+    setSyncing: (syncing: boolean) => void;
     setShowFind: (show: boolean) => void;
     hideFind: () => void;
     setNativeFind: (nativeFind: boolean) => void;
@@ -126,6 +127,11 @@ export const createAppSlice = (
             0
           );
           state.app.status.error = error;
+        }),
+
+      setSyncing: (syncing: boolean) =>
+        set((state) => {
+          state.app.status.syncing = syncing;
         }),
 
       setShowFind: (show: boolean) =>

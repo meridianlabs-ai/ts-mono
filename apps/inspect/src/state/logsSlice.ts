@@ -11,15 +11,13 @@ import {
 } from "../app/singleFileMode";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import { ClientAPI, EvalHeader, SampleSummary } from "../client/api/types";
-import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 
+import { getDatabaseService } from "./databaseServiceInstance";
 import * as logsContent from "./logsContent";
+import { openLogDirDatabase, replicationContext } from "./replicationControl";
 import { StoreState } from "./store";
-import {
-  ApplicationContext,
-  replicationService,
-} from "./sync/replicationService";
+import { replicationService } from "./sync/replicationService";
 
 const log = createLogger("Log Slice");
 
@@ -30,10 +28,13 @@ export interface LogsSlice {
 
     // Fetch or update logs
     initLogDir: () => Promise<string | undefined>;
-    activateReplication: (logDir: string) => Promise<void>;
-    deactivateReplication: () => void;
     ensureReplication: () => Promise<void>;
     syncLogs: () => Promise<LogHandle[]>;
+    setDbStats: (stats: {
+      logCount: number;
+      previewCount: number;
+      detailsCount: number;
+    }) => void;
 
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
@@ -106,48 +107,6 @@ export const createLogsSlice = (
   _store: unknown,
   api: ClientAPI
 ): [LogsSlice, () => void] => {
-  // Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
-  // DatabaseService once its database is open, or undefined if unavailable.
-  const openLogDirDatabase = async (
-    logDir: string
-  ): Promise<DatabaseService | undefined> => {
-    const databaseService = get().databaseService;
-    if (!databaseService) {
-      return undefined;
-    }
-    try {
-      await databaseService.openDatabase(api.get_log_dir_handle(logDir));
-      return databaseService;
-    } catch (e) {
-      console.log(e);
-      get().appActions.setLoading(false, e as Error);
-      return undefined;
-    }
-  };
-
-  // Build the replication context: the non-cache bridges to zustand UI state.
-  // Log-list content writes go through the `logsContent` seam (IndexedDB +
-  // react-query cache) inside the replicator itself, so they aren't here.
-  const replicationContext = (): ApplicationContext => ({
-    setLoading(loading: boolean) {
-      get().appActions.setLoading(loading);
-    },
-    setBackgroundSyncing(syncing: boolean) {
-      set((state) => {
-        state.app.status.syncing = syncing;
-      });
-    },
-    setDbStats(stats: {
-      logCount: number;
-      previewCount: number;
-      detailsCount: number;
-    }) {
-      set((state) => {
-        state.logs.dbStats = stats;
-      });
-    },
-  });
-
   const slice = {
     // State
     logs: initialState,
@@ -234,27 +193,14 @@ export const createLogsSlice = (
         setLogDir(logDir);
         return logDir;
       },
-      // Open the per-dir database and start dir-mode replication for `logDir`,
-      // then run an initial sync. Owned by <ReplicationController>, which calls
-      // this on mount (dir mode only). Idempotent: if replication is already
-      // active for this dir's database, it just re-syncs.
-      activateReplication: async (logDir: string) => {
-        const databaseService = await openLogDirDatabase(logDir);
-        if (!databaseService) {
-          throw new Error("Database service not available");
-        }
-
-        await replicationService.startReplication(
-          databaseService,
-          api,
-          logDir,
-          replicationContext()
-        );
-
-        await replicationService.sync(true);
-      },
-      deactivateReplication: () => {
-        replicationService.stopReplication();
+      setDbStats: (stats: {
+        logCount: number;
+        previewCount: number;
+        detailsCount: number;
+      }) => {
+        set((state) => {
+          state.logs.dbStats = stats;
+        });
       },
       // Re-sync the current dir-mode session (replication is activated by
       // <ReplicationController>). In single-file mode there's no dir listing to
@@ -282,7 +228,7 @@ export const createLogsSlice = (
         // controller normally does this on mount; re-do it here defensively so
         // a re-sync triggered before activation (or after a teardown) still
         // works. startReplication is idempotent.
-        const databaseService = get().databaseService;
+        const databaseService = getDatabaseService();
         const databaseHandle = api.get_log_dir_handle(logDir);
         const needsActivation =
           !replicationService.isReplicating() ||
@@ -398,7 +344,7 @@ export const createLogsSlice = (
       getAllCachedSamples: async () => {
         try {
           log.debug("LOADING ALL CACHED SAMPLES");
-          const dbService = get().databaseService;
+          const dbService = getDatabaseService();
           if (!dbService) {
             throw new Error("Database service not initialized");
           }
@@ -418,7 +364,7 @@ export const createLogsSlice = (
       }) => {
         try {
           log.debug("QUERYING CACHED SAMPLES", filter);
-          const dbService = get().databaseService;
+          const dbService = getDatabaseService();
           if (!dbService) {
             throw new Error("Database service not initialized");
           }
