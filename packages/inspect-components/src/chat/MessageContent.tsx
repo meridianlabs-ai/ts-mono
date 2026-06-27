@@ -18,6 +18,10 @@ import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isJson } from "@tsmono/util";
 
+import {
+  useDisplayMode,
+  type DisplayMode,
+} from "../content/DisplayModeContext";
 import { RenderedText } from "../content/RenderedText";
 import { MediaReference } from "../media/MediaReference";
 import {
@@ -79,7 +83,8 @@ export const MessageContent: FC<MessageContentProps> = ({
   context,
   references,
 }) => {
-  const normalized = normalizeContent(contents);
+  const displayMode = useDisplayMode();
+  const normalized = normalizeContent(contents, displayMode);
   if (Array.isArray(normalized)) {
     return normalized.map((content, index) => {
       if (typeof content === "string") {
@@ -94,6 +99,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           },
           index === contents.length - 1,
           context,
+          displayMode,
           references
         );
       } else {
@@ -105,6 +111,7 @@ export const MessageContent: FC<MessageContentProps> = ({
               content,
               index === contents.length - 1,
               context,
+              displayMode,
               references
             );
           } else {
@@ -127,6 +134,7 @@ export const MessageContent: FC<MessageContentProps> = ({
       contentText,
       true,
       context,
+      displayMode,
       references
     );
   }
@@ -138,13 +146,14 @@ interface MessageRenderer {
     content: ContentType,
     isLast: boolean,
     context: MessagesContext,
+    displayMode: DisplayMode,
     references?: MarkdownReference[]
   ) => ReactNode;
 }
 
 const messageRenderers: Record<string, MessageRenderer> = {
   text: {
-    render: (key, content, isLast, _context, references) => {
+    render: (key, content, isLast, _context, displayMode, references) => {
       // The context provides a way to share context between different
       // rendering. In this case, we'll use it to keep track of citations
       const c = content as ContentText;
@@ -154,25 +163,14 @@ const messageRenderers: Record<string, MessageRenderer> = {
         return undefined;
       }
 
-      const purgeInternalContainers = (text: string): string => {
-        // Remove any <internal>...</internal> tags and their contents
-        const internalTags = ["internal", "content-internal", "think"];
-        internalTags.forEach((tag) => {
-          const regex = new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, "gm");
-          text = text.replace(regex, "");
-        });
-
-        return text.trim();
-      };
-
-      if (isJson(c.text)) {
+      if (displayMode === "rendered" && isJson(c.text)) {
         const obj = JSON.parse(c.text) as Record<string, unknown>;
         return <JsonMessageContent id={`${key}-json`} json={obj} />;
       } else {
         return (
           <Fragment key={key}>
             <RenderedText
-              markdown={purgeInternalContainers(c.text) || ""}
+              markdown={c.text}
               className={clsx(
                 isLast ? "no-last-para-padding" : "",
                 styles.breakable
@@ -311,7 +309,16 @@ const messageRenderers: Record<string, MessageRenderer> = {
 // adding citations as superscript counters at the end of the text for each block
 // containing citations. The citations are then attached to the content where
 // they can be rendered separately (with coordinating numbers).
-const normalizeContent = (contents: Contents): Contents => {
+const normalizeContent = (
+  contents: Contents,
+  displayMode: DisplayMode
+): Contents => {
+  // Raw mode presents the logged content blocks without citation injection or
+  // other rendered-mode normalization.
+  if (displayMode === "raw") {
+    return contents;
+  }
+
   // its a string
   if (typeof contents === "string") {
     return contents;
