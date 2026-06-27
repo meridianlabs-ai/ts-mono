@@ -51,10 +51,9 @@ const AppLayout = () => {
   // Get route params to check for sample detail routes
   const { sampleId, epoch, sampleUuid } = useLogRouteParams();
 
-  // Single file mode is a legacy mode that is used when an explicit
-  // file is passed via URL (task_file or log_file params) or via
-  // embedded state (VSCode)
-  if (isSingleFileMode) {
+  // Single-file mode is used for a trusted/approved exact file or VS Code
+  // embedded state.
+  if (isSingleFileMode()) {
     // Check if this is a sample detail URL
     const isSampleDetail = (sampleId && epoch) || sampleUuid;
 

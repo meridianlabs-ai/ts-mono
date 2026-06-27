@@ -2,17 +2,27 @@ import { EvalLog } from "@tsmono/inspect-common/types";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
 import { encodePathParts } from "../../../utils/uri";
+import { grantedLogUrlHref, type GrantedLogUrl } from "../log-location";
 import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
+
+export const staticLogRequestInit: RequestInit = Object.freeze({
+  credentials: "same-origin",
+  referrerPolicy: "no-referrer",
+  redirect: "error",
+});
 
 /**
  * Fetches a file from the specified URL as a string
  */
 export async function fetchTextFile(
-  url: string,
+  url: GrantedLogUrl,
   handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
-  const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const safe_url = encodePathParts(grantedLogUrlHref(url));
+  const response = await fetch(`${safe_url}`, {
+    ...staticLogRequestInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return text;
@@ -32,12 +42,15 @@ export async function fetchTextFile(
  * Fetches a file from the specified URL and parses its content.
  */
 export async function fetchFile<T>(
-  url: string,
+  url: GrantedLogUrl,
   parse: (text: string) => Promise<T>,
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
-  const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const safe_url = encodePathParts(grantedLogUrlHref(url));
+  const response = await fetch(`${safe_url}`, {
+    ...staticLogRequestInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return await parse(text);
@@ -57,7 +70,7 @@ export async function fetchFile<T>(
  * Fetches a log file and parses its content, updating the log structure if necessary.
  */
 export const fetchLogFile = async (
-  file: string
+  file: GrantedLogUrl
 ): Promise<LogContents | undefined> => {
   return fetchFile<LogContents>(file, async (text): Promise<LogContents> => {
     const log = await asyncJsonParse<EvalLog>(text);
@@ -99,23 +112,20 @@ export const fetchLogFile = async (
  * Fetches a log file and parses its content, updating the log structure if necessary.
  */
 export const fetchManifest = async (
-  log_dir: string
+  listingFile: GrantedLogUrl
 ): Promise<LogFilesFetchResponse | undefined> => {
   const parseListing = async (text: string): Promise<LogFilesFetchResponse> => {
     const parsed = await asyncJsonParse<Record<string, LogPreview>>(text);
     return { raw: text, parsed };
   };
-  return await fetchFile<LogFilesFetchResponse>(
-    log_dir + "/listing.json",
-    parseListing
-  );
+  return await fetchFile<LogFilesFetchResponse>(listingFile, parseListing);
 };
 
 /**
  * Fetches a file, parsing its content and returning the result.
  */
 export const fetchJsonFile = async <T>(
-  file: string,
+  file: GrantedLogUrl,
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> => {
   return fetchFile<T>(
@@ -126,15 +136,3 @@ export const fetchJsonFile = async <T>(
     handleError
   );
 };
-
-/**
- * Joins multiple URI segments into a single URI string.
- *
- * This function removes any leading or trailing slashes from each segment
- * and then joins them with a single slash (`/`).
- */
-export function joinURI(...segments: string[]): string {
-  return segments
-    .map((segment) => segment.replace(/(^\/+|\/+$)/g, "")) // Remove leading/trailing slashes from each segment
-    .join("/");
-}

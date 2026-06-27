@@ -6,7 +6,7 @@ import { DatabaseService } from "../../client/database";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
 
 export interface ApplicationContext {
-  setLogHandles: (logs: LogHandle[]) => void;
+  setLogHandles: (logs: LogHandle[], trusted?: boolean) => void;
   getSelectedLog: () => LogHandle | undefined;
   setSelectedLogFile: (fileName: string) => void;
   updateLogPreviews: (previews: Record<string, LogPreview>) => void;
@@ -238,7 +238,7 @@ export class ReplicationService {
     // those handles haven't been validated yet.
     const logHandles = await database.readLogs();
     if (logHandles) {
-      context.setLogHandles(logHandles);
+      context.setLogHandles(logHandles, false);
 
       const logPreviews = await database.readLogPreviews(logHandles);
       if (logPreviews && Object.keys(logPreviews).length > 0) {

@@ -129,7 +129,7 @@ export const LogViewContainer: FC = () => {
     const loadLogFromPath = async () => {
       if (logPath) {
         await initLogDir();
-        setSelectedLogFile(logPath);
+        await setSelectedLogFile(logPath);
         void syncLogs();
       }
     };

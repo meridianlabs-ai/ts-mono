@@ -35,7 +35,7 @@ export const useLoadLog = () => {
         }
 
         if (selectedLogFile !== routeLogPath) {
-          setSelectedLogFile(routeLogPath);
+          await setSelectedLogFile(routeLogPath);
         }
 
         // Select the specific sample

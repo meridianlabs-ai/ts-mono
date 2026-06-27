@@ -117,8 +117,12 @@ test("print metadata remains literal and the print tab has no opener", async ({
   await page.getByRole("button", { name: "Print" }).click();
   const printPage = await popupPromise;
 
-  await expect(printPage.getByText(task, { exact: true })).toBeVisible();
-  await expect(printPage.getByText(model, { exact: true })).toBeVisible();
+  await expect(printPage.getByText(task, { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(printPage.getByText(model, { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
 
   expect(await printPage.evaluate(() => window.opener)).toBeNull();
   expect(

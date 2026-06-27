@@ -1,4 +1,6 @@
-import { dirname } from "@tsmono/util";
+import { dirname, getVscodeApi } from "@tsmono/util";
+
+import { hasApprovedSingleFileMode } from "../client/api/log-location";
 
 /**
  * Single-file mode is set when the viewer is opened against a specific log
@@ -8,14 +10,14 @@ import { dirname } from "@tsmono/util";
  * kick off directory-wide replication for every log in the directory.
  */
 export const detectInitialSingleFileMode = (
-  location: { search: string },
-  doc: Pick<Document, "getElementById">
+  doc: Pick<Document, "getElementById">,
+  approvedFileSelection = hasApprovedSingleFileMode(),
+  hasHostApi = !!getVscodeApi()
 ): boolean => {
-  if (doc.getElementById("logview-state")) {
+  if (hasHostApi && doc.getElementById("logview-state")) {
     return true;
   }
-  const params = new URLSearchParams(location.search);
-  return params.has("log_file") || params.has("task_file");
+  return approvedFileSelection;
 };
 
 /**
@@ -31,12 +33,8 @@ export const deriveSingleFileLogDir = (
 };
 
 /**
- * Resolved once at module import. Whether the viewer is in single-file mode
- * is a startup-time property: it's a function of the URL the page loaded with
- * (or embedded state injected by VSCode) and never flips during the session,
- * so we don't need to thread it through application state.
+ * Single-file mode becomes active only for a trusted host/file bootstrap or
+ * after the location controller validates or explicitly approves a file.
  */
-export const isSingleFileMode: boolean =
-  typeof window !== "undefined"
-    ? detectInitialSingleFileMode(window.location, document)
-    : false;
+export const isSingleFileMode = (): boolean =>
+  typeof window !== "undefined" ? detectInitialSingleFileMode(document) : false;

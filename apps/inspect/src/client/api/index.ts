@@ -1,11 +1,13 @@
 import JSON5 from "json5";
 
 import { AppConfig } from "@tsmono/inspect-common/types";
-import { dirname, getVscodeApi } from "@tsmono/util";
+import { getVscodeApi } from "@tsmono/util";
 
 import { clientApi } from "./client-api";
+import { locationAwareClientApi } from "./location-aware-client-api";
+import { LogLocationController } from "./log-location";
 import staticHttpApi from "./static-http/api-static-http";
-import { ClientAPI } from "./types";
+import { ClientAPI, LogViewAPI } from "./types";
 import { viewServerApi } from "./view-server/api-view-server";
 import vscodeApi from "./vscode/api-vscode";
 
@@ -18,71 +20,106 @@ interface LogDirContext {
 }
 
 /**
- * Resolves the client API
+ * Resolve transport only from trusted environment signals. URL parameters are
+ * inspected by the location controller as untrusted selections after the
+ * clients have been constructed.
  */
-const resolveApi = (): ClientAPI => {
+export const resolveApi = (): ClientAPI => {
   const debug = false;
-  if (getVscodeApi()) {
-    // This is VSCode
-    return clientApi(vscodeApi, undefined, debug);
+  const vscode = getVscodeApi();
+  const embedded = vscode ? undefined : readLogDirContext();
+
+  let locations: LogLocationController;
+  let baseViewApi: LogViewAPI;
+  let browserViewApi: LogViewAPI;
+
+  if (vscode) {
+    locations = new LogLocationController({
+      transport: "vscode",
+      baseUrl: document.baseURI,
+    });
+    baseViewApi = vscodeApi;
+    browserViewApi = staticHttpApi(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      locations
+    );
+  } else if (embedded && (embedded.log_dir || embedded.log_file)) {
+    locations = new LogLocationController({
+      transport: "static",
+      baseUrl: document.baseURI,
+      staticLogDir: embedded.log_dir,
+      staticLogFile: embedded.log_file,
+    });
+    const appConfig: AppConfig | undefined =
+      embedded.inspect_version !== undefined
+        ? {
+            inspect_version: embedded.inspect_version,
+            scout_version: null,
+          }
+        : undefined;
+    browserViewApi = staticHttpApi(
+      embedded.log_dir,
+      embedded.log_file,
+      embedded.abs_log_dir,
+      appConfig,
+      locations
+    );
+    baseViewApi = browserViewApi;
   } else {
-    // See if there is an log_file, log_dir embedded in the
-    // document or passed via URL (could be hosted)
-    const scriptEl = document.getElementById("log_dir_context");
-    if (scriptEl) {
-      // Read the contents
-      const context = scriptEl.textContent;
-      if (context !== null) {
-        const data = JSON5.parse<LogDirContext>(context);
-        if (data.log_dir || data.log_file) {
-          const log_dir = data.log_dir || dirname(data.log_file ?? "");
-          const app_config: AppConfig | undefined =
-            data.inspect_version !== undefined
-              ? {
-                  inspect_version: data.inspect_version,
-                  scout_version: null,
-                }
-              : undefined;
-          const api = staticHttpApi(
-            log_dir,
-            data.log_file,
-            data.abs_log_dir,
-            app_config
-          );
-          return clientApi(api, data.log_file, debug);
-        }
-      }
-    }
-
-    // See if there is url params passing info (could be hosted)
-    const urlParams = new URLSearchParams(window.location.search);
-    const log_file = urlParams.get("log_file");
-    const log_dir = urlParams.get("log_dir");
-    const forceViewServerApi = urlParams.get("inspect_server") === "true";
-
-    const resolved_log_dir = log_dir ?? undefined;
-    const resolved_log_file = log_file ?? undefined;
-
-    if (forceViewServerApi) {
-      return clientApi(
-        viewServerApi({ logDir: resolved_log_dir }),
-        resolved_log_file,
-        debug
-      );
-    }
-
-    if (resolved_log_dir !== undefined || resolved_log_file !== undefined) {
-      return clientApi(
-        staticHttpApi(resolved_log_dir, resolved_log_file),
-        resolved_log_file,
-        debug
-      );
-    }
-
-    // No signal information so use the standard
-    // view server API (inspect view)
-    return clientApi(viewServerApi(), undefined, debug);
+    locations = new LogLocationController({
+      transport: "view-server",
+      baseUrl: document.baseURI,
+    });
+    baseViewApi = viewServerApi();
+    browserViewApi = staticHttpApi(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      locations
+    );
   }
+
+  const browserClient = clientApi(browserViewApi, undefined, debug);
+  const baseClient =
+    baseViewApi === browserViewApi
+      ? browserClient
+      : clientApi(baseViewApi, undefined, debug);
+  const api = locationAwareClientApi(baseClient, browserClient, locations);
+
+  locations.initializeUrlSelection(window.location.search);
+  return api;
 };
+
+function readLogDirContext(): LogDirContext | undefined {
+  const scriptEl = document.getElementById("log_dir_context");
+  const context = scriptEl?.textContent;
+  if (!context) {
+    return undefined;
+  }
+
+  const value = JSON5.parse<unknown>(context);
+  if (!isRecord(value)) {
+    throw new Error("Invalid embedded log directory configuration.");
+  }
+
+  return {
+    log_dir: optionalString(value.log_dir),
+    log_file: optionalString(value.log_file),
+    abs_log_dir: optionalString(value.abs_log_dir),
+    inspect_version: optionalString(value.inspect_version),
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export default resolveApi();

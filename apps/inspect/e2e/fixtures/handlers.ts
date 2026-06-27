@@ -28,6 +28,11 @@ export const defaultHandlers = [
     return HttpResponse.json({ log_dir: "/home/test/logs" });
   }),
 
+  // Legacy combined log root
+  http.get("*/api/logs", () => {
+    return HttpResponse.json({ logs: [], log_dir: "/home/test/logs" });
+  }),
+
   // Log file listing
   http.get("*/api/log-files*", () => {
     return HttpResponse.json({
@@ -48,6 +53,11 @@ export const defaultHandlers = [
 
   // Flow (optional, 404 is acceptable)
   http.get("*/api/flow*", () => {
+    return new HttpResponse(null, { status: 404 });
+  }),
+
+  // No live samples in the default completed-log fixture
+  http.get("*/api/pending-samples*", () => {
     return new HttpResponse(null, { status: 404 });
   }),
 ];

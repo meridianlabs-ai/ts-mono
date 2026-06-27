@@ -48,6 +48,8 @@ import {
   EvalSampleTarget,
 } from "../../@types/extraInspect";
 
+import type { LogLocationController } from "./log-location";
+
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
 export type { CallPoolData, MessagePoolData };
@@ -296,6 +298,9 @@ export interface UserInfo {
 }
 
 export interface ClientAPI {
+  /** Browser/server log-location trust and approval state for this client. */
+  log_locations?: LogLocationController;
+
   // Basic initialization
   get_log_dir: () => Promise<string | undefined>;
 

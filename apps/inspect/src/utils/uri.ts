@@ -114,3 +114,11 @@ export const prettyDirUri = (uri: string) => {
     return uri;
   }
 };
+
+export const isEvalLogFile = (value: string): boolean => {
+  try {
+    return new URL(value).pathname.toLowerCase().endsWith(".eval");
+  } catch {
+    return value.split(/[?#]/, 1)[0]?.toLowerCase().endsWith(".eval") ?? false;
+  }
+};

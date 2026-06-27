@@ -10,7 +10,8 @@ import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
-import { useStore } from "../../../state/store";
+import { useApi, useStore } from "../../../state/store";
+import { isEvalLogFile } from "../../../utils/uri";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
@@ -36,13 +37,17 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   sampleCount,
   tags,
 }) => {
+  const api = useApi();
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
   const absLogDir = useStore((state) => state.logs.absLogDir);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
-  const isEvalFile = selectedLogFile?.endsWith(".eval");
+  const isEvalFile = selectedLogFile ? isEvalLogFile(selectedLogFile) : false;
+  const browserHosted =
+    !!selectedLogFile &&
+    api.log_locations?.transportForFile(selectedLogFile) === "browser";
   const tagList = tags ?? [];
 
   const copyValue = (() => {
@@ -107,7 +112,10 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             </div>
             <div className={styles.buttonGroup}>
               {copyValue ? <CopyButton value={copyValue} /> : ""}
-              {downloadLogs && selectedLogFile && isEvalFile ? (
+              {downloadLogs &&
+              selectedLogFile &&
+              isEvalFile &&
+              !browserHosted ? (
                 <DownloadLogButton log_file={selectedLogFile} />
               ) : null}
             </div>

@@ -86,6 +86,9 @@ export const useInspectSearchContext = (
     // to logDir, so we may have to reconstruct it.
     const logFile = selectedLogFile ?? urlLogPath;
     if (!logFile) return null;
+    if (api.log_locations?.transportForFile(logFile) === "browser") {
+      return null;
+    }
     const logPath = urlLogPath ?? makeLogsPath(logFile, logDir);
     if (!logPath) return null;
     return {

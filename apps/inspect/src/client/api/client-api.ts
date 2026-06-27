@@ -5,7 +5,7 @@ import {
 } from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
-import { encodePathParts } from "../../utils/uri";
+import { encodePathParts, isEvalLogFile } from "../../utils/uri";
 import {
   openRemoteLogFile,
   RemoteLogFile,
@@ -25,10 +25,6 @@ import {
   ProgressCallback,
   SampleDataResponse,
 } from "./types";
-
-const isEvalFile = (file: string) => {
-  return file.endsWith(".eval");
-};
 
 /**
  * Represents an error thrown when a file exceeds the maximum allowed size.
@@ -138,7 +134,7 @@ export const clientApi = (
     log_file: string,
     cached = true
   ): Promise<LogDetails> => {
-    if (isEvalFile(log_file)) {
+    if (isEvalLogFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
       if (remoteLogFile) {
         return await remoteLogFile.readLogSummary();
@@ -190,7 +186,7 @@ export const clientApi = (
     epoch: number,
     onProgress?: ProgressCallback
   ): Promise<EvalSample | undefined> => {
-    if (isEvalFile(log_file)) {
+    if (isEvalLogFile(log_file)) {
       async function fetchSample(useCache: boolean) {
         const remoteLogFile = await remoteEvalFile(log_file, useCache);
         if (!remoteLogFile) {
@@ -273,7 +269,7 @@ export const clientApi = (
 
     // Separate files into eval_files and json_files
     for (const file of log_files) {
-      if (isEvalFile(file)) {
+      if (isEvalLogFile(file)) {
         eval_files[file] = index;
       } else {
         json_files[file] = index;

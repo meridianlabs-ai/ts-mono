@@ -78,7 +78,7 @@ export const LogSampleDetailView: FC = () => {
         await initLogDir();
 
         // Set the selected log file
-        setSelectedLogFile(routeLogPath);
+        await setSelectedLogFile(routeLogPath);
 
         // Sync logs to ensure we have the latest data
         void syncLogs();
@@ -178,7 +178,7 @@ export const LogSampleDetailView: FC = () => {
         currentPath: logPath ? `${logPath}/sample` : undefined,
         fnNavigationUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !isSingleFileMode(),
       }}
     />
   );
