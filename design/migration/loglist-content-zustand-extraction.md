@@ -25,11 +25,10 @@ UI state that legitimately **stays** in zustand: `loading`/`syncing`/`dbStats`/`
 
 ## Phases (sequenced to isolate risk)
 
-### Phase 1 — content write-shims → direct `logsContent` (no lifecycle change)
-- In the `ApplicationContext` built at `logsSlice.ts:320`, point the content callbacks (`setLogHandles`/`updateLogPreviews`/`updateLogDetails`) **directly** at `logsContent.*`, capturing the `logDir` that `startReplication` was invoked for (in scope at `logsSlice.ts:317`).
-- Delete the three zustand shim actions; repoint other callers (`App.tsx:119`, the single-log slice).
-- Side benefit: fixes a latent **misfile-on-switch** race — a late preview/detail batch currently flushes against `get().logs.logDir`, so it can land in the *new* dir's cache after a switch; capturing the session's own dir fixes that.
-- No trigger/lifecycle change. Purely mechanical; ship + verify alone.
+### Phase 1 — replication context writes → direct `logsContent` (no lifecycle change)
+- In the `ApplicationContext` built at `logsSlice.ts:320`, point the content callbacks (`setLogHandles`/`updateLogPreviews`/`updateLogDetails`) **directly** at `logsContent.*`, capturing the `logDir` that `startReplication` was invoked for (in scope at `logsSlice.ts:317`) instead of hopping through the zustand shim actions.
+- Scope note: the three zustand shim actions (`logsSlice` `setLogHandles`/`updateLogPreviews`/`updateLogDetails`) **stay for now** — they're still used by `App.tsx:253`, the single-file path (`logsSlice.ts:406`), and the single-log slice (`logSlice.ts:220/231/270`), all of which read the current `logDir`. They retire in **Phase 3**, when `logDir` moves and those callers re-source it in one pass (repointing now then re-sourcing in Phase 3 is double work). Capturing the session's `logDir` here is also defensively correct against a dir switch (though Resolved #2 means none happens).
+- No trigger/lifecycle change.
 
 ### Phase 2 — `ReplicationService` → module singleton (ownership only)
 - Construct the service as a module singleton (export from `state/sync/`), drop `state.replicationService` from `store.ts`.
@@ -40,6 +39,7 @@ UI state that legitimately **stays** in zustand: `loading`/`syncing`/`dbStats`/`
 - Add `useLogDirAsync`/`useLogDir`; gate `AppConfigGate` on config **and** log-dir resolving.
 - Add `<ReplicationController/>` below the gate (keyed conditional mount). Its effect: activate the per-dir IndexedDB (`initializeDatabase(logDir)`) → `singleton.startReplication(db, api, context(logDir))` → `sync()`; cleanup → `stopReplication()` (+ close the old DB). The context's content callbacks are the direct `logsContent(logDir)` calls from Phase 1; UI callbacks stay zustand actions.
 - Retire `initLogDir`, `logs.logDir`, and the defensive `initLogDir`/`syncLogs` calls in `App`, `LogViewContainer`, `LogSampleDetailView`.
+- Retire the three zustand content shim actions (deferred from Phase 1): repoint their remaining callers — `App.tsx:253` (single-file), `logsSlice.ts:406`, and the single-log slice (`logSlice.ts:220/231/270`) — to `logsContent.*` directly, sourcing `logDir` from the query (`useLogDir` in React, or `queryClient.getQueryData(["log-dir"])` in slice code).
 - Cache key becomes `logsContentKey(useLogDir())` — this **resolves the `["logs-content",""]` / skipToken TODO** in `useLogsListingQuery`/`logsContent`. The only `skipToken` that legitimately remains is the no-root branch in the collection views.
 
 ## Careful bits (all in Phase 3)

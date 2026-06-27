@@ -318,10 +318,8 @@ export const createLogsSlice = (
             databaseService,
             api,
             {
-              setLogHandles: (logs: LogHandle[]) => {
-                const state = get();
-                state.logsActions.setLogHandles(logs);
-              },
+              setLogHandles: (logs: LogHandle[]) =>
+                logsContent.setLogHandles(logDir, logs),
               getSelectedLog: () => {
                 const state = get();
                 if (!state.logs.selectedLogFile) {
@@ -337,14 +335,10 @@ export const createLogsSlice = (
                 const state = get();
                 state.logsActions.setSelectedLogFile(logFile);
               },
-              updateLogPreviews: (previews: Record<string, LogPreview>) => {
-                const state = get();
-                state.logsActions.updateLogPreviews(previews);
-              },
-              updateLogDetails: (details: Record<string, LogDetails>) => {
-                const state = get();
-                state.logsActions.updateLogDetails(details);
-              },
+              updateLogPreviews: (previews: Record<string, LogPreview>) =>
+                logsContent.mergeLogPreviews(logDir, previews),
+              updateLogDetails: (details: Record<string, LogDetails>) =>
+                logsContent.mergeLogDetails(logDir, details),
               setLoading(loading: boolean) {
                 const state = get();
                 state.appActions.setLoading(loading);
