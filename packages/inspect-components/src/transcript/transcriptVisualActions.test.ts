@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+
+import type { InfoEvent, ToolEvent } from "@tsmono/inspect-common/types";
+
+import {
+  computeVisualActionContext,
+  normalizeScreenshotResult,
+} from "./transcriptVisualActions";
+import { EventNode } from "./types";
+
+const IMAGE = {
+  type: "image" as const,
+  image: "data:image/png;base64,abc123",
+  detail: "auto" as const,
+};
+const TEXT = {
+  type: "text" as const,
+  text: "page text",
+  refusal: null,
+  internal: null,
+  citations: null,
+};
+const DOC = {
+  type: "document" as const,
+  document: "data:application/pdf;base64,abc123",
+  filename: "report.pdf",
+  mime_type: "application/pdf",
+};
+
+function toolNode(
+  id: string,
+  fn: string,
+  args: ToolEvent["arguments"],
+  result: ToolEvent["result"]
+): EventNode {
+  const event: ToolEvent = {
+    event: "tool",
+    id,
+    function: fn,
+    arguments: args,
+    result,
+    error: null,
+    events: [],
+    pending: false,
+    timestamp: new Date(0).toISOString(),
+    type: "function",
+    working_start: 0,
+  };
+  return new EventNode(id, event, 0);
+}
+
+function infoNode(id: string): EventNode {
+  const event: InfoEvent = {
+    event: "info",
+    data: null,
+    timestamp: new Date(0).toISOString(),
+    working_start: 0,
+  };
+  return new EventNode(id, event, 0);
+}
+
+function visualActionArgs(
+  action: string,
+  extra: ToolEvent["arguments"] = {}
+): ToolEvent["arguments"] {
+  return { action, ...extra };
+}
+
+describe("normalizeScreenshotResult", () => {
+  it("keeps image/text content and drops documents from arrays", () => {
+    expect(normalizeScreenshotResult([TEXT, IMAGE, DOC])).toEqual([
+      TEXT,
+      IMAGE,
+    ]);
+  });
+
+  it("wraps a single non-document content object", () => {
+    expect(normalizeScreenshotResult(IMAGE)).toEqual([IMAGE]);
+  });
+
+  it("returns undefined for documents, strings, and empty arrays", () => {
+    expect(normalizeScreenshotResult(DOC)).toBeUndefined();
+    expect(normalizeScreenshotResult("done")).toBeUndefined();
+    expect(normalizeScreenshotResult([DOC])).toBeUndefined();
+  });
+});
+
+describe("computeVisualActionContext", () => {
+  it("pairs a click with the preceding screenshot across a non-tool event", () => {
+    const nodes = [
+      toolNode("s1", "browser", visualActionArgs("screenshot"), [TEXT, IMAGE]),
+      infoNode("m1"),
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [10, 20] }),
+        ""
+      ),
+    ];
+    const ctx = computeVisualActionContext(nodes, 2);
+    expect(ctx.selfAnnotation).toEqual({
+      action: "left_click",
+      coordinate: [10, 20],
+      text: undefined,
+      scrollDirection: undefined,
+    });
+    expect(ctx.inputScreenshot).toEqual([TEXT, IMAGE]);
+  });
+
+  it("returns {} for the screenshot event itself", () => {
+    const nodes = [
+      toolNode("s1", "browser", visualActionArgs("screenshot"), [IMAGE]),
+    ];
+    expect(computeVisualActionContext(nodes, 0)).toEqual({});
+  });
+
+  it("returns {} when a non-browser tool intervenes before any screenshot", () => {
+    const nodes = [
+      toolNode("b1", "bash", { cmd: "ls" }, "files"),
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [1, 1] }),
+        ""
+      ),
+    ];
+    expect(computeVisualActionContext(nodes, 1)).toEqual({});
+  });
+
+  it("returns {} for a non-tool node", () => {
+    expect(computeVisualActionContext([infoNode("m1")], 0)).toEqual({});
+  });
+
+  it("pairs across many intervening non-tool events (no lookback cap)", () => {
+    const nodes: EventNode[] = [
+      toolNode("s1", "browser", visualActionArgs("screenshot"), [IMAGE]),
+    ];
+    for (let i = 0; i < 50; i++) {
+      nodes.push(infoNode(`m${i}`));
+    }
+    nodes.push(
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [3, 4] }),
+        ""
+      )
+    );
+    const ctx = computeVisualActionContext(nodes, nodes.length - 1);
+    expect(ctx.inputScreenshot).toEqual([IMAGE]);
+    expect(ctx.selfAnnotation).toEqual({
+      action: "left_click",
+      coordinate: [3, 4],
+      text: undefined,
+      scrollDirection: undefined,
+    });
+  });
+});
