@@ -6,6 +6,10 @@ zustand ties remain in that dataflow. This plan removes them so **content has a
 single owner (react-query) and a single key source**, the replication engine is
 a plain singleton, and zustand keeps only genuine UI state.
 
+## Status — ✅ all three phases done
+
+Phases 1–3 implemented and committed. Dir mode verified (449 unit + 55 e2e green); `logDir` now flows from the gated `["log-dir"]` query via `<ReplicationController>`, and the `["logs-content",""]` empty key is gone. **Single-file / VS-Code-embed / deep-link mode is preserved by construction but not covered by e2e — needs a manual pass.** Minor leftover: `logs.absLogDir` is now write-never (always undefined in single-file, as before); the store field could be dropped.
+
 ## The three remaining ties (today)
 
 1. **Content write-shims** — `logsSlice` `setLogHandles`/`updateLogPreviews`/`updateLogDetails` (`logsSlice.ts:146/160/163`) just forward to `logsContent.*(get().logs.logDir, …)`. Pure indirection (the comment says so).
