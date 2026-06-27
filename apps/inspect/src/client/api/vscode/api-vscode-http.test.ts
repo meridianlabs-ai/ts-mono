@@ -41,4 +41,9 @@ describe("apiVscodeHttp", () => {
     const { api } = fakeVscode();
     expect(apiVscodeHttp(api).download_log).toBeUndefined();
   });
+
+  test("eval_log_sample_data_direct is not exposed", () => {
+    const { api } = fakeVscode();
+    expect(apiVscodeHttp(api).eval_log_sample_data_direct).toBeUndefined();
+  });
 });

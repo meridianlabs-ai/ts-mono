@@ -34,7 +34,14 @@ export function apiVscodeHttp(vscode: VSCodeApi): LogViewAPI {
   const client_events = (): Promise<string[]> => Promise.resolve([]);
 
   // download_log triggers a browser navigation that can't ride the proxy; drop it.
-  const { download_log: _download_log, ...rest } = serverApi;
+  // eval_log_sample_data_direct reads presigned S3 URLs with the global fetch,
+  // bypassing the proxy — those direct requests are blocked under webview CSP,
+  // so drop it to keep sample-data polling on the proxied eval_log_sample_data path.
+  const {
+    download_log: _download_log,
+    eval_log_sample_data_direct: _eval_log_sample_data_direct,
+    ...rest
+  } = serverApi;
 
   return {
     ...rest,
