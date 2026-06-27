@@ -39,19 +39,20 @@ extension always embeds a single log, so directory + VS Code isn't a real combo.
 
 ---
 
-## The Two Loaders
+## The two loaders
 
-Which loader runs depends only on **single-file mode**. 
-Loaders write content (cheap to expensive) into the **react-query** cache (`state/logsContent.ts`), keyed by `logDir`.
+Which loader runs depends only on **single-file mode**. Either loader writes
+content into the **react-query** cache (`state/logsContent.ts`), keyed by `logDir`.
+
+### Replicator loader
+
+The replicator fills the cache in three tiers, cheap to expensive:
 - handles (enumerate the directory)
 - previews (`get_log_summaries`)
 - details
 
-
-### Replicator loader
-
-The replicator batches into both
-**IndexedDB** (Dexie, for instant hydrate next load as well as future advanced filtering/sorting queries) and the **react-query** cache; on
+It batches into both **IndexedDB** (Dexie, for instant hydrate next load as well
+as future advanced filtering/sorting queries) and the **react-query** cache; on
 start it hydrates from IndexedDB, then `sync()` reconciles against the source and
 fills gaps. Re-syncs (polling / `backgroundUpdate` / panel mount) repeat the
 reconcile.
@@ -93,8 +94,7 @@ replication.)
 
 Startup wiring:
 
-1. **(react)** Same `<App>` → `<AppConfigGate>` → `<AppContent>` →
-   `<RouterProvider>`.
+1. **(react)** `<App>` → `<AppConfigGate>` → `<AppContent>` → `<RouterProvider>`.
 2. **(react)** `AppLayout` reads `isSingleFileMode === true` → renders
    `<LogViewContainer>` / `<LogSampleDetailView>` **directly**. No
    `<DirModeContent>`, no gate, no `<Outlet/>`, **no `<ReplicationController>`**.
