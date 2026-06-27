@@ -8,11 +8,11 @@ a plain singleton, and zustand keeps only genuine UI state.
 
 ## Status — ✅ all three phases done
 
-Phases 1–3 implemented and committed. Dir mode verified (449 unit + 55 e2e green); `logDir` now flows from the gated `["log-dir"]` query via `<ReplicationController>`, and the `["logs-content",""]` empty key is gone. **Single-file / VS-Code-embed / deep-link mode is preserved by construction but not covered by e2e — needs a manual pass.** Minor leftover: `logs.absLogDir` is now write-never (always undefined in single-file, as before); the store field could be dropped.
+Phases 1–3 implemented and committed. Dir mode verified (449 unit + 55 e2e green); `logDir` now flows from the gated `["log-dir"]` query via `<ReplicationController>`, and the `["logs-content",""]` empty key is gone. **Single-file / VS-Code-embed / deep-link mode is preserved by construction but not covered by e2e — needs a manual pass.** (`logs.logDir`/`absLogDir` have since been dropped — see the follow-up below.)
 
-## Follow-up (deferred): single-file `logDir` → react-query
+## Follow-up: single-file `logDir` → react-query — ✅ done
 
-Phase 3 moved **directory-mode** `logDir` into the gated `["log-dir"]` query, but **single-file mode still keeps its `logDir` in zustand** (`logs.logDir`, set by the `initLogDir` single-file branch / `setLogDir`, read via `useLogDir()`'s `isSingleFileMode` branch and `getLogDir()`). So directory and single-file resolve `logDir` from two different owners. Follow-up: migrate the single-file `logDir` into react-query too (a route-/file-derived query, e.g. keyed on `selectedLogFile`), so **both modes have react-query as the single `logDir` owner** and zustand holds no content-key state. Then `useLogDir`/`getLogDir` collapse to a single source (no `isSingleFileMode` fork), and `logs.logDir`/`setLogDir`/`initLogDir`'s single-file branch retire. `selectedLogFile` stays in zustand (genuine selection/route state).
+Single-file `logDir` now lives in the **same `["log-dir"]` react-query cache as dir mode**, seeded by `setLogDir` / `initLogDir` (single-file branch) instead of stored in zustand. `useLogDir`/`useAbsLogDir`/`getLogDir`/`getAbsLogDir` dropped their `isSingleFileMode` fork and read the cache uniformly; zustand `logs.logDir`/`absLogDir` and the `setLogDir` store action are retired (`setLogDir` is now a plain cache-seeder in `useLogDir.ts`). `selectedLogFile` stays in zustand (genuine selection/route state). The single-file loader is now `<SingleFileLoaderHost>` (takes `children`, provider-ready), parallel to `<DirModeLoaderHost>` under a trivial `<LoaderHost>` dispatch. See `replication-startup-modes.md` for the resulting startup flow.
 
 ## The three remaining ties (today)
 

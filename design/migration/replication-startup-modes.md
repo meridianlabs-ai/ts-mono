@@ -59,12 +59,14 @@ reconcile.
 
 Startup wiring:
 
-1. **(react)** `<AppLayout />` `isSingleFileMode` false branch → `<DirModeContent>`.
-2. **(react-query)** `<DirModeContent>` calls `useLogRootAsync()` — the gated
+1. **(react)** `<AppLayout>` wraps its content (`<Outlet/>`) in `<LoaderHost>`;
+   the dir-mode dispatch renders `<DirModeLoaderHost>`.
+2. **(react-query)** `<DirModeLoaderHost>` calls `useLogRootAsync()` — the gated
    `["log-dir"]` query (`api.get_log_root()`, `staleTime: Infinity`) — and renders
    a loading state until it resolves.
 3. **(react)** Resolved → `logDir = root.log_dir` →
-   `<ReplicationController key={logDir} logDir={logDir} />` + `<Outlet/>`.
+   `<ReplicationController key={logDir} logDir={logDir} />` + `children` (the
+   `<Outlet/>`).
 4. **(react → zustand)** `<ReplicationController>`'s mount effect calls
    `activateReplication(logDir)`; cleanup calls `deactivateReplication()`.
    `key={logDir}` makes a dir change a remount (clean stop → start).
@@ -94,25 +96,30 @@ replication.)
 
 Startup wiring:
 
-1. **(react)** `<App>` → `<AppConfigGate>` → `<AppContent>` → `<RouterProvider>`.
-2. **(react)** `AppLayout` reads `isSingleFileMode === true` → renders
-   `<LogViewContainer>` / `<LogSampleDetailView>` **directly**. No
-   `<DirModeContent>`, no gate, no `<Outlet/>`, **no `<ReplicationController>`**.
+1. **(react)** `<AppLayout>` computes the single-file content
+   (`<LogViewContainer>` or `<LogSampleDetailView>`, by route params) and wraps it
+   in `<LoaderHost>`; the dispatch renders `<SingleFileLoaderHost>` — no gate,
+   **no `<ReplicationController>`**.
+2. **(react → react-query)** `<SingleFileLoaderHost>`'s mount effect runs the
+   URL-param bootstrap (`?task_file=` / `?log_file=`): it selects the one log
+   (`selectedLogFile` in zustand, or the lone handle for `task_file`) and **seeds
+   the `["log-dir"]` react-query cache** — `initLogDir` derives the dir from the
+   file (`deriveSingleFileLogDir`, falling back to `api.get_log_dir()`), or
+   `setLogDir(undefined)` for `task_file`. The embedded-state / VS Code bootstrap
+   stays in `<App>`'s `onMessage`, which seeds the same cache.
 3. **(react-query — disabled)** The `["log-dir"]` query has
-   `enabled: !isSingleFileMode`, so `get_log_root` is never fetched.
-4. **(react → zustand)** Route components set `selectedLogFile` from the URL and
-   call `initLogDir()` guarded by `if (isSingleFileMode)`; its single-file branch
-   derives `logDir` from `selectedLogFile` (`deriveSingleFileLogDir`, falling back
-   to `api.get_log_dir()`) and stores it in **zustand** `logs.logDir`.
-5. **(module — idle)** The `ReplicationService` **never starts**: no controller,
+   `enabled: !isSingleFileMode`, so `get_log_root` never runs — the value is the
+   seeded one, not a fetch.
+4. **(module — idle)** The `ReplicationService` **never starts**: no controller,
    and `syncLogs()` bails immediately on `isSingleFileMode`.
-6. **(react-query)** The open log's content is loaded on demand by the single-log
-   slice (`logSlice`), keyed by `getLogDir()`.
-7. **(react)** `useLogDir()` / `getLogDir()` return the **zustand** `logs.logDir`
-   value via their `isSingleFileMode` branch.
+5. **(react-query)** The open log's content is loaded on demand by the single-log
+   slice (`logSlice`), keyed by `getLogDir()` (the seeded cache value).
+6. **(react)** `useLogDir()` / `getLogDir()` read the `["log-dir"]` cache — the
+   **same accessors dir mode uses, with no `isSingleFileMode` branch**.
 
-**zustand here:** UI state **+ `logDir`** (route-derived with an async fallback
-that suits the imperative flow; the gated query is disabled).
+**zustand here:** UI state only — `selectedLogFile` (route/selection), `loading`,
+grid state. **Not `logDir`** — it lives in the react-query cache now, same as dir
+mode — and not content.
 
 ---
 
@@ -157,3 +164,8 @@ identical to the dir the views key on (`get_log_root().log_dir`) — under *any*
 backend. The bug this replaced was exactly the divergence: zustand `logs.logDir`
 set asynchronously by scattered `initLogDir()` calls, racing render, producing a
 transient empty `["logs-content", ""]` cache key.
+
+Single-file shares this now too: its `logDir` is seeded into the *same*
+`["log-dir"]` cache (by `setLogDir` / `initLogDir`), so the accessors
+(`useLogDir` / `getLogDir`) have **no `isSingleFileMode` fork** — both modes read
+one source.
