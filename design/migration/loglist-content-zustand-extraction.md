@@ -10,6 +10,10 @@ a plain singleton, and zustand keeps only genuine UI state.
 
 Phases 1–3 implemented and committed. Dir mode verified (449 unit + 55 e2e green); `logDir` now flows from the gated `["log-dir"]` query via `<ReplicationController>`, and the `["logs-content",""]` empty key is gone. **Single-file / VS-Code-embed / deep-link mode is preserved by construction but not covered by e2e — needs a manual pass.** Minor leftover: `logs.absLogDir` is now write-never (always undefined in single-file, as before); the store field could be dropped.
 
+## Follow-up (deferred): single-file `logDir` → react-query
+
+Phase 3 moved **directory-mode** `logDir` into the gated `["log-dir"]` query, but **single-file mode still keeps its `logDir` in zustand** (`logs.logDir`, set by the `initLogDir` single-file branch / `setLogDir`, read via `useLogDir()`'s `isSingleFileMode` branch and `getLogDir()`). So directory and single-file resolve `logDir` from two different owners. Follow-up: migrate the single-file `logDir` into react-query too (a route-/file-derived query, e.g. keyed on `selectedLogFile`), so **both modes have react-query as the single `logDir` owner** and zustand holds no content-key state. Then `useLogDir`/`getLogDir` collapse to a single source (no `isSingleFileMode` fork), and `logs.logDir`/`setLogDir`/`initLogDir`'s single-file branch retire. `selectedLogFile` stays in zustand (genuine selection/route state).
+
 ## The three remaining ties (today)
 
 1. **Content write-shims** — `logsSlice` `setLogHandles`/`updateLogPreviews`/`updateLogDetails` (`logsSlice.ts:146/160/163`) just forward to `logsContent.*(get().logs.logDir, …)`. Pure indirection (the comment says so).
