@@ -22,8 +22,10 @@ load); each cell names the deployment / signal that lands there.
 | `staticHttpApi` | `?log_dir=` · `#log_dir_context` bundle | `?log_file=` |
 | `vscodeApi` | N/A ¹ | `#logview-state` (VS Code embed) |
 
-> ¹ Structurally reachable (vscode backend with no `#logview-state`), but the
-extension always embeds a single log, so directory + VS Code isn't a real combo.
+> ¹ The extension always embeds a single log (`#logview-state`), so directory +
+VS Code isn't a real combo. `resolveApi` now **asserts** this — a VS Code backend
+without single-file mode throws — so the directory loader can rely on a defined
+`log_dir`. **TODO: validate this invariant with Charles.**
 > 
 > **Likely-intended mutual exclusivity (not enforced).** The three URL params look
 > meant to be mutually exclusive: `?log_dir=` selects a **directory** (directory

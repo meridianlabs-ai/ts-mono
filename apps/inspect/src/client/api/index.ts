@@ -3,6 +3,8 @@ import JSON5 from "json5";
 import { AppConfig } from "@tsmono/inspect-common/types";
 import { dirname, getVscodeApi } from "@tsmono/util";
 
+import { isSingleFileMode } from "../../app/singleFileMode";
+
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";
 import { ClientAPI } from "./types";
@@ -23,7 +25,17 @@ interface LogDirContext {
 const resolveApi = (): ClientAPI => {
   const debug = false;
   if (getVscodeApi()) {
-    // This is VSCode
+    // VS Code ≡ single-file mode: the extension always embeds a single log
+    // (`#logview-state`), which trips single-file mode. Directory + VS Code is
+    // structurally reachable but not a real combo, and the directory loader
+    // relies on a defined `log_dir` — so enforce the invariant here rather than
+    // let it silently render an empty directory view. See
+    // design/migration/replication-startup-modes.md ¹.
+    if (!isSingleFileMode) {
+      throw new Error(
+        "VS Code backend resolved without single-file mode (expected an embedded #logview-state element)."
+      );
+    }
     return clientApi(vscodeApi, undefined, debug);
   } else {
     // See if there is an log_file, log_dir embedded in the

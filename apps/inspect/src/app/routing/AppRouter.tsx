@@ -1,4 +1,4 @@
-import { FC, ReactNode, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Navigate,
@@ -10,20 +10,17 @@ import {
 import {
   AppErrorBoundary,
   ComponentNavigationProvider,
-  PulsingDots,
 } from "@tsmono/react/components";
 
 import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
-import { useLogRootAsync } from "../server/useLogDir";
 import { isSingleFileMode } from "../singleFileMode";
 
-import { ReplicationController } from "./ReplicationController";
+import { LoaderHost } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
-import { SingleFileLoaderHost } from "./SingleFileLoaderHost";
 import { TasksRouter } from "./TasksRouter";
 import {
   kLogRouteUrlPattern,
@@ -73,47 +70,9 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        {isSingleFileMode ? (
-          <SingleFileLoaderHost>{content}</SingleFileLoaderHost>
-        ) : (
-          <DirectoryLoaderHost>{content}</DirectoryLoaderHost>
-        )}
+        <LoaderHost isSingleFileMode={isSingleFileMode}>{content}</LoaderHost>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
-  );
-};
-
-/**
- * Dir-mode arm of <LoaderHost>: resolves the server log root once (via the gated
- * `["log-dir"]` query) before rendering `children`, and owns the dir-mode
- * replication lifecycle through <ReplicationController>. Only mounted in
- * directory mode (single-file's log dir is route-derived, and the `["log-dir"]`
- * query is disabled there).
- */
-const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
-  const logRoot = useLogRootAsync();
-
-  if (logRoot.error) {
-    return (
-      <div className="app-config-gate">
-        Failed to load log directory: {logRoot.error.message}
-      </div>
-    );
-  }
-  if (logRoot.loading) {
-    return (
-      <div className="app-config-gate">
-        <PulsingDots size="large" text="Loading logs…" />
-      </div>
-    );
-  }
-
-  const logDir = logRoot.data?.log_dir;
-  return (
-    <>
-      {logDir ? <ReplicationController key={logDir} logDir={logDir} /> : null}
-      {children}
-    </>
   );
 };
 
