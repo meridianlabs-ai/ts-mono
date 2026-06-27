@@ -10,13 +10,7 @@ import {
   isSingleFileMode,
 } from "../app/singleFileMode";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
-import {
-  ClientAPI,
-  EvalHeader,
-  LogDetails,
-  LogPreview,
-  SampleSummary,
-} from "../client/api/types";
+import { ClientAPI, EvalHeader, SampleSummary } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { isUri, join } from "../utils/uri";
 
@@ -131,28 +125,10 @@ export const createLogsSlice = (
     }
   };
 
-  // Build the replication context for `logDir`. Content writes go straight to
-  // the react-query cache (`logsContent.*`) keyed by the captured `logDir`; the
-  // remaining callbacks bridge to zustand UI state.
-  const replicationContext = (logDir: string): ApplicationContext => ({
-    setLogHandles: (logs: LogHandle[]) =>
-      logsContent.setLogHandles(logDir, logs),
-    getSelectedLog: () => {
-      const selectedLogFile = get().logs.selectedLogFile;
-      if (!selectedLogFile) {
-        return undefined;
-      }
-      return logsContent
-        .getLogsContent(logDir)
-        .handles.find((handle) => handle.name.endsWith(selectedLogFile));
-    },
-    setSelectedLogFile: (logFile: string) => {
-      get().logsActions.setSelectedLogFile(logFile);
-    },
-    updateLogPreviews: (previews: Record<string, LogPreview>) =>
-      logsContent.mergeLogPreviews(logDir, previews),
-    updateLogDetails: (details: Record<string, LogDetails>) =>
-      logsContent.mergeLogDetails(logDir, details),
+  // Build the replication context: the non-cache bridges to zustand UI state.
+  // Log-list content writes go through the `logsContent` seam (IndexedDB +
+  // react-query cache) inside the replicator itself, so they aren't here.
+  const replicationContext = (): ApplicationContext => ({
     setLoading(loading: boolean) {
       get().appActions.setLoading(loading);
     },
@@ -271,7 +247,8 @@ export const createLogsSlice = (
         await replicationService.startReplication(
           databaseService,
           api,
-          replicationContext(logDir)
+          logDir,
+          replicationContext()
         );
 
         await replicationService.sync(true);
@@ -320,7 +297,8 @@ export const createLogsSlice = (
           await replicationService.startReplication(
             opened,
             api,
-            replicationContext(logDir)
+            logDir,
+            replicationContext()
           );
         }
 
@@ -348,20 +326,20 @@ export const createLogsSlice = (
         const logDir = getLogDir();
         const isInFileList =
           logsContent
-            .getLogsContent(logDir)
-            .handles.findIndex((val) => val.name.endsWith(logFile)) !== -1;
+            .getLogHandles(logDir)
+            .findIndex((val) => val.name.endsWith(logFile)) !== -1;
 
         if (!isInFileList) {
           if (replicationService.isReplicating() && !isSingleFileMode) {
             await state.logsActions.syncLogs();
             const logHandle = logsContent
-              .getLogsContent(getLogDir())
-              .handles.find((val) => val.name.endsWith(logFile));
+              .getLogHandles(getLogDir())
+              .find((val) => val.name.endsWith(logFile));
             if (!logHandle) {
               throw new Error(`Log file not found: ${logFile}`);
             }
           } else {
-            logsContent.setLogHandles(logDir, [{ name: logFile }]);
+            logsContent.setHandles(logDir, [{ name: logFile }]);
           }
         }
         set((state) => {

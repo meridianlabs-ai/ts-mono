@@ -215,12 +215,14 @@ export const createLogSlice = (
                 if (get().logs.selectedLogFile === logAbsPath) {
                   state.logActions.setSelectedLogDetails(logDetails);
                 }
-                dbService.writeLogDetail(logAbsPath, logDetails).catch(() => {
-                  // Silently ignore cache errors
-                });
+                logsContent
+                  .writeDetail(dbService, logDir, logAbsPath, logDetails)
+                  .catch(() => {
+                    // Silently ignore cache errors
+                  });
                 // Repaint the listing preview from the fresh status: a log
                 // cached as "started" may have since finished.
-                logsContent.mergeLogPreviews(logDir, {
+                logsContent.mergePreviews(logDir, {
                   [logFileName]: toLogPreview(logDetails),
                 });
               };
@@ -231,7 +233,7 @@ export const createLogSlice = (
                 await refreshLogDetails();
               } else {
                 state.logActions.setSelectedLogDetails(cachedInfo);
-                logsContent.mergeLogPreviews(logDir, {
+                logsContent.mergePreviews(logDir, {
                   [logFileName]: toLogPreview(cachedInfo),
                 });
                 // Still fetch fresh data in background to update cache
@@ -259,9 +261,11 @@ export const createLogSlice = (
           // OPTIONAL: Cache log info (completely non-blocking)
           if (dbService) {
             setTimeout(() => {
-              dbService.writeLogDetail(logFileName, logDetails).catch(() => {
-                // Silently ignore cache errors
-              });
+              logsContent
+                .writeDetail(dbService, logDir, logFileName, logDetails)
+                .catch(() => {
+                  // Silently ignore cache errors
+                });
             }, 0);
           }
 
@@ -270,7 +274,7 @@ export const createLogSlice = (
             [logFileName]: toLogPreview(logDetails),
           };
 
-          logsContent.mergeLogPreviews(logDir, header);
+          logsContent.mergePreviews(logDir, header);
           set((state) => {
             state.log.loadedLog = logFileName;
           });

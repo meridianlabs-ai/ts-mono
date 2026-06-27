@@ -37,7 +37,7 @@ export const SingleFileLoaderHost: FC<{ children: ReactNode }> = ({
       if (resolvedLogPath) {
         // Clear any log dir, then load just the passed file.
         setLogDir(undefined);
-        logsContent.setLogHandles(getLogDir(), [{ name: resolvedLogPath }]);
+        logsContent.setHandles(getLogDir(), [{ name: resolvedLogPath }]);
       } else {
         // If a log file was passed, select it.
         const log_file = urlParams.get("log_file");

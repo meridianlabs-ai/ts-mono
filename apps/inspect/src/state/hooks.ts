@@ -15,7 +15,7 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
-import { useLogHandles, useLogsContent } from "./logsContent";
+import { useLogHandles, useLogPreviews } from "./logsContent";
 import { getAvailableScorers } from "./scoring";
 import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -630,8 +630,8 @@ export const useLogs = () => {
     (state) => state.logsActions.syncLogPreviews
   );
   const logDir = useLogDir();
-  const { handles: allLogFiles, previews: logPreviews } =
-    useLogsContent(logDir);
+  const allLogFiles = useLogHandles(logDir);
+  const logPreviews = useLogPreviews(logDir);
 
   const loadLogOverviews = useCallback(
     async (logs: LogHandle[] = allLogFiles) => {
@@ -778,7 +778,8 @@ export const computeLogsWithRetried = (
 
 export const useLogsWithretried = (): LogHandleWithretried[] => {
   const logDir = useLogDir();
-  const { handles: logs, previews: logPreviews } = useLogsContent(logDir);
+  const logs = useLogHandles(logDir);
+  const logPreviews = useLogPreviews(logDir);
 
   return useMemo(
     () => computeLogsWithRetried(logs, logPreviews),

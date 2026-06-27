@@ -26,8 +26,8 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
 
   // Log content lives in the react-query cache; syncLog writes previews
   // directly via logsContent. Spy on the merge so we can assert against it.
-  const mergeLogPreviews = vi
-    .spyOn(logsContent, "mergeLogPreviews")
+  const mergePreviews = vi
+    .spyOn(logsContent, "mergePreviews")
     .mockImplementation(() => {});
 
   const databaseService = {
@@ -63,7 +63,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     cleanup,
     databaseService,
     state,
-    mergeLogPreviews,
+    mergePreviews,
   };
 };
 
@@ -80,13 +80,13 @@ describe("logSlice.syncLog", () => {
       "/logs/run.eval",
       false
     );
-    expect(harness.mergeLogPreviews).toHaveBeenCalledTimes(1);
+    expect(harness.mergePreviews).toHaveBeenCalledTimes(1);
     expect(
-      harness.mergeLogPreviews.mock.calls[0]?.[1]["run.eval"]?.status
+      harness.mergePreviews.mock.calls[0]?.[1]["run.eval"]?.status
     ).toBe("success");
     expect(harness.state.log.selectedLogDetails?.status).toBe("success");
 
-    harness.mergeLogPreviews.mockRestore();
+    harness.mergePreviews.mockRestore();
     harness.cleanup();
   });
 });
