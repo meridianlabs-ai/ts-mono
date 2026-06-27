@@ -50,9 +50,6 @@ export const SampleDetailView: FC = () => {
   );
 
   // Cleanup actions
-  const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
   const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
 
@@ -121,11 +118,10 @@ export const SampleDetailView: FC = () => {
   // Cleanup on unmount - clear log state since this is a standalone view
   useEffect(() => {
     return () => {
-      clearSelectedLogDetails();
       clearLog();
       clearSampleTab();
     };
-  }, [clearLog, clearSampleTab, clearSelectedLogDetails]);
+  }, [clearLog, clearSampleTab]);
 
   return (
     <SampleDetailComponent

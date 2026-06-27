@@ -12,10 +12,10 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { useLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
-import { SampleSummary } from "../client/api/types";
+import { LogDetails, SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
-import { useLogHandles, useLogPreviews } from "./logsContent";
+import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { getAvailableScorers } from "./scoring";
 import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -127,10 +127,8 @@ export const readEvalScorePanelView = (
  * Returns a primitive so Zustand's reference equality is stable.
  */
 export const useEvalScorePanelView = (): ScoreView | undefined =>
-  useStore((state) =>
-    readEvalScorePanelView(
-      state.log.selectedLogDetails?.eval.viewer?.sample_score_view
-    )
+  readEvalScorePanelView(
+    useSelectedLogDetails()?.eval.viewer?.sample_score_view
   );
 
 /**
@@ -141,10 +139,7 @@ export const useEvalScorePanelView = (): ScoreView | undefined =>
  * back into Zustand on every render.
  */
 export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
-  const stored = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.sample_score_view?.sort
-  );
+  const stored = useSelectedLogDetails()?.eval.viewer?.sample_score_view?.sort;
   return useMemo(() => {
     if (!stored) return undefined;
     return {
@@ -156,9 +151,21 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
 
 const log = createLogger("hooks");
 
+/**
+ * The details for the currently selected log, read from the react-query
+ * `["log-details", logDir]` collection. Returns the settled value (or
+ * `undefined` while loading / when no log is selected) — the drop-in for the
+ * retired `log.selectedLogDetails`. Use `useLogDetail` directly for the
+ * `AsyncData` (loading/error) surface.
+ */
+export const useSelectedLogDetails = (): LogDetails | undefined => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useLogDetail(logDir, selectedLogFile).data;
+};
+
 export const useEvalSpec = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
-  return selectedLogDetails?.eval;
+  return useSelectedLogDetails()?.eval;
 };
 
 export const useRefreshLog = () => {
@@ -205,7 +212,7 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   const api = useApi();
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
-  const logStatus = useStore((s) => s.log.selectedLogDetails?.status);
+  const logStatus = useSelectedLogDetails()?.status;
   const refreshLog = useRefreshLog();
   const isInProgress = logStatus === "started";
   return {
@@ -218,7 +225,7 @@ export const useLogEditAffordance = (): LogEditAffordance => {
 // Fetches all samples summaries (both completed and incomplete)
 // without applying any filtering
 export const useSampleSummaries = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const pendingSampleSummaries = useStore(
     (state) => state.log.pendingSampleSummaries
   );
@@ -243,7 +250,7 @@ export const useTotalSampleCount = () => {
 // based upon the configuration (eval + summaries) if no scorer has been
 // selected
 export const useSelectedScores = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const sampleSummaries = useSampleSummaries();
   const selected = useStore((state) => state.log.selectedScores);
   return useMemo(() => {
@@ -261,7 +268,7 @@ export const useSelectedScores = () => {
 // to determine scores (even for in progress evals that don't yet have final
 // metrics)
 export const useScores = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const sampleSummaries = useSampleSummaries();
   return useMemo(() => {
     if (!selectedLogDetails) {
@@ -521,9 +528,6 @@ export const useSetSelectedLogIndex = () => {
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
-  const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
   const clearCollapsedEvents = useStore(
     (state) => state.sampleActions.clearCollapsedEvents
   );
@@ -534,19 +538,12 @@ export const useSetSelectedLogIndex = () => {
     (index: number) => {
       clearCollapsedEvents();
       clearSelectedSample();
-      clearSelectedLogDetails();
 
       const logHandle = allLogFiles[index];
       // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       setSelectedLogFile(logHandle.name);
     },
-    [
-      allLogFiles,
-      setSelectedLogFile,
-      clearSelectedLogDetails,
-      clearSelectedSample,
-      clearCollapsedEvents,
-    ]
+    [allLogFiles, setSelectedLogFile, clearSelectedSample, clearCollapsedEvents]
   );
 };
 

@@ -25,7 +25,7 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { useSampleData } from "../../../state/hooks";
+import { useSampleData, useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useLoadSample } from "../../../state/useLoadSample";
 import { usePollSample } from "../../../state/usePollSample";
@@ -84,7 +84,7 @@ export const SamplePrintView: FC = () => {
     return sampleData.getSelectedSample();
   }, [sampleData]);
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
+  const evalSpec = useSelectedLogDetails()?.eval;
 
   // Transcript: process events through the same pipeline, all expanded
   const sampleEvents = sample?.events || [];

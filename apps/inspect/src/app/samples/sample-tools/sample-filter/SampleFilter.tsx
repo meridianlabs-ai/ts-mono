@@ -18,7 +18,10 @@ import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { debounce } from "@tsmono/util";
 
-import { useEvalDescriptor } from "../../../../state/hooks";
+import {
+  useEvalDescriptor,
+  useSelectedLogDetails,
+} from "../../../../state/hooks";
 import { useStore } from "../../../../state/store";
 import { FilterError } from "../../../types";
 import { sampleFilterItems } from "../filters";
@@ -156,9 +159,7 @@ export const SampleFilter: FC = () => {
 
   const filter = useStore((state) => state.log.filter);
   const filterError = useStore((state) => state.log.filterError);
-  const samples = useStore(
-    (state) => state.log.selectedLogDetails?.sampleSummaries
-  );
+  const samples = useSelectedLogDetails()?.sampleSummaries;
   const setFilter = useStore((state) => state.logActions.setFilter);
 
   const handleFocus = useCallback((event: FocusEvent, view: EditorView) => {

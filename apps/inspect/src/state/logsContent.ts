@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
+import { AsyncData, data, loading } from "@tsmono/util";
 
 import { LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -136,7 +138,7 @@ const clearCache = (logDir: string | undefined): void => {
  * full list is read back and returned for the caller's continued sync logic.
  */
 export const writeHandles = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   handles: LogHandle[]
 ): Promise<LogHandle[]> => {
@@ -150,70 +152,74 @@ export const writeHandles = async (
   return handles;
 };
 
+// The keyed merges and clears update the cache first (it's the read path, and
+// the cache value equals the write input), then persist to IndexedDB. So a
+// fire-and-forget call still reflects in the cache synchronously.
+
 export const writePreviews = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   previews: Record<string, LogPreview>
 ): Promise<void> => {
+  mergePreviews(logDir, previews);
   if (db?.opened()) {
     await db.writeLogPreviews(Object.values(previews), Object.keys(previews));
   }
-  mergePreviews(logDir, previews);
 };
 
 export const writeDetails = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   details: Record<string, LogDetails>
 ): Promise<void> => {
+  mergeDetails(logDir, details);
   if (db?.opened()) {
     await db.writeLogDetails(details);
   }
-  mergeDetails(logDir, details);
 };
 
 export const writeDetail = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   name: string,
   details: LogDetails
 ): Promise<void> => {
+  mergeDetails(logDir, { [name]: details });
   if (db?.opened()) {
     await db.writeLogDetail(name, details);
   }
-  mergeDetails(logDir, { [name]: details });
 };
 
 export const clearFile = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   name: string
 ): Promise<void> => {
+  evictFile(logDir, name);
   if (db?.opened()) {
     await db.clearCacheForFile(name);
   }
-  evictFile(logDir, name);
 };
 
 export const clearPreview = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined,
   name: string
 ): Promise<void> => {
+  evictPreview(logDir, name);
   if (db?.opened()) {
     await db.clearPreviewForFile(name);
   }
-  evictPreview(logDir, name);
 };
 
 export const clearAll = async (
-  db: DatabaseService | undefined,
+  db: DatabaseService | null | undefined,
   logDir: string | undefined
 ): Promise<void> => {
+  clearCache(logDir);
   if (db?.opened()) {
     await db.clearAllCaches();
   }
-  clearCache(logDir);
 };
 
 // ---------------------------------------------------------------------------
@@ -247,10 +253,59 @@ export const useLogPreviews = (
 export const useLogDetails = (
   logDir: string | undefined
 ): Record<string, LogDetails> => {
-  const { data } = useQuery({
+  const { data: details } = useQuery({
     queryKey: logDetailsKey(logDir),
     queryFn: () => currentDetails(logDir),
     staleTime: Infinity,
   });
-  return data ?? EMPTY_DETAILS;
+  return details ?? EMPTY_DETAILS;
 };
+
+/**
+ * Resolve a log file (which may be a relative name or an absolute path) to the
+ * key it is stored under in the per-directory collections — the matching
+ * `handle.name`, falling back to the file itself when no handle is present yet
+ * (e.g. single-file mode before the listing is seeded). Both readers and the
+ * opened-log writers route through this so the opened log lands on the same key
+ * the listing uses.
+ */
+export const resolveLogKey = (
+  logDir: string | undefined,
+  logFile: string
+): string => {
+  const match = currentHandles(logDir).find((handle) =>
+    handle.name.endsWith(logFile)
+  );
+  return match?.name ?? logFile;
+};
+
+/**
+ * The details for a single log, read from the `["log-details", logDir]`
+ * collection. `loading` until the row is present (the seam fills it on open and
+ * the replicator backfills it in the background); the error branch is required
+ * by `AsyncData` but unreachable today — the passive cache has no fetch-error
+ * source. See `design/migration/selected-log-details-react-query.md`.
+ */
+export const useLogDetail = (
+  logDir: string | undefined,
+  logFile: string | undefined
+): AsyncData<LogDetails> => {
+  const details = useLogDetails(logDir);
+  const handles = useLogHandles(logDir);
+  return useMemo(() => {
+    if (!logFile) {
+      return loading;
+    }
+    const key =
+      handles.find((handle) => handle.name.endsWith(logFile))?.name ?? logFile;
+    const detail = details[key];
+    return detail ? data(detail) : loading;
+  }, [details, handles, logFile]);
+};
+
+/** Non-React snapshot of a single log's details (for slice / polling). */
+export const getLogDetail = (
+  logDir: string | undefined,
+  logFile: string
+): LogDetails | undefined =>
+  currentDetails(logDir)[resolveLogKey(logDir, logFile)];

@@ -1,8 +1,10 @@
 import { createLogger } from "@tsmono/util";
 
+import { getLogDir } from "../app/server/useLogDir";
 import { ClientAPI } from "../client/api/types";
 import { createPolling } from "../utils/polling";
 
+import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
 
 // The logger
@@ -42,14 +44,18 @@ export function createLogPolling(
       // picking up any newly flushed samples.
       const logDetails = await api.get_log_details(selectedLogFile, false);
 
-      set((state) => {
-        // Set the log summary
-        state.log.selectedLogDetails = logDetails;
-        log.debug(
-          `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
-          logDetails
-        );
+      // Running-log refreshes are transient: update the details cache only
+      // (no IndexedDB write), keyed the same as the listing.
+      const logDir = getLogDir();
+      logsContent.mergeDetails(logDir, {
+        [logsContent.resolveLogKey(logDir, selectedLogFile)]: logDetails,
+      });
+      log.debug(
+        `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
+        logDetails
+      );
 
+      set((state) => {
         // Clear pending summaries if requested
         if (clearPending) {
           const pendingSampleSummaries = state.log.pendingSampleSummaries;
@@ -134,7 +140,10 @@ export function createLogPolling(
           // 1. The eval completed (buffer cleaned up)
           // 2. The sample buffer isn't ready yet (eval just started)
           // Only stop polling if the eval is no longer running.
-          const currentStatus = get().log.selectedLogDetails?.status;
+          const currentStatus = logsContent.getLogDetail(
+            getLogDir(),
+            get().logs.selectedLogFile ?? ""
+          )?.status;
           if (currentStatus === "started") {
             log.debug(
               `NotFound but eval still running, continuing to poll: ${logFileName}`

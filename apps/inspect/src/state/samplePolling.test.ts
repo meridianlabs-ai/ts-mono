@@ -12,12 +12,22 @@ import {
   SampleSummary,
 } from "../client/api/types";
 
+import * as logsContent from "./logsContent";
+import { queryClient } from "./queryClient";
 import {
   createSamplePolling,
   hasSampleDataUpdates,
   shouldFinalizeStreamingSample,
 } from "./samplePolling";
 import { StoreState } from "./store";
+
+// The opened log's summaries live in the react-query details cache, keyed by
+// the selected log file; tests seed it here and point state at the same key.
+const SELECTED_LOG = "selected.eval";
+const seedSelectedLog = () =>
+  logsContent.mergeDetails(undefined, {
+    [SELECTED_LOG]: { sampleSummaries: [] } as unknown as never,
+  });
 
 const mockApi = {
   get_log_sample: vi.fn(),
@@ -158,9 +168,13 @@ describe("samplePolling helpers", () => {
 });
 
 describe("createSamplePolling", () => {
+  beforeEach(() => {
+    seedSelectedLog();
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    queryClient.clear();
   });
 
   it("keeps polling until a buffer-complete sample is flushed to the eval", async () => {
@@ -193,7 +207,8 @@ describe("createSamplePolling", () => {
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
-      log: { selectedLogDetails: { sampleSummaries: [] } },
+      log: {},
+      logs: { selectedLogFile: SELECTED_LOG },
     } as unknown as StoreState;
     const store = {
       getState: () => state,
@@ -261,7 +276,8 @@ describe("createSamplePolling", () => {
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
-      log: { selectedLogDetails: { sampleSummaries: [] } },
+      log: {},
+      logs: { selectedLogFile: SELECTED_LOG },
     } as unknown as StoreState;
     const store = {
       getState: () => state,
@@ -358,11 +374,8 @@ describe("createSamplePolling", () => {
         runningEvents: [],
       },
       sampleActions,
-      log: {
-        selectedLogDetails: {
-          sampleSummaries: [],
-        },
-      },
+      log: {},
+      logs: { selectedLogFile: SELECTED_LOG },
     } as unknown as StoreState;
 
     const store = {
@@ -408,11 +421,8 @@ describe("createSamplePolling", () => {
         runningEvents: [],
       },
       sampleActions,
-      log: {
-        selectedLogDetails: {
-          sampleSummaries: [],
-        },
-      },
+      log: {},
+      logs: { selectedLogFile: SELECTED_LOG },
     } as unknown as StoreState;
 
     const store = {
@@ -455,7 +465,8 @@ describe("createSamplePolling", () => {
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
-      log: { selectedLogDetails: { sampleSummaries: [] } },
+      log: {},
+      logs: { selectedLogFile: SELECTED_LOG },
     } as unknown as StoreState;
     const store = {
       getState: () => state,
@@ -487,8 +498,8 @@ describe("createSamplePolling", () => {
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
+      logs: { selectedLogFile: SELECTED_LOG },
       log: {
-        selectedLogDetails: { sampleSummaries: [] },
         pendingSampleSummaries: {
           samples: [
             {
@@ -553,8 +564,8 @@ describe("createSamplePolling", () => {
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
+      logs: { selectedLogFile: SELECTED_LOG },
       log: {
-        selectedLogDetails: { sampleSummaries: [] },
         pendingSampleSummaries: {
           samples: [
             {

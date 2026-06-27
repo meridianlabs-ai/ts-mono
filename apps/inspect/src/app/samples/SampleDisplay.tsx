@@ -72,6 +72,7 @@ import {
 import {
   useDocumentTitle,
   useSampleData,
+  useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
 import { useApi, useStore } from "../../state/store";
@@ -138,7 +139,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const runningSampleData = sampleData.running;
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
+  const evalSpec = useSelectedLogDetails()?.eval;
   const { setDocumentTitle } = useDocumentTitle();
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });

@@ -20,7 +20,6 @@ import {
   SampleSlice,
 } from "./sampleSlice";
 import { createSearchSlice, SearchSlice } from "./searchSlice";
-import { filterState } from "./store_filter";
 
 const log = createLogger("store");
 
@@ -70,12 +69,7 @@ export const initializeStore = (
     },
     setItem: debounce(<T>(name: string, value: T): void => {
       if (storage) {
-        const wrapper = value as { state: PersistedState; version: number };
-        const filtered = {
-          state: filterState(wrapper.state),
-          version: wrapper.version,
-        };
-        storage.setItem(name, filtered);
+        storage.setItem(name, value);
       }
     }, 1000),
     removeItem: (name: string): void => {

@@ -32,6 +32,7 @@ import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
+import { useSelectedLogDetails } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
@@ -109,7 +110,7 @@ const AppContent: FC = () => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const loadedLogFile = useStore((state) => state.log.loadedLog);
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
   const setLoading = useStore((state) => state.appActions.setLoading);

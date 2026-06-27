@@ -4,7 +4,7 @@ import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { useDocumentTitle } from "../../../state/hooks";
+import { useDocumentTitle, useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
@@ -45,7 +45,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     (state) => state.log.selectedSampleHandle
   );
 
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
   const { setDocumentTitle } = useDocumentTitle();
   useEffect(() => {

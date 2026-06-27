@@ -30,6 +30,12 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     .spyOn(logsContent, "mergePreviews")
     .mockImplementation(() => {});
 
+  // The opened-log details are written into the react-query collection via the
+  // seam; spy on it so we can assert the fresh details were cached.
+  const writeDetail = vi
+    .spyOn(logsContent, "writeDetail")
+    .mockResolvedValue(undefined);
+
   const databaseService = {
     opened: vi.fn(() => true),
     readLogDetailsForFile: vi.fn().mockResolvedValue(cachedInfo),
@@ -64,6 +70,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
     databaseService,
     state,
     mergePreviews,
+    writeDetail,
   };
 };
 
@@ -81,12 +88,14 @@ describe("logSlice.syncLog", () => {
       false
     );
     expect(harness.mergePreviews).toHaveBeenCalledTimes(1);
-    expect(
-      harness.mergePreviews.mock.calls[0]?.[1]["run.eval"]?.status
-    ).toBe("success");
-    expect(harness.state.log.selectedLogDetails?.status).toBe("success");
+    expect(harness.mergePreviews.mock.calls[0]?.[1]["run.eval"]?.status).toBe(
+      "success"
+    );
+    expect(harness.writeDetail).toHaveBeenCalledTimes(1);
+    expect(harness.writeDetail.mock.calls[0]?.[3]?.status).toBe("success");
 
     harness.mergePreviews.mockRestore();
+    harness.writeDetail.mockRestore();
     harness.cleanup();
   });
 });

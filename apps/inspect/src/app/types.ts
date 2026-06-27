@@ -138,7 +138,6 @@ export interface LogState {
   loadedLog?: string;
 
   selectedSampleHandle?: SampleHandle;
-  selectedLogDetails?: LogDetails;
   pendingSampleSummaries?: PendingSamples;
 
   filter: string;

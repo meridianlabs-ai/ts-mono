@@ -33,10 +33,6 @@ export const LogViewContainer: FC = () => {
     (state) => state.logsActions.setSelectedLogFile
   );
 
-  const clearSelectedLogSummary = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
-
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
@@ -113,9 +109,8 @@ export const LogViewContainer: FC = () => {
     prevLogPathRef.current = logPath;
     if (prevLogPath && logPath && logPath !== prevLogPath) {
       clearSelectedSample();
-      clearSelectedLogSummary();
     }
-  }, [logPath, clearSelectedSample, clearSelectedLogSummary]);
+  }, [logPath, clearSelectedSample]);
 
   // Sync the workspace tab from the URL synchronously. Kept separate from
   // the async log-loading effect below so a tab click can't race with a

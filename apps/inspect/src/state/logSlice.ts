@@ -24,11 +24,10 @@ export interface LogSlice {
     ) => void;
     clearSelectedSample: () => void;
 
-    // Set the selected log summary
-    setSelectedLogDetails: (details: LogDetails) => void;
-
-    // Clear the selected log summary
-    clearSelectedLogDetails: () => void;
+    // React to a freshly loaded/refreshed log's details: reset derived
+    // selection state. The details themselves live in the react-query
+    // collection, not zustand.
+    onLogDetailsLoaded: (details: LogDetails) => void;
 
     // Update pending sample information
     setPendingSampleSummaries: (samples: PendingSamples) => void;
@@ -74,7 +73,6 @@ const initialState = {
   // Log state
   selectedSampleId: undefined,
   selectedSampleEpoch: undefined,
-  selectedLogDetails: undefined,
   pendingSampleSummaries: undefined,
   loadedLog: undefined,
 
@@ -127,10 +125,9 @@ export const createLogSlice = (
           state.log.selectedSampleHandle = undefined;
         });
       },
-      setSelectedLogDetails: (details: LogDetails) => {
+      onLogDetailsLoaded: (details: LogDetails) => {
         set((state) => {
           state.log.selectedScores = undefined;
-          state.log.selectedLogDetails = details;
         });
 
         if (
@@ -140,12 +137,6 @@ export const createLogSlice = (
           // If there are no samples, use the workspace tab id by default
           get().appActions.setWorkspaceTab(kLogViewInfoTabId);
         }
-      },
-
-      clearSelectedLogDetails: () => {
-        set((state) => {
-          state.log.selectedLogDetails = undefined;
-        });
       },
       setPendingSampleSummaries: (pendingSampleSummaries: PendingSamples) => {
         set((state) => {
@@ -213,10 +204,15 @@ export const createLogSlice = (
               const refreshLogDetails = async () => {
                 const logDetails = await api.get_log_details(logAbsPath, false);
                 if (get().logs.selectedLogFile === logAbsPath) {
-                  state.logActions.setSelectedLogDetails(logDetails);
+                  state.logActions.onLogDetailsLoaded(logDetails);
                 }
                 logsContent
-                  .writeDetail(dbService, logDir, logAbsPath, logDetails)
+                  .writeDetail(
+                    dbService,
+                    logDir,
+                    logsContent.resolveLogKey(logDir, logAbsPath),
+                    logDetails
+                  )
                   .catch(() => {
                     // Silently ignore cache errors
                   });
@@ -232,7 +228,12 @@ export const createLogSlice = (
                 // read so reopening details can't re-seed stale running state.
                 await refreshLogDetails();
               } else {
-                state.logActions.setSelectedLogDetails(cachedInfo);
+                // Seed the details cache from the IndexedDB-cached row (it's
+                // already persisted, so cache-only), then react to it.
+                logsContent.mergeDetails(logDir, {
+                  [logsContent.resolveLogKey(logDir, logAbsPath)]: cachedInfo,
+                });
+                state.logActions.onLogDetailsLoaded(cachedInfo);
                 logsContent.mergePreviews(logDir, {
                   [logFileName]: toLogPreview(cachedInfo),
                 });
@@ -256,18 +257,20 @@ export const createLogSlice = (
 
         try {
           const logDetails = await api.get_log_details(logFileName, false);
-          state.logActions.setSelectedLogDetails(logDetails);
 
-          // OPTIONAL: Cache log info (completely non-blocking)
-          if (dbService) {
-            setTimeout(() => {
-              logsContent
-                .writeDetail(dbService, logDir, logFileName, logDetails)
-                .catch(() => {
-                  // Silently ignore cache errors
-                });
-            }, 0);
-          }
+          // Cache-first seam: the details land in the cache synchronously; the
+          // IndexedDB write completes in the background (fire-and-forget).
+          void logsContent
+            .writeDetail(
+              dbService,
+              logDir,
+              logsContent.resolveLogKey(logDir, logAbsPath),
+              logDetails
+            )
+            .catch(() => {
+              // Silently ignore cache errors
+            });
+          state.logActions.onLogDetailsLoaded(logDetails);
 
           // Push the updated header information up
           const header = {
@@ -313,7 +316,18 @@ export const createLogSlice = (
         log.debug(`refresh: ${selectedLogFile}`);
         try {
           const logDetails = await api.get_log_details(selectedLogFile, false);
-          state.logActions.setSelectedLogDetails(logDetails);
+          const logDir = getLogDir();
+          void logsContent
+            .writeDetail(
+              state.databaseService,
+              logDir,
+              logsContent.resolveLogKey(logDir, selectedLogFile),
+              logDetails
+            )
+            .catch(() => {
+              // Silently ignore cache errors
+            });
+          state.logActions.onLogDetailsLoaded(logDetails);
         } catch (error) {
           log.error("Error refreshing log:", error);
           throw error;

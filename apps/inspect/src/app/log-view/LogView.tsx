@@ -13,7 +13,11 @@ import {
 import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import { useEvalSpec, useRefreshLog } from "../../state/hooks";
+import {
+  useEvalSpec,
+  useRefreshLog,
+  useSelectedLogDetails,
+} from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLogNavigation } from "../routing/logNavigation";
 
@@ -33,7 +37,7 @@ export const LogView: FC = () => {
   const refreshLog = useRefreshLog();
   const navigation = useLogNavigation();
 
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = useEvalSpec();
   const runningMetrics = useStore(
     (state) => state.log.pendingSampleSummaries?.metrics

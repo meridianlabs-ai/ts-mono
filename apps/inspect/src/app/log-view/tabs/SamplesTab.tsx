@@ -25,6 +25,7 @@ import {
   useFilteredSamples,
   useSampleDescriptor,
   useScores,
+  useSelectedLogDetails,
   useSelectedScores,
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
@@ -158,7 +159,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   columnButtonEl,
 }) => {
   const sampleSummaries = useFilteredSamples();
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
   const evalSampleCount = useMemo(() => {

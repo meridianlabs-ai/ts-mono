@@ -1,21 +1,6 @@
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { estimateSize } from "@tsmono/util";
 
-import { PersistedState } from "./store";
-
-export function filterState(state: PersistedState) {
-  if (!state) {
-    return state;
-  }
-
-  // When saving state, we can't store vast amounts of data (like a large sample)
-  const filters = [filterLargeLogDetails];
-  return filters.reduce(
-    (filteredState, filter) => filter(filteredState),
-    state
-  );
-}
-
 export function isLargeSample(sample: EvalSample): boolean {
   const storeKeys = countKeys(sample.store);
   if (storeKeys > 5000) {
@@ -63,26 +48,4 @@ function countKeys(obj: unknown, options = { countArrayIndices: false }) {
   }
 
   return count;
-}
-
-// Filters the selectedlog if it is too large
-function filterLargeLogDetails(state: PersistedState): PersistedState {
-  if (!state || !state.log || !state.log.selectedLogDetails) {
-    return state;
-  }
-
-  const estimatedSize = estimateSize(
-    state.log.selectedLogDetails.sampleSummaries
-  );
-  if (estimatedSize > 250000) {
-    return {
-      ...state,
-      log: {
-        ...state.log,
-        selectedLogDetails: undefined,
-      },
-    };
-  } else {
-    return state;
-  }
 }

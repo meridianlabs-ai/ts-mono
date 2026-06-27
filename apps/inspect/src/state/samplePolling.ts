@@ -8,11 +8,13 @@ import {
 } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { getLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { Event } from "../app/types";
 import {
   ClientAPI,
   EventData,
+  LogDetails,
   SampleData,
   SampleDataResponse,
   SampleSummary,
@@ -20,6 +22,7 @@ import {
 import { resolveAttachments } from "../utils/attachments";
 import { createPolling, PollingCallbackResult } from "../utils/polling";
 
+import * as logsContent from "./logsContent";
 import {
   resolveSample,
   synthesizeErroredSampleFromSummary,
@@ -348,12 +351,16 @@ export function createSamplePolling(
   };
 }
 
+/** The opened log's details, read from the react-query collection. */
+const selectedLogDetails = (state: StoreState): LogDetails | undefined =>
+  logsContent.getLogDetail(getLogDir(), state.logs.selectedLogFile ?? "");
+
 const hasCompletedLogSummary = (
   state: StoreState,
   sampleId: string | number,
   sampleEpoch: number
 ) => {
-  return state.log.selectedLogDetails?.sampleSummaries.some(
+  return selectedLogDetails(state)?.sampleSummaries.some(
     (sampleSummary) =>
       sampleIdsEqual(sampleSummary.id, sampleId) &&
       sampleSummary.epoch === sampleEpoch &&
@@ -367,7 +374,7 @@ const findLiveSummary = (
   sampleEpoch: number
 ): SampleSummary | undefined => {
   const merged = mergeSampleSummaries(
-    state.log.selectedLogDetails?.sampleSummaries ?? [],
+    selectedLogDetails(state)?.sampleSummaries ?? [],
     state.log.pendingSampleSummaries?.samples ?? []
   );
   return merged.find(
