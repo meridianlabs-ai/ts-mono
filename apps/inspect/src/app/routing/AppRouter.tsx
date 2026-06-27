@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { FC, ReactNode, useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Navigate,
@@ -20,6 +20,7 @@ import { LogViewContainer } from "../log-view/LogViewContainer";
 import { useLogRootAsync } from "../server/useLogDir";
 import { isSingleFileMode } from "../singleFileMode";
 
+import { DirectLoadController } from "./DirectLoadController";
 import { ReplicationController } from "./ReplicationController";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
@@ -54,38 +55,55 @@ const AppLayout = () => {
   // Get route params to check for sample detail routes
   const { sampleId, epoch, sampleUuid } = useLogRouteParams();
 
-  // Single file mode is a legacy mode that is used when an explicit
-  // file is passed via URL (task_file or log_file params) or via
-  // embedded state (VSCode)
-  if (isSingleFileMode) {
-    // Check if this is a sample detail URL
-    const isSampleDetail = (sampleId && epoch) || sampleUuid;
-
-    return (
-      <ComponentNavigationProvider navigation={componentNavigation}>
-        <AppErrorBoundary>
-          {isSampleDetail ? <LogSampleDetailView /> : <LogViewContainer />}
-        </AppErrorBoundary>
-      </ComponentNavigationProvider>
-    );
-  }
+  // Single file mode is a legacy mode that is used when an explicit file is
+  // passed via URL (task_file or log_file params) or via embedded state
+  // (VSCode). It renders the log/sample view directly rather than through the
+  // child route table (which is oriented around the collection).
+  const isSampleDetail = (sampleId && epoch) || sampleUuid;
+  const content = isSingleFileMode ? (
+    isSampleDetail ? (
+      <LogSampleDetailView />
+    ) : (
+      <LogViewContainer />
+    )
+  ) : (
+    <Outlet />
+  );
 
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <DirModeContent />
+        <LoaderHost>{content}</LoaderHost>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );
 };
 
 /**
- * Dir-mode gate: resolves the server log root once (via the gated `["log-dir"]`
- * query) before rendering the collection/log routes, and owns the dir-mode
- * replication lifecycle through <ReplicationController>. The single-file branch
- * of AppLayout never reaches here (its log dir is route-derived).
+ * Selects the content loader in one place (mirroring the doc's "single-file mode
+ * picks the loader"): mounts <DirectLoadController> in single-file mode or
+ * <ReplicationController> in directory mode, as a sibling of `children`.
  */
-const DirModeContent = () => {
+const LoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
+  if (isSingleFileMode) {
+    return (
+      <>
+        <DirectLoadController />
+        {children}
+      </>
+    );
+  }
+  return <DirModeLoaderHost>{children}</DirModeLoaderHost>;
+};
+
+/**
+ * Dir-mode arm of <LoaderHost>: resolves the server log root once (via the gated
+ * `["log-dir"]` query) before rendering `children`, and owns the dir-mode
+ * replication lifecycle through <ReplicationController>. Only mounted in
+ * directory mode (single-file's log dir is route-derived, and the `["log-dir"]`
+ * query is disabled there).
+ */
+const DirModeLoaderHost: FC<{ children: ReactNode }> = ({ children }) => {
   const logRoot = useLogRootAsync();
 
   if (logRoot.error) {
@@ -107,7 +125,7 @@ const DirModeContent = () => {
   return (
     <>
       {logDir ? <ReplicationController key={logDir} logDir={logDir} /> : null}
-      <Outlet />
+      {children}
     </>
   );
 };

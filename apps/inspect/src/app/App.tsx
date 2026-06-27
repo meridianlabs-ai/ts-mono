@@ -32,7 +32,6 @@ import { basename, dirname } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import * as logsContent from "../state/logsContent.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
@@ -44,7 +43,7 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-import { getLogDir, useLogDir } from "./server/useLogDir.ts";
+import { useLogDir } from "./server/useLogDir.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -116,7 +115,6 @@ const AppContent: FC = () => {
   const setLoading = useStore((state) => state.appActions.setLoading);
 
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
@@ -229,45 +227,19 @@ const AppContent: FC = () => {
   }, [onMessage]);
 
   useEffect(() => {
-    const loadLogsAndState = async () => {
-      // First see if there is embedded state and if so, use that
-      const embeddedState = document.getElementById("logview-state");
-      if (embeddedState) {
-        const state = JSON5.parse<HostMessage["data"]>(
-          embeddedState.textContent || ""
-        );
-        onMessage({ data: state } as HostMessage);
-      } else {
-        // For non-route URL params support (legacy)
-        const urlParams = new URLSearchParams(window.location.search);
+    // Embedded state (VS Code) is the host-message bootstrap and feeds the same
+    // onMessage bridge as live postMessage events. URL-param single-file deep
+    // links (`?task_file=` / `?log_file=`) are handled by <DirectLoadController>.
+    const embeddedState = document.getElementById("logview-state");
+    if (embeddedState) {
+      const state = JSON5.parse<HostMessage["data"]>(
+        embeddedState.textContent || ""
+      );
+      onMessage({ data: state } as HostMessage);
+    }
 
-        // If the URL provides a task file, load that
-        const logPath = urlParams.get("task_file");
-
-        // Replace spaces with a '+' sign:
-        const resolvedLogPath = logPath ? logPath.replace(" ", "+") : logPath;
-
-        if (resolvedLogPath) {
-          // Clear any log dir
-          setLogDir(undefined);
-          // Load just the passed file
-          logsContent.setLogHandles(getLogDir(), [{ name: resolvedLogPath }]);
-        } else {
-          // If a log file was passed, select it
-          const log_file = urlParams.get("log_file");
-          if (log_file) {
-            await initLogDir();
-            setSelectedLogFile(log_file);
-          }
-          // Else do nothing - RouteProvider will handle it
-        }
-      }
-
-      new ClipboardJS(".clipboard-button,.copy-button");
-    };
-
-    void loadLogsAndState();
-  }, [setLogDir, setSelectedLogFile, initLogDir, syncLogs, onMessage]);
+    new ClipboardJS(".clipboard-button,.copy-button");
+  }, [onMessage]);
 
   return (
     <ComponentIconProvider icons={componentIcons}>
