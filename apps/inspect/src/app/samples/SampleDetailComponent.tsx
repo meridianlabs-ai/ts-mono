@@ -1,5 +1,4 @@
-import clsx from "clsx";
-import React, { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useEffect, useMemo } from "react";
 
 import {
   ExtendedFindProvider,
@@ -9,39 +8,16 @@ import {
 import { FindBand } from "../../components/FindBand";
 import { useSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { ApplicationIcons } from "../appearance/icons";
-import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 
 import { InlineSampleComponent } from "./InlineSampleDisplay";
+import {
+  NavbarConfig,
+  SampleNavbar,
+  SampleNavigationConfig,
+} from "./SampleNavbar";
 import styles from "./SampleDetailComponent.module.css";
 
-/**
- * Configuration for sample navigation (prev/next)
- */
-export interface SampleNavigationConfig {
-  /** Handler for navigating to previous sample */
-  onPrevious: () => void;
-  /** Handler for navigating to next sample */
-  onNext: () => void;
-  /** Whether there is a previous sample to navigate to */
-  hasPrevious: boolean;
-  /** Whether there is a next sample to navigate to */
-  hasNext: boolean;
-}
-
-/**
- * Configuration for the application navbar
- */
-export interface NavbarConfig {
-  /** The current path to display in breadcrumb */
-  currentPath: string | undefined;
-  /** Function to build navigation URLs for breadcrumb segments */
-  fnNavigationUrl: (file: string, log_dir?: string) => string;
-  /** Whether to show a border on the navbar */
-  bordered?: boolean;
-
-  breadcrumbsEnabled?: boolean;
-}
+export type { NavbarConfig, SampleNavigationConfig };
 
 /**
  * Props for the SampleDetailComponent
@@ -84,12 +60,6 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   navbarConfig,
 }) => {
   const { onPrevious, onNext, hasPrevious, hasNext } = navigation;
-  const {
-    currentPath,
-    fnNavigationUrl,
-    bordered = true,
-    breadcrumbsEnabled,
-  } = navbarConfig;
 
   // Sample data and status
   const sampleData = useSampleData();
@@ -187,58 +157,17 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
     };
   }, [handleKeyDown]);
 
-  // Keyboard handler for navigation buttons (Enter/Space to activate)
-  const handleNavButtonKeyDown = useCallback(
-    (e: React.KeyboardEvent, action: () => void, enabled: boolean) => {
-      if ((e.key === "Enter" || e.key === " ") && enabled) {
-        e.preventDefault();
-        action();
-      }
-    },
-    []
-  );
-
   return (
     <ExtendedFindProvider>
       <FindTargetProvider>
         {showFind ? <FindBand /> : ""}
         <div className={styles.detail}>
-          <ApplicationNavbar
-            currentPath={currentPath}
-            fnNavigationUrl={fnNavigationUrl}
-            bordered={bordered}
-            breadcrumbsEnabled={breadcrumbsEnabled}
-          >
-            <div className={clsx(styles.sampleNav)}>
-              <div
-                onClick={hasPrevious ? onPrevious : undefined}
-                onKeyDown={(e) =>
-                  handleNavButtonKeyDown(e, onPrevious, hasPrevious)
-                }
-                tabIndex={hasPrevious ? 0 : -1}
-                role="button"
-                aria-label="Previous sample"
-                aria-disabled={!hasPrevious}
-                className={clsx(!hasPrevious && styles.disabled, styles.nav)}
-              >
-                <i className={clsx(ApplicationIcons.previous)} />
-              </div>
-              <div className={clsx(styles.sampleInfo, "text-size-smallest")}>
-                Sample {sampleId} (Epoch {epoch})
-              </div>
-              <div
-                onClick={hasNext ? onNext : undefined}
-                onKeyDown={(e) => handleNavButtonKeyDown(e, onNext, hasNext)}
-                tabIndex={hasNext ? 0 : -1}
-                role="button"
-                aria-label="Next sample"
-                aria-disabled={!hasNext}
-                className={clsx(!hasNext && styles.disabled, styles.nav)}
-              >
-                <i className={clsx(ApplicationIcons.next)} />
-              </div>
-            </div>
-          </ApplicationNavbar>
+          <SampleNavbar
+            sampleId={sampleId}
+            epoch={epoch}
+            navigation={navigation}
+            navbarConfig={navbarConfig}
+          />
 
           {sampleMatchesRequest && (
             <InlineSampleComponent

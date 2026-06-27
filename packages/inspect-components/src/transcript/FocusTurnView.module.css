@@ -1,0 +1,21 @@
+.root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 1rem 1rem;
+}
+
+/* A single focused event isn't a transcript list — drop the per-card box and
+   the expanded-boundary gutter (both are transcript-row chrome). Keep the
+   background so the model's sticky header stays opaque as content scrolls. */
+.container [id^="event-panel-"] {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+}

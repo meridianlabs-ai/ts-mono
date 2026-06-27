@@ -5,6 +5,7 @@ import {
   ReactNode,
   RefObject,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 
@@ -67,6 +68,10 @@ export const LargeModal: FC<LargeModalProps> = ({
   // but only do this for the first time that the children are set
   const modalRef = useRef(null);
   scrollRef = scrollRef || modalRef;
+
+  // The modal header sits outside the scroll body, so sticky event headers pin
+  // at the top of the body (offset 0).
+  const stickyScroll = useMemo(() => ({ stickyTop: 0 }), []);
 
   // Focus the modal when it becomes visible
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -144,7 +149,7 @@ export const LargeModal: FC<LargeModalProps> = ({
             className={clsx("modal-body", styles.scrollBody, classNames?.body)}
             ref={scrollRef}
           >
-            <StickyScrollProvider value={scrollRef}>
+            <StickyScrollProvider value={stickyScroll}>
               {children}
             </StickyScrollProvider>
           </div>

@@ -170,10 +170,6 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </span>
   ) : undefined;
 
-  const turnLabel = context?.turnInfo
-    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
-    : undefined;
-
   const retryChip = attempts ? (
     <RetryChip
       attempts={attempts}
@@ -194,7 +190,6 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           : undefined
       }
       icon={TranscriptIcons.model}
-      turnLabel={turnLabel}
       headerExtra={
         fallbackBadge || retryChip ? (
           <>
@@ -311,6 +306,22 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </EventPanel>
   );
 };
+
+/**
+ * Tab names a model panel renders, in order — mirrors the `data-name` children
+ * above (Summary/Info/Messages always; Tools when >1 tool; API when there's a
+ * raw model call). Used to map a model's selected-tab index to a name (e.g. for
+ * the open-in-new-tab link so the focus page opens on the same tab).
+ */
+export function modelEventTabNames(event: ModelEvent): string[] {
+  return [
+    "Summary",
+    "Info",
+    "Messages",
+    ...(event.tools.length > 1 ? ["Tools"] : []),
+    ...(event.call ? ["API"] : []),
+  ];
+}
 
 function formatFailureTime(event: ModelEvent): string {
   const sec = attemptDurationSec(event);

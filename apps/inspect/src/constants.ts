@@ -28,6 +28,9 @@ export const kSampleErrorTabId = `error`;
 export const kSampleRetriesTabId = `retries`;
 export const kSampleErrorRetriesTabId = `retry-errors`;
 export const kSampleJsonTabId = `json`;
+// Standalone single-event page (open-in-new-tab from a transcript event).
+// Like `print`, intentionally absent from kSampleTabIds — it's not a sample tab.
+export const kSampleEventTabId = `event`;
 
 export const kSampleTabIds = [
   kSampleMessagesTabId,

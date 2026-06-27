@@ -97,7 +97,7 @@ export function VirtualList<T>({
   live,
   showProgress,
   initialIndex,
-  stickyHeaderOffset,
+  scrollPaddingStart,
   components,
   smoothScroll = true,
   itemSearchText,
@@ -134,6 +134,11 @@ export function VirtualList<T>({
       count: data.length,
       estimateSize: () => DEFAULT_ITEM_HEIGHT_PX,
       getScrollElement,
+      // Consumer-supplied offset for scroll-to-index landings (e.g. to clear
+      // sticky chrome). A stable virtualizer option rather than a post-scroll
+      // `scrollTop +=`, so tanstack's reconcile re-applies it through
+      // getOffsetForIndex every frame instead of erasing it on far jumps.
+      scrollPaddingStart: scrollPaddingStart ?? 0,
     });
 
   const { getRestoreSnapshot, recordSnapshot } =
@@ -302,11 +307,12 @@ export function VirtualList<T>({
       if (initialIndex != null) {
         // Explicit navigation target (e.g., message deep link) always
         // takes priority over persisted scroll state.
+        // scrollPaddingStart (set on the virtualizer) reserves the sticky-chrome
+        // height here too, so the mount-time deep link lands like a runtime jump.
         virtualizer.scrollToIndex(initialIndex, {
           align: "start",
           behavior: "auto",
         });
-        if (stickyHeaderOffset) el.scrollTop -= stickyHeaderOffset;
         hasInitialScrolledRef.current = true;
         release();
       } else if (followOutput && live) {
@@ -350,7 +356,6 @@ export function VirtualList<T>({
   }, [
     persistenceKey,
     initialIndex,
-    stickyHeaderOffset,
     contentTotal,
     data.length,
     followOutput,
@@ -422,8 +427,9 @@ export function VirtualList<T>({
   const endIndex = items[items.length - 1]?.index ?? 0;
   const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 });
   useEffect(() => {
-    visibleRangeRef.current = { startIndex, endIndex };
-    onVisibleRangeChange?.({ startIndex, endIndex });
+    const range = { startIndex, endIndex };
+    visibleRangeRef.current = range;
+    onVisibleRangeChange?.(range);
   }, [startIndex, endIndex, onVisibleRangeChange]);
 
   useImperativeHandle(
@@ -434,14 +440,13 @@ export function VirtualList<T>({
           scale > SMOOTH_SCROLL_MAX_S
             ? "auto"
             : (opts.behavior ?? (smoothScroll ? "smooth" : "auto"));
+        // The sticky-chrome offset is applied via the virtualizer's
+        // scrollPaddingStart option (see useScaledVirtualizer above), so it
+        // survives reconcile — nothing to nudge here.
         virtualizer.scrollToIndex(opts.index, {
           align: opts.align,
           behavior,
         });
-        if (opts.offset) {
-          const el = getScrollElement();
-          if (el) el.scrollTop += opts.offset;
-        }
       },
       scrollTo(opts) {
         const el = getScrollElement();

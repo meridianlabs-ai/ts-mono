@@ -20,6 +20,7 @@ import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { RenderedEventNode } from "./TranscriptVirtualList";
+import { kTranscriptScrollPaddingStart } from "./turnNavigation";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
@@ -40,8 +41,13 @@ interface TranscriptVirtualListComponentProps {
   eventCallbacks?: EventPanelCallbacks;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
-  /** External ref filled with Virtuoso's current visible range, for find machinery. */
+  /** External ref filled with the virtual list's visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
+  /** Called whenever the visible range changes (e.g. to track the top turn). */
+  onVisibleRangeChange?: (range: {
+    startIndex: number;
+    endIndex: number;
+  }) => void;
 }
 
 /**
@@ -66,20 +72,21 @@ export const TranscriptVirtualListComponent: FC<
   eventCallbacks,
   eventNodeContext,
   visibleRangeRef,
+  onVisibleRangeChange,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
   // (`running || eventNodes.length > 100`) skipped virtualization for short
   // transcripts, which routed scroll-to-event through a plain-DOM
   // `scrollIntoView` fallback that didn't reliably scroll the actual scroll
   // container — making swimlane / outline navigation appear broken on small
-  // event lists. Virtuoso handles short lists fine.
+  // event lists. VirtualList handles short lists fine.
   const useVirtualization = !disableVirtualization;
 
   useEffect(() => {
     onNativeFindChanged?.(!useVirtualization);
   }, [onNativeFindChanged, useVirtualization]);
 
-  // Mount-time anchor for Virtuoso's layout. Captured once and frozen —
+  // Mount-time anchor for the virtual list's layout. Captured once and frozen —
   // runtime URL→event navigation is handled imperatively in
   // TranscriptViewNodes, so this state never updates after the first render.
   const [initialEventIndex] = useState<number | undefined>(() => {
@@ -217,7 +224,7 @@ export const TranscriptVirtualListComponent: FC<
         scrollRef={scrollRef}
         data={eventNodes}
         initialIndex={initialEventIndex}
-        stickyHeaderOffset={offsetTop}
+        scrollPaddingStart={kTranscriptScrollPaddingStart}
         renderRow={renderRow}
         live={running}
         smoothScroll={!!running}
@@ -228,6 +235,7 @@ export const TranscriptVirtualListComponent: FC<
         components={components}
         onVisibleRangeChange={(range) => {
           if (visibleRangeRef) visibleRangeRef.current = range;
+          onVisibleRangeChange?.(range);
         }}
       />
     );

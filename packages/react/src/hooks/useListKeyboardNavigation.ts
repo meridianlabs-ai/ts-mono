@@ -10,16 +10,35 @@ interface ListKeyboardNavigationOptions {
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
   itemCount: number;
+  /** `k` — scroll to the next turn. */
+  onNext?: () => void;
+  /** `j` — scroll to the previous turn. */
+  onPrev?: () => void;
 }
 
 export function useListKeyboardNavigation({
   listHandle,
   scrollRef,
   itemCount,
+  onNext,
+  onPrev,
 }: ListKeyboardNavigationOptions): void {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const hasModifier = event.metaKey || event.ctrlKey;
+
+      // `j` / `k` step between turns. Plain keys, so ignore them while a
+      // modifier is held (don't swallow browser/OS chords) or while typing.
+      if (!hasModifier && (event.key === "j" || event.key === "k")) {
+        if (!onNext && !onPrev) return;
+        if (isEditableTarget(document.activeElement)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (event.key === "j") onPrev?.();
+        else onNext?.();
+        return;
+      }
+
       const isUp =
         (event.key === "ArrowUp" && hasModifier) ||
         (event.key === "Home" && hasModifier);
@@ -55,5 +74,5 @@ export function useListKeyboardNavigation({
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
-  }, [listHandle, scrollRef, itemCount]);
+  }, [listHandle, scrollRef, itemCount, onNext, onPrev]);
 }

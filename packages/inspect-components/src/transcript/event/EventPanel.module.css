@@ -1,20 +1,15 @@
 .stickyWrapper {
   position: sticky;
-  top: var(--inspect-event-panel-sticky-top, 0px);
+  /* `top` is set inline from StickyScrollContext (the chrome offset). */
   /* Full-bleed: cancel the parent card's padding so the sticky bar
      spans the entire card width, then re-apply padding internally. */
   margin: -5px -0.625rem -5px -0.625rem;
-  padding: 5px 0.625rem;
+  padding: 5px 140px 5px 0.625rem;
   /* Opaque (matches the host card) even when unstuck so colored message bands
      don't bleed through the header as it scrolls off during the push-off. */
   background-color: inherit;
   z-index: 1;
   border-bottom: solid 1px transparent;
-}
-
-.stickyWrapper:global([data-useStickyObserver-stuck]) {
-  background-color: var(--bs-light);
-  border-bottom-color: var(--bs-light-border-subtle);
 }
 
 .label {
@@ -39,13 +34,6 @@
   align-items: baseline;
   justify-content: flex-end;
   min-width: 0;
-}
-
-.turnLabel {
-  margin-left: 1rem;
-  margin-top: 0.2rem;
-  opacity: 0.5;
-  font-size: var(--inspect-font-size-smallest);
 }
 
 .card {
@@ -91,6 +79,15 @@
 .root {
   background-color: var(--bs-light-bg-subtle);
   border-radius: unset;
+}
+
+/* A panel showing non-summary detail gets a contrasting gray right gutter (same
+   3px width as the colorful message/tool edges, --bs-secondary so it reads in
+   both light and dark). The negative margin offsets the extra 2px over the
+   default 1px border so widening it doesn't shift the card. */
+.expanded {
+  border-right: 3px solid var(--bs-secondary);
+  margin-right: -2px;
 }
 
 .bottomDongle {
