@@ -19,7 +19,13 @@ import "./App.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
-import { FC, useCallback, useEffect, useLayoutEffect } from "react";
+import {
+  FC,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { defaultRetry } from "@tsmono/react";
@@ -29,7 +35,7 @@ import {
   PulsingDots,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename, dirname } from "@tsmono/util";
+import { basename, dirname, getVscodeApi } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
@@ -41,6 +47,7 @@ import {
 import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
+import { LogLocationGate } from "./LogLocationGate";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
 
@@ -121,7 +128,6 @@ const AppContent: FC = () => {
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const setLogDir = useStore((state) => state.logsActions.setLogDir);
-  const setLogFiles = useStore((state) => state.logsActions.setLogHandles);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
@@ -136,15 +142,45 @@ const AppContent: FC = () => {
       if (!selectedLogFile) {
         return;
       }
-
-      if (selectedLogFile === loadedLogFile && selectedLogDetails) {
-        // The log is already loaded and we have the data
+      if (
+        api.log_locations?.getActiveBrowserFile() &&
+        !api.log_locations.matchesActiveBrowserFile(selectedLogFile)
+      ) {
         return;
       }
 
       try {
         // Set loading first and wait for it to update
         setLoading(true);
+
+        // Refresh the trusted listing/scope only when rehydrated state has not
+        // already been authorized by a route, host, or static grant.
+        if (
+          api.log_locations?.transportForFile(selectedLogFile) === "blocked"
+        ) {
+          const restoredLogDir = await initLogDir();
+          if (
+            api.log_locations.transportForFile(selectedLogFile) === "blocked"
+          ) {
+            const decision = api.log_locations.requestFileSelection(
+              selectedLogFile,
+              {
+                source: "restored",
+                logDir: restoredLogDir,
+              }
+            );
+            if (decision.status !== "approved") {
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        if (selectedLogFile === loadedLogFile && selectedLogDetails) {
+          // Cached data is usable only after its location is authorized.
+          setLoading(false);
+          return;
+        }
 
         // Then load the log
         await loadLog(selectedLogFile);
@@ -158,7 +194,15 @@ const AppContent: FC = () => {
     };
 
     void loadSpecificLog();
-  }, [selectedLogFile, loadedLogFile, selectedLogDetails, loadLog, setLoading]);
+  }, [
+    selectedLogFile,
+    loadedLogFile,
+    selectedLogDetails,
+    api.log_locations,
+    initLogDir,
+    loadLog,
+    setLoading,
+  ]);
 
   useEffect(() => {
     // If the component re-mounts and there is a running load loaded
@@ -171,12 +215,12 @@ const AppContent: FC = () => {
     }
   }, [pollLog, selectedLogDetails?.status]);
 
-  const onMessage = useCallback(
-    (e: HostMessage) => {
-      switch (e.data.type) {
+  const applyHostMessage = useCallback(
+    (data: HostMessage["data"]) => {
+      switch (data.type) {
         case "updateState": {
-          if (e.data.url) {
-            const decodedUrl = decodeURIComponent(e.data.url);
+          if (data.url) {
+            const decodedUrl = decodeURIComponent(data.url);
 
             let targetFile = decodedUrl;
             if (isUri(targetFile)) {
@@ -187,24 +231,20 @@ const AppContent: FC = () => {
             }
 
             if (!rehydrated) {
-              setInitialState(
-                targetFile,
-                e.data.sample_id,
-                e.data.sample_epoch
-              );
+              setInitialState(targetFile, data.sample_id, data.sample_epoch);
             }
           }
           break;
         }
         case "backgroundUpdate": {
-          const decodedUrl = decodeURIComponent(e.data.url);
-          const log_dir = e.data.log_dir;
+          const decodedUrl = decodeURIComponent(data.url);
+          const log_dir = data.log_dir;
           const isFocused = document.hasFocus();
           if (!isFocused) {
             if (log_dir === logDir) {
-              setSelectedLogFile(decodedUrl);
+              void setSelectedLogFile(decodedUrl);
             } else {
-              void api.open_log_file(e.data.url, e.data.log_dir);
+              void api.open_log_file(data.url, data.log_dir);
             }
           } else {
             void syncLogs();
@@ -224,46 +264,58 @@ const AppContent: FC = () => {
     ]
   );
 
-  // listen for updateState messages from vscode
+  // Runtime host messages are meaningful only inside the VS Code webview.
   useEffect(() => {
+    if (!getVscodeApi()) {
+      return;
+    }
+
+    const onMessage = (event: MessageEvent<unknown>) => {
+      if (isHostMessageData(event.data)) {
+        applyHostMessage(event.data);
+      }
+    };
     window.addEventListener("message", onMessage);
     return () => {
       window.removeEventListener("message", onMessage);
     };
-  }, [onMessage]);
+  }, [applyHostMessage]);
 
   useEffect(() => {
     const loadLogsAndState = async () => {
       // First see if there is embedded state and if so, use that
       const embeddedState = document.getElementById("logview-state");
-      if (embeddedState) {
-        const state = JSON5.parse<HostMessage["data"]>(
-          embeddedState.textContent || ""
-        );
-        onMessage({ data: state } as HostMessage);
+      if (embeddedState && getVscodeApi()) {
+        const state = JSON5.parse<unknown>(embeddedState.textContent || "");
+        if (isHostMessageData(state)) {
+          api.log_locations?.trustHostFile(decodeURIComponent(state.url));
+          applyHostMessage(state);
+        }
       } else {
-        // For non-route URL params support (legacy)
         const urlParams = new URLSearchParams(window.location.search);
+        const queryFile =
+          urlParams.get("task_file") ?? urlParams.get("log_file");
+        const approvedQueryFile =
+          queryFile &&
+          api.log_locations?.transportForFile(queryFile) !== "blocked"
+            ? queryFile
+            : undefined;
+        const trustedBrowserFile = api.log_locations?.getActiveBrowserFile();
 
-        // If the URL provides a task file, load that
-        const logPath = urlParams.get("task_file");
-
-        // Replace spaces with a '+' sign:
-        const resolvedLogPath = logPath ? logPath.replace(" ", "+") : logPath;
-
-        if (resolvedLogPath) {
-          // Clear any log dir
-          setLogDir(undefined);
-          // Load just the passed file
-          setLogFiles([{ name: resolvedLogPath }]);
-        } else {
-          // If a log file was passed, select it
-          const log_file = urlParams.get("log_file");
-          if (log_file) {
+        if (approvedQueryFile) {
+          if (api.log_locations) {
+            await setSelectedLogFile(approvedQueryFile);
+            setLogDir(undefined);
             await initLogDir();
-            setSelectedLogFile(log_file);
+          } else {
+            setLogDir(undefined);
+            await initLogDir();
+            await setSelectedLogFile(approvedQueryFile);
           }
-          // Else do nothing - RouteProvider will handle it
+        } else if (trustedBrowserFile) {
+          await setSelectedLogFile(trustedBrowserFile);
+          setLogDir(undefined);
+          await initLogDir();
         }
       }
 
@@ -272,12 +324,12 @@ const AppContent: FC = () => {
 
     void loadLogsAndState();
   }, [
-    setLogDir,
-    setLogFiles,
     setSelectedLogFile,
+    setLogDir,
     initLogDir,
     syncLogs,
-    onMessage,
+    api.log_locations,
+    applyHostMessage,
   ]);
 
   return (
@@ -310,6 +362,24 @@ const AppConfigGate: FC = () => {
   return <AppContent />;
 };
 
+const noopSubscribe = () => () => {};
+const nullSnapshot = () => null;
+
+const AppBootstrapGate: FC = () => {
+  const api = useApi();
+  const locations = api.log_locations;
+  const request = useSyncExternalStore(
+    locations?.subscribe ?? noopSubscribe,
+    locations?.getRequestSnapshot ?? nullSnapshot,
+    locations?.getRequestSnapshot ?? nullSnapshot
+  );
+
+  if (locations && request) {
+    return <LogLocationGate locations={locations} request={request} />;
+  }
+  return <AppConfigGate />;
+};
+
 /**
  * Renders the Main Application. Owns the query client + api providers so the
  * exported <App> stays self-contained for external embedders.
@@ -318,9 +388,28 @@ export const App: FC<AppProps> = ({ api }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
-        <AppConfigGate />
+        <AppBootstrapGate />
       </ApiProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 };
+
+function isHostMessageData(value: unknown): value is HostMessage["data"] {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const data = value as Record<string, unknown>;
+  if (data.type === "updateState") {
+    return (
+      typeof data.url === "string" &&
+      (data.sample_id === undefined || typeof data.sample_id === "string") &&
+      (data.sample_epoch === undefined || typeof data.sample_epoch === "string")
+    );
+  }
+  return (
+    data.type === "backgroundUpdate" &&
+    typeof data.url === "string" &&
+    typeof data.log_dir === "string"
+  );
+}

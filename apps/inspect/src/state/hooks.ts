@@ -206,8 +206,11 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   const logStatus = useStore((s) => s.log.selectedLogDetails?.status);
   const refreshLog = useRefreshLog();
   const isInProgress = logStatus === "started";
+  const browserHosted =
+    !!selectedLogFile &&
+    api.log_locations?.transportForFile(selectedLogFile) === "browser";
   return {
-    canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
+    canEdit: hasEditApi && !!selectedLogFile && !isInProgress && !browserHosted,
     selectedLogFile,
     refreshOnSave: refreshLog,
   };
@@ -535,7 +538,7 @@ export const useSetSelectedLogIndex = () => {
 
       const logHandle = allLogFiles[index];
       // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      setSelectedLogFile(logHandle.name);
+      void setSelectedLogFile(logHandle.name);
     },
     [
       allLogFiles,

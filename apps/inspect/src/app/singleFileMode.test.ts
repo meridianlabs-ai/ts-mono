@@ -15,25 +15,23 @@ const docWithEmbedded = (
 const emptyDoc = docWithEmbedded(false);
 
 describe("detectInitialSingleFileMode", () => {
-  it.each([
-    ["?log_file=foo.eval", true],
-    ["?task_file=foo.eval", true],
-    ["?log_file=foo.eval&other=1", true],
-    ["?other=1", false],
-    ["", false],
-  ])("returns %s for query %s", (search, expected) => {
-    expect(detectInitialSingleFileMode({ search }, emptyDoc)).toBe(expected);
+  it("does not trust URL selection before approval", () => {
+    expect(detectInitialSingleFileMode(emptyDoc, false)).toBe(false);
+  });
+
+  it("uses an approved URL selection", () => {
+    expect(detectInitialSingleFileMode(emptyDoc, true)).toBe(true);
   });
 
   it("returns true when embedded logview-state element is present", () => {
     expect(
-      detectInitialSingleFileMode({ search: "" }, docWithEmbedded(true))
+      detectInitialSingleFileMode(docWithEmbedded(true), false, true)
     ).toBe(true);
   });
 
-  it("does not match log_file as a substring of another param", () => {
+  it("does not trust embedded host state outside VS Code", () => {
     expect(
-      detectInitialSingleFileMode({ search: "?my_log_file=foo" }, emptyDoc)
+      detectInitialSingleFileMode(docWithEmbedded(true), false, false)
     ).toBe(false);
   });
 });

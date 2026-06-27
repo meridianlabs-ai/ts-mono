@@ -141,7 +141,7 @@ export const SampleDetailView: FC = () => {
         currentPath: routeLogPath,
         fnNavigationUrl: samplesUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !isSingleFileMode(),
       }}
     />
   );

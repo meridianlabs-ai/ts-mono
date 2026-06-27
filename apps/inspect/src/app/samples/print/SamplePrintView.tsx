@@ -63,7 +63,7 @@ export const SamplePrintView: FC = () => {
     const loadLogAndSample = async () => {
       if (logPath && sampleId && epoch) {
         await initLogDir();
-        setSelectedLogFile(logPath);
+        await setSelectedLogFile(logPath);
         void syncLogs();
 
         const targetEpoch = parseInt(epoch, 10);

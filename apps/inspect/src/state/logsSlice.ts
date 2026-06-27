@@ -40,7 +40,7 @@ export interface LogsSlice {
     ensureReplication: () => Promise<void>;
     syncLogs: () => Promise<LogHandle[]>;
 
-    setSelectedLogFile: (logFile: string) => void;
+    setSelectedLogFile: (logFile: string) => Promise<void>;
     clearSelectedLogFile: () => void;
 
     // Cross-file sample operations
@@ -122,15 +122,15 @@ export const createLogsSlice = (
     // Actions
     logsActions: {
       setLogDir: (logDir?: string) => {
+        const prev = get().logs.logDir;
+        if (logDir === prev) return;
+        const realPrev = prev !== undefined && prev !== "";
+        const realNew = logDir !== undefined && logDir !== "";
         set((state) => {
-          const prev = state.logs.logDir;
-          if (logDir === prev) return;
           state.logs.logDir = logDir;
           // Only wipe on real dir-to-dir transitions. undefined/"" are
           // initialization signals (two competing sources race during load
           // and rehydration) — wiping then would clobber the persisted sort.
-          const realPrev = prev !== undefined && prev !== "";
-          const realNew = logDir !== undefined && logDir !== "";
           if (realPrev && realNew) {
             state.logs.samplesListState.byScope.samplesPanel.gridState =
               undefined;
@@ -141,11 +141,16 @@ export const createLogsSlice = (
             state.logs.listing.gridStateByScope = {};
           }
         });
+        if (realPrev) {
+          api.log_locations?.registerListedLocations([], logDir);
+        }
       },
-      setLogHandles: (logs: LogHandle[]) =>
+      setLogHandles: (logs: LogHandle[]) => {
         set((state) => {
           state.logs.logs = logs;
-        }),
+        });
+        api.log_locations?.registerListedLocations(logs, get().logs.logDir);
+      },
       syncLogPreviews: async (logs: LogHandle[]) => {
         const state = get();
         if (!state.replicationService) {
@@ -224,8 +229,9 @@ export const createLogsSlice = (
 
         let logDir: string | undefined;
         let absLogDir: string | undefined;
+        let logHandles: LogHandle[] | undefined;
 
-        if (isSingleFileMode) {
+        if (isSingleFileMode()) {
           // No directory listing to fetch — derive the log dir from the
           // selected file. Re-deriving against the same file would just
           // produce the same answer, so short-circuit if it's already set.
@@ -245,6 +251,7 @@ export const createLogsSlice = (
             const root = await api.get_log_root();
             logDir = root.log_dir;
             absLogDir = root.abs_log_dir;
+            logHandles = root.logs;
           } catch (e) {
             console.log(e);
             get().appActions.setLoading(false, e as Error);
@@ -259,6 +266,9 @@ export const createLogsSlice = (
           set((state) => {
             state.logs.absLogDir = absLogDir;
           });
+        }
+        if (logHandles) {
+          get().logsActions.setLogHandles(logHandles);
         }
         return logDir;
       },
@@ -310,7 +320,7 @@ export const createLogsSlice = (
           // catch block; the counter is clamped at zero so the extra decrement
           // here is safe, and we avoid overwriting a non-null error by only
           // calling setLoading(false) when no error was already recorded.
-          if (!logDir || isSingleFileMode) {
+          if (!logDir || isSingleFileMode()) {
             if (!get().app.status.error) {
               get().appActions.setLoading(false);
             }
@@ -329,22 +339,32 @@ export const createLogsSlice = (
             databaseService,
             api,
             {
-              setLogHandles: (logs: LogHandle[]) => {
+              setLogHandles: (logs: LogHandle[], trusted = true) => {
                 const state = get();
-                state.logsActions.setLogHandles(logs);
+                if (trusted) {
+                  state.logsActions.setLogHandles(logs);
+                } else {
+                  set((state) => {
+                    state.logs.logs = logs;
+                  });
+                }
               },
               getSelectedLog: () => {
                 const state = get();
                 if (!state.logs.selectedLogFile) {
                   return undefined;
                 }
+                const listedFile =
+                  api.log_locations?.listedFileForSelection(
+                    state.logs.selectedLogFile
+                  ) ?? state.logs.selectedLogFile;
                 return state.logs.logs.find((handle) => {
-                  return handle.name.endsWith(state.logs.selectedLogFile!);
+                  return handle.name === listedFile;
                 });
               },
               setSelectedLogFile: (logFile: string) => {
                 const state = get();
-                state.logsActions.setSelectedLogFile(logFile);
+                void state.logsActions.setSelectedLogFile(logFile);
               },
               updateLogPreviews: (previews: Record<string, LogPreview>) => {
                 const state = get();
@@ -397,28 +417,52 @@ export const createLogsSlice = (
       // Select a specific log file
       setSelectedLogFile: async (logFile: string) => {
         const state = get();
+        const decision = api.log_locations?.requestFileSelection(logFile, {
+          source: "route",
+          logDir: state.logs.logDir,
+        });
+        if (decision && decision.status !== "approved") {
+          return;
+        }
+        const resolvedLogFile =
+          decision?.status === "approved" ? decision.value : logFile;
+        const listedFile =
+          api.log_locations?.listedFileForSelection(resolvedLogFile);
+        const matchesSelectedFile = (value: string): boolean =>
+          api.log_locations
+            ? value === (listedFile ?? resolvedLogFile)
+            : value.endsWith(resolvedLogFile);
         const isInFileList =
           state.logs.logs.findIndex((val: { name: string }) =>
-            val.name.endsWith(logFile)
+            matchesSelectedFile(val.name)
           ) !== -1;
 
         if (!isInFileList) {
-          if (state.replicationService?.isReplicating() && !isSingleFileMode) {
+          if (
+            state.replicationService?.isReplicating() &&
+            !isSingleFileMode()
+          ) {
             await state.logsActions.syncLogs();
             const logHandle = get().logs.logs.find((val: { name: string }) =>
-              val.name.endsWith(logFile)
+              matchesSelectedFile(val.name)
             );
             if (!logHandle) {
-              throw new Error(`Log file not found: ${logFile}`);
+              return;
             }
           } else {
-            state.logsActions.setLogHandles([{ name: logFile }]);
+            // This is a route/host/browser selection, not a trusted listing.
+            // Keep it visible without registering it as server authority.
+            set((state) => {
+              state.logs.logs = [{ name: resolvedLogFile }];
+            });
           }
         }
         set((state) => {
-          const absoluteLogfile = isUri(logFile)
-            ? logFile
-            : join(logFile, state.logs.logDir);
+          const absoluteLogfile = decision
+            ? resolvedLogFile
+            : isUri(resolvedLogFile)
+              ? resolvedLogFile
+              : join(resolvedLogFile, state.logs.logDir);
           state.logs.selectedLogFile = absoluteLogfile;
         });
       },

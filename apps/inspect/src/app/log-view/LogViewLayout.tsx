@@ -80,13 +80,13 @@ export const LogViewLayout: FC = () => {
           className={clsx(
             "app-main-grid",
             fullScreen ? "full-screen" : undefined,
-            isSingleFileMode ? "single-file-mode" : undefined,
+            isSingleFileMode() ? "single-file-mode" : undefined,
             "log-view"
           )}
           tabIndex={0}
         >
           {showFind ? <FindBand /> : ""}
-          {!isSingleFileMode ? (
+          {!isSingleFileMode() ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}
               currentPath={logPath}

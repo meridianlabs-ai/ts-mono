@@ -47,6 +47,28 @@ const baseApi = (): LogViewAPI => ({
     .mockResolvedValue({ inspect_version: "test", scout_version: null }),
 });
 
+describe("clientApi log format detection", () => {
+  test("uses the eval range reader for a signed eval URL", async () => {
+    const readLogSummary = vi.fn().mockResolvedValue({
+      eval: { task: "task", model: "model" },
+      sampleSummaries: [],
+    });
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockResolvedValue({
+      readLogSummary,
+    } as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>);
+    const lowLevel = baseApi();
+    const client = clientApi(lowLevel);
+    const file = "https://logs.example/run.eval?token=current";
+
+    await client.get_log_details(file);
+
+    expect(openMock).toHaveBeenCalledWith(lowLevel, file, 5);
+    expect(lowLevel.get_log_contents).not.toHaveBeenCalled();
+  });
+});
+
 describe("clientApi.get_log_sample_data path selection", () => {
   test("pins to direct on the first call when the probe succeeds", async () => {
     const direct = vi.fn().mockResolvedValue(okResponse(true));

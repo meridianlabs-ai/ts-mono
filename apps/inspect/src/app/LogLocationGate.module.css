@@ -1,0 +1,57 @@
+.gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+.content {
+  width: min(680px, 100%);
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.icon {
+  margin-top: 2px;
+  font-size: 1.35rem;
+  color: var(--bs-warning-text-emphasis);
+}
+
+.body {
+  min-width: 0;
+}
+
+.body h1 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.body p {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.destination {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  border-left: 3px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+  font-size: 0.82rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
