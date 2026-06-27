@@ -327,6 +327,16 @@ export interface ClientAPI {
     epoch: number,
     onProgress?: ProgressCallback
   ) => Promise<EvalSample | undefined>;
+  /**
+   * Fire-and-forget prefetch of a sample's bytes so a subsequent
+   * `get_log_sample` for the same (file, id, epoch) resolves from
+   * memory. Shares the zip-open with concurrent `get_log_details`.
+   */
+  warm_log_sample: (
+    log_file: string,
+    id: string | number,
+    epoch: number
+  ) => void;
   get_log_pending_samples?: (
     log_file: string,
     etag?: string

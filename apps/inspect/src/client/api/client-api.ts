@@ -56,7 +56,8 @@ export class SampleSizeLimitedExceededError extends Error {
 
 interface LoadedLogFile {
   file?: string;
-  remoteLog?: RemoteLogFile;
+  remoteLog?: Promise<RemoteLogFile>;
+  resolved?: boolean;
 }
 
 /**
@@ -78,21 +79,53 @@ export const clientApi = (
     remoteLog: undefined,
   };
 
-  const remoteEvalFile = async (log_file: string, cached: boolean = false) => {
-    if (cached && loadedEvalFile.file === log_file) {
-      return loadedEvalFile.remoteLog;
+  // Lets the sample download in parallel with summaries.json instead of
+  // serialised behind it. A warmed miss (`undefined`) is not reused —
+  // the real call falls through so its `retryUncached` semantics apply.
+  let warmedSample:
+    | { key: string; promise: Promise<EvalSample | undefined> }
+    | undefined;
+  const sampleKey = (file: string, id: string | number, epoch: number) =>
+    `${file}\0${id}\0${epoch}`;
+
+  const remoteEvalFile = (
+    log_file: string,
+    cached: boolean = false
+  ): Promise<RemoteLogFile> => {
+    // Cache the in-flight promise (not the resolved value) so concurrent
+    // callers share one openRemoteLogFile rather than each issuing their
+    // own log-info / EOCD / cdir request chain.
+    //
+    // `cached=false` means "at least as fresh as now". An in-flight
+    // cached promise satisfies that — it hasn't read from the server
+    // yet — so reuse it. Only when the cached promise has already
+    // resolved (and may therefore be stale) does `cached=false` open
+    // a fresh one; the fresh open then replaces the cache so later
+    // `cached=true` callers see the newer cdir.
+    if (loadedEvalFile.file === log_file && loadedEvalFile.remoteLog) {
+      if (cached || !loadedEvalFile.resolved) {
+        return loadedEvalFile.remoteLog;
+      }
     }
 
-    const remoteLog = await openRemoteLogFile(
-      api,
-      encodePathParts(log_file),
-      5
+    const remoteLog = openRemoteLogFile(api, encodePathParts(log_file), 5);
+
+    loadedEvalFile.file = log_file;
+    loadedEvalFile.remoteLog = remoteLog;
+    loadedEvalFile.resolved = false;
+    remoteLog.then(
+      () => {
+        if (loadedEvalFile.remoteLog === remoteLog) {
+          loadedEvalFile.resolved = true;
+        }
+      },
+      () => {
+        if (loadedEvalFile.remoteLog === remoteLog) {
+          loadedEvalFile.file = undefined;
+          loadedEvalFile.remoteLog = undefined;
+        }
+      }
     );
-
-    if (cached) {
-      loadedEvalFile.file = log_file;
-      loadedEvalFile.remoteLog = remoteLog;
-    }
 
     return remoteLog;
   };
@@ -140,11 +173,7 @@ export const clientApi = (
   ): Promise<LogDetails> => {
     if (isEvalFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
-      if (remoteLogFile) {
-        return await remoteLogFile.readLogSummary();
-      } else {
-        throw new Error("Unable to read remote eval file");
-      }
+      return await remoteLogFile.readLogSummary();
     } else {
       const logContents = await get_log(log_file);
       /**
@@ -188,14 +217,19 @@ export const clientApi = (
     log_file: string,
     id: string | number,
     epoch: number,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    retryUncached: boolean = true
   ): Promise<EvalSample | undefined> => {
+    const key = sampleKey(log_file, id, epoch);
+    if (warmedSample?.key === key) {
+      const warmed = warmedSample;
+      warmedSample = undefined;
+      const hit = await warmed.promise;
+      if (hit) return hit;
+    }
     if (isEvalFile(log_file)) {
       async function fetchSample(useCache: boolean) {
         const remoteLogFile = await remoteEvalFile(log_file, useCache);
-        if (!remoteLogFile) {
-          throw new Error(`Unable to read remote eval file ${log_file}`);
-        }
         return await remoteLogFile.readSample(String(id), epoch, onProgress);
       }
 
@@ -211,9 +245,13 @@ export const clientApi = (
         // First attempt with cache
         return await fetchSample(true);
       } catch (error) {
-        if (error instanceof SampleNotFoundError) {
+        if (error instanceof SampleNotFoundError && retryUncached) {
+          // The cached central directory may be stale (e.g. a sample
+          // was flushed to the zip after we last opened it). Re-open
+          // and try once more — but only when the caller knows the
+          // sample should exist; speculative callers pass
+          // retryUncached=false to avoid a wasted full reopen.
           try {
-            // Retry without cache
             return await fetchSample(false);
           } catch (retryError) {
             return handleError(retryError);
@@ -232,6 +270,21 @@ export const clientApi = (
       }
     }
     return undefined;
+  };
+
+  const warm_log_sample = (
+    log_file: string,
+    id: string | number,
+    epoch: number
+  ): void => {
+    const key = sampleKey(log_file, id, epoch);
+    if (warmedSample?.key === key) return;
+    warmedSample = {
+      key,
+      promise: get_log_sample(log_file, id, epoch, undefined, false).catch(
+        () => undefined
+      ),
+    };
   };
 
   const read_eval_file_log_summary = async (log_file: string) => {
@@ -503,6 +556,7 @@ export const clientApi = (
       }
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
+    warm_log_sample,
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);
     }),
@@ -576,6 +630,7 @@ export const clientApi = (
               loadedEvalFile.file = undefined;
               loadedEvalFile.remoteLog = undefined;
             }
+            warmedSample = undefined;
             return result;
           }
         )
