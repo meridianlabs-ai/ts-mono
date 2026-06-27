@@ -112,8 +112,15 @@ export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
       throw new Error("Invalid HTTP proxy response from extension host");
     }
 
+    // 204/205/304 are null-body statuses; the Response constructor throws if
+    // given a body. The extension host may serialize these as body: "".
+    const mustBeBodyless =
+      response.status === 204 ||
+      response.status === 205 ||
+      response.status === 304;
+
     const responseBody: BodyInit | null =
-      response.body === null
+      mustBeBodyless || response.body === null
         ? null
         : response.bodyEncoding === "base64"
           ? Uint8Array.from(atob(response.body), (c) => c.charCodeAt(0))

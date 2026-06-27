@@ -265,6 +265,23 @@ describe("createJsonRpcFetch", () => {
       expect(await response.text()).toBe("");
     });
 
+    it.each([204, 205, 304])(
+      "returns bodyless Response for null-body status %i with empty-string body",
+      async (status) => {
+        const rpcClient = mockRpcClient({
+          status,
+          headers: {},
+          body: "",
+        });
+        const fetch = createJsonRpcFetch(rpcClient);
+
+        const response = await fetch("/api/test");
+
+        expect(response.status).toBe(status);
+        expect(await response.text()).toBe("");
+      }
+    );
+
     it("handles body without explicit encoding (defaults to utf8)", async () => {
       const rpcClient = mockRpcClient({
         status: 200,
