@@ -35,8 +35,8 @@ Past the gate → `useLogDir(): string` sound everywhere below.
 ## Phases (done)
 
 1. **Resolver + gate.** Added resolver; removed `deriveSingleFileLogDir`.
-   `SingleFileLoaderHost` gates (keeps `task_file` `+`-decode + lone-handle seed). `App`
-   embedded seed hardened. `setLogDir(logDir: string)`.
+   `SingleFileLoaderHost` gates the `?log_file=` bootstrap. `App` embedded seed
+   hardened. `setLogDir(logDir: string)`.
 2. **Retired `initLogDir`** from zustand + its callers (`useLoadLog`, `LogViewContainer`,
    `LogSampleDetailView`, `SamplePrintView`, host) + `loadLog` fallback.
 3. **Moved the above-gate orchestrator below the gate.** `App`/`AppContent` used to own
@@ -59,7 +59,7 @@ navigation/url callers that opted into nullable-tolerance.
 
 ## Risks
 
-- **Manual test:** `?log_file=`, `?task_file=`, VS Code embed — not e2e-covered (dir-mode
+- **Manual test:** `?log_file=`, VS Code embed — not e2e-covered (dir-mode
   e2e is green).
 - VS Code URLs assumed absolute (`dirname` works; page-floor fallback).
 - `useLogDir()` throws above the gate — nothing above it reads it now (`App` uses

@@ -18,26 +18,22 @@ load); each cell names the deployment / signal that lands there.
 
 | Backend ↓ \ Single-file Mode → | `false`                                 | `true`                           |
 | ------------------------------ | --------------------------------------- | -------------------------------- |
-| `viewServerApi`                | default (`inspect view`)                | `?task_file=`                    |
+| `viewServerApi`                | default (`inspect view`)                | —                                |
 | `staticHttpApi`                | `?log_dir=` · `#log_dir_context` bundle | `?log_file=`                     |
-| `vscodeApi`                    | N/A ¹                                   | `#logview-state` (VS Code embed) |
+| `vscodeApi`                    | sidebar view (log_dir, no selection)    | `#logview-state` (VS Code embed) |
 
-> ¹ The extension always embeds a single log (`#logview-state`), so directory +
-> VS Code isn't a real combo. `resolveApi` now **asserts** this — a VS Code backend
-> without single-file mode throws — so the directory loader can rely on a defined
-> `log_dir`. **TODO: validate this invariant with Charles.**
+> **VS Code runs both modes.** The extension embeds a `#logview-state` only when
+> a log is opened (single-file); the sidebar view carries a `log_dir` with nothing
+> selected and injects no `#logview-state` (directory mode). `vscodeApi` implements
+> `get_log_root`, so the directory loader resolves the dir there like any other
+> backend.
 >
-> **Likely-intended mutual exclusivity (not enforced).** The three URL params look
-> meant to be mutually exclusive: `?log_dir=` selects a **directory** (directory
-> mode), while `?log_file=` and `?task_file=` each name a **single file**
-> (single-file mode) — two spellings of the same intent. But nothing guards
-> against passing more than one. The backend and the mode are read from separate
-> signal sets, so a contradictory combo doesn't error — precedence silently picks
-> a winner, and the two decisions can even key off different params (e.g.
-> `?task_file=` + `?log_dir=` → static backend from `log_dir`, single-file mode
-> from `task_file`).
->
-> **TODO: confirm this stuff with Charles.**
+> **Mutual exclusivity (enforced).** `?log_dir=` (directory mode) and `?log_file=`
+> (single-file mode) name a directory vs. a single file — mutually exclusive.
+> `parseUrlLogSource` (`app/urlLogSource.ts`) is the single parse of both params:
+> it returns a discriminated union (`dir` | `file` | `none`) and **throws** on the
+> contradictory combo, so backend selection (`resolveApi`) and single-file
+> detection (`isSingleFileMode`) read one source and can't disagree.
 
 ---
 
@@ -98,8 +94,7 @@ logDir, replicationContext())`, then `sync(true)` — both pushing into the
 ### Direct loader
 
 One specific log, no directory, no background work. The single-log slice
-(`logSlice`) loads the open log on demand into the **same** content cache; `App`
-seeds the lone handle for the `?task_file=` path via `logsContent.setLogHandles`.
+(`logSlice`) loads the open log on demand into the **same** content cache.
 No work queues, no directory-wide IndexedDB hydration, no polling — the
 `ReplicationService` is **never started**. (Direct load ≠ no content: the open
 log still reaches the cache; what's absent is the background, directory-wide
@@ -112,12 +107,11 @@ Startup wiring:
    in `<LoaderHost>`; the dispatch renders `<SingleFileLoaderHost>` — no gate,
    **no `<ReplicationController>`**.
 2. **(react → react-query)** `<SingleFileLoaderHost>`'s mount effect runs the
-   URL-param bootstrap (`?task_file=` / `?log_file=`): it selects the one log
-   (`selectedLogFile` in zustand, or the lone handle for `task_file`) and **seeds
-   the `["log-dir"]` react-query cache** — `initLogDir` derives the dir from the
-   file (`deriveSingleFileLogDir`, falling back to `api.get_log_dir()`), or
-   `setLogDir(undefined)` for `task_file`. The embedded-state / VS Code bootstrap
-   stays in `<App>`'s `onMessage`, which seeds the same cache.
+   `?log_file=` bootstrap: it selects the one log (`selectedLogFile` in zustand)
+   and **seeds the `["log-dir"]` react-query cache** via `setLogDir` —
+   `resolveSingleFileLogDir` derives the dir from the file (its own directory,
+   falling back to `api.get_log_dir()`, then the page folder). The embedded-state
+   / VS Code bootstrap stays in `<App>`'s `onMessage`, which seeds the same cache.
 3. **(react-query — disabled)** The `["log-dir"]` query has
    `enabled: !isSingleFileMode`, so `get_log_root` never runs — the value is the
    seeded one, not a fetch.
@@ -139,12 +133,9 @@ mode — and not content.
 ### Live server — `viewServerApi`
 
 - **Selected when:** default (no other signal), or `?inspect_server=true`.
-- **Loader: forks.**
-    - default (no file param) → **replicator** (directory). It reconciles against
-      the running `inspect view` server.
-    - `?task_file=` → **direct load** (single-file): a deep-link to one log served
-      by the live server. `task_file` trips single-file mode but isn't a backend
-      selector, so the backend stays the default view-server.
+- **Loader: replicator** (directory). It reconciles against the running
+  `inspect view` server. View-server is always directory mode — single-file deep
+  links against the live server are no longer supported.
 
 ### Static bundle / hosted static — `staticHttpApi`
 
@@ -161,10 +152,13 @@ mode — and not content.
 ### VS Code — `vscodeApi`
 
 - **Selected when:** running in the VS Code webview (`getVscodeApi()`).
-- **Loader: direct load** (single-file). The extension injects a `#logview-state`
-  element for the opened log (which is what sets single-file mode); `App` feeds it
-  through the same `onMessage` host bridge the live postMessage events use. The
-  replicator stays idle. (VS Code ≡ single-file mode.)
+- **Loader: forks** on whether the extension opened a log.
+    - opened log → the extension injects a `#logview-state` element (which sets
+      single-file mode); `App` feeds it through the same `onMessage` host bridge
+      the live postMessage events use → **direct load**, replicator idle.
+    - sidebar view with a `log_dir` and nothing selected → no `#logview-state`,
+      so single-file mode is `false` → **replicator** (directory), resolving the
+      dir via `vscodeApi.get_log_root`.
 
 ## The invariant that makes the replicator safe
 

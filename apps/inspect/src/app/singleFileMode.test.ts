@@ -17,7 +17,6 @@ const emptyDoc = docWithEmbedded(false);
 describe("detectInitialSingleFileMode", () => {
   it.each([
     ["?log_file=foo.eval", true],
-    ["?task_file=foo.eval", true],
     ["?log_file=foo.eval&other=1", true],
     ["?other=1", false],
     ["", false],

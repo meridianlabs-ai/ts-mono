@@ -3,7 +3,7 @@ import JSON5 from "json5";
 import { AppConfig } from "@tsmono/inspect-common/types";
 import { dirname, getVscodeApi } from "@tsmono/util";
 
-import { isSingleFileMode } from "../../app/singleFileMode";
+import { parseUrlLogSource } from "../../app/urlLogSource";
 
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";
@@ -25,17 +25,10 @@ interface LogDirContext {
 const resolveApi = (): ClientAPI => {
   const debug = false;
   if (getVscodeApi()) {
-    // VS Code ≡ single-file mode: the extension always embeds a single log
-    // (`#logview-state`), which trips single-file mode. Directory + VS Code is
-    // structurally reachable but not a real combo, and the directory loader
-    // relies on a defined `log_dir` — so enforce the invariant here rather than
-    // let it silently render an empty directory view. See
-    // design/migration/replication-startup-modes.md ¹.
-    if (!isSingleFileMode) {
-      throw new Error(
-        "VS Code backend resolved without single-file mode (expected an embedded #logview-state element)."
-      );
-    }
+    // VS Code runs either single-file (the extension embeds a `#logview-state`
+    // for an opened log) or directory mode (the sidebar view carries a log_dir
+    // with nothing selected, so no `#logview-state` is injected). `vscodeApi`
+    // implements `get_log_root`, so the directory loader works here too.
     return clientApi(vscodeApi, undefined, debug);
   } else {
     // See if there is an log_file, log_dir embedded in the
@@ -68,12 +61,14 @@ const resolveApi = (): ClientAPI => {
 
     // See if there is url params passing info (could be hosted)
     const urlParams = new URLSearchParams(window.location.search);
-    const log_file = urlParams.get("log_file");
-    const log_dir = urlParams.get("log_dir");
     const forceViewServerApi = urlParams.get("inspect_server") === "true";
 
-    const resolved_log_dir = log_dir ?? undefined;
-    const resolved_log_file = log_file ?? undefined;
+    // `?log_dir=` / `?log_file=` are mutually exclusive; this single parse rejects
+    // the contradictory combo (see app/urlLogSource.ts).
+    const source = parseUrlLogSource(window.location.search);
+    const resolved_log_dir = source.kind === "dir" ? source.logDir : undefined;
+    const resolved_log_file =
+      source.kind === "file" ? source.logFile : undefined;
 
     if (forceViewServerApi) {
       return clientApi(

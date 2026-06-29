@@ -2,6 +2,8 @@ import { dirname } from "@tsmono/util";
 
 import { ClientAPI } from "../client/api/types";
 
+import { parseUrlLogSource } from "./urlLogSource";
+
 /**
  * Single-file mode is set when the viewer is opened against a specific log
  * rather than a directory listing — e.g. an embedded iframe deep-link. We
@@ -16,8 +18,7 @@ export const detectInitialSingleFileMode = (
   if (doc.getElementById("logview-state")) {
     return true;
   }
-  const params = new URLSearchParams(location.search);
-  return params.has("log_file") || params.has("task_file");
+  return parseUrlLogSource(location.search).kind === "file";
 };
 
 /**

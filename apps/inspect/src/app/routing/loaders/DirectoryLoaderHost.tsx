@@ -1,17 +1,17 @@
 import { FC, ReactNode, useEffect } from "react";
 
-import { PulsingDots } from "@tsmono/react/components";
+import { AsyncGate } from "@tsmono/react/components";
 
 import {
   activateReplication,
   deactivateReplication,
 } from "../../../state/replicationControl";
-import { useLogRootAsync } from "../../server/useLogDir";
+import { useLogDir, useLogDirAsync } from "../../server/useLogDir";
 
 import { LogLoadController } from "./LogLoadController";
 
 /**
- * Dir-mode arm of <LoaderHost>: resolves the server log root once (via the gated
+ * Dir-mode arm of <LoaderHost>: resolves the log dir once (via the gated
  * `["log-dir"]` query) before rendering `children`, and owns the dir-mode
  * replication lifecycle through <ReplicationController>. Only mounted in
  * directory mode (single-file's log dir is route-derived, and the `["log-dir"]`
@@ -19,34 +19,22 @@ import { LogLoadController } from "./LogLoadController";
  */
 export const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({
   children,
-}) => {
-  const logRoot = useLogRootAsync();
+}) => (
+  <AsyncGate
+    async={useLogDirAsync()}
+    errorLabel="Failed to load log directory"
+    loadingText="Loading logs…"
+  >
+    <DirModeContent>{children}</DirModeContent>
+  </AsyncGate>
+);
 
-  if (logRoot.error) {
-    return (
-      <div className="app-config-gate">
-        Failed to load log directory: {logRoot.error.message}
-      </div>
-    );
-  }
-  if (logRoot.loading) {
-    return (
-      <div className="app-config-gate">
-        <PulsingDots size="large" text="Loading logs…" />
-      </div>
-    );
-  }
-
-  // Past the loading/error gate, directory mode always has a log dir:
-  // view-server always configures one, static-http throws on no root (→ error
-  // branch above), and VS Code is asserted single-file in `resolveApi` so it
-  // never reaches the directory loader. A missing dir here is a coding error.
-  const logDir = logRoot.data?.log_dir;
-  if (!logDir) {
-    throw new Error(
-      "Directory loader resolved without a log_dir; expected a configured root in directory mode."
-    );
-  }
+// Below the gate the log dir is resolved, so `useLogDir()` is guaranteed (it
+// throws otherwise — a coding error). Directory mode always has one: view-server
+// configures it, static-http errors at the gate on no root, and VS Code's
+// directory view resolves it via `get_log_root`.
+const DirModeContent: FC<{ children: ReactNode }> = ({ children }) => {
+  const logDir = useLogDir();
   return (
     <>
       <ReplicationController key={logDir} logDir={logDir} />

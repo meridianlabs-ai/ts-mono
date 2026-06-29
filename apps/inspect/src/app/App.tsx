@@ -23,9 +23,9 @@ import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import {
+  AsyncGate,
   ComponentIconProvider,
   ComponentIcons,
-  PulsingDots,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
@@ -173,8 +173,8 @@ const AppContent: FC = () => {
 
   useEffect(() => {
     // Embedded state (VS Code) is the host-message bootstrap and feeds the same
-    // onMessage bridge as live postMessage events. URL-param single-file deep
-    // links (`?task_file=` / `?log_file=`) are handled by <DirectLoadController>.
+    // onMessage bridge as live postMessage events. The URL-param single-file
+    // deep link (`?log_file=`) is handled by <SingleFileLoaderHost>.
     const embeddedState = document.getElementById("logview-state");
     if (embeddedState) {
       const state = JSON5.parse<HostMessage["data"]>(
@@ -195,26 +195,15 @@ const AppContent: FC = () => {
   );
 };
 
-const AppConfigGate: FC = () => {
-  const appConfig = useAppConfigAsync();
-
-  if (appConfig.error) {
-    return (
-      <div className="app-config-gate">
-        Failed to load application configuration: {appConfig.error.message}
-      </div>
-    );
-  }
-  if (!appConfig.data) {
-    return (
-      <div className="app-config-gate">
-        <PulsingDots size="large" text="Loading application…" />
-      </div>
-    );
-  }
-
-  return <AppContent />;
-};
+const AppConfigGate: FC = () => (
+  <AsyncGate
+    async={useAppConfigAsync()}
+    errorLabel="Failed to load application configuration"
+    loadingText="Loading application…"
+  >
+    <AppContent />
+  </AsyncGate>
+);
 
 /**
  * Renders the Main Application. Owns the query client + api providers so the

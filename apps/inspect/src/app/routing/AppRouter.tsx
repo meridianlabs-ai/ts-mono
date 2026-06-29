@@ -53,9 +53,9 @@ const AppLayout = () => {
   const { sampleId, epoch, sampleUuid } = useLogRouteParams();
 
   // Single file mode is a legacy mode that is used when an explicit file is
-  // passed via URL (task_file or log_file params) or via embedded state
-  // (VSCode). It renders the log/sample view directly rather than through the
-  // child route table (which is oriented around the collection).
+  // passed via URL (the log_file param) or via embedded state (VSCode). It
+  // renders the log/sample view directly rather than through the child route
+  // table (which is oriented around the collection).
   const isSampleDetail = (sampleId && epoch) || sampleUuid;
   const content = isSingleFileMode ? (
     isSampleDetail ? (
