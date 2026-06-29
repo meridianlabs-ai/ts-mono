@@ -70,6 +70,41 @@ interface ScanCatalogRow {
   scannerPaths: Record<string, string>;
 }
 
+interface TranscriptDataProjection {
+  contentColumns: string[];
+  metadataColumns: string[];
+}
+
+const TRANSCRIPT_CONTENT_COLUMNS = [
+  "messages",
+  "events",
+  "events_data",
+  "timelines",
+];
+const TRANSCRIPT_CONTENT_COLUMN_SET = new Set(TRANSCRIPT_CONTENT_COLUMNS);
+const TRANSCRIPT_RESERVED_COLUMNS = new Set([
+  "transcript_id",
+  "source_type",
+  "source_id",
+  "source_uri",
+  "date",
+  "task_set",
+  "task_id",
+  "task_repeat",
+  "agent",
+  "agent_args",
+  "model",
+  "model_options",
+  "score",
+  "success",
+  "message_count",
+  "total_time",
+  "total_tokens",
+  "error",
+  "limit",
+  "filename",
+]);
+
 const joinUrl = (base: string, ...parts: string[]): string => {
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
   const cleaned = parts
@@ -196,7 +231,7 @@ export const apiScoutStatic = (
       id: string
     ): Promise<Transcript> => {
       const rows = await db.queryObjects(
-        `SELECT row_json, metadata, content_file FROM ${catalogTable(
+        `SELECT row_json, content_file FROM ${catalogTable(
           transcriptsCatalog
         )} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
@@ -205,14 +240,6 @@ export const apiScoutStatic = (
       const info = await asyncJsonParse<TranscriptInfo>(
         stringField(row, "row_json")
       );
-      // metadata can be large, so it lives in its own catalog column and is
-      // kept out of row_json (which the listing reads) to keep first-load
-      // small. Merge it back here for the detail view.
-      const metadata = await parseOptionalJson<TranscriptInfo["metadata"]>(
-        row,
-        "metadata"
-      );
-      info.metadata = metadata ?? {};
 
       // Open the transcript's content from the native parquet via httpfs range
       // reads (HEAD + ranged column-chunk GETs). Attachments are inlined at
@@ -221,14 +248,22 @@ export const apiScoutStatic = (
         joinUrl(baseUrl, stringField(row, "content_file"))
       );
       const contentTable = catalogTable(url);
-      const contentColumns = await transcriptContentColumns(db, contentTable);
+      const projection = await transcriptDataProjection(db, contentTable);
+      const projectedColumns = [
+        ...projection.contentColumns,
+        ...projection.metadataColumns,
+      ];
       const contentRows = await db.queryObjects(
-        `SELECT ${contentColumns.map(quoteIdentifier).join(", ")} FROM ${contentTable} WHERE "transcript_id" = ? LIMIT 1`,
+        `SELECT ${projectedColumns.map(quoteIdentifier).join(", ")} FROM ${contentTable} WHERE "transcript_id" = ? LIMIT 1`,
         [id]
       );
       const content = firstRow(
         contentRows,
         `Transcript content '${id}' not found`
+      );
+      info.metadata = await transcriptMetadataFromRow(
+        content,
+        projection.metadataColumns
       );
 
       const messages = await asyncJsonParse<MessagesEventsResponse["messages"]>(
@@ -489,17 +524,69 @@ const scannerParquetUrl = (
   return absoluteUrl(joinUrl(baseUrl, scannerPath));
 };
 
-const transcriptContentColumns = async (
+const transcriptDataProjection = async (
   db: StaticDuckDB,
   table: string
-): Promise<string[]> => {
-  const available = await tableColumnNames(db, table);
+): Promise<TranscriptDataProjection> => {
+  const columns = await tableColumns(db, table);
+  const available = new Set(columns);
   if (!available.has("messages")) {
     throw new Error("Transcript content is missing required column 'messages'");
   }
-  return ["messages", "events", "events_data", "timelines"].filter((column) =>
-    available.has(column)
-  );
+  return {
+    contentColumns: TRANSCRIPT_CONTENT_COLUMNS.filter((column) =>
+      available.has(column)
+    ),
+    metadataColumns: columns.filter(
+      (column) =>
+        !TRANSCRIPT_RESERVED_COLUMNS.has(column) &&
+        !TRANSCRIPT_CONTENT_COLUMN_SET.has(column)
+    ),
+  };
+};
+
+const transcriptMetadataFromRow = async (
+  row: object,
+  metadataColumns: string[]
+): Promise<TranscriptInfo["metadata"]> => {
+  const metadata: TranscriptInfo["metadata"] = {};
+  for (const column of metadataColumns) {
+    const value = objectField(row, column);
+    if (value !== null && value !== undefined) {
+      metadata[column] = await parseMetadataValue(value);
+    }
+  }
+  return metadata;
+};
+
+const parseMetadataValue = async (value: unknown): Promise<unknown> => {
+  if (
+    typeof value === "string" &&
+    value.length > 0 &&
+    (value[0] === "{" || value[0] === "[")
+  ) {
+    try {
+      return await asyncJsonParse<unknown>(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+};
+
+const tableColumns = async (
+  db: StaticDuckDB,
+  table: string
+): Promise<string[]> => {
+  const rows = await db.queryObjects(`DESCRIBE SELECT * FROM ${table}`);
+  return rows.map((row) => stringField(row, "column_name"));
+};
+
+const tableColumnNames = async (
+  db: StaticDuckDB,
+  table: string
+): Promise<Set<string>> => {
+  return new Set(await tableColumns(db, table));
 };
 
 const scannerProjection = async (
@@ -516,14 +603,6 @@ const scannerProjection = async (
   const presentExcluded = excluded.filter((column) => available.has(column));
   if (presentExcluded.length === 0) return "*";
   return `* EXCLUDE (${presentExcluded.map(quoteIdentifier).join(", ")})`;
-};
-
-const tableColumnNames = async (
-  db: StaticDuckDB,
-  table: string
-): Promise<Set<string>> => {
-  const rows = await db.queryObjects(`DESCRIBE SELECT * FROM ${table}`);
-  return new Set(rows.map((row) => stringField(row, "column_name")));
 };
 
 const catalogTable = (catalogName: string): string =>

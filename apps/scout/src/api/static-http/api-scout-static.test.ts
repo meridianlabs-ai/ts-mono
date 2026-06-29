@@ -31,7 +31,6 @@ describe("apiScoutStatic", () => {
       .mockResolvedValueOnce([
         {
           row_json: JSON.stringify({ transcript_id: "t1" }),
-          metadata: "{}",
           content_file: "transcripts/content.parquet",
         },
       ])
@@ -47,15 +46,79 @@ describe("apiScoutStatic", () => {
 
     expect(transcript).toMatchObject({
       transcript_id: "t1",
+      metadata: {},
       messages: [],
       events: [],
       timelines: [],
     });
+    expect(duckdb.queryObjects.mock.calls[0]?.[0]).toContain(
+      `SELECT row_json, content_file FROM`
+    );
+    expect(duckdb.queryObjects.mock.calls[0]?.[0]).not.toContain("metadata");
     expect(duckdb.queryObjects.mock.calls[2]?.[0]).toContain(
       `SELECT "messages", "events" FROM`
     );
     expect(duckdb.queryObjects.mock.calls[2]?.[0]).not.toContain("events_data");
     expect(duckdb.queryObjects.mock.calls[2]?.[0]).not.toContain("timelines");
+  });
+
+  it("reconstructs transcript metadata from content parquet columns", async () => {
+    duckdb.queryObjects
+      .mockResolvedValueOnce([
+        {
+          row_json: JSON.stringify({
+            transcript_id: "t1",
+            metadata: {},
+            model: "row-model",
+          }),
+          content_file: "transcripts/content.parquet",
+        },
+      ])
+      .mockResolvedValueOnce([
+        { column_name: "transcript_id" },
+        { column_name: "messages" },
+        { column_name: "events" },
+        { column_name: "events_data" },
+        { column_name: "timelines" },
+        { column_name: "model" },
+        { column_name: "filename" },
+        { column_name: "epoch" },
+        { column_name: "sample_metadata" },
+        { column_name: "score_report" },
+        { column_name: "plain_text" },
+        { column_name: "broken_json" },
+        { column_name: "empty_value" },
+      ])
+      .mockResolvedValueOnce([
+        {
+          messages: "[]",
+          events: "[]",
+          events_data: null,
+          timelines: "[]",
+          epoch: 2,
+          sample_metadata: JSON.stringify({ patch: "diff --git" }),
+          score_report: JSON.stringify(["PASS", "FAIL"]),
+          plain_text: "not json",
+          broken_json: "{not-json",
+          empty_value: null,
+        },
+      ]);
+
+    const api = apiScoutStatic({ bundleBaseUrl: "/bundle/api" });
+    const transcript = await api.getTranscript("ignored", "t1");
+
+    expect(transcript.metadata).toEqual({
+      epoch: 2,
+      sample_metadata: { patch: "diff --git" },
+      score_report: ["PASS", "FAIL"],
+      plain_text: "not json",
+      broken_json: "{not-json",
+    });
+    expect(duckdb.queryObjects.mock.calls[2]?.[0]).toBe(
+      `SELECT "messages", "events", "events_data", "timelines", "epoch", "sample_metadata", "score_report", "plain_text", "broken_json", "empty_value" FROM read_parquet('/bundle/api/transcripts/content.parquet') WHERE "transcript_id" = ? LIMIT 1`
+    );
+    expect(duckdb.queryObjects.mock.calls[2]?.[0]).not.toContain(`"model"`);
+    expect(duckdb.queryObjects.mock.calls[2]?.[0]).not.toContain(`"filename"`);
   });
 
   it("ignores scanner excludes for columns absent from older parquet files", async () => {
