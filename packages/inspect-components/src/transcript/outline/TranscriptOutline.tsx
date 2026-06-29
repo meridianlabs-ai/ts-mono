@@ -13,7 +13,6 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useScrollTrack } from "@tsmono/react/hooks";
 
 import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
-import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
@@ -24,8 +23,7 @@ import {
   collapseTurns,
   makeTurns,
   noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
+  outlineFilterVisitors,
 } from "./tree-visitors";
 import { useOutlineWidth } from "./useOutlineWidth";
 
@@ -160,17 +158,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     const nodeList = flatTree(
       eventNodes,
       (collapsedEvents ? collapsedEvents : undefined) || defaultCollapsedIds,
-      [
-        removeNodeVisitor("logger"),
-        removeNodeVisitor("info"),
-        removeNodeVisitor("state"),
-        removeNodeVisitor("store"),
-        removeNodeVisitor("approval"),
-        removeNodeVisitor("input"),
-        removeNodeVisitor("sandbox"),
-        removeStepSpanNameVisitor(kSandboxSignalName),
-        noScorerChildren(),
-      ]
+      [...outlineFilterVisitors(), noScorerChildren()]
     );
 
     return collapseScoring(collapseTurns(makeTurns(nodeList)));

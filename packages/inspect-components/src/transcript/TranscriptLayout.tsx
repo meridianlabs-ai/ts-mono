@@ -46,6 +46,7 @@ import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import {
+  computeLaneFirstAnchors,
   resolveEventInBranches,
   resolveEventToSpan,
   resolveMessageInBranches,
@@ -59,11 +60,13 @@ import {
   useTimelineConfig,
   useTimelinesArray,
   useTranscriptTimeline,
+  type SelectOptions,
   type TimelineOptions,
   type UseActiveTimelineProps,
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
+import { getAgents } from "./timeline/swimlaneRows";
 import {
   buildSpanSelectKeys,
   getSelectedSpans,
@@ -172,6 +175,15 @@ export interface TranscriptLayoutProps {
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  /** Builds a single-event standalone-page URL for the header's
+   *  open-in-new-tab control. Omit to hide that control. */
+  getEventFocusUrl?: (eventId: string) => string | undefined;
+  /** Reflect an explicit turn navigation (j/k, chevrons, editable number) in
+   *  the URL (`?event=`, replace) — like an outline click. Not called on scroll. */
+  onNavigatedToEvent?: (eventId: string) => void;
+  /** Disable transcript keyboard nav (j/k/h/l/gg/G) while find-in-page owns the
+   *  keyboard, so its keys reach the find box instead of navigating turns. */
+  keyboardNavDisabled?: boolean;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -312,6 +324,9 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   eventsListRef,
   getEventUrl,
   linkingEnabled,
+  getEventFocusUrl,
+  onNavigatedToEvent,
+  keyboardNavDisabled,
   bulkCollapse,
   collapseState,
   outline,
@@ -534,9 +549,150 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor, scrubTo]
   );
 
+  // Agent-lane navigation: h/l and the swimlane < / > buttons step the selected
+  // swimlane lane across the visible lanes. Index 0 is the root ("main",
+  // selection cleared); deeper subagent lanes follow in pre-order, so 3+ nesting
+  // levels are just later lanes here. Driving timelineState.select reuses the
+  // existing lane highlight + event scoping (no separate scroll machinery).
+  // Only agent lanes are navigable: the root ("main") plus subagent rows. Skip
+  // scoring/tool rows so h/l + the < > buttons honor "main + subagents" and
+  // match the focus page (which is agent-only). Keyed off the row spans'
+  // spanType, since RowLayout doesn't carry it.
+  const agentLaneKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const row of timelineState.rows) {
+      if (
+        row.depth === 0 ||
+        row.spans.some((s) => getAgents(s).some((a) => a.spanType === "agent"))
+      ) {
+        keys.add(row.key);
+      }
+    }
+    return keys;
+  }, [timelineState.rows]);
+  const laneKeys = useMemo(
+    () =>
+      timelineLayouts.filter((l) => agentLaneKeys.has(l.key)).map((l) => l.key),
+    [timelineLayouts, agentLaneKeys]
+  );
+  const currentLaneIndex = useMemo(() => {
+    if (!timelineState.selected) return 0;
+    const i = laneKeys.indexOf(timelineState.selected);
+    return i < 0 ? 0 : i;
+  }, [laneKeys, timelineState.selected]);
+  const spanSelectKeys = useMemo(
+    () => buildSpanSelectKeys(timelineState.rows),
+    [timelineState.rows]
+  );
+
+  // The first turn-anchor (model event) of each agent lane, keyed by swimlane
+  // row key. Lets a lane switch reflect in the URL by parking on the lane's
+  // first turn — the lane is then derivable from `?event=` (consistent with
+  // j/k and the focus page), rather than living only in selection state.
+  const laneFirstAnchor = useMemo(() => {
+    const byAgentSpan = computeLaneFirstAnchors(timelineData.root);
+    const byLaneKey = new Map<string, string>();
+    const rootKey = laneKeys[0];
+    for (const [agentSpanId, eventId] of byAgentSpan) {
+      const laneKey =
+        agentSpanId === null ? rootKey : spanSelectKeys.get(agentSpanId)?.key;
+      if (laneKey) byLaneKey.set(laneKey, eventId);
+    }
+    return byLaneKey;
+  }, [timelineData.root, spanSelectKeys, laneKeys]);
+
+  // Switch to an agent lane (by swimlane row key), parking `?event=` on its
+  // first turn so the lane stays derivable from the URL (like j/k). Shared by
+  // h/l, the swimlane row clicks, and the in-stream agent cards.
+  const selectLaneByKey = useCallback(
+    (laneKey: string) => {
+      // Skip only when this lane is genuinely the active one. A non-lane
+      // selection (branch/scoring) maps to currentLaneIndex 0 but is NOT "on
+      // main", so clicking main from there must still clear + park.
+      const current = timelineState.selected;
+      const alreadyActive =
+        laneKey === laneKeys[0]
+          ? current === null || current === laneKeys[0]
+          : current === laneKey;
+      if (alreadyActive) return;
+      onHeadroomResetAnchor?.(true); // don't flicker headroom during the scroll
+      const targetEvent = laneFirstAnchor.get(laneKey);
+      if (laneKey === laneKeys[0]) {
+        timelineState.clearSelection();
+      } else {
+        // No anchor (branch/multi-span lane): don't preserve, else the previous
+        // lane's stale `?event=` survives and mislabels the lane.
+        timelineState.select(laneKey, {
+          preserveDeepLink: targetEvent !== undefined,
+        });
+      }
+      if (targetEvent) onNavigatedToEvent?.(targetEvent);
+    },
+    [
+      laneKeys,
+      onHeadroomResetAnchor,
+      laneFirstAnchor,
+      timelineState,
+      onNavigatedToEvent,
+    ]
+  );
+  // h/l and the swimlane breadcrumb < / > step the active lane by index.
+  const goToLane = useCallback(
+    (index: number) => {
+      if (laneKeys.length === 0) return;
+      const clamped = Math.max(0, Math.min(laneKeys.length - 1, index));
+      selectLaneByKey(laneKeys[clamped]!);
+    },
+    [laneKeys, selectLaneByKey]
+  );
+  // select() for the swimlane + agent cards: agent-lane keys park the URL,
+  // span/region/non-agent keys fall through to plain selection.
+  const laneAwareSelect = useCallback(
+    (key: string | null, options?: SelectOptions) => {
+      if (key !== null && laneKeys.includes(key)) {
+        selectLaneByKey(key);
+      } else {
+        timelineState.select(key, options);
+      }
+    },
+    [laneKeys, selectLaneByKey, timelineState]
+  );
+  const swimlaneNav = useMemo(
+    () => ({
+      selected: timelineState.selected,
+      select: laneAwareSelect,
+      clearSelection: timelineState.clearSelection,
+    }),
+    [timelineState.selected, timelineState.clearSelection, laneAwareSelect]
+  );
+  const onLanePrev = useCallback(
+    () => goToLane(currentLaneIndex - 1),
+    [goToLane, currentLaneIndex]
+  );
+  const onLaneNext = useCallback(
+    () => goToLane(currentLaneIndex + 1),
+    [goToLane, currentLaneIndex]
+  );
+  const laneNav = useMemo(
+    () =>
+      laneKeys.length > 1
+        ? {
+            index: currentLaneIndex,
+            count: laneKeys.length,
+            name: selectedRowName,
+            hasPrev: currentLaneIndex > 0,
+            hasNext: currentLaneIndex < laneKeys.length - 1,
+            onPrev: onLanePrev,
+            onNext: onLaneNext,
+          }
+        : undefined,
+    [laneKeys.length, currentLaneIndex, selectedRowName, onLanePrev, onLaneNext]
+  );
+
   const swimlaneHeader = useMemo(
     () => ({
       rootLabel: timelineData.root.name,
+      laneNav,
       onScrollToTop,
       minimap: {
         root: timelineData.root,
@@ -559,6 +715,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     }),
     [
       timelineData.root,
+      laneNav,
       onScrollToTop,
       minimapSelection,
       rootTimeMapping,
@@ -586,28 +743,27 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Span selection context (agent card clicks → swimlane selection)
   // ---------------------------------------------------------------------------
 
-  const spanSelectKeys = useMemo(
-    () => buildSpanSelectKeys(timelineState.rows),
-    [timelineState.rows]
-  );
-
   const selectBySpanId = useCallback(
     (spanId: string) => {
       const key = spanSelectKeys.get(spanId);
-      if (!key) return;
-      timelineState.select(key.key);
+      if (key) laneAwareSelect(key.key);
     },
-    [spanSelectKeys, timelineState]
+    [spanSelectKeys, laneAwareSelect]
   );
 
   const selectByRowKey = useCallback(
     (rowKey: string, anchorEl?: HTMLElement) => {
+      if (laneKeys.includes(rowKey)) {
+        selectLaneByKey(rowKey);
+        return;
+      }
+      // Non-lane rows scope without parking the URL, keeping scroll position.
       if (anchorEl && scrollRef.current) {
         setScrollAnchor({ scrollTop: scrollRef.current.scrollTop });
       }
       timelineState.select(rowKey, { preserveScroll: true });
     },
-    [timelineState, scrollRef]
+    [laneKeys, selectLaneByKey, timelineState, scrollRef]
   );
 
   // ---------------------------------------------------------------------------
@@ -916,9 +1072,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // When a sidebar toggles, the layout reflows but no scroll/resize event
-  // fires — so sticky-state observers (useStickyObserver, StickyScroll)
-  // keep stale state. Dispatch a synthetic scroll event after the DOM has
-  // settled to force them to re-measure.
+  // fires — so the StickyScroll component keeps stale state. Dispatch a
+  // synthetic scroll event after the DOM has settled to force a re-measure.
   const outlineCollapsedFlag = outline?.collapsed ?? null;
   const railPanelOpenFlag = rightRail?.panel != null;
   useEffect(() => {
@@ -1062,7 +1217,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 <div ref={swimLaneStickyContentRef}>
                   <TimelineSwimLanes
                     layouts={timelineLayouts}
-                    timeline={timelineState}
+                    timeline={swimlaneNav}
                     header={swimlaneHeader}
                     onMarkerNavigate={onMarkerNavigate}
                     isSticky={isSwimLaneSticky}
@@ -1198,13 +1353,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
                   getEventUrl={getEventUrl}
                   linkingEnabled={linkingEnabled}
+                  getEventFocusUrl={getEventFocusUrl}
                   collapsedTranscript={collapseState?.transcript}
-                  collapsedOutline={collapseState?.outline}
                   onCollapseTranscript={onCollapseTranscript}
                   onExpandNodes={
                     onSetTranscriptCollapsed ? onExpandNodes : undefined
                   }
                   eventNodeContext={mergedEventNodeContext}
+                  onProgrammaticScroll={onHeadroomResetAnchor}
+                  onPrevAgent={laneNav ? onLanePrev : undefined}
+                  onNextAgent={laneNav ? onLaneNext : undefined}
+                  onNavigatedToEvent={onNavigatedToEvent}
+                  keyboardNavDisabled={keyboardNavDisabled}
                 />
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />

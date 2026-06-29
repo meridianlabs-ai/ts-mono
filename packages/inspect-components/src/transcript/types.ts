@@ -104,6 +104,17 @@ export const eventTypeValues = [
   "span_end",
 ] as const;
 
+// Event types the transcript hides by default (the "Events: Default" filter).
+export const kDefaultExcludeEvents = [
+  "sample_init",
+  "sandbox",
+  "state",
+  "store",
+  "branch",
+  "anchor",
+  "checkpoint",
+];
+
 // Derive the type from the array (replaces the indexed access approach)
 export type EventTypeValue = (typeof eventTypeValues)[number];
 

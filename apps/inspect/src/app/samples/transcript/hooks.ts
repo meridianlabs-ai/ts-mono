@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 
 import { Event } from "@tsmono/inspect-common";
+import { kDefaultExcludeEvents } from "@tsmono/inspect-components/transcript";
 
-import { kDefaultExcludeEvents } from "../../../state/sampleSlice";
 import { useStore } from "../../../state/store";
 
 // TODO: span_begin/end are not in AllEventTypes. Is that on purpose?
