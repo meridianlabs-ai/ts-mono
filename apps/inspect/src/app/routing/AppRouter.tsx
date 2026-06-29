@@ -18,7 +18,7 @@ import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { isSingleFileMode } from "../singleFileMode";
 
-import { LoaderHost } from "./loaders/LoaderHost";
+import { LoaderGate } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
 import { TasksRouter } from "./TasksRouter";
@@ -70,7 +70,7 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderHost isSingleFileMode={isSingleFileMode}>{content}</LoaderHost>
+        <LoaderGate>{content}</LoaderGate>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );

@@ -43,7 +43,10 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-import { setLogDir, useLogDirAsync } from "./server/useLogDir.ts";
+import {
+  pushLogDirForEmbeddedMode,
+  useLogDirAsync,
+} from "./server/useLogDir.ts";
 import { resolveEmbeddedLogDir } from "./singleFileMode.ts";
 
 const componentIcons: ComponentIcons = {
@@ -130,8 +133,8 @@ const AppContent: FC = () => {
             if (isUri(targetFile)) {
               targetFile = basename(targetFile);
             }
-            // Always seed a defined dir so SingleFileLoaderHost's gate resolves.
-            setLogDir(resolveEmbeddedLogDir(decodedUrl));
+            // Push the host-opened dir so <LoaderGate>'s gate resolves.
+            pushLogDirForEmbeddedMode(resolveEmbeddedLogDir(decodedUrl));
 
             if (!rehydrated) {
               setInitialState(
@@ -174,7 +177,7 @@ const AppContent: FC = () => {
   useEffect(() => {
     // Embedded state (VS Code) is the host-message bootstrap and feeds the same
     // onMessage bridge as live postMessage events. The URL-param single-file
-    // deep link (`?log_file=`) is handled by <SingleFileLoaderHost>.
+    // deep link (`?log_file=`) is handled by <LoaderHost>.
     const embeddedState = document.getElementById("logview-state");
     if (embeddedState) {
       const state = JSON5.parse<HostMessage["data"]>(

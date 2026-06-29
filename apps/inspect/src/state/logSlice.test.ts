@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { setLogDir } from "../app/server/useLogDir";
+import { seedLogDirForTest } from "../app/server/useLogDir";
 import { ClientAPI, LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
@@ -52,7 +52,7 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
 
   // syncLog reads the log dir from the ["log-dir"] react-query cache (settled by
   // the loader gate in the app); seed it here.
-  setLogDir("/logs");
+  seedLogDirForTest("/logs");
 
   const api = {
     get_log_details: vi.fn().mockResolvedValue(freshInfo),
