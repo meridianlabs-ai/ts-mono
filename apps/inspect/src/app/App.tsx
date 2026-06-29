@@ -129,16 +129,12 @@ const AppContent: FC = () => {
           if (e.data.url) {
             const decodedUrl = decodeURIComponent(e.data.url);
 
-            let targetFile = decodedUrl;
-            if (isUri(targetFile)) {
-              targetFile = basename(targetFile);
-            }
             // Push the host-opened dir so <LoaderGate>'s gate resolves.
             pushLogDirForEmbeddedMode(resolveEmbeddedLogDir(decodedUrl));
 
             if (!rehydrated) {
               setInitialState(
-                targetFile,
+                isUri(decodedUrl) ? basename(decodedUrl) : decodedUrl,
                 e.data.sample_id,
                 e.data.sample_epoch
               );
