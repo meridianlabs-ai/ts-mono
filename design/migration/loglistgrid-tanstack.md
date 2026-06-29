@@ -213,6 +213,17 @@ After phase 6 the log-list migration is at a solid, shippable point. With the sa
 - **New-tab parity** beyond the task cell's `<a>` overlay (a row-level Cmd/middle-click handler would generalize it).
 - **Per-column filter clear affordance** and **filter autocomplete suggestions** (the latter needs an inspect API for per-column distinct values) — see `loglist-filtering.md`.
 - **ARIA-label audit vs origin/main** — reconcile the DataGrid's roles/labels (the funnel `aria-label="Filter <columnId>"` substring-collides with header/segment names) so accessibility/automation don't regress.
+- **Filter-code export** — scout's Python/SQL "copy query" affordance was not ported.
+
+### logDir gate & content-in-react-query follow-ups
+
+The collection content (handles/previews/details) and the resolved `logDir` now live in the react-query cache, behind a single `LoaderGate`. Open items from that work:
+
+- **Single-file / VS-Code-embed / deep-link mode lacks e2e.** Dir mode is e2e-green; the `?log_file=` URL, VS Code embed, and deep-link paths are preserved by construction but need a manual pass.
+- **Revisit `PushedQuerySource` complexity.** The embedded dir is modeled as a push source (`makePushedQuerySource`, `packages/react/src/react-query.ts`) whose `queryFn` stalls until the first `set`. But `#logview-state` is always present at startup in embedded mode, so the dir could be read and seeded imperatively before the query mounts — collapsing the embedded path to a one-time boot seed + plain `setQueryData` on later host navigations, and letting the stall (and `PushedQuerySource` itself, if unused elsewhere) be deleted. This would also moot the documented **eviction re-stall** (if `["log-dir"]` is evicted, `queryFn` stalls again until the next `set`) and the **`seedLogDirForTest` vs `pushLogDirForEmbeddedMode`** seam overlap. Verify the always-present assumption across static / view-server / VS Code embed first.
+- **Loading-state not derived from the query.** `app.status.loading` is driven imperatively via `setLoading` rather than from the details query's `AsyncData`; the route-change stale-flash guard (formerly `clearSelectedLogDetails`) should gate render on the query settling for the newly-selected file.
+- **Details error channel unreachable.** The details cache is a passive cache with no error source, so `useLogDetail`'s error branch never fires (absent ⇒ loading). Surface real on-demand fetch errors when such a path exists (per-file error map, or fold the fetch into the hook).
+- **Keep `replication-startup-modes.md` current** — that doc is the startup/loader reference; keep its terminology in step with the `LoaderGate` collapse + pull/push logDir split.
 
 ## Separate efforts (out of this migration's scope)
 
