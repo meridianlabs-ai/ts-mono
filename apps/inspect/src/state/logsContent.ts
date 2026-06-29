@@ -30,24 +30,20 @@ const EMPTY_HANDLES: LogHandle[] = [];
 const EMPTY_PREVIEWS: Record<string, LogPreview> = {};
 const EMPTY_DETAILS: Record<string, LogDetails> = {};
 
-export const logHandlesKey = (logDir: string | undefined) =>
-  ["log-handles", logDir ?? ""] as const;
-export const logPreviewsKey = (logDir: string | undefined) =>
-  ["log-previews", logDir ?? ""] as const;
-export const logDetailsKey = (logDir: string | undefined) =>
-  ["log-details", logDir ?? ""] as const;
+export const logHandlesKey = (logDir: string) =>
+  ["log-handles", logDir] as const;
+export const logPreviewsKey = (logDir: string) =>
+  ["log-previews", logDir] as const;
+export const logDetailsKey = (logDir: string) =>
+  ["log-details", logDir] as const;
 
-const currentHandles = (logDir: string | undefined): LogHandle[] =>
+const currentHandles = (logDir: string): LogHandle[] =>
   queryClient.getQueryData<LogHandle[]>(logHandlesKey(logDir)) ?? EMPTY_HANDLES;
-const currentPreviews = (
-  logDir: string | undefined
-): Record<string, LogPreview> =>
+const currentPreviews = (logDir: string): Record<string, LogPreview> =>
   queryClient.getQueryData<Record<string, LogPreview>>(
     logPreviewsKey(logDir)
   ) ?? EMPTY_PREVIEWS;
-const currentDetails = (
-  logDir: string | undefined
-): Record<string, LogDetails> =>
+const currentDetails = (logDir: string): Record<string, LogDetails> =>
   queryClient.getQueryData<Record<string, LogDetails>>(logDetailsKey(logDir)) ??
   EMPTY_DETAILS;
 
@@ -69,15 +65,12 @@ const omitKey = <T>(
 // transient or already persisted.
 // ---------------------------------------------------------------------------
 
-export const setHandles = (
-  logDir: string | undefined,
-  handles: LogHandle[]
-): void => {
+export const setHandles = (logDir: string, handles: LogHandle[]): void => {
   queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), handles);
 };
 
 export const mergePreviews = (
-  logDir: string | undefined,
+  logDir: string,
   previews: Record<string, LogPreview>
 ): void => {
   queryClient.setQueryData<Record<string, LogPreview>>(
@@ -87,7 +80,7 @@ export const mergePreviews = (
 };
 
 export const mergeDetails = (
-  logDir: string | undefined,
+  logDir: string,
   details: Record<string, LogDetails>
 ): void => {
   queryClient.setQueryData<Record<string, LogDetails>>(
@@ -96,14 +89,14 @@ export const mergeDetails = (
   );
 };
 
-const evictPreview = (logDir: string | undefined, name: string): void => {
+const evictPreview = (logDir: string, name: string): void => {
   queryClient.setQueryData<Record<string, LogPreview>>(
     logPreviewsKey(logDir),
     (prev) => omitKey(prev, name)
   );
 };
 
-const evictFile = (logDir: string | undefined, name: string): void => {
+const evictFile = (logDir: string, name: string): void => {
   queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), (prev) =>
     (prev ?? EMPTY_HANDLES).filter((handle) => handle.name !== name)
   );
@@ -114,7 +107,7 @@ const evictFile = (logDir: string | undefined, name: string): void => {
   );
 };
 
-const clearCache = (logDir: string | undefined): void => {
+const clearCache = (logDir: string): void => {
   queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), EMPTY_HANDLES);
   queryClient.setQueryData<Record<string, LogPreview>>(
     logPreviewsKey(logDir),
@@ -139,7 +132,7 @@ const clearCache = (logDir: string | undefined): void => {
  */
 export const writeHandles = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   handles: LogHandle[]
 ): Promise<LogHandle[]> => {
   if (db?.opened()) {
@@ -158,7 +151,7 @@ export const writeHandles = async (
 
 export const writePreviews = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   previews: Record<string, LogPreview>
 ): Promise<void> => {
   mergePreviews(logDir, previews);
@@ -169,7 +162,7 @@ export const writePreviews = async (
 
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   details: Record<string, LogDetails>
 ): Promise<void> => {
   mergeDetails(logDir, details);
@@ -180,7 +173,7 @@ export const writeDetails = async (
 
 export const writeDetail = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   name: string,
   details: LogDetails
 ): Promise<void> => {
@@ -192,7 +185,7 @@ export const writeDetail = async (
 
 export const clearFile = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   name: string
 ): Promise<void> => {
   evictFile(logDir, name);
@@ -203,7 +196,7 @@ export const clearFile = async (
 
 export const clearPreview = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined,
+  logDir: string,
   name: string
 ): Promise<void> => {
   evictPreview(logDir, name);
@@ -214,7 +207,7 @@ export const clearPreview = async (
 
 export const clearAll = async (
   db: DatabaseService | null | undefined,
-  logDir: string | undefined
+  logDir: string
 ): Promise<void> => {
   clearCache(logDir);
   if (db?.opened()) {
@@ -226,11 +219,17 @@ export const clearAll = async (
 // Readers
 // ---------------------------------------------------------------------------
 
-/** Non-React snapshot of the handles (for slice / routing call sites). */
+/**
+ * Non-React snapshot of the handles (for slice / routing call sites). Tolerates
+ * an unresolved dir (returns empty) — non-React code can run before a scope is
+ * settled; React readers below the loader gate always have one.
+ */
 export const getLogHandles = (logDir: string | undefined): LogHandle[] =>
-  currentHandles(logDir);
+  logDir === undefined ? EMPTY_HANDLES : currentHandles(logDir);
 
-export const useLogHandles = (logDir: string | undefined): LogHandle[] => {
+// Callers pass a resolved dir (`useLogDir()`); the loader gate guarantees one
+// before any consumer of these mounts.
+export const useLogHandles = (logDir: string): LogHandle[] => {
   const { data } = useQuery({
     queryKey: logHandlesKey(logDir),
     queryFn: () => currentHandles(logDir),
@@ -239,9 +238,7 @@ export const useLogHandles = (logDir: string | undefined): LogHandle[] => {
   return data ?? EMPTY_HANDLES;
 };
 
-export const useLogPreviews = (
-  logDir: string | undefined
-): Record<string, LogPreview> => {
+export const useLogPreviews = (logDir: string): Record<string, LogPreview> => {
   const { data } = useQuery({
     queryKey: logPreviewsKey(logDir),
     queryFn: () => currentPreviews(logDir),
@@ -250,9 +247,7 @@ export const useLogPreviews = (
   return data ?? EMPTY_PREVIEWS;
 };
 
-export const useLogDetails = (
-  logDir: string | undefined
-): Record<string, LogDetails> => {
+export const useLogDetails = (logDir: string): Record<string, LogDetails> => {
   const { data: details } = useQuery({
     queryKey: logDetailsKey(logDir),
     queryFn: () => currentDetails(logDir),
@@ -273,7 +268,7 @@ export const resolveLogKey = (
   logDir: string | undefined,
   logFile: string
 ): string => {
-  const match = currentHandles(logDir).find((handle) =>
+  const match = getLogHandles(logDir).find((handle) =>
     handle.name.endsWith(logFile)
   );
   return match?.name ?? logFile;
@@ -287,7 +282,7 @@ export const resolveLogKey = (
  * source. See `design/migration/selected-log-details-react-query.md`.
  */
 export const useLogDetail = (
-  logDir: string | undefined,
+  logDir: string,
   logFile: string | undefined
 ): AsyncData<LogDetails> => {
   const details = useLogDetails(logDir);
@@ -303,9 +298,14 @@ export const useLogDetail = (
   }, [details, handles, logFile]);
 };
 
-/** Non-React snapshot of a single log's details (for slice / polling). */
+/**
+ * Non-React snapshot of a single log's details (for slice / polling). Returns
+ * `undefined` when there's no resolved dir — honest "no scope yet", not a "" bucket.
+ */
 export const getLogDetail = (
   logDir: string | undefined,
   logFile: string
 ): LogDetails | undefined =>
-  currentDetails(logDir)[resolveLogKey(logDir, logFile)];
+  logDir === undefined
+    ? undefined
+    : currentDetails(logDir)[resolveLogKey(logDir, logFile)];

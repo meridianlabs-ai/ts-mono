@@ -1,11 +1,13 @@
 import { describe, expect, test, vi } from "vitest";
 
+import { setLogDir } from "../app/server/useLogDir";
 import { ClientAPI, LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
 import { initDatabaseService } from "./databaseServiceInstance";
 import * as logsContent from "./logsContent";
 import { createLogSlice } from "./logSlice";
+import { queryClient } from "./queryClient";
 import { StoreState } from "./store";
 
 const logDetails = (status: LogDetails["status"]): LogDetails =>
@@ -47,6 +49,10 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
   // logSlice reads the shared DatabaseService from the module singleton rather
   // than zustand state; inject the fake via the singleton's init seam.
   initDatabaseService(databaseService as unknown as DatabaseService);
+
+  // syncLog reads the log dir from the ["log-dir"] react-query cache (settled by
+  // the loader gate in the app); seed it here.
+  setLogDir("/logs");
 
   const api = {
     get_log_details: vi.fn().mockResolvedValue(freshInfo),
@@ -102,5 +108,6 @@ describe("logSlice.syncLog", () => {
     harness.mergePreviews.mockRestore();
     harness.writeDetail.mockRestore();
     harness.cleanup();
+    queryClient.clear();
   });
 });

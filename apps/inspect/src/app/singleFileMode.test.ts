@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  deriveSingleFileLogDir,
   detectInitialSingleFileMode,
+  resolveEmbeddedLogDir,
 } from "./singleFileMode";
 
 const docWithEmbedded = (
@@ -38,15 +38,16 @@ describe("detectInitialSingleFileMode", () => {
   });
 });
 
-describe("deriveSingleFileLogDir", () => {
+describe("resolveEmbeddedLogDir", () => {
   it.each([
-    [undefined, undefined],
-    ["", undefined],
-    ["file.eval", undefined],
     ["/abs/path/file.eval", "/abs/path"],
     ["relative/path/file.eval", "relative/path"],
     ["s3://bucket/path/file.eval", "s3://bucket/path"],
   ])("derives %s -> %s", (input, expected) => {
-    expect(deriveSingleFileLogDir(input)).toBe(expected);
+    expect(resolveEmbeddedLogDir(input)).toBe(expected);
+  });
+
+  it("resolves a bare basename against the page (never empty)", () => {
+    expect(resolveEmbeddedLogDir("file.eval")).not.toBe("");
   });
 });

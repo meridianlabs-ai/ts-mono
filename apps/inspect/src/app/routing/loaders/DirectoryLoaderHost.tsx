@@ -8,6 +8,8 @@ import {
 } from "../../../state/replicationControl";
 import { useLogRootAsync } from "../../server/useLogDir";
 
+import { LogLoadController } from "./LogLoadController";
+
 /**
  * Dir-mode arm of <LoaderHost>: resolves the server log root once (via the gated
  * `["log-dir"]` query) before rendering `children`, and owns the dir-mode
@@ -48,6 +50,7 @@ export const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({
   return (
     <>
       <ReplicationController key={logDir} logDir={logDir} />
+      <LogLoadController />
       {children}
     </>
   );
@@ -62,7 +65,9 @@ export const DirectoryLoaderHost: FC<{ children: ReactNode }> = ({
  */
 const ReplicationController: FC<{ logDir: string }> = ({ logDir }) => {
   useEffect(() => {
-    void activateReplication(logDir);
+    activateReplication(logDir).catch((e) => {
+      console.error(`Failed to activate replication for ${logDir}`, e);
+    });
     return () => deactivateReplication();
   }, [logDir]);
 

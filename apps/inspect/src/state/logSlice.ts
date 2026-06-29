@@ -180,11 +180,11 @@ export const createLogSlice = (
       syncLog: async (logFileName: string) => {
         const state = get();
 
-        // Ensure there is a log dir. Dir mode resolves it via the gated query;
-        // single-file mode derives it on demand through initLogDir.
-        let logDir = getLogDir();
+        // Both loader hosts settle the log dir before any log view mounts, so
+        // it's resolved by the time a log is opened.
+        const logDir = getLogDir();
         if (logDir === undefined) {
-          logDir = await state.logsActions.initLogDir();
+          throw new Error("Cannot open a log before the log dir is resolved.");
         }
 
         const logAbsPath = !isUri(logFileName)
@@ -318,16 +318,18 @@ export const createLogSlice = (
         try {
           const logDetails = await api.get_log_details(selectedLogFile, false);
           const logDir = getLogDir();
-          void logsContent
-            .writeDetail(
-              getDatabaseService(),
-              logDir,
-              logsContent.resolveLogKey(logDir, selectedLogFile),
-              logDetails
-            )
-            .catch(() => {
-              // Silently ignore cache errors
-            });
+          if (logDir !== undefined) {
+            void logsContent
+              .writeDetail(
+                getDatabaseService(),
+                logDir,
+                logsContent.resolveLogKey(logDir, selectedLogFile),
+                logDetails
+              )
+              .catch(() => {
+                // Silently ignore cache errors
+              });
+          }
           state.logActions.onLogDetailsLoaded(logDetails);
         } catch (error) {
           log.error("Error refreshing log:", error);

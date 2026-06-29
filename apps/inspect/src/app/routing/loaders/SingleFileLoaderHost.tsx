@@ -1,33 +1,62 @@
 import { FC, ReactNode, useEffect } from "react";
 
+import { PulsingDots } from "@tsmono/react/components";
+
 import * as logsContent from "../../../state/logsContent";
-import { useStore } from "../../../state/store";
-import { getLogDir, setLogDir } from "../../server/useLogDir";
+import { useApi, useStore } from "../../../state/store";
+import { setLogDir, useLogDirAsync } from "../../server/useLogDir";
+import { resolveSingleFileLogDir } from "../../singleFileMode";
+
+import { LogLoadController } from "./LogLoadController";
 
 /**
- * Single-file (direct-load) loader host. Runs the legacy URL-param bootstrap
- * (`?task_file=` / `?log_file=`) that selects the one log to view, then renders
- * its children. Mirrors <DirectoryLoaderHost> for the directory loader, and
- * takes `children` so it can grow into a provider. The embedded-state
- * (`#logview-state` / VS Code) bootstrap stays in <App>, coupled to the
- * persistent host-message bridge; when it's present this host defers to it.
+ * Single-file (direct-load) loader host, and the single-file arm of <LoaderHost>.
+ * Mirrors <DirectoryLoaderHost>: it resolves the log dir before rendering
+ * children, so consumers below the gate always see a defined `logDir`.
+ *
+ * The URL-param bootstrap (`?task_file=` / `?log_file=`) resolves + seeds the dir
+ * here. The embedded-state (`#logview-state` / VS Code) bootstrap stays in <App>,
+ * coupled to the persistent host-message bridge; when it's present this host just
+ * waits for <App> to seed the dir.
  */
 export const SingleFileLoaderHost: FC<{ children: ReactNode }> = ({
   children,
 }) => {
   useSingleFileBootstrap();
-  return <>{children}</>;
+  const logRoot = useLogDirAsync();
+
+  if (logRoot.error) {
+    return (
+      <div className="app-config-gate">
+        Failed to load log directory: {logRoot.error.message}
+      </div>
+    );
+  }
+  if (logRoot.loading) {
+    return (
+      <div className="app-config-gate">
+        <PulsingDots size="large" text="Loading logs…" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <LogLoadController />
+      {children}
+    </>
+  );
 };
 
 const useSingleFileBootstrap = () => {
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
+  const api = useApi();
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
 
   useEffect(() => {
     const load = async () => {
-      // Embedded state (VS Code) is handled by <App>; defer to it.
+      // Embedded state (VS Code) seeds the dir via <App>'s onMessage; defer.
       if (document.getElementById("logview-state")) {
         return;
       }
@@ -40,19 +69,19 @@ const useSingleFileBootstrap = () => {
       const resolvedLogPath = logPath ? logPath.replace(" ", "+") : logPath;
 
       if (resolvedLogPath) {
-        // Clear any log dir, then load just the passed file.
-        setLogDir(undefined);
-        logsContent.setHandles(getLogDir(), [{ name: resolvedLogPath }]);
+        const dir = await resolveSingleFileLogDir(resolvedLogPath, api);
+        setLogDir(dir);
+        logsContent.setHandles(dir, [{ name: resolvedLogPath }]);
       } else {
         // If a log file was passed, select it.
         const log_file = urlParams.get("log_file");
         if (log_file) {
-          await initLogDir();
+          setLogDir(await resolveSingleFileLogDir(log_file, api));
           setSelectedLogFile(log_file);
         }
       }
     };
 
     void load();
-  }, [initLogDir, setSelectedLogFile]);
+  }, [api, setSelectedLogFile]);
 };

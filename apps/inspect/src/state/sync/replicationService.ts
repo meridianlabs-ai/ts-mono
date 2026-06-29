@@ -4,7 +4,6 @@ import { throttle } from "@tsmono/util";
 import { ClientAPI, LogDetails, LogPreview } from "../../client/api/types";
 import { DatabaseService } from "../../client/database";
 import { WorkPriority, WorkQueue } from "../../utils/workQueue";
-
 import * as logsContent from "../logsContent";
 
 /**
@@ -31,8 +30,16 @@ export class ReplicationService {
   private _database: DatabaseService | undefined = undefined;
 
   // The cache-key directory for the active session (distinct from the database
-  // handle); the `logsContent` seam keys its react-query writes by this.
-  private _logDir: string | undefined = undefined;
+  // handle); the `logsContent` seam keys its react-query writes by this. Set by
+  // startReplication; read via requireLogDir (the seam only runs post-start).
+  private _dir: string | undefined = undefined;
+
+  private requireLogDir(): string {
+    if (this._dir === undefined) {
+      throw new Error("Replication accessed before startReplication");
+    }
+    return this._dir;
+  }
 
   // To update application state
   private _applicationContext: ApplicationContext | undefined = undefined;
@@ -165,7 +172,7 @@ export class ReplicationService {
       }
 
       await logsContent
-        .writePreviews(this._database, this._logDir, updates)
+        .writePreviews(this._database, this.requireLogDir(), updates)
         .catch(() => {});
       this._throttledUpdateDbStats();
     } finally {
@@ -189,7 +196,11 @@ export class ReplicationService {
         return;
       }
 
-      await logsContent.writeDetails(this._database, this._logDir, updates);
+      await logsContent.writeDetails(
+        this._database,
+        this.requireLogDir(),
+        updates
+      );
       this._throttledUpdateDbStats();
     } finally {
       this._flushingDetail = false;
@@ -222,7 +233,7 @@ export class ReplicationService {
   ) {
     this._database = database;
     this._api = api;
-    this._logDir = logDir;
+    this._dir = logDir;
     this._applicationContext = context;
 
     // Preload cached data so the UI can render immediately while
@@ -250,7 +261,7 @@ export class ReplicationService {
   public stopReplication() {
     this._database = undefined;
     this._api = undefined;
-    this._logDir = undefined;
+    this._dir = undefined;
     this._applicationContext = undefined;
   }
 
@@ -335,7 +346,11 @@ export class ReplicationService {
       if (invalidate) {
         // Invalidate everything
         for (const file of logFiles) {
-          void logsContent.clearFile(this._database, this._logDir, file.name);
+          void logsContent.clearFile(
+            this._database,
+            this.requireLogDir(),
+            file.name
+          );
         }
 
         // Drop stale queued work before scheduling new fetches
@@ -343,7 +358,7 @@ export class ReplicationService {
         this._detailQueue.clear();
 
         // Apply the new list
-        logsContent.setHandles(this._logDir, serverLogs.files);
+        logsContent.setHandles(this.requireLogDir(), serverLogs.files);
 
         // Schedule sync of missing previews or details
         this.queueLogDetails(serverLogs.files);
@@ -356,7 +371,7 @@ export class ReplicationService {
         return serverLogs.files;
       } else {
         // Activate the current log handles
-        logsContent.setHandles(this._logDir, logFiles);
+        logsContent.setHandles(this.requireLogDir(), logFiles);
 
         await this.queueMissingOrStartedPreviews(logFiles);
 
@@ -386,7 +401,11 @@ export class ReplicationService {
         return !updatedLogs.find((f) => f.name === current.name);
       });
       for (const file of deletedFiles) {
-        void logsContent.clearFile(this._database, this._logDir, file.name);
+        void logsContent.clearFile(
+          this._database,
+          this.requireLogDir(),
+          file.name
+        );
       }
 
       if (deletedFiles.length > 0) {
@@ -419,12 +438,14 @@ export class ReplicationService {
     // Invalidate summaries and overviews for deleted or updated files
     void toInvalidate
       .map((file) => file.name)
-      .map((name) => logsContent.clearFile(this._database, this._logDir, name));
+      .map((name) =>
+        logsContent.clearFile(this._database, this.requireLogDir(), name)
+      );
 
     // Persist the current list of files and cache the full re-read.
     const allLogHandles = await logsContent.writeHandles(
       this._database,
-      this._logDir,
+      this.requireLogDir(),
       updatedLogs
     );
 
@@ -475,7 +496,7 @@ export class ReplicationService {
 
         // Activate existing previews (cache-only seed from persisted rows)
         if (Object.keys(loaded).length > 0) {
-          logsContent.mergePreviews(this._logDir, loaded);
+          logsContent.mergePreviews(this.requireLogDir(), loaded);
         }
 
         // Queue any missing previews
@@ -489,7 +510,7 @@ export class ReplicationService {
   }
 
   public clearData() {
-    void logsContent.clearAll(this._database, this._logDir);
+    void logsContent.clearAll(this._database, this.requireLogDir());
     void this.updateDbStats();
   }
 
@@ -517,7 +538,11 @@ export class ReplicationService {
       const preview = cached[handle.name];
       if (preview?.status === "started") {
         seen.add(handle.name);
-        await logsContent.clearPreview(this._database, this._logDir, handle.name);
+        await logsContent.clearPreview(
+          this._database,
+          this.requireLogDir(),
+          handle.name
+        );
         tasks.push(handle);
       }
     }

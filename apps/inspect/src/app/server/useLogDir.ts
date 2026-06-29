@@ -1,4 +1,6 @@
-import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { useCallback } from "react";
+
+import { useAsyncDataFromQuery, useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { LogRoot } from "../../client/api/types";
@@ -33,7 +35,7 @@ const cachedLogRoot = (): LogRoot | undefined =>
  * where the dir is derived from the selected file rather than fetched from the
  * server; dir mode populates the same cache through the query's `queryFn`.
  */
-export const setLogDir = (logDir?: string, absLogDir?: string): void => {
+export const setLogDir = (logDir: string, absLogDir?: string): void => {
   queryClient.setQueryData<LogRoot>(logDirKey, {
     logs: [],
     log_dir: logDir,
@@ -42,8 +44,17 @@ export const setLogDir = (logDir?: string, absLogDir?: string): void => {
 };
 
 /** The current log directory (from the `["log-dir"]` cache, both modes). */
-export const useLogDir = (): string | undefined =>
-  useLogRootAsync().data?.log_dir;
+export const useLogDirAsync = (): AsyncData<string | undefined> =>
+  useMapAsyncData(
+    useLogRootAsync(),
+    useCallback((x) => x.log_dir, [])
+  );
+
+export const useLogDir = (): string => {
+  const result = useLogDirAsync().data;
+  if (!result) throw new Error("Log dir not loaded");
+  return result;
+};
 
 /** The absolute log directory (dir mode only; single-file leaves it unset). */
 export const useAbsLogDir = (): string | undefined =>

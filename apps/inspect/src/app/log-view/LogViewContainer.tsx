@@ -11,7 +11,6 @@ import {
   useLogRouteParams,
   type RoutePrefix,
 } from "../routing/url";
-import { isSingleFileMode } from "../singleFileMode";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -99,7 +98,6 @@ export const LogViewContainer: FC = () => {
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPathRef = useRef<string | undefined>(undefined);
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
   // Clear the previous eval's data before paint when the route changes, so the
   // old eval doesn't flash while the new one loads. A useEffect would run after
@@ -121,19 +119,10 @@ export const LogViewContainer: FC = () => {
   }, [logPath, tabId, setWorkspaceTab]);
 
   useEffect(() => {
-    const loadLogFromPath = async () => {
-      if (logPath) {
-        // Single-file mode derives its log dir here; dir mode resolves it via
-        // the gated query and owns replication through <ReplicationController>.
-        if (isSingleFileMode) {
-          await initLogDir();
-        }
-        setSelectedLogFile(logPath);
-      }
-    };
-
-    void loadLogFromPath();
-  }, [logPath, setSelectedLogFile, initLogDir]);
+    if (logPath) {
+      setSelectedLogFile(logPath);
+    }
+  }, [logPath, setSelectedLogFile]);
 
   return <LogViewLayout />;
 };

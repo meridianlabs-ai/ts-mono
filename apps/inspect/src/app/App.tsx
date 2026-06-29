@@ -28,11 +28,10 @@ import {
   PulsingDots,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename, dirname } from "@tsmono/util";
+import { basename } from "@tsmono/util";
 
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import { useSelectedLogDetails } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
@@ -44,7 +43,8 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-import { setLogDir, useLogDir } from "./server/useLogDir.ts";
+import { setLogDir, useLogDirAsync } from "./server/useLogDir.ts";
+import { resolveEmbeddedLogDir } from "./singleFileMode.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -107,63 +107,17 @@ const AppContent: FC = () => {
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 
-  const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const loadedLogFile = useStore((state) => state.log.loadedLog);
-  const selectedLogDetails = useSelectedLogDetails();
+  // Above the loader gate, so the dir may be unresolved; used only for the
+  // host-message comparison below. Selecting + loading the log is owned by
+  // <LogLoadController>, below the gate.
+  const logDir = useLogDirAsync().data;
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
-  const setLoading = useStore((state) => state.appActions.setLoading);
 
   const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
-
-  const loadLog = useStore((state) => state.logActions.syncLog);
-  const pollLog = useStore((state) => state.logActions.pollLog);
-
-  // Load a specific log
-  useEffect(() => {
-    const loadSpecificLog = async () => {
-      // Ignore if there is no log file.
-      if (!selectedLogFile) {
-        return;
-      }
-
-      if (selectedLogFile === loadedLogFile && selectedLogDetails) {
-        // The log is already loaded and we have the data
-        return;
-      }
-
-      try {
-        // Set loading first and wait for it to update
-        setLoading(true);
-
-        // Then load the log
-        await loadLog(selectedLogFile);
-
-        // Finally set loading to false
-        setLoading(false);
-      } catch (e) {
-        console.log(e);
-        setLoading(false, e as Error);
-      }
-    };
-
-    void loadSpecificLog();
-  }, [selectedLogFile, loadedLogFile, selectedLogDetails, loadLog, setLoading]);
-
-  useEffect(() => {
-    // If the component re-mounts and there is a running load loaded
-    // start up polling
-    const doPoll = async () => {
-      await pollLog();
-    };
-    if (selectedLogDetails?.status === "started") {
-      void doPoll();
-    }
-  }, [pollLog, selectedLogDetails?.status]);
 
   const onMessage = useCallback(
     (e: HostMessage) => {
@@ -174,11 +128,10 @@ const AppContent: FC = () => {
 
             let targetFile = decodedUrl;
             if (isUri(targetFile)) {
-              // If it's a URI, just set the log file directly
-              const dir = dirname(targetFile);
               targetFile = basename(targetFile);
-              setLogDir(dir);
             }
+            // Always seed a defined dir so SingleFileLoaderHost's gate resolves.
+            setLogDir(resolveEmbeddedLogDir(decodedUrl));
 
             if (!rehydrated) {
               setInitialState(

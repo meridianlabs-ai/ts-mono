@@ -6,6 +6,7 @@ import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
+import { setLogDir } from "../app/server/useLogDir";
 import {
   ClientAPI,
   SampleDataResponse,
@@ -22,12 +23,16 @@ import {
 import { StoreState } from "./store";
 
 // The opened log's summaries live in the react-query details cache, keyed by
-// the selected log file; tests seed it here and point state at the same key.
+// the log dir + selected log file; tests seed both the dir (so getLogDir
+// resolves) and the details, then point state at the same key.
+const SELECTED_DIR = "/logs";
 const SELECTED_LOG = "selected.eval";
-const seedSelectedLog = () =>
-  logsContent.mergeDetails(undefined, {
+const seedSelectedLog = () => {
+  setLogDir(SELECTED_DIR);
+  logsContent.mergeDetails(SELECTED_DIR, {
     [SELECTED_LOG]: { sampleSummaries: [] } as unknown as never,
   });
+};
 
 const mockApi = {
   get_log_sample: vi.fn(),

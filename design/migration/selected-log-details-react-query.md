@@ -61,14 +61,14 @@ Group and verify after each:
 
 ## TODO (follow-on, not Phase 1)
 
-- **Rewire loading state.** `app.status.loading`, the running-log poll trigger,
-  and the load-guard in `App.tsx` key off `selectedLogDetails` presence/`status`.
-  Anything in react-query reports loading through react-query (`AsyncData`), not
-  the zustand `status` machinery — so these should re-derive from the query
-  rather than the retired field. Scope and rewire separately. Includes the
-  route-change **stale-flash guard** that `LogViewContainer` used to get from
-  `clearSelectedLogDetails`: with details keyed by `selectedLogFile`, the guard
-  should come from gating render on the query settling for the new file.
+- **Loading-state source.** The running-log poll trigger and the load-guard
+  moved out of `App` (above the loader gate) into `<LogLoadController>` below it
+  (see `design/plans/single-file-logdir-gate.md`), so they now read
+  `useSelectedLogDetails` where the dir is resolved. Still open: `app.status.loading`
+  is driven imperatively via `setLoading` rather than derived from the query's
+  `AsyncData`. Also the route-change **stale-flash guard** (formerly
+  `clearSelectedLogDetails` in `LogViewContainer`) — gate render on the query
+  settling for the new file.
 
 ## Open question
 

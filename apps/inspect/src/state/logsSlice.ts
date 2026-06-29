@@ -4,11 +4,8 @@ import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { getLogDir, setLogDir } from "../app/server/useLogDir";
-import {
-  deriveSingleFileLogDir,
-  isSingleFileMode,
-} from "../app/singleFileMode";
+import { getLogDir } from "../app/server/useLogDir";
+import { isSingleFileMode } from "../app/singleFileMode";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import { ClientAPI, EvalHeader, SampleSummary } from "../client/api/types";
 import { isUri, join } from "../utils/uri";
@@ -27,7 +24,6 @@ export interface LogsSlice {
     syncLogPreviews: (logs: LogHandle[]) => Promise<void>;
 
     // Fetch or update logs
-    initLogDir: () => Promise<string | undefined>;
     ensureReplication: () => Promise<void>;
     syncLogs: () => Promise<LogHandle[]>;
     setDbStats: (stats: {
@@ -166,33 +162,6 @@ export const createLogsSlice = (
           state.logs.samplesListState.previousSamplesPath = path;
         });
       },
-      // Single-file mode only: derive the log dir from the selected file and
-      // store it in zustand (where `useLogDir`/`getLogDir`'s single-file branch
-      // reads it). In dir mode the log dir comes from the gated `["log-dir"]`
-      // query, not here, so this is a no-op there.
-      initLogDir: async () => {
-        if (!isSingleFileMode) {
-          return getLogDir();
-        }
-
-        // Re-deriving against the same file would just produce the same answer,
-        // so short-circuit if it's already seeded.
-        const existing = getLogDir();
-        if (existing !== undefined) return existing;
-        let logDir = deriveSingleFileLogDir(get().logs.selectedLogFile);
-        // For bare-basename deep links there's no dir to derive; fall back
-        // to the server's configured log dir (cheap — no walk).
-        if (logDir === undefined) {
-          try {
-            logDir = await api.get_log_dir();
-          } catch (e) {
-            console.log(e);
-          }
-        }
-
-        setLogDir(logDir);
-        return logDir;
-      },
       setDbStats: (stats: {
         logCount: number;
         previewCount: number;
@@ -284,7 +253,7 @@ export const createLogsSlice = (
             if (!logHandle) {
               throw new Error(`Log file not found: ${logFile}`);
             }
-          } else {
+          } else if (logDir !== undefined) {
             logsContent.setHandles(logDir, [{ name: logFile }]);
           }
         }

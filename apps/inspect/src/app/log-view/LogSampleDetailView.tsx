@@ -50,7 +50,6 @@ export const LogSampleDetailView: FC = () => {
   const prefix = useRoutePrefix();
 
   // Get store state and actions for log loading
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
   const sampleSummaries = useSampleSummaries();
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
@@ -71,33 +70,19 @@ export const LogSampleDetailView: FC = () => {
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)
   useEffect(() => {
-    const loadLogAndSample = async () => {
-      if (routeLogPath && routeSampleId && routeEpoch) {
-        // Single-file mode derives its log dir here; dir mode resolves it via
-        // the gated query and owns replication through <ReplicationController>.
-        if (isSingleFileMode) {
-          await initLogDir();
-        }
+    if (routeLogPath && routeSampleId && routeEpoch) {
+      setSelectedLogFile(routeLogPath);
 
-        // Set the selected log file
-        setSelectedLogFile(routeLogPath);
-
-        // Select the sample
-        const targetEpoch = parseInt(routeEpoch, 10);
-        if (isNaN(targetEpoch)) {
-          return;
-        }
-
-        selectSample(routeSampleId, targetEpoch, routeLogPath);
+      const targetEpoch = parseInt(routeEpoch, 10);
+      if (isNaN(targetEpoch)) {
+        return;
       }
-    };
-
-    void loadLogAndSample();
+      selectSample(routeSampleId, targetEpoch, routeLogPath);
+    }
   }, [
     routeLogPath,
     routeSampleId,
     routeEpoch,
-    initLogDir,
     setSelectedLogFile,
     selectSample,
   ]);

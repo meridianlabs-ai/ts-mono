@@ -45,11 +45,14 @@ export function createLogPolling(
       const logDetails = await api.get_log_details(selectedLogFile, false);
 
       // Running-log refreshes are transient: update the details cache only
-      // (no IndexedDB write), keyed the same as the listing.
+      // (no IndexedDB write), keyed the same as the listing. Polling only runs
+      // for an open log, so the dir is resolved by now.
       const logDir = getLogDir();
-      logsContent.mergeDetails(logDir, {
-        [logsContent.resolveLogKey(logDir, selectedLogFile)]: logDetails,
-      });
+      if (logDir !== undefined) {
+        logsContent.mergeDetails(logDir, {
+          [logsContent.resolveLogKey(logDir, selectedLogFile)]: logDetails,
+        });
+      }
       log.debug(
         `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
         logDetails
