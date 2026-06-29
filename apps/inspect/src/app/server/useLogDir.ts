@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { skipToken } from "@tanstack/react-query";
 
 import { useAsyncDataFromQuery, useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
@@ -21,9 +21,13 @@ export const useLogRootAsync = (): AsyncData<LogRoot> => {
   const api = useApi();
   return useAsyncDataFromQuery({
     queryKey: logDirKey,
-    queryFn: () => api.get_log_root(),
+    // skipToken only disables the *fetch*, not the read: a disabled query still
+    // serves whatever is cached under this key. In single-file mode we never
+    // fetch the root (no directory to walk) — instead `setLogDir` seeds this
+    // same key via setQueryData with the file-derived dir, and this query
+    // returns that seeded value.
+    queryFn: isSingleFileMode ? skipToken : () => api.get_log_root(),
     staleTime: Infinity,
-    enabled: !isSingleFileMode,
   });
 };
 
@@ -45,10 +49,8 @@ export const setLogDir = (logDir: string, absLogDir?: string): void => {
 
 /** The current log directory (from the `["log-dir"]` cache, both modes). */
 export const useLogDirAsync = (): AsyncData<string | undefined> =>
-  useMapAsyncData(
-    useLogRootAsync(),
-    useCallback((x) => x.log_dir, [])
-  );
+  useMapAsyncData(useLogRootAsync(), logDirFromLogRoot);
+const logDirFromLogRoot = (x: LogRoot) => x.log_dir;
 
 export const useLogDir = (): string => {
   const result = useLogDirAsync().data;

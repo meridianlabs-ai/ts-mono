@@ -23,16 +23,16 @@ export const SingleFileLoaderHost: FC<{ children: ReactNode }> = ({
   children,
 }) => {
   useSingleFileBootstrap();
-  const logRoot = useLogDirAsync();
+  const logDir = useLogDirAsync();
 
-  if (logRoot.error) {
+  if (logDir.error) {
     return (
       <div className="app-config-gate">
-        Failed to load log directory: {logRoot.error.message}
+        Failed to load log directory: {logDir.error.message}
       </div>
     );
   }
-  if (logRoot.loading) {
+  if (logDir.loading) {
     return (
       <div className="app-config-gate">
         <PulsingDots size="large" text="Loading logs…" />
