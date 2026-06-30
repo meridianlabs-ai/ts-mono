@@ -352,6 +352,7 @@ export function DataGrid<TRow>({
                   const cellDef = cell.column
                     .columnDef as ExtendedColumnDef<TRow>;
                   const align = cellDef.meta?.align;
+                  const cellStyle = cellDef.meta?.cellStyle?.(row.original);
                   return (
                     <div
                       key={cell.id}
@@ -359,7 +360,7 @@ export function DataGrid<TRow>({
                         styles.cell,
                         align === "center" && styles.cellCenter
                       )}
-                      style={{ width: cell.column.getSize() }}
+                      style={{ width: cell.column.getSize(), ...cellStyle }}
                       title={cellDef.titleValue?.(row.original)}
                       role="gridcell"
                     >

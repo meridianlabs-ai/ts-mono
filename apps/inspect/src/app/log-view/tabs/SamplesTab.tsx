@@ -34,10 +34,14 @@ import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
   useSamplesView,
+  useSamplesViewColorScalesEnabled,
   useSamplesViewMultiline,
+  useSamplesViewScoreColorScales,
+  useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
+import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
   perScorerFieldKey,
@@ -51,6 +55,12 @@ interface SamplesTabExtraProps {
   setShowColumnSelector: (showing: boolean) => void;
   columnButtonEl: HTMLButtonElement | null;
 }
+
+// Stable empty fallback: a fresh `{}` per render would invalidate the
+// `allColumns` memo every render (and tear down score-cell DOM).
+const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
+  {}
+);
 
 // AG-shaped shim of the column list for the still-AG `useSamplesView` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
@@ -199,6 +209,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Multiline determines column rendering: list-style uses
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
+  const scoreLabels = useSamplesViewScoreLabels();
+  const wireScoreColorScales = useSamplesViewScoreColorScales();
+  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+  // Gate the heat-map colours behind the user-facing toggle: pass the
+  // resolved scales through only when enabled, else nothing.
+  const scoreColorScales = useMemo(
+    () => (colorScalesEnabled ? wireScoreColorScales : kNoScoreColorScales),
+    [colorScalesEnabled, wireScoreColorScales]
+  );
 
   const allColumns = useMemo(
     () =>
@@ -208,8 +227,17 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         descriptor: samplesDescriptor,
         scores,
         epochs,
+        scoreLabels,
+        scoreColorScales,
       }),
-    [multiline, samplesDescriptor, scores, epochs]
+    [
+      multiline,
+      samplesDescriptor,
+      scores,
+      epochs,
+      scoreLabels,
+      scoreColorScales,
+    ]
   );
 
   const pickerColumns = useMemo(
