@@ -256,7 +256,11 @@ export function DataGrid<TRow>({
     >
       <div
         className={styles.table}
-        style={{ width: totalWidth, paddingRight: trailingPad }}
+        // Add the rotated-label trailing room to the width, not as padding:
+        // `.table` is `box-sizing: border-box`, so `paddingRight` would shrink
+        // the content box and make the full-width rows overflow it — a second,
+        // nested horizontal scrollbar. Widening keeps a single scroll extent.
+        style={{ width: totalWidth + trailingPad }}
       >
         <div
           className={styles.thead}
