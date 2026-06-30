@@ -6,7 +6,7 @@ import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import {
   flatTree,
-  TranscriptVirtualListComponent,
+  TranscriptVirtualList,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
@@ -33,6 +33,7 @@ import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
+import { useLoadSampleFromRoute } from "../useLoadSampleFromRoute";
 
 import { PrintHeading } from "./PrintHeading";
 import styles from "./SamplePrintView.module.css";
@@ -50,38 +51,7 @@ export const SamplePrintView: FC = () => {
   // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
   useLoadSample();
   usePollSample();
-
-  // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
-  useEffect(() => {
-    const loadLogAndSample = async () => {
-      if (logPath && sampleId && epoch) {
-        await initLogDir();
-        setSelectedLogFile(logPath);
-        void syncLogs();
-
-        const targetEpoch = parseInt(epoch, 10);
-        if (!isNaN(targetEpoch)) {
-          selectSample(sampleId, targetEpoch, logPath);
-        }
-      }
-    };
-    void loadLogAndSample();
-  }, [
-    logPath,
-    sampleId,
-    epoch,
-    initLogDir,
-    setSelectedLogFile,
-    syncLogs,
-    selectSample,
-  ]);
+  useLoadSampleFromRoute(logPath, sampleId, epoch);
 
   // Get sample data
   const sampleData = useSampleData();
@@ -160,7 +130,7 @@ export const SamplePrintView: FC = () => {
       </div>
 
       {view === kSampleTranscriptTabId && (
-        <TranscriptVirtualListComponent
+        <TranscriptVirtualList
           id="print-transcript"
           listHandle={listHandle}
           eventNodes={flattenedNodes}

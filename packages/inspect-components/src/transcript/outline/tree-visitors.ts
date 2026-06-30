@@ -1,5 +1,6 @@
 import type { ScoreEvent, SpanBeginEvent } from "@tsmono/inspect-common/types";
 
+import { kSandboxSignalName } from "../transform/fixups";
 import { TYPE_SCORER, TYPE_SCORERS } from "../transform/utils";
 import { EventNode } from "../types";
 
@@ -32,6 +33,23 @@ export const removeStepSpanNameVisitor = (name: string) => {
     },
   };
 };
+
+/**
+ * The filter the outline tree applies, reused by turn numbering so both count
+ * turns the same way - drops non-turn-content events. The outline also collapses
+ * scorer children via noScorerChildren(), which turn numbering deliberately keeps
+ * (so model-graded scorer calls count as turns).
+ */
+export const outlineFilterVisitors = () => [
+  removeNodeVisitor("logger"),
+  removeNodeVisitor("info"),
+  removeNodeVisitor("state"),
+  removeNodeVisitor("store"),
+  removeNodeVisitor("approval"),
+  removeNodeVisitor("input"),
+  removeNodeVisitor("sandbox"),
+  removeStepSpanNameVisitor(kSandboxSignalName),
+];
 
 export const noScorerChildren = () => {
   let inScorers = false;

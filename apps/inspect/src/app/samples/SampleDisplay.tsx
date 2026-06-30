@@ -370,7 +370,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
-  // Right-docked sidebar — search and scans share a single slot (one at a
+  // Right-docked sidebar - search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
   // choice is persisted per log so a closed dock stays closed across reloads.
   const setPropertyValue = useStore(
@@ -449,7 +449,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Open the Scans panel by default the first time a sample with scans loads
   // *for a given log*, unless that log already has a persisted dock choice
-  // (including "none" — a user who closed the dock shouldn't have it forced
+  // (including "none" - a user who closed the dock shouldn't have it forced
   // back open). Keyed by dockKey because SampleDisplay stays mounted while the
   // cross-log Samples browser navigates between logs.
   const scansDefaultedForKeyRef = useRef<string | undefined>(undefined);
@@ -603,7 +603,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  // Search and Scans are no longer toolbar buttons — the always-visible
+  // Search and Scans are no longer toolbar buttons - the always-visible
   // activity rail (rendered below the timeline) is the sole entry point.
 
   // Is the sample running?
@@ -631,10 +631,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // header expands while still sticky; when they reach the very top
   // the StickyScroll transitions to in-flow without re-rendering, so
   // the user never sees the header re-animate or "re-appear".
-  const { hidden: headroomHidden } = useScrollDirection(scrollRef, {
-    threshold: 80,
-    stayHiddenOnUpScroll: true,
-  });
+  const { hidden: headroomHidden, resetAnchor: headerResetAnchor } =
+    useScrollDirection(scrollRef, {
+      threshold: 80,
+      stayHiddenOnUpScroll: true,
+    });
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const handleHeaderStickyChange = useCallback((sticky: boolean) => {
     setIsHeaderSticky(sticky);
@@ -818,6 +819,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     id={`${baseId}-transcript-display-${id}`}
                     key={`${baseId}-transcript-display-${id}`}
                     scrollRef={scrollRef}
+                    onHeaderResetAnchor={headerResetAnchor}
                     offsetTop={stickyOffsetTop}
                     running={running}
                     events={sampleEvents}
@@ -859,7 +861,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   id={`${baseId}-chat-${id}`}
                   messages={sampleMessages}
                   initialMessageId={sampleDetailNavigation.message}
-                  offsetTop={stickyOffsetTop}
                   display={chatDisplay}
                   labels={messagesSearchLabels}
                   linking={chatLinking}

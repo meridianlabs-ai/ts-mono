@@ -2,14 +2,6 @@
    Rules here are either unique to inspect or reference assets that live under
    apps/inspect/src/img/. Shared rules live in the theme package. */
 
-:root {
-  --inspect-event-panel-sticky-top: 30px;
-}
-
-body[class^="vscode-"] {
-  --inspect-event-panel-sticky-top: 25px;
-}
-
 /* Full-viewport gate shown while the app config loads (or if it fails). */
 .app-config-gate {
   display: flex;

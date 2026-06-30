@@ -13,6 +13,9 @@ export const kTranscriptDetailRoute =
   "/transcripts/:transcriptsDir/:transcriptId";
 export const kTranscriptDetailRouteUrlPattern =
   /\/transcripts\/[^\s/]+\/[^\s/]+$/;
+// Standalone single-event page (open-in-new-tab from a transcript event).
+export const kTranscriptEventDetailRoute =
+  "/transcripts/:transcriptsDir/:transcriptId/event";
 
 // Regex pattern for valid scan IDs (22 characters: alphanumeric, underscore, dot, or dash)
 export const kScanIdPattern = /scan_id=[a-zA-Z0-9_.-]{22}$/;
@@ -96,6 +99,19 @@ export const transcriptRoute = (
   }
 
   return params?.toString() ? `${route}?${params.toString()}` : route;
+};
+
+/**
+ * Route for the standalone single-event page. Renders only the given event and
+ * its turn's tool calls.
+ */
+export const transcriptEventDetailRoute = (
+  transcriptsDir: string,
+  transcriptId: string,
+  eventId: string
+) => {
+  const encodedDir = encodeBase64Url(transcriptsDir);
+  return `/transcripts/${encodedDir}/${transcriptId}/event?event=${eventId}`;
 };
 
 /**

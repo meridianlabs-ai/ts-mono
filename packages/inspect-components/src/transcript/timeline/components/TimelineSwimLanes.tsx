@@ -97,6 +97,14 @@ export interface TimelineHeaderProps {
   viewStack?: ReadonlyArray<{ label: string }>;
   /** Pop the punched-down view stack. */
   onPopView?: () => void;
+  /** Agent-lane prev/next navigation (the `<` / `>` buttons + h/l). Present
+   *  only when there are multiple lanes; selecting updates the breadcrumb. */
+  laneNav?: {
+    hasPrev: boolean;
+    hasNext: boolean;
+    onPrev: () => void;
+    onNext: () => void;
+  };
 }
 
 export interface TimelineSwimLanesProps {
@@ -764,6 +772,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
   onToggleBranches,
   viewStack,
   onPopView,
+  laneNav,
 }) => {
   const icons = useTimelineIcons();
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
@@ -820,6 +829,30 @@ const HeaderRow: FC<HeaderRowProps> = ({
         <button className={styles.breadcrumbCurrent} onClick={onScrollToTop}>
           {rootDisplay}
         </button>
+      )}
+      {laneNav && (
+        <span className={styles.laneNav}>
+          <button
+            type="button"
+            className={styles.laneNavBtn}
+            disabled={!laneNav.hasPrev}
+            onClick={laneNav.onPrev}
+            title="Previous agent (h)"
+            aria-label="Previous agent"
+          >
+            <i className={icons.chevron.left} />
+          </button>
+          <button
+            type="button"
+            className={styles.laneNavBtn}
+            disabled={!laneNav.hasNext}
+            onClick={laneNav.onNext}
+            title="Next agent (l)"
+            aria-label="Next agent"
+          >
+            <i className={icons.chevron.right} />
+          </button>
+        </span>
       )}
       {timelineConfig && (
         <button

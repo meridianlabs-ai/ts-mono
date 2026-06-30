@@ -1,4 +1,5 @@
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { kDefaultExcludeEvents } from "@tsmono/inspect-components/transcript";
 
 import { Event, Progress, SampleState, SampleStatus } from "../app/types";
 import { kSampleMessagesTabId } from "../constants";
@@ -14,16 +15,6 @@ import { isLargeSample } from "./store_filter";
 const selectedSampleRef: { current: EvalSample | undefined } = {
   current: undefined,
 };
-
-export const kDefaultExcludeEvents = [
-  "sample_init",
-  "sandbox",
-  "state",
-  "store",
-  "branch",
-  "anchor",
-  "checkpoint",
-];
 
 export interface SampleSlice {
   sample: SampleState;

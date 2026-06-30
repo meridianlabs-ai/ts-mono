@@ -1,11 +1,21 @@
 import { RefObject, useCallback, useEffect, useRef } from "react";
 
+// How far (px) below the detection line an element's top may sit and still
+// count as "reached the top", so a jump/scroll that lands a hair short registers
+// the target, not the element above it. One value for every consumer (and the
+// j/k turn step) so they can't drift apart.
+export const kScrollTrackTolerancePx = 24;
+
 /**
- * Track which element is currently visible in a scroll container.
+ * Track which element is currently at the top of a scroll container.
  *
- * Calls `onElementVisible` when the topmost visible element changes.
- * Uses a detection point that slides toward the bottom of the viewport
- * as the user scrolls near the end, so every item can be selected.
+ * Calls `onElementVisible` when the element at the detection point (the top of
+ * the viewport, just below any sticky chrome) changes. An element whose top
+ * sits up to kScrollTrackTolerancePx below the line still counts as reached, so
+ * a jump that lands a hair short registers the target, not the element above it.
+ * At the very bottom of the scroll range, where the final elements can't reach
+ * the line, it falls back to the last visible element so they can still become
+ * current.
  */
 export function useScrollTrack(
   elementIds: string[],
@@ -29,37 +39,14 @@ export function useScrollTrack(
     const viewportBottom = containerRect
       ? containerRect.bottom
       : window.innerHeight;
-    const viewportHeight = viewportBottom - viewportTop;
 
-    // Calculate dynamic threshold based on scroll position
-    let detectionPoint = viewportTop;
-
-    if (container) {
-      const scrollHeight = container.scrollHeight;
-      const scrollTop = container.scrollTop;
-      const clientHeight = container.clientHeight;
-      const maxScroll = scrollHeight - clientHeight;
-
-      // Calculate how close we are to the bottom (0 = at top, 1 = at bottom)
-      const scrollProgress = maxScroll > 0 ? scrollTop / maxScroll : 0;
-
-      // Start sliding only in the last 20% of scroll
-      const slideThreshold = 0.8;
-      if (scrollProgress > slideThreshold) {
-        const slideProgress =
-          (scrollProgress - slideThreshold) / (1 - slideThreshold);
-        const easedProgress = Math.pow(slideProgress, 3);
-        detectionPoint = viewportTop + viewportHeight * 0.9 * easedProgress;
-      }
-
-      // When fully scrolled to bottom, use bottom of viewport
-      if (scrollProgress >= 0.99) {
-        detectionPoint = viewportBottom - 50;
-      }
-    }
-
-    let closestId: string | null = null;
-    let closestDistance = Infinity;
+    // The detection line sits at the top of the viewport, just below the sticky
+    // chrome - the current element is the lowest visible one whose top has
+    // reached it (within kScrollTrackTolerancePx). Top-based, not
+    // center-distance: a tall element landed at the top owns the line even
+    // though its center is far below it. Binary (no sliding point), so it never
+    // disagrees with where a jump lands its target.
+    const detectionPoint = viewportTop;
 
     const elementIdSet = new Set(elementIds);
 
@@ -67,25 +54,33 @@ export function useScrollTrack(
       ? container.querySelectorAll("[id]")
       : document.querySelectorAll("[id]");
 
+    let crossedId: string | null = null;
+    let firstVisibleId: string | null = null;
+    let lastVisibleId: string | null = null;
     for (const element of elements) {
       const id = element.id;
-
-      if (elementIdSet.has(id)) {
-        const rect = element.getBoundingClientRect();
-
-        if (rect.bottom >= viewportTop && rect.top <= viewportBottom) {
-          const elementCenter = rect.top + rect.height / 2;
-          const distance = Math.abs(elementCenter - detectionPoint);
-
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestId = id;
-          }
-        }
-      }
+      if (!elementIdSet.has(id)) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom < viewportTop || rect.top > viewportBottom) continue;
+      if (firstVisibleId === null) firstVisibleId = id;
+      lastVisibleId = id;
+      if (rect.top <= detectionPoint + kScrollTrackTolerancePx) crossedId = id;
     }
 
-    return closestId;
+    // At the very bottom of the scroll range the final rows can't reach the
+    // detection line, so the lowest-crossed row lags on an earlier element -
+    // take the last visible row instead so the final element(s) can still
+    // become current. Keyed off literal proximity to max scroll (within the
+    // shared tolerance), not a ratio, so it doesn't trip early on long content.
+    if (container) {
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      const nearBottom =
+        maxScroll > 0 &&
+        maxScroll - container.scrollTop <= kScrollTrackTolerancePx;
+      if (nearBottom) return lastVisibleId ?? crossedId ?? firstVisibleId;
+    }
+
+    return crossedId ?? firstVisibleId;
   }, [elementIds, scrollRef, options?.topOffset]);
 
   const checkVisibility = useCallback(() => {

@@ -17,7 +17,6 @@ export interface VirtualListHandle {
     index: number;
     align?: "start" | "center" | "end";
     behavior?: "auto" | "smooth";
-    offset?: number;
   }): void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
   getState(callback: (snapshot: VirtualListStateSnapshot) => void): void;
@@ -48,7 +47,10 @@ export interface VirtualListProps<T> {
   live?: boolean;
   showProgress?: boolean;
   initialIndex?: number;
-  stickyHeaderOffset?: number;
+  /** Offset (px) subtracted from scroll-to-index landings, e.g. to clear sticky
+   * chrome. Forwarded to the virtualizer's scrollPaddingStart so it survives
+   * tanstack's scroll reconcile. */
+  scrollPaddingStart?: number;
   components?: VirtualListComponents;
   smoothScroll?: boolean;
   itemSearchText?: (item: T) => string | string[];

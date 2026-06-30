@@ -23,12 +23,14 @@ import {
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
+import { getVscodeApi } from "@tsmono/util";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
   makeLogsPath,
+  sampleEventFocusUrl,
   sampleEventUrl,
   useLogOrSampleRouteParams,
   useLogRouteParams,
@@ -40,6 +42,10 @@ import { useTranscriptFilter } from "./hooks";
 interface TranscriptPanelProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Reset the sample header's scroll-direction anchor (so programmatic scrolls
+   *  — j/k, h/l — don't open/collapse the header), folded into the headroom
+   *  suppression alongside the swimlane's own anchor. */
+  onHeaderResetAnchor?: (debounce?: boolean) => void;
   offsetTop?: number;
 
   // The sample
@@ -68,6 +74,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const {
     id,
     scrollRef,
+    onHeaderResetAnchor,
     events,
     running,
     initialEventId,
@@ -208,15 +215,28 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   const scrollRefs = useMemo(() => [scrollRef, outlineScrollRef], [scrollRef]);
 
+  // While the find band is open it scrolls matches into view (Ctrl+F → next /
+  // prev); those programmatic scrolls would otherwise read as user direction
+  // changes and flicker the swimlanes open/closed. Freeze headroom detection
+  // while find is active (a ref so the scroll handler sees the live value).
+  const showFind = useStore((state) => state.app.showFind);
+  const findActiveRef = useRef(showFind);
+  findActiveRef.current = showFind;
+
   const {
     hidden: headroomHidden,
     resetAnchor: headroomResetAnchor,
     setHidden: setHeadroomHidden,
-  } = useScrollDirection(scrollRefs);
+  } = useScrollDirection(scrollRefs, { suppressRef: findActiveRef });
 
   const onHeadroomResetAnchor = useCallback(
-    (debounce?: boolean) => headroomResetAnchor(debounce),
-    [headroomResetAnchor]
+    (debounce?: boolean) => {
+      // Suppress BOTH the swimlane headroom and the sample header headroom, so a
+      // programmatic scroll (j/k, h/l, deep-link) doesn't flicker either open.
+      headroomResetAnchor(debounce);
+      onHeaderResetAnchor?.(debounce);
+    },
+    [headroomResetAnchor, onHeaderResetAnchor]
   );
 
   // ---------------------------------------------------------------------------
@@ -266,6 +286,9 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   } = useLogOrSampleRouteParams();
   const logFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useStore((state) => state.logs.logDir);
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
 
   const getEventUrl = useCallback(
     (eventId: string) => {
@@ -283,6 +306,49 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       );
     },
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
+  );
+
+  // Hash-route href for the open-in-new-tab control. Relative `#…` so a normal
+  // ctrl/cmd-click or middle-click opens it in a new tab of the same SPA. The
+  // VS Code webview has no browser-tab model (and can't open one), so the
+  // control is hidden there by returning no URL.
+  const getEventFocusUrl = useCallback(
+    (eventId: string) => {
+      if (getVscodeApi()) return undefined;
+      let targetLogPath = urlLogPath;
+      if (!targetLogPath && logFile) {
+        targetLogPath = makeLogsPath(logFile, logDir);
+      }
+      // Sample id + epoch normally come from the route, but the bare log URL
+      // (single-sample auto-display) omits them — fall back to the in-state
+      // selected sample so the open-in-new-tab control still appears there.
+      const sampleId = urlSampleId ?? selectedSampleHandle?.id;
+      const sampleEpoch = urlEpoch ?? selectedSampleHandle?.epoch;
+      if (!targetLogPath || sampleId === undefined || sampleEpoch === undefined)
+        return undefined;
+      return `#${sampleEventFocusUrl(eventId, targetLogPath, sampleId, sampleEpoch)}`;
+    },
+    [urlLogPath, urlSampleId, urlEpoch, logFile, logDir, selectedSampleHandle]
+  );
+
+  // Reflect an explicit turn navigation (j/k, the turn chevrons, the editable
+  // number) in the URL via ?event= so the position is shareable — the keyboard
+  // analogue of an outline-link click. `replace` keeps the back button clean;
+  // ?message= is cleared (turn nav isn't message-scoped). Not called on passive
+  // scroll, so the scroll-spy-driven turn label never churns the URL.
+  const onNavigatedToEvent = useCallback(
+    (eventId: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("event", eventId);
+          next.delete("message");
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
   );
 
   // Outline link clicks are in-view navigation (jumping to an event in the
@@ -348,6 +414,9 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       initialEventId={initialEventId}
       initialMessageId={initialMessageId}
       getEventUrl={getEventUrl}
+      getEventFocusUrl={getEventFocusUrl}
+      onNavigatedToEvent={onNavigatedToEvent}
+      keyboardNavDisabled={showFind}
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}

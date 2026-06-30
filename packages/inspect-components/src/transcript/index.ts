@@ -3,6 +3,7 @@ export {
   EventNode,
   eventTypeValues,
   kCollapsibleEventTypes,
+  kDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
@@ -21,6 +22,13 @@ export type {
 // Transform utilities
 export { fixupEventStream, kSandboxSignalName } from "./transform/fixups";
 export { flatTree } from "./transform/flatten";
+export {
+  computeTranscriptTurns,
+  computeTurnAnchorIds,
+  focusedTurnNodes,
+} from "./turnNavigation";
+export { TurnHeader } from "./TurnHeader";
+export { FocusTurnView } from "./FocusTurnView";
 export type { TreeNodeVisitor } from "./transform/flatten";
 export { transformTree } from "./transform/transform";
 export { treeifyEvents } from "./transform/treeify";
@@ -92,8 +100,11 @@ export {
 } from "./state/StateEventRenderers";
 
 // Hooks
-export { useStickyObserver } from "./hooks/useStickyObserver";
 export { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+export {
+  useFocusTurnNavigation,
+  type FocusTurnNavigation,
+} from "./hooks/useFocusTurnNavigation";
 export { useListPositionManager } from "./hooks/useListPositionManager";
 
 // Layout
@@ -131,7 +142,7 @@ export { InfoEventView } from "./InfoEventView";
 export { InputEventView } from "./InputEventView";
 export { InterruptEventView } from "./InterruptEventView";
 export { LoggerEventView } from "./LoggerEventView";
-export { ModelEventView } from "./ModelEventView";
+export { ModelEventView, modelEventTabNames } from "./ModelEventView";
 export { SampleInitEventView } from "./SampleInitEventView";
 export { SampleLimitEventView } from "./SampleLimitEventView";
 export { SandboxEventView } from "./SandboxEventView";
@@ -151,7 +162,6 @@ export {
   TranscriptVirtualList,
   RenderedEventNode,
 } from "./TranscriptVirtualList";
-export { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 
 export {
   TranscriptViewNodes,

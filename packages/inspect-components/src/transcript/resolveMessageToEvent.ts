@@ -132,6 +132,37 @@ export function resolveEventInBranches(
   return undefined;
 }
 
+/**
+ * The first model-event (turn-anchor) id within each agent lane, keyed by the
+ * innermost enclosing agent span id; the `null` key is the main (top-level)
+ * lane. Mirrors `resolveEventToSpan`'s innermost-agent walk so the lane a
+ * returned anchor resolves back to (via `resolveEventToSpan`) is the lane it
+ * came from — letting a lane switch be encoded as `?event=<that anchor>`.
+ */
+export function computeLaneFirstAnchors(
+  root: TimelineSpan
+): Map<string | null, string> {
+  const first = new Map<string | null, string>();
+  const walk = (
+    content: ReadonlyArray<TimelineEvent | TimelineSpan>,
+    agentContext: string | null
+  ): void => {
+    for (const item of content) {
+      if (item.type === "event") {
+        if (item.event.event === "model" && !first.has(agentContext)) {
+          const uuid = (item.event as { uuid?: string | null }).uuid;
+          if (uuid) first.set(agentContext, uuid);
+        }
+      } else {
+        const childContext = item.spanType === "agent" ? item.id : agentContext;
+        walk(item.content, childContext);
+      }
+    }
+  };
+  walk(root.content, null);
+  return first;
+}
+
 function walkContentForEvent(
   eventId: string,
   content: ReadonlyArray<TimelineEvent | TimelineSpan>,

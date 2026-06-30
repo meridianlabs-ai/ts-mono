@@ -38,7 +38,7 @@ import {
 } from "./types";
 
 // Stable Item wrapper defined at module scope so its identity is constant
-// across re-renders — a new component identity each render forces the
+// across re-renders - a new component identity each render forces the
 // virtualizer to re-mount every row and detaches any active find-selection.
 const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
   return (
@@ -56,12 +56,18 @@ const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
 
 const chatComponents = { Item: ChatItem };
 
+// Scroll-padding applied to the message list's scroll-to-index (deep-link,
+// find, initial message): a small negative value lands the target snug at the
+// top instead of tucked a row too high. Empirically tuned for the chat surface;
+// the transcript has its own (kTranscriptScrollPaddingStart). NOT derived from
+// the host's chrome height - the chat owns this as a constant.
+const kChatScrollPaddingStart = -15;
+
 export interface ChatViewVirtualListProps {
   id: string;
   messages: ChatMessage[];
   className?: string | string[];
   initialMessageId?: string | null;
-  offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
@@ -76,7 +82,6 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     id,
     messages,
     initialMessageId,
-    offsetTop,
     className,
     scrollRef,
     running,
@@ -215,7 +220,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         data={collapsedMessages}
         renderRow={renderRow}
         initialIndex={initialMessageIndex}
-        stickyHeaderOffset={offsetTop}
+        scrollPaddingStart={kChatScrollPaddingStart}
         live={running}
         scrollToTopOnFinish={true}
         components={chatComponents}

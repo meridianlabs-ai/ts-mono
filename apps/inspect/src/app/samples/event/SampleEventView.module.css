@@ -1,0 +1,5 @@
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--bs-secondary);
+}
