@@ -486,7 +486,13 @@ function RotatedHeaderCell<TRow>({
           />
         )}
         {columnDef.meta?.filterable && filterType && (
-          <span className={styles.rotatedFilter}>
+          // The popover is portaled, but React events bubble through the
+          // component tree — so clicks inside the filter would reach the
+          // label's sort handler. Stop them here.
+          <span
+            className={styles.rotatedFilter}
+            onClick={(e) => e.stopPropagation()}
+          >
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}
