@@ -21,6 +21,21 @@ interface ColumnFilterControlProps {
   suggestions?: ScalarValue[];
   /** Called when the popover opens/closes (for fetching suggestions). */
   onOpenChange?: (columnId: string | null) => void;
+  /**
+   * Element to position the popover against instead of the funnel button.
+   * Pass this when the funnel sits somewhere the popover shouldn't anchor —
+   * e.g. a rotated header, where anchoring to the button would place the
+   * popover over the headers; a bottom-of-cell anchor drops it below them
+   * instead. When provided (even as null while a ref populates) the funnel is
+   * not used as the reference.
+   */
+  anchorEl?: HTMLElement | null;
+  /**
+   * Popover placement. Defaults to `bottom-end` (right-aligned under the
+   * funnel). Use `bottom-start` with a bottom-of-cell `anchorEl` to open the
+   * popover down-and-right from the column, matching the AG grid.
+   */
+  placement?: "bottom-start" | "bottom-end";
 }
 
 export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
@@ -30,6 +45,8 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
   onChange,
   suggestions = [],
   onOpenChange,
+  anchorEl,
+  placement = "bottom-end",
 }) => {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -77,9 +94,11 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
         id={`column-filter-${columnId}`}
         isOpen={isOpen}
         setIsOpen={handlePopoverOpenChange}
+        // When an anchorEl is intended, use it (even if still null) rather
+        // than the funnel button.
         // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={buttonRef.current}
-        placement="bottom-end"
+        positionEl={anchorEl !== undefined ? anchorEl : buttonRef.current}
+        placement={placement}
         showArrow={true}
         hoverDelay={-1}
         className={styles.filterPopover}

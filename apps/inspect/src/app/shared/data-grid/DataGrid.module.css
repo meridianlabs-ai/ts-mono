@@ -180,6 +180,18 @@
   opacity: 1;
 }
 
+/* Hidden, non-rotated positioning anchor at the cell's bottom edge. The
+ * filter popover anchors here (not the funnel up in the rotated label) so it
+ * opens below the header, under the column, instead of over the headers. */
+.rotatedFilterAnchor {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .tbody {
   position: relative;
 }

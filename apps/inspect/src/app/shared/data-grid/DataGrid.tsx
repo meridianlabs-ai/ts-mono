@@ -2,6 +2,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Header,
   OnChangeFn,
   SortingState,
   useReactTable,
@@ -267,11 +268,27 @@ export function DataGrid<TRow>({
               {headerGroup.headers.map((header) => {
                 const columnDef = header.column
                   .columnDef as ExtendedColumnDef<TRow>;
-                const align = columnDef.meta?.align;
-                const rotated = !!columnDef.meta?.rotateHeader;
-                const filterType = columnDef.meta?.filterType;
                 const filterCondition =
                   columnFilters?.[header.column.id]?.condition ?? null;
+
+                // Rotated (compact score) header: a 45° label hosting text +
+                // sort caret + filter funnel. Rendered by a subcomponent so
+                // the filter popover can anchor to a non-rotated element at
+                // the cell's bottom — placing it below the header (like the
+                // AG grid) rather than over the headers.
+                if (columnDef.meta?.rotateHeader) {
+                  return (
+                    <RotatedHeaderCell
+                      key={header.id}
+                      header={header}
+                      filterCondition={filterCondition}
+                      onColumnFilterChange={onColumnFilterChange}
+                    />
+                  );
+                }
+
+                const align = columnDef.meta?.align;
+                const filterType = columnDef.meta?.filterType;
                 const sorted = header.column.getIsSorted();
                 const sortCaret =
                   sorted === "asc" ? (
@@ -297,6 +314,7 @@ export function DataGrid<TRow>({
                       columnId={header.column.id}
                       filterType={filterType}
                       condition={filterCondition}
+                      placement="bottom-start"
                       onChange={(condition) =>
                         onColumnFilterChange?.(
                           header.column.id,
@@ -306,42 +324,6 @@ export function DataGrid<TRow>({
                       }
                     />
                   ) : null;
-
-                // Rotated (compact score) header: a 45° label fanning
-                // up-and-right out of the narrow cell, hosting the text +
-                // sort caret + filter funnel.
-                if (rotated) {
-                  return (
-                    <div
-                      key={header.id}
-                      className={clsx(
-                        styles.headerCell,
-                        styles.headerCellRotated
-                      )}
-                      style={{ width: header.getSize() }}
-                      title={columnDef.headerTitle}
-                      role="columnheader"
-                    >
-                      <div
-                        className={clsx(
-                          styles.rotatedLabel,
-                          filterCondition && styles.rotatedLabelFiltered
-                        )}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <span className={styles.rotatedText}>
-                          {headerLabel}
-                        </span>
-                        {sortCaret}
-                        {filterControl && (
-                          <span className={styles.rotatedFilter}>
-                            {filterControl}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
 
                 return (
                   <div
@@ -441,6 +423,84 @@ export function DataGrid<TRow>({
           {loading ? "Loading…" : emptyMessage}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Rotated (compact score) header cell. The 45° label hosts the text, sort
+ * caret, and filter funnel. The filter popover anchors to a hidden,
+ * non-rotated element at the cell's bottom so it opens below the header
+ * (under the column) instead of over the headers next to the funnel.
+ */
+function RotatedHeaderCell<TRow>({
+  header,
+  filterCondition,
+  onColumnFilterChange,
+}: {
+  header: Header<TRow, unknown>;
+  filterCondition: SimpleCondition | null;
+  onColumnFilterChange?: (
+    columnId: string,
+    filterType: FilterType,
+    condition: SimpleCondition | null
+  ) => void;
+}): ReactElement {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
+  const filterType = columnDef.meta?.filterType;
+  const sorted = header.column.getIsSorted();
+  const headerLabel = header.isPlaceholder
+    ? null
+    : flexRender(header.column.columnDef.header, header.getContext());
+
+  return (
+    <div
+      className={clsx(styles.headerCell, styles.headerCellRotated)}
+      style={{ width: header.getSize() }}
+      title={columnDef.headerTitle}
+      role="columnheader"
+    >
+      <div
+        className={clsx(
+          styles.rotatedLabel,
+          filterCondition && styles.rotatedLabelFiltered
+        )}
+        onClick={header.column.getToggleSortingHandler()}
+      >
+        <span className={styles.rotatedText}>{headerLabel}</span>
+        {sorted === "asc" && (
+          <i
+            className={clsx("bi bi-caret-up-fill", styles.sortIcon)}
+            aria-hidden="true"
+          />
+        )}
+        {sorted === "desc" && (
+          <i
+            className={clsx("bi bi-caret-down-fill", styles.sortIcon)}
+            aria-hidden="true"
+          />
+        )}
+        {columnDef.meta?.filterable && filterType && (
+          <span className={styles.rotatedFilter}>
+            <ColumnFilterControl
+              columnId={header.column.id}
+              filterType={filterType}
+              condition={filterCondition}
+              anchorEl={anchorEl}
+              placement="bottom-start"
+              onChange={(condition) =>
+                onColumnFilterChange?.(header.column.id, filterType, condition)
+              }
+            />
+          </span>
+        )}
+      </div>
+      <span
+        ref={setAnchorEl}
+        className={styles.rotatedFilterAnchor}
+        aria-hidden="true"
+      />
     </div>
   );
 }
