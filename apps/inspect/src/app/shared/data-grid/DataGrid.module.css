@@ -20,6 +20,10 @@
 
 .headerRow {
   display: flex;
+  /* Fill the thead height so cells stretch — rotated labels anchor to the
+   * header's bottom edge, and bottom-aligned normal headers sit at the base
+   * of the angled labels. */
+  height: 100%;
 }
 
 .headerCell {
@@ -91,6 +95,78 @@
 
 .headerCellCenter {
   justify-content: center;
+}
+
+/* Normal headers share the tall header row when score columns are rotated;
+ * bottom-align their content so the labels line up with the base of the
+ * angled labels. */
+.headerCellTall {
+  align-items: flex-end;
+  padding-bottom: 6px;
+}
+
+/* Rotated (compact score) header cell: let the angled label overflow the
+ * narrow cell, and drop the vertical separator — the label's diagonal
+ * bottom border serves as the column divider instead. */
+.headerCellRotated {
+  overflow: visible;
+  padding: 0;
+}
+
+.headerCellRotated::before {
+  display: none;
+}
+
+/* The 45° label, anchored flush to the column's right edge and rotated up
+ * from its bottom-left corner so it fans up-and-to-the-right. */
+.rotatedLabel {
+  position: absolute;
+  bottom: 0;
+  left: 100%;
+  height: 18px;
+  width: 130px;
+  padding: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  /* The bottom border lies along the label's lower diagonal edge after
+   * rotation, acting as the divider between adjacent rotated headers. */
+  border-bottom: 1px solid var(--bs-border-color);
+  transform: rotate(-45deg);
+  transform-origin: bottom left;
+}
+
+.rotatedLabel:hover {
+  /* Lift above neighbouring labels so the hovered text is fully readable. */
+  background: var(--bs-tertiary-bg);
+  z-index: 2;
+}
+
+.rotatedText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--inspect-font-size-smallestest);
+  letter-spacing: 0.05em;
+}
+
+/* Filter funnel at the end of the label: hidden until the label is hovered,
+ * but kept visible while the column has an active filter. */
+.rotatedFilter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.rotatedLabel:hover .rotatedFilter,
+.rotatedLabelFiltered .rotatedFilter {
+  opacity: 1;
 }
 
 .tbody {

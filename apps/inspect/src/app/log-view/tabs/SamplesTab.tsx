@@ -35,6 +35,7 @@ import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
   useSamplesView,
   useSamplesViewColorScalesEnabled,
+  useSamplesViewCompactScores,
   useSamplesViewMultiline,
   useSamplesViewScoreColorScales,
   useSamplesViewScoreLabels,
@@ -209,6 +210,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Multiline determines column rendering: list-style uses
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
+  const compactScores = useSamplesViewCompactScores();
   const scoreLabels = useSamplesViewScoreLabels();
   const wireScoreColorScales = useSamplesViewScoreColorScales();
   const colorScalesEnabled = useSamplesViewColorScalesEnabled();
@@ -229,6 +231,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         epochs,
         scoreLabels,
         scoreColorScales,
+        compactScores,
       }),
     [
       multiline,
@@ -237,6 +240,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       epochs,
       scoreLabels,
       scoreColorScales,
+      compactScores,
     ]
   );
 

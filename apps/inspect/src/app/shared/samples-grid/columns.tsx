@@ -74,6 +74,10 @@ export interface SampleGridContext {
    *  boolean metrics ignore this — their pills already carry the
    *  semantic. */
   scoreColorScales?: Record<string, WireScoreColorScale>;
+  /** When true, score columns render compact: narrow widths with rotated
+   *  45° headers so many scorers fit horizontally. Off by default;
+   *  eval authors opt in via `task_samples_view.compact_scores`. */
+  compactScores?: boolean;
 }
 
 type SampleColumn = ExtendedColumnDef<SampleRow>;
@@ -447,7 +451,27 @@ export function buildSampleColumns(
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
-  const { descriptor, scores, logDetails, scoreLabels, scoreColorScales } = ctx;
+  const {
+    descriptor,
+    scores,
+    logDetails,
+    scoreLabels,
+    scoreColorScales,
+    compactScores,
+  } = ctx;
+
+  // Compact mode: score columns shrink and their headers rotate 45° so many
+  // scorers fit horizontally. Numeric scores render a short number (~40px);
+  // non-numeric render small pills needing a touch more room (~55px).
+  // Returns null when compact is off so each mode keeps its own wide-column
+  // defaults.
+  const compactSizing = (
+    isNumeric: boolean
+  ): Pick<SampleColumn, "size" | "minSize"> | null => {
+    if (!compactScores) return null;
+    const w = isNumeric ? 40 : 55;
+    return { size: w, minSize: w - 4 };
+  };
 
   // Resolve a metric name through the eval-author's label overrides,
   // falling back to the raw name. Used for the visible header text;
@@ -498,11 +522,14 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
       return {
         id: colId,
         header: headerName,
-        size: Math.max(70, Math.round(headerName.length * 6.2) + 40),
-        minSize: 60,
-        maxSize: 120,
+        ...(compactSizing(isNumeric) ?? {
+          size: Math.max(70, Math.round(headerName.length * 6.2) + 40),
+          minSize: 60,
+          maxSize: 120,
+        }),
         meta: {
           align: "center",
+          rotateHeader: compactScores,
           sortComparator: isNumeric ? numberCompare : stringCompare,
           cellStyle: valueToStyle
             ? (row) => {
@@ -567,10 +594,10 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     return {
       id: rawScoreFieldKey(name),
       header: labelFor(name),
-      size: 100,
-      minSize: 60,
+      ...(compactSizing(isUniformNumber) ?? { size: 100, minSize: 60 }),
       meta: {
         align: "center",
+        rotateHeader: compactScores,
         sortComparator: isUniformNumber ? numberCompare : stringCompare,
         cellStyle: valueToStyle
           ? (row) => valueToStyle(row[rawScoreFieldKey(name)])

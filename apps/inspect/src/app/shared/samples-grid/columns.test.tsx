@@ -53,3 +53,29 @@ describe("buildSampleColumns score colour scales", () => {
     expect(cols.find((c) => c.id === kField)?.meta?.cellStyle).toBeUndefined();
   });
 });
+
+describe("buildSampleColumns compact scores", () => {
+  it("rotates + narrows score columns when compactScores is on", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      logDetails: detailsWith([0, 10]),
+      compactScores: true,
+    });
+    const col = cols.find((c) => c.id === kField);
+    expect(col?.meta?.rotateHeader).toBe(true);
+    // Numeric score → ~40px compact width, far below the wide default (100).
+    expect(col?.size).toBeLessThanOrEqual(40);
+  });
+
+  it("leaves score columns wide + un-rotated when compactScores is off", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      logDetails: detailsWith([0, 10]),
+    });
+    const col = cols.find((c) => c.id === kField);
+    expect(col?.meta?.rotateHeader).toBeFalsy();
+    expect(col?.size).toBe(100);
+  });
+});

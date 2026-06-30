@@ -26,6 +26,12 @@ export interface BaseColumnMeta<TRow = unknown> {
   /** Filter editor + operator set for the column (when `filterable`). */
   filterType?: FilterType;
   /**
+   * Render this column's header as a 45° rotated label (fans up-and-right
+   * out of a narrow cell). DataGrid grows the header row when any visible
+   * column opts in. Used by compact score columns.
+   */
+  rotateHeader?: boolean;
+  /**
    * Per-cell inline style derived from the full row, merged onto the
    * gridcell container. Used by score columns to paint heat-map
    * backgrounds; returns undefined to leave the cell unstyled.
