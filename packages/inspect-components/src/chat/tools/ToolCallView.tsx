@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useMemo } from "react";
+import { FC, ReactNode, useMemo } from "react";
 
 import type {
   ContentAudio,
@@ -11,13 +11,21 @@ import type {
   ContentVideo,
   ToolCallContent,
 } from "@tsmono/inspect-common/types";
-import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
+import {
+  ExpandablePanel,
+  MarkdownDiv,
+  NavPills,
+} from "@tsmono/react/components";
 
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
 import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
+import {
+  AnnotatedToolOutput,
+  type ToolAnnotation,
+} from "./AnnotatedToolOutput";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { codexToolMarkdown } from "./tool";
 import styles from "./ToolCallView.module.css";
@@ -54,11 +62,18 @@ export interface ToolCallViewProps {
         | ContentData
         | ContentDocument
       )[];
+  selfAnnotation?: ToolAnnotation;
+  inputScreenshot?: (
+    | ContentText
+    | ContentImage
+    | ContentAudio
+    | ContentVideo
+  )[];
   mode?: "compact";
   collapsible?: boolean;
   /** Render the whole view, just the call (title + input), or just the output. */
   section?: "all" | "call" | "output";
-  getCustomToolView?: (props: ToolCallViewProps) => React.ReactNode | undefined;
+  getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
 }
 
 /**
@@ -69,6 +84,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   tool,
   functionCall,
   input,
+  selfAnnotation,
+  inputScreenshot,
   description,
   contentType,
   view,
@@ -147,6 +164,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     description,
     contentType,
     output,
+    selfAnnotation,
+    inputScreenshot,
     mode,
   };
   const customView =
@@ -213,10 +232,31 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       <MessageContent contents={normalizedContent} context={context} />
     ) : null;
 
+  const showAnnotation = !!selfAnnotation && !!inputScreenshot;
+  const actionElement =
+    selfAnnotation && inputScreenshot ? (
+      <AnnotatedToolOutput annotation={selfAnnotation}>
+        <MessageContent contents={inputScreenshot} context={context} />
+      </AnnotatedToolOutput>
+    ) : null;
+
   return (
     <div className={clsx(styles.toolCallView)}>
       {section !== "output" ? callSection : null}
-      {section !== "call" ? outputSection : null}
+      {section !== "call" ? (
+        showAnnotation ? (
+          hasContent ? (
+            <NavPills id={`${id}-browser-action`}>
+              <div title="Result">{outputSection}</div>
+              <div title="Action">{actionElement}</div>
+            </NavPills>
+          ) : (
+            actionElement
+          )
+        ) : (
+          outputSection
+        )
+      ) : null}
     </div>
   );
 };

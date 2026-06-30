@@ -28,6 +28,8 @@ export interface ClientToolCallProps {
   contentType?: string;
   view?: ToolCallContent;
   output: ToolCallViewProps["output"];
+  selfAnnotation?: ToolCallViewProps["selfAnnotation"];
+  inputScreenshot?: ToolCallViewProps["inputScreenshot"];
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
@@ -48,6 +50,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   contentType,
   view,
   output,
+  selfAnnotation,
+  inputScreenshot,
   error,
   className,
   getCustomToolView,
@@ -65,6 +69,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     contentType,
     view,
     output,
+    selfAnnotation,
+    inputScreenshot,
   };
   const customView =
     displayMode === "rendered"
@@ -77,7 +83,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   const hasInput =
     (input !== undefined && input !== null && input !== "") || !!view?.content;
   const showError = !!error;
-  const showOutput = !showError && hasOutputContent(output);
+  const showAnnotation = !!selfAnnotation && !!inputScreenshot;
+  const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
 
   return (
     <ToolBlock
