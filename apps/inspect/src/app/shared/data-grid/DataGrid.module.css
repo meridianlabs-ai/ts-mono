@@ -107,10 +107,15 @@
 
 /* Rotated (compact score) header cell: let the angled label overflow the
  * narrow cell, and drop the vertical separator — the label's diagonal
- * bottom border serves as the column divider instead. */
+ * bottom border serves as the column divider instead. The cell box itself
+ * is pointer-transparent so its full-height rectangle (which tiles the
+ * header and stacks over neighbours' overflowing labels) doesn't intercept
+ * hover/clicks meant for the diagonal labels; only the labels are
+ * interactive. */
 .headerCellRotated {
   overflow: visible;
   padding: 0;
+  pointer-events: none;
 }
 
 .headerCellRotated::before {
@@ -123,15 +128,21 @@
   position: absolute;
   bottom: 0;
   left: 100%;
-  height: 18px;
+  /* A bit taller than the text needs so the diagonal hover/click band is an
+   * easier target to land on and travel along to the funnel. */
+  height: 22px;
   width: 130px;
-  padding: 0 0.25rem;
+  padding: 0 0.35rem;
   display: flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
   cursor: pointer;
   background: transparent;
+  /* Re-enable pointer events the cell box opts out of (see .headerCellRotated)
+   * so the whole diagonal label — text, sort caret, and funnel — is
+   * hoverable and clickable along its full length. */
+  pointer-events: auto;
   /* The bottom border lies along the label's lower diagonal edge after
    * rotation, acting as the divider between adjacent rotated headers. */
   border-bottom: 1px solid var(--bs-border-color);
