@@ -1,3 +1,4 @@
+import type { SortingState } from "@tanstack/react-table";
 import { FC, memo, useCallback, useEffect, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
@@ -19,6 +20,8 @@ interface SampleListProps {
   items: SampleRow[];
   columns: ExtendedColumnDef<SampleRow>[];
   columnVisibility?: Record<string, boolean>;
+  /** Initial row sort (eval-author default from `task_samples_view.sort`). */
+  defaultSorting?: SortingState;
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
@@ -34,6 +37,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     items,
     columns,
     columnVisibility,
+    defaultSorting,
     earlyStopping,
     totalItemCount,
     running,
@@ -125,6 +129,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         rowData={items}
         columnDefs={columns}
         columnVisibility={columnVisibility}
+        defaultSorting={defaultSorting}
         multiline={multiline}
         getRowId={getRowId}
         selectedRowId={selectedRowId}

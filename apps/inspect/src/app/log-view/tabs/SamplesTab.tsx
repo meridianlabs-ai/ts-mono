@@ -1,3 +1,4 @@
+import type { SortingState } from "@tanstack/react-table";
 import type { ColDef } from "ag-grid-community";
 import {
   FC,
@@ -274,6 +275,28 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       seedDefaultVisibility: defaultsForUnseededColumns,
     });
 
+  // Apply the eval-author's initial column order + row sort from
+  // `task_samples_view` (the AG grid did this via `initialState`). Columns are
+  // reordered to follow `view.columns`; any not listed keep their builder
+  // order at the end. Default sort seeds the grid from `view.sort`.
+  const orderedColumns = useMemo<ExtendedColumnDef<SampleRow>[]>(() => {
+    if (view.columns.length === 0) return allColumns;
+    const orderIndex = new Map(view.columns.map((c, i) => [c.id, i]));
+    const rankOf = (col: ExtendedColumnDef<SampleRow>) => {
+      const i = col.id !== undefined ? orderIndex.get(col.id) : undefined;
+      return i ?? Number.MAX_SAFE_INTEGER;
+    };
+    return allColumns
+      .map((col, i) => ({ col, i }))
+      .sort((a, b) => rankOf(a.col) - rankOf(b.col) || a.i - b.i)
+      .map((x) => x.col);
+  }, [allColumns, view.columns]);
+
+  const defaultSorting = useMemo<SortingState>(
+    () => view.sort.map((s) => ({ id: s.colId, desc: s.dir === "desc" })),
+    [view.sort]
+  );
+
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
   // app that reads `selectedScores`). Non-score columns come from the
@@ -398,8 +421,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       {listDisplay ? (
         <SampleList
           items={items}
-          columns={allColumns}
+          columns={orderedColumns}
           columnVisibility={visibilityForGrid}
+          defaultSorting={defaultSorting}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}
