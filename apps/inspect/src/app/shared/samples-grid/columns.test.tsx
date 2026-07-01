@@ -79,3 +79,19 @@ describe("buildSampleColumns compact scores", () => {
     expect(col?.size).toBe(100);
   });
 });
+
+describe("buildSampleColumns non-resizable columns", () => {
+  it("marks the status-icon and index columns non-resizable", () => {
+    const cols = buildSampleColumns({ viewMode: "grid", multiLog: true });
+    expect(cols.find((c) => c.id === "sampleStatus")?.enableResizing).toBe(
+      false
+    );
+    expect(cols.find((c) => c.id === "displayIndex")?.enableResizing).toBe(
+      false
+    );
+    // A normal text column stays resizable (undefined => default true).
+    expect(cols.find((c) => c.id === "sampleId")?.enableResizing).not.toBe(
+      false
+    );
+  });
+});

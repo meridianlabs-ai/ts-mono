@@ -133,6 +133,7 @@ export function buildSampleColumns(
       minSize: 50,
       maxSize: 80,
       enableSorting: false,
+      enableResizing: false,
       accessorFn: (row) => row.displayIndex,
       cell: ({ row }) => {
         const value = row.original.displayIndex;
@@ -150,6 +151,7 @@ export function buildSampleColumns(
     size: isList ? 28 : 100,
     minSize: isList ? 28 : 80,
     enableSorting: false,
+    enableResizing: false,
     accessorFn: (row) => sampleStatusValue(row),
     titleValue: (row) => {
       const completed = row.completed ?? row.data?.completed;
