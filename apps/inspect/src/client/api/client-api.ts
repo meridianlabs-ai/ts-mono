@@ -11,6 +11,7 @@ import {
   RemoteLogFile,
   SampleNotFoundError,
 } from "../remote/remoteLogFile";
+import { DirectFetchError } from "../remote/remotePendingSampleData";
 import { FileSizeLimitError } from "../remote/remoteZipFile";
 
 import {
@@ -407,9 +408,8 @@ export const clientApi = (
       throw new Error("API doesn't supported streamed sample data");
     }
 
-    let path = sampleDataPathByLog.get(log_file);
-    if (path === undefined && api.eval_log_sample_data_direct) {
-      const probe = await api.eval_log_sample_data_direct(
+    const fetchViaProxy = () =>
+      api.eval_log_sample_data!(
         log_file,
         id,
         epoch,
@@ -418,9 +418,36 @@ export const clientApi = (
         last_message_pool,
         last_call_pool
       );
-      if (probe !== undefined) {
-        sampleDataPathByLog.set(log_file, "direct");
-        return probe;
+
+    // A presigned segment fetch that the browser couldn't complete (e.g. bucket
+    // CORS on the viewer origin) means direct is unusable here even though the
+    // view server can reach storage — pin proxy and stream same-origin instead.
+    const fallBackToProxy = (e: unknown) => {
+      if (!(e instanceof DirectFetchError)) {
+        throw e;
+      }
+      sampleDataPathByLog.set(log_file, "proxy");
+      return fetchViaProxy();
+    };
+
+    let path = sampleDataPathByLog.get(log_file);
+    if (path === undefined && api.eval_log_sample_data_direct) {
+      try {
+        const probe = await api.eval_log_sample_data_direct(
+          log_file,
+          id,
+          epoch,
+          last_event,
+          last_attachment,
+          last_message_pool,
+          last_call_pool
+        );
+        if (probe !== undefined) {
+          sampleDataPathByLog.set(log_file, "direct");
+          return probe;
+        }
+      } catch (e) {
+        return fallBackToProxy(e);
       }
     }
     if (path === undefined) {
@@ -429,33 +456,29 @@ export const clientApi = (
     }
 
     if (path === "direct") {
-      const result = await api.eval_log_sample_data_direct!(
-        log_file,
-        id,
-        epoch,
-        last_event,
-        last_attachment,
-        last_message_pool,
-        last_call_pool
-      );
-      if (result === undefined) {
-        // Probe succeeded but a later call says "not supported" — server state
-        // changed; fail loudly rather than silently switching paths.
-        throw new Error(
-          "Direct pending-sample-data path returned 'not supported' after probe"
+      try {
+        const result = await api.eval_log_sample_data_direct!(
+          log_file,
+          id,
+          epoch,
+          last_event,
+          last_attachment,
+          last_message_pool,
+          last_call_pool
         );
+        if (result === undefined) {
+          // Probe succeeded but a later call says "not supported" — server state
+          // changed; fail loudly rather than silently switching paths.
+          throw new Error(
+            "Direct pending-sample-data path returned 'not supported' after probe"
+          );
+        }
+        return result;
+      } catch (e) {
+        return fallBackToProxy(e);
       }
-      return result;
     }
-    return api.eval_log_sample_data(
-      log_file,
-      id,
-      epoch,
-      last_event,
-      last_attachment,
-      last_message_pool,
-      last_call_pool
-    );
+    return fetchViaProxy();
   };
 
   const middleware = debug
