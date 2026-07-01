@@ -41,7 +41,6 @@ const requireStore = () => {
 
 // Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
 // DatabaseService once its database is open, or undefined if unavailable.
-// Shared with logsSlice.syncLogs's defensive re-activation.
 export const openLogDirDatabase = async (
   logDir: string
 ): Promise<DatabaseService | undefined> => {
@@ -106,13 +105,6 @@ const ensureActive = async (logDir: string): Promise<boolean> => {
   return needsActivation;
 };
 
-// Activate + initial sync for `logDir`. Owned by <ReplicationController>, which
-// calls this on mount (dir mode only).
-export const activateReplication = async (logDir: string): Promise<void> => {
-  await ensureActive(logDir);
-  await replicationService.sync(true);
-};
-
 export const deactivateReplication = (): void => {
   replicationService.stopReplication();
 };
@@ -132,27 +124,22 @@ export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
 };
 
 /**
- * Re-sync the current dir-mode session: defensively ensure replication is active
- * for the resolved logDir (<ReplicationController> normally activated it on
- * mount), then sync. No-op in single-file mode / before a dir is resolved. Lives
- * here, not in the zustand slice — replication orchestration is control-layer
- * logic, not UI state. The `singleFileMode` read uses the sanctioned non-react
- * accessor; its sole single-file-reachable caller is <App>'s host-message bridge.
+ * Ensure dir-mode replication is active for `logDir` (defaulting to the resolved
+ * dir), then sync. The single entry point for both `<ReplicationController>` on
+ * mount (passes its keyed dir) and the re-sync triggers (no arg). No-op in
+ * single-file mode / before a dir is resolved. Lives here, not in the zustand
+ * slice — replication orchestration is control-layer logic, not UI state.
+ *
+ * Sync progress surfaces via the replicator's `syncing` signal
+ * (`replicationContext`), so there's no imperative `loading` bracket here — the
+ * mount and re-sync paths are identical.
  */
-export const syncLogs = async (): Promise<LogHandle[]> => {
-  const store = requireStore();
-  store.getState().appActions.setLoading(true);
-
-  const logDir = getLogDir();
+export const syncLogs = async (
+  logDir: string | undefined = getLogDir()
+): Promise<LogHandle[]> => {
   if (!logDir || getAppConfig().singleFileMode) {
-    if (!store.getState().app.status.error) {
-      store.getState().appActions.setLoading(false);
-    }
     return [];
   }
-
   const needsActivation = await ensureActive(logDir);
-  store.getState().appActions.setLoading(false);
-
   return (await replicationService.sync(needsActivation)) ?? [];
 };

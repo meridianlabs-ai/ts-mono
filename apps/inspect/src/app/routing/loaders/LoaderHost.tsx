@@ -1,8 +1,8 @@
 import { FC, ReactNode, useEffect } from "react";
 
 import {
-  activateReplication,
   deactivateReplication,
+  syncLogs,
 } from "../../../state/replicationControl";
 import { useStore } from "../../../state/store";
 import { useAppConfig } from "../../server/useAppConfig";
@@ -39,7 +39,7 @@ export const LoaderMounts: FC<{ children: ReactNode }> = ({ children }) => {
  */
 const ReplicationController: FC<{ logDir: string }> = ({ logDir }) => {
   useEffect(() => {
-    activateReplication(logDir).catch((e) => {
+    syncLogs(logDir).catch((e) => {
       console.error(`Failed to activate replication for ${logDir}`, e);
     });
     return () => deactivateReplication();
