@@ -35,6 +35,8 @@ interface TranscriptOutlineProps {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
   running?: boolean;
+  /** Whether the sample's event backlog is still loading (live sample). */
+  backfilling?: boolean;
   className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** The element that actually scrolls the outline (its own overflow

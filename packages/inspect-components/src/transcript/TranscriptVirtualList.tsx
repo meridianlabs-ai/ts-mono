@@ -54,11 +54,9 @@ import { SubtaskEventView } from "./SubtaskEventView";
 import type { ForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { ToolEventView } from "./ToolEventView";
-import { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
-export const TranscriptVirtualList = memo(TranscriptVirtualListComponent);
-TranscriptVirtualList.displayName = "TranscriptVirtualList";
+export { TranscriptVirtualList } from "./TranscriptVirtualListComponent";
 
 interface RenderedEventNodeProps {
   node: EventNode;

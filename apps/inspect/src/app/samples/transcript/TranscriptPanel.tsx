@@ -44,6 +44,7 @@ interface TranscriptPanelProps {
 
   // The sample
   running?: boolean;
+  backfilling?: boolean;
 
   // The transcript data
   events: Events;
@@ -70,6 +71,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     scrollRef,
     events,
     running,
+    backfilling,
     initialEventId,
     initialMessageId,
     offsetTop,
@@ -333,6 +335,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       events={events}
       hiddenEventTypes={filteredEventTypes}
       running={running}
+      backfilling={backfilling}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
       timelineSelection={timelineSelection}
@@ -368,13 +371,15 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         setSelectedId: setSelectedOutlineId,
       }}
       emptyText={
-        running && isDefaultFilter
-          ? "Sample is starting"
-          : filteredEventTypes.length > 0
-            ? "The currently applied filter hides all events."
-            : undefined
+        backfilling && isDefaultFilter
+          ? "Loading events"
+          : running && isDefaultFilter
+            ? "Sample is starting"
+            : filteredEventTypes.length > 0
+              ? "The currently applied filter hides all events."
+              : undefined
       }
-      emptyBusy={running && isDefaultFilter}
+      emptyBusy={(running || backfilling) && isDefaultFilter}
     />
   );
 });
