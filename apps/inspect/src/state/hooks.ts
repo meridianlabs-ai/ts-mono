@@ -15,6 +15,7 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
+import { refreshSelectedLog } from "./logLoad";
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
@@ -171,14 +172,13 @@ export const useEvalSpec = () => {
 
 export const useRefreshLog = () => {
   const setLoading = useStore((state) => state.appActions.setLoading);
-  const refreshLog = useStore((state) => state.logActions.refreshLog);
   const resetFiltering = useStore((state) => state.logActions.resetFiltering);
 
   return useCallback(() => {
     try {
       setLoading(true);
 
-      void refreshLog();
+      void refreshSelectedLog();
       resetFiltering();
 
       setLoading(false);
@@ -187,7 +187,7 @@ export const useRefreshLog = () => {
       console.log(e);
       setLoading(false, e as Error);
     }
-  }, [refreshLog, resetFiltering, setLoading]);
+  }, [resetFiltering, setLoading]);
 };
 
 export interface LogEditAffordance {

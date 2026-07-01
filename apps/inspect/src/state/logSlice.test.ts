@@ -1,7 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { ClientAPI } from "../client/api/types";
-
 import { createLogSlice } from "./logSlice";
 import { StoreState } from "./store";
 
@@ -16,9 +14,8 @@ const createHarness = () => {
     fn(state);
   });
   const get = () => state;
-  const api = {} as unknown as ClientAPI;
 
-  const [slice, cleanup] = createLogSlice(set, get, {}, api);
+  const [slice, cleanup] = createLogSlice(set, get, {});
   state.log = { ...slice.log };
   state.logActions = slice.logActions;
 

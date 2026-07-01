@@ -94,7 +94,7 @@ export const initializeStore = (
         immer((set, get, store) => {
           const [appSlice, appCleanup] = createAppSlice(set, get, store);
           const [logsSlice, logsCleanup] = createLogsSlice(set, get, store);
-          const [logSlice, logCleanup] = createLogSlice(set, get, store, api);
+          const [logSlice, logCleanup] = createLogSlice(set, get, store);
           const [sampleSlice, sampleCleanup] = createSampleSlice(
             set,
             get,

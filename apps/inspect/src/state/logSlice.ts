@@ -1,17 +1,10 @@
-import { createLogger } from "@tsmono/util";
-
-import { getLogDir } from "../app/server/useLogDir";
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
-import { ClientAPI, LogDetails, PendingSamples } from "../client/api/types";
+import { LogDetails, PendingSamples } from "../client/api/types";
 import { kLogViewInfoTabId } from "../constants";
 
-import { getDatabaseService } from "./databaseServiceInstance";
 import { cleanupLogPolling, getLogPolling } from "./logPollingInstance";
-import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
-
-const log = createLogger("logSlice");
 
 export interface LogSlice {
   log: LogState;
@@ -54,9 +47,6 @@ export interface LogSlice {
     // loading IO lives in `state/logLoad.ts`.
     setLoadedLog: (logFileName: string) => void;
 
-    // Refresh the current log
-    refreshLog: () => Promise<void>;
-
     // Poll the currently selected log
     pollLog: () => Promise<void>;
 
@@ -88,8 +78,7 @@ const initialState = {
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: unknown,
-  api: ClientAPI
+  _store: unknown
 ): [LogSlice, () => void] => {
   const slice = {
     // State
@@ -194,36 +183,6 @@ export const createLogSlice = (
         return Promise.resolve();
       },
 
-      refreshLog: async () => {
-        const state = get();
-        const selectedLogFile = state.logs.selectedLogFile;
-
-        if (!selectedLogFile) {
-          return;
-        }
-
-        log.debug(`refresh: ${selectedLogFile}`);
-        try {
-          const logDetails = await api.get_log_details(selectedLogFile, false);
-          const logDir = getLogDir();
-          if (logDir !== undefined) {
-            void logsContent
-              .writeDetail(
-                getDatabaseService(),
-                logDir,
-                logsContent.resolveLogKey(logDir, selectedLogFile),
-                logDetails
-              )
-              .catch(() => {
-                // Silently ignore cache errors
-              });
-          }
-          state.logActions.onLogDetailsLoaded(logDetails);
-        } catch (error) {
-          log.error("Error refreshing log:", error);
-          throw error;
-        }
-      },
       setFilteredSampleCount: (count: number) => {
         set((state) => {
           state.log.filteredSampleCount = count;

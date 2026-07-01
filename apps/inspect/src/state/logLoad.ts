@@ -173,3 +173,41 @@ export const loadLog = async (logFileName: string): Promise<void> => {
     throw error;
   }
 };
+
+/**
+ * Re-fetch the selected log's details and write them to the cache — the
+ * on-demand refresh (toolbar / edit-save). No-op if nothing is selected. IO /
+ * cache orchestration; the resulting UI-state write goes through `logActions`.
+ */
+export const refreshSelectedLog = async (): Promise<void> => {
+  const store = requireStore();
+  const selectedLogFile = store.getState().logs.selectedLogFile;
+  if (!selectedLogFile) {
+    return;
+  }
+
+  log.debug(`refresh: ${selectedLogFile}`);
+  try {
+    const logDetails = await getAppConfig().api.get_log_details(
+      selectedLogFile,
+      false
+    );
+    const logDir = getLogDir();
+    if (logDir !== undefined) {
+      void logsContent
+        .writeDetail(
+          getDatabaseService(),
+          logDir,
+          logsContent.resolveLogKey(logDir, selectedLogFile),
+          logDetails
+        )
+        .catch(() => {
+          // Silently ignore cache errors
+        });
+    }
+    store.getState().logActions.onLogDetailsLoaded(logDetails);
+  } catch (error) {
+    log.error("Error refreshing log:", error);
+    throw error;
+  }
+};
