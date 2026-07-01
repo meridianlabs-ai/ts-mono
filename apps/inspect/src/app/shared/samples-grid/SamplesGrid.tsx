@@ -1,11 +1,5 @@
 import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
-import {
-  ReactElement,
-  RefObject,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { ReactElement, RefObject, useCallback, useMemo, useState } from "react";
 
 import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
