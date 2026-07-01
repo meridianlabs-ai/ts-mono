@@ -308,3 +308,17 @@
   top: 2px;
   bottom: 2px;
 }
+
+/* Rotated header cells are pointer-events: none; re-enable it on the handle
+ * and pin it to the cell's bottom-right corner (below the diagonal label), so
+ * resizing lives in the divider band and the angled label stays clickable. */
+.resizeHandleRotated {
+  top: auto;
+  bottom: 0;
+  height: 24px;
+  pointer-events: auto;
+}
+.resizeHandleRotated::after {
+  top: 2px;
+  bottom: 2px;
+}

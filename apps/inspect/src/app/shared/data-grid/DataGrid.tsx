@@ -581,6 +581,20 @@ function RotatedHeaderCell<TRow>({
         className={styles.rotatedFilterAnchor}
         aria-hidden="true"
       />
+      {header.column.getCanResize() && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${header.column.id}`}
+          className={clsx(
+            styles.resizeHandle,
+            styles.resizeHandleRotated,
+            header.column.getIsResizing() && styles.resizeHandleActive
+          )}
+          onMouseDown={header.getResizeHandler()}
+          onTouchStart={header.getResizeHandler()}
+        />
+      )}
     </div>
   );
 }

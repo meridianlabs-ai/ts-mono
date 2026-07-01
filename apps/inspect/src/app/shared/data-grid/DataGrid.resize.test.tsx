@@ -48,4 +48,26 @@ describe("DataGrid column resizing", () => {
     expect(screen.getByLabelText("Resize name")).toBeInTheDocument();
     expect(screen.queryByLabelText("Resize icon")).not.toBeInTheDocument();
   });
+
+  test("renders a resize handle for a rotated (compact score) header", () => {
+    const rotatedCols: ExtendedColumnDef<Row>[] = [
+      {
+        id: "score",
+        header: "Score",
+        size: 40,
+        meta: { rotateHeader: true },
+        accessorFn: (r) => r.name,
+        cell: ({ getValue }) => <div>{getValue<string>()}</div>,
+      },
+    ];
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={rotatedCols}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+      />
+    );
+    expect(screen.getByLabelText("Resize score")).toBeInTheDocument();
+  });
 });
