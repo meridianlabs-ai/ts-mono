@@ -19,8 +19,3 @@
   margin-top: 0.65rem;
   overflow: visible;
 }
-
-.outlineLoading {
-  border-top: 1px solid var(--bs-light-border-subtle);
-  margin-top: 4px;
-}

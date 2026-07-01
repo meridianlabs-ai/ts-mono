@@ -12,13 +12,12 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
 import { useScrollTrack } from "@tsmono/react/hooks";
 
-import { LoadingEventsIndicator } from "../../indicators/LoadingEventsIndicator";
 import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
 import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
-import { OutlineRow } from "./OutlineRow";
+import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
 import {
   collapseScoring,
@@ -102,6 +101,11 @@ const EventPaddingNode: EventNode = {
   depth: 0,
   children: [],
 };
+
+// Sentinel appended as the final list item while backfilling so the loading
+// affordance renders flush after the last outline row (a sibling would sit
+// below Virtuoso's trailing padding node).
+const OutlineLoadingNode: EventNode = { ...EventPaddingNode, id: "loading" };
 
 export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   eventNodes,
@@ -277,6 +281,8 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
             style={{ height: "2em" }}
           ></div>
         );
+      } else if (node === OutlineLoadingNode) {
+        return <OutlineLoadingRow key={node.id} />;
       } else {
         return (
           <OutlineRow
@@ -331,7 +337,11 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         ref={listHandle}
         customScrollParent={outlineScrollEl ?? undefined}
         id={id}
-        data={[...outlineNodeList, EventPaddingNode]}
+        data={
+          backfilling
+            ? [...outlineNodeList, OutlineLoadingNode, EventPaddingNode]
+            : [...outlineNodeList, EventPaddingNode]
+        }
         defaultItemHeight={50}
         itemContent={renderRow}
         atBottomThreshold={30}
@@ -345,11 +355,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         restoreStateFrom={getRestoreState()}
         tabIndex={0}
       />
-      {backfilling ? (
-        <div className={styles.outlineLoading}>
-          <LoadingEventsIndicator label="Loading events" compact />
-        </div>
-      ) : null}
     </div>
   );
 };
