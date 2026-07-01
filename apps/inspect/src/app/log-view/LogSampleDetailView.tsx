@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import { useSampleSummaries } from "../../state/hooks";
+import { useClearStaleLogStateOnNav } from "../../state/log";
 import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
@@ -41,6 +42,8 @@ export const LogSampleDetailView: FC = () => {
     sampleTabId,
     sampleUuid,
   } = useLogRouteParams();
+
+  useClearStaleLogStateOnNav(routeLogPath);
 
   // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
   useLoadSample();
