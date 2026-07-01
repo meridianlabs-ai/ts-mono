@@ -11,7 +11,6 @@ import {
   ContentText,
   ErrorEvent,
   EvalSample,
-  EvalSet,
   EventData,
   InfoEvent,
   InputEvent,
@@ -79,7 +78,6 @@ export interface DisplayedSample {
 }
 
 export interface LogsState {
-  evalSet?: EvalSet;
   selectedLogFile?: string;
   listing: LogsListing;
   pendingRequests: Map<string, Promise<EvalHeader | null>>;

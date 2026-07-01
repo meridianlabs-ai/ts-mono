@@ -4,12 +4,10 @@ import { getLogDir } from "../app/server/useLogDir";
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
 import { ClientAPI, LogDetails, PendingSamples } from "../client/api/types";
-import { toLogPreview } from "../client/utils/type-utils";
 import { kLogViewInfoTabId } from "../constants";
-import { isUri, join } from "../utils/uri";
 
 import { getDatabaseService } from "./databaseServiceInstance";
-import { createLogPolling } from "./logPolling";
+import { cleanupLogPolling, getLogPolling } from "./logPollingInstance";
 import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
 
@@ -52,8 +50,9 @@ export interface LogSlice {
     // Reset filter state to defaults
     resetFiltering: () => void;
 
-    // Load log
-    syncLog: (logFileName: string) => Promise<void>;
+    // Record the log whose details have been loaded. UI state only; the
+    // loading IO lives in `state/logLoad.ts`.
+    setLoadedLog: (logFileName: string) => void;
 
     // Refresh the current log
     refreshLog: () => Promise<void>;
@@ -92,8 +91,6 @@ export const createLogSlice = (
   _store: unknown,
   api: ClientAPI
 ): [LogSlice, () => void] => {
-  const logPolling = createLogPolling(get, set, api);
-
   const slice = {
     // State
     log: initialState,
@@ -177,119 +174,10 @@ export const createLogSlice = (
           state.log.selectedScores = state.log.scores?.slice(0, 1);
         }),
 
-      syncLog: async (logFileName: string) => {
-        const state = get();
-
-        // Both loader hosts settle the log dir before any log view mounts, so
-        // it's resolved by the time a log is opened.
-        const logDir = getLogDir();
-        if (logDir === undefined) {
-          throw new Error("Cannot open a log before the log dir is resolved.");
-        }
-
-        const logAbsPath = !isUri(logFileName)
-          ? join(logFileName, logDir)
-          : logFileName;
-
-        log.debug(`Load log: ${logAbsPath}`);
-
-        // Try reading the data in the database first
-        const dbService = getDatabaseService();
-        if (dbService && dbService.opened()) {
-          try {
-            const cachedInfo =
-              await dbService.readLogDetailsForFile(logAbsPath);
-            if (cachedInfo) {
-              log.debug(`Using cached log info for: ${logAbsPath}`);
-
-              const refreshLogDetails = async () => {
-                const logDetails = await api.get_log_details(logAbsPath, false);
-                if (get().logs.selectedLogFile === logAbsPath) {
-                  state.logActions.onLogDetailsLoaded(logDetails);
-                }
-                logsContent
-                  .writeDetail(
-                    dbService,
-                    logDir,
-                    logsContent.resolveLogKey(logDir, logAbsPath),
-                    logDetails
-                  )
-                  .catch(() => {
-                    // Silently ignore cache errors
-                  });
-                // Repaint the listing preview from the fresh status: a log
-                // cached as "started" may have since finished.
-                logsContent.mergePreviews(logDir, {
-                  [logFileName]: toLogPreview(logDetails),
-                });
-              };
-
-              if (cachedInfo.status === "started") {
-                // A cached running log is only provisional. Wait for a fresh
-                // read so reopening details can't re-seed stale running state.
-                await refreshLogDetails();
-              } else {
-                // Seed the details cache from the IndexedDB-cached row (it's
-                // already persisted, so cache-only), then react to it.
-                logsContent.mergeDetails(logDir, {
-                  [logsContent.resolveLogKey(logDir, logAbsPath)]: cachedInfo,
-                });
-                state.logActions.onLogDetailsLoaded(cachedInfo);
-                logsContent.mergePreviews(logDir, {
-                  [logFileName]: toLogPreview(cachedInfo),
-                });
-                // Still fetch fresh data in background to update cache
-                void refreshLogDetails().catch(() => {
-                  // Silently ignore background refresh errors
-                });
-              }
-              set((state) => {
-                state.log.loadedLog = logFileName;
-              });
-
-              state.logActions.clearPendingSampleSummaries();
-              logPolling.startPolling(logFileName);
-              return;
-            }
-          } catch {
-            // Cache read failed, continue with normal flow
-          }
-        }
-
-        try {
-          const logDetails = await api.get_log_details(logFileName, false);
-
-          // Cache-first seam: the details land in the cache synchronously; the
-          // IndexedDB write completes in the background (fire-and-forget).
-          void logsContent
-            .writeDetail(
-              dbService,
-              logDir,
-              logsContent.resolveLogKey(logDir, logAbsPath),
-              logDetails
-            )
-            .catch(() => {
-              // Silently ignore cache errors
-            });
-          state.logActions.onLogDetailsLoaded(logDetails);
-
-          // Push the updated header information up
-          const header = {
-            [logFileName]: toLogPreview(logDetails),
-          };
-
-          logsContent.mergePreviews(logDir, header);
-          set((state) => {
-            state.log.loadedLog = logFileName;
-          });
-
-          // Start polling for pending samples
-          state.logActions.clearPendingSampleSummaries();
-          logPolling.startPolling(logFileName);
-        } catch (error) {
-          log.error("Error loading log:", error);
-          throw error;
-        }
+      setLoadedLog: (logFileName: string) => {
+        set((state) => {
+          state.log.loadedLog = logFileName;
+        });
       },
 
       clearLog: () => {
@@ -301,7 +189,7 @@ export const createLogSlice = (
       pollLog: () => {
         const currentLog = get().log.loadedLog;
         if (currentLog) {
-          logPolling.startPolling(currentLog);
+          getLogPolling().startPolling(currentLog);
         }
         return Promise.resolve();
       },
@@ -350,7 +238,7 @@ export const createLogSlice = (
   } as const;
 
   const cleanup = () => {
-    logPolling.cleanup();
+    cleanupLogPolling();
   };
 
   return [slice, cleanup];

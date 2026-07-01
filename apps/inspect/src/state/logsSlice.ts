@@ -1,28 +1,18 @@
 import { GridState } from "ag-grid-community";
 
-import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
-import { createLogger } from "@tsmono/util";
+import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { getAppConfig } from "../app/appConfig";
 import type { SamplesViewState } from "../app/samples/list/samplesView";
 import { getLogDir } from "../app/server/useLogDir";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
-import { ClientAPI, EvalHeader, SampleSummary } from "../client/api/types";
+import { EvalHeader } from "../client/api/types";
 import { isUri, join } from "../utils/uri";
 
-import { getDatabaseService } from "./databaseServiceInstance";
-import * as logsContent from "./logsContent";
-import { syncLogs } from "./replicationControl";
 import { StoreState } from "./store";
-import { replicationService } from "./sync/replicationService";
-
-const log = createLogger("Log Slice");
 
 export interface LogsSlice {
   logs: LogsState;
   logsActions: {
-    syncLogPreviews: (logs: LogHandle[]) => Promise<void>;
-
     setDbStats: (stats: {
       logCount: number;
       previewCount: number;
@@ -31,17 +21,6 @@ export interface LogsSlice {
 
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
-
-    // Cross-file sample operations
-    getAllCachedSamples: () => Promise<SampleSummary[]>;
-    queryCachedSamples: (filter?: {
-      completed?: boolean;
-      hasError?: boolean;
-      scoreRange?: { min: number; max: number; scoreName?: string };
-    }) => Promise<SampleSummary[]>;
-
-    // Try to fetch an eval-set
-    syncEvalSetInfo: (logPath?: string) => Promise<EvalSet | undefined>;
 
     updateFlowData: (flowPath: string, flowData?: string) => void;
 
@@ -97,8 +76,7 @@ const initialState: LogsState = {
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
-  _store: unknown,
-  api: ClientAPI
+  _store: unknown
 ): [LogsSlice, () => void] => {
   const slice = {
     // State
@@ -106,13 +84,6 @@ export const createLogsSlice = (
 
     // Actions
     logsActions: {
-      syncLogPreviews: async (logs: LogHandle[]) => {
-        try {
-          await replicationService.loadLogPreviews({ logs });
-        } catch (e) {
-          console.error("Failed to sync log previews", e);
-        }
-      },
       setSamplesGridState: (
         scope: "samplesPanel",
         gridState: GridState | undefined
@@ -168,43 +139,16 @@ export const createLogsSlice = (
           state.logs.dbStats = stats;
         });
       },
-      syncEvalSetInfo: async (logPath?: string) => {
-        const info = await api.get_eval_set(logPath);
-        set((state) => {
-          state.logs.evalSet = info;
-        });
-        return info;
-      },
       updateFlowData: (flowPath: string, flowData?: string) => {
         set((state) => {
           state.logs.flowDir = flowPath;
           state.logs.flow = flowData;
         });
       },
-      // Select a specific log file
-      setSelectedLogFile: async (logFile: string) => {
-        const logDir = getLogDir();
-        const isInFileList =
-          logsContent
-            .getLogHandles(logDir)
-            .findIndex((val) => val.name.endsWith(logFile)) !== -1;
-
-        if (!isInFileList) {
-          if (
-            replicationService.isReplicating() &&
-            !getAppConfig().singleFileMode
-          ) {
-            await syncLogs();
-            const logHandle = logsContent
-              .getLogHandles(getLogDir())
-              .find((val) => val.name.endsWith(logFile));
-            if (!logHandle) {
-              throw new Error(`Log file not found: ${logFile}`);
-            }
-          } else if (logDir !== undefined) {
-            logsContent.setHandles(logDir, [{ name: logFile }]);
-          }
-        }
+      // Select a specific log file (pure UI state). Ensuring the file is
+      // loadable happens in the loader layer (ensureSelectableLog), driven by
+      // loadLog when the selection is opened.
+      setSelectedLogFile: (logFile: string) => {
         set((state) => {
           const absoluteLogfile = isUri(logFile)
             ? logFile
@@ -255,43 +199,6 @@ export const createLogsSlice = (
         set((state) => {
           state.logs.selectedLogFile = undefined;
         });
-      },
-
-      // Cross-file sample operations
-      getAllCachedSamples: async () => {
-        try {
-          log.debug("LOADING ALL CACHED SAMPLES");
-          const dbService = getDatabaseService();
-          if (!dbService) {
-            throw new Error("Database service not initialized");
-          }
-          const samples = await dbService.readAllSampleSummaries();
-          log.debug(`Retrieved ${samples.length} cached samples`);
-          return samples;
-        } catch {
-          log.debug("No cached samples available");
-          return [];
-        }
-      },
-
-      queryCachedSamples: async (filter?: {
-        completed?: boolean;
-        hasError?: boolean;
-        scoreRange?: { min: number; max: number; scoreName?: string };
-      }) => {
-        try {
-          log.debug("QUERYING CACHED SAMPLES", filter);
-          const dbService = getDatabaseService();
-          if (!dbService) {
-            throw new Error("Database service not initialized");
-          }
-          const samples = await dbService.querySampleSummaries(filter);
-          log.debug(`Query returned ${samples.length} samples`);
-          return samples;
-        } catch {
-          log.debug("Sample query failed, returning empty results");
-          return [];
-        }
       },
     },
   } as const;

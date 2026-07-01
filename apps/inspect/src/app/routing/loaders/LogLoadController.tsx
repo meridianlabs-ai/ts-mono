@@ -1,6 +1,7 @@
 import { FC, useEffect } from "react";
 
 import { useSelectedLogDetails } from "../../../state/hooks";
+import { loadLog } from "../../../state/logLoad";
 import { useStore } from "../../../state/store";
 
 /**
@@ -15,7 +16,6 @@ export const LogLoadController: FC = () => {
   const loadedLogFile = useStore((state) => state.log.loadedLog);
   const selectedLogDetails = useSelectedLogDetails();
   const setLoading = useStore((state) => state.appActions.setLoading);
-  const loadLog = useStore((state) => state.logActions.syncLog);
   const pollLog = useStore((state) => state.logActions.pollLog);
 
   // Load the selected log when it changes (unless it's already the loaded one
@@ -39,7 +39,7 @@ export const LogLoadController: FC = () => {
     };
 
     void loadSpecificLog();
-  }, [selectedLogFile, loadedLogFile, selectedLogDetails, loadLog, setLoading]);
+  }, [selectedLogFile, loadedLogFile, selectedLogDetails, setLoading]);
 
   // Poll a running log.
   useEffect(() => {

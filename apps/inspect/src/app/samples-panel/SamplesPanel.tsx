@@ -26,6 +26,7 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigation } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { useEvalSet } from "../server/useEvalSet";
 import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
@@ -124,7 +125,7 @@ export const SamplesPanel: FC = () => {
 
   const currentDir = join(samplesPath || "", logDir);
 
-  const evalSet = useStore((state) => state.logs.evalSet);
+  const evalSet = useEvalSet().data ?? undefined;
   const logFiles = useLogsWithretried();
   const logPreviews = useLogPreviews(logDir);
 
@@ -163,7 +164,7 @@ export const SamplesPanel: FC = () => {
   }, [logPreviews, currentDirLogFiles]);
 
   useEffect(() => {
-    void loadLogs(samplesPath);
+    void loadLogs();
   }, [loadLogs, samplesPath]);
 
   // Filter logDetails based on samplesPath.

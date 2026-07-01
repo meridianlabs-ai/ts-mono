@@ -1,6 +1,6 @@
 import { enableMapSet } from "immer";
 import { createContext, useContext } from "react";
-import { create, StoreApi, UseBoundStore } from "zustand";
+import { create, Mutate, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
@@ -13,6 +13,7 @@ import {
   cleanupDatabaseService,
   initDatabaseService,
 } from "./databaseServiceInstance";
+import { setLogPollingApi } from "./logPollingInstance";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
 import { setReplicationApi } from "./replicationControl";
@@ -34,8 +35,14 @@ export interface StoreState
   cleanup: () => void;
 }
 
-export let storeImplementation: UseBoundStore<StoreApi<StoreState>> | null =
-  null;
+// The store is immer-wrapped, so its `setState` accepts an immer recipe
+// `(state) => void`. Reflect that in the exported type so non-react callers
+// (e.g. the polling singletons) can drive setState with a recipe.
+export type ImmerStore = UseBoundStore<
+  Mutate<StoreApi<StoreState>, [["zustand/immer", never]]>
+>;
+
+export let storeImplementation: ImmerStore | null = null;
 
 // The data that will actually be persisted
 export type PersistedState = {
@@ -86,12 +93,7 @@ export const initializeStore = (
       persist(
         immer((set, get, store) => {
           const [appSlice, appCleanup] = createAppSlice(set, get, store);
-          const [logsSlice, logsCleanup] = createLogsSlice(
-            set,
-            get,
-            store,
-            api
-          );
+          const [logsSlice, logsCleanup] = createLogsSlice(set, get, store);
           const [logSlice, logCleanup] = createLogSlice(set, get, store, api);
           const [sampleSlice, sampleCleanup] = createSampleSlice(
             set,
@@ -160,6 +162,7 @@ export const initializeStore = (
   storeImplementation = store;
   initDatabaseService();
   setSamplePollingApi(api);
+  setLogPollingApi(api);
   setReplicationApi(api);
   store.getState().initialize(capabilities);
 };

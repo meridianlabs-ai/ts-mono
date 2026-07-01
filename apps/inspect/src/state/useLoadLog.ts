@@ -28,7 +28,7 @@ export const useLoadLog = () => {
       if (routeLogPath && sampleId && epoch) {
         // Load the log file
         if (!logs.some((log) => log.name.endsWith(routeLogPath))) {
-          await loadLogs(routeLogPath);
+          await loadLogs();
         }
 
         if (selectedLogFile !== routeLogPath) {

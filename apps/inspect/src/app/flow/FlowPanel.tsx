@@ -24,7 +24,7 @@ export const FlowPanel: FC = () => {
   // Get the logs from the store
   const { loadLogs } = useLogs();
   useEffect(() => {
-    void loadLogs(flowDir);
+    void loadLogs();
   }, [loadLogs, flowDir]);
 
   // Retrieve flow data

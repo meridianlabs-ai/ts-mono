@@ -16,7 +16,7 @@ import { LogDetails, SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
-import { syncLogs } from "./replicationControl";
+import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
 import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -605,27 +605,16 @@ export const useSamplePopover = (id: string) => {
 };
 
 export const useLogs = () => {
-  // Loading logs and eval set info
-  const syncEvalSetInfo = useStore(
-    (state) => state.logsActions.syncEvalSetInfo
-  );
   const setLoading = useStore((state) => state.appActions.setLoading);
 
-  const loadLogs = useCallback(
-    async (logPath?: string) => {
-      // load in parallel to display Show Retried Logs button as soon as we know current directory is an eval set without awaiting all logs
-      await Promise.all([syncEvalSetInfo(logPath), syncLogs()]).catch((e) => {
-        log.error("Error loading logs", e);
-        setLoading(false, e as Error);
-      });
-    },
-    [setLoading, syncEvalSetInfo]
-  );
+  const loadLogs = useCallback(async () => {
+    await syncLogs().catch((e) => {
+      log.error("Error loading logs", e);
+      setLoading(false, e as Error);
+    });
+  }, [setLoading]);
 
   // Loading overviews
-  const syncLogPreviews = useStore(
-    (state) => state.logsActions.syncLogPreviews
-  );
   const logDir = useLogDir();
   const allLogFiles = useLogHandles(logDir);
   const logPreviews = useLogPreviews(logDir);
@@ -634,7 +623,7 @@ export const useLogs = () => {
     async (logs: LogHandle[] = allLogFiles) => {
       await syncLogPreviews(logs);
     },
-    [syncLogPreviews, allLogFiles]
+    [allLogFiles]
   );
 
   const loadAllLogOverviews = useCallback(async () => {

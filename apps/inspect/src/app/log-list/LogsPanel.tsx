@@ -33,6 +33,7 @@ import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
+import { useEvalSet } from "../server/useEvalSet";
 import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
@@ -68,7 +69,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   );
   const logDir = useLogDir();
   const logFiles = useLogsWithretried();
-  const evalSet = useStore((state) => state.logs.evalSet);
+  const evalSet = useEvalSet().data ?? undefined;
   const logPreviews = useLogPreviews(logDir);
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.
@@ -387,7 +388,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   }, [logItems]);
 
   useEffect(() => {
-    void loadLogs(logPath);
+    void loadLogs();
   }, [loadLogs, logPath]);
 
   useEffect(() => {

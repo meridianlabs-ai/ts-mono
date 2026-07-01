@@ -118,6 +118,20 @@ export const deactivateReplication = (): void => {
 };
 
 /**
+ * Load previews for the given logs into the cache. Best-effort: a failure is
+ * logged and swallowed so a preview fetch can't wedge the listing. Lives here,
+ * not in the zustand slice — preview loading is replication/IO orchestration,
+ * not UI state.
+ */
+export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
+  try {
+    await replicationService.loadLogPreviews({ logs });
+  } catch (e) {
+    console.error("Failed to sync log previews", e);
+  }
+};
+
+/**
  * Re-sync the current dir-mode session: defensively ensure replication is active
  * for the resolved logDir (<ReplicationController> normally activated it on
  * mount), then sync. No-op in single-file mode / before a dir is resolved. Lives
