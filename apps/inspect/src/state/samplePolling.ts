@@ -143,6 +143,7 @@ export function createSamplePolling(
           sampleActions.setSampleError(error);
           sampleActions.setSampleStatus("error");
           sampleActions.setRunningEvents([]);
+          sampleActions.setBackfilling(false);
           return false;
         };
 
@@ -176,6 +177,7 @@ export function createSamplePolling(
             sampleActions.setSelectedSample(migratedSample, logFile);
             sampleActions.setSampleStatus("ok");
             sampleActions.setRunningEvents([]);
+            sampleActions.setBackfilling(false);
             return false;
           }
 

@@ -316,6 +316,76 @@ describe("createSamplePolling", () => {
     expect(sampleActions.setSampleError).not.toHaveBeenCalled();
   });
 
+  it("clears backfilling when a latched sample finalizes to completed", async () => {
+    vi.useFakeTimers();
+
+    const completedSample = createEvalSample("sample-1");
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce({
+        status: "OK",
+        has_more: true,
+        sampleData: {
+          attachments: [],
+          message_pool: [],
+          call_pool: [],
+          events: [
+            {
+              id: 1,
+              event_id: "event-1",
+              sample_id: "sample-1",
+              epoch: 1,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              event: { event: "info", data: "hello" } as any,
+            },
+          ],
+        },
+      } satisfies SampleDataResponse)
+      .mockResolvedValue({
+        status: "NotModified",
+      } satisfies SampleDataResponse);
+    mockApi.get_log_sample.mockResolvedValue(completedSample);
+
+    const sampleActions = {
+      setSelectedSample: vi.fn(),
+      setSampleStatus: vi.fn(),
+      setSampleError: vi.fn(),
+      setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
+    };
+
+    // completed !== false so the sample reads as completed in the log,
+    // driving the NotModified poll into loadCompletedSample.
+    const state = {
+      sample: { runningEvents: [] },
+      sampleActions,
+      log: {
+        selectedLogDetails: {
+          sampleSummaries: [{ id: "sample-1", epoch: 1, completed: true }],
+        },
+      },
+    } as unknown as StoreState;
+    const store = {
+      getState: () => state,
+    } as unknown as UseBoundStore<StoreApi<StoreState>>;
+
+    const polling = createSamplePolling(store, api);
+    polling.startPolling("log.eval", createSummary("sample-1"));
+    await flushPromises();
+
+    // First poll latches backfilling on (has_more: true).
+    expect(sampleActions.setBackfilling).toHaveBeenCalledWith(true);
+
+    // Second poll finalizes the sample (NotModified + completed-in-log).
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.waitFor(() =>
+      expect(sampleActions.setSelectedSample).toHaveBeenCalledTimes(1)
+    );
+
+    expect(sampleActions.setSampleStatus).toHaveBeenCalledWith("ok");
+    const lastBackfilling = sampleActions.setBackfilling.mock.calls.at(-1)?.[0];
+    expect(lastBackfilling).toBe(false);
+  });
+
   it("does not let duplicate streamed pool rows shift refs", async () => {
     const inputSystem = chatMessage("input-system", "system", "Input system");
     const inputUser = chatMessage("input-user", "user", "Input user");
