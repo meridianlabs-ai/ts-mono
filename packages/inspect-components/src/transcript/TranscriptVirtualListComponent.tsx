@@ -231,7 +231,7 @@ export const TranscriptVirtualListComponent: FC<
         initialIndex={initialEventIndex}
         stickyHeaderOffset={offsetTop}
         renderRow={renderRow}
-        live={running === true && !isBackfilling}
+        live={running === true}
         smoothScroll={running === true && !isBackfilling}
         scrollToTopOnFinish={true}
         itemSearchText={eventSearchText}
