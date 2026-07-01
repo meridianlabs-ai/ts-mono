@@ -227,6 +227,19 @@
   font-size: 12px !important;
 }
 
+/* Truncate a cell's content with an ellipsis (parity with the AG grid, whose
+ * `.ag-cell-value` wrapper carried these rules). `.cell` is a flex container,
+ * so `text-overflow` on it never reaches a block child's text — the child
+ * itself must clip. `min-width: 0` lets the single child shrink below its
+ * content width so the ellipsis appears; without `flex: 1` the child stays
+ * content-sized when it fits, so `justify-content` (center columns) still
+ * positions it. `white-space: nowrap` is inherited from `.cell`. */
+.cell > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cellCenter {
   justify-content: center;
 }
