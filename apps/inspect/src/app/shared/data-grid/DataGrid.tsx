@@ -1,5 +1,6 @@
 import {
   ColumnDef,
+  ColumnSizingState,
   flexRender,
   getCoreRowModel,
   Header,
@@ -62,6 +63,9 @@ export interface DataGridProps<TRow> {
    *  drives only the header indicators. */
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
+  /** Controlled column widths (keyed by column id). */
+  columnSizing?: ColumnSizingState;
+  onColumnSizingChange?: (sizing: ColumnSizingState) => void;
   /** Controlled per-column filters (keyed by column id). */
   columnFilters?: Record<string, ColumnFilter>;
   onColumnFilterChange?: (
@@ -90,8 +94,9 @@ export interface DataGridProps<TRow> {
  * virtualization, controlled column visibility, fixed column widths
  * (horizontal scroll), and single-row selection + click-to-activate.
  *
- * Sorting, filtering, keyboard navigation, find, and column resizing are
- * layered on in later phases — see design/plans/loglistgrid-tanstack.md.
+ * Sorting, filtering, keyboard navigation, and column resizing are wired up;
+ * find and auto-fit are layered on in later phases — see
+ * design/plans/loglistgrid-tanstack.md.
  */
 export function DataGrid<TRow>({
   data,
@@ -100,6 +105,8 @@ export function DataGrid<TRow>({
   columnVisibility,
   sorting,
   onSortingChange,
+  columnSizing,
+  onColumnSizingChange,
   columnFilters,
   onColumnFilterChange,
   selectedRowId,
@@ -145,6 +152,21 @@ export function DataGrid<TRow>({
     [onSortingChange, sorting]
   );
 
+  // Column sizing is controlled by the caller when `onColumnSizingChange` is
+  // provided (log list persists per scope; samples keeps it in local state);
+  // otherwise the grid manages it internally so resizing still works.
+  const [internalSizing, setInternalSizing] = useState<ColumnSizingState>({});
+  const effectiveSizing = columnSizing ?? internalSizing;
+  const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = useCallback(
+    (updater) => {
+      const next =
+        typeof updater === "function" ? updater(effectiveSizing) : updater;
+      if (onColumnSizingChange) onColumnSizingChange(next);
+      else setInternalSizing(next);
+    },
+    [effectiveSizing, onColumnSizingChange]
+  );
+
   // useReactTable returns unmemoizable functions
   // https://github.com/TanStack/table/issues/5567
   // https://github.com/facebook/react/issues/33057
@@ -157,11 +179,15 @@ export function DataGrid<TRow>({
     manualSorting: true,
     enableMultiSort: true,
     enableSortingRemoval: true,
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
     state: {
       columnVisibility: columnVisibility ?? {},
       sorting: sorting ?? [],
+      columnSizing: effectiveSizing,
     },
     onSortingChange: handleSortingChange,
+    onColumnSizingChange: handleColumnSizingChange,
   });
 
   const { rows } = table.getRowModel();
@@ -385,6 +411,21 @@ export function DataGrid<TRow>({
                       >
                         {filterControl}
                       </div>
+                    )}
+                    {header.column.getCanResize() && (
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label={`Resize ${header.column.id}`}
+                        className={clsx(
+                          styles.resizeHandle,
+                          anyRotated && styles.resizeHandleTall,
+                          header.column.getIsResizing() &&
+                            styles.resizeHandleActive
+                        )}
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                      />
                     )}
                   </div>
                 );

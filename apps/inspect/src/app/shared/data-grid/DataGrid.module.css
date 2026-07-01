@@ -264,3 +264,47 @@
   text-align: center;
   color: var(--bs-secondary);
 }
+
+/* Column resize handle. A wide, invisible hit-strip straddling the column's
+ * right edge; a subtle accent line shows on hover / while dragging. The strip
+ * sits above cell content (z-index) and never triggers a sort (it is a sibling
+ * of .headerContent, so its clicks don't reach the sort handler). */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 3px;
+  width: 1px;
+  background: var(--bs-primary);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.resizeHandle:hover::after,
+.resizeHandleActive::after {
+  opacity: 1;
+}
+
+/* Tall (rotated) mode: confine the hit-zone + accent line to the bottom
+ * divider band so it stays off the angled labels above. */
+.resizeHandleTall {
+  top: auto;
+  height: 24px;
+}
+.resizeHandleTall::after {
+  top: 2px;
+  bottom: 2px;
+}
