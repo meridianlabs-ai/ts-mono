@@ -2,6 +2,7 @@ import clsx from "clsx";
 import {
   FC,
   memo,
+  ReactElement,
   ReactNode,
   RefObject,
   useCallback,
@@ -24,6 +25,7 @@ import {
   isLivePlaceholderMessage,
   isToolExecutingMessage,
 } from "../indicators/livePlaceholder";
+import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 
 import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
@@ -64,6 +66,7 @@ export interface ChatViewVirtualListProps {
   offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
+  backfilling?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
@@ -80,6 +83,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     className,
     scrollRef,
     running,
+    backfilling,
     onNativeFindChanged,
     display,
     labels,
@@ -152,7 +156,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         ) {
           return (
             <div className={styles.generatingRow}>
-              <GeneratingIndicator />
+              {renderChatLiveIndicator(backfilling === true)}
             </div>
           );
         }
@@ -175,7 +179,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
             />
             {toolExecuting ? (
               <div className={styles.generatingRow}>
-                <GeneratingIndicator label="running" />
+                {renderChatLiveIndicator(backfilling === true, "running")}
               </div>
             ) : null}
           </>
@@ -184,6 +188,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [
         id,
         running,
+        backfilling,
         lastIndex,
         display,
         labels,
@@ -199,11 +204,10 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     // message event arrives), and a finished one may be empty (e.g. an early
     // error, or messages cleared due to size limits).
     if (collapsedMessages.length === 0) {
-      return running ? (
-        <NoContentsPanel text="Waiting for messages" busy />
-      ) : (
-        <NoContentsPanel text="No messages" />
-      );
+      return renderChatEmptyState({
+        running: running === true,
+        backfilling: backfilling === true,
+      });
     }
 
     return (
@@ -225,3 +229,29 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     );
   }
 );
+
+export const renderChatLiveIndicator = (
+  backfilling: boolean,
+  generatingLabel?: string
+): ReactElement =>
+  backfilling ? (
+    <LoadingEventsIndicator label="Loading messages" />
+  ) : (
+    <GeneratingIndicator label={generatingLabel} />
+  );
+
+export const renderChatEmptyState = ({
+  running,
+  backfilling,
+}: {
+  running: boolean;
+  backfilling: boolean;
+}): ReactElement => {
+  if (backfilling) {
+    return <LoadingEventsIndicator label="Loading messages" />;
+  }
+  if (running) {
+    return <NoContentsPanel text="Waiting for messages" busy />;
+  }
+  return <NoContentsPanel text="No messages" />;
+};

@@ -869,6 +869,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   scrollRef={scrollRef}
                   tools={chatTools}
                   running={running}
+                  backfilling={backfilling}
                   className={styles.fullWidth}
                 />
               </RailSidebarHost>
