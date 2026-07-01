@@ -14,6 +14,7 @@ import {
   KeyboardEvent,
   MouseEvent,
   ReactElement,
+  RefObject,
   useCallback,
   useEffect,
   useRef,
@@ -60,6 +61,10 @@ export interface DataGridProps<TRow> {
   ) => void;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
+  /** External ref to the scroll container, attached alongside the internal
+   *  one so a parent can observe scrolling (e.g. title-bar collapse-on-scroll
+   *  via `useScrollDirection`). */
+  scrollRef?: RefObject<HTMLDivElement | null>;
   /** Plain left-click on a row (modifier/middle clicks are left to in-cell
    *  links). */
   onRowActivate: (row: TRow) => void;
@@ -88,6 +93,7 @@ export function DataGrid<TRow>({
   columnFilters,
   onColumnFilterChange,
   selectedRowId,
+  scrollRef,
   onRowActivate,
   rowHeight = kRowHeight,
   headerHeight = kHeaderHeight,
@@ -95,7 +101,17 @@ export function DataGrid<TRow>({
   emptyMessage = "No matching items",
   className,
 }: DataGridProps<TRow>): ReactElement {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Attach both the internal scroll ref (virtualizer / focus / scroll-into-
+  // view) and the optional external one to the container element.
+  const setContainerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      containerRef.current = el;
+      if (scrollRef) scrollRef.current = el;
+    },
+    [scrollRef]
+  );
 
   // Selection is driven by clicks but seeded/synced from the external
   // selectedRowId (e.g. the currently-open log) so the highlight survives
@@ -248,7 +264,7 @@ export function DataGrid<TRow>({
 
   return (
     <div
-      ref={containerRef}
+      ref={setContainerRef}
       className={clsx(styles.container, className)}
       role="grid"
       tabIndex={0}

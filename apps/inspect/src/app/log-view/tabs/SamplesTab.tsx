@@ -428,6 +428,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           totalItemCount={evalSampleCount}
           running={running}
           multiline={view.multiline}
+          scrollRef={scrollRef}
         />
       ) : null}
       {listDisplay ? (

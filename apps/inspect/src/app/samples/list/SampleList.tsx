@@ -1,5 +1,5 @@
 import type { SortingState } from "@tanstack/react-table";
-import { FC, memo, useCallback, useEffect, useMemo } from "react";
+import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
@@ -27,6 +27,9 @@ interface SampleListProps {
   running: boolean;
   /** Row layout. `true` = list-style multi-line rows; `false` = compact. */
   multiline?: boolean;
+  /** Forwarded to the grid's scroll container so the title bar collapses on
+   *  scroll (title-view collapse-on-scroll listens via `useScrollDirection`). */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
@@ -42,6 +45,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     totalItemCount,
     running,
     multiline,
+    scrollRef,
   } = props;
 
   const sampleNavigation = useSampleNavigation();
@@ -133,6 +137,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         multiline={multiline}
         getRowId={getRowId}
         selectedRowId={selectedRowId}
+        scrollRef={scrollRef}
         onRowOpen={handleRowOpen}
       />
       <SampleFooter

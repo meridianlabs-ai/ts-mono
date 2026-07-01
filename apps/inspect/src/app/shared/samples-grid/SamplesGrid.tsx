@@ -1,5 +1,11 @@
 import type { SortingState } from "@tanstack/react-table";
-import { ReactElement, useCallback, useMemo, useState } from "react";
+import {
+  ReactElement,
+  RefObject,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 
 import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
@@ -35,6 +41,9 @@ interface SamplesGridProps {
   getRowId: (row: SampleRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
+  /** Forwarded to the DataGrid's scroll container so the title bar can
+   *  collapse on scroll. */
+  scrollRef?: RefObject<HTMLDivElement | null>;
   onRowOpen: (row: SampleRow) => void;
   loading?: boolean;
 }
@@ -52,6 +61,7 @@ export const SamplesGrid = ({
   defaultSorting,
   getRowId,
   selectedRowId,
+  scrollRef,
   onRowOpen,
   loading,
 }: SamplesGridProps): ReactElement => {
@@ -131,6 +141,7 @@ export const SamplesGrid = ({
       columnFilters={columnFilters}
       onColumnFilterChange={handleColumnFilterChange}
       selectedRowId={selectedRowId}
+      scrollRef={scrollRef}
       onRowActivate={onRowOpen}
       rowHeight={rowHeight}
       loading={loading}
