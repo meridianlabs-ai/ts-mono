@@ -38,6 +38,16 @@ const kHeaderHeight = 25;
 // Tall enough to host a rotated score-column label (≈92px of vertical
 // extent for a 130px label at 45°) plus breathing room.
 const kRotatedHeaderHeight = 115;
+
+/** Full-text header tooltip (native `title`), shown on hover — useful when the
+ *  header label is truncated (regular ellipsis or a narrow rotated label).
+ *  Prefers an explicit `headerTitle`, else the string header text. */
+function resolveHeaderTitle<TRow>(
+  columnDef: ExtendedColumnDef<TRow>
+): string | undefined {
+  if (columnDef.headerTitle) return columnDef.headerTitle;
+  return typeof columnDef.header === "string" ? columnDef.header : undefined;
+}
 // Extra scroll width past the last column so its rotated label, which
 // fans up-and-right beyond the column edge, isn't clipped at max scroll.
 const kRotatedTrailingPad = 95;
@@ -353,7 +363,7 @@ export function DataGrid<TRow>({
                       anyRotated && styles.headerCellTall
                     )}
                     style={{ width: header.getSize() }}
-                    title={columnDef.headerTitle}
+                    title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
                   >
                     <div
@@ -478,7 +488,6 @@ function RotatedHeaderCell<TRow>({
     <div
       className={clsx(styles.headerCell, styles.headerCellRotated)}
       style={{ width: header.getSize() }}
-      title={columnDef.headerTitle}
       role="columnheader"
     >
       <div
@@ -486,6 +495,10 @@ function RotatedHeaderCell<TRow>({
           styles.rotatedLabel,
           filterCondition && styles.rotatedLabelFiltered
         )}
+        // Native tooltip lives on the label (the outer cell is
+        // pointer-events: none, so a title there would never fire) — shows
+        // the full name when the narrow rotated label truncates it.
+        title={resolveHeaderTitle(columnDef)}
         onClick={header.column.getToggleSortingHandler()}
       >
         <span className={styles.rotatedText}>{headerLabel}</span>
