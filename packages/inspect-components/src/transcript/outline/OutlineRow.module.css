@@ -50,6 +50,31 @@
   margin-left: 0.3em !important;
 }
 
+.loadingRow {
+  cursor: default;
+}
+
+.spinner {
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  animation: outline-spin 0.8s linear infinite;
+}
+
+@keyframes outline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .popover {
   min-width: 300px;
   max-width: 80%;

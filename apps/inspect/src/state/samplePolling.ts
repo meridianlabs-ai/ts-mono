@@ -51,6 +51,7 @@ interface PollingState {
 
   eventMapping: Record<string, number>;
   events: Event[];
+  reachedLive: boolean;
 }
 
 export function createSamplePolling(
@@ -77,6 +78,7 @@ export function createSamplePolling(
     messagePoolEntryIds: new Set(),
     callPoolEntryIds: new Set(),
     events: [],
+    reachedLive: false,
   };
 
   // Function to start polling for a specific log file
@@ -141,6 +143,7 @@ export function createSamplePolling(
           sampleActions.setSampleError(error);
           sampleActions.setSampleStatus("error");
           sampleActions.setRunningEvents([]);
+          sampleActions.setBackfilling(false);
           return false;
         };
 
@@ -174,6 +177,7 @@ export function createSamplePolling(
             sampleActions.setSelectedSample(migratedSample, logFile);
             sampleActions.setSampleStatus("ok");
             sampleActions.setRunningEvents([]);
+            sampleActions.setBackfilling(false);
             return false;
           }
 
@@ -246,6 +250,13 @@ export function createSamplePolling(
           return false;
         }
         sampleActions.setSampleStatus("streaming");
+
+        const backfill = computeBackfilling(
+          sampleDataResponse.has_more,
+          pollingState.reachedLive
+        );
+        pollingState.reachedLive = backfill.reachedLive;
+        sampleActions.setBackfilling(backfill.backfilling);
 
         // Process attachments
         processAttachments(sampleDataResponse.sampleData, pollingState);
@@ -375,6 +386,22 @@ const findLiveSummary = (
   );
 };
 
+export interface BackfillResult {
+  backfilling: boolean;
+  reachedLive: boolean;
+}
+
+// Latch to live: once caught up, a transient has_more must not flip back to loading.
+export const computeBackfilling = (
+  hasMore: boolean | undefined,
+  reachedLive: boolean
+): BackfillResult => {
+  if (reachedLive || hasMore !== true) {
+    return { backfilling: false, reachedLive: true };
+  }
+  return { backfilling: true, reachedLive: false };
+};
+
 export const hasSampleDataUpdates = (sampleData?: SampleData) => {
   if (!sampleData) {
     return false;
@@ -427,6 +454,7 @@ const resetPollingState = (state: PollingState) => {
   state.messagePoolEntryIds.clear();
   state.callPoolEntryIds.clear();
   state.events = [];
+  state.reachedLive = false;
 };
 
 function processAttachments(

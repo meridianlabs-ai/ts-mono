@@ -167,6 +167,8 @@ export interface SampleState {
   sampleNeedsReload: number;
   eventsCleared: boolean;
   downloadProgress?: Progress;
+  // True while the initial event backlog is still loading (direct/S3 transport).
+  backfilling: boolean;
 
   visiblePopover?: string;
 

@@ -389,6 +389,7 @@ export const useSampleData = () => {
   const runningEvents = useStore(
     (state) => state.sample.runningEvents
   ) as Events;
+  const backfilling = useStore((state) => state.sample.backfilling);
   const downloadProgress = useStore((state) => state.sample.downloadProgress);
   return useMemo(() => {
     return {
@@ -399,6 +400,7 @@ export const useSampleData = () => {
       getSelectedSample,
       eventsCleared,
       running: runningEvents,
+      backfilling,
       downloadProgress,
     };
   }, [
@@ -409,6 +411,7 @@ export const useSampleData = () => {
     sampleNeedsReload,
     eventsCleared,
     runningEvents,
+    backfilling,
     downloadProgress,
   ]);
 };

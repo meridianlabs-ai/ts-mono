@@ -137,6 +137,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const eventsCleared = sampleData.eventsCleared;
 
   const runningSampleData = sampleData.running;
+  const backfilling = sampleData.backfilling;
 
   const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
   const { setDocumentTitle } = useDocumentTitle();
@@ -820,6 +821,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollRef={scrollRef}
                     offsetTop={stickyOffsetTop}
                     running={running}
+                    backfilling={backfilling}
                     events={sampleEvents}
                     timelines={sample?.timelines ?? undefined}
                     eventNodeContext={transcriptEventNodeContext}
@@ -867,6 +869,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   scrollRef={scrollRef}
                   tools={chatTools}
                   running={running}
+                  backfilling={backfilling}
                   className={styles.fullWidth}
                 />
               </RailSidebarHost>
