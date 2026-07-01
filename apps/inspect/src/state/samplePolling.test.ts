@@ -216,6 +216,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {
@@ -284,6 +285,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {
@@ -379,6 +381,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {
@@ -429,6 +432,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {
@@ -478,6 +482,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {
@@ -509,6 +514,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     // Live store state: pending samples include the same sample with `error`.
@@ -576,6 +582,7 @@ describe("createSamplePolling", () => {
       setSampleStatus: vi.fn(),
       setSampleError: vi.fn(),
       setRunningEvents: vi.fn(),
+      setBackfilling: vi.fn(),
     };
 
     const state = {

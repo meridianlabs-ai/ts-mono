@@ -82,6 +82,7 @@ export interface SampleSlice {
 
     // Used by samplePolling to update running events
     setRunningEvents: (events: Event[]) => void;
+    setBackfilling: (backfilling: boolean) => void;
   };
 }
 
@@ -96,6 +97,7 @@ const initialState: SampleState = {
   sampleError: undefined,
   eventsCleared: false,
   downloadProgress: undefined,
+  backfilling: false,
 
   visiblePopover: undefined,
 
@@ -177,6 +179,7 @@ export const createSampleSlice = (
           state.sample.selectedSampleObject = undefined;
           state.sample.sampleInState = false;
           state.sample.runningEvents = [];
+          state.sample.backfilling = false;
           state.sample.sampleStatus = "ok";
           state.sample.downloadProgress = undefined;
           state.sample.timelineSelected = null;
@@ -199,6 +202,7 @@ export const createSampleSlice = (
           state.sample.selectedSampleObject = undefined;
           state.sample.sampleInState = false;
           state.sample.runningEvents = [];
+          state.sample.backfilling = false;
           state.sample.sampleStatus = "loading";
           state.sample.sampleError = undefined;
           state.sample.timelineSelected = null;
@@ -331,6 +335,7 @@ export const createSampleSlice = (
           state.sample.selectedSampleObject = undefined;
           state.sample.sampleInState = false;
           state.sample.runningEvents = [];
+          state.sample.backfilling = false;
           // Set the new sample identifier for the sample we're about to poll
           state.sample.sample_identifier = {
             id,
@@ -351,6 +356,11 @@ export const createSampleSlice = (
       setRunningEvents: (events: Event[]) => {
         set((state) => {
           state.sample.runningEvents = events;
+        });
+      },
+      setBackfilling: (backfilling: boolean) => {
+        set((state) => {
+          state.sample.backfilling = backfilling;
         });
       },
     },

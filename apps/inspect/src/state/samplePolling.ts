@@ -51,6 +51,7 @@ interface PollingState {
 
   eventMapping: Record<string, number>;
   events: Event[];
+  reachedLive: boolean;
 }
 
 export function createSamplePolling(
@@ -77,6 +78,7 @@ export function createSamplePolling(
     messagePoolEntryIds: new Set(),
     callPoolEntryIds: new Set(),
     events: [],
+    reachedLive: false,
   };
 
   // Function to start polling for a specific log file
@@ -246,6 +248,13 @@ export function createSamplePolling(
           return false;
         }
         sampleActions.setSampleStatus("streaming");
+
+        const backfill = computeBackfilling(
+          sampleDataResponse.has_more,
+          pollingState.reachedLive
+        );
+        pollingState.reachedLive = backfill.reachedLive;
+        sampleActions.setBackfilling(backfill.backfilling);
 
         // Process attachments
         processAttachments(sampleDataResponse.sampleData, pollingState);
@@ -443,6 +452,7 @@ const resetPollingState = (state: PollingState) => {
   state.messagePoolEntryIds.clear();
   state.callPoolEntryIds.clear();
   state.events = [];
+  state.reachedLive = false;
 };
 
 function processAttachments(
