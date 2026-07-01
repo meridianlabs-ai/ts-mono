@@ -105,6 +105,18 @@
   padding-bottom: 6px;
 }
 
+/* In tall (rotated) mode the vertically-centered 60%-height separator becomes
+ * a ~69px line floating in the middle of the cell — it reaches up into the
+ * band where the previous column's angled label fans out and clashes with it.
+ * Drop it to the bottom and shorten it so it sits beside the bottom-aligned
+ * label, matching the AG grid. */
+.headerCellTall::before {
+  top: auto;
+  bottom: 0;
+  transform: none;
+  height: 22px;
+}
+
 /* Rotated (compact score) header cell: let the angled label overflow the
  * narrow cell, and drop the vertical separator — the label's diagonal
  * bottom border serves as the column divider instead. The cell box itself
