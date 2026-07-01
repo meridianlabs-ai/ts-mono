@@ -2,7 +2,6 @@ import clsx from "clsx";
 import {
   FC,
   memo,
-  ReactElement,
   ReactNode,
   RefObject,
   useCallback,
@@ -156,7 +155,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         ) {
           return (
             <div className={styles.generatingRow}>
-              {renderChatLiveIndicator(backfilling === true)}
+              {backfilling ? (
+                <LoadingEventsIndicator label="Loading messages" />
+              ) : (
+                <GeneratingIndicator />
+              )}
             </div>
           );
         }
@@ -179,7 +182,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
             />
             {toolExecuting ? (
               <div className={styles.generatingRow}>
-                {renderChatLiveIndicator(backfilling === true, "running")}
+                {backfilling ? (
+                  <LoadingEventsIndicator label="Loading messages" />
+                ) : (
+                  <GeneratingIndicator label="running" />
+                )}
               </div>
             ) : null}
           </>
@@ -204,10 +211,14 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     // message event arrives), and a finished one may be empty (e.g. an early
     // error, or messages cleared due to size limits).
     if (collapsedMessages.length === 0) {
-      return renderChatEmptyState({
-        running: running === true,
-        backfilling: backfilling === true,
-      });
+      if (backfilling) {
+        return <LoadingEventsIndicator label="Loading messages" />;
+      }
+      return running ? (
+        <NoContentsPanel text="Waiting for messages" busy />
+      ) : (
+        <NoContentsPanel text="No messages" />
+      );
     }
 
     return (
@@ -229,29 +240,3 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     );
   }
 );
-
-export const renderChatLiveIndicator = (
-  backfilling: boolean,
-  generatingLabel?: string
-): ReactElement =>
-  backfilling ? (
-    <LoadingEventsIndicator label="Loading messages" />
-  ) : (
-    <GeneratingIndicator label={generatingLabel} />
-  );
-
-export const renderChatEmptyState = ({
-  running,
-  backfilling,
-}: {
-  running: boolean;
-  backfilling: boolean;
-}): ReactElement => {
-  if (backfilling) {
-    return <LoadingEventsIndicator label="Loading messages" />;
-  }
-  if (running) {
-    return <NoContentsPanel text="Waiting for messages" busy />;
-  }
-  return <NoContentsPanel text="No messages" />;
-};
