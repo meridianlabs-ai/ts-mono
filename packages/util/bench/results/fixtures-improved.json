@@ -1,0 +1,466 @@
+{
+  "meta": {
+    "label": "fixtures-improved",
+    "date": "2026-07-01T21:44:36.106Z",
+    "commit": "5908db5",
+    "chromium": "141.0.7390.37",
+    "node": "v22.22.2"
+  },
+  "cases": [
+    {
+      "name": "fixture-avatar-hard_epoch_15",
+      "kind": "fixture",
+      "targetBytes": 18465870,
+      "actualBytes": 18465870,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 44.5,
+            "min": 43.89999999990687,
+            "max": 45.799999999813735
+          },
+          "blockedMs": {
+            "median": 44.800000000046566,
+            "min": 44.0999999998603,
+            "max": 46.10000000009313
+          },
+          "maxBlockMs": {
+            "median": 44.800000000046566,
+            "max": 46.10000000009313
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 169.5,
+            "min": 149.80000000004657,
+            "max": 178
+          },
+          "blockedMs": {
+            "median": 46.299999999813735,
+            "min": 45.10000000009313,
+            "max": 54.60000000009313
+          },
+          "maxBlockMs": {
+            "median": 32.300000000046566,
+            "max": 39.5
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 181.69999999995343,
+            "min": 167.60000000009313,
+            "max": 215.10000000009313
+          },
+          "blockedMs": {
+            "median": 32.89999999990687,
+            "min": 31.699999999953434,
+            "max": 34.4000000001397
+          },
+          "maxBlockMs": {
+            "median": 32.89999999990687,
+            "max": 34.4000000001397
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-motp-hard_epoch_1",
+      "kind": "fixture",
+      "targetBytes": 17991289,
+      "actualBytes": 17991289,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 43.10000000009313,
+            "min": 42.9000000001397,
+            "max": 49
+          },
+          "blockedMs": {
+            "median": 43.199999999953434,
+            "min": 43,
+            "max": 49.300000000046566
+          },
+          "maxBlockMs": {
+            "median": 43.199999999953434,
+            "max": 49.300000000046566
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 137.0999999998603,
+            "min": 126.80000000004657,
+            "max": 149
+          },
+          "blockedMs": {
+            "median": 38.8000000002794,
+            "min": 38.10000000032596,
+            "max": 41.60000000009313
+          },
+          "maxBlockMs": {
+            "median": 25.9000000001397,
+            "max": 28.5
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 166.5999999998603,
+            "min": 143,
+            "max": 194.80000000004657
+          },
+          "blockedMs": {
+            "median": 24.800000000046566,
+            "min": 24.5,
+            "max": 25.5
+          },
+          "maxBlockMs": {
+            "median": 24.800000000046566,
+            "max": 25.5
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-motp-hard_epoch_14",
+      "kind": "fixture",
+      "targetBytes": 18183236,
+      "actualBytes": 18183236,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 43.800000000046566,
+            "min": 43.5999999998603,
+            "max": 45.39999999990687
+          },
+          "blockedMs": {
+            "median": 44,
+            "min": 43.699999999953434,
+            "max": 45.5999999998603
+          },
+          "maxBlockMs": {
+            "median": 44,
+            "max": 45.5999999998603
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 142.10000000009313,
+            "min": 136,
+            "max": 171.89999999990687
+          },
+          "blockedMs": {
+            "median": 43.10000000009313,
+            "min": 41,
+            "max": 46
+          },
+          "maxBlockMs": {
+            "median": 29.699999999953434,
+            "max": 32.300000000046566
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 164.19999999995343,
+            "min": 159.39999999990687,
+            "max": 207.20000000018626
+          },
+          "blockedMs": {
+            "median": 28.399999999906868,
+            "min": 28.0999999998603,
+            "max": 29.200000000186265
+          },
+          "maxBlockMs": {
+            "median": 28.399999999906868,
+            "max": 29.200000000186265
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-robust_cbc-hard_epoch_2",
+      "kind": "fixture",
+      "targetBytes": 18366462,
+      "actualBytes": 18366462,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 42.60000000009313,
+            "min": 42.300000000046566,
+            "max": 42.700000000186265
+          },
+          "blockedMs": {
+            "median": 42.800000000046566,
+            "min": 42.5,
+            "max": 42.89999999990687
+          },
+          "maxBlockMs": {
+            "median": 42.800000000046566,
+            "max": 42.89999999990687
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 155.60000000009313,
+            "min": 149.30000000004657,
+            "max": 163.20000000018626
+          },
+          "blockedMs": {
+            "median": 50.9000000001397,
+            "min": 50.5,
+            "max": 52.99999999976717
+          },
+          "maxBlockMs": {
+            "median": 37.300000000046566,
+            "max": 39.5999999998603
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 183.10000000009313,
+            "min": 174.5999999998603,
+            "max": 202.60000000009313
+          },
+          "blockedMs": {
+            "median": 37.4000000001397,
+            "min": 37.300000000046566,
+            "max": 37.5999999998603
+          },
+          "maxBlockMs": {
+            "median": 37.4000000001397,
+            "max": 37.5999999998603
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-robust_cbc-hard_epoch_7",
+      "kind": "fixture",
+      "targetBytes": 31375874,
+      "actualBytes": 31375874,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 72.29999999981374,
+            "min": 71.5999999998603,
+            "max": 78.9000000001397
+          },
+          "blockedMs": {
+            "median": 72.5,
+            "min": 71.80000000004657,
+            "max": 79.10000000009313
+          },
+          "maxBlockMs": {
+            "median": 72.5,
+            "max": 79.10000000009313
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 299.80000000004657,
+            "min": 265.19999999995343,
+            "max": 320.10000000009313
+          },
+          "blockedMs": {
+            "median": 107.30000000004657,
+            "min": 94.39999999990687,
+            "max": 120.30000000004657
+          },
+          "maxBlockMs": {
+            "median": 74.80000000004657,
+            "max": 97.9000000001397
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 369.5999999998603,
+            "min": 361.4000000001397,
+            "max": 413.89999999990687
+          },
+          "blockedMs": {
+            "median": 96.4000000001397,
+            "min": 82.79999999981374,
+            "max": 114.5
+          },
+          "maxBlockMs": {
+            "median": 71.0999999998603,
+            "max": 72.9000000001397
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-scout_transcript_events",
+      "kind": "fixture",
+      "targetBytes": 185709531,
+      "actualBytes": 185709531,
+      "apis": {
+        "syncParse": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 1553.5,
+            "min": 1552.8000000000466,
+            "max": 1573.8999999999069
+          },
+          "blockedMs": {
+            "median": 1553.8000000000466,
+            "min": 1553,
+            "max": 1574.0999999998603
+          },
+          "maxBlockMs": {
+            "median": 1553.8000000000466,
+            "max": 1574.0999999998603
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 3609.3000000000466,
+            "min": 3425.100000000093,
+            "max": 3651.6999999999534
+          },
+          "blockedMs": {
+            "median": 1700.3999999999069,
+            "min": 1698,
+            "max": 1878.3000000000466
+          },
+          "maxBlockMs": {
+            "median": 1567.6999999999534,
+            "max": 1679.3999999999069
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 4530,
+            "min": 4507.699999999953,
+            "max": 5006.700000000186
+          },
+          "blockedMs": {
+            "median": 2452.0999999998603,
+            "min": 2418.1999999997206,
+            "max": 2759.8000000000466
+          },
+          "maxBlockMs": {
+            "median": 1992.4000000001397,
+            "max": 2031
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-summaries",
+      "kind": "fixture",
+      "targetBytes": 310839,
+      "actualBytes": 310839,
+      "apis": {
+        "syncParse": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 0.7100000000093132,
+            "min": 0.6799999999813735,
+            "max": 1.0200000000186265
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 3.6000000000931323,
+            "max": 5.100000000093132
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 2.5100000000093132,
+            "min": 2.440000000037253,
+            "max": 3.1200000000186265
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 1.099999999976717,
+            "max": 1.2000000001862645
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 2.189999999990687,
+            "min": 2.1399999999906867,
+            "max": 2.48000000002794
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 0.9000000001396984,
+            "max": 1
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "meta": {
     "label": "improved",
-    "date": "2026-07-01T21:07:57.902Z",
-    "commit": "6c6c9e5",
+    "date": "2026-07-01T21:42:58.066Z",
+    "commit": "5908db5",
     "chromium": "141.0.7390.37",
     "node": "v22.22.2"
   },
@@ -18,27 +18,8 @@
           "innerReps": 500,
           "verified": true,
           "totalMs": {
-            "median": 0.0008000000000465661,
-            "min": 0.0005999999998603016,
-            "max": 0.0011999999999534338
-          },
-          "blockedMs": {
-            "median": 0,
-            "min": 0,
-            "max": 0
-          },
-          "maxBlockMs": {
-            "median": 0.5,
-            "max": 0.5999999999767169
-          }
-        },
-        "asyncJsonParse": {
-          "iterations": 15,
-          "innerReps": 500,
-          "verified": true,
-          "totalMs": {
-            "median": 0.001,
-            "min": 0.0008000000000465661,
+            "median": 0.0007999999998137355,
+            "min": 0.0007999999998137355,
             "max": 0.0013999999999068677
           },
           "blockedMs": {
@@ -47,8 +28,27 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 0.5999999999767169,
-            "max": 0.7000000000698492
+            "median": 0.5,
+            "max": 0.8000000000465661
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 15,
+          "innerReps": 500,
+          "verified": true,
+          "totalMs": {
+            "median": 0.001,
+            "min": 0.0007999999998137355,
+            "max": 0.001400000000372529
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 0.6000000000931323,
+            "max": 0.7000000001862645
           }
         },
         "asyncJsonParseBytes": {
@@ -57,8 +57,8 @@
           "verified": true,
           "totalMs": {
             "median": 0.0023999999999068677,
-            "min": 0.002199999999953434,
-            "max": 0.003
+            "min": 0.0021999999997206034,
+            "max": 0.0027999999998137353
           },
           "blockedMs": {
             "median": 0,
@@ -67,7 +67,7 @@
           },
           "maxBlockMs": {
             "median": 1.1999999999534339,
-            "max": 1.5
+            "max": 1.3999999999068677
           }
         }
       }
@@ -83,9 +83,9 @@
           "innerReps": 100,
           "verified": true,
           "totalMs": {
-            "median": 0.02099999999976717,
-            "min": 0.02,
-            "max": 0.023000000000465662
+            "median": 0.020999999998603015,
+            "min": 0.019000000001396983,
+            "max": 0.026999999999534337
           },
           "blockedMs": {
             "median": 0,
@@ -94,7 +94,7 @@
           },
           "maxBlockMs": {
             "median": 2.1000000000931323,
-            "max": 2.300000000046566
+            "max": 2.699999999953434
           }
         },
         "asyncJsonParse": {
@@ -102,9 +102,9 @@
           "innerReps": 100,
           "verified": true,
           "totalMs": {
-            "median": 0.02099999999976717,
+            "median": 0.021000000000931322,
             "min": 0.02,
-            "max": 0.022000000000698492
+            "max": 0.03799999999813736
           },
           "blockedMs": {
             "median": 0,
@@ -113,7 +113,7 @@
           },
           "maxBlockMs": {
             "median": 2.199999999953434,
-            "max": 2.200000000069849
+            "max": 3.7999999998137355
           }
         },
         "asyncJsonParseBytes": {
@@ -121,8 +121,8 @@
           "innerReps": 100,
           "verified": true,
           "totalMs": {
-            "median": 0.027999999999301507,
-            "min": 0.025999999999767168,
+            "median": 0.028000000000465663,
+            "min": 0.027999999998137355,
             "max": 0.033000000000465664
           },
           "blockedMs": {
@@ -131,8 +131,8 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 2.800000000046566,
-            "max": 3.5
+            "median": 2.9000000001396984,
+            "max": 3.300000000046566
           }
         }
       }
@@ -148,9 +148,9 @@
           "innerReps": 10,
           "verified": true,
           "totalMs": {
-            "median": 0.2,
-            "min": 0.1900000000023283,
-            "max": 0.2099999999976717
+            "median": 0.20999999998603017,
+            "min": 0.2,
+            "max": 0.22000000001862646
           },
           "blockedMs": {
             "median": 0,
@@ -158,8 +158,8 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 2.099999999976717,
-            "max": 2.199999999953434
+            "median": 2.1000000000931323,
+            "max": 2.2000000001862645
           }
         },
         "asyncJsonParse": {
@@ -167,9 +167,9 @@
           "innerReps": 10,
           "verified": true,
           "totalMs": {
-            "median": 0.8400000000023283,
-            "min": 0.7700000000069849,
-            "max": 0.9800000000046566
+            "median": 0.8649999999906868,
+            "min": 0.7899999999906868,
+            "max": 0.9699999999953434
           },
           "blockedMs": {
             "median": 0,
@@ -177,7 +177,7 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 0.40000000002328306,
+            "median": 0.4000000001396984,
             "max": 0.5
           }
         },
@@ -186,9 +186,9 @@
           "innerReps": 10,
           "verified": true,
           "totalMs": {
-            "median": 0.8149999999965075,
-            "min": 0.7800000000046566,
-            "max": 0.870000000006985
+            "median": 0.8349999999976716,
+            "min": 0.8100000000093133,
+            "max": 0.9
           },
           "blockedMs": {
             "median": 0,
@@ -196,7 +196,7 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 0.40000000002328306,
+            "median": 0.4000000001396984,
             "max": 0.5
           }
         }
@@ -213,8 +213,8 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 2.199999999953434,
-            "min": 2.099999999976717,
+            "median": 2.150000000023283,
+            "min": 2.0999999998603016,
             "max": 2.300000000046566
           },
           "blockedMs": {
@@ -232,9 +232,9 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 7.25,
-            "min": 7,
-            "max": 7.699999999953434
+            "median": 7.600000000093132,
+            "min": 7.5,
+            "max": 8.100000000093132
           },
           "blockedMs": {
             "median": 0,
@@ -242,8 +242,8 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 2.2000000000116415,
-            "max": 2.400000000023283
+            "median": 2.5,
+            "max": 2.6000000000931323
           }
         },
         "asyncJsonParseBytes": {
@@ -251,9 +251,9 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 7.5,
-            "min": 7.400000000023283,
-            "max": 7.599999999976717
+            "median": 7.849999999976717,
+            "min": 7.7000000001862645,
+            "max": 8.099999999860302
           },
           "blockedMs": {
             "median": 0,
@@ -261,8 +261,8 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 2.300000000046566,
-            "max": 2.3999999999068677
+            "median": 2.5,
+            "max": 2.6000000000931323
           }
         }
       }
@@ -278,18 +278,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 22.400000000023283,
-            "min": 22.300000000046566,
-            "max": 23.399999999906868
+            "median": 22.399999999906868,
+            "min": 22.199999999953434,
+            "max": 22.5
           },
           "blockedMs": {
-            "median": 22.599999999976717,
-            "min": 22.400000000023283,
-            "max": 23.5
+            "median": 22.5,
+            "min": 22.5,
+            "max": 22.699999999953434
           },
           "maxBlockMs": {
-            "median": 22.599999999976717,
-            "max": 23.5
+            "median": 22.5,
+            "max": 22.699999999953434
           }
         },
         "asyncJsonParse": {
@@ -297,18 +297,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 90.40000000002328,
-            "min": 82.30000000004657,
-            "max": 96.19999999995343
+            "median": 104.60000000009313,
+            "min": 92.69999999995343,
+            "max": 111.70000000018626
           },
           "blockedMs": {
-            "median": 23.400000000023283,
-            "min": 22.5,
-            "max": 26
+            "median": 26.899999999906868,
+            "min": 26.300000000046566,
+            "max": 27.600000000093132
           },
           "maxBlockMs": {
-            "median": 23.400000000023283,
-            "max": 26
+            "median": 26.899999999906868,
+            "max": 27.600000000093132
           }
         },
         "asyncJsonParseBytes": {
@@ -316,18 +316,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 86.40000000002328,
-            "min": 83.79999999993015,
-            "max": 93.90000000002328
+            "median": 97.39999999990687,
+            "min": 93.60000000009313,
+            "max": 122.80000000004657
           },
           "blockedMs": {
-            "median": 24,
-            "min": 22.599999999976717,
-            "max": 25.5
+            "median": 26.299999999813735,
+            "min": 26.199999999953434,
+            "max": 27.5999999998603
           },
           "maxBlockMs": {
-            "median": 24,
-            "max": 25.5
+            "median": 26.299999999813735,
+            "max": 27.5999999998603
           }
         }
       }
@@ -343,18 +343,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 25,
-            "min": 24.29999999993015,
-            "max": 25.300000000046566
+            "median": 24.199999999953434,
+            "min": 24.100000000093132,
+            "max": 24.5
           },
           "blockedMs": {
-            "median": 25,
-            "min": 24.29999999993015,
-            "max": 25.400000000023283
+            "median": 24.300000000046566,
+            "min": 24.199999999953434,
+            "max": 24.5
           },
           "maxBlockMs": {
-            "median": 25,
-            "max": 25.400000000023283
+            "median": 24.300000000046566,
+            "max": 24.5
           }
         },
         "asyncJsonParse": {
@@ -362,18 +362,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 50.70000000006985,
-            "min": 50.59999999997672,
-            "max": 73.40000000002328
+            "median": 52,
+            "min": 51.5999999998603,
+            "max": 52.4000000001397
           },
           "blockedMs": {
-            "median": 11.900000000023283,
-            "min": 11.70000000006985,
-            "max": 12
+            "median": 12.099999999860302,
+            "min": 11.899999999906868,
+            "max": 12.300000000046566
           },
           "maxBlockMs": {
-            "median": 11.900000000023283,
-            "max": 12
+            "median": 12.099999999860302,
+            "max": 12.300000000046566
           }
         },
         "asyncJsonParseBytes": {
@@ -381,18 +381,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 55.59999999997672,
-            "min": 51.59999999997672,
-            "max": 76.39999999990687
+            "median": 54.89999999990687,
+            "min": 53.699999999953434,
+            "max": 62.5999999998603
           },
           "blockedMs": {
-            "median": 11.900000000023283,
-            "min": 11.599999999976717,
-            "max": 12
+            "median": 12.5,
+            "min": 11.800000000046566,
+            "max": 18.5
           },
           "maxBlockMs": {
-            "median": 11.900000000023283,
-            "max": 12
+            "median": 12.5,
+            "max": 18.5
           }
         }
       }
@@ -408,18 +408,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 16.699999999953434,
-            "min": 16.29999999993015,
-            "max": 17
+            "median": 16.300000000046566,
+            "min": 16.199999999953434,
+            "max": 16.5
           },
           "blockedMs": {
-            "median": 16.79999999993015,
-            "min": 16.5,
-            "max": 17
+            "median": 16.5,
+            "min": 16.4000000001397,
+            "max": 16.5
           },
           "maxBlockMs": {
-            "median": 16.79999999993015,
-            "max": 17
+            "median": 16.5,
+            "max": 16.5
           }
         },
         "asyncJsonParse": {
@@ -427,18 +427,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 78,
-            "min": 62.800000000046566,
-            "max": 114.59999999997672
+            "median": 76.89999999990687,
+            "min": 69,
+            "max": 87.89999999990687
           },
           "blockedMs": {
-            "median": 24.399999999906868,
-            "min": 23.5,
-            "max": 31
+            "median": 29.899999999906868,
+            "min": 28.5999999998603,
+            "max": 30.699999999953434
           },
           "maxBlockMs": {
-            "median": 24.399999999906868,
-            "max": 31
+            "median": 29.899999999906868,
+            "max": 30.699999999953434
           }
         },
         "asyncJsonParseBytes": {
@@ -446,18 +446,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 82.29999999993015,
-            "min": 63.09999999997672,
-            "max": 92.30000000004657
+            "median": 70.39999999990687,
+            "min": 69.5,
+            "max": 87.89999999990687
           },
           "blockedMs": {
-            "median": 23.599999999976717,
-            "min": 23.199999999953434,
-            "max": 24.5
+            "median": 28.399999999906868,
+            "min": 28.199999999953434,
+            "max": 29.100000000093132
           },
           "maxBlockMs": {
-            "median": 23.599999999976717,
-            "max": 24.5
+            "median": 28.399999999906868,
+            "max": 29.100000000093132
           }
         }
       }
@@ -473,18 +473,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 62,
-            "min": 55.09999999997672,
-            "max": 64.59999999997672
+            "median": 54.9000000001397,
+            "min": 54.89999999990687,
+            "max": 61.300000000046566
           },
           "blockedMs": {
-            "median": 62.300000000046566,
-            "min": 55.40000000002328,
-            "max": 65.30000000004657
+            "median": 55.199999999953434,
+            "min": 55.10000000009313,
+            "max": 61.89999999990687
           },
           "maxBlockMs": {
-            "median": 62.300000000046566,
-            "max": 65.30000000004657
+            "median": 55.199999999953434,
+            "max": 61.89999999990687
           }
         },
         "asyncJsonParse": {
@@ -492,18 +492,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 213.09999999997672,
-            "min": 197.80000000004657,
-            "max": 214.59999999997672
+            "median": 230.5999999998603,
+            "min": 206.80000000004657,
+            "max": 265.89999999990687
           },
           "blockedMs": {
-            "median": 57.699999999953434,
-            "min": 56,
-            "max": 58.60000000009313
+            "median": 60.299999999813735,
+            "min": 58.300000000046566,
+            "max": 61.60000000009313
           },
           "maxBlockMs": {
-            "median": 39.29999999993015,
-            "max": 39.5
+            "median": 41.39999999990687,
+            "max": 41.4000000001397
           }
         },
         "asyncJsonParseBytes": {
@@ -511,18 +511,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 214.09999999997672,
-            "min": 208,
-            "max": 221.90000000002328
+            "median": 249.69999999995343,
+            "min": 240.4000000001397,
+            "max": 250.30000000004657
           },
           "blockedMs": {
-            "median": 62,
-            "min": 60.300000000046566,
-            "max": 75.5999999998603
+            "median": 62.300000000046566,
+            "min": 62.200000000186265,
+            "max": 63.800000000046566
           },
           "maxBlockMs": {
-            "median": 43.20000000006985,
-            "max": 58.199999999953434
+            "median": 43.300000000046566,
+            "max": 44.10000000009313
           }
         }
       }
@@ -538,18 +538,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 116.30000000004657,
-            "min": 114.70000000006985,
-            "max": 118.19999999995343
+            "median": 120.10000000009313,
+            "min": 115.5,
+            "max": 121.4000000001397
           },
           "blockedMs": {
-            "median": 116.60000000009313,
-            "min": 114.80000000004657,
-            "max": 118.5
+            "median": 120.5999999998603,
+            "min": 115.80000000004657,
+            "max": 121.69999999995343
           },
           "maxBlockMs": {
-            "median": 116.60000000009313,
-            "max": 118.5
+            "median": 120.5999999998603,
+            "max": 121.69999999995343
           }
         },
         "asyncJsonParse": {
@@ -557,18 +557,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 477.60000000009313,
-            "min": 436.79999999993015,
-            "max": 478.9000000000233
+            "median": 461.39999999990687,
+            "min": 451.30000000004657,
+            "max": 510.20000000018626
           },
           "blockedMs": {
-            "median": 182.70000000006985,
-            "min": 138.60000000009313,
-            "max": 195.80000000004657
+            "median": 147.5,
+            "min": 132.5,
+            "max": 186.4000000001397
           },
           "maxBlockMs": {
-            "median": 149.09999999997672,
-            "max": 161
+            "median": 111.10000000009313,
+            "max": 149.4000000001397
           }
         },
         "asyncJsonParseBytes": {
@@ -576,18 +576,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 450.5999999999767,
-            "min": 436.4000000000233,
-            "max": 458.9000000000233
+            "median": 499.60000000009313,
+            "min": 496,
+            "max": 529.5
           },
           "blockedMs": {
-            "median": 162.19999999995343,
-            "min": 143.4000000001397,
-            "max": 167.19999999995343
+            "median": 171.00000000023283,
+            "min": 163.10000000009313,
+            "max": 187.70000000018626
           },
           "maxBlockMs": {
-            "median": 96.70000000006985,
-            "max": 101.69999999995343
+            "median": 97.20000000018626,
+            "max": 101.30000000004657
           }
         }
       }
@@ -603,18 +603,18 @@
           "innerReps": 5,
           "verified": true,
           "totalMs": {
-            "median": 15.550000000011641,
-            "min": 13.779999999981374,
-            "max": 18.019999999995342
+            "median": 13.610000000009313,
+            "min": 13.339999999990686,
+            "max": 16.979999999981374
           },
           "blockedMs": {
-            "median": 15.609999999997672,
-            "min": 13.819999999995343,
-            "max": 18.060000000009314
+            "median": 13.660000000032596,
+            "min": 13.379999999981374,
+            "max": 17.020000000018626
           },
           "maxBlockMs": {
-            "median": 78.04999999998836,
-            "max": 90.30000000004657
+            "median": 68.30000000016298,
+            "max": 85.10000000009313
           }
         },
         "asyncJsonParse": {
@@ -622,28 +622,9 @@
           "innerReps": 5,
           "verified": true,
           "totalMs": {
-            "median": 18.259999999997675,
-            "min": 14.080000000004656,
-            "max": 53.7
-          },
-          "blockedMs": {
-            "median": 0,
-            "min": 0,
-            "max": 28.219999999995345
-          },
-          "maxBlockMs": {
-            "median": 0.9500000000116415,
-            "max": 20.800000000046566
-          }
-        },
-        "asyncJsonParseBytes": {
-          "iterations": 8,
-          "innerReps": 5,
-          "verified": true,
-          "totalMs": {
-            "median": 14.959999999997672,
-            "min": 14.480000000004656,
-            "max": 15.980000000004656
+            "median": 16.530000000004655,
+            "min": 14.160000000009314,
+            "max": 27.239999999990687
           },
           "blockedMs": {
             "median": 0,
@@ -651,8 +632,27 @@
             "max": 0
           },
           "maxBlockMs": {
-            "median": 0.9000000000232831,
-            "max": 1.900000000023283
+            "median": 0.9999999998835847,
+            "max": 7.699999999953434
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 8,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 14.860000000009313,
+            "min": 14.6,
+            "max": 15.21999999997206
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 0.8499999999767169,
+            "max": 0.9000000001396984
           }
         }
       }
@@ -668,18 +668,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 654.8000000000466,
-            "min": 650.8000000000466,
-            "max": 655.3000000000466
+            "median": 648.1000000000931,
+            "min": 647.6999999999534,
+            "max": 654.5
           },
           "blockedMs": {
-            "median": 655.0999999999767,
-            "min": 650.9000000000233,
-            "max": 655.7000000000698
+            "median": 648.5,
+            "min": 648.1000000000931,
+            "max": 654.6999999999534
           },
           "maxBlockMs": {
-            "median": 655.0999999999767,
-            "max": 655.7000000000698
+            "median": 648.5,
+            "max": 654.6999999999534
           }
         },
         "asyncJsonParse": {
@@ -687,18 +687,18 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 757.4000000000233,
-            "min": 753.6999999999534,
-            "max": 762.9000000000233
+            "median": 776.9000000001397,
+            "min": 764.8000000000466,
+            "max": 850
           },
           "blockedMs": {
-            "median": 30.20000000006985,
-            "min": 30.199999999953434,
-            "max": 30.600000000093132
+            "median": 54.10000000009313,
+            "min": 43.199999999953434,
+            "max": 60.5
           },
           "maxBlockMs": {
-            "median": 30.20000000006985,
-            "max": 30.600000000093132
+            "median": 54.10000000009313,
+            "max": 60.5
           }
         },
         "asyncJsonParseBytes": {
@@ -706,18 +706,473 @@
           "innerReps": 1,
           "verified": true,
           "totalMs": {
-            "median": 808.4000000000233,
-            "min": 796.2000000000698,
-            "max": 817.4000000000233
+            "median": 798.5,
+            "min": 786.6000000000931,
+            "max": 808.5
           },
           "blockedMs": {
-            "median": 30.599999999976717,
-            "min": 30.5,
-            "max": 31.599999999976717
+            "median": 30.300000000046566,
+            "min": 30.0999999998603,
+            "max": 31.100000000093132
           },
           "maxBlockMs": {
-            "median": 30.599999999976717,
-            "max": 31.599999999976717
+            "median": 30.300000000046566,
+            "max": 31.100000000093132
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-avatar-hard_epoch_15",
+      "kind": "fixture",
+      "targetBytes": 18465870,
+      "actualBytes": 18465870,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 44.699999999953434,
+            "min": 44.5,
+            "max": 44.800000000046566
+          },
+          "blockedMs": {
+            "median": 44.800000000046566,
+            "min": 44.800000000046566,
+            "max": 45.0999999998603
+          },
+          "maxBlockMs": {
+            "median": 44.800000000046566,
+            "max": 45.0999999998603
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 147.60000000009313,
+            "min": 146.30000000004657,
+            "max": 149.4000000001397
+          },
+          "blockedMs": {
+            "median": 53.10000000009313,
+            "min": 48.699999999953434,
+            "max": 54.5999999998603
+          },
+          "maxBlockMs": {
+            "median": 37.10000000009313,
+            "max": 39.5999999998603
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 185.0999999998603,
+            "min": 183.10000000009313,
+            "max": 194.80000000004657
+          },
+          "blockedMs": {
+            "median": 39.10000000009313,
+            "min": 32,
+            "max": 39.699999999953434
+          },
+          "maxBlockMs": {
+            "median": 39.10000000009313,
+            "max": 39.699999999953434
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-motp-hard_epoch_1",
+      "kind": "fixture",
+      "targetBytes": 17991289,
+      "actualBytes": 17991289,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 44.39999999990687,
+            "min": 44,
+            "max": 47
+          },
+          "blockedMs": {
+            "median": 44.60000000009313,
+            "min": 44.199999999953434,
+            "max": 47.199999999953434
+          },
+          "maxBlockMs": {
+            "median": 44.60000000009313,
+            "max": 47.199999999953434
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 132,
+            "min": 130,
+            "max": 142
+          },
+          "blockedMs": {
+            "median": 41.3000000002794,
+            "min": 40.4000000001397,
+            "max": 43.50000000023283
+          },
+          "maxBlockMs": {
+            "median": 26.9000000001397,
+            "max": 28.800000000046566
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 163.89999999990687,
+            "min": 147.80000000004657,
+            "max": 165.39999999990687
+          },
+          "blockedMs": {
+            "median": 25.300000000046566,
+            "min": 25.199999999953434,
+            "max": 29.399999999906868
+          },
+          "maxBlockMs": {
+            "median": 25.300000000046566,
+            "max": 29.399999999906868
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-motp-hard_epoch_14",
+      "kind": "fixture",
+      "targetBytes": 18183236,
+      "actualBytes": 18183236,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 45.5,
+            "min": 45.300000000046566,
+            "max": 46.60000000009313
+          },
+          "blockedMs": {
+            "median": 45.60000000009313,
+            "min": 45.300000000046566,
+            "max": 46.60000000009313
+          },
+          "maxBlockMs": {
+            "median": 45.60000000009313,
+            "max": 46.60000000009313
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 138.30000000004657,
+            "min": 137.5,
+            "max": 141.89999999990687
+          },
+          "blockedMs": {
+            "median": 46.5,
+            "min": 45.5999999998603,
+            "max": 49.699999999953434
+          },
+          "maxBlockMs": {
+            "median": 31.199999999953434,
+            "max": 34.300000000046566
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 165.20000000018626,
+            "min": 153.0999999998603,
+            "max": 171.89999999990687
+          },
+          "blockedMs": {
+            "median": 35.699999999953434,
+            "min": 31.300000000046566,
+            "max": 37
+          },
+          "maxBlockMs": {
+            "median": 35.699999999953434,
+            "max": 37
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-robust_cbc-hard_epoch_2",
+      "kind": "fixture",
+      "targetBytes": 18366462,
+      "actualBytes": 18366462,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 43.89999999990687,
+            "min": 43.800000000046566,
+            "max": 44.5
+          },
+          "blockedMs": {
+            "median": 44,
+            "min": 43.89999999990687,
+            "max": 44.699999999953434
+          },
+          "maxBlockMs": {
+            "median": 44,
+            "max": 44.699999999953434
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 159.4000000001397,
+            "min": 156.29999999981374,
+            "max": 159.5
+          },
+          "blockedMs": {
+            "median": 56.200000000186265,
+            "min": 54.10000000009313,
+            "max": 58
+          },
+          "maxBlockMs": {
+            "median": 41.10000000009313,
+            "max": 42
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 198,
+            "min": 172.89999999990687,
+            "max": 222.20000000018626
+          },
+          "blockedMs": {
+            "median": 38.5,
+            "min": 37.89999999990687,
+            "max": 38.89999999990687
+          },
+          "maxBlockMs": {
+            "median": 38.5,
+            "max": 38.89999999990687
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-robust_cbc-hard_epoch_7",
+      "kind": "fixture",
+      "targetBytes": 31375874,
+      "actualBytes": 31375874,
+      "apis": {
+        "syncParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 73.30000000004657,
+            "min": 73.19999999995343,
+            "max": 74.30000000004657
+          },
+          "blockedMs": {
+            "median": 73.60000000009313,
+            "min": 73.5,
+            "max": 74.5999999998603
+          },
+          "maxBlockMs": {
+            "median": 73.60000000009313,
+            "max": 74.5999999998603
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 275.0999999998603,
+            "min": 259.30000000004657,
+            "max": 295.5999999998603
+          },
+          "blockedMs": {
+            "median": 103.0999999998603,
+            "min": 96.4000000001397,
+            "max": 111.4000000001397
+          },
+          "maxBlockMs": {
+            "median": 77.69999999995343,
+            "max": 87.60000000009313
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 5,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 385,
+            "min": 353.4000000001397,
+            "max": 406.39999999990687
+          },
+          "blockedMs": {
+            "median": 98.19999999995343,
+            "min": 85,
+            "max": 111.70000000018626
+          },
+          "maxBlockMs": {
+            "median": 71.30000000004657,
+            "max": 72.30000000004657
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-scout_transcript_events",
+      "kind": "fixture",
+      "targetBytes": 185709531,
+      "actualBytes": 185709531,
+      "apis": {
+        "syncParse": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 1592.1000000000931,
+            "min": 1571.5999999998603,
+            "max": 1603.8000000000466
+          },
+          "blockedMs": {
+            "median": 1592.5,
+            "min": 1572,
+            "max": 1604.0999999998603
+          },
+          "maxBlockMs": {
+            "median": 1592.5,
+            "max": 1604.0999999998603
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 3623.399999999907,
+            "min": 3527.2000000001863,
+            "max": 3757.6999999999534
+          },
+          "blockedMs": {
+            "median": 1845.1999999999534,
+            "min": 1726.0999999998603,
+            "max": 1852.2000000001863
+          },
+          "maxBlockMs": {
+            "median": 1634.5999999998603,
+            "max": 1642.7000000001863
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 3,
+          "innerReps": 1,
+          "verified": true,
+          "totalMs": {
+            "median": 5145.899999999907,
+            "min": 4745.59999999986,
+            "max": 5233
+          },
+          "blockedMs": {
+            "median": 2960.2999999998137,
+            "min": 2713.8000000000466,
+            "max": 3072.0999999998603
+          },
+          "maxBlockMs": {
+            "median": 2304.3000000000466,
+            "max": 2316.2999999998137
+          }
+        }
+      }
+    },
+    {
+      "name": "fixture-summaries",
+      "kind": "fixture",
+      "targetBytes": 310839,
+      "actualBytes": 310839,
+      "apis": {
+        "syncParse": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 0.7200000000186264,
+            "min": 0.7199999999720603,
+            "max": 0.7399999999906868
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 3.700000000069849,
+            "max": 3.9000000001396984
+          }
+        },
+        "asyncJsonParse": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 3.080000000004657,
+            "min": 2.7199999999720603,
+            "max": 3.6599999999627473
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 1.1999999999534339,
+            "max": 4
+          }
+        },
+        "asyncJsonParseBytes": {
+          "iterations": 10,
+          "innerReps": 5,
+          "verified": true,
+          "totalMs": {
+            "median": 2.89000000001397,
+            "min": 2.559999999962747,
+            "max": 3.4799999999813735
+          },
+          "blockedMs": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "maxBlockMs": {
+            "median": 1,
+            "max": 2.9000000001396984
           }
         }
       }

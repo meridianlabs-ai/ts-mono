@@ -29,5 +29,12 @@ pnpm -C packages/util bench -- --compare baseline improved
 Results land in `bench/results/<label>.json`. `--compare` prints a markdown
 delta table for two saved labels.
 
+## Real payload fixtures
+
+Drop real `.json` files into `bench/fixtures/` (gitignored — large files stay
+out of history) and each becomes an extra case named `fixture-<name>`.
+`--fixtures-only` runs just those; `--fixtures <dir>` reads another directory.
+Unzip/gunzip archives first — only plain `.json` files are picked up.
+
 If the preinstalled Chromium doesn't match the `playwright-core` version, the
 runner falls back to `$CHROMIUM_PATH` or `/opt/pw-browsers/chromium`.

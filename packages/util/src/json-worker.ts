@@ -5,6 +5,11 @@ interface WorkerParseResponse {
   requestId: number;
   success: boolean;
   result?: unknown;
+  // Payload is strict JSON too large to clone efficiently — re-parse it on
+  // the main thread from sourceText (bytes input) or the retained request
+  // text (string input).
+  reparse?: boolean;
+  sourceText?: string;
   error?: string;
   stack?: string;
 }
@@ -13,6 +18,7 @@ interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   worker: Worker;
+  sourceText?: string;
 }
 
 // Pool of workers to parse JSON/JSON5 off the main thread
@@ -44,7 +50,7 @@ class JsonWorkerPool {
   }
 
   private handleMessage(e: MessageEvent) {
-    const { requestId, success, result, error, stack } =
+    const { requestId, success, result, reparse, sourceText, error, stack } =
       e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
@@ -52,7 +58,18 @@ class JsonWorkerPool {
     this.pendingRequests.delete(requestId);
 
     if (success) {
-      pending.resolve(result);
+      if (reparse) {
+        // The worker validated this as strict JSON; one JSON.parse here is
+        // the cheapest way to materialize a large result on this thread
+        // (structured clone of a big graph costs more — see kWorkerCode).
+        try {
+          pending.resolve(JSON.parse(sourceText ?? pending.sourceText ?? ""));
+        } catch (parseError) {
+          pending.reject(parseError as Error);
+        }
+      } else {
+        pending.resolve(result);
+      }
     } else {
       const err = new Error(error);
       if (stack) err.stack = stack;
@@ -72,9 +89,10 @@ class JsonWorkerPool {
 
   // Strings cross postMessage as a flat memcpy-style clone, which is much
   // cheaper than the TextEncoder.encode pass this used to do on the main
-  // thread before transferring.
+  // thread before transferring. The text is retained so a reparse response
+  // doesn't need to ship it back.
   async parse(text: string): Promise<unknown> {
-    return this.submit({ text });
+    return this.submit({ text }, [], text);
   }
 
   async parseBytes(data: Uint8Array): Promise<unknown> {
@@ -88,7 +106,8 @@ class JsonWorkerPool {
 
   private submit(
     payload: { text?: string; bytes?: Uint8Array },
-    transfer: Transferable[] = []
+    transfer: Transferable[] = [],
+    sourceText?: string
   ): Promise<unknown> {
     this.ensureWorkers();
 
@@ -96,7 +115,12 @@ class JsonWorkerPool {
     const worker = this.workers[requestId % this.workers.length]!;
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject, worker });
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        worker,
+        sourceText,
+      });
       worker.postMessage({ type: "parse", requestId, ...payload }, transfer);
     });
   }
@@ -111,6 +135,11 @@ class JsonWorkerPool {
     this.pendingRequests.clear();
   }
 }
+
+// Above this size, node-dense strict-JSON results skip the structured clone
+// and are re-parsed on the main thread instead (see kWorkerCode). Below it,
+// clone stalls are ~20ms or less and cloning avoids the second parse.
+const kReparseThresholdChars = 10_000_000;
 
 const workerPool = new JsonWorkerPool();
 
@@ -164,6 +193,34 @@ const kWorkerCode = `
 let JSON5 = null;
 const decoder = new TextDecoder();
 
+// Structural-density probe: node-dense graphs (millions of small objects)
+// have a high ratio of separators to bytes, string-heavy documents a low one
+// (real data: ~0.2+/byte for dense transcript events vs ~0.03 for eval logs;
+// prose commas inside strings stay well under the threshold). Sampled from
+// up to 3x256KB slices, so it's O(1)-ish and CPU-speed independent.
+function isDenseGraph(source) {
+  const sample = 262144;
+  const mid = (source.length - sample) >> 1;
+  const slices =
+    source.length <= 3 * sample
+      ? [source]
+      : [
+          source.slice(0, sample),
+          source.slice(mid, mid + sample),
+          source.slice(source.length - sample),
+        ];
+  let seps = 0;
+  let chars = 0;
+  for (const s of slices) {
+    chars += s.length;
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c === 44 || c === 58) seps++;
+    }
+  }
+  return seps / chars > 0.08;
+}
+
 self.onmessage = function (e) {
   const { type } = e.data || {};
 
@@ -192,6 +249,7 @@ self.onmessage = function (e) {
       const source = text !== undefined ? text : decoder.decode(bytes);
 
       let result = undefined;
+      let usedJson5 = false;
       try {
         // Optimistically, try a regular JSON parse first (this is much faster)
         result = JSON.parse(source);
@@ -199,13 +257,29 @@ self.onmessage = function (e) {
         // Surface the JSON error, not a null-JSON5 one, if init failed
         if (!JSON5) throw jsonError;
         result = JSON5.parse(source);
+        usedJson5 = true;
       }
 
-      // Structured clone hands the object graph straight to the main thread.
-      // Round-tripping through stringify + transfer + JSON.parse (as this
-      // used to do for large results) parses the payload twice and does the
-      // second parse on the main thread — the thread we're protecting.
-      postMessage({ requestId, success: true, result });
+      // Structured clone hands the object graph straight to the main thread,
+      // but its cost scales with node count: for big node-dense payloads it
+      // blocks the receiving thread longer than a plain JSON.parse of the
+      // source would (measured 4x total / 2x blocking on real 186MB
+      // transcript data — see bench/). For those, skip the clone and tell
+      // the main thread to run one JSON.parse itself — the cheapest possible
+      // materialization. String-heavy payloads keep the clone (cheaper than
+      // re-parsing), and JSON5 results must clone — JSON.parse can't
+      // re-parse the source.
+      if (!usedJson5 && source.length > ${kReparseThresholdChars} && isDenseGraph(source)) {
+        // string requests retain their text on the main thread; byte
+        // requests need the decoded source shipped back (a cheap flat clone)
+        if (text !== undefined) {
+          postMessage({ requestId, success: true, reparse: true });
+        } else {
+          postMessage({ requestId, success: true, reparse: true, sourceText: source });
+        }
+      } else {
+        postMessage({ requestId, success: true, result });
+      }
     } catch (err) {
       postMessage({
         requestId,

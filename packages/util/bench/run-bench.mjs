@@ -15,7 +15,15 @@
  * Results are written to bench/results/<label>.json.
  */
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -173,7 +181,27 @@ if (args.includes("--compare")) {
 
 const label = getFlag("--label") ?? "run";
 const quick = args.includes("--quick");
+const fixturesOnly = args.includes("--fixtures-only");
 const caseFilter = getFlag("--cases")?.split(",");
+
+// Real payload files (gitignored) become cases alongside the synthetic ones
+const fixturesDir = getFlag("--fixtures") ?? join(benchDir, "fixtures");
+const fixtureFiles = existsSync(fixturesDir)
+  ? readdirSync(fixturesDir)
+      .filter((f) => f.endsWith(".json"))
+      .sort()
+  : [];
+const fixtureCases = fixtureFiles.map((f) => {
+  const bytes = statSync(join(fixturesDir, f)).size;
+  return {
+    name: `fixture-${f.replace(/\.json$/, "")}`,
+    kind: "fixture",
+    file: f,
+    target: bytes,
+    iterations: bytes > 40_000_000 ? 3 : bytes > 1_000_000 ? 5 : 10,
+    innerReps: bytes < 1_000_000 ? 5 : 1,
+  };
+});
 
 const { build } = await import("esbuild");
 const { chromium } = await import("playwright-core");
@@ -198,6 +226,16 @@ const server = createServer((req, res) => {
   } else if (req.url === "/bench.js") {
     res.writeHead(200, { "content-type": "application/javascript" });
     res.end(bundleJs);
+  } else if (req.url?.startsWith("/fixture/")) {
+    const name = decodeURIComponent(req.url.slice("/fixture/".length));
+    // exact-match against the discovered list — no path traversal
+    if (fixtureFiles.includes(name)) {
+      res.writeHead(200, { "content-type": "application/json" });
+      createReadStream(join(fixturesDir, name)).pipe(res);
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
   } else {
     // 204 keeps favicon probes out of the console error stream
     res.writeHead(204);
@@ -241,7 +279,8 @@ await page.goto(`http://127.0.0.1:${port}/`);
 await page.waitForFunction(() => !!window.JsonWorkerBench);
 await page.evaluate(() => window.JsonWorkerBench.warmupPool());
 
-const cases = CASES.filter((c) =>
+const allCases = fixturesOnly ? fixtureCases : [...CASES, ...fixtureCases];
+const cases = allCases.filter((c) =>
   caseFilter
     ? caseFilter.includes(c.name)
     : quick
@@ -264,10 +303,16 @@ const results = {
 
 for (const c of cases) {
   process.stdout.write(`\n${c.name} (${c.kind}, target ${fmtBytes(c.target)})`);
-  const size = await page.evaluate(
-    ({ kind, target }) => window.JsonWorkerBench.generate(kind, target),
-    { kind: c.kind, target: c.target }
-  );
+  const size =
+    c.kind === "fixture"
+      ? await page.evaluate(
+          (url) => window.JsonWorkerBench.loadFixture(url),
+          `/fixture/${encodeURIComponent(c.file)}`
+        )
+      : await page.evaluate(
+          ({ kind, target }) => window.JsonWorkerBench.generate(kind, target),
+          { kind: c.kind, target: c.target }
+        );
   process.stdout.write(` actual ${fmtBytes(size.bytes)}\n`);
 
   const caseResult = {

@@ -247,6 +247,18 @@ const generate = (
   return { chars: payloadText.length, bytes: payloadBytes.length };
 };
 
+// Real-world payloads served by the bench runner from bench/fixtures/
+const loadFixture = async (
+  url: string
+): Promise<{ chars: number; bytes: number }> => {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`fixture fetch failed: ${resp.status}`);
+  payloadBytes = new Uint8Array(await resp.arrayBuffer());
+  payloadText = new TextDecoder().decode(payloadBytes);
+  refProbe = probeJson(syncParse(payloadText));
+  return { chars: payloadText.length, bytes: payloadBytes.length };
+};
+
 const syncParse = (text: string): unknown => {
   try {
     return JSON.parse(text);
@@ -322,6 +334,7 @@ declare global {
     JsonWorkerBench: {
       warmupPool: typeof warmupPool;
       generate: typeof generate;
+      loadFixture: typeof loadFixture;
       runCase: typeof runCase;
       releasePayload: typeof releasePayload;
       payloadKindCheck: () => PayloadKind;
@@ -332,6 +345,7 @@ declare global {
 window.JsonWorkerBench = {
   warmupPool,
   generate,
+  loadFixture,
   runCase,
   releasePayload,
   payloadKindCheck: () => payloadKind,

@@ -23,3 +23,6 @@ storybook-static/
 
 # Claude Code
 .claude/settings.local.json
+
+# Real-payload benchmark fixtures (large, local-only)
+packages/util/bench/fixtures/
