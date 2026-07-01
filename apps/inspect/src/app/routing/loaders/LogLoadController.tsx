@@ -29,9 +29,7 @@ export const LogLoadController: FC = () => {
         return;
       }
       try {
-        setLoading(true);
         await loadLog(selectedLogFile);
-        setLoading(false);
       } catch (e) {
         console.log(e);
         setLoading(false, e as Error);

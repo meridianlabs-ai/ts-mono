@@ -176,12 +176,8 @@ export const useRefreshLog = () => {
 
   return useCallback(() => {
     try {
-      setLoading(true);
-
       void refreshSelectedLog();
       resetFiltering();
-
-      setLoading(false);
     } catch (e) {
       // Show an error
       console.log(e);

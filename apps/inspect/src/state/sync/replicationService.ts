@@ -294,7 +294,7 @@ export class ReplicationService {
     }
   }
 
-  private async _syncImpl(progress?: boolean): Promise<LogHandle[]> {
+  private async _syncImpl(_progress?: boolean): Promise<LogHandle[]> {
     if (!this._database) {
       throw new Error("No database available for replication.");
     }
@@ -305,10 +305,6 @@ export class ReplicationService {
 
     if (!this._applicationContext) {
       throw new Error("No replication context available for replication.");
-    }
-
-    if (progress) {
-      this._applicationContext.setLoading(true);
     }
 
     // First query the list of logs
@@ -364,10 +360,6 @@ export class ReplicationService {
         this.queueLogDetails(serverLogs.files);
         this.queueLogPreviews(serverLogs.files);
 
-        if (progress) {
-          this._applicationContext.setLoading(false);
-        }
-
         return serverLogs.files;
       } else {
         // Activate the current log handles
@@ -383,10 +375,6 @@ export class ReplicationService {
           }
         }
         this.queueLogDetails(detailTasks);
-
-        if (progress) {
-          this._applicationContext.setLoading(false);
-        }
 
         return logFiles;
       }
@@ -461,10 +449,6 @@ export class ReplicationService {
     }
     this.queueLogDetails(detailTasks, WorkPriority.High);
 
-    if (progress) {
-      this._applicationContext.setLoading(false);
-    }
-
     return allLogHandles;
   }
 
@@ -472,40 +456,35 @@ export class ReplicationService {
     logs?: LogHandle[];
     force?: boolean;
   }) {
-    this._applicationContext?.setLoading(true);
-    try {
-      if (context.force) {
-        const toLoad = context.logs || (await this._database?.readLogs()) || [];
-        await this._previewQueue.processImmediate(toLoad);
-      } else {
-        const allLogs = (await this._database?.readLogs()) || [];
-        const loaded = (await this._database?.readLogPreviews(allLogs)) || {};
+    if (context.force) {
+      const toLoad = context.logs || (await this._database?.readLogs()) || [];
+      await this._previewQueue.processImmediate(toLoad);
+    } else {
+      const allLogs = (await this._database?.readLogs()) || [];
+      const loaded = (await this._database?.readLogPreviews(allLogs)) || {};
 
-        const logList = context.logs || allLogs;
-        const filtered = logList.filter((log) => {
-          const loadedPreview = loaded[log.name];
-          if (!loadedPreview) {
-            return true;
-          }
-
-          if (loadedPreview.status === "success") {
-            return false;
-          }
+      const logList = context.logs || allLogs;
+      const filtered = logList.filter((log) => {
+        const loadedPreview = loaded[log.name];
+        if (!loadedPreview) {
           return true;
-        });
-
-        // Activate existing previews (cache-only seed from persisted rows)
-        if (Object.keys(loaded).length > 0) {
-          logsContent.mergePreviews(this.requireLogDir(), loaded);
         }
 
-        // Queue any missing previews
-        if (filtered.length > 0) {
-          this.queueLogPreviews(filtered, WorkPriority.High);
+        if (loadedPreview.status === "success") {
+          return false;
         }
+        return true;
+      });
+
+      // Activate existing previews (cache-only seed from persisted rows)
+      if (Object.keys(loaded).length > 0) {
+        logsContent.mergePreviews(this.requireLogDir(), loaded);
       }
-    } finally {
-      this._applicationContext?.setLoading(false);
+
+      // Queue any missing previews
+      if (filtered.length > 0) {
+        this.queueLogPreviews(filtered, WorkPriority.High);
+      }
     }
   }
 

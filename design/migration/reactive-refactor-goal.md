@@ -22,12 +22,11 @@ delete `PushedQuerySource` (verify the always-present-embedded assumption first)
 OUT (separate future goal): server-side filter/sort (`getLogsListing` queryFn swap
 + deleting the client listing evaluator); the `ScoreAgGrid` / AG-Grid removal.
 Also deferred:
-- **`loading`/error from `AsyncData`** — coupled to making the imperative loads
-  (the streaming replicator's dir sync, the single-log details load) into
-  react-query queries. `loading` is a ref-count over those imperative ops, not
-  over query fetches, so it can't derive from `AsyncData` without that
-  loads-as-queries change (which overlaps the server-side pass) and a
-  `loading`↔`syncing` UX shift. Belongs with the loads-as-queries work.
+- **Proper `AsyncData`-derived `loading`** — the imperative `setLoading` brackets
+  are already removed and the loading UI is dormant (kept, uncalled). The proper
+  reactive reimplementation is coupled to making the imperative loads (streaming
+  replicator dir sync, single-log details load) into react-query queries (the
+  loads-as-queries / server-side direction); reimplement the loading UI then.
 - A later "harden the boundaries" pass: formalizing layering as eslint
   import-paths, and mechanically pushing replication *status* (`syncing`/
   `dbStats`) off zustand. This goal leans toward those (see rubric) but doesn't
@@ -43,6 +42,9 @@ Also deferred:
     or `api.(get_|open_|download)` calls in the slices.
   - No server-derived data cached in zustand state (no handles/previews/details/
     evalSet/logDir fields on the store) — it's all react-query.
+  - No imperative `setLoading(true/false)` brackets in data-load paths — the
+    loading UI is kept but dormant (never called); `rg "setLoading\((true|false)\)"
+    src` is empty. Proper `AsyncData`-derived loading is a follow-up.
   - One owner per concept; **no dead code, no duplicated orchestration**
     (`activateReplication`/`syncLogs` unified; single startup gate).
 - **Every allowed startup permutation works and is tested** — the valid
