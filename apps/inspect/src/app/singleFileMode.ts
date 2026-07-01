@@ -4,7 +4,7 @@ import { dirname } from "@tsmono/util";
 
 import { ClientAPI, UpdateStateMessage } from "../client/api/types";
 
-import { parseUrlLogSource } from "./urlLogSource";
+import { UrlLogSource } from "./urlLogSource";
 
 /**
  * Single-file mode is set when the viewer is opened against a specific log
@@ -12,18 +12,21 @@ import { parseUrlLogSource } from "./urlLogSource";
  * need to know this before the first render so that AppRouter renders the
  * log view directly instead of mounting LogsPanel, which would otherwise
  * kick off directory-wide replication for every log in the directory.
+ *
+ * Takes the already-parsed invocation source so `resolveAppConfig()` parses the
+ * URL exactly once.
  */
 export const detectInitialSingleFileMode = (
-  location: { search: string },
+  source: UrlLogSource,
   doc: Pick<Document, "getElementById">
 ): boolean => {
   if (doc.getElementById("logview-state")) {
     return true;
   }
 
-  // This could return none if in view server mode
-  // or if we're in static mode with no additional param
-  return parseUrlLogSource(location.search).kind === "file";
+  // This could be `none` in view server mode, or in static mode with no
+  // additional param.
+  return source.kind === "file";
 };
 
 /**
@@ -74,14 +77,3 @@ export const resolveEmbeddedLogDir = (fileRef: string): string => {
   const own = dirname(fileRef);
   return own !== "" ? own : pageBaseDir(fileRef);
 };
-
-/**
- * Resolved once at module import. Whether the viewer is in single-file mode
- * is a startup-time property: it's a function of the URL the page loaded with
- * (or embedded state injected by VSCode) and never flips during the session,
- * so we don't need to thread it through application state.
- */
-export const isSingleFileMode: boolean =
-  typeof window !== "undefined"
-    ? detectInitialSingleFileMode(window.location, document)
-    : false;

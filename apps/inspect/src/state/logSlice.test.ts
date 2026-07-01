@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { setLogRoot } from "../app/server/useLogDir";
+import { initAppConfig } from "../app/appConfig";
 import { ClientAPI, LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
@@ -50,9 +50,15 @@ const createHarness = (cachedInfo: LogDetails, freshInfo: LogDetails) => {
   // than zustand state; inject the fake via the singleton's init seam.
   initDatabaseService(databaseService as unknown as DatabaseService);
 
-  // syncLog reads the log dir from the ["log-dir"] react-query cache (settled by
-  // the loader gate in the app); seed it here.
-  setLogRoot("/logs");
+  // syncLog reads the log dir from the resolved app config; seed it here.
+  initAppConfig({
+    api: {} as unknown as ClientAPI,
+    singleFileMode: false,
+    loader: "replicator",
+    inspect_version: "",
+    scout_version: null,
+    logDir: "/logs",
+  });
 
   const api = {
     get_log_details: vi.fn().mockResolvedValue(freshInfo),

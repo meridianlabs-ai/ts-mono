@@ -4,6 +4,7 @@ import {
   detectInitialSingleFileMode,
   resolveEmbeddedLogDir,
 } from "./singleFileMode";
+import { UrlLogSource } from "./urlLogSource";
 
 const docWithEmbedded = (
   hasEmbedded: boolean
@@ -14,26 +15,23 @@ const docWithEmbedded = (
 
 const emptyDoc = docWithEmbedded(false);
 
+const fileSource: UrlLogSource = { kind: "file", logFile: "foo.eval" };
+const dirSource: UrlLogSource = { kind: "dir", logDir: "/logs" };
+const noneSource: UrlLogSource = { kind: "none" };
+
 describe("detectInitialSingleFileMode", () => {
-  it.each([
-    ["?log_file=foo.eval", true],
-    ["?log_file=foo.eval&other=1", true],
-    ["?other=1", false],
-    ["", false],
-  ])("returns %s for query %s", (search, expected) => {
-    expect(detectInitialSingleFileMode({ search }, emptyDoc)).toBe(expected);
+  it.each<[string, UrlLogSource, boolean]>([
+    ["file", fileSource, true],
+    ["dir", dirSource, false],
+    ["none", noneSource, false],
+  ])("returns %s -> %s", (_name, source, expected) => {
+    expect(detectInitialSingleFileMode(source, emptyDoc)).toBe(expected);
   });
 
   it("returns true when embedded logview-state element is present", () => {
-    expect(
-      detectInitialSingleFileMode({ search: "" }, docWithEmbedded(true))
-    ).toBe(true);
-  });
-
-  it("does not match log_file as a substring of another param", () => {
-    expect(
-      detectInitialSingleFileMode({ search: "?my_log_file=foo" }, emptyDoc)
-    ).toBe(false);
+    expect(detectInitialSingleFileMode(noneSource, docWithEmbedded(true))).toBe(
+      true
+    );
   });
 });
 

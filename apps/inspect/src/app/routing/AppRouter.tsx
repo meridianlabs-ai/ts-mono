@@ -16,9 +16,9 @@ import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
-import { isSingleFileMode } from "../singleFileMode";
+import { useAppConfig } from "../server/useAppConfig";
 
-import { LoaderGate } from "./loaders/LoaderHost";
+import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
 import { TasksRouter } from "./TasksRouter";
@@ -57,7 +57,7 @@ const AppLayout = () => {
   // renders the log/sample view directly rather than through the child route
   // table (which is oriented around the collection).
   const isSampleDetail = (sampleId && epoch) || sampleUuid;
-  const content = isSingleFileMode ? (
+  const content = useAppConfig().singleFileMode ? (
     isSampleDetail ? (
       <LogSampleDetailView />
     ) : (
@@ -70,7 +70,7 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderGate>{content}</LoaderGate>
+        <LoaderMounts>{content}</LoaderMounts>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );

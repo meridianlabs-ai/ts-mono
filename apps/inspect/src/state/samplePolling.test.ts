@@ -6,7 +6,7 @@ import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
-import { setLogRoot } from "../app/server/useLogDir";
+import { initAppConfig } from "../app/appConfig";
 import {
   ClientAPI,
   SampleDataResponse,
@@ -28,7 +28,14 @@ import { StoreState } from "./store";
 const SELECTED_DIR = "/logs";
 const SELECTED_LOG = "selected.eval";
 const seedSelectedLog = () => {
-  setLogRoot(SELECTED_DIR);
+  initAppConfig({
+    api,
+    singleFileMode: false,
+    loader: "replicator",
+    inspect_version: "",
+    scout_version: null,
+    logDir: SELECTED_DIR,
+  });
   logsContent.mergeDetails(SELECTED_DIR, {
     [SELECTED_LOG]: { sampleSummaries: [] } as unknown as never,
   });

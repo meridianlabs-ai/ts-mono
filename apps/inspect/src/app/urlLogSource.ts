@@ -1,9 +1,16 @@
 /**
- * The viewer's log source as named by URL params. `?log_dir=` (a directory) and
- * `?log_file=` (a single file) are mutually exclusive intents, so this is the one
- * parse of both: it collapses them into a discriminated union and throws on the
- * contradictory combination, leaving backend selection and single-file detection
- * a clean either/or they can't disagree on or misuse.
+ * The log source named at viewer *invocation time* — the URL the page was opened
+ * with: `?log_dir=` (a directory), `?log_file=` (a single file), or neither
+ * (`none`). The two params are mutually exclusive intents, so this collapses them
+ * into a discriminated union and throws on the contradictory combination.
+ *
+ * ⚠️ This is an INPUT, not configuration. It is one term in the calculus that
+ * `resolveAppConfig()` (`app/appConfig.ts`) runs once at startup to resolve the
+ * `AppConfig` (backend api, single-file mode, loader, and the resolved
+ * `logFile`). It is useful ONLY up to that point: once `AppConfig` is resolved,
+ * this must never be consulted again — read the resolved values off the config
+ * (`getAppConfig()` / `useAppConfig()`) instead. To keep that true by
+ * construction, `parseUrlLogSource` has exactly one caller: the resolver.
  */
 export type UrlLogSource =
   | { kind: "dir"; logDir: string }

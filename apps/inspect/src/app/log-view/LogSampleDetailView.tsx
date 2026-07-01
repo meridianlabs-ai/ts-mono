@@ -14,7 +14,7 @@ import {
   useRoutePrefix,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-import { isSingleFileMode } from "../singleFileMode";
+import { useAppConfig } from "../server/useAppConfig";
 
 /**
  * Component that displays a single sample in detail view within the logs route.
@@ -41,6 +41,8 @@ export const LogSampleDetailView: FC = () => {
     sampleTabId,
     sampleUuid,
   } = useLogRouteParams();
+
+  const { singleFileMode } = useAppConfig();
 
   // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
   useLoadSample();
@@ -161,7 +163,7 @@ export const LogSampleDetailView: FC = () => {
         currentPath: logPath ? `${logPath}/sample` : undefined,
         fnNavigationUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !singleFileMode,
       }}
     />
   );

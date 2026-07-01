@@ -3,16 +3,16 @@ import { GridState } from "ag-grid-community";
 import { EvalSet, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { getAppConfig } from "../app/appConfig";
 import type { SamplesViewState } from "../app/samples/list/samplesView";
 import { getLogDir } from "../app/server/useLogDir";
-import { isSingleFileMode } from "../app/singleFileMode";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import { ClientAPI, EvalHeader, SampleSummary } from "../client/api/types";
 import { isUri, join } from "../utils/uri";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import * as logsContent from "./logsContent";
-import { openLogDirDatabase, replicationContext } from "./replicationControl";
+import { syncLogs } from "./replicationControl";
 import { StoreState } from "./store";
 import { replicationService } from "./sync/replicationService";
 
@@ -23,9 +23,6 @@ export interface LogsSlice {
   logsActions: {
     syncLogPreviews: (logs: LogHandle[]) => Promise<void>;
 
-    // Fetch or update logs
-    ensureReplication: () => Promise<void>;
-    syncLogs: () => Promise<LogHandle[]>;
     setDbStats: (stats: {
       logCount: number;
       previewCount: number;
@@ -171,57 +168,6 @@ export const createLogsSlice = (
           state.logs.dbStats = stats;
         });
       },
-      // Re-sync the current dir-mode session (replication is activated by
-      // <ReplicationController>). In single-file mode there's no dir listing to
-      // sync, so this is a no-op beyond clearing the loading flag.
-      ensureReplication: async () => {
-        if (getLogDir()) {
-          await get().logsActions.syncLogs();
-        }
-      },
-      syncLogs: async () => {
-        get().appActions.setLoading(true);
-
-        const logDir = getLogDir();
-
-        // No dir listing in single-file mode (or when no root is configured) —
-        // nothing to replicate. Clear loading unless an error is already set.
-        if (!logDir || isSingleFileMode) {
-          if (!get().app.status.error) {
-            get().appActions.setLoading(false);
-          }
-          return [];
-        }
-
-        // Ensure the per-dir DB is open and replication is active. The
-        // controller normally does this on mount; re-do it here defensively so
-        // a re-sync triggered before activation (or after a teardown) still
-        // works. startReplication is idempotent.
-        const databaseService = getDatabaseService();
-        const databaseHandle = api.get_log_dir_handle(logDir);
-        const needsActivation =
-          !replicationService.isReplicating() ||
-          !databaseService ||
-          databaseService.getDatabaseHandle() !== databaseHandle;
-
-        if (needsActivation) {
-          const opened = await openLogDirDatabase(logDir);
-          if (!opened) {
-            throw new Error("Database service not available");
-          }
-          await replicationService.startReplication(
-            opened,
-            api,
-            logDir,
-            replicationContext()
-          );
-        }
-
-        get().appActions.setLoading(false);
-
-        // Sync (show progress when we just (re)activated replication)
-        return (await replicationService.sync(needsActivation)) || [];
-      },
       syncEvalSetInfo: async (logPath?: string) => {
         const info = await api.get_eval_set(logPath);
         set((state) => {
@@ -237,7 +183,6 @@ export const createLogsSlice = (
       },
       // Select a specific log file
       setSelectedLogFile: async (logFile: string) => {
-        const state = get();
         const logDir = getLogDir();
         const isInFileList =
           logsContent
@@ -245,8 +190,11 @@ export const createLogsSlice = (
             .findIndex((val) => val.name.endsWith(logFile)) !== -1;
 
         if (!isInFileList) {
-          if (replicationService.isReplicating() && !isSingleFileMode) {
-            await state.logsActions.syncLogs();
+          if (
+            replicationService.isReplicating() &&
+            !getAppConfig().singleFileMode
+          ) {
+            await syncLogs();
             const logHandle = logsContent
               .getLogHandles(getLogDir())
               .find((val) => val.name.endsWith(logFile));

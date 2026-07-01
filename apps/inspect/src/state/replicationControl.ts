@@ -1,3 +1,7 @@
+import { LogHandle } from "@tsmono/inspect-common/types";
+
+import { getAppConfig } from "../app/appConfig";
+import { getLogDir } from "../app/server/useLogDir";
 import { ClientAPI } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
@@ -76,26 +80,65 @@ export const replicationContext = (): ApplicationContext => ({
   },
 });
 
-// Open the per-dir database and start dir-mode replication for `logDir`, then
-// run an initial sync. Owned by <ReplicationController>, which calls this on
-// mount (dir mode only). Idempotent: if replication is already active for this
-// dir's database, it just re-syncs.
-export const activateReplication = async (logDir: string): Promise<void> => {
-  const databaseService = await openLogDirDatabase(logDir);
-  if (!databaseService) {
-    throw new Error("Database service not available");
+// Ensure the per-dir database is open and dir-mode replication is running for
+// `logDir`, (re)activating if it isn't. Idempotent. Returns whether it had to
+// (re)activate — used to decide whether the ensuing sync shows progress.
+const ensureActive = async (logDir: string): Promise<boolean> => {
+  const databaseService = getDatabaseService();
+  const databaseHandle = requireApi().get_log_dir_handle(logDir);
+  const needsActivation =
+    !replicationService.isReplicating() ||
+    !databaseService ||
+    databaseService.getDatabaseHandle() !== databaseHandle;
+
+  if (needsActivation) {
+    const opened = await openLogDirDatabase(logDir);
+    if (!opened) {
+      throw new Error("Database service not available");
+    }
+    await replicationService.startReplication(
+      opened,
+      requireApi(),
+      logDir,
+      replicationContext()
+    );
   }
+  return needsActivation;
+};
 
-  await replicationService.startReplication(
-    databaseService,
-    requireApi(),
-    logDir,
-    replicationContext()
-  );
-
+// Activate + initial sync for `logDir`. Owned by <ReplicationController>, which
+// calls this on mount (dir mode only).
+export const activateReplication = async (logDir: string): Promise<void> => {
+  await ensureActive(logDir);
   await replicationService.sync(true);
 };
 
 export const deactivateReplication = (): void => {
   replicationService.stopReplication();
+};
+
+/**
+ * Re-sync the current dir-mode session: defensively ensure replication is active
+ * for the resolved logDir (<ReplicationController> normally activated it on
+ * mount), then sync. No-op in single-file mode / before a dir is resolved. Lives
+ * here, not in the zustand slice — replication orchestration is control-layer
+ * logic, not UI state. The `singleFileMode` read uses the sanctioned non-react
+ * accessor; its sole single-file-reachable caller is <App>'s host-message bridge.
+ */
+export const syncLogs = async (): Promise<LogHandle[]> => {
+  const store = requireStore();
+  store.getState().appActions.setLoading(true);
+
+  const logDir = getLogDir();
+  if (!logDir || getAppConfig().singleFileMode) {
+    if (!store.getState().app.status.error) {
+      store.getState().appActions.setLoading(false);
+    }
+    return [];
+  }
+
+  const needsActivation = await ensureActive(logDir);
+  store.getState().appActions.setLoading(false);
+
+  return (await replicationService.sync(needsActivation)) ?? [];
 };

@@ -224,6 +224,7 @@ The collection content (handles/previews/details) and the resolved `logDir` now 
 - **Loading-state not derived from the query.** `app.status.loading` is driven imperatively via `setLoading` rather than from the details query's `AsyncData`; the route-change stale-flash guard (formerly `clearSelectedLogDetails`) should gate render on the query settling for the newly-selected file.
 - **Details error channel unreachable.** The details cache is a passive cache with no error source, so `useLogDetail`'s error branch never fires (absent ⇒ loading). Surface real on-demand fetch errors when such a path exists (per-file error map, or fold the fetch into the hook).
 - **Keep `replication-startup-modes.md` current** — that doc is the startup/loader reference; keep its terminology in step with the `LoaderGate` collapse + pull/push logDir split.
+- **Verify replication is still properly ensured (vs. main).** As part of getting app config out of zustand, the dead `ensureReplication` action was deleted and `syncLogs` is slated to move out of `logsSlice` into `replicationControl.ts` (merged with `activateReplication`). Circle back and confirm against `main` that replication is still correctly (re)activated in every path — dir-mode mount, re-sync triggers (`useLogs`/`useClientEvents`), and the VS Code `App.onMessage` background-update — i.e. we didn't drop a "make sure the replicator is running" guarantee that `ensureReplication`/`syncLogs`'s defensive re-activation used to provide.
 
 ## Separate efforts (out of this migration's scope)
 

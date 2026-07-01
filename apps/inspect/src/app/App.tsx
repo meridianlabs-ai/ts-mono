@@ -1,7 +1,6 @@
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import "@vscode/codicons/dist/codicon.css";
-
 import "prismjs";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-clike";
@@ -31,6 +30,7 @@ import { basename } from "@tsmono/util";
 import { ClientAPI, HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
+import { syncLogs } from "../state/replicationControl.ts";
 import { ApiProvider, useApi, useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
@@ -41,7 +41,7 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
-import { setLogRoot, useLogDirAsync } from "./server/useLogDir.ts";
+import { setLogRoot, useLogDir } from "./server/useLogDir.ts";
 import {
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
@@ -108,14 +108,13 @@ const AppContent: FC = () => {
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 
-  // Above the loader gate, so the dir may be unresolved; used only for the
+  // Below the single AppConfigGate, so the dir is resolved; used only for the
   // host-message comparison below. Selecting + loading the log is owned by
-  // <LogLoadController>, below the gate.
-  const logDir = useLogDirAsync().data;
+  // <LogLoadController>, in <LoaderMounts>.
+  const logDir = useLogDir();
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
@@ -127,7 +126,9 @@ const AppContent: FC = () => {
           if (e.data.url) {
             const decodedUrl = decodeURIComponent(e.data.url);
 
-            // Push the host-opened dir so <LoaderGate>'s gate resolves.
+            // Update the resolved log dir for host-driven (live) navigation —
+            // the one place logDir changes after the gate. The initial embedded
+            // dir is already seeded by the log-root resolution at startup.
             setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
             if (!rehydrated) {
@@ -157,7 +158,7 @@ const AppContent: FC = () => {
         }
       }
     },
-    [setInitialState, logDir, setSelectedLogFile, api, syncLogs, rehydrated]
+    [setInitialState, logDir, setSelectedLogFile, api, rehydrated]
   );
 
   // listen for updateState messages from vscode

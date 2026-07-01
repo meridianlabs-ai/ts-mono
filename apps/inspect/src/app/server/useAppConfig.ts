@@ -1,32 +1,27 @@
-import { AppConfig } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { useApi } from "../../state/store";
+import { AppConfig, resolveAppConfig } from "../appConfig";
+
+export const APP_CONFIG_KEY = ["app-config"] as const;
 
 /**
- * Loads app config (installed inspect / scout versions) asynchronously at app
- * initialization.
- *
- * Use this hook only at the top of the app before rendering to load config
- * data globally. After it completes, all other components should use
- * useAppConfig to access the loaded value synchronously.
+ * Resolves the full app config into the `["app-config"]` cache. The resolution
+ * logic is framework-free (`resolveAppConfig`); this is the react-query glue.
+ * It's the single thing the top-level gate watches; once it settles, the app
+ * reads the value synchronously via `useAppConfig`.
  */
-export const useAppConfigAsync = (): AsyncData<AppConfig> => {
-  const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey: ["app-config"],
-    queryFn: () => api.get_app_config(),
+export const useAppConfigAsync = (): AsyncData<AppConfig> =>
+  useAsyncDataFromQuery({
+    queryKey: APP_CONFIG_KEY,
+    queryFn: resolveAppConfig,
     staleTime: Infinity,
   });
-};
 
 /**
- * Returns app config for use in components after data loaded globally.
- *
- * Assumes the async data has already been loaded at app initialization via
- * useAppConfigAsync (App.tsx gates rendering on it). Throws if not yet loaded.
+ * The resolved app config, read synchronously. The app renders below the gate
+ * that awaits `useAppConfigAsync`, so the data is always present here; throws if
+ * called above the gate.
  */
 export const useAppConfig = (): AppConfig => {
   const { data } = useAppConfigAsync();

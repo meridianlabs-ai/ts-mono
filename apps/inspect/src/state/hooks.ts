@@ -16,6 +16,7 @@ import { LogDetails, SampleSummary } from "../client/api/types";
 import { prettyDirUri } from "../utils/uri";
 
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
+import { syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
 import { useApi, useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -605,7 +606,6 @@ export const useSamplePopover = (id: string) => {
 
 export const useLogs = () => {
   // Loading logs and eval set info
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
   const syncEvalSetInfo = useStore(
     (state) => state.logsActions.syncEvalSetInfo
   );
@@ -619,7 +619,7 @@ export const useLogs = () => {
         setLoading(false, e as Error);
       });
     },
-    [syncLogs, setLoading, syncEvalSetInfo]
+    [setLoading, syncEvalSetInfo]
   );
 
   // Loading overviews

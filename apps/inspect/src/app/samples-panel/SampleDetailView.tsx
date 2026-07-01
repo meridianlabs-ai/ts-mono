@@ -12,8 +12,8 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
+import { useAppConfig } from "../server/useAppConfig";
 import { useLogDir } from "../server/useLogDir";
-import { isSingleFileMode } from "../singleFileMode";
 
 /**
  * Component that displays a single sample in detail view within the samples route.
@@ -28,6 +28,8 @@ import { isSingleFileMode } from "../singleFileMode";
  * Rendering is delegated to SampleDetailComponent.
  */
 export const SampleDetailView: FC = () => {
+  const { singleFileMode } = useAppConfig();
+
   // Load sample data
   useLoadLog();
   useLoadSample();
@@ -138,7 +140,7 @@ export const SampleDetailView: FC = () => {
         currentPath: routeLogPath,
         fnNavigationUrl: samplesUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !singleFileMode,
       }}
     />
   );

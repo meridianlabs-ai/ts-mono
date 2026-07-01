@@ -3,13 +3,14 @@ import { createRoot } from "react-dom/client";
 import { getVscodeApi } from "@tsmono/util";
 
 import { App } from "./app/App";
-import api from "./client/api/index";
+import { getBootstrap } from "./app/appConfig";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
 
-// Resolve the api
-const applicationApi = api;
+// The api backend is a sync bootstrap fact (resolved from the invocation-time
+// log source) — needed here, above the gate, before the full config resolves.
+const applicationApi = getBootstrap().api;
 const applicationStorage = storage;
 
 // Application capabilities

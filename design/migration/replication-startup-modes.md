@@ -1,13 +1,42 @@
 # Viewer startup: API backends & replication init
 
-Three concepts run through the doc:
+Everything the viewer needs to decide at startup lives on one object, the
+`AppConfig`, resolved in two steps:
 
-1. **API backend** — `resolveApi()` runs at module load
-   and picks the `ClientAPI` implementation. The chronologically-first decision.
-2. **Single-file mode** — the `isSingleFileMode` boolean. Resolved once at startup from the URL
-   or embedded state.
-3. **Loader** — who fills the react-query content cache: the **replicator**
-   or a **direct load**.
+- **Bootstrap (synchronous)** — `resolveAppConfig()` (`app/appConfig.ts`) runs
+  once at module load and produces the sync part (`AppConfigBase`), read anywhere
+  via `getAppConfig()` (non-React).
+- **Async resolution (one gate)** — `useAppConfigAsync()` fetches the two things
+  that need a round-trip — the installed **versions** (`api.get_app_config()`)
+  and the **`logDir`** (`config.logRoot`) — in parallel. The single
+  `<AppConfigGate>` awaits it; below the gate the whole app reads the fully
+  resolved config **synchronously** via `useAppConfig()` (`logDir`, versions, and
+  the bootstrap fields), with no loading/async states to thread through.
+
+Three concepts run through the doc, all fields of `AppConfig`:
+
+1. **API backend** — `resolveApi(source)` picks the `ClientAPI` implementation.
+   The resolved instance lives on `config.api`.
+2. **Single-file mode** — `config.singleFileMode`. Resolved from the URL or
+   embedded state.
+3. **Loader** — `config.loader` (`"replicator"` | `"direct"`): who fills the
+   react-query content cache. Derived from single-file mode — the replicator is
+   used exactly in directory mode.
+
+The **log dir** itself is `config.logDir` — a flat field on the resolved config.
+The determination *logic* (dir → `get_log_root`; `?log_file=` →
+`resolveSingleFileLogDir`; embedded → a synchronous DOM seed) is **not** a field
+on the config; it's `buildLogRootResolution()`, derived from the flat config and
+used only as plumbing by the async gate. The resolved value flows through the
+`["log-dir"]` react-query cache (which `useAppConfigAsync` composes in) so it
+stays reactive — the one thing that changes after resolution is embedded (VS
+Code) live navigation, via `setLogRoot`.
+
+The invocation-time input these are derived from is the URL log source
+(`parseUrlLogSource` / `UrlLogSource`, `app/urlLogSource.ts`): `?log_dir=`
+(directory), `?log_file=` (single file), or none. It is parsed **once**, inside
+`resolveAppConfig()`, and never consulted again — downstream reads the resolved
+values off `AppConfig` (e.g. `config.logFile` for the selected single log).
 
 ---
 
@@ -20,7 +49,7 @@ load); each cell names the deployment / signal that lands there.
 | ------------------------------ | --------------------------------------- | -------------------------------- |
 | `viewServerApi`                | default (`inspect view`)                | —                                |
 | `staticHttpApi`                | `?log_dir=` · `#log_dir_context` bundle | `?log_file=`                     |
-| `vscodeApi`                    | sidebar view (log_dir, no selection)    | `#logview-state` (VS Code embed) |
+| `vscodeApi`                    | launch via cmd+shift+p inspect view...pick a dir    | `#logview-state` (VS Code embed) |
 
 > **VS Code runs both modes.** The extension embeds a `#logview-state` only when
 > a log is opened (single-file); the sidebar view carries a `log_dir` with nothing
@@ -32,8 +61,9 @@ load); each cell names the deployment / signal that lands there.
 > (single-file mode) name a directory vs. a single file — mutually exclusive.
 > `parseUrlLogSource` (`app/urlLogSource.ts`) is the single parse of both params:
 > it returns a discriminated union (`dir` | `file` | `none`) and **throws** on the
-> contradictory combo, so backend selection (`resolveApi`) and single-file
-> detection (`isSingleFileMode`) read one source and can't disagree.
+> contradictory combo. `resolveAppConfig()` runs it once and feeds it to both
+> backend selection (`resolveApi`) and single-file detection
+> (`detectInitialSingleFileMode`), so they read one source and can't disagree.
 
 ---
 
@@ -112,15 +142,16 @@ Startup wiring:
    `resolveSingleFileLogDir` derives the dir from the file (its own directory,
    falling back to `api.get_log_dir()`, then the page folder). The embedded-state
    / VS Code bootstrap stays in `<App>`'s `onMessage`, which seeds the same cache.
-3. **(react-query — disabled)** The `["log-dir"]` query has
-   `enabled: !isSingleFileMode`, so `get_log_root` never runs — the value is the
-   seeded one, not a fetch.
+3. **(react-query — disabled)** In single-file mode (`config.singleFileMode`) the
+   `["log-dir"]` query resolves from the seeded `initialData` / `singleFileLogRoot`
+   (the dir derived from `config.logFile`), so `get_log_root` never runs — the
+   value is the seeded one, not a fetch.
 4. **(module — idle)** The `ReplicationService` **never starts**: no controller,
-   and `syncLogs()` bails immediately on `isSingleFileMode`.
+   and `syncLogs()` bails immediately on `config.singleFileMode`.
 5. **(react-query)** The open log's content is loaded on demand by the single-log
    slice (`logSlice`), keyed by `getLogDir()` (the seeded cache value).
 6. **(react)** `useLogDir()` / `getLogDir()` read the `["log-dir"]` cache — the
-   **same accessors dir mode uses, with no `isSingleFileMode` branch**.
+   **same accessors dir mode uses, with no `config.singleFileMode` branch**.
 
 **zustand here:** UI state only — `selectedLogFile` (route/selection), `loading`,
 grid state. **Not `logDir`** — it lives in the react-query cache now, same as dir
@@ -172,5 +203,5 @@ transient empty `["logs-content", ""]` cache key.
 
 Single-file shares this now too: its `logDir` is seeded into the _same_
 `["log-dir"]` cache (by `setLogDir` / `initLogDir`), so the accessors
-(`useLogDir` / `getLogDir`) have **no `isSingleFileMode` fork** — both modes read
+(`useLogDir` / `getLogDir`) have **no `config.singleFileMode` fork** — both modes read
 one source.

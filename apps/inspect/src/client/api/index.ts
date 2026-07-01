@@ -3,7 +3,7 @@ import JSON5 from "json5";
 import { AppConfig } from "@tsmono/inspect-common/types";
 import { dirname, getVscodeApi } from "@tsmono/util";
 
-import { parseUrlLogSource } from "../../app/urlLogSource";
+import { UrlLogSource } from "../../app/urlLogSource";
 
 import { clientApi } from "./client-api";
 import staticHttpApi from "./static-http/api-static-http";
@@ -20,9 +20,12 @@ interface LogDirContext {
 }
 
 /**
- * Resolves the client API
+ * Resolves the client API from the invocation-time log source (see
+ * `app/urlLogSource.ts`) plus the ambient signals (vscode host, embedded
+ * `#log_dir_context`, `?inspect_server=true`). Called once, by
+ * `resolveAppConfig()`.
  */
-const resolveApi = (): ClientAPI => {
+export const resolveApi = (source: UrlLogSource): ClientAPI => {
   const debug = false;
   if (getVscodeApi()) {
     // VS Code runs either single-file (the extension embeds a `#logview-state`
@@ -63,9 +66,6 @@ const resolveApi = (): ClientAPI => {
     const urlParams = new URLSearchParams(window.location.search);
     const forceViewServerApi = urlParams.get("inspect_server") === "true";
 
-    // `?log_dir=` / `?log_file=` are mutually exclusive; this single parse rejects
-    // the contradictory combo (see app/urlLogSource.ts).
-    const source = parseUrlLogSource(window.location.search);
     const resolved_log_dir = source.kind === "dir" ? source.logDir : undefined;
     const resolved_log_file =
       source.kind === "file" ? source.logFile : undefined;
@@ -91,5 +91,3 @@ const resolveApi = (): ClientAPI => {
     return clientApi(viewServerApi(), undefined, debug);
   }
 };
-
-export default resolveApi();
