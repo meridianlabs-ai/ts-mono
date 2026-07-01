@@ -102,22 +102,37 @@ sample resets the latch. This avoids flicker between "Loading events…" and
 checks keep working. `backfilling` is cleared when the sample completes
 (status → `"ok"`) and on polling reset.
 
-### 2. Footer / indicator UX
+### 2. Indicator UX (all three surfaces)
 
-Thread `backfilling` down `SampleDisplay` → `TranscriptPanel` →
-`TranscriptLayout` → `TranscriptVirtualListComponent` (a new optional prop
-mirroring `running`).
+`backfilling` is threaded from the slice down each surface (a new optional prop
+mirroring `running`). While `backfilling`, every surface suppresses its
+event-derived live indicators (they read the loaded tail, which mid-backfill is
+a *historical* node — unreliable and sometimes wrong) and shows a dedicated
+loading affordance instead. While live (caught up, still running), each surface
+keeps exactly today's behavior. Net effect: the live indicators mean *only*
+"waiting on a live generate()/tool call"; "still loading history" has its own
+clearly-different indicator.
 
-- **While `backfilling`:** suppress the event-derived footer
-  (`toolsRunning` / `ToolRunningFooter`) and the pending-model "generating"
-  state — they are unreliable mid-backfill — and render a distinct
-  **`LoadingEventsFooter`**: a spinner + "Loading events…" (no count).
-  Visually distinct from `GeneratingIndicator` so the two are unmistakable.
-- **While live** (caught up, still running): exactly today's behavior
-  (`GeneratingIndicator label="running"` / pending-model generating).
+**Shared indicator — `LoadingEventsIndicator`** (new, in
+`packages/inspect-components/src/indicators/`, sibling to `GeneratingIndicator`):
+reuses `GeneratingIndicator`'s bordered **shimmer bar** shell (so it feels
+native) but prepends a **spinner** and takes a `label` prop with an animated
+ellipsis. No count (text-only). A `compact` variant drops the border/background
+for the narrow outline. Respects `prefers-reduced-motion` like
+`GeneratingIndicator` (no sweep/spin).
 
-Net effect: the tail ellipsis means *only* "waiting on a live generate()/tool
-call." "Still loading history" gets its own clearly-different indicator.
+**Per-surface behavior and wording** (labels are view-native):
+
+| Surface | While backfilling | Live (unchanged) |
+|---------|-------------------|------------------|
+| Transcript / events (`TranscriptVirtualListComponent`) | `LoadingEventsIndicator label="Loading events"` in the footer; suppress `ToolRunningFooter` / pending-model generating | `ToolRunningFooter` / pending-model `GeneratingIndicator` |
+| Messages (`ChatViewVirtualList`) | `LoadingEventsIndicator label="Loading messages"` in place of the `generatingRow` | `GeneratingIndicator` in `generatingRow` |
+| Outline (`TranscriptOutline` / `OutlineRow`) | compact `LoadingEventsIndicator label="Loading events"` footer row under a divider; suppress the last-node `PulsingDots` | last-node `PulsingDots` |
+
+**Empty state:** when nothing is loaded yet at the start of backfill, show the
+loading indicator instead of the current "Sample is starting" empty text
+(`TranscriptPanel` `emptyText`/`emptyBusy` and the messages `livePlaceholder`),
+so an empty view mid-backfill doesn't misread as "just started."
 
 ### 3. Client-side backfill speed-up (no format change)
 
@@ -152,8 +167,11 @@ additive, not a format change). No rework of the `backfilling` boolean.
 | `apps/inspect/src/state/sampleSlice.ts` | Add `backfilling?: boolean` + setter |
 | `apps/inspect/src/state/samplePolling.ts` | Set `backfilling` from `has_more` with latch-to-live; clear on reset/complete |
 | `apps/inspect/src/client/remote/remotePendingSampleData.ts` | Pipeline URL-fetch with segment download; larger `max_segments` |
-| `apps/inspect/src/app/samples/SampleDisplay.tsx` | Read `backfilling`, pass to `TranscriptPanel` |
-| `.../transcript/TranscriptPanel.tsx`, `packages/inspect-components/.../TranscriptLayout.tsx`, `.../TranscriptVirtualListComponent.tsx` | Thread `backfilling`; suppress event-derived footer while backfilling; render `LoadingEventsFooter` |
+| `packages/inspect-components/src/indicators/LoadingEventsIndicator.tsx` (new) | Shimmer-bar shell + spinner + `label` + ellipsis; `compact` variant; reduced-motion aware |
+| `apps/inspect/src/app/samples/SampleDisplay.tsx` | Read `backfilling`, pass to `TranscriptPanel` (and messages/outline paths) |
+| `.../transcript/TranscriptPanel.tsx`, `packages/inspect-components/.../TranscriptLayout.tsx`, `.../TranscriptVirtualListComponent.tsx` | Thread `backfilling`; while backfilling suppress `ToolRunningFooter`/pending-model generating and render `LoadingEventsIndicator`; swap `emptyText`/`emptyBusy` for the loading indicator |
+| `packages/inspect-components/src/chat/ChatViewVirtualList.tsx` | Thread `backfilling`; render `LoadingEventsIndicator label="Loading messages"` in place of `generatingRow` / `livePlaceholder` while backfilling |
+| `packages/inspect-components/src/transcript/outline/TranscriptOutline.tsx`, `OutlineRow.tsx` | Thread `backfilling`; suppress last-node `PulsingDots` and append compact `LoadingEventsIndicator` footer row while backfilling |
 
 ## Testing
 
@@ -163,10 +181,17 @@ additive, not a format change). No rework of the `backfilling` boolean.
 - **Unit (transport):** pipelined fetch returns segments in id order and
   applies the cursor filter identically to the current implementation; larger
   `max_segments` behaves the same as smaller batches, just fewer calls.
-- **Component:** `TranscriptVirtualListComponent` renders `LoadingEventsFooter`
-  (not `ToolRunningFooter`) when `backfilling`, and the normal indicators when
-  live; a mid-backfill tail that would trip `transcriptToolsRunning` shows the
-  loading footer, not "running".
+- **Component (transcript):** `TranscriptVirtualListComponent` renders
+  `LoadingEventsIndicator` (not `ToolRunningFooter`) when `backfilling`, and the
+  normal indicators when live; a mid-backfill tail that would trip
+  `transcriptToolsRunning` shows the loading indicator, not "running". Empty +
+  backfilling shows the loading indicator, not "Sample is starting".
+- **Component (messages):** `ChatViewVirtualList` renders
+  `LoadingEventsIndicator label="Loading messages"` while backfilling, the
+  `generatingRow` when live.
+- **Component (outline):** `TranscriptOutline` appends the compact loading row
+  and suppresses the last-node `PulsingDots` while backfilling; restores dots
+  when live.
 - **Proxy transport:** `backfilling` never true (no `has_more`), behavior
   unchanged.
 
