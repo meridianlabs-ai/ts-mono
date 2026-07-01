@@ -13,6 +13,7 @@ import {
 } from "../client/api/types";
 
 import {
+  computeBackfilling,
   createSamplePolling,
   hasSampleDataUpdates,
   shouldFinalizeStreamingSample,
@@ -154,6 +155,33 @@ describe("samplePolling helpers", () => {
     expect(shouldFinalizeStreamingSample(response, completedInLog)).toBe(
       expected
     );
+  });
+});
+
+describe("computeBackfilling", () => {
+  it("is backfilling while has_more is true and live not yet reached", () => {
+    expect(computeBackfilling(true, false)).toEqual({
+      backfilling: true,
+      reachedLive: false,
+    });
+  });
+
+  it("reaches live (not backfilling) when has_more is falsy", () => {
+    expect(computeBackfilling(false, false)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
+    expect(computeBackfilling(undefined, false)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
+  });
+
+  it("latches: once live, a transient has_more stays live", () => {
+    expect(computeBackfilling(true, true)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
   });
 });
 

@@ -375,6 +375,22 @@ const findLiveSummary = (
   );
 };
 
+export interface BackfillResult {
+  backfilling: boolean;
+  reachedLive: boolean;
+}
+
+// Latch to live: once caught up, a transient has_more must not flip back to loading.
+export const computeBackfilling = (
+  hasMore: boolean | undefined,
+  reachedLive: boolean
+): BackfillResult => {
+  if (reachedLive || hasMore !== true) {
+    return { backfilling: false, reachedLive: true };
+  }
+  return { backfilling: true, reachedLive: false };
+};
+
 export const hasSampleDataUpdates = (sampleData?: SampleData) => {
   if (!sampleData) {
     return false;
