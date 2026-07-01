@@ -14,8 +14,9 @@ import { MessageBand } from "../../../components/MessageBand";
 import { useDocumentTitle } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigation } from "../../routing/sampleNavigation";
+import { useLogRouteParams } from "../../routing/url";
 import { openInNewTab } from "../../shared/openInNewTab";
-import { isCurrentSample } from "../../shared/sample";
+import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
 
@@ -76,6 +77,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   }, [listHandle, selectedLogFile]);
 
   const sampleNavigation = useSampleNavigation();
+  const { sampleId: routeSampleId, epoch: routeEpoch } = useLogRouteParams();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -93,15 +95,24 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
         if (url) openInNewTab(url);
       } else {
-        // Re-clicking the open sample would re-run selectSample + navigate and
-        // trigger a redundant reload of the same sample — skip it.
-        if (isCurrentSample(selectedSampleHandle, row.sampleId, row.epoch)) {
+        // Re-clicking the sample that's currently open in the detail view
+        // would re-run selectSample + navigate redundantly — skip only that.
+        // Keyed off the route (not selectedSampleHandle, which persists after
+        // navigating back to the log and would wrongly ignore the re-click).
+        if (
+          isSampleOpenInRoute(
+            routeSampleId,
+            routeEpoch,
+            row.sampleId,
+            row.epoch
+          )
+        ) {
           return;
         }
         sampleNavigation.showSample(row.sampleId, row.epoch);
       }
     },
-    [sampleNavigation, selectedSampleHandle]
+    [sampleNavigation, routeSampleId, routeEpoch]
   );
 
   const getRowId = useCallback(
