@@ -22,6 +22,37 @@ const log = createLogger("useSampleLoader");
 let loadGeneration = 0;
 
 /**
+ * Decide whether the loader should (re)load the selected sample.
+ *
+ * A "loading"/"error" status left over from a previously viewed sample must
+ * not block loading a newly selected one, so those only suppress a load when
+ * they pertain to the selected sample itself (identifier matches). Without
+ * this, navigating away from a still-"streaming" running sample leaves the
+ * new sample unloaded and the tabs showing the previous sample's events.
+ */
+export const shouldLoadSample = (opts: {
+  identifierMatches: boolean;
+  hasSampleData: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  logFileChanged: boolean;
+  sampleIdChanged: boolean;
+  completedChanged: boolean;
+  needsReloadChanged: boolean;
+}): boolean => {
+  const isCurrentSampleLoaded = opts.identifierMatches && opts.hasSampleData;
+  const loadingSelected = opts.identifierMatches && opts.isLoading;
+  const errorSelected = opts.identifierMatches && opts.isError;
+  return (
+    (!isCurrentSampleLoaded && !loadingSelected && !errorSelected) ||
+    opts.logFileChanged ||
+    opts.sampleIdChanged ||
+    opts.completedChanged ||
+    opts.needsReloadChanged
+  );
+};
+
+/**
  * Hook that handles loading samples based on the current log selection.
  * Contains the full sample loading logic that was previously in sampleSlice.loadSample.
  */
@@ -177,7 +208,6 @@ export function useLoadSample() {
         sampleData.selectedSampleIdentifier?.epoch === sampleEpoch &&
         sampleData.selectedSampleIdentifier?.logFile === logSelection.logFile;
       const hasSampleData = getSelectedSample() !== undefined;
-      const isCurrentSampleLoaded = identifierMatches && hasSampleData;
 
       // Check if we're currently loading
       const isLoading =
@@ -198,15 +228,16 @@ export function useLoadSample() {
         prev.sampleNeedsReload !== undefined &&
         prev.sampleNeedsReload !== sampleData.sampleNeedsReload;
 
-      // Only load if:
-      // 1. The current sample is not already loaded AND not currently loading, OR
-      // 2. Something meaningful changed (log file, sample ID, completed status, or reload flag)
-      const shouldLoad =
-        (!isCurrentSampleLoaded && !isLoading && !isError) ||
-        logFileChanged ||
-        sampleIdChanged ||
-        completedChanged ||
-        needsReloadChanged;
+      const shouldLoad = shouldLoadSample({
+        identifierMatches,
+        hasSampleData,
+        isLoading,
+        isError,
+        logFileChanged,
+        sampleIdChanged,
+        completedChanged,
+        needsReloadChanged,
+      });
 
       if (shouldLoad) {
         void loadSample(
