@@ -21,6 +21,18 @@ describe("jsonParse", () => {
   test("throws on invalid input", () => {
     expect(() => jsonParse("not json at all {{{")).toThrow();
   });
+
+  // Python's json.dumps emits bare NaN/Infinity, which is invalid JSON but
+  // valid JSON5 — the reason the fallback exists. These must survive intact.
+  test("preserves NaN and Infinity via JSON5", () => {
+    const result = jsonParse<{ a: number; b: number; c: number; d: null }>(
+      "{a: NaN, b: Infinity, c: -Infinity, d: null}"
+    );
+    expect(result.a).toBeNaN();
+    expect(result.b).toBe(Infinity);
+    expect(result.c).toBe(-Infinity);
+    expect(result.d).toBeNull();
+  });
 });
 
 describe("asyncJsonParse (main-thread path)", () => {
@@ -34,6 +46,14 @@ describe("asyncJsonParse (main-thread path)", () => {
     await expect(asyncJsonParse("{unquoted: 'single'}")).resolves.toEqual({
       unquoted: "single",
     });
+  });
+
+  test("preserves NaN and Infinity via JSON5", async () => {
+    const result = await asyncJsonParse<{ x: number; y: number }>(
+      "{x: NaN, y: -Infinity}"
+    );
+    expect(result.x).toBeNaN();
+    expect(result.y).toBe(-Infinity);
   });
 
   test("parses a payload just under the worker threshold", async () => {
