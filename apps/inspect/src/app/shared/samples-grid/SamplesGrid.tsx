@@ -1,4 +1,4 @@
-import type { SortingState } from "@tanstack/react-table";
+import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
 import {
   ReactElement,
   RefObject,
@@ -71,6 +71,7 @@ export const SamplesGrid = ({
   const [columnFilters, setColumnFilters] = useState<
     Record<string, ColumnFilter>
   >({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
@@ -140,6 +141,8 @@ export const SamplesGrid = ({
       onSortingChange={setSorting}
       columnFilters={columnFilters}
       onColumnFilterChange={handleColumnFilterChange}
+      columnSizing={columnSizing}
+      onColumnSizingChange={setColumnSizing}
       selectedRowId={selectedRowId}
       scrollRef={scrollRef}
       onRowActivate={onRowOpen}
