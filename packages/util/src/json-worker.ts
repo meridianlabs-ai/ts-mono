@@ -4,23 +4,23 @@ import JSON5 from "json5";
 interface WorkerParseResponse {
   requestId: number;
   success: boolean;
-  serialized?: boolean;
   result?: unknown;
   error?: string;
   stack?: string;
 }
 
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  worker: Worker;
+}
+
 // Pool of workers to parse JSON/JSON5 off the main thread
 class JsonWorkerPool {
-  private readonly encoder = new TextEncoder();
-  private readonly decoder = new TextDecoder();
   private workers: Worker[] = [];
   private blobURL: string | null = null;
   private nextRequestId = 0;
-  private pendingRequests = new Map<
-    number,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
-  >();
+  private pendingRequests = new Map<number, PendingRequest>();
   private readonly poolSize = 4;
 
   private ensureWorkers() {
@@ -31,7 +31,7 @@ class JsonWorkerPool {
       for (let i = 0; i < this.poolSize; i++) {
         const worker = new Worker(this.blobURL);
         worker.onmessage = (e) => this.handleMessage(e);
-        worker.onerror = (error) => this.handleError(error);
+        worker.onerror = (error) => this.handleError(worker, error);
         this.workers.push(worker);
 
         // one-time JSON5 init message
@@ -44,7 +44,7 @@ class JsonWorkerPool {
   }
 
   private handleMessage(e: MessageEvent) {
-    const { requestId, success, serialized, result, error, stack } =
+    const { requestId, success, result, error, stack } =
       e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
@@ -52,12 +52,7 @@ class JsonWorkerPool {
     this.pendingRequests.delete(requestId);
 
     if (success) {
-      if (serialized) {
-        const resultString = this.decoder.decode(result as Uint8Array);
-        pending.resolve(JSON.parse(resultString));
-      } else {
-        pending.resolve(result);
-      }
+      pending.resolve(result);
     } else {
       const err = new Error(error);
       if (stack) err.stack = stack;
@@ -65,58 +60,44 @@ class JsonWorkerPool {
     }
   }
 
-  private handleError(error: ErrorEvent) {
+  private handleError(worker: Worker, error: ErrorEvent) {
     const err = new Error(`Worker error: ${error.message}`);
-    for (const pending of this.pendingRequests.values()) {
-      pending.reject(err);
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.worker === worker) {
+        this.pendingRequests.delete(requestId);
+        pending.reject(err);
+      }
     }
-    this.pendingRequests.clear();
   }
 
+  // Strings cross postMessage as a flat memcpy-style clone, which is much
+  // cheaper than the TextEncoder.encode pass this used to do on the main
+  // thread before transferring.
   async parse(text: string): Promise<unknown> {
-    this.ensureWorkers();
-
-    const encodedText = this.encoder.encode(text);
-    const requestId = this.nextRequestId++;
-
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-
-      const worker = this.workers[requestId % this.workers.length];
-      worker?.postMessage(
-        {
-          type: "parse",
-          requestId,
-          encodedText,
-        },
-        [encodedText.buffer]
-      );
-    });
+    return this.submit({ text });
   }
 
   async parseBytes(data: Uint8Array): Promise<unknown> {
-    this.ensureWorkers();
-
-    const requestId = this.nextRequestId++;
-
     // Ensure we own the full buffer before transferring
-    const ownedData =
+    const owned =
       data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
         ? data
         : data.slice();
+    return this.submit({ bytes: owned }, [owned.buffer as ArrayBuffer]);
+  }
+
+  private submit(
+    payload: { text?: string; bytes?: Uint8Array },
+    transfer: Transferable[] = []
+  ): Promise<unknown> {
+    this.ensureWorkers();
+
+    const requestId = this.nextRequestId++;
+    const worker = this.workers[requestId % this.workers.length]!;
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-
-      const worker = this.workers[requestId % this.workers.length];
-      worker?.postMessage(
-        {
-          type: "parse",
-          requestId,
-          encodedText: ownedData,
-        },
-        [ownedData.buffer]
-      );
+      this.pendingRequests.set(requestId, { resolve, reject, worker });
+      worker.postMessage({ type: "parse", requestId, ...payload }, transfer);
     });
   }
 
@@ -182,7 +163,6 @@ const kWorkerCode = `
 // Store the JSON5 parser once loaded
 let JSON5 = null;
 const decoder = new TextDecoder();
-const encoder = new TextEncoder();
 
 self.onmessage = function (e) {
   const { type } = e.data || {};
@@ -206,48 +186,30 @@ self.onmessage = function (e) {
   }
 
   if (type === 'parse') {
-    const { requestId, encodedText, scriptContent } = e.data;
+    const { requestId, text, bytes } = e.data;
 
     try {
-      
-      // Decode the text using TextDecoder
-      const text = decoder.decode(encodedText);
+      const source = text !== undefined ? text : decoder.decode(bytes);
 
-      // Parse with JSON/JSON5
       let result = undefined;
       try {
         // Optimistically, try a regular JSON parse first (this is much faster)
-        result = JSON.parse(text);
-      } catch {
-        result = JSON5.parse(text);
+        result = JSON.parse(source);
+      } catch (jsonError) {
+        // Surface the JSON error, not a null-JSON5 one, if init failed
+        if (!JSON5) throw jsonError;
+        result = JSON5.parse(source);
       }
 
-      if (result && typeof result === 'object' &&
-          (Array.isArray(result) ? result.length > 10000 : Object.keys(result).length > 10000)) {
-
-        // Large result, use transferrable object
-        const resultString = JSON.stringify(result);
-        const serialized = encoder.encode(resultString);
-
-        postMessage({
-          requestId,
-          success: true,
-          serialized: true,
-          result: serialized
-        }, [serialized.buffer]);
-      } else {
-        // Small results, send directly
-        postMessage({
-          requestId,
-          success: true, 
-          serialized: false, 
-          result: result 
-        });
-      }
+      // Structured clone hands the object graph straight to the main thread.
+      // Round-tripping through stringify + transfer + JSON.parse (as this
+      // used to do for large results) parses the payload twice and does the
+      // second parse on the main thread — the thread we're protecting.
+      postMessage({ requestId, success: true, result });
     } catch (err) {
       postMessage({
         requestId,
-        success: false, 
+        success: false,
         error: err.message,
         stack: err.stack || ''
       });

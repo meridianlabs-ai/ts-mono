@@ -4,7 +4,7 @@ import baseConfig from "@tsmono/eslint-config/base";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/", "dist/"],
+    ignores: ["node_modules/", "dist/", "bench/"],
   },
   ...baseConfig,
   {
