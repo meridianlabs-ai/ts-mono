@@ -12,6 +12,7 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
 import { useScrollTrack } from "@tsmono/react/hooks";
 
+import { LoadingEventsIndicator } from "../../indicators/LoadingEventsIndicator";
 import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
 import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
@@ -30,6 +31,16 @@ import {
 import { useOutlineWidth } from "./useOutlineWidth";
 
 const kFramesToStabilize = 10;
+
+export const outlineNodeRunning = ({
+  running,
+  backfilling,
+  isLast,
+}: {
+  running: boolean;
+  backfilling: boolean;
+  isLast: boolean;
+}): boolean => running && !backfilling && isLast;
 
 interface TranscriptOutlineProps {
   eventNodes: EventNode[];
@@ -96,6 +107,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   eventNodes,
   defaultCollapsedIds,
   running,
+  backfilling,
   className,
   scrollRef,
   outlineScrollEl,
@@ -270,7 +282,11 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
           <OutlineRow
             node={node}
             key={node.id}
-            running={running && index === outlineNodeList.length - 1}
+            running={outlineNodeRunning({
+              running: running === true,
+              backfilling: backfilling === true,
+              isLast: index === outlineNodeList.length - 1,
+            })}
             selected={
               selectedOutlineId ? selectedOutlineId === node.id : index === 0
             }
@@ -287,6 +303,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     [
       outlineNodeList,
       running,
+      backfilling,
       selectedOutlineId,
       getEventUrl,
       handleOutlineSelect,
@@ -328,6 +345,11 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         restoreStateFrom={getRestoreState()}
         tabIndex={0}
       />
+      {backfilling ? (
+        <div className={styles.outlineLoading}>
+          <LoadingEventsIndicator label="Loading events" compact />
+        </div>
+      ) : null}
     </div>
   );
 };
