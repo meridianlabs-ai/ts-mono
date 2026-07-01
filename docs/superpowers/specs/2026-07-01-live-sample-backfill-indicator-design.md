@@ -152,6 +152,12 @@ between batches:
 This does not beat the browser's 6-connection ceiling; it removes the dead
 time between batches — the realistic client-only win.
 
+**Implementation note (as shipped):** only the `max_segments` increase (25 →
+100) was implemented, exported as `SEGMENT_CAP_PER_CALL`. The larger cap plus
+the poll loop's existing `"immediate"` re-fire realize the round-trip savings;
+the explicit next-batch prefetch/pipeline was deferred as unnecessary for the
+win at hand.
+
 ### 4. Progress denominator (deferred, future extension)
 
 Ship §1–3 with an indeterminate "Loading events…" indicator. If a determinate
