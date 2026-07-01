@@ -10,6 +10,17 @@ import { openZipFileFromBuffer } from "./remoteZipFile";
 // under ~1s at typical segment sizes.
 const SEGMENT_CAP_PER_CALL = 25;
 
+// The browser reached the view server for presigned URLs but couldn't fetch the
+// segment bytes directly from storage (e.g. missing bucket CORS on the viewer
+// origin, or blocked network). Distinct from other failures so callers can
+// degrade to the proxy transport, which streams the same bytes same-origin.
+export class DirectFetchError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "DirectFetchError";
+  }
+}
+
 export type GetPendingSampleDataUrls = (
   log_file: string,
   id: string | number,
@@ -104,13 +115,28 @@ const readSegment = async (seg: SegmentRef): Promise<SampleData> => {
   const url = seg.direct_url as string;
   // Whole-zip fetch: segments contain one member per (sample, epoch), so
   // the zip is ~the member plus trivial framing — ranging buys nothing.
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new Error(
-      `Failed to fetch segment: ${resp.status} ${resp.statusText}`
-    );
+  let bytes: Uint8Array;
+  try {
+    const resp = await fetch(url);
+    // fetch() never rejects on HTTP status, so surface a non-ok response as a
+    // failed direct fetch too (falls back to proxy, same as a rejection).
+    if (!resp.ok) {
+      throw new DirectFetchError(
+        `Failed to fetch segment: ${resp.status} ${resp.statusText}`
+      );
+    }
+    bytes = new Uint8Array(await resp.arrayBuffer());
+  } catch (e) {
+    if (e instanceof DirectFetchError) {
+      throw e;
+    }
+    // fetch()/body reads reject with an opaque TypeError for any network-layer
+    // failure (CORS, DNS, connection, blocked) and never for HTTP status — we
+    // can't tell which, so treat any failure as "direct unusable" and use proxy.
+    throw new DirectFetchError(`Failed to fetch segment: ${String(e)}`, {
+      cause: e,
+    });
   }
-  const bytes = new Uint8Array(await resp.arrayBuffer());
   const zip = await openZipFileFromBuffer(bytes);
   const memberBytes = await zip.readFile(seg.member_name);
   return await asyncJsonParseBytes(memberBytes);
