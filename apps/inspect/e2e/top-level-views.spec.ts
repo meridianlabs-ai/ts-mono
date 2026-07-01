@@ -120,6 +120,11 @@ function setupHandlers(
       const taskName = match?.task ?? "unknown";
       const evalLog = makeSampleLog(taskName);
       return HttpResponse.json(createLogDetails(evalLog));
+    }),
+
+    // Log info (size/etag) — requested when opening a specific log.
+    http.get("*/api/log-info/:file", () => {
+      return HttpResponse.json({ size: 0 });
     })
   );
 }
@@ -401,4 +406,58 @@ test.describe("Keyboard navigation", () => {
     await page.waitForURL(/#\/tasks\/.+/);
     expect(page.url()).toMatch(/#\/tasks\/.+/);
   });
+});
+
+// Drag a column's resize separator by `dx` px.
+async function dragResize(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  columnId: string,
+  dx: number
+) {
+  const handle = page.getByLabel(`Resize ${columnId}`, { exact: true });
+  const box = await handle.boundingBox();
+  if (!box) throw new Error(`no resize handle for ${columnId}`);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + dx, cy, { steps: 8 });
+  await page.mouse.up();
+}
+
+test("resizes a column by dragging its divider", async ({ page, network }) => {
+  setupHandlers(network);
+  await page.goto("/");
+  const header = page.locator(
+    '[role="columnheader"]:has([aria-label="Resize task"])'
+  );
+  await expect(header).toBeVisible();
+  const before = (await header.boundingBox())!.width;
+  await dragResize(page, "task", 120);
+  const after = (await header.boundingBox())!.width;
+  expect(after).toBeGreaterThan(before + 60);
+});
+
+test("keeps a resized width after navigating into a log and back", async ({
+  page,
+  network,
+}) => {
+  setupHandlers(network);
+  await page.goto("/");
+  const header = page.locator(
+    '[role="columnheader"]:has([aria-label="Resize task"])'
+  );
+  await expect(header).toBeVisible();
+  await dragResize(page, "task", 120);
+  const resized = (await header.boundingBox())!.width;
+
+  // Into a log and back — the grid remounts on the same scope and should
+  // re-read the persisted width from the store (in-memory within the session).
+  await gridCell(page, "task-alpha").click();
+  await expect(page).toHaveURL(/#\/tasks\/.+/);
+  await page.goBack();
+
+  await expect(header).toBeVisible();
+  const restored = (await header.boundingBox())!.width;
+  expect(Math.abs(restored - resized)).toBeLessThan(3);
 });
