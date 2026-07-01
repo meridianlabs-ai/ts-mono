@@ -1,6 +1,8 @@
+import JSON5 from "json5";
+
 import { dirname } from "@tsmono/util";
 
-import { ClientAPI } from "../client/api/types";
+import { ClientAPI, UpdateStateMessage } from "../client/api/types";
 
 import { parseUrlLogSource } from "./urlLogSource";
 
@@ -18,7 +20,26 @@ export const detectInitialSingleFileMode = (
   if (doc.getElementById("logview-state")) {
     return true;
   }
+
+  // This could return none if in view server mode
+  // or if we're in static mode with no additional param
   return parseUrlLogSource(location.search).kind === "file";
+};
+
+/**
+ * The embedded (VS Code) startup state the host injects as a `#logview-state`
+ * script tag. The host emits it only for file launches (a selected `log_file`),
+ * so when it's present `url` is always set. Parsed synchronously so the log root
+ * is available before first render instead of arriving via a post-mount host
+ * message.
+ */
+export const readEmbeddedStartupState = (
+  doc: Pick<Document, "getElementById"> = document
+): UpdateStateMessage["data"] | null => {
+  const el = doc.getElementById("logview-state");
+  return el
+    ? JSON5.parse<UpdateStateMessage["data"]>(el.textContent || "")
+    : null;
 };
 
 /**

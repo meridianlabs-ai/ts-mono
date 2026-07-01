@@ -2,8 +2,6 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import "@vscode/codicons/dist/codicon.css";
 
-import JSON5 from "json5";
-
 import "prismjs";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-clike";
@@ -43,11 +41,11 @@ import { isUri } from "../utils/uri.ts";
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 import { useAppConfigAsync } from "./server/useAppConfig.ts";
+import { setLogRoot, useLogDirAsync } from "./server/useLogDir.ts";
 import {
-  pushLogDirForEmbeddedMode,
-  useLogDirAsync,
-} from "./server/useLogDir.ts";
-import { resolveEmbeddedLogDir } from "./singleFileMode.ts";
+  readEmbeddedStartupState,
+  resolveEmbeddedLogDir,
+} from "./singleFileMode.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,
@@ -130,7 +128,7 @@ const AppContent: FC = () => {
             const decodedUrl = decodeURIComponent(e.data.url);
 
             // Push the host-opened dir so <LoaderGate>'s gate resolves.
-            pushLogDirForEmbeddedMode(resolveEmbeddedLogDir(decodedUrl));
+            setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
             if (!rehydrated) {
               setInitialState(
@@ -174,12 +172,9 @@ const AppContent: FC = () => {
     // Embedded state (VS Code) is the host-message bootstrap and feeds the same
     // onMessage bridge as live postMessage events. The URL-param single-file
     // deep link (`?log_file=`) is handled by <LoaderHost>.
-    const embeddedState = document.getElementById("logview-state");
-    if (embeddedState) {
-      const state = JSON5.parse<HostMessage["data"]>(
-        embeddedState.textContent || ""
-      );
-      onMessage({ data: state } as HostMessage);
+    const embedded = readEmbeddedStartupState();
+    if (embedded) {
+      onMessage({ data: embedded });
     }
 
     new ClipboardJS(".clipboard-button,.copy-button");

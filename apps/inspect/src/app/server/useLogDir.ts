@@ -1,13 +1,17 @@
 import { QueryFunction } from "@tanstack/react-query";
 
-import { makePushedQuerySource } from "@tsmono/react";
 import { useAsyncDataFromQuery, useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { ClientAPI, LogRoot } from "../../client/api/types";
 import { queryClient } from "../../state/queryClient";
 import { useApi } from "../../state/store";
-import { isSingleFileMode, resolveSingleFileLogDir } from "../singleFileMode";
+import {
+  isSingleFileMode,
+  readEmbeddedStartupState,
+  resolveEmbeddedLogDir,
+  resolveSingleFileLogDir,
+} from "../singleFileMode";
 import { parseUrlLogSource } from "../urlLogSource";
 
 export const logDirKey = ["log-dir"] as const;
@@ -19,25 +23,40 @@ const rootFromDir = (logDir: string, absLogDir?: string): LogRoot => ({
 });
 
 /**
- * The embedded (VS Code) log root. Its dir has no pull source — it's whatever
- * log the host has opened (initial replay or live navigation), pushed via
- * <App>'s onMessage → `pushLogDirForEmbeddedMode`.
+ * The embedded (VS Code) log root, resolved synchronously from the
+ * `#logview-state` the host injects. Returns undefined when there's no embedded
+ * state — a `?log_file=` deep link or directory mode — so callers fall back to
+ * their own source.
  */
-const pushedLogRoot = makePushedQuerySource<LogRoot>(queryClient, logDirKey);
+const embeddedLogRoot = (): LogRoot | undefined => {
+  const embedded = readEmbeddedStartupState();
+  return embedded
+    ? rootFromDir(resolveEmbeddedLogDir(decodeURIComponent(embedded.url)))
+    : undefined;
+};
 
 /**
- * The single-file log root, split pull vs. push:
- * - `?log_file=` URL: derive the dir from the file (pull).
- * - embedded (VS Code): await the pushed root (`pushedLogRoot`).
+ * The single-file log root, split pull vs. synchronous seed:
+ * - `?log_file=` URL: derive the dir from the file (pull, possibly an api call).
+ * - embedded (VS Code): resolve the dir from `#logview-state` synchronously.
  */
 const singleFileLogRoot = (
   api: ClientAPI
 ): QueryFunction<LogRoot, typeof logDirKey> => {
   const source = parseUrlLogSource(window.location.search);
-  return source.kind === "file"
-    ? async () =>
-        rootFromDir(await resolveSingleFileLogDir(source.logFile, api))
-    : pushedLogRoot.queryFn;
+  if (source.kind === "file") {
+    return async () =>
+      rootFromDir(await resolveSingleFileLogDir(source.logFile, api));
+  }
+  return () => {
+    const root = embeddedLogRoot();
+    if (!root) {
+      throw new Error(
+        "single-file mode without ?log_file= implies embedded #logview-state"
+      );
+    }
+    return root;
+  };
 };
 
 /**
@@ -47,12 +66,14 @@ const singleFileLogRoot = (
  */
 export const useLogRootAsync = (): AsyncData<LogRoot> => {
   const api = useApi();
+  // Embedded (VS Code) startup state is in the DOM before first render, so seed
+  // it as initialData — the gate resolves immediately, no loading flash.
   return useAsyncDataFromQuery({
     queryKey: logDirKey,
-    queryFn: isSingleFileMode
-      ? singleFileLogRoot(api)
-      : () => api.get_log_root(),
     staleTime: Infinity,
+    ...(isSingleFileMode
+      ? { queryFn: singleFileLogRoot(api), initialData: embeddedLogRoot() }
+      : { queryFn: () => api.get_log_root() }),
   });
 };
 
@@ -60,22 +81,13 @@ const cachedLogRoot = (): LogRoot | undefined =>
   queryClient.getQueryData<LogRoot>(logDirKey);
 
 /**
- * The push entry for embedded (VS Code) mode, where the dir arrives via <App>'s
- * onMessage and can change mid-session — the host telling the viewer which log
- * to display (initial replay or live navigation). Routes through the single
- * encapsulated cache writer (`pushedLogRoot.set`).
+ * Write the resolved log root into the gated `["log-dir"]` cache. Used by
+ * embedded (VS Code) live navigation — the host posting a different log
+ * mid-session via <App>'s onMessage — and by tests seeding the dir without
+ * mounting a query. Production startup dirs reach the cache through the queryFn
+ * / initialData (`useLogRootAsync`), not here.
  */
-export const pushLogDirForEmbeddedMode = (logDir: string): void => {
-  pushedLogRoot.set(rootFromDir(logDir));
-};
-
-/**
- * Test-only: seed the resolved dir into the `["log-dir"]` cache for tests that
- * read it via the non-React `getLogDir()` without mounting a query. Production
- * dirs reach the cache through the queryFn (`useLogRootAsync`) — dir/URL pull,
- * or the embedded push (`pushLogDirForEmbeddedMode`).
- */
-export const seedLogDirForTest = (logDir: string, absLogDir?: string): void => {
+export const setLogRoot = (logDir: string, absLogDir?: string): void => {
   queryClient.setQueryData<LogRoot>(logDirKey, rootFromDir(logDir, absLogDir));
 };
 
