@@ -1,4 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
+import type { CSSProperties } from "react";
 
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 
@@ -15,7 +16,7 @@ export type ColumnComparator = (
   isDescending: boolean
 ) => number;
 
-export interface BaseColumnMeta {
+export interface BaseColumnMeta<TRow = unknown> {
   /** Text alignment for the column. */
   align?: "left" | "center" | "right";
   /** Client-side sort comparator (consumed by the listing query). */
@@ -24,6 +25,18 @@ export interface BaseColumnMeta {
   filterable?: boolean;
   /** Filter editor + operator set for the column (when `filterable`). */
   filterType?: FilterType;
+  /**
+   * Render this column's header as a 45° rotated label (fans up-and-right
+   * out of a narrow cell). DataGrid grows the header row when any visible
+   * column opts in. Used by compact score columns.
+   */
+  rotateHeader?: boolean;
+  /**
+   * Per-cell inline style derived from the full row, merged onto the
+   * gridcell container. Used by score columns to paint heat-map
+   * backgrounds; returns undefined to leave the cell unstyled.
+   */
+  cellStyle?: (row: TRow) => CSSProperties | undefined;
 }
 
 /**
@@ -32,7 +45,7 @@ export interface BaseColumnMeta {
  * TanStack's own `ColumnDef`.
  */
 export type ExtendedColumnDef<TRow> = ColumnDef<TRow> & {
-  meta?: BaseColumnMeta;
+  meta?: BaseColumnMeta<TRow>;
   /** Tooltip text for the column header. */
   headerTitle?: string;
   /** Tooltip text for a cell, derived from the full row. */

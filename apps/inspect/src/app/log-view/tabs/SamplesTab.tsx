@@ -1,3 +1,4 @@
+import type { SortingState } from "@tanstack/react-table";
 import type { ColDef } from "ag-grid-community";
 import {
   FC,
@@ -34,10 +35,15 @@ import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
   useSamplesView,
+  useSamplesViewColorScalesEnabled,
+  useSamplesViewCompactScores,
   useSamplesViewMultiline,
+  useSamplesViewScoreColorScales,
+  useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
+import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
   perScorerFieldKey,
@@ -51,6 +57,12 @@ interface SamplesTabExtraProps {
   setShowColumnSelector: (showing: boolean) => void;
   columnButtonEl: HTMLButtonElement | null;
 }
+
+// Stable empty fallback: a fresh `{}` per render would invalidate the
+// `allColumns` memo every render (and tear down score-cell DOM).
+const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
+  {}
+);
 
 // AG-shaped shim of the column list for the still-AG `useSamplesView` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
@@ -199,6 +211,16 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // Multiline determines column rendering: list-style uses
   // MarkdownCellDiv (3-line clamp) which doesn't center in 30px rows.
   const multiline = useSamplesViewMultiline();
+  const compactScores = useSamplesViewCompactScores();
+  const scoreLabels = useSamplesViewScoreLabels();
+  const wireScoreColorScales = useSamplesViewScoreColorScales();
+  const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+  // Gate the heat-map colours behind the user-facing toggle: pass the
+  // resolved scales through only when enabled, else nothing.
+  const scoreColorScales = useMemo(
+    () => (colorScalesEnabled ? wireScoreColorScales : kNoScoreColorScales),
+    [colorScalesEnabled, wireScoreColorScales]
+  );
 
   const allColumns = useMemo(
     () =>
@@ -208,8 +230,19 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         descriptor: samplesDescriptor,
         scores,
         epochs,
+        scoreLabels,
+        scoreColorScales,
+        compactScores,
       }),
-    [multiline, samplesDescriptor, scores, epochs]
+    [
+      multiline,
+      samplesDescriptor,
+      scores,
+      epochs,
+      scoreLabels,
+      scoreColorScales,
+      compactScores,
+    ]
   );
 
   const pickerColumns = useMemo(
@@ -241,6 +274,28 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     useSamplesView<SampleRow>(pickerColumns, {
       seedDefaultVisibility: defaultsForUnseededColumns,
     });
+
+  // Apply the eval-author's initial column order + row sort from
+  // `task_samples_view` (the AG grid did this via `initialState`). Columns are
+  // reordered to follow `view.columns`; any not listed keep their builder
+  // order at the end. Default sort seeds the grid from `view.sort`.
+  const orderedColumns = useMemo<ExtendedColumnDef<SampleRow>[]>(() => {
+    if (view.columns.length === 0) return allColumns;
+    const orderIndex = new Map(view.columns.map((c, i) => [c.id, i]));
+    const rankOf = (col: ExtendedColumnDef<SampleRow>) => {
+      const i = col.id !== undefined ? orderIndex.get(col.id) : undefined;
+      return i ?? Number.MAX_SAFE_INTEGER;
+    };
+    return allColumns
+      .map((col, i) => ({ col, i }))
+      .sort((a, b) => rankOf(a.col) - rankOf(b.col) || a.i - b.i)
+      .map((x) => x.col);
+  }, [allColumns, view.columns]);
+
+  const defaultSorting = useMemo<SortingState>(
+    () => view.sort.map((s) => ({ id: s.colId, desc: s.dir === "desc" })),
+    [view.sort]
+  );
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
@@ -366,8 +421,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       {listDisplay ? (
         <SampleList
           items={items}
-          columns={allColumns}
+          columns={orderedColumns}
           columnVisibility={visibilityForGrid}
+          defaultSorting={defaultSorting}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}

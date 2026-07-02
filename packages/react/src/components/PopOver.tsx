@@ -4,6 +4,7 @@ import React, {
   CSSProperties,
   ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -332,6 +333,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     attributes,
     state,
     update,
+    forceUpdate,
     // eslint-disable-next-line react-hooks/refs
   } = usePopper(positionEl, popperRef.current, {
     placement,
@@ -385,6 +387,27 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/refs
   }, [update, isOpen, shouldShowPopover, showArrow, arrowRef.current]);
+
+  // Pre-paint correction. popper's first computed `state` (pass 1) comes from
+  // its synchronous, transform-blind offset math; when the reference sits in a
+  // CSS-transformed subtree (e.g. a rotated grid header) that pass is wrong and
+  // popper only corrects on a later `getBoundingClientRect`-based pass. The
+  // post-paint `setTimeout(update)` above does that correction one frame too
+  // late — the wrong position paints first, then jumps. Forcing the recompute
+  // here (a layout effect, so it runs after refs attach but before the browser
+  // paints) lands the corrected position on the first painted frame. Gated to
+  // fire once per open, on the render where popper first hands us a state.
+  const didPrePosition = useRef(false);
+  useLayoutEffect(() => {
+    if (!isOpen || !shouldShowPopover) {
+      didPrePosition.current = false;
+      return;
+    }
+    if (forceUpdate && state && !didPrePosition.current) {
+      didPrePosition.current = true;
+      forceUpdate();
+    }
+  }, [isOpen, shouldShowPopover, forceUpdate, state]);
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover

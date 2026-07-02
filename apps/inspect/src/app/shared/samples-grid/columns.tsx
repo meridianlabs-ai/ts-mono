@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
@@ -6,7 +7,11 @@ import { arrayToString, filename, formatNumber } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { LogDetails } from "../../../client/api/types";
-import { kScoreTypeNumeric } from "../../../constants";
+import {
+  kScoreTypeBoolean,
+  kScoreTypeNumeric,
+  kScoreTypePassFail,
+} from "../../../constants";
 import {
   formatDateTime,
   formatTime,
@@ -25,6 +30,11 @@ import {
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
+import {
+  colorForValue,
+  resolveScale,
+  type WireScoreColorScale,
+} from "./colorScale";
 import styles from "./SamplesGrid.module.css";
 import { SampleRow } from "./types";
 
@@ -53,6 +63,21 @@ export interface SampleGridContext {
   epochs?: number;
   /** Cross-log only — used to discover all distinct score names. */
   logDetails?: Record<string, LogDetails>;
+  /** Per-metric display label overrides, e.g. `{ "ascii-art": "ASCII
+   *  Art" }`. Falls through to the raw metric name when a key isn't
+   *  present. Sourced from the eval-author's `task_samples_view`. */
+  scoreLabels?: Record<string, string>;
+  /** Per-metric background colour scales, e.g. `{ "accuracy":
+   *  "good-high", "verdict": { "yes": "bad" } }`. Numeric metrics use
+   *  named palettes (gradient anchored at descriptor min/max);
+   *  categorical metrics map values to semantic roles. Pass/fail and
+   *  boolean metrics ignore this — their pills already carry the
+   *  semantic. */
+  scoreColorScales?: Record<string, WireScoreColorScale>;
+  /** When true, score columns render compact: narrow widths with rotated
+   *  45° headers so many scorers fit horizontally. Off by default;
+   *  eval authors opt in via `task_samples_view.compact_scores`. */
+  compactScores?: boolean;
 }
 
 type SampleColumn = ExtendedColumnDef<SampleRow>;
@@ -426,7 +451,51 @@ export function buildSampleColumns(
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
-  const { descriptor, scores, logDetails } = ctx;
+  const {
+    descriptor,
+    scores,
+    logDetails,
+    scoreLabels,
+    scoreColorScales,
+    compactScores,
+  } = ctx;
+
+  // Compact mode: score columns shrink and their headers rotate 45° so many
+  // scorers fit horizontally. Numeric scores render a short number (~40px);
+  // non-numeric render small pills needing a touch more room (~55px).
+  // Returns null when compact is off so each mode keeps its own wide-column
+  // defaults.
+  const compactSizing = (
+    isNumeric: boolean
+  ): Pick<SampleColumn, "size" | "minSize"> | null => {
+    if (!compactScores) return null;
+    const w = isNumeric ? 40 : 55;
+    return { size: w, minSize: w - 4 };
+  };
+
+  // Resolve a metric name through the eval-author's label overrides,
+  // falling back to the raw name. Used for the visible header text;
+  // the column `id` is still keyed off the raw name so filter / sort /
+  // visibility stay stable across label changes.
+  const labelFor = (name: string): string => scoreLabels?.[name] ?? name;
+
+  // Build a value→style resolver for the score column whose metric is
+  // `name`, given its bounds. Returns undefined when no scale is
+  // configured (or it can't be resolved against the bounds), so the cell
+  // renders with no background.
+  const cellStyleFor = (
+    name: string,
+    bounds: { min?: number; max?: number }
+  ): ((value: unknown) => CSSProperties | undefined) | undefined => {
+    const wire = scoreColorScales?.[name];
+    if (!wire) return undefined;
+    const resolved = resolveScale(wire, bounds);
+    if (!resolved) return undefined;
+    return (value) => {
+      const c = colorForValue(resolved, value);
+      return c ? { backgroundColor: c } : undefined;
+    };
+  };
 
   // Per-scorer mode (single-log with descriptor). One column per
   // *available* score; visibility is driven by `selectedScores` upstream
@@ -435,18 +504,43 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     const useLabelHeader = scores.length !== 1;
     return scores.map((label): SampleColumn => {
       const colId = perScorerFieldKey(label);
-      const headerName = useLabelHeader ? label.name : "Score";
+      const headerName = useLabelHeader ? labelFor(label.name) : "Score";
       const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
-      const isNumeric = scoreDesc?.scoreType === kScoreTypeNumeric;
+      const scoreType = scoreDesc?.scoreType;
+      const isNumeric = scoreType === kScoreTypeNumeric;
+      // Pass/fail and boolean already render as semantically-coloured
+      // pills via the descriptor; painting a background under them would
+      // clash. Only opt the *other* score types into the colour scale.
+      const acceptsColorScale =
+        scoreType !== kScoreTypePassFail && scoreType !== kScoreTypeBoolean;
+      const valueToStyle = acceptsColorScale
+        ? cellStyleFor(label.name, {
+            min: scoreDesc?.min,
+            max: scoreDesc?.max,
+          })
+        : undefined;
       return {
         id: colId,
         header: headerName,
-        size: Math.max(70, Math.round(headerName.length * 6.2) + 40),
-        minSize: 60,
-        maxSize: 120,
+        ...(compactSizing(isNumeric) ?? {
+          size: Math.max(70, Math.round(headerName.length * 6.2) + 40),
+          minSize: 60,
+          maxSize: 120,
+        }),
         meta: {
           align: "center",
+          rotateHeader: compactScores,
           sortComparator: isNumeric ? numberCompare : stringCompare,
+          cellStyle: valueToStyle
+            ? (row) => {
+                if (!row.data) return undefined;
+                const value = descriptor.evalDescriptor.score(
+                  row.data,
+                  label
+                )?.value;
+                return valueToStyle(value);
+              }
+            : undefined,
         },
         accessorFn: (row) => {
           const data = row.data;
@@ -471,13 +565,24 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
 
   // Raw mode — discover score names across the supplied logDetails. Detect
   // type collisions so a name with mixed value types falls back to text.
+  // Also tally numeric min/max per column so colour-scale gradients have
+  // something to anchor against (no descriptor exists in raw mode).
   const types: Record<string, Set<string>> = {};
+  const ranges: Record<string, { min: number; max: number }> = {};
   for (const details of Object.values(logDetails ?? {})) {
     for (const sample of details.sampleSummaries) {
       if (!sample.scores) continue;
       for (const [name, score] of Object.entries(sample.scores)) {
         if (!types[name]) types[name] = new Set();
         types[name].add(typeof score.value);
+        if (typeof score.value === "number" && Number.isFinite(score.value)) {
+          const r = ranges[name];
+          if (!r) ranges[name] = { min: score.value, max: score.value };
+          else {
+            if (score.value < r.min) r.min = score.value;
+            if (score.value > r.max) r.max = score.value;
+          }
+        }
       }
     }
   }
@@ -485,14 +590,18 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
   return scoreNames.map((name): SampleColumn => {
     const nameTypes = types[name];
     const isUniformNumber = nameTypes?.size === 1 && nameTypes.has("number");
+    const valueToStyle = cellStyleFor(name, ranges[name] ?? {});
     return {
       id: rawScoreFieldKey(name),
-      header: name,
-      size: 100,
-      minSize: 60,
+      header: labelFor(name),
+      ...(compactSizing(isUniformNumber) ?? { size: 100, minSize: 60 }),
       meta: {
         align: "center",
+        rotateHeader: compactScores,
         sortComparator: isUniformNumber ? numberCompare : stringCompare,
+        cellStyle: valueToStyle
+          ? (row) => valueToStyle(row[rawScoreFieldKey(name)])
+          : undefined,
       },
       accessorFn: (row) => row[rawScoreFieldKey(name)],
       cell: ({ getValue }) => {

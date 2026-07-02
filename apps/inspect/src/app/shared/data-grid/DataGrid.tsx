@@ -2,6 +2,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Header,
   OnChangeFn,
   SortingState,
   useReactTable,
@@ -33,6 +34,12 @@ import { resolveKeyboardNavTarget } from "./keyboardNav";
 const kRowHeight = 30;
 const kPageJump = 10;
 const kHeaderHeight = 25;
+// Tall enough to host a rotated score-column label (≈92px of vertical
+// extent for a 130px label at 45°) plus breathing room.
+const kRotatedHeaderHeight = 115;
+// Extra scroll width past the last column so its rotated label, which
+// fans up-and-right beyond the column edge, isn't clipped at max scroll.
+const kRotatedTrailingPad = 95;
 
 export interface DataGridProps<TRow> {
   data: TRow[];
@@ -134,6 +141,16 @@ export function DataGrid<TRow>({
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
 
+  // Rotated headers (compact score columns) need a taller header row, and
+  // extra trailing scroll width so the last label isn't clipped.
+  const anyRotated = table
+    .getVisibleLeafColumns()
+    .some((c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader);
+  const effectiveHeaderHeight = anyRotated
+    ? kRotatedHeaderHeight
+    : headerHeight;
+  const trailingPad = anyRotated ? kRotatedTrailingPad : 0;
+
   // The sticky header occupies layout space at the top of the scroll
   // container, so the virtualized rows start `headerHeight` px down. Two knobs
   // keep scrollToIndex in the same coordinate space as the DOM:
@@ -148,8 +165,8 @@ export function DataGrid<TRow>({
     getScrollElement: () => containerRef.current,
     estimateSize: () => rowHeight,
     overscan: 12,
-    scrollMargin: headerHeight,
-    scrollPaddingStart: headerHeight,
+    scrollMargin: effectiveHeaderHeight,
+    scrollPaddingStart: effectiveHeaderHeight,
     getItemKey: (index) => rows[index]?.id ?? String(index),
   });
 
@@ -237,10 +254,17 @@ export function DataGrid<TRow>({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <div className={styles.table} style={{ width: totalWidth }}>
+      <div
+        className={styles.table}
+        // Add the rotated-label trailing room to the width, not as padding:
+        // `.table` is `box-sizing: border-box`, so `paddingRight` would shrink
+        // the content box and make the full-width rows overflow it — a second,
+        // nested horizontal scrollbar. Widening keeps a single scroll extent.
+        style={{ width: totalWidth + trailingPad }}
+      >
         <div
           className={styles.thead}
-          style={{ height: headerHeight }}
+          style={{ height: effectiveHeaderHeight }}
           role="rowgroup"
         >
           {table.getHeaderGroups().map((headerGroup) => (
@@ -248,14 +272,70 @@ export function DataGrid<TRow>({
               {headerGroup.headers.map((header) => {
                 const columnDef = header.column
                   .columnDef as ExtendedColumnDef<TRow>;
-                const align = columnDef.meta?.align;
-                const filterType = columnDef.meta?.filterType;
                 const filterCondition =
                   columnFilters?.[header.column.id]?.condition ?? null;
+
+                // Rotated (compact score) header: a 45° label hosting text +
+                // sort caret + filter funnel. Rendered by a subcomponent so
+                // the filter popover can anchor to a non-rotated element at
+                // the cell's bottom — placing it below the header (like the
+                // AG grid) rather than over the headers.
+                if (columnDef.meta?.rotateHeader) {
+                  return (
+                    <RotatedHeaderCell
+                      key={header.id}
+                      header={header}
+                      filterCondition={filterCondition}
+                      onColumnFilterChange={onColumnFilterChange}
+                    />
+                  );
+                }
+
+                const align = columnDef.meta?.align;
+                const filterType = columnDef.meta?.filterType;
+                const sorted = header.column.getIsSorted();
+                const sortCaret =
+                  sorted === "asc" ? (
+                    <i
+                      className={clsx("bi bi-caret-up-fill", styles.sortIcon)}
+                      aria-hidden="true"
+                    />
+                  ) : sorted === "desc" ? (
+                    <i
+                      className={clsx("bi bi-caret-down-fill", styles.sortIcon)}
+                      aria-hidden="true"
+                    />
+                  ) : null;
+                const headerLabel = header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    );
+                const filterControl =
+                  columnDef.meta?.filterable && filterType ? (
+                    <ColumnFilterControl
+                      columnId={header.column.id}
+                      filterType={filterType}
+                      condition={filterCondition}
+                      placement="bottom-start"
+                      onChange={(condition) =>
+                        onColumnFilterChange?.(
+                          header.column.id,
+                          filterType,
+                          condition
+                        )
+                      }
+                    />
+                  ) : null;
+
                 return (
                   <div
                     key={header.id}
-                    className={styles.headerCell}
+                    className={clsx(
+                      styles.headerCell,
+                      anyRotated && styles.headerCellTall
+                    )}
                     style={{ width: header.getSize() }}
                     title={columnDef.headerTitle}
                     role="columnheader"
@@ -267,52 +347,17 @@ export function DataGrid<TRow>({
                       )}
                       onClick={header.column.getToggleSortingHandler()}
                     >
-                      <span className={styles.headerText}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </span>
-                      {header.column.getIsSorted() === "asc" && (
-                        <i
-                          className={clsx(
-                            "bi bi-caret-up-fill",
-                            styles.sortIcon
-                          )}
-                          aria-hidden="true"
-                        />
-                      )}
-                      {header.column.getIsSorted() === "desc" && (
-                        <i
-                          className={clsx(
-                            "bi bi-caret-down-fill",
-                            styles.sortIcon
-                          )}
-                          aria-hidden="true"
-                        />
-                      )}
+                      <span className={styles.headerText}>{headerLabel}</span>
+                      {sortCaret}
                     </div>
-                    {columnDef.meta?.filterable && filterType && (
+                    {filterControl && (
                       <div
                         className={clsx(
                           styles.headerFilter,
                           filterCondition && styles.headerFilterActive
                         )}
                       >
-                        <ColumnFilterControl
-                          columnId={header.column.id}
-                          filterType={filterType}
-                          condition={filterCondition}
-                          onChange={(condition) =>
-                            onColumnFilterChange?.(
-                              header.column.id,
-                              filterType,
-                              condition
-                            )
-                          }
-                        />
+                        {filterControl}
                       </div>
                     )}
                   </div>
@@ -324,7 +369,7 @@ export function DataGrid<TRow>({
         <div
           className={styles.tbody}
           style={{
-            height: Math.max(0, totalSize - headerHeight),
+            height: Math.max(0, totalSize - effectiveHeaderHeight),
             width: totalWidth,
           }}
           role="rowgroup"
@@ -340,9 +385,10 @@ export function DataGrid<TRow>({
                 style={{
                   height: rowHeight,
                   width: totalWidth,
-                  // scrollMargin shifts virtual offsets by headerHeight; the
-                  // tbody already sits below the in-flow header, so subtract it.
-                  transform: `translateY(${virtualRow.start - headerHeight}px)`,
+                  // scrollMargin shifts virtual offsets by the header height;
+                  // the tbody already sits below the in-flow header, so
+                  // subtract it.
+                  transform: `translateY(${virtualRow.start - effectiveHeaderHeight}px)`,
                 }}
                 onClick={(e) => handleRowClick(e, row.id, row.original)}
                 role="row"
@@ -352,6 +398,7 @@ export function DataGrid<TRow>({
                   const cellDef = cell.column
                     .columnDef as ExtendedColumnDef<TRow>;
                   const align = cellDef.meta?.align;
+                  const cellStyle = cellDef.meta?.cellStyle?.(row.original);
                   return (
                     <div
                       key={cell.id}
@@ -359,7 +406,7 @@ export function DataGrid<TRow>({
                         styles.cell,
                         align === "center" && styles.cellCenter
                       )}
-                      style={{ width: cell.column.getSize() }}
+                      style={{ width: cell.column.getSize(), ...cellStyle }}
                       title={cellDef.titleValue?.(row.original)}
                       role="gridcell"
                     >
@@ -380,6 +427,90 @@ export function DataGrid<TRow>({
           {loading ? "Loading…" : emptyMessage}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Rotated (compact score) header cell. The 45° label hosts the text, sort
+ * caret, and filter funnel. The filter popover anchors to a hidden,
+ * non-rotated element at the cell's bottom so it opens below the header
+ * (under the column) instead of over the headers next to the funnel.
+ */
+function RotatedHeaderCell<TRow>({
+  header,
+  filterCondition,
+  onColumnFilterChange,
+}: {
+  header: Header<TRow, unknown>;
+  filterCondition: SimpleCondition | null;
+  onColumnFilterChange?: (
+    columnId: string,
+    filterType: FilterType,
+    condition: SimpleCondition | null
+  ) => void;
+}): ReactElement {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
+  const filterType = columnDef.meta?.filterType;
+  const sorted = header.column.getIsSorted();
+  const headerLabel = header.isPlaceholder
+    ? null
+    : flexRender(header.column.columnDef.header, header.getContext());
+
+  return (
+    <div
+      className={clsx(styles.headerCell, styles.headerCellRotated)}
+      style={{ width: header.getSize() }}
+      title={columnDef.headerTitle}
+      role="columnheader"
+    >
+      <div
+        className={clsx(
+          styles.rotatedLabel,
+          filterCondition && styles.rotatedLabelFiltered
+        )}
+        onClick={header.column.getToggleSortingHandler()}
+      >
+        <span className={styles.rotatedText}>{headerLabel}</span>
+        {sorted === "asc" && (
+          <i
+            className={clsx("bi bi-caret-up-fill", styles.sortIcon)}
+            aria-hidden="true"
+          />
+        )}
+        {sorted === "desc" && (
+          <i
+            className={clsx("bi bi-caret-down-fill", styles.sortIcon)}
+            aria-hidden="true"
+          />
+        )}
+        {columnDef.meta?.filterable && filterType && (
+          // The popover is portaled, but React events bubble through the
+          // component tree — so clicks inside the filter would reach the
+          // label's sort handler. Stop them here.
+          <span
+            className={styles.rotatedFilter}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ColumnFilterControl
+              columnId={header.column.id}
+              filterType={filterType}
+              condition={filterCondition}
+              anchorEl={anchorEl}
+              placement="bottom-start"
+              onChange={(condition) =>
+                onColumnFilterChange?.(header.column.id, filterType, condition)
+              }
+            />
+          </span>
+        )}
+      </div>
+      <span
+        ref={setAnchorEl}
+        className={styles.rotatedFilterAnchor}
+        aria-hidden="true"
+      />
     </div>
   );
 }
