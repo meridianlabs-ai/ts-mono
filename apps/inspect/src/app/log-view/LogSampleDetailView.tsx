@@ -20,8 +20,8 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  * This is shown when navigating to /logs/path/to/file.eval/samples/sample/id/epoch
  *
  * This component handles:
- * - Log loading (initLogDir, setSelectedLogFile, syncLogs)
- * - Sample selection from route params (fetching rides the sample queries)
+ * - Log + sample selection from route params (fetching rides the details and
+ *   sample queries)
  * - Navigation state via useLogSampleNavigationActions (respects log filters)
  *
  * Unlike SampleDetailView, this component:

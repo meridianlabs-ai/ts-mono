@@ -133,20 +133,6 @@ export const fetchLog = async (
 };
 
 /**
- * Load previews for the given logs into the cache. Best-effort: a failure is
- * logged and swallowed so a preview fetch can't wedge the listing. Lives here,
- * not in the zustand slice — preview loading is replication/IO orchestration,
- * not UI state.
- */
-export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
-  try {
-    await fetchEngine.ensurePreviews(logs);
-  } catch (e) {
-    console.error("Failed to sync log previews", e);
-  }
-};
-
-/**
  * Ensure dir-mode replication is active for `logDir` (defaulting to the
  * resolved dir), then sync. The queryFn behind `useLogsSync` — listing
  * freshness is driven by its subscribers. No-op in single-file mode / before

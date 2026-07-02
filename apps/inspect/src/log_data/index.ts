@@ -14,12 +14,7 @@ export {
   useLogPreviews,
 } from "./logsContent";
 export { usePendingSamples } from "./pendingSamples";
-export {
-  fetchLog,
-  setReplicationApi,
-  syncLogPreviews,
-  syncLogs,
-} from "./replicationControl";
+export { fetchLog, setReplicationApi } from "./replicationControl";
 export type { RunningSampleData } from "./runningSampleQuery";
 export { useRunningSample } from "./runningSampleQuery";
 export { useCachedSample, useSample } from "./sampleQuery";
