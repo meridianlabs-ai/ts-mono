@@ -98,7 +98,6 @@ export const LogViewLayout: FC = () => {
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}
               currentPath={logPath}
-              showActivity="log"
             />
           ) : (
             <ActivityBar animating={logLoading} />

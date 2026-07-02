@@ -380,7 +380,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       <ApplicationNavbar
         fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
         currentPath={mode === "tasks" ? undefined : logPath}
-        showActivity="log"
       >
         {hasFilter && (
           <NavbarButton

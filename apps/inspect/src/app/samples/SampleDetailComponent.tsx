@@ -93,10 +93,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
 
   // Sample data and status
   const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
+  const sample = sampleData.sample;
 
   // Returns true when sample is undefined (no stale data to worry about —
   // this is normal for running samples where data comes via runningEvents).
@@ -241,12 +238,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
           </ApplicationNavbar>
 
           {sampleMatchesRequest && (
-            <InlineSampleComponent
-              showActivity={
-                sampleStatus === "loading" || sampleStatus === "streaming"
-              }
-              className={styles.panel}
-            />
+            <InlineSampleComponent className={styles.panel} />
           )}
         </div>
       </FindTargetProvider>

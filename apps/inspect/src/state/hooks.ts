@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { LogHandle } from "@tsmono/inspect-common/types";
+import { EvalSample, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { EvalLogStatus, Events } from "../@types/extraInspect";
@@ -11,12 +11,14 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
-import { sampleIdsEqual } from "../app/shared/sample";
+import { sampleHandlesEqual, sampleIdsEqual } from "../app/shared/sample";
+import { SampleStatus } from "../app/types";
 import { LogDetails, SampleSummary } from "../client/api/types";
 import { useLogDetail, useLogHandles, useLogPreviews } from "../log_data";
 
 import { refreshLog } from "./actions";
 import { usePendingSamples } from "./pendingSamples";
+import { useCachedSample, useSampleQuery } from "./sampleQuery";
 import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
@@ -361,55 +363,115 @@ export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   }, [selectedSampleHandle, sampleSummaries]);
 };
 
-export const useSampleData = () => {
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
-  const sampleError = useStore((state) => state.sample.sampleError);
-  const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample
+const kNoRunningEvents: Events = [];
+
+export interface SampleData {
+  /** The selected sample's settled body: completed fetch, error-summary
+   *  fallback, or a just-finalized streaming sample. */
+  sample: EvalSample | undefined;
+  status: SampleStatus;
+  error: Error | undefined;
+  /** Streamed events for a still-running sample; empty on the completed path. */
+  running: Events;
+  /** True when the preprocessor stripped events from an oversized sample
+   *  (messages remain). */
+  eventsCleared: boolean;
+}
+
+/**
+ * The selected sample as an AsyncData-style derivation. Completed samples are
+ * served by `useSampleQuery` (react-query); running samples still ride the
+ * legacy polling slice (streamed `running` events, finalized body via
+ * `setSelectedSample`). While the query fetches a sample that just finalized,
+ * the slice body bridges so completion never flashes a loading state.
+ */
+export const useSampleData = (): SampleData => {
+  const handle = useStore((state) => state.log.selectedSampleHandle);
+  const summary = useSelectedSampleSummary();
+  // `completed !== false` mirrors the legacy loader: only an explicitly
+  // incomplete summary takes the running path.
+  const runningPath = summary?.completed === false;
+  const query = useSampleQuery(
+    !runningPath && summary !== undefined ? handle : undefined,
+    summary
   );
-  const selectedSampleIdentifier = useStore(
-    (state) => state.sample.sample_identifier
-  );
-  const sampleNeedsReload = useStore((state) => state.sample.sampleNeedsReload);
-  const eventsCleared = useStore((state) => state.sample.eventsCleared);
+
+  const sliceIdentifier = useStore((state) => state.sample.sample_identifier);
+  const sliceStatus = useStore((state) => state.sample.sampleStatus);
+  const sliceError = useStore((state) => state.sample.sampleError);
+  const sliceEventsCleared = useStore((state) => state.sample.eventsCleared);
   const runningEvents = useStore(
     (state) => state.sample.runningEvents
   ) as Events;
-  const downloadProgress = useStore((state) => state.sample.downloadProgress);
-  return useMemo(() => {
-    return {
-      selectedSampleIdentifier,
-      status: sampleStatus,
-      sampleNeedsReload,
-      error: sampleError,
-      getSelectedSample,
-      eventsCleared,
-      running: runningEvents,
-      downloadProgress,
-    };
-  }, [
-    sampleStatus,
-    sampleError,
-    getSelectedSample,
-    selectedSampleIdentifier,
-    sampleNeedsReload,
-    eventsCleared,
-    runningEvents,
-    downloadProgress,
-  ]);
-};
-
-// Returns the invalidation data for the currently selected sample, if any.
-// Returns a tuple of [invalidation, sampleIdentifier]
-export const useSampleInvalidation = () => {
   const getSelectedSample = useStore(
     (state) => state.sampleActions.getSelectedSample
   );
-  const sampleIdentifier = useStore((state) => state.sample.sample_identifier);
-  return useMemo(() => {
-    const sample = getSelectedSample();
-    return [sample?.invalidation || null, sampleIdentifier] as const;
-  }, [getSelectedSample, sampleIdentifier]);
+
+  return useMemo((): SampleData => {
+    if (runningPath) {
+      return {
+        sample: getSelectedSample(),
+        status: sliceStatus,
+        error: sliceError,
+        running: runningEvents,
+        eventsCleared: sliceEventsCleared,
+      };
+    }
+    // The legacy machinery's finalized body bridges the gap between a stream
+    // completing and the query's own fetch settling.
+    const bridge =
+      handle !== undefined && sampleHandlesEqual(sliceIdentifier, handle)
+        ? getSelectedSample()
+        : undefined;
+    const sample = query.data ?? bridge;
+    if (sample !== undefined) {
+      return {
+        sample,
+        status: "ok",
+        error: undefined,
+        running: kNoRunningEvents,
+        eventsCleared:
+          sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+      };
+    }
+    // Without a summary the sample isn't loadable yet (the legacy loader
+    // waited for it too), so the query idles rather than reading as loading.
+    const idle = handle === undefined || summary === undefined;
+    return {
+      sample: undefined,
+      status: idle
+        ? "ok"
+        : query.loading
+          ? "loading"
+          : query.error
+            ? "error"
+            : "ok",
+      error: idle || query.loading ? undefined : query.error,
+      running: kNoRunningEvents,
+      eventsCleared: false,
+    };
+  }, [
+    runningPath,
+    query,
+    handle,
+    summary,
+    sliceIdentifier,
+    sliceStatus,
+    sliceError,
+    sliceEventsCleared,
+    runningEvents,
+    getSelectedSample,
+  ]);
+};
+
+/**
+ * The selected sample's invalidation record (if any). Reads the sample cache
+ * passively — the banner renders outside the sample views and must not keep
+ * the sample query alive.
+ */
+export const useSampleInvalidation = (): EvalSample["invalidation"] | null => {
+  const handle = useStore((state) => state.log.selectedSampleHandle);
+  return useCachedSample(handle)?.invalidation ?? null;
 };
 
 export const useLogSelection = () => {

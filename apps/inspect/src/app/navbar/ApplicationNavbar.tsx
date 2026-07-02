@@ -1,4 +1,4 @@
-import { FC, ReactNode, useMemo, useState } from "react";
+import { FC, ReactNode, useState } from "react";
 
 import {
   ThemeToggle,
@@ -20,7 +20,6 @@ interface ApplicationNavbarProps {
   fnNavigationUrl: (file: string, log_dir?: string) => string;
   bordered?: boolean;
   children?: ReactNode;
-  showActivity?: "all" | "sample" | "log";
   breadcrumbsEnabled?: boolean;
 }
 
@@ -29,7 +28,6 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   fnNavigationUrl,
   bordered,
   children,
-  showActivity = "log",
   breadcrumbsEnabled,
 }) => {
   const [optionsEl, setOptionsEl] = useState<HTMLButtonElement | null>(null);
@@ -37,24 +35,11 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   const setThemePreference = useUserSettings((s) => s.setThemePreference);
   const isDark = useResolvedIsDark(themePreference);
   const loading = useSelectedLogLoading();
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
   const isShowing = useStore((state) => state.app.dialogs.options);
   const setShowing = useStore(
     (state) => state.appActions.setShowingOptionsDialog
   );
-
-  const hasActivity = useMemo(() => {
-    if (showActivity === "all") {
-      return loading || sampleStatus === "loading";
-    } else if (showActivity === "log") {
-      return loading;
-    } else if (showActivity === "sample") {
-      return sampleStatus === "loading";
-    } else {
-      return false;
-    }
-  }, [showActivity, loading, sampleStatus]);
 
   return (
     <div>
@@ -82,7 +67,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
           setShowing={setShowing}
         />
       </Navbar>
-      <ActivityBar animating={hasActivity} />
+      <ActivityBar animating={loading} />
     </div>
   );
 };

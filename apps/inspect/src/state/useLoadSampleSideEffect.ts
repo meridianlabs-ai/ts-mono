@@ -1,236 +1,97 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect } from "react";
 
-import { EvalSample } from "@tsmono/inspect-common/types";
-import { createLogger } from "@tsmono/util";
-
-import { getApi } from "../app_config";
-import { SampleSummary } from "../client/api/types";
-import { resolveSample } from "../log_data";
+import { sampleHandlesEqual } from "../app/shared/sample";
+import { kSampleMessagesTabId } from "../constants";
 
 import { useLogSelection, useSampleData } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
-import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
 import { useStore } from "./store";
 
 // List of virtuoso list keys that should be cleared when sample changes
 const SAMPLE_LIST_KEYS = ["transcript-tree"];
 
-const log = createLogger("useSampleLoader");
-
-// Generation counter to invalidate stale sample load responses
-let loadGeneration = 0;
-
 /**
- * Hook that handles loading samples based on the current log selection.
- * Contains the full sample loading logic that was previously in sampleSlice.loadSample.
+ * Reactions to the selected sample changing — no fetching. Completed bodies
+ * are fetched by `useSampleQuery` (via `useSampleData`); this hook resets
+ * per-sample UI state (scroll/list positions, collapsed events, timeline),
+ * prepares/stops the legacy running-sample machinery, and defaults the
+ * messages tab for samples with no events.
  *
  * Used to trigger side effects only — returns nothing.
  */
 export function useLoadSampleSideEffect() {
-  const sampleData = useSampleData();
   const logSelection = useLogSelection();
-
-  // Get store state and actions
-  const api = getApi();
   const sampleActions = useStore((state) => state.sampleActions);
   const clearListPosition = useStore(
     (state) => state.appActions.clearListPosition
   );
-  const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample
-  );
+  const setSampleTab = useStore((state) => state.appActions.setSampleTab);
+  const identifier = useStore((state) => state.sample.sample_identifier);
+  const sliceStatus = useStore((state) => state.sample.sampleStatus);
+  const { sample } = useSampleData();
 
-  // Extract sample properties to avoid object reference issues
+  const logFile = logSelection.logFile;
   const sampleId = logSelection.sample?.id;
   const sampleEpoch = logSelection.sample?.epoch;
   const sampleCompleted = logSelection.sample?.completed;
 
-  // Track changes over time (updated inside the load effect below)
-  const currentSampleCompleted =
-    sampleCompleted !== undefined ? sampleCompleted : true;
-  const prevRef = useRef<{
-    completed?: boolean;
-    logFile?: string;
-    sampleId?: string | number;
-    sampleNeedsReload?: number;
-  }>({});
-
-  const loadSample = useCallback(
-    async (
-      logFile: string,
-      id: number | string,
-      epoch: number,
-      completed: boolean | undefined,
-      summary: SampleSummary | undefined
-    ) => {
-      // Skip if already loading this exact sample
-      const currentId = sampleData.selectedSampleIdentifier;
-      const isSameSample =
-        currentId?.id === id &&
-        currentId?.epoch === epoch &&
-        currentId?.logFile === logFile;
-      const isLoading =
-        sampleData.status === "loading" || sampleData.status === "streaming";
-
-      if (isSameSample && isLoading) {
+  useEffect(() => {
+    if (!logFile || sampleId === undefined || sampleEpoch === undefined) {
+      return;
+    }
+    const isSameSample = sampleHandlesEqual(identifier, {
+      id: sampleId,
+      epoch: sampleEpoch,
+      logFile,
+    });
+    if (sampleCompleted !== false) {
+      // Includes the just-finalized stream (completed flips true for the same
+      // sample): skip the reset so the finalized body bridges the refetch.
+      if (isSameSample) {
         return;
       }
-
-      // Invalidate any in-flight responses from previous loads
-      const thisGeneration = ++loadGeneration;
-
-      // Clear scroll positions for sample-related virtuoso lists
-      // This ensures the new sample starts at the top instead of restoring
-      // the previous sample's scroll position
       for (const key of SAMPLE_LIST_KEYS) {
         clearListPosition(key);
       }
-
-      // Clear old sample data and prepare for new load in a single state update
-      sampleActions.prepareForSampleLoad(logFile, id, epoch);
-
-      try {
-        if (completed !== false) {
-          log.debug(`LOADING COMPLETED SAMPLE: ${id}-${epoch}`);
-          // Stop any existing polling when loading a completed sample
-          getSamplePolling().stopPolling();
-
-          sampleActions.setDownloadProgress(undefined);
-          const onProgress = (bytesLoaded: number, bytesTotal: number) => {
-            sampleActions.setDownloadProgress({
-              complete: bytesLoaded,
-              total: bytesTotal,
-            });
-          };
-
-          const sample: EvalSample | undefined =
-            (await api.get_log_sample(logFile, id, epoch, onProgress)) ??
-            (summary?.error
-              ? synthesizeErroredSampleFromSummary(summary)
-              : undefined);
-          sampleActions.setDownloadProgress(undefined);
-          log.debug(`LOADED COMPLETED SAMPLE: ${id}-${epoch}`);
-
-          // Discard if a newer load has started while we were waiting
-          if (thisGeneration !== loadGeneration) {
-            log.debug(`Discarding stale sample response: ${id}-${epoch}`);
-            return;
-          }
-
-          if (sample) {
-            const isNewSample =
-              currentId?.id !== id ||
-              currentId?.epoch !== epoch ||
-              currentId?.logFile !== logFile;
-            if (isNewSample) {
-              sampleActions.clearCollapsedEvents();
-            }
-            const migratedSample = resolveSample(sample);
-            sampleActions.setSelectedSample(migratedSample, logFile);
-            sampleActions.setSampleStatus("ok");
-          } else {
-            sampleActions.setSampleStatus("error");
-            throw new Error(
-              "Unable to load sample - an unknown error occurred"
-            );
-          }
-        } else {
-          log.debug(`PREPARING FOR POLLING RUNNING SAMPLE: ${id}-${epoch}`);
-          // Clear the previous sample so component uses runningEvents instead
-          // of old sample.events. Polling will be started by useSamplePolling.
-          sampleActions.clearSampleForPolling(logFile, id, epoch);
-          getSamplePolling().stopPolling();
-        }
-      } catch (e) {
-        sampleActions.setDownloadProgress(undefined);
-        sampleActions.setSampleError(e as Error);
-        sampleActions.setSampleStatus("error");
+      sampleActions.clearCollapsedEvents();
+      // Clears legacy slice remnants and scroll/list bags; also stops any
+      // running-sample poll from the previous selection.
+      sampleActions.prepareForSampleLoad(logFile, sampleId, sampleEpoch);
+    } else {
+      // Don't reset a stream that's already prepared or in flight for this
+      // sample (remounts, effect re-runs on unrelated dep changes).
+      const streaming =
+        sliceStatus === "loading" || sliceStatus === "streaming";
+      const finalized = sampleActions.getSelectedSample() !== undefined;
+      if (isSameSample && (streaming || finalized)) {
+        return;
       }
-    },
-    [
-      api,
-      clearListPosition,
-      sampleActions,
-      sampleData.selectedSampleIdentifier,
-      sampleData.status,
-    ]
-  );
-
-  useEffect(() => {
-    const prev = prevRef.current;
-    prevRef.current = {
-      completed: currentSampleCompleted,
-      logFile: logSelection.logFile,
-      sampleId,
-      sampleNeedsReload: sampleData.sampleNeedsReload,
-    };
-    if (
-      logSelection.logFile &&
-      sampleId !== undefined &&
-      sampleEpoch !== undefined
-    ) {
-      // Check if the current selection matches what's already loaded
-      // AND that we actually have the sample data (not just the identifier).
-      // This is important for VSCode reloads where the identifier may be
-      // persisted but the actual sample data (stored in a ref) is lost.
-      const identifierMatches =
-        sampleData.selectedSampleIdentifier?.id === sampleId &&
-        sampleData.selectedSampleIdentifier?.epoch === sampleEpoch &&
-        sampleData.selectedSampleIdentifier?.logFile === logSelection.logFile;
-      const hasSampleData = getSelectedSample() !== undefined;
-      const isCurrentSampleLoaded = identifierMatches && hasSampleData;
-
-      // Check if we're currently loading
-      const isLoading =
-        sampleData.status === "loading" || sampleData.status === "streaming";
-
-      // Is there an error?
-      const isError = sampleData.status === "error";
-
-      // Check if this is a meaningful change (not just initial render)
-      const logFileChanged =
-        prev.logFile !== undefined && prev.logFile !== logSelection.logFile;
-      const sampleIdChanged =
-        prev.sampleId !== undefined && prev.sampleId !== sampleId;
-      const completedChanged =
-        prev.completed !== undefined &&
-        currentSampleCompleted !== prev.completed;
-      const needsReloadChanged =
-        prev.sampleNeedsReload !== undefined &&
-        prev.sampleNeedsReload !== sampleData.sampleNeedsReload;
-
-      // Only load if:
-      // 1. The current sample is not already loaded AND not currently loading, OR
-      // 2. Something meaningful changed (log file, sample ID, completed status, or reload flag)
-      const shouldLoad =
-        (!isCurrentSampleLoaded && !isLoading && !isError) ||
-        logFileChanged ||
-        sampleIdChanged ||
-        completedChanged ||
-        needsReloadChanged;
-
-      if (shouldLoad) {
-        void loadSample(
-          logSelection.logFile,
-          sampleId,
-          sampleEpoch,
-          sampleCompleted,
-          logSelection.sample
-        );
+      for (const key of SAMPLE_LIST_KEYS) {
+        clearListPosition(key);
       }
+      sampleActions.prepareForSampleLoad(logFile, sampleId, sampleEpoch);
+      // Polling (started by usePollSampleSideEffect) appends into
+      // runningEvents; make sure the previous sample's stream is gone.
+      sampleActions.clearSampleForPolling(logFile, sampleId, sampleEpoch);
+      getSamplePolling().stopPolling();
     }
   }, [
-    logSelection.logFile,
-    logSelection.sample,
+    logFile,
     sampleId,
     sampleEpoch,
     sampleCompleted,
-    currentSampleCompleted,
-    sampleData.selectedSampleIdentifier,
-    sampleData.status,
-    sampleData.sampleNeedsReload,
-    sampleData.getSelectedSample,
-    loadSample,
-    getSelectedSample,
+    identifier,
+    sliceStatus,
+    sampleActions,
+    clearListPosition,
   ]);
+
+  // A sample with no events defaults to the messages tab (there's no
+  // transcript to show). Mirrors the legacy setSelectedSample behavior for
+  // bodies that now arrive via the query.
+  useEffect(() => {
+    if (sample !== undefined && sample.events.length < 1) {
+      setSampleTab(kSampleMessagesTabId);
+    }
+  }, [sample, setSampleTab]);
 }

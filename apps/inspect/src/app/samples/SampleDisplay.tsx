@@ -112,7 +112,6 @@ interface SampleDisplayProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
   showActivity: boolean;
-  progress?: number;
   focusOnLoad?: boolean;
 }
 
@@ -125,7 +124,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
-  progress,
   focusOnLoad,
 }) => {
   // Tab ids
@@ -133,9 +131,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const prefix = useRoutePrefix();
   const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sample = sampleData.sample;
   const eventsCleared = sampleData.eventsCleared;
 
   const runningSampleData = sampleData.running;
@@ -770,7 +766,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             </div>
           </StickyScroll>
         ) : undefined}
-        <ActivityBar animating={showActivity} progress={progress} />
+        <ActivityBar animating={showActivity} />
 
         <div style={tabsContainerStyle}>
           <TabSet

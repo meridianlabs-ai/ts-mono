@@ -67,10 +67,7 @@ export const SamplePrintView: FC = () => {
   }, [logPath, sampleId, epoch, selectSample]);
 
   // Get sample data
-  const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sample = useSampleData().sample;
 
   const evalSpec = useSelectedLogDetails()?.eval;
 

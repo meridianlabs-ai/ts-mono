@@ -203,7 +203,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const epochs = selectedLogDetails?.eval.config?.epochs || 1;
 
   const selectSample = useStore((state) => state.logActions.selectSample);
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
@@ -410,14 +409,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
 
   return (
     <Fragment>
-      {inlineDisplay ? (
-        <InlineSampleDisplay
-          showActivity={
-            sampleStatus === "loading" || sampleStatus === "streaming"
-          }
-          scrollRef={scrollRef}
-        />
-      ) : null}
+      {inlineDisplay ? <InlineSampleDisplay scrollRef={scrollRef} /> : null}
       {listDisplay ? (
         <SampleList
           items={items}
