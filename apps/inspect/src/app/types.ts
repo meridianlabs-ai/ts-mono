@@ -15,7 +15,6 @@ import {
   InfoEvent,
   InputEvent,
   LoggerEvent,
-  LogHandle,
   ModelEvent,
   SampleInitEvent,
   SampleLimitEvent,
@@ -106,7 +105,6 @@ export interface LogListGridState {
 
 export interface LogsListing {
   filteredCount?: number;
-  watchedLogs?: LogHandle[];
   selectedRowIndex?: number | null;
   // Grid state stored independently per scope (Tasks vs Folders, each folder,
   // etc.). Switching between scopes loads that scope's own state; switching

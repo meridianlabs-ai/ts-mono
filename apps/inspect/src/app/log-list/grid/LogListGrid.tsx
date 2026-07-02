@@ -14,7 +14,6 @@ import { useLogDir } from "../../../app_config";
 import { LogDetails } from "../../../client/api/types";
 import { useFetchEngineStatus, useLogDetails } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
-import { useStore } from "../../../state/store";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
@@ -189,7 +188,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const { syncing } = useFetchEngineStatus();
-  const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
   const logDir = useLogDir();
   const logDetails = useLogDetails(logDir);
@@ -198,13 +196,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   // and catches up when the main thread is idle.
   const deferredLogDetails = useDeferredValue(logDetails);
   const navigate = useNavigate();
-
-  const logFiles = useMemo(() => {
-    return items
-      .filter((item) => item.type === "file")
-      .map((item) => item.log)
-      .filter((file) => file !== undefined);
-  }, [items]);
 
   // Scope the column list to the current folder's logs in folder (logs) mode.
   const scopePrefix = mode === "logs" ? currentPath : undefined;
@@ -246,10 +237,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
     },
     [navigate]
   );
-
-  useEffect(() => {
-    setWatchedLogs(logFiles);
-  }, [logFiles, setWatchedLogs]);
 
   // Default to Completed (descending) until the user picks a sort — matches
   // the samples view. A persisted entry (including an explicitly-cleared empty

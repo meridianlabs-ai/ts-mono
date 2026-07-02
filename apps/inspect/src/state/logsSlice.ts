@@ -1,7 +1,5 @@
 import { GridState } from "ag-grid-community";
 
-import { LogHandle } from "@tsmono/inspect-common/types";
-
 import type { SamplesViewState } from "../app/samples/list/samplesView";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import { EvalHeader } from "../client/api/types";
@@ -15,8 +13,6 @@ export interface LogsSlice {
     clearSelectedLogFile: () => void;
 
     setFilteredCount: (count: number) => void;
-    setWatchedLogs: (logs: LogHandle[]) => void;
-    clearWatchedLogs: () => void;
     setSelectedRowIndex: (index: number | null) => void;
 
     setLogsGridState: (scope: string, gridState: LogListGridState) => void;
@@ -127,16 +123,6 @@ export const createLogsSlice = (
       setFilteredCount: (count: number) => {
         set((state) => {
           state.logs.listing.filteredCount = count;
-        });
-      },
-      setWatchedLogs: (logs: LogHandle[]) => {
-        set((state) => {
-          state.logs.listing.watchedLogs = logs;
-        });
-      },
-      clearWatchedLogs: () => {
-        set((state) => {
-          state.logs.listing.watchedLogs = undefined;
         });
       },
       setSelectedRowIndex: (index: number | null) => {

@@ -5,7 +5,6 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
@@ -77,7 +76,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const { syncing } = useFetchEngineStatus();
 
-  const watchedLogs = useStore((state) => state.logs.listing.watchedLogs);
   const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
@@ -105,32 +103,15 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     });
   }, [logDir]);
 
-  const previousWatchedLogs = useRef<typeof watchedLogs>(undefined);
-
+  // The watched set is the log handles this panel lists (useLogHandles via
+  // useLogsWithretried); the poll doesn't consume the set — it only refreshes
+  // that same collection — so the derivation reduces to the panel's lifetime.
   useEffect(() => {
-    // Only restart polling if the watched logs have actually changed
-    const current =
-      watchedLogs
-        ?.map((log) => log.name)
-        .sort()
-        .join(",") || "";
-    const previous =
-      previousWatchedLogs.current === undefined
-        ? undefined
-        : previousWatchedLogs.current
-            ?.map((log) => log.name)
-            .sort()
-            .join(",") || "";
-
-    if (current !== previous) {
+    startPolling();
+    return () => {
       stopPolling();
-
-      if (watchedLogs !== undefined) {
-        startPolling();
-      }
-      previousWatchedLogs.current = watchedLogs;
-    }
-  }, [watchedLogs, startPolling, stopPolling]);
+    };
+  }, [startPolling, stopPolling]);
 
   const [logItems, hasRetriedLogs]: [
     Array<FileLogItem | FolderLogItem | PendingTaskItem>,
