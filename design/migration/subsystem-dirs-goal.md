@@ -147,9 +147,13 @@ Commit per phase; never commit red.
 - Import fan-out (informational): ~40 files import the app-config surface,
   ~17 the log-data surface — all mechanical specifier updates.
 
-## Unresolved questions
+## Decisions
 
-1. Dir names: `app_config`/`log_data` as specified, but repo dirs use
-   kebab-case (`log-list`, `view-server`) — prefer `app-config`/`log-data`?
-2. `client/api/index.ts` move OK? Alternative: leave `resolveApi` in
-   `client/api/` and record it as a documented exception.
+1. Dir names: `app_config`/`log_data` as specified (repo kebab-case
+   convention noted; user-specified names kept).
+2. `client/api/index.ts` moved to `app_config/resolveApi.ts`; the client api
+   implementations stay in `client/api/`.
+3. External *test* files may deep-import interior modules (test seams, not
+   consumers); the one instance is `state/samplePolling.test.ts` →
+   `app_config/appConfig` (`initAppConfig`, a module-export demotion
+   candidate alongside `openLogDirDatabase` and `getAbsLogDir`).

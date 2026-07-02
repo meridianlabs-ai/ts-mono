@@ -3,7 +3,7 @@
 Everything the viewer needs to decide at startup lives on one object, the
 `AppConfig`, resolved in two steps:
 
-- **Bootstrap (synchronous)** — `resolveAppConfig()` (`app/appConfig.ts`) runs
+- **Bootstrap (synchronous)** — `resolveAppConfig()` (`app_config/appConfig.ts`) runs
   once at module load and produces the sync part (`AppConfigBase`), read anywhere
   via `getAppConfig()` (non-React).
 - **Async resolution (one gate)** — `useAppConfigAsync()` fetches the two things
@@ -33,7 +33,7 @@ stays reactive — the one thing that changes after resolution is embedded (VS
 Code) live navigation, via `setLogRoot`.
 
 The invocation-time input these are derived from is the URL log source
-(`parseUrlLogSource` / `UrlLogSource`, `app/urlLogSource.ts`): `?log_dir=`
+(`parseUrlLogSource` / `UrlLogSource`, `app_config/urlLogSource.ts`): `?log_dir=`
 (directory), `?log_file=` (single file), or none. It is parsed **once**, inside
 `resolveAppConfig()`, and never consulted again — downstream reads the resolved
 values off `AppConfig` (e.g. `config.logFile` for the selected single log).
@@ -59,7 +59,7 @@ load); each cell names the deployment / signal that lands there.
 >
 > **Mutual exclusivity (enforced).** `?log_dir=` (directory mode) and `?log_file=`
 > (single-file mode) name a directory vs. a single file — mutually exclusive.
-> `parseUrlLogSource` (`app/urlLogSource.ts`) is the single parse of both params:
+> `parseUrlLogSource` (`app_config/urlLogSource.ts`) is the single parse of both params:
 > it returns a discriminated union (`dir` | `file` | `none`) and **throws** on the
 > contradictory combo. `resolveAppConfig()` runs it once and feeds it to both
 > backend selection (`resolveApi`) and single-file detection
@@ -98,7 +98,7 @@ Startup wiring:
    `<Outlet/>`).
 4. **(react → module)** `<ReplicationController>`'s mount effect calls
    `activateReplication(logDir)`; cleanup calls `deactivateReplication()`. Both
-   are plain module functions (`state/replicationControl.ts`), not zustand
+   are plain module functions (`log_data/replicationControl.ts`), not zustand
    actions — the replicator is a module singleton, so the controller drives it
    directly with no store hop. `key={logDir}` makes a dir change a remount
    (clean stop → start).
