@@ -6,12 +6,11 @@ import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
 import { loadLogs } from "../../state/actions";
-import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowPanel.module.css";
-import { useFlowServerDataSideEffect } from "./hooks";
+import { useFlowQuery } from "./hooks";
 
 export const FlowPanel: FC = () => {
   const location = useLocation();
@@ -26,9 +25,7 @@ export const FlowPanel: FC = () => {
     void loadLogs();
   }, [flowDir]);
 
-  // Retrieve flow data
-  useFlowServerDataSideEffect(flowDir || "");
-  const flow = useStore((state) => state.logs.flow);
+  const flow = useFlowQuery(flowDir || "").data;
 
   // Syntax highlighting
   const codeContainerRef = useRef<HTMLDivElement>(null);

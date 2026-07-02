@@ -14,8 +14,6 @@ export interface LogsSlice {
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
 
-    updateFlowData: (flowPath: string, flowData?: string) => void;
-
     setFilteredCount: (count: number) => void;
     setWatchedLogs: (logs: LogHandle[]) => void;
     clearWatchedLogs: () => void;
@@ -115,12 +113,6 @@ export const createLogsSlice = (
       setPreviousSamplesPath: (path: string | undefined) => {
         set((state) => {
           state.logs.samplesListState.previousSamplesPath = path;
-        });
-      },
-      updateFlowData: (flowPath: string, flowData?: string) => {
-        set((state) => {
-          state.logs.flowDir = flowPath;
-          state.logs.flow = flowData;
         });
       },
       // Select a specific log file (pure UI state). Expects an already-absolute

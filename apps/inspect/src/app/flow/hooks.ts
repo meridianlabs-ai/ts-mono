@@ -1,27 +1,21 @@
-import { useEffect } from "react";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
-import { getApi } from "../../app_config";
-import { useStore } from "../../state/store";
+import { useAppConfig } from "../../app_config";
 
 /**
- * Fetch the flow data for `dir` into the store when it isn't already loaded.
- *
- * Used to trigger side effects only — returns nothing.
+ * The flow definition for `dir`. Keyed on the dir so navigation re-fetches;
+ * `staleTime: Infinity` because a dir's flow doesn't change under a fixed dir.
  */
-export const useFlowServerDataSideEffect = (dir: string) => {
-  const api = getApi();
-  const flowDir = useStore((state) => state.logs.flowDir);
-  const updateFlowData = useStore((state) => state.logsActions.updateFlowData);
-
-  useEffect(() => {
-    const fetchFlow = async () => {
-      const flowStr = await api.get_flow(dir);
-
-      // Set the flow data into state
-      updateFlowData(dir, flowStr);
-    };
-    if (dir !== flowDir) {
-      void fetchFlow();
-    }
-  }, [dir, flowDir, api, updateFlowData]);
+export const useFlowQuery = (dir: string): AsyncData<string | undefined> => {
+  const api = useAppConfig().api;
+  return useAsyncDataFromQuery({
+    queryKey: ["flow", dir],
+    // react-query errors on an `undefined` queryFn result ("data is
+    // undefined"), so a missing flow must be *stored* as `null`; `select`
+    // converts it back so `null` never leaks to consumers.
+    queryFn: async () => (await api.get_flow(dir)) ?? null,
+    select: (flow) => flow ?? undefined,
+    staleTime: Infinity,
+  });
 };

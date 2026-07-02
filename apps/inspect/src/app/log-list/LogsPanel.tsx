@@ -29,7 +29,7 @@ import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerDataSideEffect } from "../flow/hooks";
+import { useFlowQuery } from "../flow/hooks";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
@@ -95,8 +95,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a half-initialized scope.
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
-  useFlowServerDataSideEffect(logPath || "");
-  const flowData = useStore((state) => state.logs.flow);
+  const flowData = useFlowQuery(logPath || "").data;
 
   const { startPolling, stopPolling } = useClientEventsActions();
 

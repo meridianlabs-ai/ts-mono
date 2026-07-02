@@ -21,7 +21,7 @@ import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerDataSideEffect } from "../flow/hooks";
+import { useFlowQuery } from "../flow/hooks";
 import { LogListFooter } from "../log-list/LogListFooter";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
@@ -121,8 +121,7 @@ export const SamplesPanel: FC = () => {
     };
   }, [startPolling, stopPolling]);
 
-  useFlowServerDataSideEffect(samplesPath || "");
-  const flowData = useStore((state) => state.logs.flow);
+  const flowData = useFlowQuery(samplesPath || "").data;
 
   const currentDir = join(samplesPath || "", logDir);
 

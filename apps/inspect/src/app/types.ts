@@ -93,8 +93,6 @@ export interface LogsState {
     displayedSamples?: Array<DisplayedSample>;
     previousSamplesPath?: string;
   };
-  flow?: string;
-  flowDir?: string;
 }
 
 /** Per-scope log-list grid state (TanStack). */

@@ -2,7 +2,7 @@ import { EvalSet } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { getApi, useLogDir } from "../../app_config";
+import { useAppConfig } from "../../app_config";
 
 /**
  * Resolve the eval-set for the current log dir. Keyed on the dir so a
@@ -10,8 +10,7 @@ import { getApi, useLogDir } from "../../app_config";
  * doesn't change under a fixed dir.
  */
 export const useEvalSet = (): AsyncData<EvalSet | undefined> => {
-  const api = getApi();
-  const logDir = useLogDir();
+  const { api, logDir } = useAppConfig();
   return useAsyncDataFromQuery({
     queryKey: ["eval-set", logDir],
     // react-query errors on an `undefined` queryFn result ("data is
