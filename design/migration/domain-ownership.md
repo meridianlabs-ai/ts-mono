@@ -174,7 +174,7 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   barrel exports exactly the public surface. External modules import only the
   barrel; everything else in the dir is subsystem-private (in-dir tests import
   modules directly). One deep-import exception:
-  `state/samplePolling.test.ts` seeds config via `initAppConfig`. (It seeds
+  `state/runningSampleQuery.test.ts` seeds config via `initAppConfig`. (It seeds
   the details collection via the barrel's `mergeDetails`, exported for that
   seeding; product code writes collections only through the sink.)
 - React reaches down only through hooks or a subsystem surface (from
@@ -201,14 +201,13 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
 
 ## Boundaries (outside acquisition, by design)
 
-- **Sample-level data** — sample loading and sample-event polling
-  (`get_log_sample`, `get_log_sample_data`) call the api directly via their own
-  singleton (`state/samplePollingInstance.ts`), and the pending-samples query
-  calls `get_log_pending_samples` directly from its queryFn. These are the
-  standing exceptions to the headline rule (which covers log listing/previews/
-  details). Acquisition's contract doesn't preclude a later sample-level engine
-  as a sibling of the fetch engine in its interior; it just doesn't own one
-  today.
+- **Sample-level data** — sample loading and sample-event streaming
+  (`get_log_sample`, `get_log_sample_data`) live in acquisition's sample-level
+  sibling (`log_data/sampleFetch.ts`, `log_data/sampleStream.ts`), consumed by
+  the sample queries (`state/sampleQuery.ts`, `state/runningSampleQuery.ts`).
+  The pending-samples query calls `get_log_pending_samples` directly from its
+  queryFn — the lone standing exception to the headline rule (which covers log
+  listing/previews/details).
 - **Listing reads** — the log-list UI reads the passive `logsContent`
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a

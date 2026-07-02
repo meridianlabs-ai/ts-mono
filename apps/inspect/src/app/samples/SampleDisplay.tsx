@@ -145,6 +145,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
+  // A sample with no events has no transcript to show; default to the
+  // messages tab when its body settles.
+  useEffect(() => {
+    if (sample !== undefined && sample.events.length < 1) {
+      setSelectedTab(kSampleMessagesTabId);
+    }
+  }, [sample, setSelectedTab]);
+
   // Per-tab scroll positions persist while tabbing within a sample (each tab's
   // VirtualList snapshot is keyed by sample id). Clear them when leaving this
   // sample so re-entering starts at the top rather than a stale offset.

@@ -14,7 +14,7 @@ import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
 
 // Samples are large: keep unwatched bodies only briefly so back/forward
 // navigation stays snappy without accumulating every visited sample.
-const kSampleGcTimeMs = 30_000;
+export const kSampleGcTimeMs = 30_000;
 
 export const sampleQueryKey = (
   logDir: string,

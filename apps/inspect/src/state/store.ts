@@ -16,7 +16,6 @@ import {
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
-import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,
   handleRehydrate,
@@ -36,7 +35,7 @@ export interface StoreState
 
 // The store is immer-wrapped, so its `setState` accepts an immer recipe
 // `(state) => void`. Reflect that in the exported type so non-react callers
-// (e.g. the polling singletons) can drive setState with a recipe.
+// can drive setState with a recipe.
 export type ImmerStore = UseBoundStore<
   Mutate<StoreApi<StoreState>, [["zustand/immer", never]]>
 >;
@@ -161,7 +160,6 @@ export const initializeStore = (
   // Set the implementation and initialize it
   storeImplementation = store;
   initDatabaseService();
-  setSamplePollingApi(api);
   setReplicationApi(api);
   store.getState().initialize(capabilities);
 };

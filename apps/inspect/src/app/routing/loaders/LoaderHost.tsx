@@ -5,12 +5,14 @@ import { deactivateReplication, syncLogs } from "../../../log_data";
 import { selectLogFile } from "../../../state/actions";
 
 import { LogLoadController } from "./LogLoadController";
+import { SampleLoadController } from "./SampleLoadController";
 
 /**
  * Mounts the loader machinery for a resolved session. There's no gate here — the
  * top-level `<AppConfigGate>` already awaited the resolved config (incl.
  * `logDir`), so `useLogDir()` resolves synchronously. Mounts the per-log
- * `<LogLoadController>` for both modes; directory-wide replication is the lone
+ * `<LogLoadController>` and per-sample `<SampleLoadController>` reaction
+ * controllers for both modes; directory-wide replication is the lone
  * dir-mode addition (`loader === "replicator"`), and single-file adds the
  * `?log_file=` selection step (<SelectUrlLogFile>).
  */
@@ -23,6 +25,7 @@ export const LoaderMounts: FC<{ children: ReactNode }> = ({ children }) => {
         <ReplicationController key={logDir} logDir={logDir} />
       )}
       <LogLoadController />
+      <SampleLoadController />
       {children}
     </>
   );

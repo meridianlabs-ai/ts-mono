@@ -12,7 +12,7 @@ import { useStore } from "../../state/store";
 import { ApplicationIcons } from "../appearance/icons";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 
-import { InlineSampleComponent } from "./InlineSampleDisplay";
+import { InlineSampleDisplay } from "./InlineSampleDisplay";
 import styles from "./SampleDetailComponent.module.css";
 
 /**
@@ -68,10 +68,9 @@ export interface SampleDetailComponentProps {
  * - Find band integration
  * - Sample tab synchronization (URL → state)
  * - Navigation controls UI (prev/next buttons + sample info)
- * - Sample content rendering via InlineSampleComponent
+ * - Sample content rendering via InlineSampleDisplay
  *
  * The parent component is responsible for:
- * - Loading hooks (useLoadLogSideEffect, useLoadSampleSideEffect, usePollSampleSideEffect)
  * - Calculating navigation state
  * - Navigation callbacks
  * - Cleanup on unmount
@@ -96,7 +95,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   const sample = sampleData.sample;
 
   // Returns true when sample is undefined (no stale data to worry about —
-  // this is normal for running samples where data comes via runningEvents).
+  // this is normal for running samples, which render streamed events).
   const sampleMatchesRequest = useMemo(() => {
     if (!sampleId || !epoch) return false;
     if (!sample) return true;
@@ -238,7 +237,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
           </ApplicationNavbar>
 
           {sampleMatchesRequest && (
-            <InlineSampleComponent className={styles.panel} />
+            <InlineSampleDisplay className={styles.panel} />
           )}
         </div>
       </FindTargetProvider>

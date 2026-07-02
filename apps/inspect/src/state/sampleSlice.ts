@@ -1,19 +1,6 @@
-import { EvalSample } from "@tsmono/inspect-common/types";
+import { SampleState } from "../app/types";
 
-import { Event, Progress, SampleState, SampleStatus } from "../app/types";
-import { kSampleMessagesTabId } from "../constants";
-
-import {
-  cleanupSamplePolling,
-  getSamplePolling,
-} from "./samplePollingInstance";
 import { StoreState } from "./store";
-import { isLargeSample } from "./store_filter";
-
-// Create a module-level ref to store large sample objects
-const selectedSampleRef: { current: EvalSample | undefined } = {
-  current: undefined,
-};
 
 export const kDefaultExcludeEvents = [
   "sample_init",
@@ -28,20 +15,7 @@ export const kDefaultExcludeEvents = [
 export interface SampleSlice {
   sample: SampleState;
   sampleActions: {
-    // The actual sample data
-    setSelectedSample: (sample: EvalSample, logFile: string) => void;
-    getSelectedSample: () => EvalSample | undefined;
     clearSelectedSample: () => void;
-
-    prepareForSampleLoad: (
-      logFile: string,
-      id: number | string,
-      epoch: number
-    ) => void;
-
-    setSampleStatus: (status: SampleStatus) => void;
-    setSampleError: (error: Error | undefined) => void;
-    setDownloadProgress: (progress: Progress | undefined) => void;
 
     setCollapsedEvents: (
       scope: string,
@@ -65,23 +39,6 @@ export interface SampleSlice {
 
     setTimelineSelected: (selected: string | null) => void;
     setActiveTimelineIndex: (index: number) => void;
-
-    // Used by useSampleLoader to clear state for running samples
-    clearSampleForPolling: (
-      logFile: string,
-      id: number | string,
-      epoch: number
-    ) => void;
-
-    // Used by useSampleLoader to set identifier before loading
-    setSampleIdentifier: (
-      logFile: string,
-      id: number | string,
-      epoch: number
-    ) => void;
-
-    // Used by samplePolling to update running events
-    setRunningEvents: (events: Event[]) => void;
   };
 }
 
@@ -119,59 +76,14 @@ const initialState: SampleState = {
 
 export const createSampleSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
+  _get: () => StoreState,
   _store: unknown
 ): [SampleSlice, () => void] => {
   const slice = {
     // Actions
     sample: initialState,
     sampleActions: {
-      setSelectedSample: (sample: EvalSample, logFile: string) => {
-        const isLarge = isLargeSample(sample);
-
-        // Detect if events were cleared by the preprocessor:
-        // a sample with messages but no events indicates the events array
-        // was stripped to reduce memory usage.
-        const eventsCleared =
-          sample.events.length === 0 && (sample.messages?.length ?? 0) > 0;
-
-        // Update state based on sample size
-        set((state) => {
-          state.sample.sample_identifier = {
-            id: sample.id,
-            epoch: sample.epoch,
-            logFile: logFile,
-          };
-          state.sample.sampleInState = !isLarge;
-          state.sample.eventsCleared = eventsCleared;
-
-          // Only store in state if it's small
-          if (!isLarge) {
-            state.sample.selectedSampleObject = sample;
-            // Clear ref if using state
-            selectedSampleRef.current = undefined;
-          } else {
-            // Use ref for large objects
-            state.sample.selectedSampleObject = undefined;
-            selectedSampleRef.current = sample;
-          }
-        });
-
-        if (sample.events.length < 1) {
-          // If there are no events, use the messages tab as the default
-          get().appActions.setSampleTab(kSampleMessagesTabId);
-        }
-      },
-      getSelectedSample: () => {
-        const state = get().sample;
-        // Return from state if stored there, otherwise from ref
-        return state.sampleInState
-          ? state.selectedSampleObject
-          : selectedSampleRef.current;
-      },
       clearSelectedSample: () => {
-        getSamplePolling().stopPolling();
-        selectedSampleRef.current = undefined;
         set((state) => {
           state.sample.sample_identifier = undefined;
           state.sample.selectedSampleObject = undefined;
@@ -188,40 +100,6 @@ export const createSampleSlice = (
           delete state.app.propertyBags["listPosition"];
         });
       },
-      prepareForSampleLoad: (
-        logFile: string,
-        id: number | string,
-        epoch: number
-      ) => {
-        getSamplePolling().stopPolling();
-        selectedSampleRef.current = undefined;
-        set((state) => {
-          state.sample.selectedSampleObject = undefined;
-          state.sample.sampleInState = false;
-          state.sample.runningEvents = [];
-          state.sample.sampleStatus = "loading";
-          state.sample.sampleError = undefined;
-          state.sample.timelineSelected = null;
-          state.sample.activeTimelineIndex = 0;
-          state.sample.sample_identifier = { logFile, id, epoch };
-
-          // Clear persisted scroll/list positions so the new sample starts at top
-          delete state.app.propertyBags["scrollPosition"];
-          delete state.app.propertyBags["listPosition"];
-        });
-      },
-      setSampleStatus: (status: SampleStatus) =>
-        set((state) => {
-          state.sample.sampleStatus = status;
-        }),
-      setSampleError: (error: Error | undefined) =>
-        set((state) => {
-          state.sample.sampleError = error;
-        }),
-      setDownloadProgress: (progress: Progress | undefined) =>
-        set((state) => {
-          state.sample.downloadProgress = progress;
-        }),
       setCollapsedEvents: (
         scope: string,
         collapsed: Record<string, boolean>
@@ -319,49 +197,10 @@ export const createSampleSlice = (
           state.sample.activeTimelineIndex = index;
         });
       },
-      clearSampleForPolling: (
-        logFile: string,
-        id: number | string,
-        epoch: number
-      ) => {
-        // Clear the previous sample so component uses runningEvents instead
-        // of old sample.events
-        selectedSampleRef.current = undefined;
-        set((state) => {
-          state.sample.selectedSampleObject = undefined;
-          state.sample.sampleInState = false;
-          state.sample.runningEvents = [];
-          // Set the new sample identifier for the sample we're about to poll
-          state.sample.sample_identifier = {
-            id,
-            epoch,
-            logFile,
-          };
-        });
-      },
-      setSampleIdentifier: (
-        logFile: string,
-        id: number | string,
-        epoch: number
-      ) => {
-        set((state) => {
-          state.sample.sample_identifier = { id, epoch, logFile };
-        });
-      },
-      setRunningEvents: (events: Event[]) => {
-        set((state) => {
-          state.sample.runningEvents = events;
-        });
-      },
     },
   } as const;
 
-  const cleanup = () => {
-    cleanupSamplePolling();
-    // Clear the ref when cleaning up
-    selectedSampleRef.current = undefined;
-  };
-  return [slice, cleanup];
+  return [slice, () => {}];
 };
 
 export const handleRehydrate = (state: StoreState) => {

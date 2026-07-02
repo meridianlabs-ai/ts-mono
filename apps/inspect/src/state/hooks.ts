@@ -11,13 +11,14 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
-import { sampleHandlesEqual, sampleIdsEqual } from "../app/shared/sample";
+import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleStatus } from "../app/types";
 import { LogDetails, SampleSummary } from "../client/api/types";
 import { useLogDetail, useLogHandles, useLogPreviews } from "../log_data";
 
 import { refreshLog } from "./actions";
 import { usePendingSamples } from "./pendingSamples";
+import { useRunningSampleQuery } from "./runningSampleQuery";
 import { useCachedSample, useSampleQuery } from "./sampleQuery";
 import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
@@ -378,12 +379,22 @@ export interface SampleData {
   eventsCleared: boolean;
 }
 
+const settledSampleData = (sample: EvalSample): SampleData => ({
+  sample,
+  status: "ok",
+  error: undefined,
+  running: kNoRunningEvents,
+  eventsCleared:
+    sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+});
+
 /**
- * The selected sample as an AsyncData-style derivation. Completed samples are
- * served by `useSampleQuery` (react-query); running samples still ride the
- * legacy polling slice (streamed `running` events, finalized body via
- * `setSelectedSample`). While the query fetches a sample that just finalized,
- * the slice body bridges so completion never flashes a loading state.
+ * The selected sample as an AsyncData-style derivation over the two sample
+ * queries: `useSampleQuery` serves completed bodies and `useRunningSampleQuery`
+ * streams a still-running sample's events. A finalizing stream primes the
+ * completed body into the `["sample"]` cache, so the handoff between the two
+ * paths never flashes a loading state; if the summary settles before the
+ * stream finalizes, the stream's cached events bridge the completed fetch.
  */
 export const useSampleData = (): SampleData => {
   const handle = useStore((state) => state.log.selectedSampleHandle);
@@ -395,73 +406,70 @@ export const useSampleData = (): SampleData => {
     !runningPath && summary !== undefined ? handle : undefined,
     summary
   );
-
-  const sliceIdentifier = useStore((state) => state.sample.sample_identifier);
-  const sliceStatus = useStore((state) => state.sample.sampleStatus);
-  const sliceError = useStore((state) => state.sample.sampleError);
-  const sliceEventsCleared = useStore((state) => state.sample.eventsCleared);
-  const runningEvents = useStore(
-    (state) => state.sample.runningEvents
-  ) as Events;
-  const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample
-  );
+  const running = useRunningSampleQuery(handle, summary);
+  // The finalized body a running stream primed; read passively so the
+  // completed-path fetch stays owned by useSampleQuery.
+  const finalizedSample = useCachedSample(handle);
 
   return useMemo((): SampleData => {
-    if (runningPath) {
+    // Without a summary the sample isn't loadable yet (the legacy loader
+    // waited for it too), so idle rather than reading as loading.
+    if (handle === undefined || summary === undefined) {
       return {
-        sample: getSelectedSample(),
-        status: sliceStatus,
-        error: sliceError,
-        running: runningEvents,
-        eventsCleared: sliceEventsCleared,
-      };
-    }
-    // The legacy machinery's finalized body bridges the gap between a stream
-    // completing and the query's own fetch settling.
-    const bridge =
-      handle !== undefined && sampleHandlesEqual(sliceIdentifier, handle)
-        ? getSelectedSample()
-        : undefined;
-    const sample = query.data ?? bridge;
-    if (sample !== undefined) {
-      return {
-        sample,
+        sample: undefined,
         status: "ok",
         error: undefined,
         running: kNoRunningEvents,
-        eventsCleared:
-          sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+        eventsCleared: false,
       };
     }
-    // Without a summary the sample isn't loadable yet (the legacy loader
-    // waited for it too), so the query idles rather than reading as loading.
-    const idle = handle === undefined || summary === undefined;
+    if (runningPath) {
+      if (running.data?.finalized === true && finalizedSample !== undefined) {
+        return settledSampleData(finalizedSample);
+      }
+      if (running.error) {
+        return {
+          sample: undefined,
+          status: "error",
+          error: running.error,
+          running: kNoRunningEvents,
+          eventsCleared: false,
+        };
+      }
+      return {
+        sample: undefined,
+        status: running.data === undefined ? "loading" : "streaming",
+        error: undefined,
+        running: running.data?.events ?? kNoRunningEvents,
+        eventsCleared: false,
+      };
+    }
+    if (query.data !== undefined) {
+      return settledSampleData(query.data);
+    }
+    // The summary settled before the stream finalized: keep showing the
+    // stream's cached events while the completed fetch settles.
+    if (
+      query.loading &&
+      running.data !== undefined &&
+      running.data.events.length > 0
+    ) {
+      return {
+        sample: undefined,
+        status: "streaming",
+        error: undefined,
+        running: running.data.events,
+        eventsCleared: false,
+      };
+    }
     return {
       sample: undefined,
-      status: idle
-        ? "ok"
-        : query.loading
-          ? "loading"
-          : query.error
-            ? "error"
-            : "ok",
-      error: idle || query.loading ? undefined : query.error,
+      status: query.loading ? "loading" : query.error ? "error" : "ok",
+      error: query.loading ? undefined : query.error,
       running: kNoRunningEvents,
       eventsCleared: false,
     };
-  }, [
-    runningPath,
-    query,
-    handle,
-    summary,
-    sliceIdentifier,
-    sliceStatus,
-    sliceError,
-    sliceEventsCleared,
-    runningEvents,
-    getSelectedSample,
-  ]);
+  }, [runningPath, query, running, finalizedSample, handle, summary]);
 };
 
 /**

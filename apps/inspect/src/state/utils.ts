@@ -15,7 +15,7 @@ export const mergeSampleSummaries = (
     .filter((sample) => !existingSampleIds.has(`${sample.id}-${sample.epoch}`))
     .map((sample) => {
       // Terminal-with-error pending samples are rendered from the summary
-      // by the manifest-miss fallback in useLoadSampleSideEffect / samplePolling.
+      // by the sample queries' error-summary fallback.
       const isTerminalErrored = sample.completed === true && !!sample.error;
       if (isTerminalErrored) {
         return { ...sample };

@@ -6,8 +6,6 @@ import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile } from "../../state/actions";
 import { useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { useLoadSampleSideEffect } from "../../state/useLoadSampleSideEffect";
-import { usePollSampleSideEffect } from "../../state/usePollSampleSideEffect";
 import { useLogSampleNavigationActions } from "../routing/sampleNavigation";
 import {
   logSamplesUrl,
@@ -23,7 +21,7 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  *
  * This component handles:
  * - Log loading (initLogDir, setSelectedLogFile, syncLogs)
- * - Sample selection and loading (useLoadSampleSideEffect, usePollSampleSideEffect)
+ * - Sample selection from route params (fetching rides the sample queries)
  * - Navigation state via useLogSampleNavigationActions (respects log filters)
  *
  * Unlike SampleDetailView, this component:
@@ -44,10 +42,6 @@ export const LogSampleDetailView: FC = () => {
   } = useLogRouteParams();
 
   const { singleFileMode } = useAppConfig();
-
-  // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSampleSideEffect();
-  usePollSampleSideEffect();
 
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
