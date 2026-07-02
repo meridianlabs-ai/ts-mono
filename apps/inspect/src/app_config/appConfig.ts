@@ -1,5 +1,7 @@
 import { ClientAPI, LogRoot } from "../client/api/types";
+import { queryClient } from "../state/queryClient";
 
+import { APP_CONFIG_KEY } from "./hooks";
 import { resolveApi } from "./resolveApi";
 import {
   detectInitialSingleFileMode,
@@ -165,4 +167,17 @@ export const initAppConfig = (config: AppConfig): AppConfig =>
 export const setResolvedLogDir = (
   logDir: string,
   absLogDir?: string
-): AppConfig => (appConfig = { ...getAppConfig(), logDir, absLogDir });
+): AppConfig => (appConfig = { ...getAppConfig(), logDir, absLogDir }); /**
+ * Update the resolved log dir — embedded (VS Code) live navigation, the one
+ * place logDir changes after resolution. Updates the config singleton (source of
+ * truth) and mirrors it into the react-query cache so `useAppConfig` re-renders.
+ */
+
+export const setLogRoot = (logDir: string, absLogDir?: string): void => {
+  const updated = setResolvedLogDir(logDir, absLogDir);
+  queryClient.setQueryData(APP_CONFIG_KEY, updated);
+}; /** Non-React accessor for slice / routing code (undefined until resolved). */
+
+export const getLogDir = (): string | undefined => peekAppConfig()?.logDir;
+export const getAbsLogDir = (): string | undefined =>
+  peekAppConfig()?.absLogDir;

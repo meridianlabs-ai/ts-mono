@@ -11,7 +11,7 @@ import {
   type SearchType,
 } from "@tsmono/inspect-components/transcript-search";
 
-import { useApi, useLogDir } from "../../../../app_config";
+import { getApi, useLogDir } from "../../../../app_config";
 import {
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
@@ -64,7 +64,7 @@ export interface InspectSearchContext {
 export const useInspectSearchContext = (
   sample: EvalSample | undefined
 ): InspectSearchContext | null => {
-  const api = useApi();
+  const api = getApi();
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
@@ -121,7 +121,7 @@ export const useInspectSearchApi = (
   logFile: string,
   transcriptId: string
 ): SearchPanelApi | null => {
-  const api = useApi();
+  const api = getApi();
   return useMemo(() => {
     const { post_search, get_search_result, list_searches } = api;
     if (!post_search || !get_search_result || !list_searches || !transcriptId) {

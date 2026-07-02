@@ -2,7 +2,7 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 
 import { createLogger } from "@tsmono/util";
 
-import { useApi, useLogDir } from "../app_config";
+import { getApi, useLogDir } from "../app_config";
 import {
   ClientAPI,
   LogDetails,
@@ -109,7 +109,7 @@ export const fetchPendingSamples = async (
  */
 export const usePendingSamples = (): PendingSamples | undefined => {
   const logDir = useLogDir();
-  const api = useApi();
+  const api = getApi();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const liveStatus = useLogDetail(logDir, selectedLogFile).data?.status;
   const enabled = shouldPollPendingSamples({

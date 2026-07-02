@@ -20,7 +20,6 @@ import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import {
-  AsyncGate,
   ComponentIconProvider,
   ComponentIcons,
 } from "@tsmono/react/components";
@@ -28,13 +27,13 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
 
 import {
+  getApi,
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
   setLogRoot,
-  useApi,
-  useAppConfigAsync,
   useLogDir,
 } from "../app_config";
+import { AppConfigGate } from "../app_config/AppConfigGate.tsx";
 import { HostMessage } from "../client/api/types.ts";
 import { syncLogs } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
@@ -99,10 +98,10 @@ const useThemePreferenceSync = () => {
  * Renders the application content. Mounted below the config gate so it can
  * read the resolved app config.
  */
-const AppContent: FC = () => {
+export const AppContent: FC = () => {
   useThemePreferenceSync();
 
-  const api = useApi();
+  const api = getApi();
 
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
@@ -187,23 +186,15 @@ const AppContent: FC = () => {
   );
 };
 
-const AppConfigGate: FC = () => (
-  <AsyncGate
-    async={useAppConfigAsync()}
-    errorLabel="Failed to load application configuration"
-    loadingText="Loading application…"
-  >
-    <AppContent />
-  </AsyncGate>
-);
-
 /**
  * Renders the Main Application. Owns the query client provider so the
  * exported <App> stays self-contained for external embedders.
  */
 export const App: FC = () => (
   <QueryClientProvider client={queryClient}>
-    <AppConfigGate />
+    <AppConfigGate>
+      <AppContent />
+    </AppConfigGate>
     <ReactQueryDevtools initialIsOpen={false} />
   </QueryClientProvider>
 );

@@ -4,7 +4,7 @@ import { EvalSample, EvalSpec, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { EvalLogStatus, Events } from "../@types/extraInspect";
-import { useApi, useLogDir } from "../app_config";
+import { getApi, useLogDir } from "../app_config";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,
@@ -202,7 +202,7 @@ export interface LogEditAffordance {
  * on save is worse than not offering it.
  */
 export const useLogEditAffordance = (): LogEditAffordance => {
-  const api = useApi();
+  const api = getApi();
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useSelectedLogDetails()?.status;

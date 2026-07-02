@@ -57,7 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { useApi } from "../../app_config";
+import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -367,7 +367,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter();
 
-  const api = useApi();
+  const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);

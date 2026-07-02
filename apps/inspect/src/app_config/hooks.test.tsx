@@ -13,11 +13,7 @@ import {
   AppConfigBootstrap,
   loadResolvedAppConfig,
 } from "./appConfig";
-import {
-  APP_CONFIG_KEY,
-  useAppConfig,
-  useAppConfigAsync,
-} from "./useAppConfig";
+import { APP_CONFIG_KEY, useAppConfig, useAppConfigAsync } from "./hooks";
 
 // The resolution logic lives in the framework-free `loadResolvedAppConfig`, so
 // the full permutation matrix is a plain async test (no react-query). The hooks

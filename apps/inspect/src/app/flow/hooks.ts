@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 
-import { useApi } from "../../app_config";
+import { getApi } from "../../app_config";
 import { useStore } from "../../state/store";
 
 export const useFlowServerData = (dir: string) => {
-  const api = useApi();
+  const api = getApi();
   const flowDir = useStore((state) => state.logs.flowDir);
   const updateFlowData = useStore((state) => state.logsActions.updateFlowData);
 
