@@ -1,91 +1,194 @@
 # Viewer domain concerns & ownership
 
-The one-owner map for the inspect viewer's startup/data layer: every material
-domain concern, the module that owns it, and the awareness (layering) rules
-that keep the owners honest. Companion to
-[replication-startup-modes.md](replication-startup-modes.md). The headline
-rule: **one fetch engine** owns all backend log-data acquisition; everything
-else is a producer of prioritized work or a consumer of results.
+The ownership map for the inspect viewer's startup/data layer. Companion to
+[replication-startup-modes.md](replication-startup-modes.md).
 
-## Domain concerns and their owners
+The map has three kinds of entries, and they are not interchangeable:
 
-| # | Concern | What it is | Owner |
-|---|---------|------------|-------|
-| 1 | Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; never consulted after config resolution. | `app/urlLogSource.ts` — parsed exactly once, by `resolveBootstrap()` |
-| 2 | Bootstrap config | The sync-knowable prefix of the config: `api` instance, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path (`main.tsx`, store init) has something honest to read. | `app/appConfig.ts` (`getBootstrap`) |
-| 3 | Resolved app config | The one currency for "how is this app configured": bootstrap + versions + `logDir`/`absLogDir`. Single cache entry `["app-config"]`. | `app/appConfig.ts` (framework-free core) + `app/server/useAppConfig.ts` (react-query glue, `AppConfigGate`, `useApi` passthrough) |
-| 4 | Backend selection | Choosing the view-server / static-http / vscode api from the invocation. Pure function, invoked once during bootstrap. | `client/api/index.ts` (`resolveApi`) |
-| 5 | logDir identity | The resolved current log dir. The one post-resolution mutation is embedded (VS Code) live-nav (`setLogRoot`). | `app/server/useLogDir.ts` — accessors over the config cache entry |
-| 6 | Log-data fetch engine | The one place backend log-list data (details, previews) is fetched. Owns the priority `WorkQueue`s, in-flight dedupe (per-item completion promises), the read-through cache over the local database, batched sink writes, and the engine status store. Public contract: `fetch(logFile, priority): Promise<LogDetails>` — "get this at the highest priority" is an enqueue-or-bump, never a separate code path. Mode-independent: alive in dir mode and single-file mode alike. Framework-free: `api`, `database`, and the cache sink are injected; the engine never imports react-query or zustand. | `state/fetchEngine.ts` (singleton `fetchEngine`) |
-| 7 | Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). **Engine-private**: the engine is the sole reader, and every write goes through the `logsContent` sink so the db ⟹ cache invariant holds. The composition roots only construct/open/close it. | inside the engine; instance lifecycle in `state/databaseServiceInstance.ts` |
-| 8 | Replication | **Discovery**: list the dir, diff against the known listing (new / changed / deleted), and produce the result into the engine (`applyListing`). No queues, no fetching of its own. Keyed on `logDir`; absent in single-file mode. | `state/sync/replicationService.ts` (mechanism) + `state/replicationControl.ts` (policy: `syncLogs` / `ensureFetchEngine` / `deactivateReplication`); driven by `ReplicationController` and the panels' `useLogsSync` queries |
-| 9 | Selected-log details | A react-query query keyed on `(logDir, selectedLogFile)` with `queryFn: fetchEngine.fetch(logFile, "user")`; the engine's read-through makes a cached log settle instantly (with a background refresh). Refresh = invalidating this query (`useRefreshLog`) — there is no imperative refresh path. The residual non-derivable side effects (recording `loadedLog`, per-log score/pending resets, workspace-tab default for empty logs, polling start) live in one reaction controller. | `state/selectedLogDetails.ts` (query) + `LogLoadController` (reactions) |
-| 10 | Polling | Freshness scheduling for a running log — a *producer*: each tick enqueues the watched log into the engine at elevated priority. The engine is the fetching; polling is only the policy of when to ask. (Sample-buffer polling — `get_log_pending_samples` — and sample-level loading are outside the engine; see boundaries below.) | `state/logPolling.ts` via `state/logPollingInstance.ts`; `state/samplePollingInstance.ts` for sample level |
-| 11 | Server-derived data | Handles, previews, details, eval-set, versions — reactively keyed react-query data; never in zustand. The log-list collections (`logsContent`) are fed by the engine through its sink. | react-query cache: `state/logsContent.ts` collections + `app/server/*` hooks (e.g. `useEvalSet`) |
-| 12 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status, exposed by an engine-owned external store and consumed via `useSyncExternalStore`. Neither zustand nor react-query is involved. | `fetchEngine` store + `state/useFetchEngineStatus.ts` |
-| 13 | Loading / error status | Derivations of `AsyncData`, never imperatively set. Log-open path: the selected-log query (`LogViewLayout` error panel + activity, `ApplicationNavbar` via `useSelectedLogLoading`). Listing path: the panels' sync query (`useLogsSync`) and engine `syncing`. | derivation (no owner) |
-| 14 | Log selection | Which log the user is viewing — UI state. Absolutizing a relative name against the log dir is a config-aware derivation and lives at the event-handler seam, not in the slice. | `logsSlice.selectedLogFile` (state) + `useSelectLogFile` in `state/hooks.ts` (derivation) |
-| 15 | Ephemeral UI state | Filters, tabs, sample selection, grid state, `loadedLog`, rehydration. | zustand slices — and nothing else; nothing writes into zustand from below |
+- **Subsystems** — owned concerns with a private interior and a narrow public
+  surface. Interior concerns have exactly one consumer: their subsystem. Rules
+  about them are structural (nothing outside can reach them), not policed.
+- **Media** — shared infrastructure that subsystems write into and consumers
+  read from (the react-query cache). A medium has writers and readers, so it
+  can't be swallowed into either side.
+- **Derivations** — values computed from other state, never imperatively set,
+  with no owner (loading/error status).
+
+The headline rule: **the log-data acquisition subsystem is the only code that
+talks to the backend about log data** — listing, previews, and details alike.
+Everything else either produces prioritized work into it or consumes results
+from the media it feeds.
+
+## Subsystems
+
+### App configuration
+
+The one currency for "how is this app configured": `api` instance,
+`singleFileMode`, `loader`, `logFile`, versions, `logDir`/`absLogDir`. Single
+cache entry `["app-config"]`.
+
+**Surface** — `app/server/useAppConfig.ts` (`useAppConfig`, `AppConfigGate`,
+`useApi` passthrough), `app/server/useLogDir.ts` (logDir accessors over the
+config cache entry; the one post-resolution mutation is embedded VS Code
+live-nav via `setLogRoot`), and the sanctioned non-React escape hatches on
+`app/appConfig.ts` (`getAppConfig` asserting, `peekAppConfig` non-asserting).
+Priority order for reading config: `useAppConfig` (or a passthrough like
+`useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig` /
+`peekAppConfig`.
+
+**Interior** (sole consumer: config resolution):
+
+| Concern | What it is | Module |
+|---------|------------|--------|
+| Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; parsed exactly once by `resolveBootstrap()`, never consulted after config resolution. | `app/urlLogSource.ts` |
+| Backend selection | Choosing the view-server / static-http / vscode api from the invocation. Pure function, invoked once during bootstrap. | `client/api/index.ts` (`resolveApi`) |
+| Single-file detection | Whether the invocation names a single log file. Exposed downstream only as the `singleFileMode` flag on resolved config. | `app/singleFileMode.ts` |
+| Bootstrap config | The sync-knowable prefix of the config: `api`, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path has something honest to read — its only consumers outside resolution are the composition roots (`main.tsx`, store init), which are exempt (see below). | `app/appConfig.ts` (`getBootstrap`) |
+
+### Log-data acquisition
+
+Owns **all** backend log-data reads, at both granularities: collection-level
+(dir listing / discovery) and item-level (previews, details). Mode-independent:
+alive in dir mode and single-file mode alike (the discovery interior is dormant
+in single-file mode). Output flows through the `logsContent` sink into the
+react-query cache, pairing each persistence write with its cache write so the
+db ⟹ cache invariant holds.
+
+**Surface** — the policy functions on `state/replicationControl.ts`
+(`ensureFetchEngine` — activate for a dir, both modes; `syncLogs` — ensure
+active then refresh the listing, the single entry point for
+`<ReplicationController>` on mount and the re-sync triggers; `syncLogPreviews`;
+`deactivateReplication` — stop discovery *and* the engine), plus
+`fetchEngine.fetch(logFile, priority): Promise<LogDetails>` — "get this at the
+highest priority" is an enqueue-or-bump, never a separate code path — and
+`state/useFetchEngineStatus.ts` / `state/useLogsSync.ts` as the react rim.
+Consumers don't know a replicator exists; they say "be ready for this dir" and
+"refresh the listing now".
+
+**Interior** (sole consumers: each other):
+
+| Concern | What it is | Module |
+|---------|------------|--------|
+| Fetch engine | The item-level fetch mechanism: priority `WorkQueue`s, in-flight dedupe (per-item completion promises), read-through cache over the local database, batched sink writes. Framework-free and dependency-injected (`api`, `database`, sink) — unit-testable with fakes (`state/fetchEngine.test.ts`); never imports react-query or zustand. Producer-ignorant: it doesn't know who enqueues. | `state/fetchEngine.ts` (singleton) |
+| Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. | inside the engine; instance lifecycle in `state/databaseServiceInstance.ts` |
+| Discovery (replication) | List the dir, diff against the known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. No queues, no item fetching of its own. Keyed on `logDir`; UI-ignorant; dormant in single-file mode. | `state/sync/replicationService.ts` |
+| Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. | `fetchEngine` store, surfaced by `state/useFetchEngineStatus.ts` |
+
+### Selected-log lifecycle
+
+Everything that follows from "the user is viewing this log".
+
+**Surface** — the details query and `useRefreshLog`.
+
+- **Details query** — react-query, keyed on `(logDir, selectedLogFile)`, with
+  `queryFn: fetchEngine.fetch(logFile, "user")`; the engine's read-through
+  makes a cached log settle instantly (with a background refresh). Refresh =
+  invalidating this query — there is no imperative refresh path.
+  (`state/selectedLogDetails.ts`)
+- **Reaction controller** — the residual non-derivable side effects of the
+  query settling: recording `loadedLog`, per-log score/pending resets,
+  workspace-tab default for empty logs, polling start. No fetching.
+  (`LogLoadController`)
+- **Polling** — freshness scheduling for a running log: each tick enqueues the
+  watched log into the acquisition surface at elevated priority. Polling is
+  only the policy of when to ask; acquisition is the fetching.
+  (`state/logPolling.ts` via `state/logPollingInstance.ts`)
+
+Polling lives here, not inside acquisition, deliberately: it is driven by UI
+lifecycle (which log is loaded), and acquisition's interior stays UI-ignorant.
+The sorting rule: *what* to acquire (discovery) is acquisition interior; *when
+the UI wants it fresher* (polling, refresh-invalidation, user-priority fetch)
+plugs into the surface from outside. "Producer" is not a category that implies
+containment — UI-ignorant acquisition mechanism is.
+
+### UI state (leaf)
+
+Which log the user is viewing, filters, tabs, sample selection, grid state,
+`loadedLog`, rehydration — zustand slices, and nothing else. Known only by
+components/handlers; knows nothing below it; nothing writes into it from below
+(engine status flows out through its own external store; the leaf rule has no
+exceptions). Absolutizing a relative log name against the log dir is a
+config-aware derivation and lives at the event-handler seam (`useSelectLogFile`
+in `state/hooks.ts`), not in the slice.
+
+## Media & derivations
+
+- **React-query cache** — the server-data medium: handles, previews, details,
+  eval-set, versions; never in zustand. The log-list collections
+  (`state/logsContent.ts`) are fed by acquisition through its sink and read by
+  the UI — two-sided, so it belongs to neither.
+- **Loading / error status** — derivations of `AsyncData`, never imperatively
+  set. Log-open path: the selected-log query (`LogViewLayout` error panel +
+  activity, `ApplicationNavbar` via `useSelectedLogLoading`). Listing path: the
+  panels' sync query (`useLogsSync`) and engine `syncing`.
+
+## Composition roots
+
+`store.ts` `initializeStore` (`initDatabaseService`, `setXApi`, `main.tsx`'s
+pre-gate bootstrap read) wire the subsystems: api, per-dir database, and the
+`logsContent` sink into acquisition, for both modes (`ensureFetchEngine` does
+the mode-aware start). **Roots are exempt from the containment rules** — they
+construct interiors, so they may see constructors and pre-resolution state.
+Nothing else is exempt.
 
 ## Awareness hierarchy
 
 Arrows point at what a layer is allowed to know.
 
 ```
-L0  Invocation input        urlLogSource                (knows: nothing; consumed once)
-L1  Config core             appConfig ─→ urlLogSource, resolveApi, singleFileMode
-L2  Fetch engine            fetchEngine — owns queues + database reads + api use; sink injected
-      producers ─→ engine:  replication (dir discovery), log polling (freshness)
-      control seams:        replicationControl (ensureFetchEngine / syncLogs / deactivate)
-L3  Server-data medium      react-query cache ←─ engine sink; app/server/* hooks ─→ config
-                            queries: selected-log details, logs-sync, eval-set
-L4  Lifecycle controllers   AppConfigGate, ReplicationController,
-                            LogLoadController (reactions to the details query; no fetching)
-L5  Components / handlers   ─→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
-                            useSelectLogFile/useFetchEngineStatus/useStore)
-
-Leaf: zustand (UI state)    known by L5; knows nothing below it; nothing writes up into it
-Composition roots: store.ts initializeStore (initDatabaseService, setXApi) and
-                   replicationControl.ensureFetchEngine — wires the engine
-                   (api, per-dir database, logsContent sink) for both modes
+Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
+       │                  useSelectLogFile/useFetchEngineStatus/useStore)
+       │                  zustand (UI-state leaf) lives here; knows nothing below
+       ▼
+Lifecycle controllers     AppConfigGate, ReplicationController, LogLoadController
+       │                  (reactions to queries; no fetching)
+       ▼
+Server-data medium        react-query cache ←─ acquisition sink; queries:
+       │                  selected-log details, logs-sync, eval-set
+       ▼
+Log-data acquisition      surface: ensureFetchEngine / syncLogs / deactivate /
+       │                  fetch(logFile, priority) / status
+       │                  interior: fetchEngine · database · discovery · status store
+       ▼
+App configuration         surface: useAppConfig / useLogDir / getAppConfig
+                          interior: urlLogSource · resolveApi · singleFileMode ·
+                          bootstrap (consumed once at resolution)
 ```
 
 ### Rules
 
-- Lower layers never import upward.
-- React reaches down only through hooks (L3) or a control seam (L2, from
+- Lower layers never import upward; interiors never import outside their
+  subsystem.
+- React reaches down only through hooks or a subsystem surface (from
   controllers / event handlers).
-- The invocation input is consumed once and never consulted post-resolution;
-  everything downstream reads the resolved config.
-- App config has exactly one currency and one cache entry (`["app-config"]`).
-  Priority order for reading it: `useAppConfig` (or a passthrough like
-  `useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig`
-  (sanctioned non-React escape hatch) / `peekAppConfig` (non-asserting).
-- **Exactly one concern calls `api.get_log_details` / `get_log_summaries`: the
-  engine.** Producers enqueue; consumers await `fetch()` promises or read
-  queries. Priority is an argument, not an architecture.
-- **Exactly one concern touches the database: the engine** (the composition
-  roots only open/close it, and the `logsContent` sink pairs each persistence
-  write with its cache write).
-- **Nothing writes into zustand from below** — engine status flows out through
-  its own external store; the leaf rule has no exceptions.
+- **Only acquisition talks to the backend about log data** — `api.get_logs`,
+  `api.get_log_summaries`, `api.get_log_details` are called from its interior
+  and nowhere else. Producers enqueue; consumers await `fetch()` promises or
+  read queries. Priority is an argument, not an architecture.
+- Containment is earned, not assumed. An interior placement requires: (a) the
+  subsystem is the sole consumer, (b) the concern is conceptually subordinate —
+  a mechanism of the subsystem's policy, and (c) for acquisition, the concern
+  is UI-ignorant. Sole-consumership alone is not sufficient.
+- App config has exactly one currency and one cache entry (`["app-config"]`);
+  the invocation input is consumed once at resolution and never consulted
+  after.
+- **Nothing writes into zustand from below.**
 - **Loading/error are derivations of `AsyncData`**, never imperatively set.
-- The engine is framework-free and dependency-injected (api, database, sink) —
-  unit-testable with fakes (`state/fetchEngine.test.ts`), no jsdom/react-query
-  harness needed.
-- Services stay UI-ignorant: the engine and replicator never read selection.
-  "The selected log is responsive" is the details query fetching at `user`
-  priority, which front-runs queued background work in the same queue.
+- Acquisition's interior stays UI-ignorant: the engine and discovery never read
+  selection. "The selected log is responsive" is the details query fetching at
+  `user` priority, which front-runs queued background work in the same queue.
 - Freshness is engine policy: a cached completed log is served immediately and
   refreshed in the background; a cached *running* log is never served stale.
   On-demand refresh is query invalidation, which re-runs the same `fetch()`.
 
-## Boundaries (out of the engine, by design)
+## Boundaries (outside acquisition, by design)
 
 - **Sample-level data** — sample loading and sample-buffer polling
-  (`get_log_pending_samples`) call the api directly via their own singletons.
-  The engine's contract doesn't preclude a later sample queue; it just doesn't
-  own one today.
+  (`get_log_pending_samples`) call the api directly via their own singletons
+  (`state/samplePollingInstance.ts`). This is the one standing exception to the
+  headline rule. Acquisition's contract doesn't preclude a later sample-level
+  engine as a sibling of the fetch engine in its interior; it just doesn't own
+  one today.
 - **Listing reads** — the log-list UI reads the passive `logsContent`
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a
