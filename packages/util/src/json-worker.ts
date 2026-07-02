@@ -5,11 +5,15 @@ interface WorkerParseResponse {
   requestId: number;
   success: boolean;
   result?: unknown;
-  // Payload is strict JSON too large to clone efficiently — re-parse it on
-  // the main thread from sourceText (bytes input) or the retained request
-  // text (string input).
+  // Payload is (possibly repaired) strict JSON too large to clone
+  // efficiently — re-parse it on the main thread from sourceText (or the
+  // retained request text for string inputs).
   reparse?: boolean;
   sourceText?: string;
+  // Set when sourceText is repaired JSON: paths whose values are sentinel
+  // strings to restore to NaN/Infinity/-Infinity after the plain parse.
+  nonFinitePaths?: (string | number)[][];
+  sentinels?: { nan: string; inf: string; ninf: string };
   error?: string;
   stack?: string;
 }
@@ -50,8 +54,17 @@ class JsonWorkerPool {
   }
 
   private handleMessage(e: MessageEvent) {
-    const { requestId, success, result, reparse, sourceText, error, stack } =
-      e.data as WorkerParseResponse;
+    const {
+      requestId,
+      success,
+      result,
+      reparse,
+      sourceText,
+      nonFinitePaths,
+      sentinels,
+      error,
+      stack,
+    } = e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
 
@@ -59,11 +72,20 @@ class JsonWorkerPool {
 
     if (success) {
       if (reparse) {
-        // The worker validated this as strict JSON; one JSON.parse here is
-        // the cheapest way to materialize a large result on this thread
-        // (structured clone of a big graph costs more — see kWorkerCode).
+        // The worker validated this as strict JSON; one plain JSON.parse
+        // here is the cheapest way to materialize a large result on this
+        // thread (structured clone of a big graph costs more, and a reviver
+        // is ~8x slower than plain parse — see kWorkerCode). For repaired
+        // payloads the worker pre-located the sentinel values, so restoring
+        // NaN/Infinity is a targeted walk of just those paths (~µs).
         try {
-          pending.resolve(JSON.parse(sourceText ?? pending.sourceText ?? ""));
+          const parsed: unknown = JSON.parse(
+            sourceText ?? pending.sourceText ?? ""
+          );
+          if (nonFinitePaths && sentinels) {
+            applyNonFinitePaths(parsed, nonFinitePaths, sentinels);
+          }
+          pending.resolve(parsed);
         } catch (parseError) {
           pending.reject(parseError as Error);
         }
@@ -241,6 +263,76 @@ const repairNonFiniteJson = (
   return parts.join("");
 };
 
+// Restores non-finite values at pre-located paths after a plain JSON.parse
+// of repaired text. Self-contained: injected into the worker via toString().
+const applyNonFinitePaths = (
+  root: unknown,
+  paths: (string | number)[][],
+  sentinels: { nan: string; inf: string; ninf: string }
+): void => {
+  for (const path of paths) {
+    let target = root as Record<string | number, unknown>;
+    for (let i = 0; i < path.length - 1; i++) {
+      target = target[path[i]!] as Record<string | number, unknown>;
+    }
+    const leaf = path[path.length - 1]!;
+    const value = target[leaf];
+    target[leaf] =
+      value === sentinels.nan
+        ? NaN
+        : value === sentinels.inf
+          ? Infinity
+          : value === sentinels.ninf
+            ? -Infinity
+            : value;
+  }
+};
+
+// Collects paths of sentinel-string values in a plain-parsed repaired
+// document. Bails (returns null) past maxPaths so a pathological all-NaN
+// document falls back to fixup-in-place + clone rather than shipping a huge
+// path list. Self-contained: injected into the worker via toString().
+const findSentinelPaths = (
+  root: unknown,
+  sentinels: { nan: string; inf: string; ninf: string },
+  maxPaths: number
+): (string | number)[][] | null => {
+  const paths: (string | number)[][] = [];
+  const walk = (node: unknown, path: (string | number)[]): boolean => {
+    if (typeof node === "string") {
+      if (
+        node === sentinels.nan ||
+        node === sentinels.inf ||
+        node === sentinels.ninf
+      ) {
+        if (paths.length >= maxPaths) return false;
+        paths.push(path.slice());
+      }
+      return true;
+    }
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        path.push(i);
+        const ok = walk(node[i], path);
+        path.pop();
+        if (!ok) return false;
+      }
+      return true;
+    }
+    if (node && typeof node === "object") {
+      for (const key of Object.keys(node)) {
+        path.push(key);
+        const ok = walk((node as Record<string, unknown>)[key], path);
+        path.pop();
+        if (!ok) return false;
+      }
+      return true;
+    }
+    return true;
+  };
+  return walk(root, []) ? paths : null;
+};
+
 // Fallback for text JSON.parse rejected: try the cheap non-finite repair +
 // native parse first, full JSON5 only for real JSON5 syntax.
 const parseFallback = <T>(text: string): T => {
@@ -317,32 +409,76 @@ const kWorkerCode = `
 let JSON5 = null;
 const decoder = new TextDecoder();
 
-// Injected from the module-scope implementation (kept self-contained there)
+// Injected from the module-scope implementations (kept self-contained there)
 const repairNonFiniteJson = ${repairNonFiniteJson.toString()};
+const applyNonFinitePaths = ${applyNonFinitePaths.toString()};
+const findSentinelPaths = ${findSentinelPaths.toString()};
 
-// Cheap path for Python-style bare NaN/Infinity: repair + native JSON.parse;
-// full (slow) JSON5 only for real JSON5 syntax.
-function parseFallback(source, jsonError) {
+// Fallback when the path cap is exceeded: restore every sentinel in place
+function replaceSentinelsInPlace(node, sentinels) {
+  const restore = (v) =>
+    v === sentinels.nan ? NaN
+    : v === sentinels.inf ? Infinity
+    : v === sentinels.ninf ? -Infinity
+    : v;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const v = node[i];
+      if (typeof v === 'string') node[i] = restore(v);
+      else replaceSentinelsInPlace(v, sentinels);
+    }
+  } else if (node && typeof node === 'object') {
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (typeof v === 'string') node[k] = restore(v);
+      else replaceSentinelsInPlace(v, sentinels);
+    }
+  }
+}
+
+// Non-strict JSON: repair Python-style bare NaN/Infinity and parse natively;
+// full (slow) JSON5 only for real JSON5 syntax. Returns { result } to clone
+// back, or { reparse, sourceText, nonFinitePaths, sentinels } when the main
+// thread is better off parsing the repaired text itself. A reviver would be
+// ~8x slower than plain parse on either thread, so sentinels are located
+// with an off-thread walk and restored by targeted fixup instead.
+function parseFallback(source, big, jsonError) {
   const nonce = Math.random().toString(36).slice(2);
-  const nan = '__json5_nan_' + nonce + '__';
-  const inf = '__json5_inf_' + nonce + '__';
-  const ninf = '__json5_ninf_' + nonce + '__';
+  const sentinels = {
+    nan: '__json5_nan_' + nonce + '__',
+    inf: '__json5_inf_' + nonce + '__',
+    ninf: '__json5_ninf_' + nonce + '__'
+  };
   const repaired = repairNonFiniteJson(
-    source, '"' + nan + '"', '"' + inf + '"', '"' + ninf + '"');
+    source,
+    '"' + sentinels.nan + '"',
+    '"' + sentinels.inf + '"',
+    '"' + sentinels.ninf + '"');
   if (repaired !== null) {
+    let plain;
+    let repairedOk = true;
     try {
-      return JSON.parse(repaired, (key, value) =>
-        value === nan ? NaN
-        : value === inf ? Infinity
-        : value === ninf ? -Infinity
-        : value);
+      plain = JSON.parse(repaired);
     } catch (repairError) {
       // repaired text still invalid — let JSON5 produce the real error
+      repairedOk = false;
+    }
+    if (repairedOk) {
+      const paths = findSentinelPaths(plain, sentinels, 100000);
+      if (paths !== null) {
+        if (big && isDenseGraph(source)) {
+          return { reparse: true, sourceText: repaired, nonFinitePaths: paths, sentinels };
+        }
+        applyNonFinitePaths(plain, paths, sentinels);
+      } else {
+        replaceSentinelsInPlace(plain, sentinels);
+      }
+      return { result: plain };
     }
   }
   // Surface the original JSON error, not a null-JSON5 one, if init failed
   if (!JSON5) throw jsonError;
-  return JSON5.parse(source);
+  return { result: JSON5.parse(source) };
 }
 
 // Structural-density probe: node-dense graphs (millions of small objects)
@@ -399,18 +535,7 @@ self.onmessage = function (e) {
 
     try {
       const source = text !== undefined ? text : decoder.decode(bytes);
-
-      let result = undefined;
-      let usedJson5 = false;
-      try {
-        // Optimistically, try a regular JSON parse first (this is much faster)
-        result = JSON.parse(source);
-      } catch (jsonError) {
-        result = parseFallback(source, jsonError);
-        // Result may contain NaN/Infinity the main thread couldn't re-parse
-        // from source, so it must travel by structured clone
-        usedJson5 = true;
-      }
+      const big = source.length > ${kReparseThresholdChars};
 
       // Structured clone hands the object graph straight to the main thread,
       // but its cost scales with node count: for big node-dense payloads it
@@ -419,19 +544,26 @@ self.onmessage = function (e) {
       // transcript data — see bench/). For those, skip the clone and tell
       // the main thread to run one JSON.parse itself — the cheapest possible
       // materialization. String-heavy payloads keep the clone (cheaper than
-      // re-parsing), and JSON5 results must clone — JSON.parse can't
-      // re-parse the source.
-      if (!usedJson5 && source.length > ${kReparseThresholdChars} && isDenseGraph(source)) {
-        // string requests retain their text on the main thread; byte
-        // requests need the decoded source shipped back (a cheap flat clone)
-        if (text !== undefined) {
-          postMessage({ requestId, success: true, reparse: true });
+      // re-parsing).
+      let response;
+      try {
+        // Optimistically, try a regular JSON parse first (this is much faster)
+        const result = JSON.parse(source);
+        if (big && isDenseGraph(source)) {
+          // string requests retain their text on the main thread; byte
+          // requests need the decoded source shipped back (cheap flat clone)
+          response = text !== undefined
+            ? { reparse: true }
+            : { reparse: true, sourceText: source };
         } else {
-          postMessage({ requestId, success: true, reparse: true, sourceText: source });
+          response = { result };
         }
-      } else {
-        postMessage({ requestId, success: true, result });
+      } catch (jsonError) {
+        response = parseFallback(source, big, jsonError);
       }
+      response.requestId = requestId;
+      response.success = true;
+      postMessage(response);
     } catch (err) {
       postMessage({
         requestId,
