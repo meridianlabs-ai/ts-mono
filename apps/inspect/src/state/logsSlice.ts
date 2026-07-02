@@ -124,7 +124,7 @@ export const createLogsSlice = (
         });
       },
       // Select a specific log file (pure UI state). Expects an already-absolute
-      // path; callers absolutize via useSelectLogFile. Ensuring the file is
+      // path; callers absolutize via useSelectLogFileAction. Ensuring the file is
       // loadable happens in the loader layer (ensureSelectableLog), driven by
       // loadLog when the selection is opened.
       setSelectedLogFile: (logFile: string) => {

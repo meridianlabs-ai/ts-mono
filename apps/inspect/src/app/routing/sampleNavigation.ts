@@ -11,39 +11,10 @@ import { sampleIdsEqual } from "../shared/sample";
 import {
   logSamplesUrl,
   logsUrlRaw,
-  makeLogsPath,
   samplesSampleUrl,
   useLogRouteParams,
   useRoutePrefix,
 } from "./url";
-
-export const useLogNavigation = () => {
-  const navigate = useNavigate();
-  const { logPath: routeLogPath } = useLogRouteParams();
-  const logDir = useLogDir();
-  const loadedLog = useStore((state) => state.log.loadedLog);
-  const prefix = useRoutePrefix();
-
-  const selectTab = useCallback(
-    (tabId: string) => {
-      // Only update URL if we have a loaded log
-      if (loadedLog && routeLogPath) {
-        // We already have the logPath from params, just navigate to the tab
-        const url = logsUrlRaw(routeLogPath, tabId, prefix);
-        void navigate(url);
-      } else if (loadedLog) {
-        // Fallback to constructing the path if needed
-        const url = logsUrlRaw(makeLogsPath(loadedLog, logDir), tabId, prefix);
-        void navigate(url);
-      }
-    },
-    [loadedLog, routeLogPath, logDir, navigate, prefix]
-  );
-
-  return {
-    selectTab,
-  };
-};
 
 export const useSampleUrl = () => {
   const { logPath, sampleTabId } = useLogRouteParams();
@@ -96,8 +67,11 @@ export const useSampleUrl = () => {
 /**
  * Hook that provides sample navigation utilities with proper URL handling
  * for use across the application
+ *
+ * Used to obtain action functions (plus their enablement flags) —
+ * no mount side effects.
  */
-export const useSampleNavigation = () => {
+export const useSampleNavigationActions = () => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
 
@@ -265,8 +239,10 @@ export const useSampleDetailNavigation = () => {
 /**
  * Hook for navigating to sample details from the samples grid.
  * Uses the /samples route pattern instead of /logs.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
  */
-export const useSamplesGridNavigation = () => {
+export const useSamplesGridNavigationAction = () => {
   const navigate = useNavigate();
   const logDirectory = useLogDir();
 
@@ -299,8 +275,11 @@ export const useSamplesGridNavigation = () => {
 /**
  * Hook for sample navigation within the log context (LogSampleDetailView).
  * Uses filteredSamples to navigate between samples respecting current filters.
+ *
+ * Used to obtain action functions (plus their enablement flags) —
+ * no mount side effects.
  */
-export const useLogSampleNavigation = () => {
+export const useLogSampleNavigationActions = () => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
   const { logPath: routeLogPath, sampleTabId } = useLogRouteParams();

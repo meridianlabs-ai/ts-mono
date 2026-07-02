@@ -37,7 +37,7 @@ import {
 import { HostMessage } from "../client/api/types.ts";
 import { syncLogs } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import { useSelectLogFile } from "../state/hooks.ts";
+import { useSelectLogFileAction } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { useStore } from "../state/store.ts";
 import {
@@ -66,11 +66,15 @@ const componentIcons: ComponentIcons = {
   toggleRight: ApplicationIcons["toggle-right"],
 };
 
-// Keep the applied theme in lockstep with the persisted preference. The inline
-// bootstrap sets the theme before first paint from localStorage; here we
-// re-apply whenever the in-app picker changes it, and pull cross-tab writes
-// back into zustand (persist doesn't listen for `storage` events itself).
-const useThemePreferenceSync = () => {
+/**
+ * Keep the applied theme in lockstep with the persisted preference. The inline
+ * bootstrap sets the theme before first paint from localStorage; here we
+ * re-apply whenever the in-app picker changes it, and pull cross-tab writes
+ * back into zustand (persist doesn't listen for `storage` events itself).
+ *
+ * Used to trigger side effects only — returns nothing.
+ */
+const useThemePreferenceSyncSideEffect = () => {
   const themePreference = useUserSettings((s) => s.themePreference);
   // useLayoutEffect (not useEffect): apply before the browser paints so an
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
@@ -99,7 +103,7 @@ const useThemePreferenceSync = () => {
  * read the resolved app config.
  */
 export const AppContent: FC = () => {
-  useThemePreferenceSync();
+  useThemePreferenceSyncSideEffect();
 
   const api = getApi();
 
@@ -113,7 +117,7 @@ export const AppContent: FC = () => {
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
-  const selectLogFile = useSelectLogFile();
+  const selectLogFile = useSelectLogFileAction();
 
   const onMessage = useCallback(
     (e: HostMessage) => {

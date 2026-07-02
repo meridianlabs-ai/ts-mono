@@ -17,9 +17,9 @@ import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import { useFetchEngineStatus, useLogsSync } from "../../log_data";
-import { useClientEvents } from "../../state/clientEvents";
+import { useClientEventsActions } from "../../state/clientEvents";
 import {
-  useDocumentTitle,
+  useDocumentTitleAction,
   useLogsListing,
   useLogsWithretried,
 } from "../../state/hooks";
@@ -29,7 +29,7 @@ import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerData } from "../flow/hooks";
+import { useFlowServerDataSideEffect } from "../flow/hooks";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
@@ -95,12 +95,12 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a half-initialized scope.
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
-  useFlowServerData(logPath || "");
+  useFlowServerDataSideEffect(logPath || "");
   const flowData = useStore((state) => state.logs.flow);
 
-  const { startPolling, stopPolling } = useClientEvents();
+  const { startPolling, stopPolling } = useClientEventsActions();
 
-  const { setDocumentTitle } = useDocumentTitle();
+  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({
       logDir: logDir,

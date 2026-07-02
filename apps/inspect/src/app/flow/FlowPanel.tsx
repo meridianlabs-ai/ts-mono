@@ -5,13 +5,13 @@ import { useLocation } from "react-router-dom";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
-import { useLogs } from "../../state/hooks";
+import { useLogsActions } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowPanel.module.css";
-import { useFlowServerData } from "./hooks";
+import { useFlowServerDataSideEffect } from "./hooks";
 
 export const FlowPanel: FC = () => {
   const location = useLocation();
@@ -22,13 +22,13 @@ export const FlowPanel: FC = () => {
   const flowDir = dirname(currentPath || "");
 
   // Get the logs from the store
-  const { loadLogs } = useLogs();
+  const { loadLogs } = useLogsActions();
   useEffect(() => {
     void loadLogs();
   }, [loadLogs, flowDir]);
 
   // Retrieve flow data
-  useFlowServerData(flowDir || "");
+  useFlowServerDataSideEffect(flowDir || "");
   const flow = useStore((state) => state.logs.flow);
 
   // Syntax highlighting

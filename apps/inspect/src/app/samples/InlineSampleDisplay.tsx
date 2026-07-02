@@ -6,8 +6,8 @@ import { useStatefulScrollPosition } from "@tsmono/react/hooks";
 
 import { useSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { useLoadSample } from "../../state/useLoadSample";
-import { usePollSample } from "../../state/usePollSample";
+import { useLoadSampleSideEffect } from "../../state/useLoadSampleSideEffect";
+import { usePollSampleSideEffect } from "../../state/usePollSampleSideEffect";
 
 import styles from "./InlineSampleDisplay.module.css";
 import { SampleDisplay } from "./SampleDisplay";
@@ -29,8 +29,8 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   scrollRef,
 }) => {
   // Use shared hooks for loading and polling
-  useLoadSample();
-  usePollSample();
+  useLoadSampleSideEffect();
+  usePollSampleSideEffect();
   return (
     <InlineSampleComponent
       showActivity={showActivity}

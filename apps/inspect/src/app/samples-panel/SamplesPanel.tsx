@@ -9,7 +9,7 @@ import { ProgressBar } from "@tsmono/react/components";
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { useFetchEngineStatus, useLogsSync } from "../../log_data";
-import { useClientEvents } from "../../state/clientEvents";
+import { useClientEventsActions } from "../../state/clientEvents";
 import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
 import { useLogDetails, useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
@@ -17,12 +17,12 @@ import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerData } from "../flow/hooks";
+import { useFlowServerDataSideEffect } from "../flow/hooks";
 import { LogListFooter } from "../log-list/LogListFooter";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
-import { useSamplesGridNavigation } from "../routing/sampleNavigation";
+import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
@@ -109,7 +109,7 @@ export const SamplesPanel: FC = () => {
   const logDetails = useLogDetails(logDir);
 
   // Polling for updated log files.
-  const { startPolling, stopPolling } = useClientEvents();
+  const { startPolling, stopPolling } = useClientEventsActions();
   useEffect(() => {
     startPolling();
     return () => {
@@ -117,7 +117,7 @@ export const SamplesPanel: FC = () => {
     };
   }, [startPolling, stopPolling]);
 
-  useFlowServerData(samplesPath || "");
+  useFlowServerDataSideEffect(samplesPath || "");
   const flowData = useStore((state) => state.logs.flow);
 
   const currentDir = join(samplesPath || "", logDir);
@@ -322,7 +322,7 @@ export const SamplesPanel: FC = () => {
     return [_sampleRows, _hasRetriedLogs];
   }, [logDetailsInPath, currentDirLogFiles]);
 
-  const { navigateToSampleDetail } = useSamplesGridNavigation();
+  const { navigateToSampleDetail } = useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);

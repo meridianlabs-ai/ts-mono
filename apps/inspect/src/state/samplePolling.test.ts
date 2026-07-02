@@ -536,7 +536,7 @@ describe("createSamplePolling", () => {
     } as unknown as UseBoundStore<StoreApi<StoreState>>;
 
     const polling = createSamplePolling(store, api);
-    // Simulate the stub summary that usePollSample actually passes today.
+    // Simulate the stub summary that usePollSampleSideEffect actually passes today.
     polling.startPolling("log.eval", {
       id: "rocket-medium-vision",
       epoch: 1,

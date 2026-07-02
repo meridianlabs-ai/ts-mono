@@ -15,12 +15,12 @@ import { useScrollDirection } from "@tsmono/react/hooks";
 
 import {
   useEvalSpec,
-  useRefreshLog,
+  useRefreshLogAction,
   useSelectedLogDetails,
 } from "../../state/hooks";
 import { usePendingSamples } from "../../state/pendingSamples";
 import { useStore } from "../../state/store";
-import { useLogNavigation } from "../routing/logNavigation";
+import { useLogNavigationAction } from "../routing/logNavigation";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -35,8 +35,8 @@ import { TabDescriptor } from "./types";
 export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const refreshLog = useRefreshLog();
-  const navigation = useLogNavigation();
+  const refreshLog = useRefreshLogAction();
+  const navigation = useLogNavigationAction();
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = useEvalSpec();

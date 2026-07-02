@@ -9,7 +9,13 @@ import { clientEventsService } from "./clientEventsService";
 
 const log = createLogger("Client-Events");
 
-export function useClientEvents() {
+/**
+ * Controls for the client-events polling service (start/stop/cleanup).
+ *
+ * Used to obtain action functions only — no data; mounting only registers
+ * the refresh callback and unmount cleanup.
+ */
+export function useClientEventsActions() {
   const api = getApi();
 
   const refreshCallback = useCallback(async (_reason: "event" | "periodic") => {

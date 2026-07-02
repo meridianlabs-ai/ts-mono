@@ -6,7 +6,12 @@ import { useStore } from "../../state/store";
 
 import { logsUrl, logsUrlRaw, useRoutePrefix } from "./url";
 
-export const useLogNavigation = () => {
+/**
+ * Navigate the loaded log to a workspace tab.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
+ */
+export const useLogNavigationAction = () => {
   const navigate = useNavigate();
   const { logPath } = useParams<{ logPath: string }>();
   const logDir = useLogDir();

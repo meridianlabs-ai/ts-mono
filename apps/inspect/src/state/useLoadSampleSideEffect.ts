@@ -25,8 +25,10 @@ let loadGeneration = 0;
 /**
  * Hook that handles loading samples based on the current log selection.
  * Contains the full sample loading logic that was previously in sampleSlice.loadSample.
+ *
+ * Used to trigger side effects only — returns nothing.
  */
-export function useLoadSample() {
+export function useLoadSampleSideEffect() {
   const sampleData = useSampleData();
   const logSelection = useLogSelection();
 

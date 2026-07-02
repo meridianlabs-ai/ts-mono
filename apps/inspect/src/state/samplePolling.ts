@@ -151,7 +151,7 @@ export function createSamplePolling(
         try {
           log.debug(message);
           // The closure-captured `summary` is the stub {id, epoch} from
-          // usePollSample, so re-resolve from the store to read its `error`.
+          // usePollSampleSideEffect, so re-resolve from the store to read its `error`.
           const sample =
             (await api.get_log_sample(logFile, summary.id, summary.epoch)) ??
             (() => {

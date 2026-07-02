@@ -14,8 +14,10 @@ const log = createLogger("useSamplePolling");
  * Hook that handles polling for running samples.
  * When a sample is in a running state (completed === false), this hook starts polling for updates.
  * Contains the polling start logic that was previously in sampleSlice.pollSample.
+ *
+ * Used to trigger side effects only — returns nothing.
  */
-export function usePollSample() {
+export function usePollSampleSideEffect() {
   const logSelection = useLogSelection();
   const loadedLog = useStore((state) => state.log.loadedLog);
 

@@ -171,7 +171,12 @@ export const useEvalSpec = () => {
   return useSelectedLogDetails()?.eval;
 };
 
-export const useRefreshLog = () => {
+/**
+ * Re-fetch the selected log's details and reset filtering.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
+ */
+export const useRefreshLogAction = () => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const resetFiltering = useStore((state) => state.logActions.resetFiltering);
@@ -206,7 +211,7 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useSelectedLogDetails()?.status;
-  const refreshLog = useRefreshLog();
+  const refreshLog = useRefreshLogAction();
   const isInProgress = logStatus === "started";
   return {
     canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
@@ -514,7 +519,12 @@ export const useMessageVisibility = (
 
 /** Select a log file, absolutizing a relative name against the resolved log dir
  *  (the slice stores only the absolute path). */
-export const useSelectLogFile = () => {
+/**
+ * Select a log file, absolutizing a relative name against the log dir.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
+ */
+export const useSelectLogFileAction = () => {
   const logDir = useLogDir();
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
@@ -526,8 +536,13 @@ export const useSelectLogFile = () => {
   );
 };
 
-export const useSetSelectedLogIndex = () => {
-  const selectLogFile = useSelectLogFile();
+/**
+ * Select a log by its index in the log listing, clearing sample state.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
+ */
+export const useSetSelectedLogIndexAction = () => {
+  const selectLogFile = useSelectLogFileAction();
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
@@ -606,7 +621,12 @@ export const useSamplePopover = (id: string) => {
   };
 };
 
-export const useLogs = () => {
+/**
+ * Loaders that refresh the log listing and log overviews.
+ *
+ * Used to obtain action functions only — no data, no mount side effects.
+ */
+export const useLogsActions = () => {
   const loadLogs = useCallback(async () => {
     await syncLogs().catch((e) => {
       log.error("Error loading logs", e);
@@ -668,7 +688,12 @@ export interface TitleContext {
   sample?: EvalSample;
 }
 
-export const useDocumentTitle = () => {
+/**
+ * Set the document title from a log/sample context.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
+ */
+export const useDocumentTitleAction = () => {
   const setDocumentTitle = (context: TitleContext) => {
     const title: string[] = [];
 

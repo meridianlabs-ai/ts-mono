@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
-import { useSampleSummaries, useSelectLogFile } from "../../state/hooks";
+import { useSampleSummaries, useSelectLogFileAction } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { useLoadSample } from "../../state/useLoadSample";
-import { usePollSample } from "../../state/usePollSample";
-import { useLogSampleNavigation } from "../routing/sampleNavigation";
+import { useLoadSampleSideEffect } from "../../state/useLoadSampleSideEffect";
+import { usePollSampleSideEffect } from "../../state/usePollSampleSideEffect";
+import { useLogSampleNavigationActions } from "../routing/sampleNavigation";
 import {
   logSamplesUrl,
   logsUrl,
@@ -22,8 +22,8 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  *
  * This component handles:
  * - Log loading (initLogDir, setSelectedLogFile, syncLogs)
- * - Sample selection and loading (useLoadSample, usePollSample)
- * - Navigation state via useLogSampleNavigation (respects log filters)
+ * - Sample selection and loading (useLoadSampleSideEffect, usePollSampleSideEffect)
+ * - Navigation state via useLogSampleNavigationActions (respects log filters)
  *
  * Unlike SampleDetailView, this component:
  * - Does NOT clear log state on unmount (user expects to return to same log state)
@@ -45,15 +45,15 @@ export const LogSampleDetailView: FC = () => {
   const { singleFileMode } = useAppConfig();
 
   // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSample();
-  usePollSample();
+  useLoadSampleSideEffect();
+  usePollSampleSideEffect();
 
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
 
   // Get store state and actions for log loading
   const sampleSummaries = useSampleSummaries();
-  const selectLogFile = useSelectLogFile();
+  const selectLogFile = useSelectLogFileAction();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -105,7 +105,8 @@ export const LogSampleDetailView: FC = () => {
   }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate, prefix]);
 
   // Get navigation handlers from the hook
-  const { onPrevious, onNext, hasPrevious, hasNext } = useLogSampleNavigation();
+  const { onPrevious, onNext, hasPrevious, hasNext } =
+    useLogSampleNavigationActions();
 
   // Custom navigation URL function for breadcrumbs and back button.
   // We use currentPath = `${logPath}/sample` so the log file becomes clickable.

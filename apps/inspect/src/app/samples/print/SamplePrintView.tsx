@@ -28,11 +28,11 @@ import {
 import {
   useSampleData,
   useSelectedLogDetails,
-  useSelectLogFile,
+  useSelectLogFileAction,
 } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { useLoadSample } from "../../../state/useLoadSample";
-import { usePollSample } from "../../../state/usePollSample";
+import { useLoadSampleSideEffect } from "../../../state/useLoadSampleSideEffect";
+import { usePollSampleSideEffect } from "../../../state/usePollSampleSideEffect";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { SampleJSONView } from "../SampleJSONView";
@@ -52,11 +52,11 @@ export const SamplePrintView: FC = () => {
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
   // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSample();
-  usePollSample();
+  useLoadSampleSideEffect();
+  usePollSampleSideEffect();
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const selectLogFile = useSelectLogFile();
+  const selectLogFile = useSelectLogFileAction();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   useEffect(() => {

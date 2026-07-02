@@ -71,7 +71,7 @@ import {
   kSampleUsageTabId,
 } from "../../constants";
 import {
-  useDocumentTitle,
+  useDocumentTitleAction,
   useSampleData,
   useSelectedLogDetails,
   useSelectedSampleSummary,
@@ -141,7 +141,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const runningSampleData = sampleData.running;
 
   const evalSpec = useSelectedLogDetails()?.eval;
-  const { setDocumentTitle } = useDocumentTitle();
+  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
   }, [setDocumentTitle, sample, evalSpec]);

@@ -71,7 +71,7 @@ export interface SampleDetailComponentProps {
  * - Sample content rendering via InlineSampleComponent
  *
  * The parent component is responsible for:
- * - Loading hooks (useLoadLog, useLoadSample, usePollSample)
+ * - Loading hooks (useLoadLogSideEffect, useLoadSampleSideEffect, usePollSampleSideEffect)
  * - Calculating navigation state
  * - Navigation callbacks
  * - Cleanup on unmount

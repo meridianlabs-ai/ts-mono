@@ -5,9 +5,12 @@ import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { useDocumentTitle, useSelectedLogDetails } from "../../../state/hooks";
+import {
+  useDocumentTitleAction,
+  useSelectedLogDetails,
+} from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { useSampleNavigation } from "../../routing/sampleNavigation";
+import { useSampleNavigationActions } from "../../routing/sampleNavigation";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { isCurrentSample } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
@@ -48,14 +51,14 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     scrollRef,
   } = props;
 
-  const sampleNavigation = useSampleNavigation();
+  const sampleNavigation = useSampleNavigationActions();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
-  const { setDocumentTitle } = useDocumentTitle();
+  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({ evalSpec });
   }, [setDocumentTitle, evalSpec]);

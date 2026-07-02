@@ -2,12 +2,16 @@ import { useEffect } from "react";
 
 import { useSamplesRouteParams } from "../app/routing/url";
 
-import { useSelectLogFile } from "./hooks";
+import { useSelectLogFileAction } from "./hooks";
 import { useStore } from "./store";
 
-// Select the route's log file and sample; the selection drives the details
-// query (no listing entry or prior sync is required to open a log).
-export const useLoadLog = () => {
+/**
+ * Select the route's log file and sample; the selection drives the details
+ * query (no listing entry or prior sync is required to open a log).
+ *
+ * Used to trigger side effects only — returns nothing.
+ */
+export const useLoadLogSideEffect = () => {
   const {
     samplesPath: routeLogPath,
     sampleId,
@@ -15,7 +19,7 @@ export const useLoadLog = () => {
   } = useSamplesRouteParams();
   const selectSample = useStore((state) => state.logActions.selectSample);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectLogFile = useSelectLogFile();
+  const selectLogFile = useSelectLogFileAction();
 
   useEffect(() => {
     if (routeLogPath && sampleId && epoch) {

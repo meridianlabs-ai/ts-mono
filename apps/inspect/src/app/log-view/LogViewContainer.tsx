@@ -5,9 +5,9 @@ import { kLogViewSamplesTabId } from "../../constants";
 import {
   useEvalSpec,
   useSampleSummaries,
-  useSelectLogFile,
+  useSelectLogFileAction,
 } from "../../state/hooks";
-import { useUnloadLog } from "../../state/log";
+import { useUnloadLogAction } from "../../state/log";
 import { useStore } from "../../state/store";
 import {
   baseUrl,
@@ -32,7 +32,7 @@ export const LogViewContainer: FC = () => {
   const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const selectLogFile = useSelectLogFile();
+  const selectLogFile = useSelectLogFileAction();
 
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
@@ -49,7 +49,7 @@ export const LogViewContainer: FC = () => {
   // Unload the log when this is mounted. This prevents the old log
   // data from being displayed when navigating back to the logs panel
   // and also ensures that we reload logs when freshly navigating to them.
-  const { unloadLog } = useUnloadLog();
+  const { unloadLog } = useUnloadLogAction();
   useEffect(() => {
     return () => {
       unloadLog();
