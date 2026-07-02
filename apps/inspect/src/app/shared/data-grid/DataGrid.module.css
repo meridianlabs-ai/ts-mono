@@ -256,6 +256,19 @@
   justify-content: center;
 }
 
+/* First normal column after a rotated block. The preceding angled label's
+ * bottom-border diagonal rises from the shared column edge at 45° (1px up
+ * per 1px right), so content flush at the default 8px inset collides with
+ * it — the label's text/line cut through the header text (~22px tall at
+ * the cell bottom). Indenting by the gap (kAfterRotatedGap + the default
+ * 8px) puts the diagonal safely above where the text starts; the cell is
+ * rendered kAfterRotatedGap wider to compensate, so the content box is
+ * unchanged. Applied to header and body cells alike so the column's label
+ * and values stay left-aligned. */
+.afterRotatedGap {
+  padding-left: 32px;
+}
+
 .empty {
   position: absolute;
   top: 3rem;

@@ -52,6 +52,10 @@ function resolveHeaderTitle<TRow>(
 // Extra scroll width past the last column so its rotated label, which
 // fans up-and-right beyond the column edge, isn't clipped at max scroll.
 const kRotatedTrailingPad = 95;
+// Extra render width for a normal column that directly follows a rotated
+// block; paired with matching left padding (.afterRotatedGap) so the gap
+// separates the columns without shrinking the content box.
+const kAfterRotatedGap = 24;
 
 export interface DataGridProps<TRow> {
   data: TRow[];
@@ -195,9 +199,25 @@ export function DataGrid<TRow>({
 
   // Rotated headers (compact score columns) need a taller header row, and
   // extra trailing scroll width so the last label isn't clipped.
-  const anyRotated = table
-    .getVisibleLeafColumns()
-    .some((c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader);
+  const visibleColumns = table.getVisibleLeafColumns();
+  const anyRotated = visibleColumns.some(
+    (c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader
+  );
+  // Normal columns directly after a rotated block: the previous column's
+  // angled label anchors at the shared edge and fans over this column's
+  // header, so its diagonal would slice through header text sitting flush
+  // left. Indent those columns (header + body cells, so they stay aligned)
+  // past the diagonal.
+  const afterRotatedIds = new Set<string>();
+  visibleColumns.forEach((c, i) => {
+    const prev = visibleColumns[i - 1];
+    if (!prev) return;
+    const rotated = (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader;
+    const prevRotated = (prev.columnDef as ExtendedColumnDef<TRow>).meta
+      ?.rotateHeader;
+    if (prevRotated && !rotated) afterRotatedIds.add(c.id);
+  });
+  const gapExtra = afterRotatedIds.size * kAfterRotatedGap;
   const effectiveHeaderHeight = anyRotated
     ? kRotatedHeaderHeight
     : headerHeight;
@@ -312,7 +332,7 @@ export function DataGrid<TRow>({
         // `.table` is `box-sizing: border-box`, so `paddingRight` would shrink
         // the content box and make the full-width rows overflow it — a second,
         // nested horizontal scrollbar. Widening keeps a single scroll extent.
-        style={{ width: totalWidth + trailingPad }}
+        style={{ width: totalWidth + gapExtra + trailingPad }}
       >
         <div
           className={styles.thead}
@@ -386,9 +406,17 @@ export function DataGrid<TRow>({
                     key={header.id}
                     className={clsx(
                       styles.headerCell,
-                      anyRotated && styles.headerCellTall
+                      anyRotated && styles.headerCellTall,
+                      afterRotatedIds.has(header.column.id) &&
+                        styles.afterRotatedGap
                     )}
-                    style={{ width: header.getSize() }}
+                    style={{
+                      width:
+                        header.getSize() +
+                        (afterRotatedIds.has(header.column.id)
+                          ? kAfterRotatedGap
+                          : 0),
+                    }}
                     title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
                   >
@@ -437,7 +465,7 @@ export function DataGrid<TRow>({
           className={styles.tbody}
           style={{
             height: Math.max(0, totalSize - effectiveHeaderHeight),
-            width: totalWidth,
+            width: totalWidth + gapExtra,
           }}
           role="rowgroup"
         >
@@ -451,7 +479,7 @@ export function DataGrid<TRow>({
                 className={clsx(styles.row, isSelected && styles.rowSelected)}
                 style={{
                   height: rowHeight,
-                  width: totalWidth,
+                  width: totalWidth + gapExtra,
                   // scrollMargin shifts virtual offsets by the header height;
                   // the tbody already sits below the in-flow header, so
                   // subtract it.
@@ -471,9 +499,18 @@ export function DataGrid<TRow>({
                       key={cell.id}
                       className={clsx(
                         styles.cell,
-                        align === "center" && styles.cellCenter
+                        align === "center" && styles.cellCenter,
+                        afterRotatedIds.has(cell.column.id) &&
+                          styles.afterRotatedGap
                       )}
-                      style={{ width: cell.column.getSize(), ...cellStyle }}
+                      style={{
+                        width:
+                          cell.column.getSize() +
+                          (afterRotatedIds.has(cell.column.id)
+                            ? kAfterRotatedGap
+                            : 0),
+                        ...cellStyle,
+                      }}
                       title={cellDef.titleValue?.(row.original)}
                       role="gridcell"
                     >
