@@ -270,6 +270,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
+  // Per-scope persisted column widths.
+  const columnSizing = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.columnSizing : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
   // Folders (logs mode) are presentation: pinned on top, independent of sort.
   // Sort/filter/paginate runs over the file rows only.
   const { folders, files } = useMemo(() => {
@@ -297,9 +303,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleSortingChange = useCallback(
     (next: SortingState) => {
-      if (scopeKey) setGridState(scopeKey, { sorting: next, columnFilters });
+      if (scopeKey)
+        setGridState(scopeKey, {
+          sorting: next,
+          columnFilters,
+          columnSizing,
+        });
     },
-    [scopeKey, setGridState, columnFilters]
+    [scopeKey, setGridState, columnFilters, columnSizing]
   );
 
   const handleColumnFilterChange = useCallback(
@@ -315,7 +326,15 @@ export const LogListGrid: FC<LogListGridProps> = ({
       } else {
         next[columnId] = { columnId, filterType, condition };
       }
-      setGridState(scopeKey, { sorting, columnFilters: next });
+      setGridState(scopeKey, { sorting, columnFilters: next, columnSizing });
+    },
+    [scopeKey, setGridState, sorting, columnFilters, columnSizing]
+  );
+
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => {
+      if (scopeKey)
+        setGridState(scopeKey, { sorting, columnFilters, columnSizing: next });
     },
     [scopeKey, setGridState, sorting, columnFilters]
   );
@@ -337,6 +356,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onSortingChange={handleSortingChange}
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
+          columnSizing={columnSizing}
+          onColumnSizingChange={handleColumnSizingChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
           loading={data.length === 0 && syncing}

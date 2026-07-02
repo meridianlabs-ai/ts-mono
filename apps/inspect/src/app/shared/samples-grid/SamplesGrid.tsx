@@ -1,5 +1,5 @@
-import type { SortingState } from "@tanstack/react-table";
-import { ReactElement, useCallback, useMemo, useState } from "react";
+import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
+import { ReactElement, RefObject, useCallback, useMemo, useState } from "react";
 
 import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
@@ -35,6 +35,9 @@ interface SamplesGridProps {
   getRowId: (row: SampleRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
+  /** Forwarded to the DataGrid's scroll container so the title bar can
+   *  collapse on scroll. */
+  scrollRef?: RefObject<HTMLDivElement | null>;
   onRowOpen: (row: SampleRow) => void;
   loading?: boolean;
 }
@@ -52,6 +55,7 @@ export const SamplesGrid = ({
   defaultSorting,
   getRowId,
   selectedRowId,
+  scrollRef,
   onRowOpen,
   loading,
 }: SamplesGridProps): ReactElement => {
@@ -61,6 +65,7 @@ export const SamplesGrid = ({
   const [columnFilters, setColumnFilters] = useState<
     Record<string, ColumnFilter>
   >({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
@@ -130,7 +135,10 @@ export const SamplesGrid = ({
       onSortingChange={setSorting}
       columnFilters={columnFilters}
       onColumnFilterChange={handleColumnFilterChange}
+      columnSizing={columnSizing}
+      onColumnSizingChange={setColumnSizing}
       selectedRowId={selectedRowId}
+      scrollRef={scrollRef}
       onRowActivate={onRowOpen}
       rowHeight={rowHeight}
       loading={loading}

@@ -326,6 +326,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     setGridState(scopeKey, {
       sorting: entry?.sorting ?? [],
       columnFilters: {},
+      columnSizing: entry?.columnSizing,
     });
   }, [scopeKey, gridStateByScope, setGridState]);
 
@@ -352,6 +353,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             setGridState(scopeKey, {
               sorting: entry?.sorting ?? [],
               columnFilters: next,
+              columnSizing: entry?.columnSizing,
             });
           }
         }

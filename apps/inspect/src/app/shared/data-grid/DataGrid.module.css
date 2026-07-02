@@ -105,6 +105,18 @@
   padding-bottom: 6px;
 }
 
+/* In tall (rotated) mode the vertically-centered 60%-height separator becomes
+ * a ~69px line floating in the middle of the cell — it reaches up into the
+ * band where the previous column's angled label fans out and clashes with it.
+ * Drop it to the bottom and shorten it so it sits beside the bottom-aligned
+ * label, matching the AG grid. */
+.headerCellTall::before {
+  top: auto;
+  bottom: 0;
+  transform: none;
+  height: 22px;
+}
+
 /* Rotated (compact score) header cell: let the angled label overflow the
  * narrow cell, and drop the vertical separator — the label's diagonal
  * bottom border serves as the column divider instead. The cell box itself
@@ -227,6 +239,19 @@
   font-size: 12px !important;
 }
 
+/* Truncate a cell's content with an ellipsis (parity with the AG grid, whose
+ * `.ag-cell-value` wrapper carried these rules). `.cell` is a flex container,
+ * so `text-overflow` on it never reaches a block child's text — the child
+ * itself must clip. `min-width: 0` lets the single child shrink below its
+ * content width so the ellipsis appears; without `flex: 1` the child stays
+ * content-sized when it fits, so `justify-content` (center columns) still
+ * positions it. `white-space: nowrap` is inherited from `.cell`. */
+.cell > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cellCenter {
   justify-content: center;
 }
@@ -238,4 +263,62 @@
   right: 0;
   text-align: center;
   color: var(--bs-secondary);
+}
+
+/* Column resize handle. A wide, invisible hit-strip straddling the column's
+ * right edge; a subtle accent line shows on hover / while dragging. The strip
+ * sits above cell content (z-index) and never triggers a sort (it is a sibling
+ * of .headerContent, so its clicks don't reach the sort handler). */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 3px;
+  width: 1px;
+  background: var(--bs-primary);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.resizeHandle:hover::after,
+.resizeHandleActive::after {
+  opacity: 1;
+}
+
+/* Tall (rotated) mode: confine the hit-zone + accent line to the bottom
+ * divider band so it stays off the angled labels above. */
+.resizeHandleTall {
+  top: auto;
+  height: 24px;
+}
+.resizeHandleTall::after {
+  top: 2px;
+  bottom: 2px;
+}
+
+/* Rotated header cells are pointer-events: none; re-enable it on the handle
+ * and pin it to the cell's bottom-right corner (below the diagonal label), so
+ * resizing lives in the divider band and the angled label stays clickable. */
+.resizeHandleRotated {
+  top: auto;
+  bottom: 0;
+  height: 24px;
+  pointer-events: auto;
+}
+.resizeHandleRotated::after {
+  top: 2px;
+  bottom: 2px;
 }

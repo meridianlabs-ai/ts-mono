@@ -102,6 +102,8 @@ export interface LogListGridState {
   sorting: SortingState;
   /** Active per-column filters, keyed by column id. */
   columnFilters?: Record<string, ColumnFilter>;
+  /** User-resized column widths, keyed by column id. */
+  columnSizing?: Record<string, number>;
 }
 
 export interface LogsListing {

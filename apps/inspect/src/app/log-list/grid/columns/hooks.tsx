@@ -160,6 +160,7 @@ export const useLogListColumns = (
         size: 32,
         minSize: 32,
         maxSize: 32,
+        enableResizing: false,
         meta: { align: "center" },
         accessorFn: (row) => row.type,
         cell: ({ row }) => {
