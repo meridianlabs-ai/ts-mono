@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
-import { useSampleSummaries, useSelectLogFileAction } from "../../state/hooks";
+import { selectLogFile } from "../../state/actions";
+import { useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLoadSampleSideEffect } from "../../state/useLoadSampleSideEffect";
 import { usePollSampleSideEffect } from "../../state/usePollSampleSideEffect";
@@ -53,7 +54,6 @@ export const LogSampleDetailView: FC = () => {
 
   // Get store state and actions for log loading
   const sampleSummaries = useSampleSummaries();
-  const selectLogFile = useSelectLogFileAction();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -79,7 +79,7 @@ export const LogSampleDetailView: FC = () => {
       }
       selectSample(routeSampleId, targetEpoch, routeLogPath);
     }
-  }, [routeLogPath, routeSampleId, routeEpoch, selectLogFile, selectSample]);
+  }, [routeLogPath, routeSampleId, routeEpoch, selectSample]);
 
   // Handle UUID routes by redirecting to id/epoch URL
   useEffect(() => {

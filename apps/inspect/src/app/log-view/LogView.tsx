@@ -13,11 +13,8 @@ import {
 import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import {
-  useEvalSpec,
-  useRefreshLogAction,
-  useSelectedLogDetails,
-} from "../../state/hooks";
+import { refreshLog } from "../../state/actions";
+import { useEvalSpec, useSelectedLogDetails } from "../../state/hooks";
 import { usePendingSamples } from "../../state/pendingSamples";
 import { useStore } from "../../state/store";
 import { useLogNavigationAction } from "../routing/logNavigation";
@@ -35,7 +32,6 @@ import { TabDescriptor } from "./types";
 export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const refreshLog = useRefreshLogAction();
   const navigation = useLogNavigationAction();
 
   const selectedLogDetails = useSelectedLogDetails();

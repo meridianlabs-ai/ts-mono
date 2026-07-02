@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { useSamplesRouteParams } from "../app/routing/url";
 
-import { useSelectLogFileAction } from "./hooks";
+import { selectLogFile } from "./actions";
 import { useStore } from "./store";
 
 /**
@@ -19,7 +19,6 @@ export const useLoadLogSideEffect = () => {
   } = useSamplesRouteParams();
   const selectSample = useStore((state) => state.logActions.selectSample);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectLogFile = useSelectLogFileAction();
 
   useEffect(() => {
     if (routeLogPath && sampleId && epoch) {
@@ -28,12 +27,5 @@ export const useLoadLogSideEffect = () => {
       }
       selectSample(sampleId, parseInt(epoch, 10), routeLogPath);
     }
-  }, [
-    routeLogPath,
-    sampleId,
-    epoch,
-    selectLogFile,
-    selectSample,
-    selectedLogFile,
-  ]);
+  }, [routeLogPath, sampleId, epoch, selectSample, selectedLogFile]);
 };

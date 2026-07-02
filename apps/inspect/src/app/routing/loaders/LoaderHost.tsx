@@ -2,7 +2,7 @@ import { FC, ReactNode, useEffect } from "react";
 
 import { useAppConfig } from "../../../app_config";
 import { deactivateReplication, syncLogs } from "../../../log_data";
-import { useSelectLogFileAction } from "../../../state/hooks";
+import { selectLogFile } from "../../../state/actions";
 
 import { LogLoadController } from "./LogLoadController";
 
@@ -52,14 +52,13 @@ const ReplicationController: FC<{ logDir: string }> = ({ logDir }) => {
  * there — <App>'s onMessage owns that selection. Returns null.
  */
 const SelectUrlLogFile: FC = () => {
-  const selectLogFile = useSelectLogFileAction();
   const logFile = useAppConfig().logFile;
 
   useEffect(() => {
     if (logFile !== undefined) {
       selectLogFile(logFile);
     }
-  }, [logFile, selectLogFile]);
+  }, [logFile]);
 
   return null;
 };

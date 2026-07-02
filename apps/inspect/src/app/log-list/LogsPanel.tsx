@@ -17,12 +17,9 @@ import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import { useFetchEngineStatus, useLogsSync } from "../../log_data";
+import { setDocumentTitle } from "../../state/actions";
 import { useClientEventsActions } from "../../state/clientEvents";
-import {
-  useDocumentTitleAction,
-  useLogsListing,
-  useLogsWithretried,
-} from "../../state/hooks";
+import { useLogsListing, useLogsWithretried } from "../../state/hooks";
 import { useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -100,12 +97,11 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const { startPolling, stopPolling } = useClientEventsActions();
 
-  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({
       logDir: logDir,
     });
-  }, [setDocumentTitle, logDir]);
+  }, [logDir]);
 
   const previousWatchedLogs = useRef<typeof watchedLogs>(undefined);
 

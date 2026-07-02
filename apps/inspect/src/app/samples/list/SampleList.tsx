@@ -5,10 +5,8 @@ import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import {
-  useDocumentTitleAction,
-  useSelectedLogDetails,
-} from "../../../state/hooks";
+import { setDocumentTitle } from "../../../state/actions";
+import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
@@ -58,10 +56,9 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
-  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({ evalSpec });
-  }, [setDocumentTitle, evalSpec]);
+  }, [evalSpec]);
 
   const handleRowOpen = useCallback(
     (row: SampleRow) => {

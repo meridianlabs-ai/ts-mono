@@ -2,12 +2,8 @@ import { FC, useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import {
-  useEvalSpec,
-  useSampleSummaries,
-  useSelectLogFileAction,
-} from "../../state/hooks";
-import { useUnloadLogAction } from "../../state/log";
+import { selectLogFile, unloadLog } from "../../state/actions";
+import { useEvalSpec, useSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import {
   baseUrl,
@@ -32,8 +28,6 @@ export const LogViewContainer: FC = () => {
   const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const selectLogFile = useSelectLogFileAction();
-
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
@@ -49,12 +43,11 @@ export const LogViewContainer: FC = () => {
   // Unload the log when this is mounted. This prevents the old log
   // data from being displayed when navigating back to the logs panel
   // and also ensures that we reload logs when freshly navigating to them.
-  const { unloadLog } = useUnloadLogAction();
   useEffect(() => {
     return () => {
       unloadLog();
     };
-  }, [unloadLog]);
+  }, []);
 
   useEffect(() => {
     // Redirect to an id/epoch url if a sampleUuid is provided
@@ -124,7 +117,7 @@ export const LogViewContainer: FC = () => {
     if (logPath) {
       selectLogFile(logPath);
     }
-  }, [logPath, selectLogFile]);
+  }, [logPath]);
 
   return <LogViewLayout />;
 };

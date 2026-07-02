@@ -70,8 +70,8 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { setDocumentTitle } from "../../state/actions";
 import {
-  useDocumentTitleAction,
   useSampleData,
   useSelectedLogDetails,
   useSelectedSampleSummary,
@@ -141,10 +141,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const runningSampleData = sampleData.running;
 
   const evalSpec = useSelectedLogDetails()?.eval;
-  const { setDocumentTitle } = useDocumentTitleAction();
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
-  }, [setDocumentTitle, sample, evalSpec]);
+  }, [sample, evalSpec]);
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);

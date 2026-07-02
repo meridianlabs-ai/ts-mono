@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample, EvalSpec, LogHandle } from "@tsmono/inspect-common/types";
+import { LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { EvalLogStatus, Events } from "../@types/extraInspect";
@@ -13,13 +13,11 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
-import { syncLogPreviews, syncLogs } from "../log_data";
-import { isUri, join, prettyDirUri } from "../utils/uri";
 
+import { refreshLog } from "./actions";
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { usePendingSamples } from "./pendingSamples";
 import { getAvailableScorers } from "./scoring";
-import { invalidateSelectedLog } from "./selectedLogDetails";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
@@ -171,22 +169,6 @@ export const useEvalSpec = () => {
   return useSelectedLogDetails()?.eval;
 };
 
-/**
- * Re-fetch the selected log's details and reset filtering.
- *
- * Used to obtain an action function only — no data, no mount side effects.
- */
-export const useRefreshLogAction = () => {
-  const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const resetFiltering = useStore((state) => state.logActions.resetFiltering);
-
-  return useCallback(() => {
-    void invalidateSelectedLog(logDir, selectedLogFile);
-    resetFiltering();
-  }, [logDir, selectedLogFile, resetFiltering]);
-};
-
 export interface LogEditAffordance {
   /** True when an edit can be initiated: server supports edits, a log is
    *  selected, and the recorder isn't still appending. */
@@ -211,7 +193,6 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useSelectedLogDetails()?.status;
-  const refreshLog = useRefreshLogAction();
   const isInProgress = logStatus === "started";
   return {
     canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
@@ -517,54 +498,6 @@ export const useMessageVisibility = (
   }, [visible, setVisible, id]);
 };
 
-/** Select a log file, absolutizing a relative name against the resolved log dir
- *  (the slice stores only the absolute path). */
-/**
- * Select a log file, absolutizing a relative name against the log dir.
- *
- * Used to obtain an action function only — no data, no mount side effects.
- */
-export const useSelectLogFileAction = () => {
-  const logDir = useLogDir();
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  return useCallback(
-    (logFile: string) =>
-      setSelectedLogFile(isUri(logFile) ? logFile : join(logFile, logDir)),
-    [logDir, setSelectedLogFile]
-  );
-};
-
-/**
- * Select a log by its index in the log listing, clearing sample state.
- *
- * Used to obtain an action function only — no data, no mount side effects.
- */
-export const useSetSelectedLogIndexAction = () => {
-  const selectLogFile = useSelectLogFileAction();
-  const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample
-  );
-  const clearCollapsedEvents = useStore(
-    (state) => state.sampleActions.clearCollapsedEvents
-  );
-  const logDir = useLogDir();
-  const allLogFiles = useLogHandles(logDir);
-
-  return useCallback(
-    (index: number) => {
-      clearCollapsedEvents();
-      clearSelectedSample();
-
-      const logHandle = allLogFiles[index];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      selectLogFile(logHandle.name);
-    },
-    [allLogFiles, selectLogFile, clearSelectedSample, clearCollapsedEvents]
-  );
-};
-
 export const useSamplePopover = (id: string) => {
   const setVisiblePopover = useStore(
     (store) => store.sampleActions.setVisiblePopover
@@ -621,44 +554,6 @@ export const useSamplePopover = (id: string) => {
   };
 };
 
-/**
- * Loaders that refresh the log listing and log overviews.
- *
- * Used to obtain action functions only — no data, no mount side effects.
- */
-export const useLogsActions = () => {
-  const loadLogs = useCallback(async () => {
-    await syncLogs().catch((e) => {
-      log.error("Error loading logs", e);
-    });
-  }, []);
-
-  // Loading overviews
-  const logDir = useLogDir();
-  const allLogFiles = useLogHandles(logDir);
-  const logPreviews = useLogPreviews(logDir);
-
-  const loadLogOverviews = useCallback(
-    async (logs: LogHandle[] = allLogFiles) => {
-      await syncLogPreviews(logs);
-    },
-    [allLogFiles]
-  );
-
-  const loadAllLogOverviews = useCallback(async () => {
-    const logsToLoad = allLogFiles.filter((logFile) => {
-      const existingHeader = logPreviews[logFile.name];
-      return !existingHeader || existingHeader.status === "started";
-    });
-
-    if (logsToLoad.length > 0) {
-      await loadLogOverviews(logsToLoad);
-    }
-  }, [loadLogOverviews, allLogFiles, logPreviews]);
-
-  return { loadLogs, loadLogOverviews, loadAllLogOverviews };
-};
-
 export const useLogsListing = () => {
   const filteredCount = useStore((state) => state.logs.listing.filteredCount);
   const setFilteredCount = useStore(
@@ -680,42 +575,6 @@ export const useLogsListing = () => {
     setGridState,
     clearGridState,
   };
-};
-
-export interface TitleContext {
-  logDir?: string;
-  evalSpec?: EvalSpec;
-  sample?: EvalSample;
-}
-
-/**
- * Set the document title from a log/sample context.
- *
- * Used to obtain an action function only — no data, no mount side effects.
- */
-export const useDocumentTitleAction = () => {
-  const setDocumentTitle = (context: TitleContext) => {
-    const title: string[] = [];
-
-    if (context.sample) {
-      title.push(`${context.sample.id}_${context.sample.epoch}`);
-    }
-
-    if (context.evalSpec) {
-      title.push(`${context.evalSpec.model} - ${context.evalSpec.task}`);
-    }
-
-    if (context.logDir) {
-      title.push(prettyDirUri(context.logDir));
-    }
-
-    if (title.length === 0) {
-      title.push("Inspect View");
-    }
-
-    document.title = title.join(" - ");
-  };
-  return { setDocumentTitle };
 };
 
 const isActiveStatus = (status: EvalLogStatus | undefined) =>

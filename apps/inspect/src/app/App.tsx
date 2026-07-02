@@ -36,8 +36,8 @@ import {
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
 import { syncLogs } from "../log_data";
+import { selectLogFile } from "../state/actions.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
-import { useSelectLogFileAction } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { useStore } from "../state/store.ts";
 import {
@@ -117,8 +117,6 @@ export const AppContent: FC = () => {
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
-  const selectLogFile = useSelectLogFileAction();
-
   const onMessage = useCallback(
     (e: HostMessage) => {
       switch (e.data.type) {
@@ -158,7 +156,7 @@ export const AppContent: FC = () => {
         }
       }
     },
-    [setInitialState, logDir, selectLogFile, api, rehydrated]
+    [setInitialState, logDir, api, rehydrated]
   );
 
   // listen for updateState messages from vscode

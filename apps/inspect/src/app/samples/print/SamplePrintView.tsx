@@ -25,11 +25,8 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import {
-  useSampleData,
-  useSelectedLogDetails,
-  useSelectLogFileAction,
-} from "../../../state/hooks";
+import { selectLogFile } from "../../../state/actions";
+import { useSampleData, useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useLoadSampleSideEffect } from "../../../state/useLoadSampleSideEffect";
 import { usePollSampleSideEffect } from "../../../state/usePollSampleSideEffect";
@@ -56,7 +53,6 @@ export const SamplePrintView: FC = () => {
   usePollSampleSideEffect();
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const selectLogFile = useSelectLogFileAction();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   useEffect(() => {
@@ -68,7 +64,7 @@ export const SamplePrintView: FC = () => {
         selectSample(sampleId, targetEpoch, logPath);
       }
     }
-  }, [logPath, sampleId, epoch, selectLogFile, selectSample]);
+  }, [logPath, sampleId, epoch, selectSample]);
 
   // Get sample data
   const sampleData = useSampleData();
