@@ -2,6 +2,9 @@ export enum WorkPriority {
   Low = 0,
   Medium = 1,
   High = 2,
+  // Reserved for interactive requests (a user is awaiting this item), so they
+  // front-run any queued background work.
+  User = 3,
 }
 
 interface WorkItem<T> {
@@ -63,11 +66,6 @@ export class WorkQueue<TInput, TOutput> {
       }
     }
     void this.startProcessing();
-  }
-
-  async processImmediate(items: TInput[]) {
-    const results = await this.options.worker(items);
-    void this.options.onComplete(results, items);
   }
 
   private startProcessing() {

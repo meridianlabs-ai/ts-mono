@@ -4,8 +4,8 @@ import { FC, useState } from "react";
 import { PopOver } from "@tsmono/react/components";
 
 import { DB_VERSION } from "../../client/database/schema";
-import { useStore } from "../../state/store";
-import { replicationService } from "../../state/sync/replicationService";
+import { fetchEngine } from "../../state/fetchEngine";
+import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
 import { useAppConfig } from "../server/useAppConfig";
 import { useLogDir } from "../server/useLogDir";
 
@@ -24,7 +24,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
-  const dbStats = useStore((state) => state.logs.dbStats);
+  const { dbStats } = useFetchEngineStatus();
   const appConfig = useAppConfig();
 
   const logDir = useLogDir();
@@ -34,7 +34,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
     setClearMessage(null);
 
     try {
-      replicationService.clearData();
+      fetchEngine.clearData();
       setClearMessage("Database cleared successfully");
       setTimeout(() => setClearMessage(null), 3000);
     } catch (error) {

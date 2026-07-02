@@ -11,12 +11,6 @@ import { StoreState } from "./store";
 export interface LogsSlice {
   logs: LogsState;
   logsActions: {
-    setDbStats: (stats: {
-      logCount: number;
-      previewCount: number;
-      detailsCount: number;
-    }) => void;
-
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
 
@@ -58,11 +52,6 @@ const initialState: LogsState = {
     gridStateByScope: {},
   },
   pendingRequests: new Map<string, Promise<EvalHeader | null>>(),
-  dbStats: {
-    logCount: 0,
-    previewCount: 0,
-    detailsCount: 0,
-  },
   samplesListState: {
     byScope: {
       samplesPanel: { columnVisibility: {} },
@@ -126,15 +115,6 @@ export const createLogsSlice = (
       setPreviousSamplesPath: (path: string | undefined) => {
         set((state) => {
           state.logs.samplesListState.previousSamplesPath = path;
-        });
-      },
-      setDbStats: (stats: {
-        logCount: number;
-        previewCount: number;
-        detailsCount: number;
-      }) => {
-        set((state) => {
-          state.logs.dbStats = stats;
         });
       },
       updateFlowData: (flowPath: string, flowData?: string) => {

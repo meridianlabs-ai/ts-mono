@@ -7,6 +7,7 @@ import { AsyncData, data, loading } from "@tsmono/util";
 import { LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
+import type { LogsContentSink } from "./fetchEngine";
 import { queryClient } from "./queryClient";
 
 /**
@@ -214,6 +215,26 @@ export const clearAll = async (
     await db.clearAllCaches();
   }
 };
+
+/**
+ * The seam as a fetch-engine sink: the write surface bound to a directory and
+ * its database. Built at the composition root so the engine stays
+ * framework-free (it sees callbacks, not this react-query-backed module).
+ */
+export const createLogsContentSink = (
+  db: DatabaseService | null,
+  logDir: string
+): LogsContentSink => ({
+  setHandles: (handles) => setHandles(logDir, handles),
+  mergePreviews: (previews) => mergePreviews(logDir, previews),
+  mergeDetails: (details) => mergeDetails(logDir, details),
+  writeHandles: (handles) => writeHandles(db, logDir, handles),
+  writePreviews: (previews) => writePreviews(db, logDir, previews),
+  writeDetails: (details) => writeDetails(db, logDir, details),
+  clearFile: (name) => clearFile(db, logDir, name),
+  clearPreview: (name) => clearPreview(db, logDir, name),
+  clearAll: () => clearAll(db, logDir),
+});
 
 // ---------------------------------------------------------------------------
 // Readers

@@ -14,6 +14,7 @@ import { LogDetails } from "../../../client/api/types";
 import { useLogsListing } from "../../../state/hooks";
 import { useLogDetails } from "../../../state/logsContent";
 import { useStore } from "../../../state/store";
+import { useFetchEngineStatus } from "../../../state/useFetchEngineStatus";
 import { useLogDir } from "../../server/useLogDir";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
@@ -189,7 +190,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const loading = useStore((state) => state.app.status.loading);
-  const syncing = useStore((state) => state.app.status.syncing);
+  const { syncing } = useFetchEngineStatus();
   const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
   const logDir = useLogDir();

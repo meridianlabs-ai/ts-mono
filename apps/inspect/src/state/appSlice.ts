@@ -12,7 +12,6 @@ export interface AppSlice {
   capabilities: Capabilities;
   appActions: {
     setLoading: (loading: boolean, error?: Error) => void;
-    setSyncing: (syncing: boolean) => void;
     setShowFind: (show: boolean) => void;
     hideFind: () => void;
     setNativeFind: (nativeFind: boolean) => void;
@@ -76,7 +75,7 @@ const kDefaultWorkspaceTab = kLogViewSamplesTabId;
 const kDefaultSampleTab = kSampleTranscriptTabId;
 
 const initialState: AppState = {
-  status: { loading: 0, syncing: false },
+  status: { loading: 0 },
   showFind: false,
   dialogs: {
     transcriptFilter: false,
@@ -127,11 +126,6 @@ export const createAppSlice = (
             0
           );
           state.app.status.error = error;
-        }),
-
-      setSyncing: (syncing: boolean) =>
-        set((state) => {
-          state.app.status.syncing = syncing;
         }),
 
       setShowFind: (show: boolean) =>

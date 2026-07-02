@@ -24,6 +24,7 @@ import {
 } from "../../state/hooks";
 import { useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
+import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
@@ -76,7 +77,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const deferredLogPreviews = useDeferredValue(logPreviews);
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
-  const syncing = useStore((state) => state.app.status.syncing);
+  const { syncing } = useFetchEngineStatus();
   const error = useStore((state) => state.app.status.error);
 
   const watchedLogs = useStore((state) => state.logs.listing.watchedLogs);

@@ -81,11 +81,6 @@ export interface LogsState {
   selectedLogFile?: string;
   listing: LogsListing;
   pendingRequests: Map<string, Promise<EvalHeader | null>>;
-  dbStats: {
-    logCount: number;
-    previewCount: number;
-    detailsCount: number;
-  };
   samplesListState: {
     // samplesPanel is cross-log by nature (lists samples from many logs in
     // a directory); it keeps the single-bucket shape. The single-log view
@@ -206,9 +201,6 @@ export type Event =
 export interface AppStatus {
   // Waiting while loading data, show large form of progress
   loading: number;
-
-  // Background syncing data, show small form of activity
-  syncing: boolean;
   error?: Error;
 }
 

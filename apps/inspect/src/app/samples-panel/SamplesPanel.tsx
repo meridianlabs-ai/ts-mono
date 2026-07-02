@@ -15,6 +15,7 @@ import {
 } from "../../state/hooks";
 import { useLogDetails, useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
+import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
@@ -72,7 +73,7 @@ export const SamplesPanel: FC = () => {
   const logDir = useLogDir();
 
   const loading = useStore((state) => state.app.status.loading);
-  const syncing = useStore((state) => state.app.status.syncing);
+  const { syncing } = useFetchEngineStatus();
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs

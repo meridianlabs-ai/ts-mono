@@ -6,11 +6,10 @@ import { ClientAPI } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
 import { getDatabaseService } from "./databaseServiceInstance";
+import { fetchEngine } from "./fetchEngine";
+import { createLogsContentSink } from "./logsContent";
 import { storeImplementation } from "./store";
-import {
-  ApplicationContext,
-  replicationService,
-} from "./sync/replicationService";
+import { replicationService } from "./sync/replicationService";
 
 let injectedApi: ClientAPI | null = null;
 
@@ -60,29 +59,11 @@ export const openLogDirDatabase = async (
   }
 };
 
-// Build the replication context: the non-cache bridges to zustand UI state.
-// Log-list content writes go through the `logsContent` seam (IndexedDB +
-// react-query cache) inside the replicator itself, so they aren't here.
-export const replicationContext = (): ApplicationContext => ({
-  setLoading(loading: boolean) {
-    requireStore().getState().appActions.setLoading(loading);
-  },
-  setBackgroundSyncing(syncing: boolean) {
-    requireStore().getState().appActions.setSyncing(syncing);
-  },
-  setDbStats(stats: {
-    logCount: number;
-    previewCount: number;
-    detailsCount: number;
-  }) {
-    requireStore().getState().logsActions.setDbStats(stats);
-  },
-});
-
-// Ensure the per-dir database is open and dir-mode replication is running for
-// `logDir`, (re)activating if it isn't. Idempotent. Returns whether it had to
-// (re)activate — used to decide whether the ensuing sync shows progress.
-const ensureActive = async (logDir: string): Promise<boolean> => {
+// Ensure the per-dir database is open and the fetch engine + dir-mode
+// replication are running for `logDir`, (re)activating if they aren't.
+// Idempotent. This is the composition root for the engine: the database, api,
+// and per-dir cache sink are wired here.
+const ensureActive = async (logDir: string): Promise<void> => {
   const databaseService = getDatabaseService();
   const databaseHandle = requireApi().get_log_dir_handle(logDir);
   const needsActivation =
@@ -95,18 +76,18 @@ const ensureActive = async (logDir: string): Promise<boolean> => {
     if (!opened) {
       throw new Error("Database service not available");
     }
-    await replicationService.startReplication(
-      opened,
-      requireApi(),
-      logDir,
-      replicationContext()
-    );
+    await fetchEngine.start({
+      api: requireApi(),
+      database: opened,
+      sink: createLogsContentSink(opened, logDir),
+    });
+    replicationService.startReplication(requireApi(), fetchEngine);
   }
-  return needsActivation;
 };
 
 export const deactivateReplication = (): void => {
   replicationService.stopReplication();
+  fetchEngine.stop();
 };
 
 /**
@@ -117,7 +98,7 @@ export const deactivateReplication = (): void => {
  */
 export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
   try {
-    await replicationService.loadLogPreviews({ logs });
+    await fetchEngine.ensurePreviews(logs);
   } catch (e) {
     console.error("Failed to sync log previews", e);
   }
@@ -129,10 +110,6 @@ export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
  * mount (passes its keyed dir) and the re-sync triggers (no arg). No-op in
  * single-file mode / before a dir is resolved. Lives here, not in the zustand
  * slice — replication orchestration is control-layer logic, not UI state.
- *
- * Sync progress surfaces via the replicator's `syncing` signal
- * (`replicationContext`), so there's no imperative `loading` bracket here — the
- * mount and re-sync paths are identical.
  */
 export const syncLogs = async (
   logDir: string | undefined = getLogDir()
@@ -140,6 +117,6 @@ export const syncLogs = async (
   if (!logDir || getAppConfig().singleFileMode) {
     return [];
   }
-  const needsActivation = await ensureActive(logDir);
-  return (await replicationService.sync(needsActivation)) ?? [];
+  await ensureActive(logDir);
+  return (await replicationService.sync()) ?? [];
 };
