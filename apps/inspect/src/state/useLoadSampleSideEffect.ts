@@ -5,13 +5,11 @@ import { createLogger } from "@tsmono/util";
 
 import { getApi } from "../app_config";
 import { SampleSummary } from "../client/api/types";
+import { resolveSample } from "../log_data";
 
 import { useLogSelection, useSampleData } from "./hooks";
 import { getSamplePolling } from "./samplePollingInstance";
-import {
-  resolveSample,
-  synthesizeErroredSampleFromSummary,
-} from "./sampleUtils";
+import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
 import { useStore } from "./store";
 
 // List of virtuoso list keys that should be cleared when sample changes

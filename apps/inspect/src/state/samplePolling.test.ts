@@ -16,11 +16,7 @@ import { mergeDetails } from "../log_data";
 
 import { pendingSamplesKey } from "./pendingSamples";
 import { queryClient } from "./queryClient";
-import {
-  createSamplePolling,
-  hasSampleDataUpdates,
-  shouldFinalizeStreamingSample,
-} from "./samplePolling";
+import { createSamplePolling } from "./samplePolling";
 import { StoreState } from "./store";
 
 // The opened log's summaries live in the react-query details cache, keyed by
@@ -62,131 +58,6 @@ beforeEach(() => {
   mockApi.get_log_sample.mockReset();
   mockApi.get_log_sample_data.mockReset();
   mockApi.log_message.mockReset();
-});
-
-describe("samplePolling helpers", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
-  const emptySampleData = {
-    events: [],
-    attachments: [],
-    message_pool: [],
-    call_pool: [],
-  };
-
-  it("treats empty sample-data payloads as no-op updates", () => {
-    expect(hasSampleDataUpdates(emptySampleData)).toBe(false);
-  });
-
-  it("detects sample-data deltas across all streamed collections", () => {
-    expect(
-      hasSampleDataUpdates({
-        events: [],
-        attachments: [
-          {
-            id: 1,
-            sample_id: "sample-1",
-            epoch: 1,
-            hash: "hash-1",
-            content: "content",
-          },
-        ],
-        message_pool: [],
-        call_pool: [],
-      })
-    ).toBe(true);
-  });
-
-  it("finalizes streaming when the sample is complete in the log and only empty deltas remain", () => {
-    const response: SampleDataResponse = {
-      status: "OK",
-      sampleData: {
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
-      },
-    };
-
-    expect(shouldFinalizeStreamingSample(response, true)).toBe(true);
-  });
-
-  it("keeps streaming when the sample is still incomplete in the log", () => {
-    const response: SampleDataResponse = {
-      status: "OK",
-      sampleData: {
-        events: [],
-        attachments: [],
-        message_pool: [],
-        call_pool: [],
-      },
-    };
-
-    expect(shouldFinalizeStreamingSample(response, false)).toBe(false);
-  });
-
-  it.each([
-    ["missing response", undefined, true, false],
-    ["not found response", { status: "NotFound" }, true, false],
-    ["not modified incomplete log", { status: "NotModified" }, false, false],
-    ["not modified completed log", { status: "NotModified" }, true, true],
-    [
-      "complete response with empty data",
-      {
-        status: "OK",
-        complete: true,
-        has_more: false,
-        sampleData: emptySampleData,
-      },
-      false,
-      true,
-    ],
-    [
-      "complete response with more chunks",
-      {
-        status: "OK",
-        complete: true,
-        has_more: true,
-        sampleData: emptySampleData,
-      },
-      false,
-      false,
-    ],
-    [
-      "complete response with data updates",
-      {
-        status: "OK",
-        complete: true,
-        has_more: false,
-        sampleData: {
-          ...emptySampleData,
-          events: [
-            {
-              id: 1,
-              event_id: "event-1",
-              sample_id: "sample-1",
-              epoch: 1,
-              // Minimal event stub; the precise Event union shape is
-              // irrelevant to what this test exercises.
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              event: {} as any,
-            },
-          ],
-        },
-      },
-      false,
-      false,
-    ],
-  ] satisfies Array<
-    [string, SampleDataResponse | undefined, boolean | undefined, boolean]
-  >)("returns %s = %s", (_name, response, completedInLog, expected) => {
-    expect(shouldFinalizeStreamingSample(response, completedInLog)).toBe(
-      expected
-    );
-  });
 });
 
 describe("createSamplePolling", () => {

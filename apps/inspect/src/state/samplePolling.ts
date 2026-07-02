@@ -16,18 +16,18 @@ import {
   EventData,
   LogDetails,
   SampleData,
-  SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
-import { getLogDetail } from "../log_data";
+import {
+  getLogDetail,
+  resolveSample,
+  shouldFinalizeStreamingSample,
+} from "../log_data";
 import { resolveAttachments } from "../utils/attachments";
 import { createPolling, PollingCallbackResult } from "../utils/polling";
 
 import { getPendingSamples } from "./pendingSamples";
-import {
-  resolveSample,
-  synthesizeErroredSampleFromSummary,
-} from "./sampleUtils";
+import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
 import { StoreState } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
@@ -382,46 +382,6 @@ const findLiveSummary = (
   return merged.find(
     (s) => sampleIdsEqual(s.id, sampleId) && s.epoch === sampleEpoch
   );
-};
-
-export const hasSampleDataUpdates = (sampleData?: SampleData) => {
-  if (!sampleData) {
-    return false;
-  }
-
-  return (
-    sampleData.events.length > 0 ||
-    sampleData.attachments.length > 0 ||
-    sampleData.message_pool.length > 0 ||
-    sampleData.call_pool.length > 0
-  );
-};
-
-export const shouldFinalizeStreamingSample = (
-  sampleDataResponse: SampleDataResponse | undefined,
-  completedInLog: boolean | undefined
-): boolean => {
-  if (!sampleDataResponse) {
-    return false;
-  }
-
-  if (sampleDataResponse.status === "NotModified") {
-    return completedInLog === true;
-  }
-
-  if (sampleDataResponse.status !== "OK") {
-    return false;
-  }
-
-  if (sampleDataResponse.has_more === true) {
-    return false;
-  }
-
-  if (!completedInLog && sampleDataResponse.complete !== true) {
-    return false;
-  }
-
-  return !hasSampleDataUpdates(sampleDataResponse.sampleData);
 };
 
 const resetPollingState = (state: PollingState) => {

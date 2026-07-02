@@ -22,5 +22,16 @@ export {
   syncLogPreviews,
   syncLogs,
 } from "./replicationControl";
+export { fetchSample, resolveSample, SampleNotFoundError } from "./sampleFetch";
+export type {
+  SampleEvent,
+  SampleStreamSession,
+  SampleStreamTick,
+} from "./sampleStream";
+export {
+  createSampleStreamSession,
+  hasSampleDataUpdates,
+  shouldFinalizeStreamingSample,
+} from "./sampleStream";
 export { useFetchEngineStatus } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";
