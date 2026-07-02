@@ -4,6 +4,7 @@ import { getLogDir } from "../app/server/useLogDir";
 import { ClientAPI } from "../client/api/types";
 import { createPolling } from "../utils/polling";
 
+import { fetchEngine } from "./fetchEngine";
 import * as logsContent from "./logsContent";
 import { StoreState } from "./store";
 
@@ -40,19 +41,10 @@ export function createLogPolling(
     log.debug(`refresh: ${selectedLogFile}`);
 
     try {
-      // Pass cached=false so the eval file is re-read from disk,
-      // picking up any newly flushed samples.
-      const logDetails = await api.get_log_details(selectedLogFile, false);
-
-      // Running-log refreshes are transient: update the details cache only
-      // (no IndexedDB write), keyed the same as the listing. Polling only runs
-      // for an open log, so the dir is resolved by now.
-      const logDir = getLogDir();
-      if (logDir !== undefined) {
-        logsContent.mergeDetails(logDir, {
-          [logsContent.resolveLogKey(logDir, selectedLogFile)]: logDetails,
-        });
-      }
+      // Produce into the engine at elevated priority: a running log's cached
+      // row is "started", so the engine re-reads it fresh and lands the
+      // result in the cache through its sink.
+      const logDetails = await fetchEngine.fetch(selectedLogFile, "elevated");
       log.debug(
         `Setting refreshed summary ${logDetails.sampleSummaries.length} samples`,
         logDetails
@@ -181,21 +173,6 @@ export function createLogPolling(
     currentPolling.start();
   };
 
-  // Clear pending summaries (now using the transactional approach)
-  const clearPendingSummaries = (logFileName: string) => {
-    if (abortController.signal.aborted) {
-      return false;
-    }
-
-    const pendingSampleSummaries = get().log.pendingSampleSummaries;
-    if ((pendingSampleSummaries?.samples.length || 0) > 0) {
-      log.debug(`Clear pending: ${logFileName}`);
-      return refreshLog(logFileName, true);
-    }
-
-    return false;
-  };
-
   // Stop polling
   const stopPolling = () => {
     if (currentPolling) {
@@ -216,10 +193,6 @@ export function createLogPolling(
   return {
     startPolling,
     stopPolling,
-    clearPendingSummaries,
     cleanup,
-    // Expose the refresh function so components can use it directly
-    refreshLog: (clearPending = false) =>
-      refreshLog(get().logs.selectedLogFile || "", clearPending),
   };
 }

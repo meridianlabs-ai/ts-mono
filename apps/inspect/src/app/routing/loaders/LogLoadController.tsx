@@ -29,7 +29,7 @@ export const LogLoadController: FC = () => {
   );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const setLoading = useStore((state) => state.appActions.setLoading);
-  const pollLog = useStore((state) => state.logActions.pollLog);
+  const loadedLog = useStore((state) => state.log.loadedLog);
 
   // React to (re)loaded details: the effect re-runs when the query settles
   // with a fresh object — initial load and refresh-by-invalidation alike.
@@ -67,10 +67,10 @@ export const LogLoadController: FC = () => {
   // via this query — read the live collection).
   const liveStatus = useSelectedLogDetails()?.status;
   useEffect(() => {
-    if (liveStatus === "started") {
-      void pollLog();
+    if (liveStatus === "started" && loadedLog) {
+      getLogPolling().startPolling(loadedLog);
     }
-  }, [pollLog, liveStatus]);
+  }, [liveStatus, loadedLog]);
 
   return null;
 };

@@ -2,7 +2,7 @@ import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
 import { PendingSamples } from "../client/api/types";
 
-import { cleanupLogPolling, getLogPolling } from "./logPollingInstance";
+import { cleanupLogPolling } from "./logPollingInstance";
 import { StoreState } from "./store";
 
 export interface LogSlice {
@@ -43,9 +43,6 @@ export interface LogSlice {
     // Record the log whose details have been loaded. UI state only; loading
     // is the selected-log details query over the fetch engine.
     setLoadedLog: (logFileName: string) => void;
-
-    // Poll the currently selected log
-    pollLog: () => Promise<void>;
 
     // Clear the currently loaded log
     clearLog: () => void;
@@ -162,14 +159,6 @@ export const createLogSlice = (
         set((state) => {
           state.log.loadedLog = undefined;
         });
-      },
-
-      pollLog: () => {
-        const currentLog = get().log.loadedLog;
-        if (currentLog) {
-          getLogPolling().startPolling(currentLog);
-        }
-        return Promise.resolve();
       },
 
       setFilteredSampleCount: (count: number) => {
