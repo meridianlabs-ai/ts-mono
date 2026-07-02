@@ -19,7 +19,7 @@ export interface LogsSlice {
     clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
-    // SamplesPanel scope only; logViewSamples flows through setSampleListView.
+    // SamplesPanel scope only; logViewSamples goes through setSampleListView.
     setSamplesGridState: (scope: "samplesPanel", gridState: GridState) => void;
     clearSamplesGridState: (scope: "samplesPanel") => void;
     setSamplesColumnVisibility: (

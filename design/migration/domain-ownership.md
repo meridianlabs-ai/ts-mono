@@ -15,7 +15,8 @@ The map has three kinds of entries, and they are not interchangeable:
   with no owner (loading/error status).
 
 The headline rule: **the log-data acquisition subsystem is the only code that
-talks to the backend about log data** — listing, previews, and details alike.
+talks to the backend about log data** — listing, previews, details, and sample
+data alike (the pending-samples buffer is the lone exception; see Boundaries).
 Everything else either produces prioritized work into it or consumes results
 from the media it feeds.
 
@@ -47,8 +48,9 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 
 ### Log-data acquisition
 
-Owns **all** backend log-data reads, at both granularities: collection-level
-(dir listing / discovery) and item-level (previews, details). Mode-independent:
+Owns **all** backend log-data reads, at every granularity: collection-level
+(dir listing / discovery), item-level (previews, details), and sample-level
+(completed bodies, event streaming). Mode-independent:
 alive in dir mode and single-file mode alike (the discovery interior is dormant
 in single-file mode). Output flows through the `logsContent` sink into the
 react-query cache, pairing each persistence write with its cache write so the
@@ -64,7 +66,9 @@ highest priority" is an enqueue-or-bump, never a separate code path — and
 `log_data/useFetchEngineStatus.ts` / `log_data/useLogsSync.ts` as the react
 rim, together with the collection read accessors on `log_data/logsContent.ts`
 (`useLogHandles` / `useLogPreviews` / `useLogDetails` / `useLogDetail` and the
-non-React `getLogDetail`).
+non-React `getLogDetail`), and the sample-level entry points
+`fetchSample(api, logFile, id, epoch)` / `createSampleStreamSession(...)` —
+consumed by the sample queries in the selected-log lifecycle.
 Consumers don't know a replicator exists; they say "be ready for this dir" and
 "refresh the listing now".
 
@@ -76,6 +80,8 @@ Consumers don't know a replicator exists; they say "be ready for this dir" and
 | Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. | inside the engine; instance lifecycle in `log_data/databaseServiceInstance.ts` |
 | Discovery (replication) | List the dir, diff against the known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. No queues, no item fetching of its own. Keyed on `logDir`; UI-ignorant; dormant in single-file mode. | `log_data/replicationService.ts` |
 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. | `fetchEngine` store, surfaced by `log_data/useFetchEngineStatus.ts` |
+| Sample fetch | Completed-sample bodies: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
+| Sample streaming | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions. | `log_data/sampleStream.ts` |
 
 ### Selected-log lifecycle
 
@@ -100,6 +106,26 @@ Everything that follows from "the user is viewing this log".
   and also produces the watched log into the acquisition surface at elevated
   priority — polling is only the policy of when to ask; acquisition is the
   details fetching. (`state/pendingSamples.ts`)
+- **Sample query** — the selected sample's completed body, keyed
+  `["sample", logDir, logFile, id, epoch]` with
+  `queryFn: fetchSample(...)`; `skipToken` without a handle. The
+  error-summary fallback (`synthesizeErroredSampleFromSummary` on
+  `SampleNotFoundError`) lives here — presentation, not acquisition. Small
+  `gcTime`: samples are big, so only the active neighborhood is retained.
+  (`state/sampleQuery.ts`)
+- **Running-sample query** — a still-running sample's event stream as a
+  poll-driven incremental query keyed
+  `["running-sample", logDir, logFile, id, epoch]`, each tick driving the
+  acquisition streaming session. Enablement derives from the selection,
+  `summary.completed === false`, and the log's live status; cadence is a
+  fixed `refetchInterval`; teardown is the key changing. A finished stream
+  primes the completed body into the `["sample"]` key, so the handoff to the
+  completed path never flashes loading. Consumers read both queries through
+  the `useSampleData` derivation. (`state/runningSampleQuery.ts`)
+- **Sample reaction controller** — resets per-sample UI state that isn't
+  derivable from the new sample (scroll/list positions, collapsed events,
+  timeline selection), keyed on sample identity. No fetching.
+  (`SampleLoadController`)
 
 Polling lives here, not inside acquisition, deliberately: it is driven by UI
 lifecycle (which log is open and running), and acquisition's interior stays
@@ -121,7 +147,8 @@ in `state/hooks.ts`), not in the slice.
 ## Media & derivations
 
 - **React-query cache** — the server-data medium: handles, previews, details,
-  pending samples, eval-set, versions; never in zustand. The log-list
+  sample bodies, running-sample streams, pending samples, flow, eval-set,
+  versions; never in zustand. The log-list
   collections are fed by acquisition through its sink and read by the UI —
   two-sided cache entries, so the *medium* belongs to neither. The accessor
   code over those entries (`log_data/logsContent.ts` — the sink implementation
@@ -150,16 +177,18 @@ Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEva
        │                  useSelectLogFile/useFetchEngineStatus/useStore)
        │                  zustand (UI-state leaf) lives here; knows nothing below
        ▼
-Lifecycle controllers     AppConfigGate, ReplicationController, LogLoadController
-       │                  (reactions to queries; no fetching)
+Lifecycle controllers     AppConfigGate, ReplicationController, LogLoadController,
+       │                  SampleLoadController (reactions to queries; no fetching)
        ▼
 Server-data medium        react-query cache ←─ acquisition sink; queries:
-       │                  selected-log details, pending samples, logs-sync,
-       │                  eval-set
+       │                  selected-log details, sample, running-sample,
+       │                  pending samples, logs-sync, flow, eval-set
        ▼
 Log-data acquisition      surface: ensureFetchEngine / syncLogs / deactivate /
-       │                  fetch(logFile, priority) / status
+       │                  fetch(logFile, priority) / status /
+       │                  fetchSample · sample stream session
        │                  interior: fetchEngine · database · discovery · status store
+       │                  · sampleFetch · sampleStream
        ▼
 App configuration         surface: useAppConfig / useLogDir / getAppConfig
                           interior: urlLogSource · resolveApi · singleFileMode ·
@@ -180,9 +209,10 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
 - React reaches down only through hooks or a subsystem surface (from
   controllers / event handlers).
 - **Only acquisition talks to the backend about log data** — `api.get_logs`,
-  `api.get_log_summaries`, `api.get_log_details` are called from its interior
-  and nowhere else. Producers enqueue; consumers await `fetch()` promises or
-  read queries. Priority is an argument, not an architecture.
+  `api.get_log_summaries`, `api.get_log_details`, `api.get_log_sample`,
+  `api.get_log_sample_data` are called from its interior and nowhere else.
+  Producers enqueue; consumers await `fetch()` promises or read queries.
+  Priority is an argument, not an architecture.
 - Containment is earned, not assumed. An interior placement requires: (a) the
   subsystem is the sole consumer, (b) the concern is conceptually subordinate —
   a mechanism of the subsystem's policy, and (c) for acquisition, the concern
@@ -201,13 +231,11 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
 
 ## Boundaries (outside acquisition, by design)
 
-- **Sample-level data** — sample loading and sample-event streaming
-  (`get_log_sample`, `get_log_sample_data`) live in acquisition's sample-level
-  sibling (`log_data/sampleFetch.ts`, `log_data/sampleStream.ts`), consumed by
-  the sample queries (`state/sampleQuery.ts`, `state/runningSampleQuery.ts`).
-  The pending-samples query calls `get_log_pending_samples` directly from its
-  queryFn — the lone standing exception to the headline rule (which covers log
-  listing/previews/details).
+- **Pending samples** — the pending-samples query calls
+  `get_log_pending_samples` directly from its queryFn — the lone standing
+  exception to the headline rule. (Sample loading and sample-event streaming
+  are *not* exceptions: `get_log_sample` / `get_log_sample_data` are called
+  from acquisition's sample-level sibling, consumed by the sample queries.)
 - **Listing reads** — the log-list UI reads the passive `logsContent`
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a

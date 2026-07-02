@@ -187,7 +187,6 @@ export interface Capabilities {
   downloadLogs: boolean;
   webWorkers: boolean;
   streamSamples: boolean;
-  streamSampleData: boolean;
 }
 
 export interface LogViewAPI {

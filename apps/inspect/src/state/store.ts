@@ -18,7 +18,6 @@ import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
 import {
   createSampleSlice,
-  handleRehydrate,
   initializeSampleSlice,
   SampleSlice,
 } from "./sampleSlice";
@@ -47,7 +46,6 @@ export type PersistedState = {
   app: AppSlice["app"];
   log: LogSlice["log"];
   logs: LogsSlice["logs"];
-  sample: SampleSlice["sample"];
 };
 
 // Create a proxy store that forwards calls to the real store once initialized
@@ -138,12 +136,10 @@ export const initializeStore = (
               app: { ...state.app, rehydrated: true },
               log: state.log,
               logs: state.logs,
-              sample: state.sample,
             }) as unknown as StoreState,
           version: 4,
           onRehydrateStorage: (state: StoreState) => {
             return (hydrationState, error) => {
-              handleRehydrate(state);
               log.debug("REHYDRATING STATE");
               if (error) {
                 log.debug("ERROR", { error });

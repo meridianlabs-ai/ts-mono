@@ -139,7 +139,8 @@ export const usePendingSamples = (): PendingSamples | undefined => {
 };
 
 /**
- * Non-React snapshot of the pending samples (for samplePolling). Returns
+ * Non-React snapshot of the pending samples (for the running-sample query's
+ * finalize decision). Returns
  * `undefined` when there's no resolved dir.
  */
 export const getPendingSamples = (

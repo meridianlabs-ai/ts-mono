@@ -20,7 +20,6 @@ const capabilities: Capabilities = {
   downloadLogs: !!applicationApi.download_log,
   webWorkers: true,
   streamSamples: !!applicationApi.get_log_pending_samples,
-  streamSampleData: !!applicationApi.get_log_sample_data,
 };
 
 // Initial state / storage

@@ -1250,10 +1250,10 @@ const metadataViewsForSample = (
 const isRunning = (
   sampleSummary?: SampleSummary,
   runningSampleData?: Events,
-  sampleStatus?: string
+  status?: string
 ): boolean => {
   // If a completed sample has been loaded, it's not running
-  if (sampleStatus === "ok") {
+  if (status === "ok") {
     return false;
   }
 

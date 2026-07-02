@@ -11,7 +11,6 @@ export interface LogSlice {
       epoch: number,
       logFile: string
     ) => void;
-    clearSelectedSample: () => void;
 
     // Reset the per-log score selection (on log load/refresh).
     clearSelectedScores: () => void;
@@ -92,11 +91,6 @@ export const createLogSlice = (
 
         set((state) => {
           state.log.selectedSampleHandle = { id: sampleId, epoch, logFile };
-        });
-      },
-      clearSelectedSample: () => {
-        set((state) => {
-          state.log.selectedSampleHandle = undefined;
         });
       },
       clearSelectedScores: () => {

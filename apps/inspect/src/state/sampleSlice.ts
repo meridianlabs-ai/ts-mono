@@ -43,24 +43,8 @@ export interface SampleSlice {
 }
 
 const initialState: SampleState = {
-  // Store ID for all samples (used for triggering renders)
-  sample_identifier: undefined,
-  // Store the actual sample object for small samples
-  selectedSampleObject: undefined,
-  // Flag to indicate where the sample is stored
-  sampleInState: false,
-  sampleStatus: "ok",
-  sampleError: undefined,
-  eventsCleared: false,
-  downloadProgress: undefined,
-
   visiblePopover: undefined,
 
-  // signals that the sample needs to be reloaded
-  sampleNeedsReload: 0,
-
-  // The resolved events
-  runningEvents: [],
   collapsedEvents: null,
   collapsedMode: null,
   eventFilter: {
@@ -85,12 +69,6 @@ export const createSampleSlice = (
     sampleActions: {
       clearSelectedSample: () => {
         set((state) => {
-          state.sample.sample_identifier = undefined;
-          state.sample.selectedSampleObject = undefined;
-          state.sample.sampleInState = false;
-          state.sample.runningEvents = [];
-          state.sample.sampleStatus = "ok";
-          state.sample.downloadProgress = undefined;
           state.sample.timelineSelected = null;
           state.sample.activeTimelineIndex = 0;
           state.log.selectedSampleHandle = undefined;
@@ -201,13 +179,6 @@ export const createSampleSlice = (
   } as const;
 
   return [slice, () => {}];
-};
-
-export const handleRehydrate = (state: StoreState) => {
-  // Increment the reload counter if the sample is not in state
-  if (!state.sample.sampleInState) {
-    state.sample.sampleNeedsReload = state.sample.sampleNeedsReload + 1;
-  }
 };
 
 export const initializeSampleSlice = (

@@ -10,7 +10,6 @@ import {
   ContentImage,
   ContentText,
   ErrorEvent,
-  EvalSample,
   EventData,
   InfoEvent,
   InputEvent,
@@ -135,29 +134,13 @@ export interface LogState {
 
 export type SampleStatus = "ok" | "loading" | "streaming" | "error";
 
-export interface Progress {
-  complete: number;
-  total: number;
-}
-
 export interface EventFilter {
   filteredTypes: string[];
 }
 
 export interface SampleState {
-  sample_identifier: SampleHandle | undefined;
-  sampleInState: boolean;
-  selectedSampleObject?: EvalSample;
-  sampleStatus: SampleStatus;
-  sampleError: Error | undefined;
-  sampleNeedsReload: number;
-  eventsCleared: boolean;
-  downloadProgress?: Progress;
-
   visiblePopover?: string;
 
-  // Events and attachments
-  runningEvents: Event[];
   collapsedEvents: Record<string, Record<string, boolean>> | null;
   collapsedIdBuckets: Record<string, Record<string, boolean>>;
   collapsedMode: "collapsed" | "expanded" | null;
