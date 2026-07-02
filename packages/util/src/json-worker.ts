@@ -453,13 +453,17 @@ const replaceSentinelsInPlace = (
 // string contents entirely — strings often embed serialized JSON or prose
 // commas, which say nothing about the size of the parsed graph (a >10MB
 // tool-call-heavy log would otherwise misclassify and take a main-thread
-// parse stall). Full single pass; only consulted for large payloads, where
-// ~1ms/MB is negligible next to parse cost. Threshold from measured shapes:
-// dense transcript events 0.132, flat records 0.081 vs string-heavy eval
-// logs <= 0.03 and embedded-JSON strings 0.011. Self-contained: injected
-// into the worker via toString().
+// parse stall). Scans from position 0, where in-string state is known — a
+// mid-document sample can't tell string from structure — and stops after
+// 16M chars: enough to classify real transcript files whose heads are less
+// dense than their bodies (186MB scout: head-8MB reads 0.0499, head-16MB
+// 0.0799, full file 0.1321), while capping cost at ~45ms off-thread.
+// Strings are skipped via indexOf (SIMD-fast on string-heavy documents)
+// with backslash-parity checks for escaped quotes. Threshold from measured
+// shapes: dense 0.08-0.13 vs string-heavy <= 0.03 and embedded-JSON-in-
+// strings 0.011. Self-contained: injected into the worker via toString().
 const isDenseGraph = (source: string): boolean => {
-  const n = source.length;
+  const n = Math.min(source.length, 16_000_000);
   let seps = 0;
   let i = 0;
   while (i < n) {
@@ -467,12 +471,18 @@ const isDenseGraph = (source: string): boolean => {
     if (c === 34 /* " */) {
       i++;
       while (i < n) {
-        const s = source.charCodeAt(i);
-        if (s === 92 /* \ */) i += 2;
-        else if (s === 34) break;
-        else i++;
+        const quote = source.indexOf('"', i);
+        if (quote === -1 || quote >= n) {
+          i = n;
+          break;
+        }
+        let backslashes = 0;
+        for (let j = quote - 1; j >= 0 && source.charCodeAt(j) === 92; j--) {
+          backslashes++;
+        }
+        i = quote + 1;
+        if (backslashes % 2 === 0) break;
       }
-      i++;
       continue;
     }
     if (c === 44 /* , */ || c === 58 /* : */) seps++;
