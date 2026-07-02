@@ -1,7 +1,6 @@
 import { FC, ReactNode, useEffect } from "react";
 
 import { useAppConfig } from "../../../app_config";
-import { deactivateReplication, syncLogs } from "../../../log_data";
 import { selectLogFile } from "../../../state/actions";
 
 import { LogLoadController } from "./LogLoadController";
@@ -12,40 +11,20 @@ import { SampleLoadController } from "./SampleLoadController";
  * top-level `<AppConfigGate>` already awaited the resolved config (incl.
  * `logDir`), so `useLogDir()` resolves synchronously. Mounts the per-log
  * `<LogLoadController>` and per-sample `<SampleLoadController>` reaction
- * controllers for both modes; directory-wide replication is the lone
- * dir-mode addition (`loader === "replicator"`), and single-file adds the
- * `?log_file=` selection step (<SelectUrlLogFile>).
+ * controllers for both modes; single-file adds the `?log_file=` selection
+ * step (<SelectUrlLogFile>). Replication/engine activation is on-demand
+ * inside acquisition — nothing to mount for it.
  */
 export const LoaderMounts: FC<{ children: ReactNode }> = ({ children }) => {
-  const { singleFileMode, loader, logDir } = useAppConfig();
+  const { singleFileMode } = useAppConfig();
   return (
     <>
       {singleFileMode && <SelectUrlLogFile />}
-      {loader === "replicator" && (
-        <ReplicationController key={logDir} logDir={logDir} />
-      )}
       <LogLoadController />
       <SampleLoadController />
       {children}
     </>
   );
-};
-
-/**
- * Owns dir-mode replication lifecycle, keyed on `logDir` so a dir change
- * remounts it — running the old cleanup (stop) before the new mount (start).
- * On mount it activates the per-dir database + replication; on cleanup it stops
- * replication. Returns null.
- */
-const ReplicationController: FC<{ logDir: string }> = ({ logDir }) => {
-  useEffect(() => {
-    syncLogs(logDir).catch((e) => {
-      console.error(`Failed to activate replication for ${logDir}`, e);
-    });
-    return () => deactivateReplication();
-  }, [logDir]);
-
-  return null;
 };
 
 /**

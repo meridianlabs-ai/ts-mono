@@ -1,7 +1,7 @@
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { getAppConfig, getLogDir } from "../app_config";
-import { ClientAPI } from "../client/api/types";
+import { ClientAPI, LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
 import { getDatabaseService } from "./databaseServiceInstance";
@@ -78,17 +78,20 @@ const ensureActive = async (logDir: string): Promise<void> => {
 // handle to compare against, e.g. across VS Code live navigation).
 let engineDir: string | null = null;
 
-// Coalesces concurrent activations — a controller mount and the first details
-// query race into ensureFetchEngine.
+// Coalesces concurrent activations — a listing sync and the first details
+// fetch race into ensureFetchEngine.
 let pendingActivation: { logDir: string; promise: Promise<void> } | null = null;
 
 /**
  * Ensure the fetch engine is running for `logDir` — the mode-independent
- * activation entry point. Dir mode also opens the per-dir database and starts
- * the replication producer; single-file mode starts the engine alone (the
- * database stays unopened, so reads miss and writes are cache-only).
+ * activation entry point, called on demand by every acquisition path
+ * (`syncLogs`, `fetchLog`). Dir mode also opens the per-dir database and
+ * starts the replication producer; single-file mode starts the engine alone
+ * (the database stays unopened, so reads miss and writes are cache-only).
+ * An ensure for a new dir tears the old activation down first (engine
+ * `start()` self-stops; the database and replication producer re-point).
  */
-export const ensureFetchEngine = (logDir: string): Promise<void> => {
+const ensureFetchEngine = (logDir: string): Promise<void> => {
   if (pendingActivation?.logDir === logDir) {
     return pendingActivation.promise;
   }
@@ -116,10 +119,17 @@ export const ensureFetchEngine = (logDir: string): Promise<void> => {
   return promise;
 };
 
-export const deactivateReplication = (): void => {
-  replicationService.stopReplication();
-  fetchEngine.stop();
-  engineDir = null;
+/**
+ * Fetch a log's details at user priority, activating the engine for `logDir`
+ * on demand first (a deep link's first fetch can run before any listing
+ * subscriber has activated).
+ */
+export const fetchLog = async (
+  logDir: string,
+  logFile: string
+): Promise<LogDetails> => {
+  await ensureFetchEngine(logDir);
+  return fetchEngine.fetch(logFile, "user");
 };
 
 /**
@@ -137,11 +147,11 @@ export const syncLogPreviews = async (logs: LogHandle[]): Promise<void> => {
 };
 
 /**
- * Ensure dir-mode replication is active for `logDir` (defaulting to the resolved
- * dir), then sync. The single entry point for both `<ReplicationController>` on
- * mount (passes its keyed dir) and the re-sync triggers (no arg). No-op in
- * single-file mode / before a dir is resolved. Lives here, not in the zustand
- * slice — replication orchestration is control-layer logic, not UI state.
+ * Ensure dir-mode replication is active for `logDir` (defaulting to the
+ * resolved dir), then sync. The queryFn behind `useLogsSync` — listing
+ * freshness is driven by its subscribers. No-op in single-file mode / before
+ * a dir is resolved. Lives here, not in the zustand slice — replication
+ * orchestration is control-layer logic, not UI state.
  */
 export const syncLogs = async (
   logDir: string | undefined = getLogDir()

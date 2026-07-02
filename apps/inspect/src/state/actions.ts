@@ -4,16 +4,12 @@
 // consumers need to re-render on that change (see e.g. the navigation hooks).
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
-import { createLogger } from "@tsmono/util";
 
 import { getAppConfig } from "../app_config";
-import { syncLogs } from "../log_data";
 import { isUri, join, prettyDirUri } from "../utils/uri";
 
 import { invalidateSelectedLog } from "./selectedLogDetails";
 import { storeImplementation, StoreState } from "./store";
-
-const log = createLogger("actions");
 
 const state = (): StoreState => {
   if (!storeImplementation) {
@@ -44,13 +40,6 @@ export const refreshLog = () => {
     state().logs.selectedLogFile
   );
   state().logActions.resetFiltering();
-};
-
-/** Refresh the log listing, logging failures. */
-export const loadLogs = async () => {
-  await syncLogs().catch((e) => {
-    log.error("Error loading logs", e);
-  });
 };
 
 export interface TitleContext {

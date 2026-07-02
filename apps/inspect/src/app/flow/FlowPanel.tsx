@@ -1,11 +1,11 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
-import { loadLogs } from "../../state/actions";
+import { useLogsSync } from "../../log_data";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 
@@ -20,10 +20,8 @@ export const FlowPanel: FC = () => {
   const { logPath: currentPath } = useLogOrSampleRouteParams();
   const flowDir = dirname(currentPath || "");
 
-  // Get the logs from the store
-  useEffect(() => {
-    void loadLogs();
-  }, [flowDir]);
+  // The navbar renders from the listing collections; subscribe so they sync.
+  useLogsSync(flowDir);
 
   const flow = useFlowQuery(flowDir || "").data;
 

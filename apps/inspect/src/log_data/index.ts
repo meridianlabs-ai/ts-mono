@@ -15,8 +15,7 @@ export {
 } from "./logsContent";
 export { usePendingSamples } from "./pendingSamples";
 export {
-  deactivateReplication,
-  ensureFetchEngine,
+  fetchLog,
   setReplicationApi,
   syncLogPreviews,
   syncLogs,
@@ -26,4 +25,4 @@ export { useRunningSample } from "./runningSampleQuery";
 export { useCachedSample, useSample } from "./sampleQuery";
 export { mergeSampleSummaries } from "./sampleSummaries";
 export { useFetchEngineStatus } from "./useFetchEngineStatus";
-export { useLogsSync } from "./useLogsSync";
+export { refreshLogListing, useLogsSync } from "./useLogsSync";
