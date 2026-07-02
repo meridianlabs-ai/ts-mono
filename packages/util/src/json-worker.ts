@@ -39,18 +39,30 @@ class JsonWorkerPool {
       this.blobURL = URL.createObjectURL(blob);
 
       for (let i = 0; i < this.poolSize; i++) {
-        const worker = new Worker(this.blobURL);
-        worker.onmessage = (e) => this.handleMessage(e);
-        worker.onerror = (error) => this.handleError(worker, error);
-        this.workers.push(worker);
-
-        // one-time JSON5 init message
-        worker.postMessage({
-          type: "init",
-          scriptContent: kJson5ScriptBase64,
-        });
+        this.workers.push(this.createWorker(this.blobURL));
       }
     }
+  }
+
+  private createWorker(blobURL: string): Worker {
+    const worker = new Worker(blobURL);
+    worker.onmessage = (e) => this.handleMessage(e);
+    worker.onerror = (error) =>
+      this.failWorker(worker, new Error(`Worker error: ${error.message}`));
+    // Fires when a response can't be deserialized; there's no requestId to
+    // correlate, so everything in flight on this worker must reject.
+    worker.onmessageerror = () =>
+      this.rejectPendingFor(
+        worker,
+        new Error("Worker response could not be deserialized")
+      );
+
+    // one-time JSON5 init message
+    worker.postMessage({
+      type: "init",
+      scriptContent: kJson5ScriptBase64,
+    });
+    return worker;
   }
 
   private handleMessage(e: MessageEvent) {
@@ -99,13 +111,24 @@ class JsonWorkerPool {
     }
   }
 
-  private handleError(worker: Worker, error: ErrorEvent) {
-    const err = new Error(`Worker error: ${error.message}`);
+  private rejectPendingFor(worker: Worker, err: Error) {
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.worker === worker) {
         this.pendingRequests.delete(requestId);
         pending.reject(err);
       }
+    }
+  }
+
+  // A fatally-errored worker (e.g. OOM on a huge parse) can't serve further
+  // requests — replace it in place so its rotation slot doesn't hang every
+  // future request routed to it.
+  private failWorker(worker: Worker, err: Error) {
+    this.rejectPendingFor(worker, err);
+    const index = this.workers.indexOf(worker);
+    worker.terminate();
+    if (index >= 0 && this.blobURL) {
+      this.workers[index] = this.createWorker(this.blobURL);
     }
   }
 
@@ -126,6 +149,25 @@ class JsonWorkerPool {
     return this.submit({ bytes: owned }, [owned.buffer as ArrayBuffer]);
   }
 
+  // Least-loaded dispatch: pure round-robin would queue small requests
+  // behind a multi-second parse while other workers sit idle.
+  private pickWorker(): Worker {
+    const inflight = new Map<Worker, number>();
+    for (const pending of this.pendingRequests.values()) {
+      inflight.set(pending.worker, (inflight.get(pending.worker) ?? 0) + 1);
+    }
+    let best = this.workers[this.nextRequestId % this.workers.length]!;
+    let bestCount = inflight.get(best) ?? 0;
+    for (const worker of this.workers) {
+      const count = inflight.get(worker) ?? 0;
+      if (count < bestCount) {
+        best = worker;
+        bestCount = count;
+      }
+    }
+    return best;
+  }
+
   private submit(
     payload: { text?: string; bytes?: Uint8Array },
     transfer: Transferable[] = [],
@@ -134,7 +176,7 @@ class JsonWorkerPool {
     this.ensureWorkers();
 
     const requestId = this.nextRequestId++;
-    const worker = this.workers[requestId % this.workers.length]!;
+    const worker = this.pickWorker();
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(requestId, {
@@ -143,7 +185,16 @@ class JsonWorkerPool {
         worker,
         sourceText,
       });
-      worker.postMessage({ type: "parse", requestId, ...payload }, transfer);
+      try {
+        worker.postMessage({ type: "parse", requestId, ...payload }, transfer);
+      } catch (postError) {
+        // e.g. DataCloneError on an already-detached buffer — without this
+        // the pending entry would leak and the promise never settle
+        this.pendingRequests.delete(requestId);
+        reject(
+          postError instanceof Error ? postError : new Error(String(postError))
+        );
+      }
     });
   }
 
@@ -153,6 +204,10 @@ class JsonWorkerPool {
     if (this.blobURL) {
       URL.revokeObjectURL(this.blobURL);
       this.blobURL = null;
+    }
+    const err = new Error("Worker pool terminated");
+    for (const pending of this.pendingRequests.values()) {
+      pending.reject(err);
     }
     this.pendingRequests.clear();
   }
@@ -184,6 +239,18 @@ const repairNonFiniteJson = (
   const parts: string[] = [];
   let copied = 0;
   let i = 0;
+  // A bare token followed by ':' is a JSON5 unquoted object KEY ({NaN: 1}),
+  // not a value — replacing it would silently rename the key, so bail to the
+  // full JSON5 parser instead.
+  const isKeyPosition = (after: number): boolean => {
+    let j = after;
+    while (j < n) {
+      const w = source.charCodeAt(j);
+      if (w === 32 || w === 9 || w === 10 || w === 13) j++;
+      else return w === 58 /* : */;
+    }
+    return false;
+  };
   while (i < n) {
     const c = source.charCodeAt(i);
     if (c === 34 /* " */) {
@@ -198,14 +265,16 @@ const repairNonFiniteJson = (
       continue;
     }
     if (c === 78 /* N */) {
-      if (!source.startsWith("NaN", i)) return null;
+      if (!source.startsWith("NaN", i) || isKeyPosition(i + 3)) return null;
       parts.push(source.slice(copied, i), nanToken);
       i += 3;
       copied = i;
       continue;
     }
     if (c === 73 /* I */) {
-      if (!source.startsWith("Infinity", i)) return null;
+      if (!source.startsWith("Infinity", i) || isKeyPosition(i + 8)) {
+        return null;
+      }
       parts.push(source.slice(copied, i), infToken);
       i += 8;
       copied = i;
@@ -213,6 +282,7 @@ const repairNonFiniteJson = (
     }
     if (c === 45 /* - */) {
       if (source.startsWith("-Infinity", i)) {
+        if (isKeyPosition(i + 9)) return null;
         parts.push(source.slice(copied, i), negInfToken);
         i += 9;
         copied = i;
@@ -291,74 +361,166 @@ const applyNonFinitePaths = (
 // Collects paths of sentinel-string values in a plain-parsed repaired
 // document. Bails (returns null) past maxPaths so a pathological all-NaN
 // document falls back to fixup-in-place + clone rather than shipping a huge
-// path list. Self-contained: injected into the worker via toString().
+// path list. Iterative with a reverse-linked key chain (materialized only on
+// hits): JSON.parse handles nesting far deeper than the JS call stack, so a
+// recursive walk would overflow where the parse succeeded. Self-contained:
+// injected into the worker via toString().
 const findSentinelPaths = (
   root: unknown,
   sentinels: { nan: string; inf: string; ninf: string },
   maxPaths: number
 ): (string | number)[][] | null => {
+  type Frame = {
+    node: unknown;
+    key: string | number | null;
+    prev: Frame | null;
+  };
   const paths: (string | number)[][] = [];
-  const walk = (node: unknown, path: (string | number)[]): boolean => {
+  const stack: Frame[] = [{ node: root, key: null, prev: null }];
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    const node = frame.node;
     if (typeof node === "string") {
       if (
         node === sentinels.nan ||
         node === sentinels.inf ||
         node === sentinels.ninf
       ) {
-        if (paths.length >= maxPaths) return false;
-        paths.push(path.slice());
+        if (paths.length >= maxPaths) return null;
+        const path: (string | number)[] = [];
+        for (let f: Frame | null = frame; f && f.key !== null; f = f.prev) {
+          path.push(f.key);
+        }
+        path.reverse();
+        paths.push(path);
       }
-      return true;
+    } else if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        const v: unknown = node[i];
+        if (typeof v === "string" || (v && typeof v === "object")) {
+          stack.push({ node: v, key: i, prev: frame });
+        }
+      }
+    } else if (node && typeof node === "object") {
+      for (const key of Object.keys(node)) {
+        const v = (node as Record<string, unknown>)[key];
+        if (typeof v === "string" || (v && typeof v === "object")) {
+          stack.push({ node: v, key, prev: frame });
+        }
+      }
     }
+  }
+  return paths;
+};
+
+// Restores every sentinel in a parsed repaired document in place. Iterative
+// for the same deep-nesting reason as findSentinelPaths. Does not handle a
+// sentinel at the root (callers special-case root strings). Self-contained:
+// injected into the worker via toString().
+const replaceSentinelsInPlace = (
+  root: unknown,
+  sentinels: { nan: string; inf: string; ninf: string }
+): void => {
+  const restore = (v: unknown): unknown =>
+    v === sentinels.nan
+      ? NaN
+      : v === sentinels.inf
+        ? Infinity
+        : v === sentinels.ninf
+          ? -Infinity
+          : v;
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
     if (Array.isArray(node)) {
       for (let i = 0; i < node.length; i++) {
-        path.push(i);
-        const ok = walk(node[i], path);
-        path.pop();
-        if (!ok) return false;
+        const v: unknown = node[i];
+        if (typeof v === "string") node[i] = restore(v);
+        else if (v && typeof v === "object") stack.push(v);
       }
-      return true;
-    }
-    if (node && typeof node === "object") {
-      for (const key of Object.keys(node)) {
-        path.push(key);
-        const ok = walk((node as Record<string, unknown>)[key], path);
-        path.pop();
-        if (!ok) return false;
+    } else if (node && typeof node === "object") {
+      const record = node as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        const v = record[key];
+        if (typeof v === "string") record[key] = restore(v);
+        else if (v && typeof v === "object") stack.push(v);
       }
-      return true;
     }
-    return true;
-  };
-  return walk(root, []) ? paths : null;
+  }
+};
+
+// Structural density of the document: separators per character, ignoring
+// string contents entirely — strings often embed serialized JSON or prose
+// commas, which say nothing about the size of the parsed graph (a >10MB
+// tool-call-heavy log would otherwise misclassify and take a main-thread
+// parse stall). Full single pass; only consulted for large payloads, where
+// ~1ms/MB is negligible next to parse cost. Threshold from measured shapes:
+// dense transcript events 0.132, flat records 0.081 vs string-heavy eval
+// logs <= 0.03 and embedded-JSON strings 0.011. Self-contained: injected
+// into the worker via toString().
+const isDenseGraph = (source: string): boolean => {
+  const n = source.length;
+  let seps = 0;
+  let i = 0;
+  while (i < n) {
+    const c = source.charCodeAt(i);
+    if (c === 34 /* " */) {
+      i++;
+      while (i < n) {
+        const s = source.charCodeAt(i);
+        if (s === 92 /* \ */) i += 2;
+        else if (s === 34) break;
+        else i++;
+      }
+      i++;
+      continue;
+    }
+    if (c === 44 /* , */ || c === 58 /* : */) seps++;
+    i++;
+  }
+  return seps / n > 0.05;
 };
 
 // Fallback for text JSON.parse rejected: try the cheap non-finite repair +
-// native parse first, full JSON5 only for real JSON5 syntax.
+// native parse first, full JSON5 only for real JSON5 syntax. (A restoring
+// reviver would be ~8x slower than plain parse + walk — see bench/.)
 const parseFallback = <T>(text: string): T => {
   const nonce = Math.random().toString(36).slice(2);
-  const nan = `__json5_nan_${nonce}__`;
-  const inf = `__json5_inf_${nonce}__`;
-  const ninf = `__json5_ninf_${nonce}__`;
+  const sentinels = {
+    nan: `__json5_nan_${nonce}__`,
+    inf: `__json5_inf_${nonce}__`,
+    ninf: `__json5_ninf_${nonce}__`,
+  };
   const repaired = repairNonFiniteJson(
     text,
-    `"${nan}"`,
-    `"${inf}"`,
-    `"${ninf}"`
+    `"${sentinels.nan}"`,
+    `"${sentinels.inf}"`,
+    `"${sentinels.ninf}"`
   );
   if (repaired !== null) {
+    let plain: unknown;
+    let repairedOk = true;
     try {
-      return JSON.parse(repaired, (_key, value: unknown) =>
-        value === nan
-          ? NaN
-          : value === inf
-            ? Infinity
-            : value === ninf
-              ? -Infinity
-              : value
-      ) as T;
+      plain = JSON.parse(repaired);
     } catch {
       // repaired text still invalid — let JSON5 produce the real error
+      repairedOk = false;
+    }
+    if (repairedOk) {
+      if (typeof plain === "string") {
+        // bare non-finite at the root (e.g. jsonParse("NaN"))
+        return (
+          plain === sentinels.nan
+            ? NaN
+            : plain === sentinels.inf
+              ? Infinity
+              : plain === sentinels.ninf
+                ? -Infinity
+                : plain
+        ) as T;
+      }
+      replaceSentinelsInPlace(plain, sentinels);
+      return plain as T;
     }
   }
   return JSON5.parse<T>(text);
@@ -366,11 +528,13 @@ const parseFallback = <T>(text: string): T => {
 
 const workerPool = new JsonWorkerPool();
 
+// Below this size the worker round-trip costs more than it saves, so parsing
+// happens synchronously on the caller's thread. Measured in UTF-16 chars for
+// string inputs and bytes for byte inputs — close enough for a heuristic.
+const kWorkerMinSize = 50000;
+
 export const asyncJsonParse = async <T>(text: string): Promise<T> => {
-  // The overhead of using a web worker does have
-  // diminishing returns, so for small JSON that will serialize
-  // very quickly, just do it immediately on the main thread.
-  if (text.length < 50000) {
+  if (text.length < kWorkerMinSize) {
     return jsonParse<T>(text);
   } else {
     return workerPool.parse(text) as Promise<T>;
@@ -385,9 +549,14 @@ export const asyncJsonParse = async <T>(text: string): Promise<T> => {
  * For large data, transfers the bytes directly to a Web Worker,
  * skipping the main-thread TextDecoder.decode + TextEncoder.encode
  * round-trip that asyncJsonParse(string) would require.
+ *
+ * NOTE: for large inputs the bytes are TRANSFERRED to the worker — the
+ * caller's Uint8Array (and its whole ArrayBuffer, when the view covers it)
+ * is detached and unusable afterwards. Pass a copy if you still need the
+ * bytes; passing an already-detached view rejects with a DataCloneError.
  */
 export const asyncJsonParseBytes = async <T>(data: Uint8Array): Promise<T> => {
-  if (data.length < 50000) {
+  if (data.length < kWorkerMinSize) {
     const text = new TextDecoder("utf-8").decode(data);
     return jsonParse<T>(text);
   } else {
@@ -409,32 +578,12 @@ const kWorkerCode = `
 let JSON5 = null;
 const decoder = new TextDecoder();
 
-// Injected from the module-scope implementations (kept self-contained there)
+// Injected from the module-scope implementations (kept self-contained and
+// typechecked there; any change over there lands here automatically)
 const repairNonFiniteJson = ${repairNonFiniteJson.toString()};
-const applyNonFinitePaths = ${applyNonFinitePaths.toString()};
 const findSentinelPaths = ${findSentinelPaths.toString()};
-
-// Fallback when the path cap is exceeded: restore every sentinel in place
-function replaceSentinelsInPlace(node, sentinels) {
-  const restore = (v) =>
-    v === sentinels.nan ? NaN
-    : v === sentinels.inf ? Infinity
-    : v === sentinels.ninf ? -Infinity
-    : v;
-  if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) {
-      const v = node[i];
-      if (typeof v === 'string') node[i] = restore(v);
-      else replaceSentinelsInPlace(v, sentinels);
-    }
-  } else if (node && typeof node === 'object') {
-    for (const k of Object.keys(node)) {
-      const v = node[k];
-      if (typeof v === 'string') node[k] = restore(v);
-      else replaceSentinelsInPlace(v, sentinels);
-    }
-  }
-}
+const replaceSentinelsInPlace = ${replaceSentinelsInPlace.toString()};
+const isDenseGraph = ${isDenseGraph.toString()};
 
 // Non-strict JSON: repair Python-style bare NaN/Infinity and parse natively;
 // full (slow) JSON5 only for real JSON5 syntax. Returns { result } to clone
@@ -464,49 +613,31 @@ function parseFallback(source, big, jsonError) {
       repairedOk = false;
     }
     if (repairedOk) {
-      const paths = findSentinelPaths(plain, sentinels, 100000);
-      if (paths !== null) {
-        if (big && isDenseGraph(source)) {
+      if (typeof plain === 'string') {
+        // bare non-finite at the root
+        return {
+          result: plain === sentinels.nan ? NaN
+            : plain === sentinels.inf ? Infinity
+            : plain === sentinels.ninf ? -Infinity
+            : plain
+        };
+      }
+      if (big && isDenseGraph(source)) {
+        const paths = findSentinelPaths(plain, sentinels, 100000);
+        if (paths !== null) {
           return { reparse: true, sourceText: repaired, nonFinitePaths: paths, sentinels };
         }
-        applyNonFinitePaths(plain, paths, sentinels);
-      } else {
-        replaceSentinelsInPlace(plain, sentinels);
+        // Path cap exceeded: a big dense document saturated with non-finite
+        // values lands on the (slower) clone path — accepted inversion, the
+        // alternative is shipping a path list rivaling the payload itself.
       }
+      replaceSentinelsInPlace(plain, sentinels);
       return { result: plain };
     }
   }
   // Surface the original JSON error, not a null-JSON5 one, if init failed
   if (!JSON5) throw jsonError;
   return { result: JSON5.parse(source) };
-}
-
-// Structural-density probe: node-dense graphs (millions of small objects)
-// have a high ratio of separators to bytes, string-heavy documents a low one
-// (real data: ~0.2+/byte for dense transcript events vs ~0.03 for eval logs;
-// prose commas inside strings stay well under the threshold). Sampled from
-// up to 3x256KB slices, so it's O(1)-ish and CPU-speed independent.
-function isDenseGraph(source) {
-  const sample = 262144;
-  const mid = (source.length - sample) >> 1;
-  const slices =
-    source.length <= 3 * sample
-      ? [source]
-      : [
-          source.slice(0, sample),
-          source.slice(mid, mid + sample),
-          source.slice(source.length - sample),
-        ];
-  let seps = 0;
-  let chars = 0;
-  for (const s of slices) {
-    chars += s.length;
-    for (let i = 0; i < s.length; i++) {
-      const c = s.charCodeAt(i);
-      if (c === 44 || c === 58) seps++;
-    }
-  }
-  return seps / chars > 0.08;
 }
 
 self.onmessage = function (e) {

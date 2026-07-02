@@ -130,6 +130,13 @@ const CASES = [
     iterations: 3,
     innerReps: 1,
   },
+  {
+    name: "jsonstr-20MB",
+    kind: "jsonstr",
+    target: 20_000_000,
+    iterations: 5,
+    innerReps: 1,
+  },
 ];
 
 const QUICK_CASES = new Set([

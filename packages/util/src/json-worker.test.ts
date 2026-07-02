@@ -87,6 +87,35 @@ describe("jsonParse", () => {
       expect(result.b).toBe(2);
     });
 
+    // NaN/Infinity can appear as unquoted JSON5 object KEYS; replacing those
+    // would silently rename the key, so they must route to JSON5.parse.
+    test("bare tokens in key position keep their names", () => {
+      expect(jsonParse("{NaN: 1}")).toEqual({ NaN: 1 });
+      expect(jsonParse("{Infinity: 2}")).toEqual({ Infinity: 2 });
+      expect(jsonParse('{"a": {NaN: true}}')).toEqual({ a: { NaN: true } });
+      expect(jsonParse("{ NaN\t : 1 }")).toEqual({ NaN: 1 });
+      // key and value in the same document
+      const mixed = jsonParse<Record<string, number>>('{NaN: 1, "x": NaN}');
+      expect(mixed["NaN"]).toBe(1);
+      expect(mixed["x"]).toBeNaN();
+    });
+
+    test("bare non-finite at the root", () => {
+      expect(jsonParse("NaN")).toBeNaN();
+      expect(jsonParse("Infinity")).toBe(Infinity);
+      expect(jsonParse("-Infinity")).toBe(-Infinity);
+    });
+
+    test("survives nesting far deeper than the call stack", () => {
+      const depth = 20000;
+      const text = "[".repeat(depth) + "NaN" + "]".repeat(depth);
+      let node: unknown = jsonParse(text);
+      for (let i = 0; i < depth; i++) {
+        node = (node as unknown[])[0];
+      }
+      expect(node).toBeNaN();
+    });
+
     test("malformed input still throws", () => {
       expect(() => jsonParse('{"a": NaN,')).toThrow();
       expect(() => jsonParse('{"a": Nope}')).toThrow();

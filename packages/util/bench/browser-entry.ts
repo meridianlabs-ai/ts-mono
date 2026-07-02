@@ -14,7 +14,8 @@ type PayloadKind =
   | "numbers"
   | "deep"
   | "json5"
-  | "nonfinite";
+  | "nonfinite"
+  | "jsonstr";
 type ApiName = "syncParse" | "asyncJsonParse" | "asyncJsonParseBytes";
 
 interface IterationStats {
@@ -184,6 +185,31 @@ const genNonFinite = (targetBytes: number): string => {
   return `[${items.join(",")}]`;
 };
 
+// Tool-call-heavy shape: string values that themselves contain serialized
+// JSON, so in-string separator density is high while the actual parsed graph
+// is string-dominated — must classify as NOT dense (clone, not reparse).
+const genJsonStrings = (targetBytes: number): string => {
+  const rng = makeRng(31);
+  const inner = () =>
+    JSON.stringify({
+      cmd: "bash",
+      args: { flags: ["-c", "-x"], timeout: 300, env: { A: 1, B: 2, C: 3 } },
+      output: sentence(rng, 160),
+    });
+  const rec = (i: number) => ({
+    id: i,
+    role: "tool",
+    content: inner() + inner(),
+    result: JSON.stringify({
+      ok: true,
+      data: Array.from({ length: 8 }, () => rng()),
+    }),
+  });
+  const probe = JSON.stringify(rec(0));
+  const count = Math.max(1, Math.round(targetBytes / (probe.length + 1)));
+  return JSON.stringify(Array.from({ length: count }, (_, i) => rec(i)));
+};
+
 const GENERATORS: Record<PayloadKind, (target: number) => string> = {
   flat: genFlat,
   evalLog: genEvalLog,
@@ -191,6 +217,7 @@ const GENERATORS: Record<PayloadKind, (target: number) => string> = {
   deep: genDeep,
   json5: genJson5,
   nonfinite: genNonFinite,
+  jsonstr: genJsonStrings,
 };
 
 // --- correctness probes ------------------------------------------------------
@@ -235,6 +262,33 @@ const probeJson = (v: unknown): string =>
       : val
   );
 
+// Index-sampled probes rarely land on a non-finite element, so count them
+// all: any NaN -> null (or sentinel-string leak) shifts this exact total.
+const countNonFinite = (root: unknown): number => {
+  if (typeof root === "number") return Number.isFinite(root) ? 0 : 1;
+  let count = 0;
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (const v of node) {
+        if (typeof v === "number") {
+          if (!Number.isFinite(v)) count++;
+        } else if (v && typeof v === "object") stack.push(v);
+      }
+    } else if (node && typeof node === "object") {
+      const record = node as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        const v = record[key];
+        if (typeof v === "number") {
+          if (!Number.isFinite(v)) count++;
+        } else if (v && typeof v === "object") stack.push(v);
+      }
+    }
+  }
+  return count;
+};
+
 // --- event-loop blocking monitor ----------------------------------------------
 
 const startBlockMonitor = () => {
@@ -271,6 +325,7 @@ let payloadText = "";
 let payloadBytes: Uint8Array | null = null;
 let payloadKind: PayloadKind = "flat";
 let refProbe = "";
+let refNonFinite = 0;
 
 const syncParse = (text: string): unknown => {
   try {
@@ -287,7 +342,9 @@ const generate = (
   payloadKind = kind;
   payloadText = GENERATORS[kind](targetBytes);
   payloadBytes = new TextEncoder().encode(payloadText);
-  refProbe = probeJson(syncParse(payloadText));
+  const ref = syncParse(payloadText);
+  refProbe = probeJson(ref);
+  refNonFinite = countNonFinite(ref);
   return { chars: payloadText.length, bytes: payloadBytes.length };
 };
 
@@ -299,7 +356,9 @@ const loadFixture = async (
   if (!resp.ok) throw new Error(`fixture fetch failed: ${resp.status}`);
   payloadBytes = new Uint8Array(await resp.arrayBuffer());
   payloadText = new TextDecoder().decode(payloadBytes);
-  refProbe = probeJson(syncParse(payloadText));
+  const ref = syncParse(payloadText);
+  refProbe = probeJson(ref);
+  refNonFinite = countNonFinite(ref);
   return { chars: payloadText.length, bytes: payloadBytes.length };
 };
 
@@ -326,8 +385,15 @@ const runCase = async (
   // warmup (also verifies correctness once)
   const warm = await runApi(api);
   const got = probeJson(warm);
-  const verified = got === refProbe;
-  const verifyDetail = verified ? undefined : `expected ${refProbe} got ${got}`;
+  let verified = got === refProbe;
+  let verifyDetail = verified ? undefined : `expected ${refProbe} got ${got}`;
+  if (verified && refNonFinite > 0) {
+    const gotNonFinite = countNonFinite(warm);
+    if (gotNonFinite !== refNonFinite) {
+      verified = false;
+      verifyDetail = `non-finite count ${gotNonFinite} != ${refNonFinite}`;
+    }
+  }
 
   const stats: IterationStats[] = [];
   for (let i = 0; i < iterations; i++) {
@@ -356,6 +422,7 @@ const releasePayload = () => {
   payloadText = "";
   payloadBytes = null;
   refProbe = "";
+  refNonFinite = 0;
 };
 
 // warm the worker pool once so pool/JSON5 startup doesn't skew the first case
