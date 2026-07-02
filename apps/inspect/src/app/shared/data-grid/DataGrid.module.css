@@ -269,6 +269,14 @@
   padding-left: 32px;
 }
 
+/* Drop the vertical separator at the gap column's left edge — it rises
+ * straight through the anchor of the preceding angled label, whose diagonal
+ * bottom border already marks the boundary (same treatment as
+ * .headerCellRotated::before). */
+.afterRotatedGap::before {
+  display: none;
+}
+
 .empty {
   position: absolute;
   top: 3rem;
