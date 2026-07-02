@@ -27,11 +27,12 @@ import {
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
 
-import { ClientAPI, HostMessage } from "../client/api/types.ts";
+import { HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
+import { useSelectLogFile } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
 import { syncLogs } from "../state/replicationControl.ts";
-import { ApiProvider, useApi, useStore } from "../state/store.ts";
+import { useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
@@ -40,7 +41,7 @@ import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
-import { useAppConfigAsync } from "./server/useAppConfig.ts";
+import { useAppConfig, useAppConfigAsync } from "./server/useAppConfig.ts";
 import { setLogRoot, useLogDir } from "./server/useLogDir.ts";
 import {
   readEmbeddedStartupState,
@@ -63,10 +64,6 @@ const componentIcons: ComponentIcons = {
   previous: ApplicationIcons.previous,
   toggleRight: ApplicationIcons["toggle-right"],
 };
-
-export interface AppProps {
-  api: ClientAPI;
-}
 
 // Keep the applied theme in lockstep with the persisted preference. The inline
 // bootstrap sets the theme before first paint from localStorage; here we
@@ -97,13 +94,13 @@ const useThemePreferenceSync = () => {
 };
 
 /**
- * Renders the application content. Mounted below the providers in App so it
- * can read the api context.
+ * Renders the application content. Mounted below the config gate so it can
+ * read the resolved app config.
  */
 const AppContent: FC = () => {
   useThemePreferenceSync();
 
-  const api = useApi();
+  const { api } = useAppConfig();
 
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
@@ -115,9 +112,7 @@ const AppContent: FC = () => {
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
+  const selectLogFile = useSelectLogFile();
 
   const onMessage = useCallback(
     (e: HostMessage) => {
@@ -147,7 +142,7 @@ const AppContent: FC = () => {
           const isFocused = document.hasFocus();
           if (!isFocused) {
             if (log_dir === logDir) {
-              setSelectedLogFile(decodedUrl);
+              selectLogFile(decodedUrl);
             } else {
               void api.open_log_file(e.data.url, e.data.log_dir);
             }
@@ -158,7 +153,7 @@ const AppContent: FC = () => {
         }
       }
     },
-    [setInitialState, logDir, setSelectedLogFile, api, rehydrated]
+    [setInitialState, logDir, selectLogFile, api, rehydrated]
   );
 
   // listen for updateState messages from vscode
@@ -201,16 +196,12 @@ const AppConfigGate: FC = () => (
 );
 
 /**
- * Renders the Main Application. Owns the query client + api providers so the
+ * Renders the Main Application. Owns the query client provider so the
  * exported <App> stays self-contained for external embedders.
  */
-export const App: FC<AppProps> = ({ api }) => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ApiProvider value={api}>
-        <AppConfigGate />
-      </ApiProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
-  );
-};
+export const App: FC = () => (
+  <QueryClientProvider client={queryClient}>
+    <AppConfigGate />
+    <ReactQueryDevtools initialIsOpen={false} />
+  </QueryClientProvider>
+);

@@ -4,8 +4,8 @@ import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TagsEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
+import { useAppConfig } from "../../server/useAppConfig";
 
 import { ChangeSummary } from "./ChangeSummary";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
@@ -29,7 +29,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useApi();
+  const { api } = useAppConfig();
 
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");

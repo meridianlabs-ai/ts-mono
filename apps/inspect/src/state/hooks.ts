@@ -10,16 +10,17 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
+import { useAppConfig } from "../app/server/useAppConfig";
 import { useLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
-import { prettyDirUri } from "../utils/uri";
+import { isUri, join, prettyDirUri } from "../utils/uri";
 
 import { refreshSelectedLog } from "./logLoad";
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
-import { useApi, useStore } from "./store";
+import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
 const kScorePanelViewBag = "score-panel-view";
@@ -206,7 +207,7 @@ export interface LogEditAffordance {
  * on save is worse than not offering it.
  */
 export const useLogEditAffordance = (): LogEditAffordance => {
-  const api = useApi();
+  const { api } = useAppConfig();
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useSelectedLogDetails()?.status;
@@ -518,10 +519,22 @@ export const useMessageVisibility = (
   }, [visible, setVisible, id]);
 };
 
-export const useSetSelectedLogIndex = () => {
+/** Select a log file, absolutizing a relative name against the resolved log dir
+ *  (the slice stores only the absolute path). */
+export const useSelectLogFile = () => {
+  const logDir = useLogDir();
   const setSelectedLogFile = useStore(
     (state) => state.logsActions.setSelectedLogFile
   );
+  return useCallback(
+    (logFile: string) =>
+      setSelectedLogFile(isUri(logFile) ? logFile : join(logFile, logDir)),
+    [logDir, setSelectedLogFile]
+  );
+};
+
+export const useSetSelectedLogIndex = () => {
+  const selectLogFile = useSelectLogFile();
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
@@ -538,9 +551,9 @@ export const useSetSelectedLogIndex = () => {
 
       const logHandle = allLogFiles[index];
       // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      setSelectedLogFile(logHandle.name);
+      selectLogFile(logHandle.name);
     },
-    [allLogFiles, setSelectedLogFile, clearSelectedSample, clearCollapsedEvents]
+    [allLogFiles, selectLogFile, clearSelectedSample, clearCollapsedEvents]
   );
 };
 

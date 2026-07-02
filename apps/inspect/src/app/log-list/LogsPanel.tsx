@@ -69,7 +69,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   );
   const logDir = useLogDir();
   const logFiles = useLogsWithretried();
-  const evalSet = useEvalSet().data ?? undefined;
+  const evalSet = useEvalSet().data;
   const logPreviews = useLogPreviews(logDir);
   // Defer previews so the burst of preview flushes during initial sync
   // can't block input — see the matching note in LogListGrid.

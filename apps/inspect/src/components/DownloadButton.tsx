@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import { useApi } from "../state/store";
+import { useAppConfig } from "../app/server/useAppConfig";
 
 import "./DownloadButton.css";
 
@@ -15,7 +15,7 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
   fileName,
   fileContents,
 }) => {
-  const api = useApi();
+  const { api } = useAppConfig();
   return (
     <button
       className={"btn btn-outline-primary download-button"}

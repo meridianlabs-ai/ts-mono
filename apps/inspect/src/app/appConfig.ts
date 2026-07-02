@@ -32,9 +32,9 @@ export interface AppConfig {
 /**
  * The synchronously-knowable prefix of the config — resolved from the URL + DOM
  * before any network call. Infrastructure only: it's what the async resolution
- * builds on, and the one thing the pre-gate boot path (`main.tsx` / the store /
- * `ApiProvider`) can read before the full config exists. Everything else uses
- * `useAppConfig` / `getAppConfig`.
+ * builds on, and the one thing the pre-gate boot path (`main.tsx` / the store)
+ * can read before the full config exists. Everything else uses `useAppConfig` /
+ * `getAppConfig`.
  */
 export interface AppConfigBootstrap {
   api: ClientAPI;

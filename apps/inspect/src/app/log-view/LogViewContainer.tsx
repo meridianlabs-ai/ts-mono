@@ -2,7 +2,11 @@ import { FC, useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import { useEvalSpec, useSampleSummaries } from "../../state/hooks";
+import {
+  useEvalSpec,
+  useSampleSummaries,
+  useSelectLogFile,
+} from "../../state/hooks";
 import { useUnloadLog } from "../../state/log";
 import { useStore } from "../../state/store";
 import {
@@ -28,9 +32,7 @@ export const LogViewContainer: FC = () => {
   const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
+  const selectLogFile = useSelectLogFile();
 
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
@@ -120,9 +122,9 @@ export const LogViewContainer: FC = () => {
 
   useEffect(() => {
     if (logPath) {
-      setSelectedLogFile(logPath);
+      selectLogFile(logPath);
     }
-  }, [logPath, setSelectedLogFile]);
+  }, [logPath, selectLogFile]);
 
   return <LogViewLayout />;
 };

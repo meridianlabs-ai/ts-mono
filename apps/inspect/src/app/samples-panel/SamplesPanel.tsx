@@ -125,7 +125,7 @@ export const SamplesPanel: FC = () => {
 
   const currentDir = join(samplesPath || "", logDir);
 
-  const evalSet = useEvalSet().data ?? undefined;
+  const evalSet = useEvalSet().data;
   const logFiles = useLogsWithretried();
   const logPreviews = useLogPreviews(logDir);
 

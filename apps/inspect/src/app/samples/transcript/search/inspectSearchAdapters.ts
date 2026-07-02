@@ -15,7 +15,7 @@ import {
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
 } from "../../../../constants";
-import { useApi, useStore } from "../../../../state/store";
+import { useStore } from "../../../../state/store";
 import { useUserSettings } from "../../../../state/userSettings";
 import {
   makeLogsPath,
@@ -24,6 +24,7 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../../routing/url";
+import { useAppConfig } from "../../../server/useAppConfig";
 import { useLogDir } from "../../../server/useLogDir";
 
 /**
@@ -64,7 +65,7 @@ export interface InspectSearchContext {
 export const useInspectSearchContext = (
   sample: EvalSample | undefined
 ): InspectSearchContext | null => {
-  const api = useApi();
+  const { api } = useAppConfig();
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
@@ -121,7 +122,7 @@ export const useInspectSearchApi = (
   logFile: string,
   transcriptId: string
 ): SearchPanelApi | null => {
-  const api = useApi();
+  const { api } = useAppConfig();
   return useMemo(() => {
     const { post_search, get_search_result, list_searches } = api;
     if (!post_search || !get_search_result || !list_searches || !transcriptId) {

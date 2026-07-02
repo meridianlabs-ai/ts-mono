@@ -2,7 +2,7 @@ import { FC, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import { useSampleSummaries } from "../../state/hooks";
+import { useSampleSummaries, useSelectLogFile } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLoadSample } from "../../state/useLoadSample";
 import { usePollSample } from "../../state/usePollSample";
@@ -53,9 +53,7 @@ export const LogSampleDetailView: FC = () => {
 
   // Get store state and actions for log loading
   const sampleSummaries = useSampleSummaries();
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
+  const selectLogFile = useSelectLogFile();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
@@ -73,7 +71,7 @@ export const LogSampleDetailView: FC = () => {
   // Only run this effect when we have route params (not state fallback)
   useEffect(() => {
     if (routeLogPath && routeSampleId && routeEpoch) {
-      setSelectedLogFile(routeLogPath);
+      selectLogFile(routeLogPath);
 
       const targetEpoch = parseInt(routeEpoch, 10);
       if (isNaN(targetEpoch)) {
@@ -81,13 +79,7 @@ export const LogSampleDetailView: FC = () => {
       }
       selectSample(routeSampleId, targetEpoch, routeLogPath);
     }
-  }, [
-    routeLogPath,
-    routeSampleId,
-    routeEpoch,
-    setSelectedLogFile,
-    selectSample,
-  ]);
+  }, [routeLogPath, routeSampleId, routeEpoch, selectLogFile, selectSample]);
 
   // Handle UUID routes by redirecting to id/epoch URL
   useEffect(() => {

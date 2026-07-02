@@ -57,7 +57,7 @@ if (!container) {
 
 // Render into the root
 const root = createRoot(container);
-root.render(<App api={applicationApi} />);
+root.render(<App />);
 
 function restoreHash() {
   // Check if we need to restore a route

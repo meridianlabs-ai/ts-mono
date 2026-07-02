@@ -75,7 +75,7 @@ import {
   useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { useApi, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
@@ -86,6 +86,7 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
+import { useAppConfig } from "../server/useAppConfig";
 import { openInNewTab } from "../shared/openInNewTab";
 
 import {
@@ -366,7 +367,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter();
 
-  const api = useApi();
+  const { api } = useAppConfig();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);

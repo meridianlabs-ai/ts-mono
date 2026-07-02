@@ -3,10 +3,8 @@ import { GridState } from "ag-grid-community";
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { getLogDir } from "../app/server/useLogDir";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
 import { EvalHeader } from "../client/api/types";
-import { isUri, join } from "../utils/uri";
 
 import { StoreState } from "./store";
 
@@ -145,15 +143,13 @@ export const createLogsSlice = (
           state.logs.flow = flowData;
         });
       },
-      // Select a specific log file (pure UI state). Ensuring the file is
+      // Select a specific log file (pure UI state). Expects an already-absolute
+      // path; callers absolutize via useSelectLogFile. Ensuring the file is
       // loadable happens in the loader layer (ensureSelectableLog), driven by
       // loadLog when the selection is opened.
       setSelectedLogFile: (logFile: string) => {
         set((state) => {
-          const absoluteLogfile = isUri(logFile)
-            ? logFile
-            : join(logFile, getLogDir());
-          state.logs.selectedLogFile = absoluteLogfile;
+          state.logs.selectedLogFile = logFile;
         });
       },
       setFilteredCount: (count: number) => {

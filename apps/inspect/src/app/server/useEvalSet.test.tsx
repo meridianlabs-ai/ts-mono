@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EvalSet } from "@tsmono/inspect-common/types";
 
 import { ClientAPI } from "../../client/api/types";
-import { AppConfig, initAppConfig } from "../appConfig";
+import { AppConfig } from "../appConfig";
 
 import { APP_CONFIG_KEY } from "./useAppConfig";
 import { useEvalSet } from "./useEvalSet";
@@ -34,10 +34,8 @@ const seedConfig = (
     logDir: "/logs",
     absLogDir: "/abs/logs",
   } satisfies AppConfig;
-  // useLogDir reads the resolved config from the react-query cache; the queryFn
-  // reaches getAppConfig(), so seed both the cache and the singleton.
+  // useAppConfig/useLogDir read the resolved config from the react-query cache.
   client.setQueryData(APP_CONFIG_KEY, config);
-  initAppConfig(config);
 };
 
 const evalSet = (id: string): EvalSet =>
@@ -62,7 +60,7 @@ describe("useEvalSet", () => {
     expect(result.current.data).toEqual(evalSet("set-1"));
   });
 
-  it("resolves null when there is no eval-set (react-query rejects undefined)", async () => {
+  it("resolves undefined when there is no eval-set (react-query rejects undefined internally)", async () => {
     const client = freshClient();
     const get_eval_set = vi.fn().mockResolvedValue(undefined);
     seedConfig(client, get_eval_set);
@@ -72,7 +70,7 @@ describe("useEvalSet", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.data).toBeNull();
+    expect(result.current.data).toBeUndefined();
     expect(result.current.error).toBeUndefined();
   });
 

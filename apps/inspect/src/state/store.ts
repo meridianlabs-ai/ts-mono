@@ -1,5 +1,4 @@
 import { enableMapSet } from "immer";
-import { createContext, useContext } from "react";
 import { create, Mutate, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
@@ -165,14 +164,4 @@ export const initializeStore = (
   setLogPollingApi(api);
   setReplicationApi(api);
   store.getState().initialize(capabilities);
-};
-
-const ApiContext = createContext<ClientAPI | null>(null);
-
-export const ApiProvider = ApiContext.Provider;
-
-export const useApi = (): ClientAPI => {
-  const api = useContext(ApiContext);
-  if (!api) throw new Error("useApi must be used within ApiProvider");
-  return api;
 };

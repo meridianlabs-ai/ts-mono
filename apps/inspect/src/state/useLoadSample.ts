@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
+import { useAppConfig } from "../app/server/useAppConfig";
 import { SampleSummary } from "../client/api/types";
 
 import { useLogSelection, useSampleData } from "./hooks";
@@ -11,7 +12,7 @@ import {
   resolveSample,
   synthesizeErroredSampleFromSummary,
 } from "./sampleUtils";
-import { useApi, useStore } from "./store";
+import { useStore } from "./store";
 
 // List of virtuoso list keys that should be cleared when sample changes
 const SAMPLE_LIST_KEYS = ["transcript-tree"];
@@ -30,7 +31,7 @@ export function useLoadSample() {
   const logSelection = useLogSelection();
 
   // Get store state and actions
-  const api = useApi();
+  const { api } = useAppConfig();
   const sampleActions = useStore((state) => state.sampleActions);
   const clearListPosition = useStore(
     (state) => state.appActions.clearListPosition

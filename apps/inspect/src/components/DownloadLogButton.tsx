@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { JSX, useState } from "react";
 
 import { ApplicationIcons } from "../app/appearance/icons";
-import { useApi } from "../state/store";
+import { useAppConfig } from "../app/server/useAppConfig";
 
 import styles from "./DownloadLogButton.module.css";
 
@@ -20,7 +20,7 @@ export const DownloadLogButton = ({
   ariaLabel = "Download log as EVAL",
 }: DownloadLogButtonProps): JSX.Element => {
   const [downloadState, setDownloadState] = useState<DownloadState>("idle");
-  const api = useApi();
+  const { api } = useAppConfig();
 
   const handleClick = async (): Promise<void> => {
     if (!api.download_log) return;

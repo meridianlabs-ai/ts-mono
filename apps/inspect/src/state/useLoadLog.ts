@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useSamplesRouteParams } from "../app/routing/url";
 import { useLogDir } from "../app/server/useLogDir";
 
-import { useLogs } from "./hooks";
+import { useLogs, useSelectLogFile } from "./hooks";
 import { useLogHandles } from "./logsContent";
 import { useStore } from "./store";
 
@@ -19,9 +19,7 @@ export const useLoadLog = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const logDir = useLogDir();
   const logs = useLogHandles(logDir);
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
+  const selectLogFile = useSelectLogFile();
 
   useEffect(() => {
     const exec = async () => {
@@ -32,7 +30,7 @@ export const useLoadLog = () => {
         }
 
         if (selectedLogFile !== routeLogPath) {
-          setSelectedLogFile(routeLogPath);
+          selectLogFile(routeLogPath);
         }
 
         // Select the specific sample
@@ -47,7 +45,7 @@ export const useLoadLog = () => {
     sampleId,
     epoch,
     loadLogs,
-    setSelectedLogFile,
+    selectLogFile,
     selectSample,
     logDir,
     logs,
