@@ -112,17 +112,17 @@ export const usePendingSamples = (): PendingSamples | undefined => {
   const api = getApi();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const liveStatus = useLogDetail(logDir, selectedLogFile).data?.status;
-  const enabled = shouldPollPendingSamples({
-    logFile: selectedLogFile,
-    logStatus: liveStatus,
-    apiSupportsPendingSamples: api.get_log_pending_samples !== undefined,
-  });
+  const enabled =
+    shouldPollPendingSamples({
+      logFile: selectedLogFile,
+      logStatus: liveStatus,
+      apiSupportsPendingSamples: api.get_log_pending_samples !== undefined,
+    }) && selectedLogFile !== undefined;
   const { data } = useQuery({
     queryKey: pendingSamplesKey(logDir, selectedLogFile),
-    queryFn:
-      enabled && selectedLogFile !== undefined
-        ? () => fetchPendingSamples(api, logDir, selectedLogFile)
-        : skipToken,
+    queryFn: enabled
+      ? () => fetchPendingSamples(api, logDir, selectedLogFile)
+      : skipToken,
     // A failed tick retries per the client default, then parks the query in
     // error state; stopping the interval there is the give-up.
     refetchInterval: (query) =>

@@ -27,13 +27,13 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
 
 import {
+  AppConfigGate,
   getApi,
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
   setLogRoot,
   useLogDir,
 } from "../app_config";
-import { AppConfigGate } from "../app_config/AppConfigGate.tsx";
 import { HostMessage } from "../client/api/types.ts";
 import { syncLogs } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";

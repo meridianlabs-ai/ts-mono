@@ -27,6 +27,11 @@ export const selectedLogQueryKey = (
  * replication write there); this query is the fetch trigger and the
  * loading/error surface.
  */
+// TODO: needs revisiting on the path to a single coherent data story. This
+// query's cached result duplicates the log's row in the ["log-details", logDir]
+// collection (the sink writes every fetch there too). The duplicate survives
+// because LogLoadController keys off its identity as a "fetch settled" event —
+// distinct from the collection's every-poll-tick "data changed" stream.
 export const useSelectedLogQuery = (): AsyncData<LogDetails> => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);

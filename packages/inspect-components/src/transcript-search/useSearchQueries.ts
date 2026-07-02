@@ -1,4 +1,5 @@
 import {
+  skipToken,
   useMutation,
   useQuery,
   useQueryClient,
@@ -33,15 +34,15 @@ export const searchQueryKeys = {
     scope,
     searchId,
   }: {
-    cacheKey: string;
+    cacheKey: string | null;
     scope: SearchResultScope;
-    searchId: string;
-  }): readonly ["search-result", string, SearchResultScope, string] => [
+    searchId: string | null;
+  }): readonly [
     "search-result",
-    cacheKey,
-    scope,
-    searchId,
-  ],
+    string | null,
+    SearchResultScope,
+    string | null,
+  ] => ["search-result", cacheKey, scope, searchId],
 };
 
 export const useSearches = ({
@@ -85,18 +86,16 @@ export const useCachedSearchResult = ({
   scope: SearchResultScope;
   searchId: string | null;
 }) => {
-  const enabled = !!api && !!searchId;
   return useQuery<Result | null, Error>({
-    queryKey:
+    queryKey: searchQueryKeys.cachedResult({
+      cacheKey: api?.cacheKey ?? null,
+      scope,
+      searchId,
+    }),
+    queryFn:
       api && searchId
-        ? searchQueryKeys.cachedResult({
-            cacheKey: api.cacheKey,
-            scope,
-            searchId,
-          })
-        : ["search-result", "disabled"],
-    queryFn: () => api!.getCachedResult(searchId!, scope),
-    enabled,
+        ? () => api.getCachedResult(searchId, scope)
+        : skipToken,
     staleTime: Infinity,
   });
 };

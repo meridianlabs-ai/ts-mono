@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./base": "./base.js",
-    "./react": "./react.js"
+    "./react": "./react.js",
+    "./barrel-only": "./barrel-only.js"
   },
   "dependencies": {
     "@eslint/js": "^9.39.2",

@@ -24,6 +24,8 @@ export const useAppConfigAsync = (): AsyncData<AppConfig> =>
  * The resolved app config, read synchronously. The app renders below the gate
  * that awaits `useAppConfigAsync`, so the data is always present here; throws if
  * called above the gate.
+ *
+ * Safe to call only below <AppConfigGate />
  */
 export const useAppConfig = (): AppConfig => {
   const { data } = useAppConfigAsync();
