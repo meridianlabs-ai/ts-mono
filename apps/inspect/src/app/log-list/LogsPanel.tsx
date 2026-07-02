@@ -18,13 +18,13 @@ import { dirname, isInDirectory } from "@tsmono/util";
 import { useClientEvents } from "../../state/clientEvents";
 import {
   useDocumentTitle,
-  useLogs,
   useLogsListing,
   useLogsWithretried,
 } from "../../state/hooks";
 import { useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
+import { useLogsSync } from "../../state/useLogsSync";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
@@ -59,7 +59,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   maybeShowSingleLog,
   mode = "logs",
 }) => {
-  const { loadLogs } = useLogs();
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
@@ -78,12 +77,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const { syncing } = useFetchEngineStatus();
-  const error = useStore((state) => state.app.status.error);
 
   const watchedLogs = useStore((state) => state.logs.listing.watchedLogs);
   const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
+  // Sync the listing for this panel's scope; the error panel derives from it.
+  const error = useLogsSync(logPath ?? "").error;
 
   const currentDir = join(logPath || "", logDir);
 
@@ -387,10 +387,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       total,
     };
   }, [logItems]);
-
-  useEffect(() => {
-    void loadLogs();
-  }, [loadLogs, logPath]);
 
   useEffect(() => {
     const onlyItem = logItems.length === 1 ? logItems[0] : undefined;

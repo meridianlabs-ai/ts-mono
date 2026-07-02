@@ -609,14 +609,11 @@ export const useSamplePopover = (id: string) => {
 };
 
 export const useLogs = () => {
-  const setLoading = useStore((state) => state.appActions.setLoading);
-
   const loadLogs = useCallback(async () => {
     await syncLogs().catch((e) => {
       log.error("Error loading logs", e);
-      setLoading(false, e as Error);
     });
-  }, [setLoading]);
+  }, []);
 
   // Loading overviews
   const logDir = useLogDir();

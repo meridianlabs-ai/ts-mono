@@ -7,6 +7,7 @@ import {
 import { isVscode } from "@tsmono/util";
 
 import { ActivityBar } from "../../components/ActivityBar";
+import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { ViewerOptionsButton } from "../log-list/ViewerOptionsButton";
@@ -35,7 +36,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   const themePreference = useUserSettings((s) => s.themePreference);
   const setThemePreference = useUserSettings((s) => s.setThemePreference);
   const isDark = useResolvedIsDark(themePreference);
-  const loading = useStore((state) => state.app.status.loading);
+  const loading = useSelectedLogLoading();
   const sampleStatus = useStore((state) => state.sample.sampleStatus);
 
   const isShowing = useStore((state) => state.app.dialogs.options);
@@ -45,9 +46,9 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
 
   const hasActivity = useMemo(() => {
     if (showActivity === "all") {
-      return !!loading || sampleStatus === "loading";
+      return loading || sampleStatus === "loading";
     } else if (showActivity === "log") {
-      return !!loading;
+      return loading;
     } else if (showActivity === "sample") {
       return sampleStatus === "loading";
     } else {

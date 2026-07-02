@@ -8,14 +8,11 @@ import { ProgressBar } from "@tsmono/react/components";
 
 import { ActivityBar } from "../../components/ActivityBar";
 import { useClientEvents } from "../../state/clientEvents";
-import {
-  LogHandleWithretried,
-  useLogs,
-  useLogsWithretried,
-} from "../../state/hooks";
+import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
 import { useLogDetails, useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
+import { useLogsSync } from "../../state/useLogsSync";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
@@ -69,10 +66,10 @@ const completedAtTime = (row: SampleRow): number => {
 
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
-  const { loadLogs } = useLogs();
   const logDir = useLogDir();
 
-  const loading = useStore((state) => state.app.status.loading);
+  // Sync the listing for this panel's scope; loading derives from the query.
+  const logsSync = useLogsSync(samplesPath ?? "");
   const { syncing } = useFetchEngineStatus();
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
@@ -163,10 +160,6 @@ export const SamplesPanel: FC = () => {
     }
     return count;
   }, [logPreviews, currentDirLogFiles]);
-
-  useEffect(() => {
-    void loadLogs();
-  }, [loadLogs, samplesPath]);
 
   // Filter logDetails based on samplesPath.
   const logDetailsInPath = useMemo(() => {
@@ -369,7 +362,8 @@ export const SamplesPanel: FC = () => {
         )
       : undefined;
 
-  const isEmptyAndLoading = sampleRows.length === 0 && (loading > 0 || syncing);
+  const isEmptyAndLoading =
+    sampleRows.length === 0 && (logsSync.loading || syncing);
 
   return (
     <div className={clsx(styles.panel)}>
@@ -417,7 +411,7 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={!!loading} />
+      <ActivityBar animating={logsSync.loading} />
       <div className={clsx(styles.list, "text-size-smaller")}>
         <SamplesGrid
           rowData={sampleRows}

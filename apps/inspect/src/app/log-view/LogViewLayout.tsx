@@ -10,6 +10,10 @@ import {
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
 import { useLogHandles } from "../../state/logsContent";
+import {
+  useSelectedLogLoading,
+  useSelectedLogQuery,
+} from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
@@ -22,8 +26,9 @@ import { LogView } from "./LogView";
  * AppContent component with the main UI layout
  */
 export const LogViewLayout: FC = () => {
-  // App layout and state
-  const appStatus = useStore((state) => state.app.status);
+  // Loading/error for the open log derive from the details query.
+  const logLoading = useSelectedLogLoading();
+  const logError = useSelectedLogQuery().error;
 
   // Find
   const showFind = useStore((state) => state.app.showFind);
@@ -97,12 +102,12 @@ export const LogViewLayout: FC = () => {
               showActivity="log"
             />
           ) : (
-            <ActivityBar animating={!!appStatus.loading} />
+            <ActivityBar animating={logLoading} />
           )}
-          {appStatus.error ? (
+          {logError ? (
             <ErrorPanel
               title="An error occurred while loading this task."
-              error={appStatus.error}
+              error={logError}
             />
           ) : (
             <LogView />

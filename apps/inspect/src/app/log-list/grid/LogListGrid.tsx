@@ -189,7 +189,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
 }) => {
   const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
 
-  const loading = useStore((state) => state.app.status.loading);
   const { syncing } = useFetchEngineStatus();
   const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
 
@@ -340,7 +339,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onColumnFilterChange={handleColumnFilterChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
-          loading={data.length === 0 && (loading > 0 || syncing)}
+          loading={data.length === 0 && syncing}
         />
       </div>
     </div>

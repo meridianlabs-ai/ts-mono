@@ -16,9 +16,7 @@ import { useStore } from "../../../state/store";
  */
 export const LogLoadController: FC = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectedLog = useSelectedLogQuery();
-  const details = selectedLog.data;
-  const error = selectedLog.error;
+  const details = useSelectedLogQuery().data;
 
   const setLoadedLog = useStore((state) => state.logActions.setLoadedLog);
   const clearSelectedScores = useStore(
@@ -28,7 +26,6 @@ export const LogLoadController: FC = () => {
     (state) => state.logActions.clearPendingSampleSummaries
   );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
-  const setLoading = useStore((state) => state.appActions.setLoading);
   const loadedLog = useStore((state) => state.log.loadedLog);
 
   // React to (re)loaded details: the effect re-runs when the query settles
@@ -53,15 +50,6 @@ export const LogLoadController: FC = () => {
     setLoadedLog,
     clearPendingSampleSummaries,
   ]);
-
-  // Surface load failures through the app status (the pre-AsyncData error
-  // channel the panels read).
-  useEffect(() => {
-    if (error) {
-      console.log(error);
-      setLoading(false, error);
-    }
-  }, [error, setLoading]);
 
   // Poll a running log (its status can flip via background updates, not just
   // via this query — read the live collection).

@@ -40,7 +40,6 @@ import {
 import type { SamplesViewState } from "./samples/list/samplesView";
 
 export interface AppState {
-  status: AppStatus;
   nativeFind?: boolean;
   showFind: boolean;
   tabs: {
@@ -197,12 +196,6 @@ export type Event =
   | InfoEvent
   | StepEvent
   | SubtaskEvent;
-
-export interface AppStatus {
-  // Waiting while loading data, show large form of progress
-  loading: number;
-  error?: Error;
-}
 
 export interface CurrentLog {
   name: string;

@@ -45,6 +45,13 @@ export const useSelectedLogQuery = (): AsyncData<LogDetails> => {
   });
 };
 
+/** Whether the selected log's details are loading (false when nothing is
+ *  selected — the query idles on `skipToken` then, which reads as pending). */
+export const useSelectedLogLoading = (): boolean => {
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useSelectedLogQuery().loading && selectedLogFile !== undefined;
+};
+
 /** Re-fetch the selected log's details (toolbar refresh / edit-save). */
 export const invalidateSelectedLog = (
   logDir: string,

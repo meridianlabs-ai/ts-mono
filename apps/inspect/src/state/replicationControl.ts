@@ -8,7 +8,6 @@ import { DatabaseService } from "../client/database";
 import { getDatabaseService } from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
 import { createLogsContentSink } from "./logsContent";
-import { storeImplementation } from "./store";
 import { replicationService } from "./sync/replicationService";
 
 let injectedApi: ClientAPI | null = null;
@@ -31,13 +30,6 @@ const requireApi = (): ClientAPI => {
   return injectedApi;
 };
 
-const requireStore = () => {
-  if (!storeImplementation) {
-    throw new Error("Store must be initialized before activating replication");
-  }
-  return storeImplementation;
-};
-
 // Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
 // DatabaseService once its database is open, or undefined if unavailable.
 export const openLogDirDatabase = async (
@@ -52,9 +44,6 @@ export const openLogDirDatabase = async (
     return databaseService;
   } catch (e) {
     console.log(e);
-    requireStore()
-      .getState()
-      .appActions.setLoading(false, e as Error);
     return undefined;
   }
 };
