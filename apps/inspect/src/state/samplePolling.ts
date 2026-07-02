@@ -23,6 +23,7 @@ import { resolveAttachments } from "../utils/attachments";
 import { createPolling, PollingCallbackResult } from "../utils/polling";
 
 import * as logsContent from "./logsContent";
+import { getPendingSamples } from "./pendingSamples";
 import {
   resolveSample,
   synthesizeErroredSampleFromSummary,
@@ -375,7 +376,8 @@ const findLiveSummary = (
 ): SampleSummary | undefined => {
   const merged = mergeSampleSummaries(
     selectedLogDetails(state)?.sampleSummaries ?? [],
-    state.log.pendingSampleSummaries?.samples ?? []
+    getPendingSamples(getLogDir(), state.logs.selectedLogFile ?? "")?.samples ??
+      []
   );
   return merged.find(
     (s) => sampleIdsEqual(s.id, sampleId) && s.epoch === sampleEpoch

@@ -86,20 +86,24 @@ Everything that follows from "the user is viewing this log".
   invalidating this query — there is no imperative refresh path.
   (`state/selectedLogDetails.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
-  query settling: recording `loadedLog`, per-log score/pending resets,
-  workspace-tab default for empty logs, polling start. No fetching.
-  (`LogLoadController`)
-- **Polling** — freshness scheduling for a running log: each tick enqueues the
-  watched log into the acquisition surface at elevated priority. Polling is
-  only the policy of when to ask; acquisition is the fetching.
-  (`state/logPolling.ts` via `state/logPollingInstance.ts`)
+  query settling: recording `loadedLog`, per-log score resets, workspace-tab
+  default for empty logs. No fetching. Also keeps the pending-samples poll
+  mounted for the whole time a log is open. (`LogLoadController`)
+- **Pending-samples poll** — the running log's sample buffer (pending
+  summaries + running metrics) as a poll-driven react-query query keyed on
+  `(logDir, logFile)`. Nothing imperative: enablement derives from the
+  selection and the log's live status, cadence from the server's refresh
+  hint, teardown from the key changing. Each tick threads the previous etag
+  and also produces the watched log into the acquisition surface at elevated
+  priority — polling is only the policy of when to ask; acquisition is the
+  details fetching. (`state/pendingSamples.ts`)
 
 Polling lives here, not inside acquisition, deliberately: it is driven by UI
-lifecycle (which log is loaded), and acquisition's interior stays UI-ignorant.
-The sorting rule: *what* to acquire (discovery) is acquisition interior; *when
-the UI wants it fresher* (polling, refresh-invalidation, user-priority fetch)
-plugs into the surface from outside. "Producer" is not a category that implies
-containment — UI-ignorant acquisition mechanism is.
+lifecycle (which log is open and running), and acquisition's interior stays
+UI-ignorant. The sorting rule: *what* to acquire (discovery) is acquisition
+interior; *when the UI wants it fresher* (polling, refresh-invalidation,
+user-priority fetch) plugs into the surface from outside. "Producer" is not a
+category that implies containment — UI-ignorant acquisition mechanism is.
 
 ### UI state (leaf)
 
@@ -114,9 +118,9 @@ in `state/hooks.ts`), not in the slice.
 ## Media & derivations
 
 - **React-query cache** — the server-data medium: handles, previews, details,
-  eval-set, versions; never in zustand. The log-list collections
-  (`state/logsContent.ts`) are fed by acquisition through its sink and read by
-  the UI — two-sided, so it belongs to neither.
+  pending samples, eval-set, versions; never in zustand. The log-list
+  collections (`state/logsContent.ts`) are fed by acquisition through its sink
+  and read by the UI — two-sided, so it belongs to neither.
 - **Loading / error status** — derivations of `AsyncData`, never imperatively
   set. Log-open path: the selected-log query (`LogViewLayout` error panel +
   activity, `ApplicationNavbar` via `useSelectedLogLoading`). Listing path: the
@@ -144,7 +148,8 @@ Lifecycle controllers     AppConfigGate, ReplicationController, LogLoadControlle
        │                  (reactions to queries; no fetching)
        ▼
 Server-data medium        react-query cache ←─ acquisition sink; queries:
-       │                  selected-log details, logs-sync, eval-set
+       │                  selected-log details, pending samples, logs-sync,
+       │                  eval-set
        ▼
 Log-data acquisition      surface: ensureFetchEngine / syncLogs / deactivate /
        │                  fetch(logFile, priority) / status
@@ -183,12 +188,14 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
 
 ## Boundaries (outside acquisition, by design)
 
-- **Sample-level data** — sample loading and sample-buffer polling
-  (`get_log_pending_samples`) call the api directly via their own singletons
-  (`state/samplePollingInstance.ts`). This is the one standing exception to the
-  headline rule. Acquisition's contract doesn't preclude a later sample-level
-  engine as a sibling of the fetch engine in its interior; it just doesn't own
-  one today.
+- **Sample-level data** — sample loading and sample-event polling
+  (`get_log_sample`, `get_log_sample_data`) call the api directly via their own
+  singleton (`state/samplePollingInstance.ts`), and the pending-samples query
+  calls `get_log_pending_samples` directly from its queryFn. These are the
+  standing exceptions to the headline rule (which covers log listing/previews/
+  details). Acquisition's contract doesn't preclude a later sample-level engine
+  as a sibling of the fetch engine in its interior; it just doesn't own one
+  today.
 - **Listing reads** — the log-list UI reads the passive `logsContent`
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a

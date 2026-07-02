@@ -14,6 +14,7 @@ import {
 } from "../client/api/types";
 
 import * as logsContent from "./logsContent";
+import { pendingSamplesKey } from "./pendingSamples";
 import { queryClient } from "./queryClient";
 import {
   createSamplePolling,
@@ -38,6 +39,15 @@ const seedSelectedLog = () => {
   });
   logsContent.mergeDetails(SELECTED_DIR, {
     [SELECTED_LOG]: { sampleSummaries: [] } as unknown as never,
+  });
+};
+
+// Pending summaries live in the pending-samples query cache (fed by the
+// usePendingSamples poll in the app); tests seed the entry directly.
+const seedPendingSamples = (samples: unknown[]) => {
+  queryClient.setQueryData(pendingSamplesKey(SELECTED_DIR, SELECTED_LOG), {
+    samples,
+    refresh: 2,
   });
 };
 
@@ -506,23 +516,20 @@ describe("createSamplePolling", () => {
       setRunningEvents: vi.fn(),
     };
 
-    // Live store state: pending samples include the same sample with `error`.
+    // Live pending samples (query cache) include the same sample with `error`.
+    seedPendingSamples([
+      {
+        id: "rocket-medium-vision",
+        epoch: 1,
+        error: "RuntimeError: server.py exited before becoming ready",
+        completed: true,
+      },
+    ]);
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
       logs: { selectedLogFile: SELECTED_LOG },
-      log: {
-        pendingSampleSummaries: {
-          samples: [
-            {
-              id: "rocket-medium-vision",
-              epoch: 1,
-              error: "RuntimeError: server.py exited before becoming ready",
-              completed: true,
-            },
-          ],
-        },
-      },
+      log: {},
     } as unknown as StoreState;
     const store = {
       getState: () => state,
@@ -573,22 +580,19 @@ describe("createSamplePolling", () => {
       setRunningEvents: vi.fn(),
     };
 
+    seedPendingSamples([
+      {
+        id: "dig-medium-vision",
+        epoch: 1,
+        error: "summary error string (would be used by synthesizer)",
+        completed: true,
+      },
+    ]);
     const state = {
       sample: { runningEvents: [] },
       sampleActions,
       logs: { selectedLogFile: SELECTED_LOG },
-      log: {
-        pendingSampleSummaries: {
-          samples: [
-            {
-              id: "dig-medium-vision",
-              epoch: 1,
-              error: "summary error string (would be used by synthesizer)",
-              completed: true,
-            },
-          ],
-        },
-      },
+      log: {},
     } as unknown as StoreState;
     const store = {
       getState: () => state,

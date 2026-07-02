@@ -30,12 +30,7 @@ import {
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
-import {
-  EvalHeader,
-  LogDetails,
-  PendingSamples,
-  SampleSummary,
-} from "../client/api/types";
+import { EvalHeader, LogDetails, SampleSummary } from "../client/api/types";
 
 import type { SamplesViewState } from "./samples/list/samplesView";
 
@@ -130,7 +125,6 @@ export interface LogState {
   loadedLog?: string;
 
   selectedSampleHandle?: SampleHandle;
-  pendingSampleSummaries?: PendingSamples;
 
   filter: string;
   filterError?: FilterError;

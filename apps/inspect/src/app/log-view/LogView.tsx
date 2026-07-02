@@ -18,6 +18,7 @@ import {
   useRefreshLog,
   useSelectedLogDetails,
 } from "../../state/hooks";
+import { usePendingSamples } from "../../state/pendingSamples";
 import { useStore } from "../../state/store";
 import { useLogNavigation } from "../routing/logNavigation";
 
@@ -39,9 +40,7 @@ export const LogView: FC = () => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = useEvalSpec();
-  const runningMetrics = useStore(
-    (state) => state.log.pendingSampleSummaries?.metrics
-  );
+  const runningMetrics = usePendingSamples()?.metrics;
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(

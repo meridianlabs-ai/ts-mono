@@ -17,6 +17,7 @@ import { LogDetails, SampleSummary } from "../client/api/types";
 import { isUri, join, prettyDirUri } from "../utils/uri";
 
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
+import { usePendingSamples } from "./pendingSamples";
 import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
 import { invalidateSelectedLog } from "./selectedLogDetails";
@@ -219,16 +220,14 @@ export const useLogEditAffordance = (): LogEditAffordance => {
 // without applying any filtering
 export const useSampleSummaries = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const pendingSampleSummaries = useStore(
-    (state) => state.log.pendingSampleSummaries
-  );
+  const pendingSamples = usePendingSamples();
 
   return useMemo(() => {
     return mergeSampleSummaries(
       selectedLogDetails?.sampleSummaries || [],
-      pendingSampleSummaries?.samples || []
+      pendingSamples?.samples || []
     );
-  }, [selectedLogDetails, pendingSampleSummaries]);
+  }, [selectedLogDetails, pendingSamples]);
 };
 
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)

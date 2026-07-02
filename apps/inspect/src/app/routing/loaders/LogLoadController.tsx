@@ -1,18 +1,17 @@
 import { FC, useEffect } from "react";
 
 import { kLogViewInfoTabId } from "../../../constants";
-import { useSelectedLogDetails } from "../../../state/hooks";
-import { getLogPolling } from "../../../state/logPollingInstance";
+import { usePendingSamples } from "../../../state/pendingSamples";
 import { useSelectedLogQuery } from "../../../state/selectedLogDetails";
 import { useStore } from "../../../state/store";
 
 /**
  * Reacts to the selected log's details query — only the side effects that
  * can't be derived: recording the loaded log, resetting per-log derived
- * selection state, defaulting the workspace tab for empty logs, and starting
- * polling. All fetching lives in the query/engine. Rendered below the loader
- * gate (by both loader hosts) so the log dir the query is keyed on is
- * resolved before it runs.
+ * selection state, and defaulting the workspace tab for empty logs. All
+ * fetching lives in the query/engine. Rendered below the loader gate (by both
+ * loader hosts) so the log dir the query is keyed on is resolved before it
+ * runs.
  */
 export const LogLoadController: FC = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -22,11 +21,11 @@ export const LogLoadController: FC = () => {
   const clearSelectedScores = useStore(
     (state) => state.logActions.clearSelectedScores
   );
-  const clearPendingSampleSummaries = useStore(
-    (state) => state.logActions.clearPendingSampleSummaries
-  );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
-  const loadedLog = useStore((state) => state.log.loadedLog);
+
+  // Keep the running log's sample-buffer poll mounted for the whole time a
+  // log is open, so polling never depends on which consumer tab is visible.
+  usePendingSamples();
 
   // React to (re)loaded details: the effect re-runs when the query settles
   // with a fresh object — initial load and refresh-by-invalidation alike.
@@ -40,25 +39,13 @@ export const LogLoadController: FC = () => {
       setWorkspaceTab(kLogViewInfoTabId);
     }
     setLoadedLog(selectedLogFile);
-    clearPendingSampleSummaries();
-    getLogPolling().startPolling(selectedLogFile);
   }, [
     details,
     selectedLogFile,
     clearSelectedScores,
     setWorkspaceTab,
     setLoadedLog,
-    clearPendingSampleSummaries,
   ]);
-
-  // Poll a running log (its status can flip via background updates, not just
-  // via this query — read the live collection).
-  const liveStatus = useSelectedLogDetails()?.status;
-  useEffect(() => {
-    if (liveStatus === "started" && loadedLog) {
-      getLogPolling().startPolling(loadedLog);
-    }
-  }, [liveStatus, loadedLog]);
 
   return null;
 };

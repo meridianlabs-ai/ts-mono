@@ -1,8 +1,6 @@
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
-import { PendingSamples } from "../client/api/types";
 
-import { cleanupLogPolling } from "./logPollingInstance";
 import { StoreState } from "./store";
 
 export interface LogSlice {
@@ -17,10 +15,6 @@ export interface LogSlice {
 
     // Reset the per-log score selection (on log load/refresh).
     clearSelectedScores: () => void;
-
-    // Update pending sample information
-    setPendingSampleSummaries: (samples: PendingSamples) => void;
-    clearPendingSampleSummaries: () => void;
 
     // Set filter criteria
     setFilter: (filter: string) => void;
@@ -57,7 +51,6 @@ const initialState = {
   // Log state
   selectedSampleId: undefined,
   selectedSampleEpoch: undefined,
-  pendingSampleSummaries: undefined,
   loadedLog: undefined,
 
   // Filter state
@@ -109,16 +102,6 @@ export const createLogSlice = (
       clearSelectedScores: () => {
         set((state) => {
           state.log.selectedScores = undefined;
-        });
-      },
-      setPendingSampleSummaries: (pendingSampleSummaries: PendingSamples) => {
-        set((state) => {
-          state.log.pendingSampleSummaries = pendingSampleSummaries;
-        });
-      },
-      clearPendingSampleSummaries: () => {
-        set((state) => {
-          state.log.pendingSampleSummaries = undefined;
         });
       },
       setFilter: (filter: string) =>
@@ -174,9 +157,7 @@ export const createLogSlice = (
     },
   } as const;
 
-  const cleanup = () => {
-    cleanupLogPolling();
-  };
+  const cleanup = () => {};
 
   return [slice, cleanup];
 };

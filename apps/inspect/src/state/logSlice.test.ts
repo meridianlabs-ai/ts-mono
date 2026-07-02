@@ -3,11 +3,6 @@ import { describe, expect, test, vi } from "vitest";
 import { createLogSlice } from "./logSlice";
 import { StoreState } from "./store";
 
-vi.mock("./logPollingInstance", () => ({
-  getLogPolling: () => ({ startPolling: vi.fn() }),
-  cleanupLogPolling: vi.fn(),
-}));
-
 const createHarness = () => {
   const state = {} as StoreState;
   const set = vi.fn((fn: (state: StoreState) => void) => {

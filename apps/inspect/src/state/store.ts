@@ -13,7 +13,6 @@ import {
   initDatabaseService,
 } from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
-import { setLogPollingApi } from "./logPollingInstance";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
 import { setReplicationApi } from "./replicationControl";
@@ -163,7 +162,6 @@ export const initializeStore = (
   storeImplementation = store;
   initDatabaseService();
   setSamplePollingApi(api);
-  setLogPollingApi(api);
   setReplicationApi(api);
   store.getState().initialize(capabilities);
 };
