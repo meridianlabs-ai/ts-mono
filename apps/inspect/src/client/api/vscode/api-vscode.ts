@@ -12,13 +12,13 @@ import {
   SearchResponse,
 } from "@tsmono/inspect-common/types";
 import {
+  asyncJsonParse,
   getVscodeApi,
   JsonRpcClient,
   kJsonRpcMethodNotFound,
   webViewJsonRpcClient,
 } from "@tsmono/util";
 
-import { asyncJsonParse } from "../../../utils/json-worker";
 import {
   Capabilities,
   EditLogResult,

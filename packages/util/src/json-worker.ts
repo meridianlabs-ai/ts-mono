@@ -1,16 +1,36 @@
 import JSON5 from "json5";
 
+// Shape posted back by the worker for a parse request.
+interface WorkerParseResponse {
+  requestId: number;
+  success: boolean;
+  result?: unknown;
+  // Payload is (possibly repaired) strict JSON too large to clone
+  // efficiently — re-parse it on the main thread from sourceText (or the
+  // retained request text for string inputs).
+  reparse?: boolean;
+  sourceText?: string;
+  // Set when sourceText is repaired JSON: paths whose values are sentinel
+  // strings to restore to NaN/Infinity/-Infinity after the plain parse.
+  nonFinitePaths?: (string | number)[][];
+  sentinels?: { nan: string; inf: string; ninf: string };
+  error?: string;
+  stack?: string;
+}
+
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  worker: Worker;
+  sourceText?: string;
+}
+
 // Pool of workers to parse JSON/JSON5 off the main thread
 class JsonWorkerPool {
-  private readonly encoder = new TextEncoder();
-  private readonly decoder = new TextDecoder();
   private workers: Worker[] = [];
   private blobURL: string | null = null;
   private nextRequestId = 0;
-  private pendingRequests = new Map<
-    number,
-    { resolve: (value: any) => void; reject: (error: Error) => void }
-  >();
+  private pendingRequests = new Map<number, PendingRequest>();
   private readonly poolSize = 4;
 
   private ensureWorkers() {
@@ -21,7 +41,7 @@ class JsonWorkerPool {
       for (let i = 0; i < this.poolSize; i++) {
         const worker = new Worker(this.blobURL);
         worker.onmessage = (e) => this.handleMessage(e);
-        worker.onerror = (error) => this.handleError(error);
+        worker.onerror = (error) => this.handleError(worker, error);
         this.workers.push(worker);
 
         // one-time JSON5 init message
@@ -34,16 +54,41 @@ class JsonWorkerPool {
   }
 
   private handleMessage(e: MessageEvent) {
-    const { requestId, success, serialized, result, error, stack } = e.data;
+    const {
+      requestId,
+      success,
+      result,
+      reparse,
+      sourceText,
+      nonFinitePaths,
+      sentinels,
+      error,
+      stack,
+    } = e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
 
     this.pendingRequests.delete(requestId);
 
     if (success) {
-      if (serialized) {
-        const resultString = this.decoder.decode(result);
-        pending.resolve(JSON.parse(resultString));
+      if (reparse) {
+        // The worker validated this as strict JSON; one plain JSON.parse
+        // here is the cheapest way to materialize a large result on this
+        // thread (structured clone of a big graph costs more, and a reviver
+        // is ~8x slower than plain parse — see kWorkerCode). For repaired
+        // payloads the worker pre-located the sentinel values, so restoring
+        // NaN/Infinity is a targeted walk of just those paths (~µs).
+        try {
+          const parsed: unknown = JSON.parse(
+            sourceText ?? pending.sourceText ?? ""
+          );
+          if (nonFinitePaths && sentinels) {
+            applyNonFinitePaths(parsed, nonFinitePaths, sentinels);
+          }
+          pending.resolve(parsed);
+        } catch (parseError) {
+          pending.reject(parseError as Error);
+        }
       } else {
         pending.resolve(result);
       }
@@ -54,32 +99,51 @@ class JsonWorkerPool {
     }
   }
 
-  private handleError(error: ErrorEvent) {
+  private handleError(worker: Worker, error: ErrorEvent) {
     const err = new Error(`Worker error: ${error.message}`);
-    for (const pending of this.pendingRequests.values()) {
-      pending.reject(err);
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.worker === worker) {
+        this.pendingRequests.delete(requestId);
+        pending.reject(err);
+      }
     }
-    this.pendingRequests.clear();
   }
 
-  async parse(text: string): Promise<any> {
+  // Strings cross postMessage as a flat memcpy-style clone, which is much
+  // cheaper than the TextEncoder.encode pass this used to do on the main
+  // thread before transferring. The text is retained so a reparse response
+  // doesn't need to ship it back.
+  async parse(text: string): Promise<unknown> {
+    return this.submit({ text }, [], text);
+  }
+
+  async parseBytes(data: Uint8Array): Promise<unknown> {
+    // Ensure we own the full buffer before transferring
+    const owned =
+      data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+        ? data
+        : data.slice();
+    return this.submit({ bytes: owned }, [owned.buffer as ArrayBuffer]);
+  }
+
+  private submit(
+    payload: { text?: string; bytes?: Uint8Array },
+    transfer: Transferable[] = [],
+    sourceText?: string
+  ): Promise<unknown> {
     this.ensureWorkers();
 
-    const encodedText = this.encoder.encode(text);
     const requestId = this.nextRequestId++;
+    const worker = this.workers[requestId % this.workers.length]!;
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-
-      const worker = this.workers[requestId % this.workers.length];
-      worker?.postMessage(
-        {
-          type: "parse",
-          requestId,
-          encodedText,
-        },
-        [encodedText.buffer]
-      );
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        worker,
+        sourceText,
+      });
+      worker.postMessage({ type: "parse", requestId, ...payload }, transfer);
     });
   }
 
@@ -94,6 +158,212 @@ class JsonWorkerPool {
   }
 }
 
+// Above this size, node-dense strict-JSON results skip the structured clone
+// and are re-parsed on the main thread instead (see kWorkerCode). Below it,
+// clone stalls are ~20ms or less and cloning avoids the second parse.
+const kReparseThresholdChars = 10_000_000;
+
+// Repairs "almost strict" JSON — strict JSON except bare NaN/Infinity/
+// -Infinity tokens, which is what Python's json.dumps emits for non-finite
+// floats and the dominant real reason the JSON5 fallback exists — by
+// swapping those tokens for the given sentinel strings so native JSON.parse
+// (~100x faster than JSON5.parse) can take it from there. Tracks in-string
+// state, so tokens inside string values are never touched. Returns null if
+// the text needs real JSON5 (comments, unquoted keys, quotes, ...) or
+// contains no bare tokens; JSON.parse of the output remains the final
+// validator for anything this scan waves through (digits, exponents, ...).
+// Self-contained by design: its compiled source is injected into the worker
+// blob via toString(), so it must not reference module scope.
+const repairNonFiniteJson = (
+  source: string,
+  nanToken: string,
+  infToken: string,
+  negInfToken: string
+): string | null => {
+  const n = source.length;
+  const parts: string[] = [];
+  let copied = 0;
+  let i = 0;
+  while (i < n) {
+    const c = source.charCodeAt(i);
+    if (c === 34 /* " */) {
+      i++;
+      while (i < n) {
+        const s = source.charCodeAt(i);
+        if (s === 92 /* \ */) i += 2;
+        else if (s === 34) break;
+        else i++;
+      }
+      i++;
+      continue;
+    }
+    if (c === 78 /* N */) {
+      if (!source.startsWith("NaN", i)) return null;
+      parts.push(source.slice(copied, i), nanToken);
+      i += 3;
+      copied = i;
+      continue;
+    }
+    if (c === 73 /* I */) {
+      if (!source.startsWith("Infinity", i)) return null;
+      parts.push(source.slice(copied, i), infToken);
+      i += 8;
+      copied = i;
+      continue;
+    }
+    if (c === 45 /* - */) {
+      if (source.startsWith("-Infinity", i)) {
+        parts.push(source.slice(copied, i), negInfToken);
+        i += 9;
+        copied = i;
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (c === 116 /* t */) {
+      if (!source.startsWith("true", i)) return null;
+      i += 4;
+      continue;
+    }
+    if (c === 102 /* f */) {
+      if (!source.startsWith("false", i)) return null;
+      i += 5;
+      continue;
+    }
+    if (c === 110 /* n */) {
+      if (!source.startsWith("null", i)) return null;
+      i += 4;
+      continue;
+    }
+    if (
+      c === 32 ||
+      c === 9 ||
+      c === 10 ||
+      c === 13 || // whitespace
+      c === 44 ||
+      c === 58 ||
+      c === 123 ||
+      c === 125 ||
+      c === 91 ||
+      c === 93 || // , : { } [ ]
+      (c >= 48 && c <= 57) ||
+      c === 46 ||
+      c === 101 ||
+      c === 69 ||
+      c === 43 // number chars . e E +
+    ) {
+      i++;
+      continue;
+    }
+    return null;
+  }
+  if (parts.length === 0) return null;
+  parts.push(source.slice(copied));
+  return parts.join("");
+};
+
+// Restores non-finite values at pre-located paths after a plain JSON.parse
+// of repaired text. Self-contained: injected into the worker via toString().
+const applyNonFinitePaths = (
+  root: unknown,
+  paths: (string | number)[][],
+  sentinels: { nan: string; inf: string; ninf: string }
+): void => {
+  for (const path of paths) {
+    let target = root as Record<string | number, unknown>;
+    for (let i = 0; i < path.length - 1; i++) {
+      target = target[path[i]!] as Record<string | number, unknown>;
+    }
+    const leaf = path[path.length - 1]!;
+    const value = target[leaf];
+    target[leaf] =
+      value === sentinels.nan
+        ? NaN
+        : value === sentinels.inf
+          ? Infinity
+          : value === sentinels.ninf
+            ? -Infinity
+            : value;
+  }
+};
+
+// Collects paths of sentinel-string values in a plain-parsed repaired
+// document. Bails (returns null) past maxPaths so a pathological all-NaN
+// document falls back to fixup-in-place + clone rather than shipping a huge
+// path list. Self-contained: injected into the worker via toString().
+const findSentinelPaths = (
+  root: unknown,
+  sentinels: { nan: string; inf: string; ninf: string },
+  maxPaths: number
+): (string | number)[][] | null => {
+  const paths: (string | number)[][] = [];
+  const walk = (node: unknown, path: (string | number)[]): boolean => {
+    if (typeof node === "string") {
+      if (
+        node === sentinels.nan ||
+        node === sentinels.inf ||
+        node === sentinels.ninf
+      ) {
+        if (paths.length >= maxPaths) return false;
+        paths.push(path.slice());
+      }
+      return true;
+    }
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        path.push(i);
+        const ok = walk(node[i], path);
+        path.pop();
+        if (!ok) return false;
+      }
+      return true;
+    }
+    if (node && typeof node === "object") {
+      for (const key of Object.keys(node)) {
+        path.push(key);
+        const ok = walk((node as Record<string, unknown>)[key], path);
+        path.pop();
+        if (!ok) return false;
+      }
+      return true;
+    }
+    return true;
+  };
+  return walk(root, []) ? paths : null;
+};
+
+// Fallback for text JSON.parse rejected: try the cheap non-finite repair +
+// native parse first, full JSON5 only for real JSON5 syntax.
+const parseFallback = <T>(text: string): T => {
+  const nonce = Math.random().toString(36).slice(2);
+  const nan = `__json5_nan_${nonce}__`;
+  const inf = `__json5_inf_${nonce}__`;
+  const ninf = `__json5_ninf_${nonce}__`;
+  const repaired = repairNonFiniteJson(
+    text,
+    `"${nan}"`,
+    `"${inf}"`,
+    `"${ninf}"`
+  );
+  if (repaired !== null) {
+    try {
+      return JSON.parse(repaired, (_key, value: unknown) =>
+        value === nan
+          ? NaN
+          : value === inf
+            ? Infinity
+            : value === ninf
+              ? -Infinity
+              : value
+      ) as T;
+    } catch {
+      // repaired text still invalid — let JSON5 produce the real error
+    }
+  }
+  return JSON5.parse<T>(text);
+};
+
 const workerPool = new JsonWorkerPool();
 
 export const asyncJsonParse = async <T>(text: string): Promise<T> => {
@@ -101,28 +371,143 @@ export const asyncJsonParse = async <T>(text: string): Promise<T> => {
   // diminishing returns, so for small JSON that will serialize
   // very quickly, just do it immediately on the main thread.
   if (text.length < 50000) {
-    let result = undefined;
-    try {
-      // Optimistically, try a regular JSON parse first (this is much faster)
-      result = JSON.parse(text);
-    } catch {
-      result = JSON5.parse(text);
-    }
-    return Promise.resolve(result) as T;
+    return jsonParse<T>(text);
   } else {
-    return workerPool.parse(text);
+    return workerPool.parse(text) as Promise<T>;
   }
 };
 
-export const jsonParse = <T>(text: string): Promise<T> => {
-  return Promise.resolve(JSON.parse(text));
+/**
+ * Parse JSON from raw UTF-8 bytes, avoiding redundant main-thread
+ * string allocation for large payloads.
+ *
+ * For small data (<50KB) decodes and parses on the main thread.
+ * For large data, transfers the bytes directly to a Web Worker,
+ * skipping the main-thread TextDecoder.decode + TextEncoder.encode
+ * round-trip that asyncJsonParse(string) would require.
+ */
+export const asyncJsonParseBytes = async <T>(data: Uint8Array): Promise<T> => {
+  if (data.length < 50000) {
+    const text = new TextDecoder("utf-8").decode(data);
+    return jsonParse<T>(text);
+  } else {
+    return workerPool.parseBytes(data) as Promise<T>;
+  }
+};
+
+export const jsonParse = <T>(text: string): T => {
+  try {
+    // Optimistically, try a regular JSON parse first (this is much faster)
+    return JSON.parse(text) as T;
+  } catch {
+    return parseFallback<T>(text);
+  }
 };
 
 const kWorkerCode = `
 // Store the JSON5 parser once loaded
 let JSON5 = null;
 const decoder = new TextDecoder();
-const encoder = new TextEncoder();
+
+// Injected from the module-scope implementations (kept self-contained there)
+const repairNonFiniteJson = ${repairNonFiniteJson.toString()};
+const applyNonFinitePaths = ${applyNonFinitePaths.toString()};
+const findSentinelPaths = ${findSentinelPaths.toString()};
+
+// Fallback when the path cap is exceeded: restore every sentinel in place
+function replaceSentinelsInPlace(node, sentinels) {
+  const restore = (v) =>
+    v === sentinels.nan ? NaN
+    : v === sentinels.inf ? Infinity
+    : v === sentinels.ninf ? -Infinity
+    : v;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const v = node[i];
+      if (typeof v === 'string') node[i] = restore(v);
+      else replaceSentinelsInPlace(v, sentinels);
+    }
+  } else if (node && typeof node === 'object') {
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (typeof v === 'string') node[k] = restore(v);
+      else replaceSentinelsInPlace(v, sentinels);
+    }
+  }
+}
+
+// Non-strict JSON: repair Python-style bare NaN/Infinity and parse natively;
+// full (slow) JSON5 only for real JSON5 syntax. Returns { result } to clone
+// back, or { reparse, sourceText, nonFinitePaths, sentinels } when the main
+// thread is better off parsing the repaired text itself. A reviver would be
+// ~8x slower than plain parse on either thread, so sentinels are located
+// with an off-thread walk and restored by targeted fixup instead.
+function parseFallback(source, big, jsonError) {
+  const nonce = Math.random().toString(36).slice(2);
+  const sentinels = {
+    nan: '__json5_nan_' + nonce + '__',
+    inf: '__json5_inf_' + nonce + '__',
+    ninf: '__json5_ninf_' + nonce + '__'
+  };
+  const repaired = repairNonFiniteJson(
+    source,
+    '"' + sentinels.nan + '"',
+    '"' + sentinels.inf + '"',
+    '"' + sentinels.ninf + '"');
+  if (repaired !== null) {
+    let plain;
+    let repairedOk = true;
+    try {
+      plain = JSON.parse(repaired);
+    } catch (repairError) {
+      // repaired text still invalid — let JSON5 produce the real error
+      repairedOk = false;
+    }
+    if (repairedOk) {
+      const paths = findSentinelPaths(plain, sentinels, 100000);
+      if (paths !== null) {
+        if (big && isDenseGraph(source)) {
+          return { reparse: true, sourceText: repaired, nonFinitePaths: paths, sentinels };
+        }
+        applyNonFinitePaths(plain, paths, sentinels);
+      } else {
+        replaceSentinelsInPlace(plain, sentinels);
+      }
+      return { result: plain };
+    }
+  }
+  // Surface the original JSON error, not a null-JSON5 one, if init failed
+  if (!JSON5) throw jsonError;
+  return { result: JSON5.parse(source) };
+}
+
+// Structural-density probe: node-dense graphs (millions of small objects)
+// have a high ratio of separators to bytes, string-heavy documents a low one
+// (real data: ~0.2+/byte for dense transcript events vs ~0.03 for eval logs;
+// prose commas inside strings stay well under the threshold). Sampled from
+// up to 3x256KB slices, so it's O(1)-ish and CPU-speed independent.
+function isDenseGraph(source) {
+  const sample = 262144;
+  const mid = (source.length - sample) >> 1;
+  const slices =
+    source.length <= 3 * sample
+      ? [source]
+      : [
+          source.slice(0, sample),
+          source.slice(mid, mid + sample),
+          source.slice(source.length - sample),
+        ];
+  let seps = 0;
+  let chars = 0;
+  for (const s of slices) {
+    chars += s.length;
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c === 44 || c === 58) seps++;
+    }
+  }
+  return seps / chars > 0.08;
+}
 
 self.onmessage = function (e) {
   const { type } = e.data || {};
@@ -146,48 +531,43 @@ self.onmessage = function (e) {
   }
 
   if (type === 'parse') {
-    const { requestId, encodedText, scriptContent } = e.data;
+    const { requestId, text, bytes } = e.data;
 
     try {
-      
-      // Decode the text using TextDecoder
-      const text = decoder.decode(encodedText);
+      const source = text !== undefined ? text : decoder.decode(bytes);
+      const big = source.length > ${kReparseThresholdChars};
 
-      // Parse with JSON/JSON5
-      let result = undefined;
+      // Structured clone hands the object graph straight to the main thread,
+      // but its cost scales with node count: for big node-dense payloads it
+      // blocks the receiving thread longer than a plain JSON.parse of the
+      // source would (measured 4x total / 2x blocking on real 186MB
+      // transcript data — see bench/). For those, skip the clone and tell
+      // the main thread to run one JSON.parse itself — the cheapest possible
+      // materialization. String-heavy payloads keep the clone (cheaper than
+      // re-parsing).
+      let response;
       try {
         // Optimistically, try a regular JSON parse first (this is much faster)
-        result = JSON.parse(text);
-      } catch {
-        result = JSON5.parse(text);
+        const result = JSON.parse(source);
+        if (big && isDenseGraph(source)) {
+          // string requests retain their text on the main thread; byte
+          // requests need the decoded source shipped back (cheap flat clone)
+          response = text !== undefined
+            ? { reparse: true }
+            : { reparse: true, sourceText: source };
+        } else {
+          response = { result };
+        }
+      } catch (jsonError) {
+        response = parseFallback(source, big, jsonError);
       }
-
-      if (result && typeof result === 'object' &&
-          (Array.isArray(result) ? result.length > 10000 : Object.keys(result).length > 10000)) {
-
-        // Large result, use transferrable object
-        const resultString = JSON.stringify(result);
-        const serialized = encoder.encode(resultString);
-
-        postMessage({
-          requestId,
-          success: true,
-          serialized: true,
-          result: serialized
-        }, [serialized.buffer]);
-      } else {
-        // Small results, send directly
-        postMessage({
-          requestId,
-          success: true, 
-          serialized: false, 
-          result: result 
-        });
-      }
+      response.requestId = requestId;
+      response.success = true;
+      postMessage(response);
     } catch (err) {
       postMessage({
         requestId,
-        success: false, 
+        success: false,
         error: err.message,
         stack: err.stack || ''
       });
