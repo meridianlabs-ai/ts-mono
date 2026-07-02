@@ -19,10 +19,10 @@ import {
 } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
-  sampleStatus,
+  deriveSampleStatus,
   SampleStatusIcon,
-  sampleStatusSortValue,
-} from "../../samples/status/sampleStatus";
+  statusSortValue,
+} from "../../samples/status/status";
 import {
   ColumnComparator,
   ExtendedColumnDef,
@@ -93,11 +93,10 @@ export const perScorerFieldKey = (label: ScoreLabel): string =>
 const rawScoreFieldKey = (name: string): string =>
   `${SCORE_FIELD_RAW_PREFIX}${name}`;
 
-const sampleStatusValue = (row: SampleRow): string => {
+const statusValue = (row: SampleRow): string => {
   const completed = row.completed ?? row.data?.completed;
   const error = row.error ?? row.data?.error;
-  const s = sampleStatus(completed, error);
-  return sampleStatusSortValue(s, error);
+  return statusSortValue(deriveSampleStatus(completed, error), error);
 };
 
 const inputText = (row: SampleRow): string => {
@@ -145,24 +144,24 @@ export function buildSampleColumns(
 
   // sample-level status icon (always)
   cols.push({
-    id: "sampleStatus",
+    id: "statusIcon",
     header: isList ? "" : "Sample Status",
     headerTitle: "Sample Status",
     size: isList ? 28 : 100,
     minSize: isList ? 28 : 80,
     enableSorting: false,
     enableResizing: false,
-    accessorFn: (row) => sampleStatusValue(row),
+    accessorFn: (row) => statusValue(row),
     titleValue: (row) => {
       const completed = row.completed ?? row.data?.completed;
       const error = row.error ?? row.data?.error;
-      return error ? error : sampleStatus(completed, error);
+      return error ? error : deriveSampleStatus(completed, error);
     },
     cell: ({ row }) => {
       const item = row.original;
       const completed = item.completed ?? item.data?.completed;
       const error = item.error ?? item.data?.error;
-      return <SampleStatusIcon status={sampleStatus(completed, error)} />;
+      return <SampleStatusIcon status={deriveSampleStatus(completed, error)} />;
     },
   });
 
@@ -437,7 +436,7 @@ export function buildSampleColumns(
   // comparator (mirrors the log list). The status-icon and index columns are
   // presentational, so they're neither sortable nor filterable.
   for (const col of cols) {
-    if (col.id === "sampleStatus" || col.id === "displayIndex") continue;
+    if (col.id === "statusIcon" || col.id === "displayIndex") continue;
     const cmp = col.meta?.sortComparator;
     const filterType: FilterType =
       cmp === numberCompare

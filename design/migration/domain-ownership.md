@@ -205,7 +205,9 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   modules directly). One deep-import exception:
   `state/runningSampleQuery.test.ts` seeds config via `initAppConfig`. (It seeds
   the details collection via the barrel's `mergeDetails`, exported for that
-  seeding; product code writes collections only through the sink.)
+  seeding; product code writes collections only through the sink. `resolveSample`
+  is likewise barrel-exported only for `state/sampleUtils.test.ts`, which checks
+  that synthesized error samples survive resolution.)
 - React reaches down only through hooks or a subsystem surface (from
   controllers / event handlers).
 - **Only acquisition talks to the backend about log data** — `api.get_logs`,

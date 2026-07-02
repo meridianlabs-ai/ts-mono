@@ -83,9 +83,7 @@ describe("buildSampleColumns compact scores", () => {
 describe("buildSampleColumns non-resizable columns", () => {
   it("marks the status-icon and index columns non-resizable", () => {
     const cols = buildSampleColumns({ viewMode: "grid", multiLog: true });
-    expect(cols.find((c) => c.id === "sampleStatus")?.enableResizing).toBe(
-      false
-    );
+    expect(cols.find((c) => c.id === "statusIcon")?.enableResizing).toBe(false);
     expect(cols.find((c) => c.id === "displayIndex")?.enableResizing).toBe(
       false
     );

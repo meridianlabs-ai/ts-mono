@@ -28,10 +28,6 @@ export type {
   SampleStreamSession,
   SampleStreamTick,
 } from "./sampleStream";
-export {
-  createSampleStreamSession,
-  hasSampleDataUpdates,
-  shouldFinalizeStreamingSample,
-} from "./sampleStream";
+export { createSampleStreamSession } from "./sampleStream";
 export { useFetchEngineStatus } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

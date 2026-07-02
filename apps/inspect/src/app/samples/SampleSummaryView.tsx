@@ -32,7 +32,7 @@ import { SampleErrorView } from "./error/SampleErrorView";
 import { ScorePanel } from "./header-v2/ScorePanel";
 import { ScoreValueDisplay } from "./header-v2/ScoreValueDisplay";
 import styles from "./SampleSummaryView.module.css";
-import { isCancelled } from "./status/sampleStatus";
+import { isCancelled } from "./status/status";
 
 // Generous truncation for Input/Answer so the value can actually fill
 // the available width before the CSS line-clamp kicks in. Target stays

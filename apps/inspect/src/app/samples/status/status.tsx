@@ -7,10 +7,10 @@ import { SampleSummary } from "../../../client/api/types";
 import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
 
-import styles from "./sampleStatus.module.css";
+import styles from "./status.module.css";
 
 type SampleStatus = "running" | "ok" | "error" | "cancelled";
-export const sampleStatus = (
+export const deriveSampleStatus = (
   completed?: boolean,
   error?: string
 ): SampleStatus => {
@@ -37,7 +37,7 @@ export const isCancelled = (sample: SampleSummary | EvalSample): boolean => {
  *  Prefix gives desired sort order (started → error → cancelled → success);
  *  error rows additionally include the error type for sub-sorting. */
 export const kDefaultSampleSortValue = "3:ok";
-export const sampleStatusSortValue = (
+export const statusSortValue = (
   status: SampleStatus,
   error?: string
 ): string => {
