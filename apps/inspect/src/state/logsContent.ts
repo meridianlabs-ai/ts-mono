@@ -6,8 +6,8 @@ import { AsyncData, data, loading } from "@tsmono/util";
 
 import { LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
+import type { LogsContentSink } from "../log_data";
 
-import type { LogsContentSink } from "./fetchEngine";
 import { queryClient } from "./queryClient";
 
 /**

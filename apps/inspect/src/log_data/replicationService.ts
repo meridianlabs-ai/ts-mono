@@ -1,7 +1,8 @@
 import { LogHandle } from "@tsmono/inspect-common";
 
-import { ClientAPI } from "../../client/api/types";
-import { FetchEngine } from "../fetchEngine";
+import { ClientAPI } from "../client/api/types";
+
+import { FetchEngine } from "./fetchEngine";
 
 /**
  * Directory discovery: list the log dir, diff it against the known listing

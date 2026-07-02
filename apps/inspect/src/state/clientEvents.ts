@@ -3,9 +3,9 @@ import { useCallback, useEffect } from "react";
 import { createLogger } from "@tsmono/util";
 
 import { useApi } from "../app_config";
+import { syncLogs } from "../log_data";
 
 import { clientEventsService } from "./clientEventsService";
-import { syncLogs } from "./replicationControl";
 
 const log = createLogger("Client-Events");
 

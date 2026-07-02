@@ -36,10 +36,10 @@ import {
   useLogDir,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
+import { syncLogs } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { useSelectLogFile } from "../state/hooks.ts";
 import { queryClient } from "../state/queryClient.ts";
-import { syncLogs } from "../state/replicationControl.ts";
 import { useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,

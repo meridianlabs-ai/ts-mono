@@ -6,16 +6,16 @@ import { immer } from "zustand/middleware/immer";
 import { createLogger, debounce } from "@tsmono/util";
 
 import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
-
-import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import {
   cleanupDatabaseService,
+  fetchEngine,
   initDatabaseService,
-} from "./databaseServiceInstance";
-import { fetchEngine } from "./fetchEngine";
+  setReplicationApi,
+} from "../log_data";
+
+import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
-import { setReplicationApi } from "./replicationControl";
 import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,

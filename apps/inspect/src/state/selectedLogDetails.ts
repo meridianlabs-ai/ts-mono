@@ -5,10 +5,9 @@ import { AsyncData } from "@tsmono/util";
 
 import { useLogDir } from "../app_config";
 import { LogDetails } from "../client/api/types";
+import { ensureFetchEngine, fetchEngine } from "../log_data";
 
-import { fetchEngine } from "./fetchEngine";
 import { queryClient } from "./queryClient";
-import { ensureFetchEngine } from "./replicationControl";
 import { useStore } from "./store";
 
 export const selectedLogQueryKey = (

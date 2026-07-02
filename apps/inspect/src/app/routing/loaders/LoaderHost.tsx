@@ -1,11 +1,8 @@
 import { FC, ReactNode, useEffect } from "react";
 
 import { useAppConfig } from "../../../app_config";
+import { deactivateReplication, syncLogs } from "../../../log_data";
 import { useSelectLogFile } from "../../../state/hooks";
-import {
-  deactivateReplication,
-  syncLogs,
-} from "../../../state/replicationControl";
 
 import { LogLoadController } from "./LogLoadController";
 

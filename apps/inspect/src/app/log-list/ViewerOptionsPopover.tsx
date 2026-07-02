@@ -5,8 +5,7 @@ import { PopOver } from "@tsmono/react/components";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
-import { fetchEngine } from "../../state/fetchEngine";
-import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
+import { fetchEngine, useFetchEngineStatus } from "../../log_data";
 
 import styles from "./ViewerOptionsPopover.module.css";
 

@@ -17,7 +17,7 @@ import {
 import { queryClient } from "./queryClient";
 
 const engineFetch = vi.hoisted(() => vi.fn());
-vi.mock("./fetchEngine", () => ({
+vi.mock("../log_data", () => ({
   fetchEngine: { fetch: engineFetch },
 }));
 

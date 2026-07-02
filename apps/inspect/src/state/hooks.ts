@@ -13,11 +13,11 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
+import { syncLogPreviews, syncLogs } from "../log_data";
 import { isUri, join, prettyDirUri } from "../utils/uri";
 
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { usePendingSamples } from "./pendingSamples";
-import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
 import { invalidateSelectedLog } from "./selectedLogDetails";
 import { useStore } from "./store";
