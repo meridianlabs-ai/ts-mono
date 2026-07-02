@@ -13,11 +13,15 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleStatus } from "../app/types";
-import { LogDetails, SampleSummary } from "../client/api/types";
-import { useLogDetail, useLogHandles, useLogPreviews } from "../log_data";
+import { LogDetails, PendingSamples, SampleSummary } from "../client/api/types";
+import {
+  useLogDetail,
+  useLogHandles,
+  useLogPreviews,
+  usePendingSamples,
+} from "../log_data";
 
 import { refreshLog } from "./actions";
-import { usePendingSamples } from "./pendingSamples";
 import { useRunningSampleQuery } from "./runningSampleQuery";
 import { useCachedSample, useSampleQuery } from "./sampleQuery";
 import { getAvailableScorers } from "./scoring";
@@ -172,6 +176,16 @@ export const useEvalSpec = () => {
   return useSelectedLogDetails()?.eval;
 };
 
+/**
+ * The selected log's pending samples — the selection binding over the
+ * param-driven `usePendingSamples` acquisition hook.
+ */
+export const useSelectedPendingSamples = (): PendingSamples | undefined => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return usePendingSamples(logDir, selectedLogFile);
+};
+
 export interface LogEditAffordance {
   /** True when an edit can be initiated: server supports edits, a log is
    *  selected, and the recorder isn't still appending. */
@@ -208,7 +222,7 @@ export const useLogEditAffordance = (): LogEditAffordance => {
 // without applying any filtering
 export const useSampleSummaries = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const pendingSamples = usePendingSamples();
+  const pendingSamples = useSelectedPendingSamples();
 
   return useMemo(() => {
     return mergeSampleSummaries(

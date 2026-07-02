@@ -11,13 +11,13 @@ import {
   createSampleStreamSession,
   fetchSample,
   getLogDetail,
+  getPendingSamples,
   SampleEvent,
   SampleNotFoundError,
   SampleStreamSession,
   useLogDetail,
 } from "../log_data";
 
-import { getPendingSamples } from "./pendingSamples";
 import { queryClient } from "./queryClient";
 import { kSampleGcTimeMs, sampleQueryKey } from "./sampleQuery";
 import { synthesizeErroredSampleFromSummary } from "./sampleUtils";

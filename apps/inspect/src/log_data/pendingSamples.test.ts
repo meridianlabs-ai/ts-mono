@@ -6,6 +6,7 @@ import {
   PendingSamples,
   SampleSummary,
 } from "../client/api/types";
+import { queryClient } from "../state/queryClient";
 
 import {
   fetchPendingSamples,
@@ -14,10 +15,9 @@ import {
   pendingSamplesKey,
   shouldPollPendingSamples,
 } from "./pendingSamples";
-import { queryClient } from "./queryClient";
 
 const engineFetch = vi.hoisted(() => vi.fn());
-vi.mock("../log_data", () => ({
+vi.mock("./fetchEngine", () => ({
   fetchEngine: { fetch: engineFetch },
 }));
 

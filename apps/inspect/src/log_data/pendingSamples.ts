@@ -2,17 +2,17 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 
 import { createLogger } from "@tsmono/util";
 
-import { getApi, useLogDir } from "../app_config";
+import { getApi } from "../app_config";
 import {
   ClientAPI,
   LogDetails,
   PendingSampleResponse,
   PendingSamples,
 } from "../client/api/types";
-import { fetchEngine, useLogDetail } from "../log_data";
+import { queryClient } from "../state/queryClient";
 
-import { queryClient } from "./queryClient";
-import { useStore } from "./store";
+import { fetchEngine } from "./fetchEngine";
+import { useLogDetail } from "./logsContent";
 
 const log = createLogger("pendingSamples");
 
@@ -26,11 +26,11 @@ export const pendingSamplesKey = (
 /**
  * A running eval's sample buffer (pending sample summaries + running metrics)
  * as a poll-driven react-query query keyed on `(logDir, logFile)`. Polling has
- * no imperative start/stop: enablement derives from the selection and the
- * log's live status, cadence from the server's refresh hint, and teardown from
- * the query key changing. Each tick threads the previous data's etag and
- * produces the watched log into the fetch engine at elevated priority so the
- * completed summaries / status stay fresh alongside the buffer.
+ * no imperative start/stop: enablement derives from the log's live status,
+ * cadence from the server's refresh hint, and teardown from the query key
+ * changing. Each tick threads the previous data's etag and produces the
+ * watched log into the fetch engine at elevated priority so the completed
+ * summaries / status stay fresh alongside the buffer.
  */
 
 export interface PendingSamplesPollInputs {
@@ -39,7 +39,7 @@ export interface PendingSamplesPollInputs {
   apiSupportsPendingSamples: boolean;
 }
 
-/** Poll while a log is selected, still running, and the api has a buffer. */
+/** Poll while a log is given, still running, and the api has a buffer. */
 export const shouldPollPendingSamples = (
   inputs: PendingSamplesPollInputs
 ): boolean =>
@@ -100,27 +100,27 @@ export const fetchPendingSamples = async (
 };
 
 /**
- * The pending samples for the selected log, polled while it is running.
- * Settles to `undefined` when there is nothing pending (log not running, api
- * without a buffer, no data yet). Mounted by `LogLoadController` so polling
- * never depends on which consumer tab happens to be visible; consumers call
- * it directly to subscribe.
+ * The pending samples for a log, polled while it is running. Settles to
+ * `undefined` when there is nothing pending (log not running, api without a
+ * buffer, no data yet). Polling lifetime is subscriber lifetime: every
+ * dependent calls this to declare its own dependency.
  */
-export const usePendingSamples = (): PendingSamples | undefined => {
-  const logDir = useLogDir();
+export const usePendingSamples = (
+  logDir: string,
+  logFile: string | undefined
+): PendingSamples | undefined => {
   const api = getApi();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const liveStatus = useLogDetail(logDir, selectedLogFile).data?.status;
+  const liveStatus = useLogDetail(logDir, logFile).data?.status;
   const enabled =
     shouldPollPendingSamples({
-      logFile: selectedLogFile,
+      logFile,
       logStatus: liveStatus,
       apiSupportsPendingSamples: api.get_log_pending_samples !== undefined,
-    }) && selectedLogFile !== undefined;
+    }) && logFile !== undefined;
   const { data } = useQuery({
-    queryKey: pendingSamplesKey(logDir, selectedLogFile),
+    queryKey: pendingSamplesKey(logDir, logFile),
     queryFn: enabled
-      ? () => fetchPendingSamples(api, logDir, selectedLogFile)
+      ? () => fetchPendingSamples(api, logDir, logFile)
       : skipToken,
     // A failed tick retries per the client default, then parks the query in
     // error state; stopping the interval there is the give-up.

@@ -10,9 +10,12 @@ import {
   SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
-import { mergeDetails, SampleNotFoundError } from "../log_data";
+import {
+  mergeDetails,
+  pendingSamplesKey,
+  SampleNotFoundError,
+} from "../log_data";
 
-import { pendingSamplesKey } from "./pendingSamples";
 import { queryClient } from "./queryClient";
 import {
   runningSampleQueryKey,

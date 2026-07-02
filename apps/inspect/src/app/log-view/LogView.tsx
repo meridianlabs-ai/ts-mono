@@ -14,8 +14,11 @@ import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { refreshLog } from "../../state/actions";
-import { useEvalSpec, useSelectedLogDetails } from "../../state/hooks";
-import { usePendingSamples } from "../../state/pendingSamples";
+import {
+  useEvalSpec,
+  useSelectedLogDetails,
+  useSelectedPendingSamples,
+} from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLogNavigationAction } from "../routing/logNavigation";
 
@@ -36,7 +39,7 @@ export const LogView: FC = () => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = useEvalSpec();
-  const runningMetrics = usePendingSamples()?.metrics;
+  const runningMetrics = useSelectedPendingSamples()?.metrics;
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(

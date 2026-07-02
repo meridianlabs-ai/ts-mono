@@ -16,6 +16,13 @@ export {
   useLogPreviews,
 } from "./logsContent";
 export {
+  getPendingSamples,
+  // pendingSamplesKey is test-only (runningSampleQuery.test.ts seeds the
+  // cache); it leaves the barrel when that test moves in-dir.
+  pendingSamplesKey,
+  usePendingSamples,
+} from "./pendingSamples";
+export {
   deactivateReplication,
   ensureFetchEngine,
   setReplicationApi,

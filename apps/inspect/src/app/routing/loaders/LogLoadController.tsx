@@ -1,7 +1,6 @@
 import { FC, useEffect } from "react";
 
 import { kLogViewInfoTabId } from "../../../constants";
-import { usePendingSamples } from "../../../state/pendingSamples";
 import { useSelectedLogQuery } from "../../../state/selectedLogDetails";
 import { useStore } from "../../../state/store";
 
@@ -22,10 +21,6 @@ export const LogLoadController: FC = () => {
     (state) => state.logActions.clearSelectedScores
   );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
-
-  // Keep the running log's sample-buffer poll mounted for the whole time a
-  // log is open, so polling never depends on which consumer tab is visible.
-  usePendingSamples();
 
   // React to (re)loaded details: the effect re-runs when the query settles
   // with a fresh object — initial load and refresh-by-invalidation alike.
