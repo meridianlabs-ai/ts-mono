@@ -5,8 +5,8 @@ import { AsyncData, data, loading } from "@tsmono/util";
 
 import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
-import { SampleNotFoundError } from "../log_data";
 
+import { SampleNotFoundError } from "./sampleFetch";
 import { sampleQueryKey, withErrorSummaryFallback } from "./sampleQuery";
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>

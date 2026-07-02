@@ -8,9 +8,12 @@ import { AsyncData, data as asyncData } from "@tsmono/util";
 import { getApi, useLogDir } from "../app_config";
 import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
-import { fetchSample, SampleNotFoundError } from "../log_data";
 
-import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
+import {
+  fetchSample,
+  SampleNotFoundError,
+  synthesizeErroredSampleFromSummary,
+} from "./sampleFetch";
 
 // Samples are large: keep unwatched bodies only briefly so back/forward
 // navigation stays snappy without accumulating every visited sample.
@@ -48,7 +51,7 @@ export const withErrorSummaryFallback = (
  * Idles (`skipToken`) without a handle — callers pass the handle only for
  * samples on the completed path. `summary` feeds the error-summary fallback.
  */
-export const useSampleQuery = (
+export const useSample = (
   handle: SampleHandle | undefined,
   summary?: SampleSummary
 ): AsyncData<EvalSample> => {

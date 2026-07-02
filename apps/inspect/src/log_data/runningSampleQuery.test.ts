@@ -10,18 +10,16 @@ import {
   SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
-import {
-  mergeDetails,
-  pendingSamplesKey,
-  SampleNotFoundError,
-} from "../log_data";
+import { queryClient } from "../state/queryClient";
 
-import { queryClient } from "./queryClient";
+import { mergeDetails } from "./logsContent";
+import { pendingSamplesKey } from "./pendingSamples";
 import {
   runningSampleQueryKey,
   shouldStreamRunningSample,
   streamRunningSampleTick,
 } from "./runningSampleQuery";
+import { SampleNotFoundError } from "./sampleFetch";
 import { sampleQueryKey } from "./sampleQuery";
 
 const LOG_DIR = "/logs";

@@ -7,21 +7,22 @@ import { getApi, useLogDir } from "../app_config";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleHandle } from "../app/types";
 import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
+import { queryClient } from "../state/queryClient";
+
+import { getLogDetail, useLogDetail } from "./logsContent";
+import { getPendingSamples } from "./pendingSamples";
+import {
+  fetchSample,
+  SampleNotFoundError,
+  synthesizeErroredSampleFromSummary,
+} from "./sampleFetch";
+import { kSampleGcTimeMs, sampleQueryKey } from "./sampleQuery";
 import {
   createSampleStreamSession,
-  fetchSample,
-  getLogDetail,
-  getPendingSamples,
   SampleEvent,
-  SampleNotFoundError,
   SampleStreamSession,
-  useLogDetail,
-} from "../log_data";
-
-import { queryClient } from "./queryClient";
-import { kSampleGcTimeMs, sampleQueryKey } from "./sampleQuery";
-import { synthesizeErroredSampleFromSummary } from "./sampleUtils";
-import { mergeSampleSummaries } from "./utils";
+} from "./sampleStream";
+import { mergeSampleSummaries } from "./sampleSummaries";
 
 const kRunningSampleIntervalMs = 2_000;
 
@@ -201,7 +202,7 @@ export const streamRunningSampleTick = async (
  * settled first), the query still serves its cached events so the completed
  * path can bridge with them while its own fetch settles.
  */
-export const useRunningSampleQuery = (
+export const useRunningSample = (
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {

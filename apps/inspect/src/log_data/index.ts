@@ -8,20 +8,12 @@ export {
 export type { LogsContentSink } from "./fetchEngine";
 export { fetchEngine } from "./fetchEngine";
 export {
-  getLogDetail,
-  mergeDetails,
   useLogDetail,
   useLogDetails,
   useLogHandles,
   useLogPreviews,
 } from "./logsContent";
-export {
-  getPendingSamples,
-  // pendingSamplesKey is test-only (runningSampleQuery.test.ts seeds the
-  // cache); it leaves the barrel when that test moves in-dir.
-  pendingSamplesKey,
-  usePendingSamples,
-} from "./pendingSamples";
+export { usePendingSamples } from "./pendingSamples";
 export {
   deactivateReplication,
   ensureFetchEngine,
@@ -29,12 +21,9 @@ export {
   syncLogPreviews,
   syncLogs,
 } from "./replicationControl";
-export { fetchSample, resolveSample, SampleNotFoundError } from "./sampleFetch";
-export type {
-  SampleEvent,
-  SampleStreamSession,
-  SampleStreamTick,
-} from "./sampleStream";
-export { createSampleStreamSession } from "./sampleStream";
+export type { RunningSampleData } from "./runningSampleQuery";
+export { useRunningSample } from "./runningSampleQuery";
+export { useCachedSample, useSample } from "./sampleQuery";
+export { mergeSampleSummaries } from "./sampleSummaries";
 export { useFetchEngineStatus } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

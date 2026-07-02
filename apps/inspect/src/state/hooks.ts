@@ -15,18 +15,19 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleStatus } from "../app/types";
 import { LogDetails, PendingSamples, SampleSummary } from "../client/api/types";
 import {
+  mergeSampleSummaries,
+  useCachedSample,
   useLogDetail,
   useLogHandles,
   useLogPreviews,
   usePendingSamples,
+  useRunningSample,
+  useSample,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
-import { useRunningSampleQuery } from "./runningSampleQuery";
-import { useCachedSample, useSampleQuery } from "./sampleQuery";
 import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";
-import { mergeSampleSummaries } from "./utils";
 
 const kScorePanelViewBag = "score-panel-view";
 const kScorePanelViewKey = "view";
@@ -404,7 +405,7 @@ const settledSampleData = (sample: EvalSample): SampleData => ({
 
 /**
  * The selected sample as an AsyncData-style derivation over the two sample
- * queries: `useSampleQuery` serves completed bodies and `useRunningSampleQuery`
+ * queries: `useSample` serves completed bodies and `useRunningSample`
  * streams a still-running sample's events. A finalizing stream primes the
  * completed body into the `["sample"]` cache, so the handoff between the two
  * paths never flashes a loading state; if the summary settles before the
@@ -416,13 +417,13 @@ export const useSampleData = (): SampleData => {
   // `completed !== false` mirrors the legacy loader: only an explicitly
   // incomplete summary takes the running path.
   const runningPath = summary?.completed === false;
-  const query = useSampleQuery(
+  const query = useSample(
     !runningPath && summary !== undefined ? handle : undefined,
     summary
   );
-  const running = useRunningSampleQuery(handle, summary);
+  const running = useRunningSample(handle, summary);
   // The finalized body a running stream primed; read passively so the
-  // completed-path fetch stays owned by useSampleQuery.
+  // completed-path fetch stays owned by useSample.
   const finalizedSample = useCachedSample(handle);
 
   return useMemo((): SampleData => {
