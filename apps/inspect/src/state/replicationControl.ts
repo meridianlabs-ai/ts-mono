@@ -70,13 +70,57 @@ const ensureActive = async (logDir: string): Promise<void> => {
       database: opened,
       sink: createLogsContentSink(opened, logDir),
     });
+    engineDir = logDir;
     replicationService.startReplication(requireApi(), fetchEngine);
   }
+};
+
+// The dir the engine was last started for (single-file mode has no database
+// handle to compare against, e.g. across VS Code live navigation).
+let engineDir: string | null = null;
+
+// Coalesces concurrent activations — a controller mount and the first details
+// query race into ensureFetchEngine.
+let pendingActivation: { logDir: string; promise: Promise<void> } | null = null;
+
+/**
+ * Ensure the fetch engine is running for `logDir` — the mode-independent
+ * activation entry point. Dir mode also opens the per-dir database and starts
+ * the replication producer; single-file mode starts the engine alone (the
+ * database stays unopened, so reads miss and writes are cache-only).
+ */
+export const ensureFetchEngine = (logDir: string): Promise<void> => {
+  if (pendingActivation?.logDir === logDir) {
+    return pendingActivation.promise;
+  }
+  const promise = (async () => {
+    if (getAppConfig().singleFileMode) {
+      if (!fetchEngine.isStarted() || engineDir !== logDir) {
+        const database = getDatabaseService();
+        await fetchEngine.start({
+          api: requireApi(),
+          database,
+          sink: createLogsContentSink(database, logDir),
+        });
+        engineDir = logDir;
+      }
+    } else {
+      await ensureActive(logDir);
+    }
+  })();
+  pendingActivation = { logDir, promise };
+  void promise.finally(() => {
+    if (pendingActivation?.promise === promise) {
+      pendingActivation = null;
+    }
+  });
+  return promise;
 };
 
 export const deactivateReplication = (): void => {
   replicationService.stopReplication();
   fetchEngine.stop();
+  engineDir = null;
 };
 
 /**
@@ -106,6 +150,6 @@ export const syncLogs = async (
   if (!logDir || getAppConfig().singleFileMode) {
     return [];
   }
-  await ensureActive(logDir);
+  await ensureFetchEngine(logDir);
   return (await replicationService.sync()) ?? [];
 };

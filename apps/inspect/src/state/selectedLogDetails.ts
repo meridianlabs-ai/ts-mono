@@ -8,6 +8,7 @@ import { LogDetails } from "../client/api/types";
 
 import { fetchEngine } from "./fetchEngine";
 import { queryClient } from "./queryClient";
+import { ensureFetchEngine } from "./replicationControl";
 import { useStore } from "./store";
 
 export const selectedLogQueryKey = (
@@ -33,7 +34,11 @@ export const useSelectedLogQuery = (): AsyncData<LogDetails> => {
   return useAsyncDataFromQuery({
     queryKey: selectedLogQueryKey(logDir, selectedLogFile),
     queryFn: selectedLogFile
-      ? () => fetchEngine.fetch(selectedLogFile, "user")
+      ? async () => {
+          // A deep link's first fetch can beat controller-mount activation.
+          await ensureFetchEngine(logDir);
+          return fetchEngine.fetch(selectedLogFile, "user");
+        }
       : skipToken,
     // The engine owns freshness (read-through + background refresh), so a
     // remount may always re-run the queryFn; a failed fetch surfaces

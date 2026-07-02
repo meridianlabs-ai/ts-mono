@@ -12,6 +12,7 @@ import {
   cleanupDatabaseService,
   initDatabaseService,
 } from "./databaseServiceInstance";
+import { fetchEngine } from "./fetchEngine";
 import { setLogPollingApi } from "./logPollingInstance";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
@@ -119,7 +120,8 @@ export const initializeStore = (
             ...searchSlice,
 
             cleanup: async () => {
-              // Close database before cleaning up slices
+              // Stop the engine and close the database before cleaning up slices
+              fetchEngine.stop();
               await cleanupDatabaseService();
 
               appCleanup();
