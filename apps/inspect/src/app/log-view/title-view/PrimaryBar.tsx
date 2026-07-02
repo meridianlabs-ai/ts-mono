@@ -6,12 +6,12 @@ import { CopyButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
+import { useAbsLogDir, useLogDir } from "../../../app_config";
 import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useStore } from "../../../state/store";
-import { useAbsLogDir, useLogDir } from "../../server/useLogDir";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";

@@ -10,12 +10,12 @@ import type {
 } from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
+import { useLogDir } from "../../../app_config";
 import { LogDetails } from "../../../client/api/types";
 import { useLogsListing } from "../../../state/hooks";
 import { useLogDetails } from "../../../state/logsContent";
 import { useStore } from "../../../state/store";
 import { useFetchEngineStatus } from "../../../state/useFetchEngineStatus";
-import { useLogDir } from "../../server/useLogDir";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";

@@ -1,6 +1,6 @@
-import { queryClient } from "../../state/queryClient";
-import { peekAppConfig, setResolvedLogDir } from "../appConfig";
+import { queryClient } from "../state/queryClient";
 
+import { peekAppConfig, setResolvedLogDir } from "./appConfig";
 import { APP_CONFIG_KEY, useAppConfig } from "./useAppConfig";
 
 /**

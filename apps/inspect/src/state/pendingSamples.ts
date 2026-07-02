@@ -2,8 +2,7 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 
 import { createLogger } from "@tsmono/util";
 
-import { useApi } from "../app/server/useAppConfig";
-import { useLogDir } from "../app/server/useLogDir";
+import { useApi, useLogDir } from "../app_config";
 import {
   ClientAPI,
   LogDetails,

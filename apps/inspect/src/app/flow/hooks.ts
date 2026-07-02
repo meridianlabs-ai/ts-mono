@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
+import { useApi } from "../../app_config";
 import { useStore } from "../../state/store";
-import { useApi } from "../server/useAppConfig";
 
 export const useFlowServerData = (dir: string) => {
   const api = useApi();

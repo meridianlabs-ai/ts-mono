@@ -8,7 +8,7 @@ import {
 } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { getLogDir } from "../app/server/useLogDir";
+import { getLogDir } from "../app_config";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { Event } from "../app/types";
 import {

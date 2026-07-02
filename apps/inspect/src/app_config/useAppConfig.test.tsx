@@ -5,14 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppConfig as AppConfigResponse } from "@tsmono/inspect-common/types";
 
-import { ClientAPI, LogRoot } from "../../client/api/types";
-import * as appConfig from "../appConfig";
+import { ClientAPI, LogRoot } from "../client/api/types";
+
+import * as appConfig from "./appConfig";
 import {
   AppConfig,
   AppConfigBootstrap,
   loadResolvedAppConfig,
-} from "../appConfig";
-
+} from "./appConfig";
 import {
   APP_CONFIG_KEY,
   useAppConfig,

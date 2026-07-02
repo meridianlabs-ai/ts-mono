@@ -6,7 +6,7 @@ import { StoreApi, UseBoundStore } from "zustand";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 
-import { initAppConfig } from "../app/appConfig";
+import { initAppConfig } from "../app_config/appConfig";
 import {
   ClientAPI,
   SampleDataResponse,

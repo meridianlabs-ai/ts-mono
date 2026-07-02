@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 
 import { createLogger } from "@tsmono/util";
 
-import { useApi } from "../app/server/useAppConfig";
+import { useApi } from "../app_config";
 
 import { clientEventsService } from "./clientEventsService";
 import { syncLogs } from "./replicationControl";

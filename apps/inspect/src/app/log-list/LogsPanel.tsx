@@ -15,6 +15,7 @@ import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
+import { useLogDir } from "../../app_config";
 import { useClientEvents } from "../../state/clientEvents";
 import {
   useDocumentTitle,
@@ -35,7 +36,6 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
-import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";

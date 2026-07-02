@@ -1,7 +1,6 @@
 import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { getAppConfig } from "../app/appConfig";
-import { getLogDir } from "../app/server/useLogDir";
+import { getAppConfig, getLogDir } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 

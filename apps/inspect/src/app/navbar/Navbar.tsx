@@ -5,9 +5,9 @@ import { Link } from "react-router-dom";
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
 import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";
 
+import { useLogDir } from "../../app_config";
 import { prettyDirUri } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
-import { useLogDir } from "../server/useLogDir";
 
 import styles from "./Navbar.module.css";
 

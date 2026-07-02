@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { useLogDir } from "../../app_config";
 import { useFilteredSamples } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl } from "../../utils/uri";
-import { useLogDir } from "../server/useLogDir";
 import { openInNewTab } from "../shared/openInNewTab";
 import { sampleIdsEqual } from "../shared/sample";
 

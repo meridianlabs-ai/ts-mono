@@ -2,8 +2,8 @@ import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
 
+import { getBootstrap } from "./app_config";
 import { App } from "./app/App";
-import { getBootstrap } from "./app/appConfig";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";

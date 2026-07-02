@@ -1,8 +1,9 @@
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { ClientAPI } from "../../client/api/types";
-import { AppConfig, resolveAppConfig } from "../appConfig";
+import { ClientAPI } from "../client/api/types";
+
+import { AppConfig, resolveAppConfig } from "./appConfig";
 
 export const APP_CONFIG_KEY = ["app-config"] as const;
 

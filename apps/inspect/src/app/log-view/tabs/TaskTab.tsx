@@ -10,9 +10,9 @@ import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
+import { useApi } from "../../../app_config";
 import { kLogViewTaskTabId } from "../../../constants";
 import { formatDateTime, formatDuration } from "../../../utils/format";
-import { useApi } from "../../server/useAppConfig";
 import { TagsField } from "../title-view/TagsField";
 
 import styles from "./TaskTab.module.css";

@@ -4,8 +4,8 @@ import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TagsEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
+import { useApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useApi } from "../../server/useAppConfig";
 
 import { ChangeSummary } from "./ChangeSummary";
 import sharedStyles from "./EditAnnotationsDialog.module.css";

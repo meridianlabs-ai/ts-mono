@@ -5,7 +5,7 @@
  * into a discriminated union and throws on the contradictory combination.
  *
  * ⚠️ This is an INPUT, not configuration. It is one term in the calculus that
- * `resolveAppConfig()` (`app/appConfig.ts`) runs once at startup to resolve the
+ * `resolveAppConfig()` (`app_config/appConfig.ts`) runs once at startup to resolve the
  * `AppConfig` (backend api, single-file mode, loader, and the resolved
  * `logFile`). It is useful ONLY up to that point: once `AppConfig` is resolved,
  * this must never be consulted again — read the resolved values off the config

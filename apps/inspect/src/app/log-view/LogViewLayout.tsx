@@ -7,6 +7,7 @@ import {
   FindTargetProvider,
 } from "@tsmono/react/components";
 
+import { useAppConfig, useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
 import { useLogHandles } from "../../state/logsContent";
@@ -17,8 +18,6 @@ import {
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
-import { useAppConfig } from "../server/useAppConfig";
-import { useLogDir } from "../server/useLogDir";
 
 import { LogView } from "./LogView";
 

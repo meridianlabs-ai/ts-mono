@@ -5,10 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
 
+import { APP_CONFIG_KEY, AppConfig } from "../../app_config";
 import { ClientAPI } from "../../client/api/types";
-import { AppConfig } from "../appConfig";
 
-import { APP_CONFIG_KEY } from "./useAppConfig";
 import { useEvalSet } from "./useEvalSet";
 
 const freshClient = () =>

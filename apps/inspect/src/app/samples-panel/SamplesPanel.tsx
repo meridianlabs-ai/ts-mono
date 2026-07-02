@@ -6,6 +6,7 @@ import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { ProgressBar } from "@tsmono/react/components";
 
+import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { useClientEvents } from "../../state/clientEvents";
 import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
@@ -25,7 +26,6 @@ import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigation } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
-import { useLogDir } from "../server/useLogDir";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import {

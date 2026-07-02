@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo } from "react";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
+import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
 import { useLogDetails } from "../../../../state/logsContent";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
-import { useLogDir } from "../../../server/useLogDir";
 import {
   ColumnComparator,
   ExtendedColumnDef,

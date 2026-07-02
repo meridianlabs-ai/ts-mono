@@ -1,6 +1,7 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
 import { useLoadLog } from "../../state/useLoadLog";
 import { useLoadSample } from "../../state/useLoadSample";
@@ -12,8 +13,6 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-import { useAppConfig } from "../server/useAppConfig";
-import { useLogDir } from "../server/useLogDir";
 
 /**
  * Component that displays a single sample in detail view within the samples route.

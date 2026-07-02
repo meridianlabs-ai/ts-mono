@@ -3,11 +3,10 @@ import { FC, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
 
+import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
 import { fetchEngine } from "../../state/fetchEngine";
 import { useFetchEngineStatus } from "../../state/useFetchEngineStatus";
-import { useAppConfig } from "../server/useAppConfig";
-import { useLogDir } from "../server/useLogDir";
 
 import styles from "./ViewerOptionsPopover.module.css";
 

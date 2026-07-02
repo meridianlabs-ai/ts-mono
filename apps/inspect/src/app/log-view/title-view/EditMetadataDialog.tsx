@@ -13,8 +13,8 @@ import {
 import { MetadataEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
+import { useApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useApi } from "../../server/useAppConfig";
 
 import { AutogrowText } from "./AutogrowText";
 import { ChangeSummary } from "./ChangeSummary";

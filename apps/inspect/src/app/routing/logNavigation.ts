@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
-import { useLogDir } from "../server/useLogDir";
 
 import { logsUrl, logsUrlRaw, useRoutePrefix } from "./url";
 

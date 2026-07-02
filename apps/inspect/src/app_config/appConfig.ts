@@ -1,6 +1,6 @@
-import { resolveApi } from "../client/api/index";
 import { ClientAPI, LogRoot } from "../client/api/types";
 
+import { resolveApi } from "./resolveApi";
 import {
   detectInitialSingleFileMode,
   readEmbeddedStartupState,
@@ -45,7 +45,7 @@ export interface AppConfigBootstrap {
 
 /**
  * Resolve the bootstrap from the invocation-time log source. The single place the
- * URL log source is parsed (see `app/urlLogSource.ts`).
+ * URL log source is parsed (see `app_config/urlLogSource.ts`).
  */
 export const resolveBootstrap = (): AppConfigBootstrap => {
   const source = parseUrlLogSource(window.location.search);

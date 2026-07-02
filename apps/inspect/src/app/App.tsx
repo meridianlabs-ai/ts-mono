@@ -27,6 +27,14 @@ import {
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
 
+import {
+  readEmbeddedStartupState,
+  resolveEmbeddedLogDir,
+  setLogRoot,
+  useApi,
+  useAppConfigAsync,
+  useLogDir,
+} from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { useSelectLogFile } from "../state/hooks.ts";
@@ -41,12 +49,6 @@ import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
-import { useApi, useAppConfigAsync } from "./server/useAppConfig.ts";
-import { setLogRoot, useLogDir } from "./server/useLogDir.ts";
-import {
-  readEmbeddedStartupState,
-  resolveEmbeddedLogDir,
-} from "./singleFileMode.ts";
 
 const componentIcons: ComponentIcons = {
   chevronDown: ApplicationIcons.chevron.down,

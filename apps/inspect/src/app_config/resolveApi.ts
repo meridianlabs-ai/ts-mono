@@ -3,13 +3,13 @@ import JSON5 from "json5";
 import { AppConfig } from "@tsmono/inspect-common/types";
 import { dirname, getVscodeApi } from "@tsmono/util";
 
-import { UrlLogSource } from "../../app/urlLogSource";
+import { clientApi } from "../client/api/client-api";
+import staticHttpApi from "../client/api/static-http/api-static-http";
+import { ClientAPI } from "../client/api/types";
+import { viewServerApi } from "../client/api/view-server/api-view-server";
+import vscodeApi from "../client/api/vscode/api-vscode";
 
-import { clientApi } from "./client-api";
-import staticHttpApi from "./static-http/api-static-http";
-import { ClientAPI } from "./types";
-import { viewServerApi } from "./view-server/api-view-server";
-import vscodeApi from "./vscode/api-vscode";
+import { UrlLogSource } from "./urlLogSource";
 
 // Shape of the JSON embedded in the #log_dir_context script element.
 interface LogDirContext {
@@ -21,7 +21,7 @@ interface LogDirContext {
 
 /**
  * Resolves the client API from the invocation-time log source (see
- * `app/urlLogSource.ts`) plus the ambient signals (vscode host, embedded
+ * `app_config/urlLogSource.ts`) plus the ambient signals (vscode host, embedded
  * `#log_dir_context`, `?inspect_server=true`). Called once, by
  * `resolveAppConfig()`.
  */

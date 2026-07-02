@@ -3,7 +3,7 @@ import { skipToken } from "@tanstack/react-query";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { useLogDir } from "../app/server/useLogDir";
+import { useLogDir } from "../app_config";
 import { LogDetails } from "../client/api/types";
 
 import { fetchEngine } from "./fetchEngine";

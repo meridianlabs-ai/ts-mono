@@ -11,6 +11,7 @@ import {
   type SearchType,
 } from "@tsmono/inspect-components/transcript-search";
 
+import { useApi, useLogDir } from "../../../../app_config";
 import {
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
@@ -24,8 +25,6 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../../routing/url";
-import { useApi } from "../../../server/useAppConfig";
-import { useLogDir } from "../../../server/useLogDir";
 
 /**
  * inspect_scout's search endpoints (proxied by inspect_ai under /scout/...)

@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import { useApi } from "../app/server/useAppConfig";
+import { useApi } from "../app_config";
 
 import "./DownloadButton.css";
 

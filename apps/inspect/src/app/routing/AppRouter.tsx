@@ -12,11 +12,11 @@ import {
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
 
+import { useAppConfig } from "../../app_config";
 import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
-import { useAppConfig } from "../server/useAppConfig";
 
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";

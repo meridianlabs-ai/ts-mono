@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getVscodeApi } from "@tsmono/util";
 
-import { UrlLogSource } from "../../app/urlLogSource";
+import staticHttpApi from "../client/api/static-http/api-static-http";
+import { viewServerApi } from "../client/api/view-server/api-view-server";
 
-import { resolveApi } from "./index";
-import staticHttpApi from "./static-http/api-static-http";
-import { viewServerApi } from "./view-server/api-view-server";
+import { resolveApi } from "./resolveApi";
+import { UrlLogSource } from "./urlLogSource";
 
 // resolveApi picks which ClientAPI backend to construct from the ambient startup
 // signals (vscode host, embedded #log_dir_context, ?inspect_server=true) plus the
@@ -14,18 +14,18 @@ import { viewServerApi } from "./view-server/api-view-server";
 // the clientApi wrapper so each returned value is a distinguishable sentinel; the
 // assertions then check WHICH backend was selected and with WHAT args.
 
-vi.mock("./view-server/api-view-server", () => ({
+vi.mock("../client/api/view-server/api-view-server", () => ({
   viewServerApi: vi.fn(() => ({ __backend: "view-server" })),
 }));
-vi.mock("./static-http/api-static-http", () => ({
+vi.mock("../client/api/static-http/api-static-http", () => ({
   default: vi.fn(() => ({ __backend: "static-http" })),
 }));
-vi.mock("./vscode/api-vscode", () => ({
+vi.mock("../client/api/vscode/api-vscode", () => ({
   default: { __backend: "vscode" },
 }));
 // clientApi is the identity-ish wrapper here: it returns the backend it was
 // handed so resolveApi's return value IS the chosen sentinel.
-vi.mock("./client-api", () => ({
+vi.mock("../client/api/client-api", () => ({
   clientApi: vi.fn((backend: unknown) => backend),
 }));
 vi.mock("@tsmono/util", async (orig) => ({

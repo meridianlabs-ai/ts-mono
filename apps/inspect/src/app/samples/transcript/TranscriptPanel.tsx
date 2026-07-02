@@ -25,6 +25,7 @@ import {
 import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
+import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
@@ -34,7 +35,6 @@ import {
   useLogRouteParams,
   useSampleUrlBuilder,
 } from "../../routing/url";
-import { useLogDir } from "../../server/useLogDir";
 
 import { useTranscriptFilter } from "./hooks";
 

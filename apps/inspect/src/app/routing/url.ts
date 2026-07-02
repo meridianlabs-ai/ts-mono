@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
+import { useLogDir } from "../../app_config";
 import {
   kSampleMessagesTabId,
   kSampleTabIds,
@@ -9,7 +10,6 @@ import {
 } from "../../constants";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl, encodePathParts } from "../../utils/uri";
-import { useLogDir } from "../server/useLogDir";
 
 /**
  * Decodes a URL parameter that may be URL-encoded.

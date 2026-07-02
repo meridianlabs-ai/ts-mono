@@ -1,8 +1,8 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
+import { useApi } from "../app_config";
 import { ApplicationIcons } from "../app/appearance/icons";
-import { useApi } from "../app/server/useAppConfig";
 
 import styles from "./DownloadLogButton.module.css";
 

@@ -2,8 +2,7 @@ import { EvalSet } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { useApi } from "./useAppConfig";
-import { useLogDir } from "./useLogDir";
+import { useApi, useLogDir } from "../../app_config";
 
 /**
  * Resolve the eval-set for the current log dir. Keyed on the dir so a

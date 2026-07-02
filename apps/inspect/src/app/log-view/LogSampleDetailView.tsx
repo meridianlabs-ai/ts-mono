@@ -1,6 +1,7 @@
 import { FC, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
 import { useSampleSummaries, useSelectLogFile } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -14,7 +15,6 @@ import {
   useRoutePrefix,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-import { useAppConfig } from "../server/useAppConfig";
 
 /**
  * Component that displays a single sample in detail view within the logs route.

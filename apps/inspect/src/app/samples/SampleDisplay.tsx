@@ -57,6 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
+import { useApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -86,7 +87,6 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { useApi } from "../server/useAppConfig";
 import { openInNewTab } from "../shared/openInNewTab";
 
 import {

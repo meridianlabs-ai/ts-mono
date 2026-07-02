@@ -4,14 +4,13 @@ import { EvalSample, EvalSpec, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
 import { EvalLogStatus, Events } from "../@types/extraInspect";
+import { useApi, useLogDir } from "../app_config";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
-import { useApi } from "../app/server/useAppConfig";
-import { useLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
 import { isUri, join, prettyDirUri } from "../utils/uri";
