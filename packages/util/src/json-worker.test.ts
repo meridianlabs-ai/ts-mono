@@ -33,6 +33,65 @@ describe("jsonParse", () => {
     expect(result.c).toBe(-Infinity);
     expect(result.d).toBeNull();
   });
+
+  // Bare non-finite tokens in otherwise-strict JSON take the repair +
+  // native-JSON.parse fast path; these exercise its edge cases.
+  describe("non-finite repair fast path", () => {
+    test("bare NaN/Infinity/-Infinity in strict JSON", () => {
+      const result = jsonParse<{
+        a: number;
+        b: number;
+        c: number;
+        d: number[];
+      }>('{"a": NaN, "b": Infinity, "c": -Infinity, "d": [1, NaN, -2.5e+3]}');
+      expect(result.a).toBeNaN();
+      expect(result.b).toBe(Infinity);
+      expect(result.c).toBe(-Infinity);
+      expect(result.d[0]).toBe(1);
+      expect(result.d[1]).toBeNaN();
+      expect(result.d[2]).toBe(-2500);
+    });
+
+    test("tokens inside string values are untouched", () => {
+      const result = jsonParse<{ s: string; t: string; x: number }>(
+        '{"s": "decoys: NaN, Infinity, -Infinity", "t": "esc \\" NaN", "x": NaN}'
+      );
+      expect(result.s).toBe("decoys: NaN, Infinity, -Infinity");
+      expect(result.t).toBe('esc " NaN');
+      expect(result.x).toBeNaN();
+    });
+
+    test("negative numbers and exponents pass through", () => {
+      expect(
+        jsonParse<number[]>("[-1, -2.5, 1e+10, 3E-7, NaN]").slice(0, 4)
+      ).toEqual([-1, -2.5, 1e10, 3e-7]);
+    });
+
+    test("true/false/null literals coexist with bare tokens", () => {
+      const result = jsonParse<{
+        t: boolean;
+        f: boolean;
+        n: null;
+        x: number;
+      }>('{"t": true, "f": false, "n": null, "x": Infinity}');
+      expect(result).toMatchObject({ t: true, f: false, n: null });
+      expect(result.x).toBe(Infinity);
+    });
+
+    test("real JSON5 syntax still falls back to JSON5.parse", () => {
+      // unquoted keys + comments can't be repaired, only JSON5-parsed
+      const result = jsonParse<{ a: number; b: number }>(
+        "{a: NaN, /* c */ b: 2,}"
+      );
+      expect(result.a).toBeNaN();
+      expect(result.b).toBe(2);
+    });
+
+    test("malformed input still throws", () => {
+      expect(() => jsonParse('{"a": NaN,')).toThrow();
+      expect(() => jsonParse('{"a": Nope}')).toThrow();
+    });
+  });
 });
 
 describe("asyncJsonParse (main-thread path)", () => {

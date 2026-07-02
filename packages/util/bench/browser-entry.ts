@@ -8,7 +8,13 @@ import JSON5 from "json5";
 
 import { asyncJsonParse, asyncJsonParseBytes } from "../src/json-worker";
 
-type PayloadKind = "flat" | "evalLog" | "numbers" | "deep" | "json5";
+type PayloadKind =
+  | "flat"
+  | "evalLog"
+  | "numbers"
+  | "deep"
+  | "json5"
+  | "nonfinite";
 type ApiName = "syncParse" | "asyncJsonParse" | "asyncJsonParseBytes";
 
 interface IterationStats {
@@ -154,12 +160,37 @@ const genJson5 = (targetBytes: number): string => {
   return `// benchmark payload\n[${items.join(",\n")},]`;
 };
 
+// Strict JSON except for bare NaN/Infinity tokens — what Python's json.dumps
+// emits for non-finite floats. This is the dominant real-world reason the
+// JSON5 fallback exists. Some string values deliberately contain ", NaN,"
+// to prove in-string tokens survive repair untouched.
+const genNonFinite = (targetBytes: number): string => {
+  const rng = makeRng(77);
+  const item = (i: number): string => {
+    const score =
+      i % 50 === 3
+        ? ["NaN", "Infinity", "-Infinity"][i % 3]!
+        : (rng() * 100).toFixed(4);
+    const label =
+      i % 97 === 5
+        ? "decoy tokens in string: NaN, Infinity, -Infinity"
+        : sentence(rng, 48);
+    return `{"id":${i},"label":${JSON.stringify(label)},"score":${score},"ok":${rng() > 0.5}}`;
+  };
+  const probe = item(0);
+  const count = Math.max(2, Math.round(targetBytes / (probe.length + 1)));
+  const items: string[] = [];
+  for (let i = 0; i < count; i++) items.push(item(i));
+  return `[${items.join(",")}]`;
+};
+
 const GENERATORS: Record<PayloadKind, (target: number) => string> = {
   flat: genFlat,
   evalLog: genEvalLog,
   numbers: genNumbers,
   deep: genDeep,
   json5: genJson5,
+  nonfinite: genNonFinite,
 };
 
 // --- correctness probes ------------------------------------------------------
@@ -195,7 +226,14 @@ const probeShallow = (v: unknown): unknown =>
       ? { keyCount: Object.keys(v).length }
       : v;
 
-const probeJson = (v: unknown): string => JSON.stringify(probeValue(v));
+// NaN/Infinity stringify to null by default, which would mask corruption of
+// non-finite values — encode them explicitly so probes catch it.
+const probeJson = (v: unknown): string =>
+  JSON.stringify(probeValue(v), (_k, val: unknown) =>
+    typeof val === "number" && !Number.isFinite(val)
+      ? `__nonfinite:${String(val)}__`
+      : val
+  );
 
 // --- event-loop blocking monitor ----------------------------------------------
 
@@ -234,6 +272,14 @@ let payloadBytes: Uint8Array | null = null;
 let payloadKind: PayloadKind = "flat";
 let refProbe = "";
 
+const syncParse = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return JSON5.parse(text);
+  }
+};
+
 const generate = (
   kind: PayloadKind,
   targetBytes: number
@@ -241,9 +287,7 @@ const generate = (
   payloadKind = kind;
   payloadText = GENERATORS[kind](targetBytes);
   payloadBytes = new TextEncoder().encode(payloadText);
-  const ref =
-    kind === "json5" ? JSON5.parse(payloadText) : JSON.parse(payloadText);
-  refProbe = probeJson(ref);
+  refProbe = probeJson(syncParse(payloadText));
   return { chars: payloadText.length, bytes: payloadBytes.length };
 };
 
@@ -257,14 +301,6 @@ const loadFixture = async (
   payloadText = new TextDecoder().decode(payloadBytes);
   refProbe = probeJson(syncParse(payloadText));
   return { chars: payloadText.length, bytes: payloadBytes.length };
-};
-
-const syncParse = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return JSON5.parse(text);
-  }
 };
 
 const runApi = async (api: ApiName): Promise<unknown> => {

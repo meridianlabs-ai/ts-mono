@@ -109,6 +109,27 @@ const CASES = [
     iterations: 3,
     innerReps: 1,
   },
+  {
+    name: "nonfinite-20KB",
+    kind: "nonfinite",
+    target: 20_000,
+    iterations: 10,
+    innerReps: 20,
+  },
+  {
+    name: "nonfinite-5MB",
+    kind: "nonfinite",
+    target: 5_000_000,
+    iterations: 5,
+    innerReps: 1,
+  },
+  {
+    name: "nonfinite-50MB",
+    kind: "nonfinite",
+    target: 50_000_000,
+    iterations: 3,
+    innerReps: 1,
+  },
 ];
 
 const QUICK_CASES = new Set([

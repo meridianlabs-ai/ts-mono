@@ -141,6 +141,137 @@ class JsonWorkerPool {
 // clone stalls are ~20ms or less and cloning avoids the second parse.
 const kReparseThresholdChars = 10_000_000;
 
+// Repairs "almost strict" JSON — strict JSON except bare NaN/Infinity/
+// -Infinity tokens, which is what Python's json.dumps emits for non-finite
+// floats and the dominant real reason the JSON5 fallback exists — by
+// swapping those tokens for the given sentinel strings so native JSON.parse
+// (~100x faster than JSON5.parse) can take it from there. Tracks in-string
+// state, so tokens inside string values are never touched. Returns null if
+// the text needs real JSON5 (comments, unquoted keys, quotes, ...) or
+// contains no bare tokens; JSON.parse of the output remains the final
+// validator for anything this scan waves through (digits, exponents, ...).
+// Self-contained by design: its compiled source is injected into the worker
+// blob via toString(), so it must not reference module scope.
+const repairNonFiniteJson = (
+  source: string,
+  nanToken: string,
+  infToken: string,
+  negInfToken: string
+): string | null => {
+  const n = source.length;
+  const parts: string[] = [];
+  let copied = 0;
+  let i = 0;
+  while (i < n) {
+    const c = source.charCodeAt(i);
+    if (c === 34 /* " */) {
+      i++;
+      while (i < n) {
+        const s = source.charCodeAt(i);
+        if (s === 92 /* \ */) i += 2;
+        else if (s === 34) break;
+        else i++;
+      }
+      i++;
+      continue;
+    }
+    if (c === 78 /* N */) {
+      if (!source.startsWith("NaN", i)) return null;
+      parts.push(source.slice(copied, i), nanToken);
+      i += 3;
+      copied = i;
+      continue;
+    }
+    if (c === 73 /* I */) {
+      if (!source.startsWith("Infinity", i)) return null;
+      parts.push(source.slice(copied, i), infToken);
+      i += 8;
+      copied = i;
+      continue;
+    }
+    if (c === 45 /* - */) {
+      if (source.startsWith("-Infinity", i)) {
+        parts.push(source.slice(copied, i), negInfToken);
+        i += 9;
+        copied = i;
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (c === 116 /* t */) {
+      if (!source.startsWith("true", i)) return null;
+      i += 4;
+      continue;
+    }
+    if (c === 102 /* f */) {
+      if (!source.startsWith("false", i)) return null;
+      i += 5;
+      continue;
+    }
+    if (c === 110 /* n */) {
+      if (!source.startsWith("null", i)) return null;
+      i += 4;
+      continue;
+    }
+    if (
+      c === 32 ||
+      c === 9 ||
+      c === 10 ||
+      c === 13 || // whitespace
+      c === 44 ||
+      c === 58 ||
+      c === 123 ||
+      c === 125 ||
+      c === 91 ||
+      c === 93 || // , : { } [ ]
+      (c >= 48 && c <= 57) ||
+      c === 46 ||
+      c === 101 ||
+      c === 69 ||
+      c === 43 // number chars . e E +
+    ) {
+      i++;
+      continue;
+    }
+    return null;
+  }
+  if (parts.length === 0) return null;
+  parts.push(source.slice(copied));
+  return parts.join("");
+};
+
+// Fallback for text JSON.parse rejected: try the cheap non-finite repair +
+// native parse first, full JSON5 only for real JSON5 syntax.
+const parseFallback = <T>(text: string): T => {
+  const nonce = Math.random().toString(36).slice(2);
+  const nan = `__json5_nan_${nonce}__`;
+  const inf = `__json5_inf_${nonce}__`;
+  const ninf = `__json5_ninf_${nonce}__`;
+  const repaired = repairNonFiniteJson(
+    text,
+    `"${nan}"`,
+    `"${inf}"`,
+    `"${ninf}"`
+  );
+  if (repaired !== null) {
+    try {
+      return JSON.parse(repaired, (_key, value: unknown) =>
+        value === nan
+          ? NaN
+          : value === inf
+            ? Infinity
+            : value === ninf
+              ? -Infinity
+              : value
+      ) as T;
+    } catch {
+      // repaired text still invalid — let JSON5 produce the real error
+    }
+  }
+  return JSON5.parse<T>(text);
+};
+
 const workerPool = new JsonWorkerPool();
 
 export const asyncJsonParse = async <T>(text: string): Promise<T> => {
@@ -148,14 +279,7 @@ export const asyncJsonParse = async <T>(text: string): Promise<T> => {
   // diminishing returns, so for small JSON that will serialize
   // very quickly, just do it immediately on the main thread.
   if (text.length < 50000) {
-    let result: unknown = undefined;
-    try {
-      // Optimistically, try a regular JSON parse first (this is much faster)
-      result = JSON.parse(text);
-    } catch {
-      result = JSON5.parse(text);
-    }
-    return result as T;
+    return jsonParse<T>(text);
   } else {
     return workerPool.parse(text) as Promise<T>;
   }
@@ -184,7 +308,7 @@ export const jsonParse = <T>(text: string): T => {
     // Optimistically, try a regular JSON parse first (this is much faster)
     return JSON.parse(text) as T;
   } catch {
-    return JSON5.parse<T>(text);
+    return parseFallback<T>(text);
   }
 };
 
@@ -192,6 +316,34 @@ const kWorkerCode = `
 // Store the JSON5 parser once loaded
 let JSON5 = null;
 const decoder = new TextDecoder();
+
+// Injected from the module-scope implementation (kept self-contained there)
+const repairNonFiniteJson = ${repairNonFiniteJson.toString()};
+
+// Cheap path for Python-style bare NaN/Infinity: repair + native JSON.parse;
+// full (slow) JSON5 only for real JSON5 syntax.
+function parseFallback(source, jsonError) {
+  const nonce = Math.random().toString(36).slice(2);
+  const nan = '__json5_nan_' + nonce + '__';
+  const inf = '__json5_inf_' + nonce + '__';
+  const ninf = '__json5_ninf_' + nonce + '__';
+  const repaired = repairNonFiniteJson(
+    source, '"' + nan + '"', '"' + inf + '"', '"' + ninf + '"');
+  if (repaired !== null) {
+    try {
+      return JSON.parse(repaired, (key, value) =>
+        value === nan ? NaN
+        : value === inf ? Infinity
+        : value === ninf ? -Infinity
+        : value);
+    } catch (repairError) {
+      // repaired text still invalid — let JSON5 produce the real error
+    }
+  }
+  // Surface the original JSON error, not a null-JSON5 one, if init failed
+  if (!JSON5) throw jsonError;
+  return JSON5.parse(source);
+}
 
 // Structural-density probe: node-dense graphs (millions of small objects)
 // have a high ratio of separators to bytes, string-heavy documents a low one
@@ -254,9 +406,9 @@ self.onmessage = function (e) {
         // Optimistically, try a regular JSON parse first (this is much faster)
         result = JSON.parse(source);
       } catch (jsonError) {
-        // Surface the JSON error, not a null-JSON5 one, if init failed
-        if (!JSON5) throw jsonError;
-        result = JSON5.parse(source);
+        result = parseFallback(source, jsonError);
+        // Result may contain NaN/Infinity the main thread couldn't re-parse
+        // from source, so it must travel by structured clone
         usedJson5 = true;
       }
 
