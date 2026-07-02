@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { useAppConfig } from "../app/server/useAppConfig";
+import { useApi } from "../app/server/useAppConfig";
 import { SampleSummary } from "../client/api/types";
 
 import { useLogSelection, useSampleData } from "./hooks";
@@ -31,7 +31,7 @@ export function useLoadSample() {
   const logSelection = useLogSelection();
 
   // Get store state and actions
-  const { api } = useAppConfig();
+  const api = useApi();
   const sampleActions = useStore((state) => state.sampleActions);
   const clearListPosition = useStore(
     (state) => state.appActions.clearListPosition

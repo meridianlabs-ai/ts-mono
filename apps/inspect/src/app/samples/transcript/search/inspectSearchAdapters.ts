@@ -24,7 +24,7 @@ import {
   useLogOrSampleRouteParams,
   useSampleUrlBuilder,
 } from "../../../routing/url";
-import { useAppConfig } from "../../../server/useAppConfig";
+import { useApi } from "../../../server/useAppConfig";
 import { useLogDir } from "../../../server/useLogDir";
 
 /**
@@ -65,7 +65,7 @@ export interface InspectSearchContext {
 export const useInspectSearchContext = (
   sample: EvalSample | undefined
 ): InspectSearchContext | null => {
-  const { api } = useAppConfig();
+  const api = useApi();
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
@@ -122,7 +122,7 @@ export const useInspectSearchApi = (
   logFile: string,
   transcriptId: string
 ): SearchPanelApi | null => {
-  const { api } = useAppConfig();
+  const api = useApi();
   return useMemo(() => {
     const { post_search, get_search_result, list_searches } = api;
     if (!post_search || !get_search_result || !list_searches || !transcriptId) {

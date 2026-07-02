@@ -41,7 +41,7 @@ import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
-import { useAppConfig, useAppConfigAsync } from "./server/useAppConfig.ts";
+import { useApi, useAppConfigAsync } from "./server/useAppConfig.ts";
 import { setLogRoot, useLogDir } from "./server/useLogDir.ts";
 import {
   readEmbeddedStartupState,
@@ -100,7 +100,7 @@ const useThemePreferenceSync = () => {
 const AppContent: FC = () => {
   useThemePreferenceSync();
 
-  const { api } = useAppConfig();
+  const api = useApi();
 
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);

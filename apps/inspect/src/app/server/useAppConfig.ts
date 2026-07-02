@@ -1,6 +1,7 @@
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
+import { ClientAPI } from "../../client/api/types";
 import { AppConfig, resolveAppConfig } from "../appConfig";
 
 export const APP_CONFIG_KEY = ["app-config"] as const;
@@ -28,3 +29,6 @@ export const useAppConfig = (): AppConfig => {
   if (!data) throw new Error("App config not loaded");
   return data;
 };
+
+/** The api client, off the resolved app config. */
+export const useApi = (): ClientAPI => useAppConfig().api;

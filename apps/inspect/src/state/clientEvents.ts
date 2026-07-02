@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 
 import { createLogger } from "@tsmono/util";
 
-import { useAppConfig } from "../app/server/useAppConfig";
+import { useApi } from "../app/server/useAppConfig";
 
 import { clientEventsService } from "./clientEventsService";
 import { syncLogs } from "./replicationControl";
@@ -10,7 +10,7 @@ import { syncLogs } from "./replicationControl";
 const log = createLogger("Client-Events");
 
 export function useClientEvents() {
-  const { api } = useAppConfig();
+  const api = useApi();
 
   const refreshCallback = useCallback(async (_reason: "event" | "periodic") => {
     log.debug(`Refresh Log Files (${_reason})`);

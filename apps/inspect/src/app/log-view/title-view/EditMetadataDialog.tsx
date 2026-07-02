@@ -14,7 +14,7 @@ import { MetadataEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../appearance/icons";
-import { useAppConfig } from "../../server/useAppConfig";
+import { useApi } from "../../server/useAppConfig";
 
 import { AutogrowText } from "./AutogrowText";
 import { ChangeSummary } from "./ChangeSummary";
@@ -143,7 +143,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const { api } = useAppConfig();
+  const api = useApi();
 
   const initialEntries = useMemo<MetaEntry[]>(
     () =>

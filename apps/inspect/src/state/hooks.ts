@@ -10,7 +10,7 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
-import { useAppConfig } from "../app/server/useAppConfig";
+import { useApi } from "../app/server/useAppConfig";
 import { useLogDir } from "../app/server/useLogDir";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
@@ -207,7 +207,7 @@ export interface LogEditAffordance {
  * on save is worse than not offering it.
  */
 export const useLogEditAffordance = (): LogEditAffordance => {
-  const { api } = useAppConfig();
+  const api = useApi();
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
   const logStatus = useSelectedLogDetails()?.status;
