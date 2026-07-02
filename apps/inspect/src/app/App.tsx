@@ -72,9 +72,10 @@ const componentIcons: ComponentIcons = {
  * re-apply whenever the in-app picker changes it, and pull cross-tab writes
  * back into zustand (persist doesn't listen for `storage` events itself).
  *
- * Used to trigger side effects only — returns nothing.
+ * A render-null controller at the composition root — an irreducible effect
+ * (DOM/theme + storage-event bridging), not data.
  */
-const useThemePreferenceSyncSideEffect = () => {
+const ThemePreferenceSyncController: FC = () => {
   const themePreference = useUserSettings((s) => s.themePreference);
   // useLayoutEffect (not useEffect): apply before the browser paints so an
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
@@ -96,6 +97,8 @@ const useThemePreferenceSyncSideEffect = () => {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  return null;
 };
 
 /**
@@ -103,8 +106,6 @@ const useThemePreferenceSyncSideEffect = () => {
  * read the resolved app config.
  */
 export const AppContent: FC = () => {
-  useThemePreferenceSyncSideEffect();
-
   const api = getApi();
 
   // Whether the app was rehydrated
@@ -180,11 +181,14 @@ export const AppContent: FC = () => {
   }, [onMessage]);
 
   return (
-    <ComponentIconProvider icons={componentIcons}>
-      <ComponentStateProvider hooks={inspectStateHooks}>
-        <RouterProvider router={AppRouter} />
-      </ComponentStateProvider>
-    </ComponentIconProvider>
+    <>
+      <ThemePreferenceSyncController />
+      <ComponentIconProvider icons={componentIcons}>
+        <ComponentStateProvider hooks={inspectStateHooks}>
+          <RouterProvider router={AppRouter} />
+        </ComponentStateProvider>
+      </ComponentIconProvider>
+    </>
   );
 };
 

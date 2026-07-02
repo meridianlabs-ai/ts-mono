@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
-import { useLoadLogSideEffect } from "../../state/useLoadLogSideEffect";
 import { directoryRelativeUrl } from "../../utils/uri";
 import {
   samplesSampleUrl,
@@ -17,8 +16,6 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  * This is shown when navigating to /samples/path/to/file.eval/sample/id/epoch
  *
  * This component handles:
- * - Log selection from route params (useLoadLogSideEffect; sample fetching
- *   rides the sample queries)
  * - Navigation state calculation using displayedSamples from samples grid
  * - Navigation callbacks (handlePrevious, handleNext)
  * - Cleanup on unmount (clears log state since this is a standalone view)
@@ -27,9 +24,6 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  */
 export const SampleDetailView: FC = () => {
   const { singleFileMode } = useAppConfig();
-
-  // Select the log named by the route
-  useLoadLogSideEffect();
 
   // Get route params
   const {
