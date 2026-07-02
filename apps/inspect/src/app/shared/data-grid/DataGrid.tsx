@@ -12,12 +12,14 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import {
+  DragEvent,
   KeyboardEvent,
   MouseEvent,
   ReactElement,
   RefObject,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -29,6 +31,11 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
+import {
+  dropIndicatorSide,
+  moveColumn,
+  resolveColumnOrder,
+} from "./columnReorder";
 import { ExtendedColumnDef } from "./columnTypes";
 import styles from "./DataGrid.module.css";
 import { resolveKeyboardNavTarget } from "./keyboardNav";
@@ -70,6 +77,12 @@ export interface DataGridProps<TRow> {
   /** Controlled column widths (keyed by column id). */
   columnSizing?: ColumnSizingState;
   onColumnSizingChange?: (sizing: ColumnSizingState) => void;
+  /** Controlled column order (leaf column ids). Ids missing from the list
+   *  render after the listed ones in definition order; stale ids are
+   *  ignored — so a persisted order survives columns appearing/disappearing
+   *  (e.g. per-eval scorer columns). */
+  columnOrder?: string[];
+  onColumnOrderChange?: (order: string[]) => void;
   /** Controlled per-column filters (keyed by column id). */
   columnFilters?: Record<string, ColumnFilter>;
   onColumnFilterChange?: (
@@ -111,6 +124,8 @@ export function DataGrid<TRow>({
   onSortingChange,
   columnSizing,
   onColumnSizingChange,
+  columnOrder,
+  onColumnOrderChange,
   columnFilters,
   onColumnFilterChange,
   selectedRowId,
@@ -171,6 +186,127 @@ export function DataGrid<TRow>({
     [effectiveSizing, onColumnSizingChange]
   );
 
+  // Column order: controlled when `onColumnOrderChange` is provided (log
+  // list persists per scope), else internal. The stored order is reconciled
+  // against the current column defs on every render so it never goes stale.
+  const [internalOrder, setInternalOrder] = useState<string[]>([]);
+  const orderSource = columnOrder ?? internalOrder;
+  const effectiveColumnOrder = useMemo(() => {
+    const leafIds = columns
+      .map((c) => c.id)
+      .filter((id): id is string => id !== undefined);
+    return resolveColumnOrder(orderSource, leafIds);
+  }, [orderSource, columns]);
+  const commitColumnOrder = useCallback(
+    (next: string[]) => {
+      if (onColumnOrderChange) onColumnOrderChange(next);
+      else setInternalOrder(next);
+    },
+    [onColumnOrderChange]
+  );
+
+  // Drag-to-reorder. Native HTML5 drag on the header content (never the
+  // resize handles, which are sibling elements): the browser's built-in
+  // drag threshold keeps plain sort-clicks intact, and a real drag
+  // suppresses the click. Drop targets are the header cells; the column
+  // moves once, on drop, to the indicated edge.
+  const [draggedColId, setDraggedColId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    colId: string;
+    side: "left" | "right";
+  } | null>(null);
+
+  const dragGhostRef = useRef<HTMLElement | null>(null);
+  const dragSessionRef = useRef<string | null>(null);
+  const removeDragGhost = useCallback(() => {
+    dragGhostRef.current?.remove();
+    dragGhostRef.current = null;
+  }, []);
+
+  const handleHeaderDragStart = useCallback(
+    (e: DragEvent<HTMLElement>, colId: string, label: string) => {
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox won't start a drag with an empty data store.
+      e.dataTransfer.setData("text/plain", colId);
+      // Chromium snapshots the drag image from the source element, which for
+      // the 45°-rotated labels is unusable (transformed paint, huge bounds).
+      // Hand it an unrotated chip with the column name instead — also what
+      // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
+      if (typeof e.dataTransfer.setDragImage === "function") {
+        const chip = document.createElement("div");
+        chip.className = styles.dragGhost ?? "";
+        chip.textContent = label;
+        document.body.appendChild(chip);
+        e.dataTransfer.setDragImage(chip, 12, 14);
+        dragGhostRef.current = chip;
+      }
+      // Defer the state flip: it re-renders the header (dim the source, flip
+      // rotated-label pointer-events) and mutating the DOM while Chromium is
+      // still establishing the drag session aborts the drag outright. The
+      // session ref voids the deferred set if the drag ends first.
+      dragSessionRef.current = colId;
+      setTimeout(() => {
+        if (dragSessionRef.current === colId) setDraggedColId(colId);
+      }, 0);
+    },
+    []
+  );
+
+  const handleHeaderDragOver = useCallback(
+    (e: DragEvent<HTMLElement>, colId: string) => {
+      if (!draggedColId) return;
+      // preventDefault marks the cell as a valid drop target.
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (draggedColId === colId) {
+        setDropTarget(null);
+        return;
+      }
+      const side = dropIndicatorSide(effectiveColumnOrder, draggedColId, colId);
+      // dragover fires continuously — keep the previous state object when
+      // nothing changed so we don't re-render the grid on every mousemove.
+      setDropTarget((prev) =>
+        prev && prev.colId === colId && prev.side === side
+          ? prev
+          : { colId, side }
+      );
+    },
+    [draggedColId, effectiveColumnOrder]
+  );
+
+  const handleHeaderDragLeave = useCallback((e: DragEvent<HTMLElement>) => {
+    // dragleave also fires when moving onto the cell's own children.
+    if (
+      e.relatedTarget instanceof Node &&
+      e.currentTarget.contains(e.relatedTarget)
+    ) {
+      return;
+    }
+    setDropTarget(null);
+  }, []);
+
+  const handleHeaderDrop = useCallback(
+    (e: DragEvent<HTMLElement>, colId: string) => {
+      e.preventDefault();
+      if (draggedColId) {
+        const next = moveColumn(effectiveColumnOrder, draggedColId, colId);
+        if (next) commitColumnOrder(next);
+      }
+      setDraggedColId(null);
+      setDropTarget(null);
+    },
+    [draggedColId, effectiveColumnOrder, commitColumnOrder]
+  );
+
+  // Fires on the drag source after a drop OR a cancelled drag (Escape /
+  // released outside a target) — the one reliable place to clear state.
+  const handleHeaderDragEnd = useCallback(() => {
+    dragSessionRef.current = null;
+    removeDragGhost();
+    setDraggedColId(null);
+    setDropTarget(null);
+  }, [removeDragGhost]);
+
   // useReactTable returns unmemoizable functions
   // https://github.com/TanStack/table/issues/5567
   // https://github.com/facebook/react/issues/33057
@@ -189,6 +325,7 @@ export function DataGrid<TRow>({
       columnVisibility: columnVisibility ?? {},
       sorting: sorting ?? [],
       columnSizing: effectiveSizing,
+      columnOrder: effectiveColumnOrder,
     },
     onSortingChange: handleSortingChange,
     onColumnSizingChange: handleColumnSizingChange,
@@ -335,7 +472,10 @@ export function DataGrid<TRow>({
         style={{ width: totalWidth + gapExtra + trailingPad }}
       >
         <div
-          className={styles.thead}
+          className={clsx(
+            styles.thead,
+            draggedColId !== null && styles.theadDragging
+          )}
           style={{ height: effectiveHeaderHeight }}
           role="rowgroup"
         >
@@ -346,6 +486,11 @@ export function DataGrid<TRow>({
                   .columnDef as ExtendedColumnDef<TRow>;
                 const filterCondition =
                   columnFilters?.[header.column.id]?.condition ?? null;
+                const isDragSource = draggedColId === header.column.id;
+                const dropSide =
+                  dropTarget?.colId === header.column.id
+                    ? dropTarget.side
+                    : null;
 
                 // Rotated (compact score) header: a 45° label hosting text +
                 // sort caret + filter funnel. Rendered by a subcomponent so
@@ -359,6 +504,13 @@ export function DataGrid<TRow>({
                       header={header}
                       filterCondition={filterCondition}
                       onColumnFilterChange={onColumnFilterChange}
+                      isDragSource={isDragSource}
+                      dropSide={dropSide}
+                      onHeaderDragStart={handleHeaderDragStart}
+                      onHeaderDragEnd={handleHeaderDragEnd}
+                      onHeaderDragOver={handleHeaderDragOver}
+                      onHeaderDragLeave={handleHeaderDragLeave}
+                      onHeaderDrop={handleHeaderDrop}
                     />
                   );
                 }
@@ -408,7 +560,10 @@ export function DataGrid<TRow>({
                       styles.headerCell,
                       anyRotated && styles.headerCellTall,
                       afterRotatedIds.has(header.column.id) &&
-                        styles.afterRotatedGap
+                        styles.afterRotatedGap,
+                      isDragSource && styles.headerCellDragSource,
+                      dropSide === "left" && styles.headerCellDropLeft,
+                      dropSide === "right" && styles.headerCellDropRight
                     )}
                     style={{
                       width:
@@ -419,12 +574,26 @@ export function DataGrid<TRow>({
                     }}
                     title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
+                    onDragOver={(e) =>
+                      handleHeaderDragOver(e, header.column.id)
+                    }
+                    onDragLeave={handleHeaderDragLeave}
+                    onDrop={(e) => handleHeaderDrop(e, header.column.id)}
                   >
                     <div
                       className={clsx(
                         styles.headerContent,
                         align === "center" && styles.headerCellCenter
                       )}
+                      draggable
+                      onDragStart={(e) =>
+                        handleHeaderDragStart(
+                          e,
+                          header.column.id,
+                          resolveHeaderTitle(columnDef) ?? header.column.id
+                        )
+                      }
+                      onDragEnd={handleHeaderDragEnd}
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       <span className={styles.headerText}>{headerLabel}</span>
@@ -545,6 +714,13 @@ function RotatedHeaderCell<TRow>({
   header,
   filterCondition,
   onColumnFilterChange,
+  isDragSource,
+  dropSide,
+  onHeaderDragStart,
+  onHeaderDragEnd,
+  onHeaderDragOver,
+  onHeaderDragLeave,
+  onHeaderDrop,
 }: {
   header: Header<TRow, unknown>;
   filterCondition: SimpleCondition | null;
@@ -553,6 +729,17 @@ function RotatedHeaderCell<TRow>({
     filterType: FilterType,
     condition: SimpleCondition | null
   ) => void;
+  isDragSource: boolean;
+  dropSide: "left" | "right" | null;
+  onHeaderDragStart: (
+    e: DragEvent<HTMLElement>,
+    colId: string,
+    label: string
+  ) => void;
+  onHeaderDragEnd: () => void;
+  onHeaderDragOver: (e: DragEvent<HTMLElement>, colId: string) => void;
+  onHeaderDragLeave: (e: DragEvent<HTMLElement>) => void;
+  onHeaderDrop: (e: DragEvent<HTMLElement>, colId: string) => void;
 }): ReactElement {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
@@ -564,9 +751,20 @@ function RotatedHeaderCell<TRow>({
 
   return (
     <div
-      className={clsx(styles.headerCell, styles.headerCellRotated)}
+      className={clsx(
+        styles.headerCell,
+        styles.headerCellRotated,
+        isDragSource && styles.headerCellDragSource,
+        dropSide === "left" && styles.headerCellDropLeft,
+        dropSide === "right" && styles.headerCellDropRight
+      )}
       style={{ width: header.getSize() }}
       role="columnheader"
+      // Drop targeting works during a drag because .theadDragging flips this
+      // cell's pointer-events back on (see DataGrid.module.css).
+      onDragOver={(e) => onHeaderDragOver(e, header.column.id)}
+      onDragLeave={onHeaderDragLeave}
+      onDrop={(e) => onHeaderDrop(e, header.column.id)}
     >
       <div
         className={clsx(
@@ -577,6 +775,15 @@ function RotatedHeaderCell<TRow>({
         // pointer-events: none, so a title there would never fire) — shows
         // the full name when the narrow rotated label truncates it.
         title={resolveHeaderTitle(columnDef)}
+        draggable
+        onDragStart={(e) =>
+          onHeaderDragStart(
+            e,
+            header.column.id,
+            resolveHeaderTitle(columnDef) ?? header.column.id
+          )
+        }
+        onDragEnd={onHeaderDragEnd}
         onClick={header.column.getToggleSortingHandler()}
       >
         <span className={styles.rotatedText}>{headerLabel}</span>

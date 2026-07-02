@@ -100,6 +100,9 @@ export interface LogListGridState {
   columnFilters?: Record<string, ColumnFilter>;
   /** User-resized column widths, keyed by column id. */
   columnSizing?: Record<string, number>;
+  /** User-reordered column ids (drag-to-reorder). Columns missing from the
+   *  list render after it in definition order. */
+  columnOrder?: string[];
 }
 
 export interface LogsListing {

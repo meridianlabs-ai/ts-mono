@@ -293,6 +293,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       sorting: entry?.sorting ?? [],
       columnFilters: {},
       columnSizing: entry?.columnSizing,
+      columnOrder: entry?.columnOrder,
     });
   }, [scopeKey, gridStateByScope, setGridState]);
 
@@ -320,6 +321,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               sorting: entry?.sorting ?? [],
               columnFilters: next,
               columnSizing: entry?.columnSizing,
+              columnOrder: entry?.columnOrder,
             });
           }
         }
