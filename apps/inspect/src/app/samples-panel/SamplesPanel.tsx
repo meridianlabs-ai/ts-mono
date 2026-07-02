@@ -14,7 +14,6 @@ import {
   useLogPreviews,
   useLogsSync,
 } from "../../log_data";
-import { useClientEventsActions } from "../../state/clientEvents";
 import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -111,15 +110,6 @@ export const SamplesPanel: FC = () => {
     useState<HTMLButtonElement | null>(null);
 
   const logDetails = useLogDetails(logDir);
-
-  // Polling for updated log files.
-  const { startPolling, stopPolling } = useClientEventsActions();
-  useEffect(() => {
-    startPolling();
-    return () => {
-      stopPolling();
-    };
-  }, [startPolling, stopPolling]);
 
   const flowData = useFlowQuery(samplesPath || "").data;
 

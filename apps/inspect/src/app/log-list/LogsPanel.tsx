@@ -21,7 +21,6 @@ import {
   useLogsSync,
 } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
-import { useClientEventsActions } from "../../state/clientEvents";
 import { useLogsListing, useLogsWithretried } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -95,23 +94,11 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const flowData = useFlowQuery(logPath || "").data;
 
-  const { startPolling, stopPolling } = useClientEventsActions();
-
   useEffect(() => {
     setDocumentTitle({
       logDir: logDir,
     });
   }, [logDir]);
-
-  // The watched set is the log handles this panel lists (useLogHandles via
-  // useLogsWithretried); the poll doesn't consume the set — it only refreshes
-  // that same collection — so the derivation reduces to the panel's lifetime.
-  useEffect(() => {
-    startPolling();
-    return () => {
-      stopPolling();
-    };
-  }, [startPolling, stopPolling]);
 
   const [logItems, hasRetriedLogs]: [
     Array<FileLogItem | FolderLogItem | PendingTaskItem>,
