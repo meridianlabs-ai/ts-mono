@@ -1,50 +1,76 @@
 import { FC, useEffect } from "react";
 
+import { kLogViewInfoTabId } from "../../../constants";
 import { useSelectedLogDetails } from "../../../state/hooks";
-import { loadLog } from "../../../state/logLoad";
+import { getLogPolling } from "../../../state/logPollingInstance";
+import { useSelectedLogQuery } from "../../../state/selectedLogDetails";
 import { useStore } from "../../../state/store";
 
 /**
- * Drives loading + polling of the selected log. Rendered below the loader gate
- * (by both loader hosts) so the log dir is resolved before it runs: it reads
- * the opened log's details from react-query, which is keyed by that dir. Living
- * above the gate (as this used to, in <App>) would force those reads to tolerate
- * an unresolved dir. Returns null.
+ * Reacts to the selected log's details query — only the side effects that
+ * can't be derived: recording the loaded log, resetting per-log derived
+ * selection state, defaulting the workspace tab for empty logs, and starting
+ * polling. All fetching lives in the query/engine. Rendered below the loader
+ * gate (by both loader hosts) so the log dir the query is keyed on is
+ * resolved before it runs.
  */
 export const LogLoadController: FC = () => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const loadedLogFile = useStore((state) => state.log.loadedLog);
-  const selectedLogDetails = useSelectedLogDetails();
+  const selectedLog = useSelectedLogQuery();
+  const details = selectedLog.data;
+  const error = selectedLog.error;
+
+  const setLoadedLog = useStore((state) => state.logActions.setLoadedLog);
+  const clearSelectedScores = useStore(
+    (state) => state.logActions.clearSelectedScores
+  );
+  const clearPendingSampleSummaries = useStore(
+    (state) => state.logActions.clearPendingSampleSummaries
+  );
+  const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const setLoading = useStore((state) => state.appActions.setLoading);
   const pollLog = useStore((state) => state.logActions.pollLog);
 
-  // Load the selected log when it changes (unless it's already the loaded one
-  // and we have its details).
+  // React to (re)loaded details: the effect re-runs when the query settles
+  // with a fresh object — initial load and refresh-by-invalidation alike.
   useEffect(() => {
-    const loadSpecificLog = async () => {
-      if (!selectedLogFile) {
-        return;
-      }
-      if (selectedLogFile === loadedLogFile && selectedLogDetails) {
-        return;
-      }
-      try {
-        await loadLog(selectedLogFile);
-      } catch (e) {
-        console.log(e);
-        setLoading(false, e as Error);
-      }
-    };
+    if (!selectedLogFile || !details) {
+      return;
+    }
+    clearSelectedScores();
+    if (details.status !== "started" && details.sampleSummaries.length === 0) {
+      // If there are no samples, use the info tab by default
+      setWorkspaceTab(kLogViewInfoTabId);
+    }
+    setLoadedLog(selectedLogFile);
+    clearPendingSampleSummaries();
+    getLogPolling().startPolling(selectedLogFile);
+  }, [
+    details,
+    selectedLogFile,
+    clearSelectedScores,
+    setWorkspaceTab,
+    setLoadedLog,
+    clearPendingSampleSummaries,
+  ]);
 
-    void loadSpecificLog();
-  }, [selectedLogFile, loadedLogFile, selectedLogDetails, setLoading]);
-
-  // Poll a running log.
+  // Surface load failures through the app status (the pre-AsyncData error
+  // channel the panels read).
   useEffect(() => {
-    if (selectedLogDetails?.status === "started") {
+    if (error) {
+      console.log(error);
+      setLoading(false, error);
+    }
+  }, [error, setLoading]);
+
+  // Poll a running log (its status can flip via background updates, not just
+  // via this query — read the live collection).
+  const liveStatus = useSelectedLogDetails()?.status;
+  useEffect(() => {
+    if (liveStatus === "started") {
       void pollLog();
     }
-  }, [pollLog, selectedLogDetails?.status]);
+  }, [pollLog, liveStatus]);
 
   return null;
 };

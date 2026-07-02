@@ -1,7 +1,6 @@
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
-import { LogDetails, PendingSamples } from "../client/api/types";
-import { kLogViewInfoTabId } from "../constants";
+import { PendingSamples } from "../client/api/types";
 
 import { cleanupLogPolling, getLogPolling } from "./logPollingInstance";
 import { StoreState } from "./store";
@@ -16,10 +15,8 @@ export interface LogSlice {
     ) => void;
     clearSelectedSample: () => void;
 
-    // React to a freshly loaded/refreshed log's details: reset derived
-    // selection state. The details themselves live in the react-query
-    // collection, not zustand.
-    onLogDetailsLoaded: (details: LogDetails) => void;
+    // Reset the per-log score selection (on log load/refresh).
+    clearSelectedScores: () => void;
 
     // Update pending sample information
     setPendingSampleSummaries: (samples: PendingSamples) => void;
@@ -43,8 +40,8 @@ export interface LogSlice {
     // Reset filter state to defaults
     resetFiltering: () => void;
 
-    // Record the log whose details have been loaded. UI state only; the
-    // loading IO lives in `state/logLoad.ts`.
+    // Record the log whose details have been loaded. UI state only; loading
+    // is the selected-log details query over the fetch engine.
     setLoadedLog: (logFileName: string) => void;
 
     // Poll the currently selected log
@@ -112,18 +109,10 @@ export const createLogSlice = (
           state.log.selectedSampleHandle = undefined;
         });
       },
-      onLogDetailsLoaded: (details: LogDetails) => {
+      clearSelectedScores: () => {
         set((state) => {
           state.log.selectedScores = undefined;
         });
-
-        if (
-          details.status !== "started" &&
-          details.sampleSummaries.length === 0
-        ) {
-          // If there are no samples, use the workspace tab id by default
-          get().appActions.setWorkspaceTab(kLogViewInfoTabId);
-        }
       },
       setPendingSampleSummaries: (pendingSampleSummaries: PendingSamples) => {
         set((state) => {

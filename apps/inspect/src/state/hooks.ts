@@ -16,10 +16,10 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
 import { isUri, join, prettyDirUri } from "../utils/uri";
 
-import { refreshSelectedLog } from "./logLoad";
 import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { syncLogPreviews, syncLogs } from "./replicationControl";
 import { getAvailableScorers } from "./scoring";
+import { invalidateSelectedLog } from "./selectedLogDetails";
 import { useStore } from "./store";
 import { mergeSampleSummaries } from "./utils";
 
@@ -172,19 +172,14 @@ export const useEvalSpec = () => {
 };
 
 export const useRefreshLog = () => {
-  const setLoading = useStore((state) => state.appActions.setLoading);
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const resetFiltering = useStore((state) => state.logActions.resetFiltering);
 
   return useCallback(() => {
-    try {
-      void refreshSelectedLog();
-      resetFiltering();
-    } catch (e) {
-      // Show an error
-      console.log(e);
-      setLoading(false, e as Error);
-    }
-  }, [resetFiltering, setLoading]);
+    void invalidateSelectedLog(logDir, selectedLogFile);
+    resetFiltering();
+  }, [logDir, selectedLogFile, resetFiltering]);
 };
 
 export interface LogEditAffordance {

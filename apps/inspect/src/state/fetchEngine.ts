@@ -251,6 +251,7 @@ export class FetchEngine {
               // Someone is waiting on this, so land it now rather than in the
               // next batched flush; repaint the listing preview from the fresh
               // status (a log cached as "started" may have since finished).
+              this.ensureListed(log.name);
               void deps.sink
                 .writeDetails({ [log.name]: detail })
                 .catch(() => {});
@@ -363,6 +364,7 @@ export class FetchEngine {
       return;
     }
     if (cached && cached.status !== "started") {
+      this.ensureListed(key);
       deps.sink.mergeDetails({ [key]: cached });
       deps.sink.mergePreviews({ [key]: toLogPreview(cached) });
       this._pendingFetches.delete(key);
@@ -372,6 +374,19 @@ export class FetchEngine {
     }
     this._freshDetails.add(key);
     this._detailQueue.enqueue([{ name: key }], toWorkPriority(priority));
+  }
+
+  /**
+   * A successfully fetched log must appear in the listing even when no
+   * discovery produced it (single-file mode; a deep link ahead of the first
+   * sync) — seed a bare cache-only handle for it. Discovery later replaces
+   * the listing wholesale, so the seed never leaks into the database.
+   */
+  private ensureListed(key: string): void {
+    if (!this._handles.some((handle) => handle.name === key)) {
+      this._handles = [...this._handles, { name: key }];
+      this._deps?.sink.setHandles(this._handles);
+    }
   }
 
   /**
