@@ -9,9 +9,8 @@ import {
   PendingSampleResponse,
   PendingSamples,
 } from "../client/api/types";
-import { fetchEngine } from "../log_data";
+import { fetchEngine, useLogDetail } from "../log_data";
 
-import { useLogDetail } from "./logsContent";
 import { queryClient } from "./queryClient";
 import { useStore } from "./store";
 

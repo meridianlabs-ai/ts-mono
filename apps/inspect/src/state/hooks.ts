@@ -13,9 +13,9 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogDetails, SampleSummary } from "../client/api/types";
+import { useLogDetail, useLogHandles, useLogPreviews } from "../log_data";
 
 import { refreshLog } from "./actions";
-import { useLogDetail, useLogHandles, useLogPreviews } from "./logsContent";
 import { usePendingSamples } from "./pendingSamples";
 import { getAvailableScorers } from "./scoring";
 import { useStore } from "./store";

@@ -12,9 +12,8 @@ import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogDir } from "../../../app_config";
 import { LogDetails } from "../../../client/api/types";
-import { useFetchEngineStatus } from "../../../log_data";
+import { useFetchEngineStatus, useLogDetails } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
-import { useLogDetails } from "../../../state/logsContent";
 import { useStore } from "../../../state/store";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";

@@ -10,7 +10,7 @@ import {
 import { useAppConfig, useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
-import { useLogHandles } from "../../state/logsContent";
+import { useLogHandles } from "../../log_data";
 import {
   useSelectedLogLoading,
   useSelectedLogQuery,

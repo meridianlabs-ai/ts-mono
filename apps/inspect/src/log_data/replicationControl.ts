@@ -3,10 +3,10 @@ import { LogHandle } from "@tsmono/inspect-common/types";
 import { getAppConfig, getLogDir } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { DatabaseService } from "../client/database";
-import { createLogsContentSink } from "../state/logsContent";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
+import { createLogsContentSink } from "./logsContent";
 import { replicationService } from "./replicationService";
 
 let injectedApi: ClientAPI | null = null;

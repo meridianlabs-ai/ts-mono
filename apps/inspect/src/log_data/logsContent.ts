@@ -6,9 +6,9 @@ import { AsyncData, data, loading } from "@tsmono/util";
 
 import { LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
-import type { LogsContentSink } from "../log_data";
+import { queryClient } from "../state/queryClient";
 
-import { queryClient } from "./queryClient";
+import type { LogsContentSink } from "./fetchEngine";
 
 /**
  * The log-list content backed by IndexedDB — handles, previews, and details for

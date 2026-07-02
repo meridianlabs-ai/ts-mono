@@ -8,10 +8,14 @@ import { ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
-import { useFetchEngineStatus, useLogsSync } from "../../log_data";
+import {
+  useFetchEngineStatus,
+  useLogDetails,
+  useLogPreviews,
+  useLogsSync,
+} from "../../log_data";
 import { useClientEventsActions } from "../../state/clientEvents";
 import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
-import { useLogDetails, useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";

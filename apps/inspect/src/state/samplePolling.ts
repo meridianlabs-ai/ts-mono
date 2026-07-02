@@ -19,10 +19,10 @@ import {
   SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
+import { getLogDetail } from "../log_data";
 import { resolveAttachments } from "../utils/attachments";
 import { createPolling, PollingCallbackResult } from "../utils/polling";
 
-import * as logsContent from "./logsContent";
 import { getPendingSamples } from "./pendingSamples";
 import {
   resolveSample,
@@ -354,7 +354,7 @@ export function createSamplePolling(
 
 /** The opened log's details, read from the react-query collection. */
 const selectedLogDetails = (state: StoreState): LogDetails | undefined =>
-  logsContent.getLogDetail(getLogDir(), state.logs.selectedLogFile ?? "");
+  getLogDetail(getLogDir(), state.logs.selectedLogFile ?? "");
 
 const hasCompletedLogSummary = (
   state: StoreState,

@@ -61,7 +61,10 @@ active then refresh the listing, the single entry point for
 `deactivateReplication` — stop discovery *and* the engine), plus
 `fetchEngine.fetch(logFile, priority): Promise<LogDetails>` — "get this at the
 highest priority" is an enqueue-or-bump, never a separate code path — and
-`log_data/useFetchEngineStatus.ts` / `log_data/useLogsSync.ts` as the react rim.
+`log_data/useFetchEngineStatus.ts` / `log_data/useLogsSync.ts` as the react
+rim, together with the collection read accessors on `log_data/logsContent.ts`
+(`useLogHandles` / `useLogPreviews` / `useLogDetails` / `useLogDetail` and the
+non-React `getLogDetail`).
 Consumers don't know a replicator exists; they say "be ready for this dir" and
 "refresh the listing now".
 
@@ -119,8 +122,11 @@ in `state/hooks.ts`), not in the slice.
 
 - **React-query cache** — the server-data medium: handles, previews, details,
   pending samples, eval-set, versions; never in zustand. The log-list
-  collections (`state/logsContent.ts`) are fed by acquisition through its sink
-  and read by the UI — two-sided, so it belongs to neither.
+  collections are fed by acquisition through its sink and read by the UI —
+  two-sided cache entries, so the *medium* belongs to neither. The accessor
+  code over those entries (`log_data/logsContent.ts` — the sink implementation
+  and the read hooks) lives in acquisition as its output port; consumers read
+  the hooks off the barrel.
 - **Loading / error status** — derivations of `AsyncData`, never imperatively
   set. Log-open path: the selected-log query (`LogViewLayout` error panel +
   activity, `ApplicationNavbar` via `useSelectedLogLoading`). Listing path: the
@@ -168,7 +174,9 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   barrel exports exactly the public surface. External modules import only the
   barrel; everything else in the dir is subsystem-private (in-dir tests import
   modules directly). One deep-import exception:
-  `state/samplePolling.test.ts` seeds config via `initAppConfig`.
+  `state/samplePolling.test.ts` seeds config via `initAppConfig`. (It seeds
+  the details collection via the barrel's `mergeDetails`, exported for that
+  seeding; product code writes collections only through the sink.)
 - React reaches down only through hooks or a subsystem surface (from
   controllers / event handlers).
 - **Only acquisition talks to the backend about log data** — `api.get_logs`,

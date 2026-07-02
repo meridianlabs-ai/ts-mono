@@ -16,11 +16,14 @@ import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { useFetchEngineStatus, useLogsSync } from "../../log_data";
+import {
+  useFetchEngineStatus,
+  useLogPreviews,
+  useLogsSync,
+} from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import { useClientEventsActions } from "../../state/clientEvents";
 import { useLogsListing, useLogsWithretried } from "../../state/hooks";
-import { useLogPreviews } from "../../state/logsContent";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";

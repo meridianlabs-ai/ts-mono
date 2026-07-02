@@ -8,6 +8,14 @@ export {
 export type { LogsContentSink } from "./fetchEngine";
 export { fetchEngine } from "./fetchEngine";
 export {
+  getLogDetail,
+  mergeDetails,
+  useLogDetail,
+  useLogDetails,
+  useLogHandles,
+  useLogPreviews,
+} from "./logsContent";
+export {
   deactivateReplication,
   ensureFetchEngine,
   setReplicationApi,

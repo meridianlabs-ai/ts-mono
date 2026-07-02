@@ -7,7 +7,7 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
-import { useLogDetails } from "../../../../state/logsContent";
+import { useLogDetails } from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";

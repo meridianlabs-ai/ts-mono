@@ -12,8 +12,8 @@ import {
   SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
+import { mergeDetails } from "../log_data";
 
-import * as logsContent from "./logsContent";
 import { pendingSamplesKey } from "./pendingSamples";
 import { queryClient } from "./queryClient";
 import {
@@ -37,7 +37,7 @@ const seedSelectedLog = () => {
     scout_version: null,
     logDir: SELECTED_DIR,
   });
-  logsContent.mergeDetails(SELECTED_DIR, {
+  mergeDetails(SELECTED_DIR, {
     [SELECTED_LOG]: { sampleSummaries: [] } as unknown as never,
   });
 };
