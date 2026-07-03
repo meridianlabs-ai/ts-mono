@@ -10,11 +10,11 @@ const createHarness = () => {
   });
   const get = () => state;
 
-  const [slice, cleanup] = createLogSlice(set, get, {});
+  const slice = createLogSlice(set, get, {});
   state.log = { ...slice.log };
   state.logActions = slice.logActions;
 
-  return { state, cleanup };
+  return { state };
 };
 
 describe("logSlice.setLoadedLog", () => {
@@ -24,6 +24,5 @@ describe("logSlice.setLoadedLog", () => {
     harness.state.logActions.setLoadedLog("run.eval");
 
     expect(harness.state.log.loadedLog).toBe("run.eval");
-    harness.cleanup();
   });
 });

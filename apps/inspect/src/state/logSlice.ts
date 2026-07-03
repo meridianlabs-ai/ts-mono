@@ -65,7 +65,7 @@ export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
   _store: unknown
-): [LogSlice, () => void] => {
+): LogSlice => {
   const slice = {
     // State
     log: initialState,
@@ -151,9 +151,7 @@ export const createLogSlice = (
     },
   } as const;
 
-  const cleanup = () => {};
-
-  return [slice, cleanup];
+  return slice;
 };
 
 // Initialize app slice with StoreState

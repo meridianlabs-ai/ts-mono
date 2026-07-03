@@ -6,12 +6,7 @@ import { immer } from "zustand/middleware/immer";
 import { createLogger, debounce } from "@tsmono/util";
 
 import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
-import {
-  cleanupDatabaseService,
-  fetchEngine,
-  initDatabaseService,
-  setReplicationApi,
-} from "../log_data";
+import { initDatabaseService, setReplicationApi } from "../log_data";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
@@ -29,7 +24,6 @@ export interface StoreState
   extends AppSlice, LogsSlice, LogSlice, SampleSlice, SearchSlice {
   // Global actions
   initialize: (capabilities: Capabilities) => void;
-  cleanup: () => void;
 }
 
 // The store is immer-wrapped, so its `setState` accepts an immer recipe
@@ -87,47 +81,23 @@ export const initializeStore = (
   const store = create<StoreState>()(
     devtools(
       persist(
-        immer((set, get, store) => {
-          const [appSlice, appCleanup] = createAppSlice(set, get, store);
-          const [logsSlice, logsCleanup] = createLogsSlice(set, get, store);
-          const [logSlice, logCleanup] = createLogSlice(set, get, store);
-          const [sampleSlice, sampleCleanup] = createSampleSlice(
-            set,
-            get,
-            store
-          );
-          const [searchSlice, searchCleanup] = createSearchSlice(set);
+        immer((set, get, store) => ({
+          // Initialize
+          initialize: (capabilities) => {
+            // Initialize application slices
+            initializeAppSlice(set, capabilities);
+            initializeLogsSlice(set);
+            initalializeLogSlice(set);
+            initializeSampleSlice(set);
+          },
 
-          return {
-            // Initialize
-            initialize: (capabilities) => {
-              // Initialize application slices
-              initializeAppSlice(set, capabilities);
-              initializeLogsSlice(set);
-              initalializeLogSlice(set);
-              initializeSampleSlice(set);
-            },
-
-            // Create the slices and merge them in
-            ...appSlice,
-            ...logsSlice,
-            ...logSlice,
-            ...sampleSlice,
-            ...searchSlice,
-
-            cleanup: async () => {
-              // Stop the engine and close the database before cleaning up slices
-              fetchEngine.stop();
-              await cleanupDatabaseService();
-
-              appCleanup();
-              logsCleanup();
-              logCleanup();
-              sampleCleanup();
-              searchCleanup();
-            },
-          };
-        }),
+          // Create the slices and merge them in
+          ...createAppSlice(set, get, store),
+          ...createLogsSlice(set, get, store),
+          ...createLogSlice(set, get, store),
+          ...createSampleSlice(set, get, store),
+          ...createSearchSlice(set),
+        })),
         {
           name: "app-storage",
           storage: storageImplementation,

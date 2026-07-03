@@ -23,11 +23,3 @@ export function initDatabaseService(
 export function getDatabaseService(): DatabaseService | null {
   return instance;
 }
-
-/** Close the database and drop the singleton. Called from store cleanup. */
-export async function cleanupDatabaseService(): Promise<void> {
-  if (instance) {
-    await instance.closeDatabase();
-    instance = null;
-  }
-}

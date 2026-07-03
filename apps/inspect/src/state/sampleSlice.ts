@@ -62,7 +62,7 @@ export const createSampleSlice = (
   set: (fn: (state: StoreState) => void) => void,
   _get: () => StoreState,
   _store: unknown
-): [SampleSlice, () => void] => {
+): SampleSlice => {
   const slice = {
     // Actions
     sample: initialState,
@@ -178,7 +178,7 @@ export const createSampleSlice = (
     },
   } as const;
 
-  return [slice, () => {}];
+  return slice;
 };
 
 export const initializeSampleSlice = (
