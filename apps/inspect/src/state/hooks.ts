@@ -173,7 +173,7 @@ const log = createLogger("hooks");
 export const useSelectedLogDetails = (): LogDetails | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  return useLogDetail(logDir, selectedLogFile).data;
+  return useLogDetail(logDir, selectedLogFile);
 };
 
 export const useEvalSpec = () => {

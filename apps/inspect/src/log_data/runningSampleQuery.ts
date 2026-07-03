@@ -203,7 +203,7 @@ export const useRunningSample = (
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {
-  const logStatus = useLogDetail(logDir, handle?.logFile).data?.status;
+  const logStatus = useLogDetail(logDir, handle?.logFile)?.status;
   const enabled = shouldStreamRunningSample({
     handle,
     summaryCompleted: summary?.completed,

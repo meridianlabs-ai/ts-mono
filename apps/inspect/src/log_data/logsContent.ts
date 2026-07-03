@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
-import { AsyncData, data, loading } from "@tsmono/util";
 
 import { LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
@@ -297,25 +296,24 @@ export const resolveLogKey = (
 
 /**
  * The details for a single log, read from the `["log-details", logDir]`
- * collection. `loading` until the row is present (the seam fills it on open and
- * the replicator backfills it in the background); the error branch is required
- * by `AsyncData` but unreachable today — the passive cache has no fetch-error
- * source. See `design/migration/selected-log-details-react-query.md`.
+ * collection — a passive projection, so `undefined` until the row is present
+ * (the seam fills it on open and the replicator backfills it in the
+ * background). The selected-log query is the loading/error surface. See
+ * `design/migration/selected-log-details-react-query.md`.
  */
 export const useLogDetail = (
   logDir: string,
   logFile: string | undefined
-): AsyncData<LogDetails> => {
+): LogDetails | undefined => {
   const details = useLogDetails(logDir);
   const handles = useLogHandles(logDir);
   return useMemo(() => {
     if (!logFile) {
-      return loading;
+      return undefined;
     }
     const key =
       handles.find((handle) => handle.name.endsWith(logFile))?.name ?? logFile;
-    const detail = details[key];
-    return detail ? data(detail) : loading;
+    return details[key];
   }, [details, handles, logFile]);
 };
 

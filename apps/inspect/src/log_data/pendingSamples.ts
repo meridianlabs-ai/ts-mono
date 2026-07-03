@@ -111,7 +111,7 @@ export const usePendingSamples = (
   logFile: string | undefined
 ): PendingSamples | undefined => {
   const api = getApi();
-  const liveStatus = useLogDetail(logDir, logFile).data?.status;
+  const liveStatus = useLogDetail(logDir, logFile)?.status;
   const enabled =
     shouldPollPendingSamples({
       logFile,

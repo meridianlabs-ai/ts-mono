@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 
-import { getApi, useLogDir } from "../app_config";
+import { getApi } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
@@ -60,8 +60,10 @@ export interface ListingStatus {
  * events and periodically. Poll lifetime is subscriber lifetime — no
  * imperative start/stop.
  */
-export const useLogsSync = (scope: string): ListingStatus => {
-  const logDir = useLogDir();
+export const useLogsSync = (
+  logDir: string,
+  scope: string
+): ListingStatus => {
   useQuery({
     queryKey: clientEventsKey(logDir),
     queryFn: () => clientEventsTick(getApi(), logDir),

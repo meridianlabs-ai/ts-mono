@@ -47,7 +47,7 @@ export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
 ): SampleSummary[] => {
-  const logSummaries = useLogDetail(logDir, logFile).data?.sampleSummaries;
+  const logSummaries = useLogDetail(logDir, logFile)?.sampleSummaries;
   const pending = usePendingSamples(logDir, logFile)?.samples;
   return useMemo(
     () => mergeSampleSummaries(logSummaries ?? [], pending ?? []),

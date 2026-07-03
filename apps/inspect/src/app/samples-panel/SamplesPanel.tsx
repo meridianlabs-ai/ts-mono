@@ -70,7 +70,7 @@ export const SamplesPanel: FC = () => {
   const logDir = useLogDir();
 
   // Sync the listing for this panel's scope; busy/error derive from its status.
-  const listing = useLogsSync(samplesPath ?? "");
+  const listing = useLogsSync(logDir, samplesPath ?? "");
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs

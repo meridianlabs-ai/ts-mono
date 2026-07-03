@@ -77,7 +77,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const { logPath } = useLogRouteParams();
   // Sync the listing for this panel's scope; the error panel and busy
   // indications derive from its status.
-  const { busy, error } = useLogsSync(logPath ?? "");
+  const { busy, error } = useLogsSync(logDir, logPath ?? "");
 
   const currentDir = join(logPath || "", logDir);
 

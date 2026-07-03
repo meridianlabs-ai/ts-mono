@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
+import { useLogDir } from "../../app_config";
 import { useLogsSync } from "../../log_data";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
@@ -19,9 +20,10 @@ export const FlowPanel: FC = () => {
   // Get the path from route params (handles both logs and samples context)
   const { logPath: currentPath } = useLogOrSampleRouteParams();
   const flowDir = dirname(currentPath || "");
+  const logDir = useLogDir();
 
   // The navbar renders from the listing collections; subscribe so they sync.
-  useLogsSync(flowDir);
+  useLogsSync(logDir, flowDir);
 
   const flow = useFlowQuery(flowDir || "").data;
 

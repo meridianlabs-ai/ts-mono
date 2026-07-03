@@ -17,7 +17,7 @@ Target surface (`log_data/index.ts`, complete):
 
 ```
 imperativeLogData                          // init / fetchLog / refreshLogListing / clearData
-useLogsSync(scope)                         // ListingStatus { busy, error }
+useLogsSync(logDir, scope)                 // ListingStatus { busy, error }
 useLogHandles(logDir)                      // LogHandle[]
 useLogPreviews(logDir)                     // Record<string, LogPreview>
 useLogDetails(logDir)                      // Record<string, LogDetails>
