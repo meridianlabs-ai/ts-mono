@@ -16,7 +16,6 @@ import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import {
-  useFetchEngineStatus,
   useLogPreviews,
   useLogsSync,
 } from "../../log_data";
@@ -73,13 +72,12 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const deferredLogPreviews = useDeferredValue(logPreviews);
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
-  const { syncing } = useFetchEngineStatus();
-
   const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
-  // Sync the listing for this panel's scope; the error panel derives from it.
-  const error = useLogsSync(logPath ?? "").error;
+  // Sync the listing for this panel's scope; the error panel and busy
+  // indications derive from its status.
+  const { busy, error } = useLogsSync(logPath ?? "");
 
   const currentDir = join(logPath || "", logDir);
 
@@ -438,12 +436,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               currentPath={currentDir}
               scopeKey={scopeKey}
               mode={mode}
+              busy={busy}
             />
           </div>
           <LogListFooter
             itemCount={logItems.length}
             filteredCount={filteredCount}
-            progressText={syncing ? "Syncing data" : undefined}
+            progressText={busy ? "Syncing data" : undefined}
             progressBar={
               progress.total !== progress.complete ? (
                 <ProgressBar

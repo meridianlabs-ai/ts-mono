@@ -12,7 +12,7 @@ import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogDir } from "../../../app_config";
 import { LogDetails } from "../../../client/api/types";
-import { useFetchEngineStatus, useLogDetails } from "../../../log_data";
+import { useLogDetails } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
@@ -40,6 +40,9 @@ interface LogListGridProps {
   // hydrating.
   scopeKey?: string;
   mode?: LogListMode;
+  /** The listing is still being brought up to date (drives the empty-state
+   *  loading indicator). */
+  busy: boolean;
 }
 
 type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
@@ -184,10 +187,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
   currentPath,
   scopeKey,
   mode = "logs",
+  busy,
 }) => {
   const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
-
-  const { syncing } = useFetchEngineStatus();
 
   const logDir = useLogDir();
   const logDetails = useLogDetails(logDir);
@@ -346,7 +348,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onColumnSizingChange={handleColumnSizingChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
-          loading={data.length === 0 && syncing}
+          loading={data.length === 0 && busy}
         />
       </div>
     </div>

@@ -13,5 +13,5 @@ export { useRunningMetrics } from "./pendingSamples";
 export { useRunningSample } from "./runningSampleQuery";
 export { useCachedSample, useSample } from "./sampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
-export { useFetchEngineStatus } from "./useFetchEngineStatus";
+export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

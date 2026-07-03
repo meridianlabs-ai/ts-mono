@@ -5,7 +5,7 @@ import { PopOver } from "@tsmono/react/components";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
-import { imperativeLogData, useFetchEngineStatus } from "../../log_data";
+import { imperativeLogData, useDatabaseStats } from "../../log_data";
 
 import styles from "./ViewerOptionsPopover.module.css";
 
@@ -22,7 +22,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
-  const { dbStats } = useFetchEngineStatus();
+  const dbStats = useDatabaseStats();
   const appConfig = useAppConfig();
 
   const logDir = useLogDir();
@@ -95,17 +95,17 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Logs
         </div>
-        <div className={clsx()}>{dbStats?.logCount || 0}</div>
+        <div className={clsx()}>{dbStats.logCount || 0}</div>
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Log Previews
         </div>
-        <div className={clsx()}>{dbStats?.previewCount || 0}</div>
+        <div className={clsx()}>{dbStats.previewCount || 0}</div>
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Log Details
         </div>
-        <div className={clsx()}>{dbStats?.detailsCount || 0}</div>
+        <div className={clsx()}>{dbStats.detailsCount || 0}</div>
 
         <div className={clsx(styles.spacer)}></div>
 

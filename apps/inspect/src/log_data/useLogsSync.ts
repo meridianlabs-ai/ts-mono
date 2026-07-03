@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
-import { LogHandle } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
 import { syncLogs } from "./replicationControl";
+import { useFetchEngineStatus } from "./useFetchEngineStatus";
 
 const logsSyncKey = ["logs-sync"] as const;
 
@@ -39,21 +39,28 @@ export const clientEventsTick = async (
   return tick;
 };
 
+export interface ListingStatus {
+  /** The subsystem is bringing the listing up to date: the sync query is in
+   *  flight or the engine is fetching items in the background. */
+  busy: boolean;
+  /** The listing sync failed. */
+  error: Error | undefined;
+}
+
 /**
- * Sync the log listing for a mounted panel, as a react-query query: the
- * panel's loading / error states derive from its AsyncData (nothing sets a
- * loading flag imperatively). The listing data itself flows through the
- * logsContent collections via the engine's sink — this query only triggers
- * discovery and carries its status. Keyed by the panel's path scope so
- * navigating between folders re-syncs. No-ops (settling to []) in single-file
- * mode.
+ * Sync the log listing for a mounted panel and report its status (nothing
+ * sets a busy flag imperatively). The listing data itself flows through the
+ * logsContent collections via the engine's sink — subscribing triggers
+ * discovery; the returned status is the one busy/error signal for listing
+ * surfaces. Keyed by the panel's path scope so navigating between folders
+ * re-syncs. No-ops in single-file mode.
  *
  * Subscribing also keeps the listing *fresh*: a client-events poll (shared
  * across subscribers via its `logDir` key) re-syncs on host `refresh-evals`
  * events and periodically. Poll lifetime is subscriber lifetime — no
  * imperative start/stop.
  */
-export const useLogsSync = (scope: string): AsyncData<LogHandle[]> => {
+export const useLogsSync = (scope: string): ListingStatus => {
   const logDir = useLogDir();
   useQuery({
     queryKey: clientEventsKey(logDir),
@@ -66,7 +73,7 @@ export const useLogsSync = (scope: string): AsyncData<LogHandle[]> => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  return useAsyncDataFromQuery({
+  const sync = useAsyncDataFromQuery({
     queryKey: [...logsSyncKey, logDir, scope],
     queryFn: () => syncLogs(logDir),
     staleTime: 0,
@@ -74,6 +81,11 @@ export const useLogsSync = (scope: string): AsyncData<LogHandle[]> => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+  const { syncing } = useFetchEngineStatus();
+  return useMemo(
+    () => ({ busy: sync.loading || syncing, error: sync.error }),
+    [sync, syncing]
+  );
 };
 
 /**

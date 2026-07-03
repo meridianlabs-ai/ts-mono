@@ -9,7 +9,6 @@ import { ProgressBar } from "@tsmono/react/components";
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
-  useFetchEngineStatus,
   useLogDetails,
   useLogPreviews,
   useLogsSync,
@@ -70,9 +69,8 @@ export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
   const logDir = useLogDir();
 
-  // Sync the listing for this panel's scope; loading derives from the query.
-  const logsSync = useLogsSync(samplesPath ?? "");
-  const { syncing } = useFetchEngineStatus();
+  // Sync the listing for this panel's scope; busy/error derive from its status.
+  const listing = useLogsSync(samplesPath ?? "");
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs
@@ -355,7 +353,7 @@ export const SamplesPanel: FC = () => {
       : undefined;
 
   const isEmptyAndLoading =
-    sampleRows.length === 0 && (logsSync.loading || syncing);
+    sampleRows.length === 0 && listing.busy;
 
   return (
     <div className={clsx(styles.panel)}>
@@ -403,7 +401,7 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={logsSync.loading} />
+      <ActivityBar animating={listing.busy} />
       <div className={clsx(styles.list, "text-size-smaller")}>
         <SamplesGrid
           rowData={sampleRows}
@@ -421,7 +419,7 @@ export const SamplesPanel: FC = () => {
         itemCount={filteredSamplesCount ?? 0}
         itemCountLabel={filteredSamplesCount === 1 ? "sample" : "samples"}
         progressText={
-          syncing
+          listing.busy
             ? `Syncing${filteredSamplesCount ? ` (${filteredSamplesCount.toLocaleString()} samples)` : ""}`
             : undefined
         }
