@@ -12,12 +12,11 @@ const useSampleSummaries = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", () => ({
   useRunningMetrics,
   useSampleSummaries,
-  useCachedSample: vi.fn(),
   useLogDetail: vi.fn(),
   useLogHandles: vi.fn(),
   useLogPreviews: vi.fn(),
-  useRunningSample: vi.fn(),
-  useSample: vi.fn(),
+  useSampleData: vi.fn(),
+  useSampleInvalidation: vi.fn(),
 }));
 
 vi.mock("../app_config", () => ({

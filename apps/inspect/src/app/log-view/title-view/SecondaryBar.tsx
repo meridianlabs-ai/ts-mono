@@ -14,7 +14,7 @@ import { formatDataset } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
-import { useEvalDescriptor, useSampleInvalidation } from "../../../state/hooks";
+import { useEvalDescriptor, useSelectedSampleInvalidation } from "../../../state/hooks";
 import {
   formatDateTime,
   formatDuration,
@@ -44,7 +44,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   sampleCount,
 }) => {
   const evalDescriptor = useEvalDescriptor();
-  const sampleInvalidation = useSampleInvalidation();
+  const sampleInvalidation = useSelectedSampleInvalidation();
 
   if (!evalSpec || status !== "success") {
     return null;

@@ -3,7 +3,7 @@ import { skipToken } from "@tanstack/react-query";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { getApi, useLogDir } from "../app_config";
+import { getApi } from "../app_config";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleHandle } from "../app/types";
 import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
@@ -199,10 +199,10 @@ export const streamRunningSampleTick = async (
  * path can bridge with them while its own fetch settles.
  */
 export const useRunningSample = (
+  logDir: string,
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {
-  const logDir = useLogDir();
   const logStatus = useLogDetail(logDir, handle?.logFile).data?.status;
   const enabled = shouldStreamRunningSample({
     handle,

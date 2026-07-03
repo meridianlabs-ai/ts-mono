@@ -26,7 +26,7 @@ import {
   kSampleTranscriptTabId,
 } from "../../../constants";
 import { selectLogFile } from "../../../state/actions";
-import { useSampleData, useSelectedLogDetails } from "../../../state/hooks";
+import { useSelectedSampleData, useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
@@ -61,7 +61,7 @@ export const SamplePrintView: FC = () => {
   }, [logPath, sampleId, epoch, selectSample]);
 
   // Get sample data
-  const sample = useSampleData().sample;
+  const sample = useSelectedSampleData().sample;
 
   const evalSpec = useSelectedLogDetails()?.eval;
 

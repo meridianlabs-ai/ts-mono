@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { EvalSample, LogHandle } from "@tsmono/inspect-common/types";
 import { createLogger } from "@tsmono/util";
 
-import { EvalLogStatus, Events } from "../@types/extraInspect";
+import { EvalLogStatus } from "../@types/extraInspect";
 import { getApi, useLogDir } from "../app_config";
 import {
   createEvalDescriptor,
@@ -12,20 +12,19 @@ import {
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
-import { SampleStatus } from "../app/types";
 import {
   LogDetails,
   RunningMetric,
   SampleSummary,
 } from "../client/api/types";
 import {
-  useCachedSample,
+  type SampleData,
   useLogDetail,
   useLogHandles,
   useLogPreviews,
   useRunningMetrics,
-  useRunningSample,
-  useSample,
+  useSampleData,
+  useSampleInvalidation,
   useSampleSummaries,
 } from "../log_data";
 
@@ -380,122 +379,26 @@ export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   }, [selectedSampleHandle, sampleSummaries]);
 };
 
-const kNoRunningEvents: Events = [];
-
-export interface SampleData {
-  /** The selected sample's settled body: completed fetch, error-summary
-   *  fallback, or a just-finalized streaming sample. */
-  sample: EvalSample | undefined;
-  status: SampleStatus;
-  error: Error | undefined;
-  /** Streamed events for a still-running sample; empty on the completed path. */
-  running: Events;
-  /** True when the preprocessor stripped events from an oversized sample
-   *  (messages remain). */
-  eventsCleared: boolean;
-}
-
-const settledSampleData = (sample: EvalSample): SampleData => ({
-  sample,
-  status: "ok",
-  error: undefined,
-  running: kNoRunningEvents,
-  eventsCleared:
-    sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
-});
-
 /**
- * The selected sample as an AsyncData-style derivation over the two sample
- * queries: `useSample` serves completed bodies and `useRunningSample`
- * streams a still-running sample's events. A finalizing stream primes the
- * completed body into the `["sample"]` cache, so the handoff between the two
- * paths never flashes a loading state; if the summary settles before the
- * stream finalizes, the stream's cached events bridge the completed fetch.
+ * The selected sample's data — the selection binding over the param-driven
+ * `useSampleData` acquisition hook.
  */
-export const useSampleData = (): SampleData => {
+export const useSelectedSampleData = (): SampleData => {
+  const logDir = useLogDir();
   const handle = useStore((state) => state.log.selectedSampleHandle);
-  const summary = useSelectedSampleSummary();
-  // `completed !== false` mirrors the legacy loader: only an explicitly
-  // incomplete summary takes the running path.
-  const runningPath = summary?.completed === false;
-  const query = useSample(
-    !runningPath && summary !== undefined ? handle : undefined,
-    summary
-  );
-  const running = useRunningSample(handle, summary);
-  // The finalized body a running stream primed; read passively so the
-  // completed-path fetch stays owned by useSample.
-  const finalizedSample = useCachedSample(handle);
-
-  return useMemo((): SampleData => {
-    // Without a summary the sample isn't loadable yet (the legacy loader
-    // waited for it too), so idle rather than reading as loading.
-    if (handle === undefined || summary === undefined) {
-      return {
-        sample: undefined,
-        status: "ok",
-        error: undefined,
-        running: kNoRunningEvents,
-        eventsCleared: false,
-      };
-    }
-    if (runningPath) {
-      if (running.data?.finalized === true && finalizedSample !== undefined) {
-        return settledSampleData(finalizedSample);
-      }
-      if (running.error) {
-        return {
-          sample: undefined,
-          status: "error",
-          error: running.error,
-          running: kNoRunningEvents,
-          eventsCleared: false,
-        };
-      }
-      return {
-        sample: undefined,
-        status: running.data === undefined ? "loading" : "streaming",
-        error: undefined,
-        running: running.data?.events ?? kNoRunningEvents,
-        eventsCleared: false,
-      };
-    }
-    if (query.data !== undefined) {
-      return settledSampleData(query.data);
-    }
-    // The summary settled before the stream finalized: keep showing the
-    // stream's cached events while the completed fetch settles.
-    if (
-      query.loading &&
-      running.data !== undefined &&
-      running.data.events.length > 0
-    ) {
-      return {
-        sample: undefined,
-        status: "streaming",
-        error: undefined,
-        running: running.data.events,
-        eventsCleared: false,
-      };
-    }
-    return {
-      sample: undefined,
-      status: query.loading ? "loading" : query.error ? "error" : "ok",
-      error: query.loading ? undefined : query.error,
-      running: kNoRunningEvents,
-      eventsCleared: false,
-    };
-  }, [runningPath, query, running, finalizedSample, handle, summary]);
+  return useSampleData(logDir, handle);
 };
 
 /**
- * The selected sample's invalidation record (if any). Reads the sample cache
- * passively — the banner renders outside the sample views and must not keep
- * the sample query alive.
+ * The selected sample's invalidation record (if any) — the selection binding
+ * over the param-driven `useSampleInvalidation` acquisition hook.
  */
-export const useSampleInvalidation = (): EvalSample["invalidation"] | null => {
+export const useSelectedSampleInvalidation = ():
+  | EvalSample["invalidation"]
+  | null => {
+  const logDir = useLogDir();
   const handle = useStore((state) => state.log.selectedSampleHandle);
-  return useCachedSample(handle)?.invalidation ?? null;
+  return useSampleInvalidation(logDir, handle);
 };
 
 export const useLogSelection = () => {

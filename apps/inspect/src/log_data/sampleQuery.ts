@@ -5,7 +5,7 @@ import { EvalSample } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData, data as asyncData } from "@tsmono/util";
 
-import { getApi, useLogDir } from "../app_config";
+import { getApi } from "../app_config";
 import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
@@ -52,10 +52,10 @@ export const withErrorSummaryFallback = (
  * samples on the completed path. `summary` feeds the error-summary fallback.
  */
 export const useSample = (
+  logDir: string,
   handle: SampleHandle | undefined,
   summary?: SampleSummary
 ): AsyncData<EvalSample> => {
-  const logDir = useLogDir();
   const result = useAsyncDataFromQuery({
     queryKey: sampleQueryKey(logDir, handle),
     queryFn: handle
@@ -81,9 +81,9 @@ export const useSample = (
  * banner) don't keep the query alive or trigger downloads of large bodies.
  */
 export const useCachedSample = (
+  logDir: string,
   handle: SampleHandle | undefined
 ): EvalSample | undefined => {
-  const logDir = useLogDir();
   const { data } = useQuery<EvalSample>({
     queryKey: sampleQueryKey(logDir, handle),
     queryFn: skipToken,

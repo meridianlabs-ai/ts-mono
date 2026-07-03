@@ -4,7 +4,7 @@ import { FC, RefObject, useRef } from "react";
 import { ErrorPanel, StickyScrollProvider } from "@tsmono/react/components";
 import { useStatefulScrollPosition } from "@tsmono/react/hooks";
 
-import { useSampleData } from "../../state/hooks";
+import { useSelectedSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
 
 import styles from "./InlineSampleDisplay.module.css";
@@ -24,7 +24,7 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   className,
   scrollRef: externalScrollRef,
 }) => {
-  const sampleData = useSampleData();
+  const sampleData = useSelectedSampleData();
   const showActivity =
     sampleData.status === "loading" || sampleData.status === "streaming";
 
