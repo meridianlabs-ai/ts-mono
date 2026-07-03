@@ -86,11 +86,12 @@ invariant holds.
 
 plus the non-React policy functions on `log_data/replicationControl.ts`
 (`fetchLog(logDir, logFile)` — user-priority details fetch, the queryFn
-behind the selected-log query; `setReplicationApi` — composition-root
-wiring; `syncLogs` stays in-subsystem as the queryFn behind `useLogsSync`),
-and `mergeSampleSummaries` (log + pending-buffer summary normalization).
-Consumers don't know a replicator or an engine exists; they subscribe to
-data and it stays current.
+behind the selected-log query; `initLogData(api)` — the subsystem's
+*initialize* verb, composition-root wiring of the api + database-service
+singleton; `syncLogs` stays in-subsystem as the queryFn behind
+`useLogsSync`), and `mergeSampleSummaries` (log + pending-buffer summary
+normalization). Consumers don't know a replicator or an engine exists; they
+subscribe to data and it stays current.
 
 **Interior** (sole consumers: each other):
 
@@ -163,11 +164,10 @@ in `state/hooks.ts`), not in the slice.
 
 ## Composition roots
 
-`store.ts` `initializeStore` (`initDatabaseService`, `setXApi`, `main.tsx`'s
-pre-gate bootstrap read) wire the subsystems: api and database-service
-lifecycle into acquisition, for both modes (activation itself is on-demand
-inside acquisition — the first `syncLogs`/`fetchLog` does the mode-aware
-start). **Roots are exempt from the containment rules** — they construct
+`store.ts` `initializeStore` (`initLogData(api)`, `main.tsx`'s pre-gate
+bootstrap read) wires the api and database-service singleton into
+acquisition, for both modes (activation itself is on-demand inside
+acquisition — the first `syncLogs`/`fetchLog` does the mode-aware start). **Roots are exempt from the containment rules** — they construct
 interiors, so they may see constructors and pre-resolution state. Nothing
 else is exempt.
 

@@ -4,7 +4,10 @@ import { getAppConfig, getLogDir } from "../app_config";
 import { ClientAPI, LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import {
+  getDatabaseService,
+  initDatabaseService,
+} from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
 import { createLogsContentSink } from "./logsContent";
 import { replicationService } from "./replicationService";
@@ -12,18 +15,21 @@ import { replicationService } from "./replicationService";
 let injectedApi: ClientAPI | null = null;
 
 /**
- * Records the api the replication singleton should use. Called from
- * initializeStore so the singleton stays consistent with the api the consumer
- * passed into the App tree.
+ * Wire the subsystem's dependencies: the api its backend reads go through
+ * (kept consistent with the api the consumer passed into the App tree) and
+ * the database-service singleton. The subsystem's *initialize* verb, called
+ * once from the composition root (`initializeStore`); activation itself is
+ * on-demand inside the acquisition entry points.
  */
-export function setReplicationApi(api: ClientAPI) {
+export function initLogData(api: ClientAPI) {
   injectedApi = api;
+  initDatabaseService();
 }
 
 const requireApi = (): ClientAPI => {
   if (!injectedApi) {
     throw new Error(
-      "Replication api must be set via setReplicationApi before activating replication"
+      "Log-data api must be set via initLogData before activating replication"
     );
   }
   return injectedApi;

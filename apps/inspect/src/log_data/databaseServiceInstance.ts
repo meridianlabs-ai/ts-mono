@@ -4,7 +4,7 @@ let instance: DatabaseService | null = null;
 
 /**
  * Install the shared DatabaseService singleton. Called once from
- * initializeStore. The instance is injectable so tests can supply a fake
+ * initLogData. The instance is injectable so tests can supply a fake
  * without reaching in to mock the accessor; production omits the arg and gets
  * a real service.
  */
@@ -16,7 +16,7 @@ export function initDatabaseService(
 }
 
 /**
- * The shared DatabaseService, or null before initializeStore has run. Readers
+ * The shared DatabaseService, or null before initLogData has run. Readers
  * already null-check (the service may be unavailable), so the nullable return
  * matches existing call sites.
  */
