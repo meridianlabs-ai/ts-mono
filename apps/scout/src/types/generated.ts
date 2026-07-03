@@ -3129,7 +3129,7 @@ export interface components {
              * Input Type
              * @enum {string}
              */
-            input_type: "transcript" | "transcript_handle" | "event" | "events" | "message" | "messages" | "timeline" | "timelines";
+            input_type: "transcript" | "transcript_info" | "event" | "events" | "message" | "messages" | "timeline" | "timelines";
         };
         /**
          * ScannerParam
