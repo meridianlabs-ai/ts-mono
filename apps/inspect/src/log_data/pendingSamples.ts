@@ -8,6 +8,7 @@ import {
   LogDetails,
   PendingSampleResponse,
   PendingSamples,
+  RunningMetric,
 } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
@@ -137,6 +138,17 @@ export const usePendingSamples = (
   // details refresh owns the summaries and any cached buffer data is stale.
   return enabled ? (data ?? undefined) : undefined;
 };
+
+/**
+ * A running eval's live metrics. Settles to `undefined` when the log isn't
+ * running or no metrics have been reported yet. That the metrics travel in
+ * the pending-samples buffer is subsystem-private.
+ */
+export const useRunningMetrics = (
+  logDir: string,
+  logFile: string | undefined
+): RunningMetric[] | undefined =>
+  usePendingSamples(logDir, logFile)?.metrics;
 
 /**
  * Non-React snapshot of the pending samples (for the running-sample query's

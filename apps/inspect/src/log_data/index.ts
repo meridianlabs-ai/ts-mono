@@ -9,7 +9,7 @@ export {
   useLogHandles,
   useLogPreviews,
 } from "./logsContent";
-export { usePendingSamples } from "./pendingSamples";
+export { useRunningMetrics } from "./pendingSamples";
 export { useRunningSample } from "./runningSampleQuery";
 export { useCachedSample, useSample } from "./sampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";

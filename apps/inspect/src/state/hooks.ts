@@ -13,13 +13,17 @@ import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleStatus } from "../app/types";
-import { LogDetails, PendingSamples, SampleSummary } from "../client/api/types";
+import {
+  LogDetails,
+  RunningMetric,
+  SampleSummary,
+} from "../client/api/types";
 import {
   useCachedSample,
   useLogDetail,
   useLogHandles,
   useLogPreviews,
-  usePendingSamples,
+  useRunningMetrics,
   useRunningSample,
   useSample,
   useSampleSummaries,
@@ -178,13 +182,13 @@ export const useEvalSpec = () => {
 };
 
 /**
- * The selected log's pending samples — the selection binding over the
- * param-driven `usePendingSamples` acquisition hook.
+ * The selected log's running metrics — the selection binding over the
+ * param-driven `useRunningMetrics` acquisition hook.
  */
-export const useSelectedPendingSamples = (): PendingSamples | undefined => {
+export const useSelectedRunningMetrics = (): RunningMetric[] | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  return usePendingSamples(logDir, selectedLogFile);
+  return useRunningMetrics(logDir, selectedLogFile);
 };
 
 export interface LogEditAffordance {

@@ -1,16 +1,16 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PendingSamples, SampleSummary } from "../client/api/types";
+import { RunningMetric, SampleSummary } from "../client/api/types";
 
-import { useSelectedPendingSamples, useSelectedSampleSummaries } from "./hooks";
+import { useSelectedRunningMetrics, useSelectedSampleSummaries } from "./hooks";
 
 // Thin wiring test: the binding reads the selection and delegates to the
 // param-driven acquisition hook — mock both sides and assert the plumbing.
-const usePendingSamples = vi.hoisted(() => vi.fn());
+const useRunningMetrics = vi.hoisted(() => vi.fn());
 const useSampleSummaries = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", () => ({
-  usePendingSamples,
+  useRunningMetrics,
   useSampleSummaries,
   useCachedSample: vi.fn(),
   useLogDetail: vi.fn(),
@@ -30,15 +30,15 @@ vi.mock("./store", () => ({
     selector({ logs: { selectedLogFile: "run.eval" } }),
 }));
 
-describe("useSelectedPendingSamples", () => {
-  it("delegates to usePendingSamples with the selected log", () => {
-    const pending = { samples: [], refresh: 2 } as unknown as PendingSamples;
-    usePendingSamples.mockReturnValue(pending);
+describe("useSelectedRunningMetrics", () => {
+  it("delegates to useRunningMetrics with the selected log", () => {
+    const metrics: RunningMetric[] = [];
+    useRunningMetrics.mockReturnValue(metrics);
 
-    const { result } = renderHook(() => useSelectedPendingSamples());
+    const { result } = renderHook(() => useSelectedRunningMetrics());
 
-    expect(usePendingSamples).toHaveBeenCalledWith("/logs", "run.eval");
-    expect(result.current).toBe(pending);
+    expect(useRunningMetrics).toHaveBeenCalledWith("/logs", "run.eval");
+    expect(result.current).toBe(metrics);
   });
 });
 
