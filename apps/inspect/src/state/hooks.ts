@@ -15,7 +15,6 @@ import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleStatus } from "../app/types";
 import { LogDetails, PendingSamples, SampleSummary } from "../client/api/types";
 import {
-  mergeSampleSummaries,
   useCachedSample,
   useLogDetail,
   useLogHandles,
@@ -23,6 +22,7 @@ import {
   usePendingSamples,
   useRunningSample,
   useSample,
+  useSampleSummaries,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
@@ -219,23 +219,20 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   };
 };
 
-// Fetches all samples summaries (both completed and incomplete)
-// without applying any filtering
-export const useSampleSummaries = () => {
-  const selectedLogDetails = useSelectedLogDetails();
-  const pendingSamples = useSelectedPendingSamples();
-
-  return useMemo(() => {
-    return mergeSampleSummaries(
-      selectedLogDetails?.sampleSummaries || [],
-      pendingSamples?.samples || []
-    );
-  }, [selectedLogDetails, pendingSamples]);
+/**
+ * The selected log's sample summaries (completed and incomplete, unfiltered)
+ * — the selection binding over the param-driven `useSampleSummaries`
+ * acquisition hook.
+ */
+export const useSelectedSampleSummaries = (): SampleSummary[] => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useSampleSummaries(logDir, selectedLogFile);
 };
 
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)
 export const useTotalSampleCount = () => {
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   return useMemo(() => {
     return sampleSummaries.length;
   }, [sampleSummaries]);
@@ -246,7 +243,7 @@ export const useTotalSampleCount = () => {
 // selected
 export const useSelectedScores = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const selected = useStore((state) => state.log.selectedScores);
   return useMemo(() => {
     if (selected !== undefined) {
@@ -264,7 +261,7 @@ export const useSelectedScores = () => {
 // metrics)
 export const useScores = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   return useMemo(() => {
     if (!selectedLogDetails) {
       return [];
@@ -279,7 +276,7 @@ export const useScores = () => {
 // Provides the eval descriptor
 export const useEvalDescriptor = () => {
   const scores = useScores();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   return useMemo(() => {
     return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
   }, [scores, sampleSummaries]);
@@ -287,7 +284,7 @@ export const useEvalDescriptor = () => {
 
 export const useSampleDescriptor = () => {
   const evalDescriptor = useEvalDescriptor();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const selectedScores = useSelectedScores();
   return useMemo(() => {
     return evalDescriptor
@@ -323,7 +320,7 @@ export const samplesAreSorted = (samples: SampleSummary[]): boolean =>
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
   const samplesDescriptor = useSampleDescriptor();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const filter = useStore((state) => state.log.filter);
   const setFilterError = useStore((state) => state.logActions.setFilterError);
   const clearFilterError = useStore(
@@ -363,7 +360,7 @@ export const useFilteredSamples = () => {
 
 // Provides the currently selected sample summary
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );

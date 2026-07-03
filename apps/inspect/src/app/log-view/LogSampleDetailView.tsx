@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile } from "../../state/actions";
-import { useSampleSummaries } from "../../state/hooks";
+import { useSelectedSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useLogSampleNavigationActions } from "../routing/sampleNavigation";
 import {
@@ -47,7 +47,7 @@ export const LogSampleDetailView: FC = () => {
   const prefix = useRoutePrefix();
 
   // Get store state and actions for log loading
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario

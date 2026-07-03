@@ -76,6 +76,10 @@ invariant holds.
   external freshness events.
 - `usePendingSamples(logDir, logFile)` (`log_data/pendingSamples.ts`) — a
   running log's sample buffer, polled while the log runs.
+- `useSampleSummaries(logDir, logFile)` (`log_data/sampleSummaries.ts`) — the
+  live sample-summary list for a log. That the list is assembled from two
+  sources (the details' completed summaries + the pending buffer) with dedup
+  and streaming-path normalization is subsystem-private.
 - `useSample(handle)` / `useCachedSample(handle)`
   (`log_data/sampleQuery.ts`) and `useRunningSample(handle, summary)`
   (`log_data/runningSampleQuery.ts`) — a sample's completed body / live
@@ -89,8 +93,7 @@ plus the non-React policy functions on `log_data/replicationControl.ts`
 behind the selected-log query; `initLogData(api)` — the subsystem's
 *initialize* verb, composition-root wiring of the api + database-service
 singleton; `syncLogs` stays in-subsystem as the queryFn behind
-`useLogsSync`), and `mergeSampleSummaries` (log + pending-buffer summary
-normalization). Consumers don't know a replicator or an engine exists; they
+`useLogsSync`). Consumers don't know a replicator or an engine exists; they
 subscribe to data and it stays current.
 
 **Interior** (sole consumers: each other):
@@ -120,6 +123,8 @@ writes; a binding that grows a queryFn has sunk too low.
   refresh path. (`state/selectedLogDetails.ts`)
 - **Pending-samples binding** — `useSelectedPendingSamples()` delegates to
   `usePendingSamples(logDir, selectedLogFile)`. (`state/hooks.ts`)
+- **Sample-summaries binding** — `useSelectedSampleSummaries()` delegates to
+  `useSampleSummaries(logDir, selectedLogFile)`. (`state/hooks.ts`)
 - **Sample data derivation** — `useSampleData()` reads the selected handle
   and summary, delegating to `useSample` / `useRunningSample` /
   `useCachedSample`; the AsyncData-style seam the sample views consume.
@@ -189,7 +194,8 @@ Server-data medium        react-query cache ←─ acquisition sink; queries:
        │                  pending samples, logs-sync, client-events, flow, eval-set
        ▼
 Log-data acquisition      surface: data hooks (useLogsSync / usePendingSamples /
-       │                  useSample / useRunningSample / collection reads) ·
+       │                  useSampleSummaries / useSample / useRunningSample /
+       │                  collection reads) ·
        │                  syncLogs / fetchLog / refreshLogListing / status
        │                  interior: activation · fetchEngine · database · discovery
        │                  · poll mechanics · status store · sampleFetch · sampleStream

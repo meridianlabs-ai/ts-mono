@@ -12,6 +12,6 @@ export { usePendingSamples } from "./pendingSamples";
 export { fetchLog, initLogData } from "./replicationControl";
 export { useRunningSample } from "./runningSampleQuery";
 export { useCachedSample, useSample } from "./sampleQuery";
-export { mergeSampleSummaries } from "./sampleSummaries";
+export { useSampleSummaries } from "./sampleSummaries";
 export { useFetchEngineStatus } from "./useFetchEngineStatus";
 export { refreshLogListing, useLogsSync } from "./useLogsSync";

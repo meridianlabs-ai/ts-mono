@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile, unloadLog } from "../../state/actions";
-import { useEvalSpec, useSampleSummaries } from "../../state/hooks";
+import { useEvalSpec, useSelectedSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import {
   baseUrl,
@@ -37,7 +37,7 @@ export const LogViewContainer: FC = () => {
   const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
     ? "/tasks"
     : "/logs";
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummaries();
   const [searchParams] = useSearchParams();
 
   // Unload the log when this is mounted. This prevents the old log

@@ -10,7 +10,6 @@ import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
 import { getLogDetail, useLogDetail } from "./logsContent";
-import { getPendingSamples } from "./pendingSamples";
 import {
   fetchSample,
   SampleNotFoundError,
@@ -22,7 +21,7 @@ import {
   SampleEvent,
   SampleStreamSession,
 } from "./sampleStream";
-import { mergeSampleSummaries } from "./sampleSummaries";
+import { getSampleSummaries } from "./sampleSummaries";
 
 const kRunningSampleIntervalMs = 2_000;
 
@@ -114,10 +113,7 @@ const findLiveSummary = (
   logDir: string,
   handle: SampleHandle
 ): SampleSummary | undefined =>
-  mergeSampleSummaries(
-    getLogDetail(logDir, handle.logFile)?.sampleSummaries ?? [],
-    getPendingSamples(logDir, handle.logFile)?.samples ?? []
-  ).find(
+  getSampleSummaries(logDir, handle.logFile).find(
     (summary) =>
       sampleIdsEqual(summary.id, handle.id) && summary.epoch === handle.epoch
   );
