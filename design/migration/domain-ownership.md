@@ -72,8 +72,8 @@ invariant holds.
 - `useLogsSync(scope)` (`log_data/useLogsSync.ts`) — sync the listing for a
   mounted panel; subscribing also keeps the listing fresh (a shared
   client-events poll re-syncs on host `refresh-evals` events and
-  periodically). `refreshLogListing()` is the invalidation counterpart for
-  external freshness events.
+  periodically). `imperativeLogData.refreshLogListing()` is the invalidation
+  counterpart for external freshness events.
 - `usePendingSamples(logDir, logFile)` (`log_data/pendingSamples.ts`) — a
   running log's sample buffer, polled while the log runs.
 - `useSampleSummaries(logDir, logFile)` (`log_data/sampleSummaries.ts`) — the
@@ -88,13 +88,17 @@ invariant holds.
   (`useLogHandles` / `useLogPreviews` / `useLogDetails` / `useLogDetail`) and
   `useFetchEngineStatus`.
 
-plus the non-React policy functions on `log_data/replicationControl.ts`
-(`fetchLog(logDir, logFile)` — user-priority details fetch, the queryFn
-behind the selected-log query; `initLogData(api)` — the subsystem's
-*initialize* verb, composition-root wiring of the api + database-service
-singleton; `syncLogs` stays in-subsystem as the queryFn behind
-`useLogsSync`). Consumers don't know a replicator or an engine exists; they
-subscribe to data and it stays current.
+plus **`imperativeLogData`** (`log_data/imperativeLogData.ts`) — the single
+object holding every non-hook entry point consumed outside the subsystem:
+`init(api)` (the *initialize* verb, composition-root wiring of the api +
+database-service singleton), `fetchLog(logDir, logFile)` (user-priority
+details fetch, the queryFn behind the selected-log query),
+`refreshLogListing()` (the *invalidate* verb for the listing), and
+`clearData()` (user-initiated local-data reset). Growing the
+`ImperativeLogData` interface is a design decision, not a convenience.
+(`syncLogs` stays in-subsystem as the queryFn behind `useLogsSync`.)
+Consumers don't know a replicator or an engine exists; they subscribe to
+data and it stays current.
 
 **Interior** (sole consumers: each other):
 
@@ -169,8 +173,8 @@ in `state/hooks.ts`), not in the slice.
 
 ## Composition roots
 
-`store.ts` `initializeStore` (`initLogData(api)`, `main.tsx`'s pre-gate
-bootstrap read) wires the api and database-service singleton into
+`store.ts` `initializeStore` (`imperativeLogData.init(api)`, `main.tsx`'s
+pre-gate bootstrap read) wires the api and database-service singleton into
 acquisition, for both modes (activation itself is on-demand inside
 acquisition — the first `syncLogs`/`fetchLog` does the mode-aware start). **Roots are exempt from the containment rules** — they construct
 interiors, so they may see constructors and pre-resolution state. Nothing
@@ -195,8 +199,9 @@ Server-data medium        react-query cache ←─ acquisition sink; queries:
        ▼
 Log-data acquisition      surface: data hooks (useLogsSync / usePendingSamples /
        │                  useSampleSummaries / useSample / useRunningSample /
-       │                  collection reads) ·
-       │                  syncLogs / fetchLog / refreshLogListing / status
+       │                  collection reads / status) ·
+       │                  imperativeLogData (init / fetchLog /
+       │                  refreshLogListing / clearData)
        │                  interior: activation · fetchEngine · database · discovery
        │                  · poll mechanics · status store · sampleFetch · sampleStream
        ▼

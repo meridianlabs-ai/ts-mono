@@ -5,7 +5,7 @@ import { AsyncData } from "@tsmono/util";
 
 import { useLogDir } from "../app_config";
 import { LogDetails } from "../client/api/types";
-import { fetchLog } from "../log_data";
+import { imperativeLogData } from "../log_data";
 
 import { queryClient } from "./queryClient";
 import { useStore } from "./store";
@@ -38,7 +38,7 @@ export const useSelectedLogQuery = (): AsyncData<LogDetails> => {
   return useAsyncDataFromQuery({
     queryKey: selectedLogQueryKey(logDir, selectedLogFile),
     queryFn: selectedLogFile
-      ? () => fetchLog(logDir, selectedLogFile)
+      ? () => imperativeLogData.fetchLog(logDir, selectedLogFile)
       : skipToken,
     // The engine owns freshness (read-through + background refresh), so a
     // remount may always re-run the queryFn; a failed fetch surfaces

@@ -35,7 +35,7 @@ import {
   useLogDir,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
-import { refreshLogListing } from "../log_data";
+import { imperativeLogData } from "../log_data";
 import { selectLogFile } from "../state/actions.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
@@ -151,7 +151,7 @@ export const AppContent: FC = () => {
               void api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            void refreshLogListing();
+            void imperativeLogData.refreshLogListing();
           }
           break;
         }

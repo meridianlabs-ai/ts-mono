@@ -5,7 +5,7 @@ import { PopOver } from "@tsmono/react/components";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
-import { fetchEngine, useFetchEngineStatus } from "../../log_data";
+import { imperativeLogData, useFetchEngineStatus } from "../../log_data";
 
 import styles from "./ViewerOptionsPopover.module.css";
 
@@ -32,7 +32,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
     setClearMessage(null);
 
     try {
-      fetchEngine.clearData();
+      imperativeLogData.clearData();
       setClearMessage("Database cleared successfully");
       setTimeout(() => setClearMessage(null), 3000);
     } catch (error) {
