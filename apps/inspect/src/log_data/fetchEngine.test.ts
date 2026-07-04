@@ -52,6 +52,8 @@ interface FakeApiOptions {
   /** When true, each get_log_details call blocks until released. */
   gated?: boolean;
   failFor?: string[];
+  /** Files whose FIRST get_log_details attempt fails (retries succeed). */
+  failDetailsOnceFor?: string[];
   /** Files that always fail get_log_summaries_settled (every attempt,
    *  including retries). */
   failSummaryFor?: string[];
@@ -74,6 +76,12 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
       }
       if (options.failFor?.includes(file)) {
         throw new Error(`fetch failed: ${file}`);
+      }
+      if (
+        options.failDetailsOnceFor?.includes(file) &&
+        detailCalls.filter((call) => call.file === file).length === 1
+      ) {
+        throw new Error(`transient fetch failure: ${file}`);
       }
       return makeDetails(file);
     }),
@@ -450,6 +458,31 @@ describe("FetchEngine.applyListing", () => {
 
     await vi.waitFor(() => {
       expect(fake.detailCalls).toEqual([
+        { file: "changed.eval", cached: false },
+      ]);
+    });
+  });
+
+  it("keeps the fresh flag across detail-fetch retries (a retry must not re-serve the stale snapshot)", async () => {
+    const changed = handle("changed.eval", 3);
+    const fake = createFakeApi({ failDetailsOnceFor: ["changed.eval"] });
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({
+        details: { "changed.eval": makeDetails("changed.eval", "started") },
+      }),
+    });
+
+    await engine.applyListing({
+      listing: [changed],
+      invalidated: ["changed.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => {
+      expect(fake.detailCalls).toEqual([
+        { file: "changed.eval", cached: false },
         { file: "changed.eval", cached: false },
       ]);
     });

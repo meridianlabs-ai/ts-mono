@@ -289,7 +289,10 @@ export class FetchEngine {
     try {
       return await Promise.all(
         handles.map(async (log): Promise<WorkResult<LogWorkValue>> => {
-          const fresh = this._freshDetails.delete(log.name);
+          // Read without consuming: a failed attempt is retried, and the
+          // retry must stay fresh too. The flag is cleared on final settle
+          // (onDetailsComplete), never mid-retry.
+          const fresh = this._freshDetails.has(log.name);
           const deps = this._deps;
           if (!deps) {
             return { ok: false, error: new Error("Fetch engine stopped") };
@@ -326,6 +329,9 @@ export class FetchEngine {
       if (!result) {
         return;
       }
+      // Settled (success or final failure) — the one-shot fresh flag must
+      // not leak to a later unrelated fetch of the same log.
+      this._freshDetails.delete(name);
       const waiter = this._pendingFetches.get(name);
       if (!result.ok) {
         if (waiter) {
