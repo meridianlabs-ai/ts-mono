@@ -35,7 +35,7 @@ export const unloadLog = () => {
 
 /** Re-fetch the selected log's details and reset filtering. */
 export const refreshLog = () => {
-  void imperativeLogData.invalidateLogDetail(
+  imperativeLogData.invalidateLogDetail(
     getAppConfig().logDir,
     state().logs.selectedLogFile
   );

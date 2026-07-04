@@ -47,11 +47,13 @@ export const useLogDetailQuery = (
   });
 
 /** Re-fetch a log's details — the log-detail *invalidate* verb (toolbar
- *  refresh / edit-save). */
+ *  refresh / edit-save). Fire-and-forget: completion is observed through the
+ *  query's loading state, never awaited. */
 export const invalidateLogDetail = (
   logDir: string,
   logFile: string | undefined
-): Promise<void> =>
-  queryClient.invalidateQueries({
+): void => {
+  void queryClient.invalidateQueries({
     queryKey: logDetailQueryKey(logDir, logFile),
   });
+};

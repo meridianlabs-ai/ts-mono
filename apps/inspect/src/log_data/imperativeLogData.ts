@@ -10,19 +10,17 @@ import { refreshLogListing } from "./useLogsSync";
  * mis-homed mechanism. There is no *initialize* verb — the subsystem wires
  * itself lazily on first activation, reading the api from app_config.
  * Everything else consumers do is declarative hook subscription (see
- * design/migration/domain-ownership.md). Growing this interface is a design
- * decision, not a convenience.
+ * design/migration/domain-ownership.md). Every verb is fire-and-forget —
+ * consequences are observed through the data hooks, never awaited. Growing
+ * this interface is a design decision, not a convenience.
  */
 export interface ImperativeLogData {
   /** Re-fetch one log's details (toolbar refresh / edit-save) — the
    *  log-detail *invalidate* verb. */
-  invalidateLogDetail(
-    logDir: string,
-    logFile: string | undefined
-  ): Promise<void>;
+  invalidateLogDetail(logDir: string, logFile: string | undefined): void;
   /** Invalidate the listing-sync queries (external freshness events / user
    *  refresh) — the listing *invalidate* verb. */
-  refreshLogListing(): Promise<void>;
+  refreshLogListing(): void;
   /** Clear all locally persisted log data (database + cache) — user-initiated
    *  maintenance from the viewer options popover. */
   clearData(): void;

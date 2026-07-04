@@ -95,7 +95,9 @@ export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
  * Request listing freshness (external event / user refresh): invalidate the
  * listing-sync queries, re-running `syncLogs` for whichever panels are
  * subscribed. With no subscriber mounted nothing refetches — freshness is
- * subscriber-driven.
+ * subscriber-driven. Fire-and-forget: completion is observed through
+ * `ListingStatus.busy`, never awaited.
  */
-export const refreshLogListing = (): Promise<void> =>
-  queryClient.invalidateQueries({ queryKey: logsSyncKey });
+export const refreshLogListing = (): void => {
+  void queryClient.invalidateQueries({ queryKey: logsSyncKey });
+};
