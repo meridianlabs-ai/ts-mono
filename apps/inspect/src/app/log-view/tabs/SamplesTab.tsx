@@ -22,6 +22,7 @@ import {
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
+import { selectSample } from "../../../state/actions.ts";
 import {
   useFilteredSamples,
   useSampleDescriptor,
@@ -201,8 +202,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     (state) => state.logActions.setSelectedScores
   );
   const epochs = selectedLogDetails?.eval.config?.epochs || 1;
-
-  const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
@@ -394,7 +393,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     if (sample && selectedLogFile) {
       selectSample(sample.id, sample.epoch, selectedLogFile);
     }
-  }, [sampleSummaries, selectSample, selectedLogFile]);
+  }, [sampleSummaries, selectedLogFile]);
 
   if (totalSampleCount === 0) {
     if (running) {

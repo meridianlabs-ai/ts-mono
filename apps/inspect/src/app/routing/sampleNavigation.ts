@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useLogDir } from "../../app_config";
+import { selectSample } from "../../state/actions";
 import { useFilteredSamples } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { directoryRelativeUrl } from "../../utils/uri";
@@ -115,8 +116,6 @@ export const useSampleNavigationActions = () => {
     });
   }, [selectedSampleHandle, sampleSummaries]);
 
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
   // Navigate to a specific sample with index
   const showSample = useCallback(
     (id: string | number, epoch: number, specifiedSampleTabId?: string) => {
@@ -141,7 +140,7 @@ export const useSampleNavigationActions = () => {
         void navigate(url);
       }
     },
-    [resolveLogPath, selectSample, navigate, sampleTabId, prefix]
+    [resolveLogPath, navigate, sampleTabId, prefix]
   );
 
   const navigateSampleIndex = useCallback(
@@ -156,7 +155,7 @@ export const useSampleNavigationActions = () => {
         }
       }
     },
-    [sampleSummaries, selectSample, logPath, selectedLogFile]
+    [sampleSummaries, logPath, selectedLogFile]
   );
 
   // Navigate to the next sample
@@ -296,9 +295,6 @@ export const useLogSampleNavigationActions = () => {
     (state) => state.log.selectedSampleHandle
   );
 
-  // Action to update selected sample in store
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
   // Calculate current index in the filtered samples list
   const currentIndex = useMemo(() => {
     if (!selectedSampleHandle) {
@@ -339,7 +335,6 @@ export const useLogSampleNavigationActions = () => {
     sampleSummaries,
     currentIndex,
     sampleTabId,
-    selectSample,
     navigate,
     prefix,
   ]);
@@ -366,7 +361,6 @@ export const useLogSampleNavigationActions = () => {
     sampleSummaries,
     currentIndex,
     sampleTabId,
-    selectSample,
     navigate,
     prefix,
   ]);

@@ -25,9 +25,11 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { selectLogFile } from "../../../state/actions";
-import { useSelectedSampleData, useSelectedLogDetails } from "../../../state/hooks";
-import { useStore } from "../../../state/store";
+import { selectLogFile, selectSample } from "../../../state/actions";
+import {
+  useSelectedLogDetails,
+  useSelectedSampleData,
+} from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { SampleJSONView } from "../SampleJSONView";
@@ -47,8 +49,6 @@ export const SamplePrintView: FC = () => {
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
   useEffect(() => {
     if (logPath && sampleId && epoch) {
       selectLogFile(logPath);
@@ -58,7 +58,7 @@ export const SamplePrintView: FC = () => {
         selectSample(sampleId, targetEpoch, logPath);
       }
     }
-  }, [logPath, sampleId, epoch, selectSample]);
+  }, [logPath, sampleId, epoch]);
 
   // Get sample data
   const sample = useSelectedSampleData().sample;

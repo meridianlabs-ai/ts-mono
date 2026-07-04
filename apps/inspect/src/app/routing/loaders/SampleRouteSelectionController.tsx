@@ -1,6 +1,6 @@
 import { FC, useEffect } from "react";
 
-import { selectLogFile } from "../../../state/actions";
+import { selectLogFile, selectSample } from "../../../state/actions";
 import { useStore } from "../../../state/store";
 import { useSamplesRouteParams } from "../url";
 
@@ -17,7 +17,6 @@ export const SampleRouteSelectionController: FC = () => {
     sampleId,
     epoch,
   } = useSamplesRouteParams();
-  const selectSample = useStore((state) => state.logActions.selectSample);
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
   useEffect(() => {
@@ -27,7 +26,7 @@ export const SampleRouteSelectionController: FC = () => {
       }
       selectSample(sampleId, parseInt(epoch, 10), routeLogPath);
     }
-  }, [routeLogPath, sampleId, epoch, selectSample, selectedLogFile]);
+  }, [routeLogPath, sampleId, epoch, selectedLogFile]);
 
   return null;
 };

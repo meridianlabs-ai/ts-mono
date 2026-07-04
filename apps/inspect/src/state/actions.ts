@@ -26,6 +26,21 @@ export const selectLogFile = (logFile: string) => {
   );
 };
 
+/** Select a sample, absolutizing a route-relative log name against the
+ *  resolved log dir (the handle stores only the absolute path — acquisition
+ *  and the view server reject relative names). */
+export const selectSample = (
+  sampleId: string | number,
+  epoch: number,
+  logFile: string
+) => {
+  state().logActions.selectSample(
+    sampleId,
+    epoch,
+    isUri(logFile) ? logFile : join(logFile, getAppConfig().logDir)
+  );
+};
+
 /** Clear the selected/loaded log. */
 export const unloadLog = () => {
   const s = state();
