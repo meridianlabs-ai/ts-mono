@@ -21,6 +21,7 @@ import { comparators } from "../../../shared/gridComparators";
 import { useStableValue } from "../../../shared/useStableValue";
 
 import localStyles from "./columns.module.css";
+import { completedAtValue } from "./completedAt";
 import { computeScorerMap, scorerMapsEqual } from "./scorerMap";
 import { LogListRow } from "./types";
 
@@ -352,7 +353,7 @@ export const useLogListColumns = (
         maxSize: 140,
         meta: { sortComparator: dateCompare },
         // Raw value for sort/filter; the cell formats from row.original.
-        accessorFn: (row) => row.completedAt,
+        accessorFn: (row) => completedAtValue(row),
         cell: ({ row }) => {
           const completed = row.original.completedAt;
           if (!completed) {
