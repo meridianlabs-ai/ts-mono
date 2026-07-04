@@ -101,6 +101,34 @@ OUT (future goals):
   event for `LogLoadController`.
 - eslint enforcement of the barrel/layering.
 
+## Behavior changes vs origin/main — discuss with Charles
+
+Landed alongside this goal (commit `318e2192`, "controlled grid selection"),
+accepted deliberately but **needs sign-off from Charles before the branch
+merges**:
+
+- **Grid keyboard selection now writes `selectedSampleHandle`.** On main,
+  arrow keys move only AG-grid's internal selection
+  (`gridKeyboardNavigation.ts` → `setSelected`; no `onSelectionChanged`
+  handler) — zustand tracks the *last-opened* sample and the highlight may
+  drift from it, so the title-bar invalidation chip can describe a different
+  sample than the highlighted row. Now the highlight *is* the selection:
+  `DataGrid` reports moves (`onSelectedRowChange`), `SampleList`/
+  `SamplesPanel` write them via `selectSample`, and selection-keyed surfaces
+  (invalidation chip, passive sample reads) follow the highlight —
+  fetch-free.
+- Rode along: `SamplesPanel`'s selected-row id derives from the handle's own
+  `logFile` (main uses `selectedLogFile` — wrong for cross-log rows), and
+  `SampleList`'s row-open guard is deleted (main skips re-opening the
+  route-open sample via `isSampleOpenInRoute`; the branch had rewritten it
+  selection-keyed, which under highlight-as-selection made the highlighted
+  row unopenable). If a layout renders the list while a sample detail is
+  open, main's route-keyed guard may be worth restoring.
+- Alternative if the divergence is rejected: revert to main's grid-local
+  highlight and instead bind the invalidation chip to the *open* sample
+  (route-derived, not `selectedSampleHandle`) — fixes the stale-chip bug
+  with no zustand semantics change.
+
 ## Done when (all must hold)
 
 - `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from
