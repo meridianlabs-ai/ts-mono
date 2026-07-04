@@ -518,6 +518,10 @@ export class FetchEngine {
       (handle) => !seen.has(handle.name)
     );
     if (invalidated.length > 0) {
+      // An invalidated file changed on the server; a cache-tolerant read
+      // (the client-api's memoized remote file) would re-serve the stale
+      // snapshot it was invalidated to replace.
+      invalidated.forEach((handle) => this._freshDetails.add(handle.name));
       this._detailQueue.enqueue(invalidated, WorkPriority.High);
     }
     if (missing.length > 0) {

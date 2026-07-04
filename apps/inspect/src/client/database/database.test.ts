@@ -263,6 +263,30 @@ describe("Database Service", () => {
       );
       expect(cached).toBeNull();
     });
+
+    test("findMissingDetails treats details cached as started as missing", async () => {
+      // A "started" details row is a mid-run snapshot — the run may have
+      // finished since, so backfill must re-fetch it.
+      await databaseService.writeLogDetail(
+        "/test/logs/running.json",
+        createTestLogInfo({ status: "started" })
+      );
+      await databaseService.writeLogDetail(
+        "/test/logs/done.json",
+        createTestLogInfo({ status: "success" })
+      );
+
+      const missing = await databaseService.findMissingDetails([
+        { name: "/test/logs/running.json" },
+        { name: "/test/logs/done.json" },
+        { name: "/test/logs/absent.json" },
+      ]);
+
+      expect(missing.map((log) => log.name).sort()).toEqual([
+        "/test/logs/absent.json",
+        "/test/logs/running.json",
+      ]);
+    });
   });
 
   describe("Sample Summaries Extraction", () => {

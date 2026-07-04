@@ -126,9 +126,14 @@ const createFakeDb = (data: FakeDbData = {}): DatabaseService => {
       Promise.resolve(pick(data.details, logs)),
     readLogDetailsForFile: (file: string) =>
       Promise.resolve(data.details?.[file] ?? null),
+    // Mirrors the real service: a "started" details row is a mid-run
+    // snapshot and doesn't count as cached.
     findMissingDetails: (logs: LogHandle[]) =>
       Promise.resolve(
-        logs.filter((log) => !(log.name in (data.details ?? {})))
+        logs.filter((log) => {
+          const cached = data.details?.[log.name];
+          return !cached || cached.status === "started";
+        })
       ),
     findMissingPreviews: (logs: LogHandle[]) =>
       Promise.resolve(
@@ -408,6 +413,30 @@ describe("FetchEngine.applyListing", () => {
       expect(fake.summaryCalls.flat().sort()).toEqual([
         "added.eval",
         "changed.eval",
+      ]);
+    });
+  });
+
+  it("fetches invalidated details fresh (a memoized remote file would re-serve the stale snapshot)", async () => {
+    const changed = handle("changed.eval", 3);
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({
+        details: { "changed.eval": makeDetails("changed.eval", "started") },
+      }),
+    });
+
+    await engine.applyListing({
+      listing: [changed],
+      invalidated: ["changed.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => {
+      expect(fake.detailCalls).toEqual([
+        { file: "changed.eval", cached: false },
       ]);
     });
   });

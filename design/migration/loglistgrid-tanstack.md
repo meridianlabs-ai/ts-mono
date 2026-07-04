@@ -220,7 +220,6 @@ After phase 6 the log-list migration is at a solid, shippable point. With the sa
 
 Action items:
 
-- **TODO: listing rows first synced mid-run stay header-only after the eval completes.** A log replicated while running keeps a completed date but `-` for samples/tokens/duration/score, survives reload (IndexedDB), and heals only when the log is opened. NOT a regression — origin/main's client shows identical stale rows after a full reload — but `/api/logs` returns `mtime`, which could key a header re-sync.
 - **TODO: confirm log-list column order vs origin/main is intentional.** Branch: Model after Task, Sample Limits before Tokens; main: Model/Sample Limits at the end.
 
 No action (recorded so the next sweep doesn't re-flag them):

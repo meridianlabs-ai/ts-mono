@@ -281,7 +281,13 @@ export class DatabaseService {
         .anyOf(filePaths)
         .toArray();
 
-      const cachedPaths = new Set(records.map((r) => r.file_path));
+      // A "started" details row is a mid-run snapshot — the run may have
+      // finished since, so it doesn't count as cached.
+      const cachedPaths = new Set(
+        records
+          .filter((r) => r.details.status !== "started")
+          .map((r) => r.file_path)
+      );
       const missing = logs.filter((log) => !cachedPaths.has(log.name));
 
       log.debug(
