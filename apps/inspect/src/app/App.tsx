@@ -217,7 +217,7 @@ export const App: FC = () => (
         plugins={[
           { name: "TanStack Query", render: <ReactQueryDevtoolsPanel /> },
           {
-            name: "Zustand",
+            name: "Zustand Inspector",
             render: (_el, props) => <ZustandStorePanel theme={props.theme} />,
           },
         ]}

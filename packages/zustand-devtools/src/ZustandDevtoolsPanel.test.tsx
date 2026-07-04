@@ -77,6 +77,14 @@ describe("ZustandDevtoolsPanel", () => {
     expect(screen.getByText("42")).toBeDefined();
   });
 
+  it("shows the branded header", () => {
+    const store = makeStore({ app: {} });
+    render(<ZustandDevtoolsPanel store={store} />);
+
+    expect(screen.getByText("MERIDIAN")).toBeDefined();
+    expect(screen.getByText("Zustand Inspector")).toBeDefined();
+  });
+
   it("applies the theme class from the theme prop", () => {
     const store = makeStore({ app: {} });
     const { container } = render(

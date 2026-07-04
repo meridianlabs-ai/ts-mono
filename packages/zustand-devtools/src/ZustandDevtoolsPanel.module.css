@@ -18,6 +18,8 @@
   --zsd-function: #06b6d4; /* cyan400 */
   --zsd-collection: #667085; /* gray500 */
   --zsd-flash: rgba(50, 213, 131, 0.25);
+  --zsd-brand-from: #9b8afb; /* purple400 */
+  --zsd-brand-to: #53b1fd; /* blue400 */
 }
 
 .light {
@@ -35,6 +37,8 @@
   --zsd-function: #0891b2; /* cyan500 */
   --zsd-collection: #667085; /* gray500 */
   --zsd-flash: rgba(18, 183, 106, 0.25);
+  --zsd-brand-from: #7a5af8; /* purple500 */
+  --zsd-brand-to: #2e90fa; /* blue500 */
 }
 
 .panel {
@@ -50,9 +54,61 @@
   text-align: left;
 }
 
-/* flex-basis (not width): the TanStack Devtools shell injects a
-   `.goXXX > * > *` rule forcing width/height 100% on the panel's
-   grandchildren; flex-basis wins over width in flex layout. */
+/* The TanStack Devtools shell injects a `.goXXX > * > *` rule forcing
+   width/height 100% on the panel's grandchildren. .inner is that grandchild
+   and absorbs the rule so header/body below it lay out freely. */
+.inner {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/* Header mirrors devtools-ui's Header/HeaderLogo: bordered row with a
+   stacked wordmark — bold brand line over a gradient flavor line. */
+.header {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--zsd-border);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brandName {
+  font-size: var(--tsrd-font-size, 16px);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.brandFlavor {
+  font-size: calc(var(--tsrd-font-size, 16px) * 0.75);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  background: linear-gradient(
+    to right,
+    var(--zsd-brand-from),
+    var(--zsd-brand-to)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .sidebar {
   flex: 0 0 180px;
   overflow-y: auto;

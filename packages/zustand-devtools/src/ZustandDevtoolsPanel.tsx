@@ -62,40 +62,50 @@ export const ZustandDevtoolsPanel: FC<ZustandDevtoolsPanelProps> = ({
 
   const panelClass = `${styles.panel} ${theme === "light" ? styles.light : styles.dark}`;
 
-  if (selected === undefined) {
-    return (
-      <div className={panelClass}>
-        <div className={styles.tree}>
-          <TreeNode name="state" value={state} defaultExpanded />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={panelClass}>
-      <div className={styles.sidebar}>
-        {topEntries.map((entry) => (
-          <button
-            key={entry.key}
-            className={
-              entry.key === selected.key
-                ? `${styles.sidebarItem} ${styles.sidebarItemSelected}`
-                : styles.sidebarItem
-            }
-            onClick={() => setSelectedKey(entry.key)}
-          >
-            {entry.key}
-          </button>
-        ))}
-      </div>
-      <div className={styles.tree}>
-        <TreeNode
-          key={selected.key}
-          name={selected.key}
-          value={selected.value}
-          defaultExpanded
-        />
+      {/* Wrapper keeps header/body out of reach of the shell's
+          `.goXXX > * > *` width/height-100% rule (see the .inner note). */}
+      <div className={styles.inner}>
+        <div className={styles.header}>
+          <div className={styles.brand}>
+            <span className={styles.brandName}>MERIDIAN</span>
+            <span className={styles.brandFlavor}>Zustand Inspector</span>
+          </div>
+        </div>
+        <div className={styles.body}>
+          {selected === undefined ? (
+            <div className={styles.tree}>
+              <TreeNode name="state" value={state} defaultExpanded />
+            </div>
+          ) : (
+            <>
+              <div className={styles.sidebar}>
+                {topEntries.map((entry) => (
+                  <button
+                    key={entry.key}
+                    className={
+                      entry.key === selected.key
+                        ? `${styles.sidebarItem} ${styles.sidebarItemSelected}`
+                        : styles.sidebarItem
+                    }
+                    onClick={() => setSelectedKey(entry.key)}
+                  >
+                    {entry.key}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.tree}>
+                <TreeNode
+                  key={selected.key}
+                  name={selected.key}
+                  value={selected.value}
+                  defaultExpanded
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
