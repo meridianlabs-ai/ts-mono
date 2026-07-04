@@ -4,6 +4,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 
 import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
+import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
 
@@ -51,16 +52,21 @@ interface FakeApiOptions {
   /** When true, each get_log_details call blocks until released. */
   gated?: boolean;
   failFor?: string[];
+  /** Files that always fail get_log_summaries_settled (every attempt,
+   *  including retries). */
+  failSummaryFor?: string[];
 }
 
 const createFakeApi = (options: FakeApiOptions = {}) => {
   const detailCalls: { file: string; cached: boolean | undefined }[] = [];
   const summaryCalls: string[][] = [];
+  const callOrder: string[] = [];
   const gates: Deferred<void>[] = [];
 
   const api = {
     get_log_details: vi.fn(async (file: string, cached?: boolean) => {
       detailCalls.push({ file, cached });
+      callOrder.push(`detail:${file}`);
       if (options.gated) {
         const gate = deferred<void>();
         gates.push(gate);
@@ -71,23 +77,31 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
       }
       return makeDetails(file);
     }),
-    get_log_summaries: vi.fn((files: string[]) => {
-      summaryCalls.push(files);
-      return Promise.resolve(files.map((file) => makePreview(file)));
-    }),
+    get_log_summaries_settled: vi.fn(
+      (files: string[]): Promise<WorkResult<LogPreview>[]> => {
+        summaryCalls.push(files);
+        callOrder.push(`preview:${files.join(",")}`);
+        return Promise.resolve(
+          files.map((file) =>
+            options.failSummaryFor?.includes(file)
+              ? { ok: false, error: new Error(`summary failed: ${file}`) }
+              : { ok: true, value: makePreview(file) }
+          )
+        );
+      }
+    ),
   };
 
   // Releasing a gate lets the worker claim the next item, which opens a new
-  // gate asynchronously — so drain across ticks until no gates remain.
+  // gate asynchronously after the queue's inter-batch delay — so drain on a
+  // fixed schedule rather than stopping the moment gates look empty (a gate
+  // can still be a beat away from appearing).
   const releaseAll = async () => {
     for (let i = 0; i < 100; i++) {
       while (gates.length > 0) {
         gates.shift()?.resolve();
       }
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      if (gates.length === 0) {
-        return;
-      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
     }
   };
 
@@ -95,6 +109,7 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
     api: api as unknown as ClientAPI,
     detailCalls,
     summaryCalls,
+    callOrder,
     releaseAll,
     gates,
   };
@@ -200,7 +215,6 @@ const createEngine = async (
   const engine = new FetchEngine({
     flushDelayMs: 0,
     statsDelayMs: 0,
-    previewProcessingDelayMs: 0,
     ...options,
   });
   const { sink, calls } = createFakeSink();
@@ -310,7 +324,7 @@ describe("FetchEngine.fetch", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api },
-      { detailConcurrency: 1 }
+      { concurrency: 1 }
     );
 
     const blocker = engine.fetch("blocker.eval", "background");
@@ -331,7 +345,7 @@ describe("FetchEngine.fetch", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api },
-      { detailConcurrency: 1 }
+      { concurrency: 1 }
     );
 
     const blocker = engine.fetch("blocker.eval", "background");
@@ -469,7 +483,7 @@ describe("FetchEngine.applyListing", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api, database: createFakeDb() },
-      { detailConcurrency: 1 }
+      { concurrency: 1 }
     );
 
     const blocker = engine.fetch("blocker.eval", "background");
@@ -517,6 +531,99 @@ describe("FetchEngine.ensurePreviews", () => {
   });
 });
 
+describe("FetchEngine unified queue (previews + details share one queue)", () => {
+  it("a user fetch() claims before a queued Medium preview backfill", async () => {
+    const fake = createFakeApi({ gated: true });
+    const { engine } = await createEngine(
+      { api: fake.api },
+      { concurrency: 1 }
+    );
+
+    const blocker = engine.fetch("blocker.eval", "background");
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    engine.requestPreview("backfill.eval", "background");
+    const user = engine.fetch("user.eval", "user");
+
+    void fake.releaseAll();
+    await Promise.all([blocker, user]);
+    await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
+
+    expect(fake.callOrder).toEqual([
+      "detail:blocker.eval",
+      "detail:user.eval",
+      "preview:backfill.eval",
+    ]);
+  });
+
+  it("isolates a bad file in a preview batch — the other previews still land", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const handles = Array.from({ length: 24 }, (_, i) =>
+      handle(`log${i}.eval`)
+    );
+    const failing = "log5.eval";
+    const fake = createFakeApi({ failSummaryFor: [failing] });
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: handles }),
+    });
+
+    await engine.ensurePreviews(handles);
+
+    await vi.waitFor(() => {
+      const written = sinkCalls.writePreviews.reduce<
+        Record<string, LogPreview>
+      >((acc, batch) => ({ ...acc, ...batch }), {});
+      expect(Object.keys(written)).toHaveLength(23);
+      expect(written[failing]).toBeUndefined();
+    });
+    errorSpy.mockRestore();
+  });
+
+  it("a successful details fetch removes a queued preview fetch for the same log", async () => {
+    const fake = createFakeApi({ gated: true });
+    const { engine } = await createEngine(
+      { api: fake.api },
+      { concurrency: 1 }
+    );
+
+    const blocker = engine.fetch("blocker.eval", "background");
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    engine.requestPreview("a.eval", "background");
+    const details = engine.fetch("a.eval", "user");
+
+    void fake.releaseAll();
+    await Promise.all([blocker, details]);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+  });
+
+  it("requestPreview dedupes with a queued preview backfill (no double fetch)", async () => {
+    const target = handle("a.eval");
+    const fake = createFakeApi({ gated: true });
+    const { engine } = await createEngine(
+      { api: fake.api, database: createFakeDb({ logs: [target] }) },
+      { concurrency: 1 }
+    );
+
+    const blocker = engine.fetch("blocker.eval", "background");
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    await engine.ensurePreviews([target]);
+    engine.requestPreview("a.eval", "user");
+
+    void fake.releaseAll();
+    await blocker;
+    await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
+
+    expect(
+      fake.summaryCalls.flat().filter((file) => file === "a.eval")
+    ).toHaveLength(1);
+  });
+});
+
 describe("FetchEngine status", () => {
   it("reports syncing while queued work is processing and notifies subscribers", async () => {
     const fake = createFakeApi({ gated: true });
@@ -542,7 +649,7 @@ describe("FetchEngine.stop", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api },
-      { detailConcurrency: 1 }
+      { concurrency: 1 }
     );
 
     const blocker = engine.fetch("blocker.eval", "background");

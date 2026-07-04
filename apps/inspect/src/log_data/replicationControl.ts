@@ -5,7 +5,7 @@ import { LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
 import { getDatabaseService } from "./databaseServiceInstance";
-import { fetchEngine } from "./fetchEngine";
+import { fetchEngine, FetchPriority } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
 
@@ -97,14 +97,31 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
 /**
  * Fetch a log's details at user priority, activating the engine for `logDir`
  * on demand first (a deep link's first fetch can run before any listing
- * subscriber has activated).
+ * subscriber has activated). `opts.fresh` threads through to `engine.fetch`
+ * for callers that know the cached row is stale (e.g. after an edit).
  */
 export const fetchLog = async (
   logDir: string,
-  logFile: string
+  logFile: string,
+  opts?: { fresh?: boolean }
 ): Promise<LogDetails> => {
   await ensureFetchEngine(logDir);
-  return fetchEngine.fetch(logFile, "user");
+  return fetchEngine.fetch(logFile, "user", opts);
+};
+
+/**
+ * Enqueue-or-bump a preview fetch, activating the engine for `logDir` on
+ * demand like `fetchLog` — but fire-and-forget (no waiter), since hooks read
+ * the result off the sink/cache rather than awaiting a promise here.
+ */
+export const requestPreview = (
+  logDir: string,
+  logFile: string,
+  priority?: FetchPriority
+): void => {
+  void ensureFetchEngine(logDir).then(() =>
+    fetchEngine.requestPreview(logFile, priority ?? "user")
+  );
 };
 
 // Serialize listing syncs with a trailing coalesce: a request arriving

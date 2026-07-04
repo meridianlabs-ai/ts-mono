@@ -47,6 +47,7 @@ import {
   EvalSampleScore,
   EvalSampleTarget,
 } from "../../@types/extraInspect";
+import { WorkResult } from "../../utils/workQueue";
 
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
@@ -317,6 +318,11 @@ export interface ClientAPI {
   get_flow: (dir?: string) => Promise<string | undefined>;
 
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
+  // Per-file settled results, aligned with `log_files` — one unreadable file
+  // never fails the others. See client-api.ts for the fallback that backs it.
+  get_log_summaries_settled: (
+    log_files: string[]
+  ) => Promise<WorkResult<LogPreview>[]>;
   get_log_details: (log_file: string, cached?: boolean) => Promise<LogDetails>;
 
   // Sample retrieval

@@ -36,6 +36,7 @@ const baseApi = (): ClientAPI => ({
   get_eval_set: () => Promise.resolve(undefined),
   get_flow: () => Promise.resolve(undefined),
   get_log_summaries: () => notMocked(),
+  get_log_summaries_settled: () => notMocked(),
   get_log_details: () => notMocked(),
   get_log_sample: () => notMocked(),
   client_events: () => Promise.resolve([]),

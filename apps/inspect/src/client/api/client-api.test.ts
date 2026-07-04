@@ -5,6 +5,7 @@ import { openRemoteLogFile } from "../remote/remoteLogFile";
 import { clientApi } from "./client-api";
 import {
   EditLogResult,
+  LogPreview,
   LogViewAPI,
   SampleData,
   SampleDataResponse,
@@ -426,5 +427,70 @@ describe("clientApi.edit_log etag plumbing", () => {
     await client.get_log_details("log.eval", false);
     await client.edit_log!("log.eval", okUpdate);
     expect(edit_log).toHaveBeenCalledWith("log.eval", okUpdate, "v2");
+  });
+});
+
+describe("clientApi.get_log_summaries_settled", () => {
+  // The concern this covers: a single unreadable file in a batched
+  // /log-headers request must not fail every other file in that batch — see
+  // the TODO in client-api.ts for the server-side fix this works around.
+
+  const previewFor = (id: string): LogPreview =>
+    ({ eval_id: id, run_id: `run-${id}` }) as unknown as LogPreview;
+
+  test("wraps the batched endpoint's results as ok when it returns the full set", async () => {
+    const previews = [previewFor("a"), previewFor("b")];
+    const get_log_summaries = vi.fn().mockResolvedValue(previews);
+    const client = clientApi({ ...baseApi(), get_log_summaries });
+
+    const results = await client.get_log_summaries_settled([
+      "a.json",
+      "b.json",
+    ]);
+
+    expect(results).toEqual([
+      { ok: true, value: previews[0] },
+      { ok: true, value: previews[1] },
+    ]);
+    expect(get_log_summaries).toHaveBeenCalledTimes(1);
+  });
+
+  test("isolates a per-file failure via a per-file fallback when the batch throws", async () => {
+    const get_log_summaries = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("batch failed")) // the batched attempt
+      .mockResolvedValueOnce([previewFor("a")]) // per-file fallback: a.json
+      .mockRejectedValueOnce(new Error("b unreadable")); // per-file fallback: b.json
+    const client = clientApi({ ...baseApi(), get_log_summaries });
+
+    const results = await client.get_log_summaries_settled([
+      "a.json",
+      "b.json",
+    ]);
+
+    expect(results[0]).toEqual({ ok: true, value: previewFor("a") });
+    expect(results[1]?.ok).toBe(false);
+    if (!results[1]?.ok) {
+      expect(results[1]?.error.message).toBe("b unreadable");
+    }
+  });
+
+  test("falls back to per-file reads when the batch returns a partial set", async () => {
+    const get_log_summaries = vi
+      .fn()
+      .mockResolvedValueOnce([previewFor("a")]) // batched: only 1 of 2 requested
+      .mockResolvedValueOnce([previewFor("a")]) // per-file fallback: a.json
+      .mockResolvedValueOnce([previewFor("b")]); // per-file fallback: b.json
+    const client = clientApi({ ...baseApi(), get_log_summaries });
+
+    const results = await client.get_log_summaries_settled([
+      "a.json",
+      "b.json",
+    ]);
+
+    expect(results).toEqual([
+      { ok: true, value: previewFor("a") },
+      { ok: true, value: previewFor("b") },
+    ]);
   });
 });

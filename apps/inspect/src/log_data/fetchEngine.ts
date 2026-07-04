@@ -4,7 +4,7 @@ import { throttle } from "@tsmono/util";
 import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
-import { WorkPriority, WorkQueue } from "../utils/workQueue";
+import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
 
 /**
  * The one place backend log-list data (details, previews) is fetched.
@@ -38,6 +38,33 @@ const toWorkPriority = (priority: FetchPriority): WorkPriority => {
       return WorkPriority.Medium;
   }
 };
+
+// The kind of a queued fetch — the single queue's batch group. Batches never
+// mix kinds, so a worker call only ever sees one.
+type LogWorkKind = "preview" | "details";
+
+interface LogWork {
+  kind: LogWorkKind;
+  handle: LogHandle;
+}
+
+const workId = (kind: LogWorkKind, name: string) => `${kind}:${name}`;
+
+const previewWork = (handle: LogHandle): LogWork => ({
+  kind: "preview",
+  handle,
+});
+const detailsWork = (handle: LogHandle): LogWork => ({
+  kind: "details",
+  handle,
+});
+
+// The queue's TOutput. Tagging a successful value with its own kind lets
+// onComplete narrow it (via a plain `=== "preview"` check) without a type
+// assertion — the queue itself is kind-agnostic.
+type LogWorkValue =
+  | { kind: "preview"; value: LogPreview }
+  | { kind: "details"; value: LogDetails };
 
 /**
  * The cache write surface the engine writes results through — the
@@ -93,10 +120,10 @@ export interface ListingUpdate {
 
 /** Queue/batching tunables — production defaults; tests shrink them. */
 export interface FetchEngineOptions {
-  previewConcurrency?: number;
+  /** Single global concurrency cap shared by previews and details (≈ a
+   *  browser per-host connection pool). */
+  concurrency?: number;
   previewBatchSize?: number;
-  previewProcessingDelayMs?: number;
-  detailConcurrency?: number;
   flushDelayMs?: number;
   statsDelayMs?: number;
 }
@@ -134,8 +161,7 @@ export class FetchEngine {
   // own copy so key resolution and diffing need no cache/db round-trip.
   private _handles: LogHandle[] = [];
 
-  private readonly _previewQueue: WorkQueue<LogHandle, LogPreview | undefined>;
-  private readonly _detailQueue: WorkQueue<LogHandle, LogDetails | undefined>;
+  private readonly _queue: WorkQueue<LogWork, LogWorkValue>;
   private _processingCount = 0;
 
   // Completion promises for `fetch()` callers, keyed by resolved log name.
@@ -178,93 +204,159 @@ export class FetchEngine {
       options.flushDelayMs ?? 250
     );
 
-    this._previewQueue = new WorkQueue<LogHandle, LogPreview | undefined>({
-      name: "Log-Preview-Queue",
-      concurrency: options.previewConcurrency ?? 2,
-      batchSize: options.previewBatchSize ?? 24,
-      processingDelay: options.previewProcessingDelayMs ?? 20,
+    // Single queue: previews and details share one concurrency cap (a
+    // browser has one connection pool, not one per kind), but never batch
+    // together (`batchGroup`) — a 24-file preview batch and a singleton
+    // detail fetch have nothing in common.
+    this._queue = new WorkQueue<LogWork, LogWorkValue>({
+      name: "Log-Fetch-Queue",
+      concurrency: options.concurrency ?? 6,
+      batchGroup: (work) => work.kind,
+      batchSizeFor: (work) =>
+        work.kind === "preview" ? (options.previewBatchSize ?? 24) : 1,
+      processingDelay: 10,
       onProcessingChanged: this.processingChanged,
-      getId: (log) => log.name,
-      worker: async (logHandles) => {
-        const deps = this._deps;
-        if (!deps) {
-          return logHandles.map(() => undefined);
+      getId: (work) => workId(work.kind, work.handle.name),
+      worker: (items) => {
+        const head = items[0];
+        if (!head) {
+          return Promise.resolve([]);
         }
-        return deps.api.get_log_summaries(logHandles.map((log) => log.name));
+        return head.kind === "preview"
+          ? this.previewWorker(items.map((item) => item.handle))
+          : this.detailsWorker(items.map((item) => item.handle));
       },
-      onComplete: (previews, inputs) => {
-        inputs.forEach((log, i) => {
-          const preview = previews[i];
-          if (preview) {
-            this._pendingPreviewWrites[log.name] = preview;
-          }
-        });
-        this._throttledFlushPreviewWrites();
+      onComplete: (results, inputs) => {
+        const head = inputs[0];
+        if (head?.kind === "preview") {
+          this.onPreviewComplete(results, inputs);
+        } else if (head?.kind === "details") {
+          this.onDetailsComplete(results, inputs);
+        }
         return Promise.resolve();
       },
     });
+  }
 
-    this._detailQueue = new WorkQueue<LogHandle, LogDetails | undefined>({
-      name: "Log-Detail-Queue",
-      concurrency: options.detailConcurrency ?? 24,
-      batchSize: 1,
-      processingDelay: 0,
-      onProcessingChanged: this.processingChanged,
-      getId: (log) => log.name,
-      worker: async (logHandles) => {
-        logHandles.forEach((log) => this._inFlightDetails.add(log.name));
-        return Promise.all(
-          logHandles.map(async (log) => {
-            const fresh = this._freshDetails.delete(log.name);
-            const deps = this._deps;
-            if (!deps) {
-              return undefined;
-            }
-            try {
-              return await deps.api.get_log_details(
-                log.name,
-                fresh ? false : undefined
-              );
-            } catch (error) {
-              const waiter = this._pendingFetches.get(log.name);
-              if (waiter) {
-                this._pendingFetches.delete(log.name);
-                waiter.reject(error);
-              }
-              return undefined;
-            }
-          })
+  private async previewWorker(
+    handles: LogHandle[]
+  ): Promise<WorkResult<LogWorkValue>[]> {
+    const deps = this._deps;
+    if (!deps) {
+      const error = new Error("Fetch engine stopped");
+      return handles.map(() => ({ ok: false, error }));
+    }
+    const results = await deps.api.get_log_summaries_settled(
+      handles.map((log) => log.name)
+    );
+    return results.map((result) =>
+      result.ok
+        ? { ok: true, value: { kind: "preview", value: result.value } }
+        : result
+    );
+  }
+
+  private onPreviewComplete(
+    results: WorkResult<LogWorkValue>[],
+    inputs: LogWork[]
+  ): void {
+    inputs.forEach((work, i) => {
+      const result = results[i];
+      if (!result) {
+        return;
+      }
+      if (!result.ok) {
+        // Task 3 records this per-file failure; for now it's visible but
+        // doesn't block the rest of the batch from landing.
+        console.error(
+          `Preview fetch failed for ${work.handle.name}:`,
+          result.error
         );
-      },
-      onComplete: (details, inputs) => {
-        inputs.forEach((log, i) => {
-          this._inFlightDetails.delete(log.name);
-          const detail = details[i];
-          if (!detail) {
-            return;
-          }
-          const waiter = this._pendingFetches.get(log.name);
+        return;
+      }
+      if (result.value.kind !== "preview") {
+        return;
+      }
+      this._pendingPreviewWrites[work.handle.name] = result.value.value;
+    });
+    this._throttledFlushPreviewWrites();
+  }
+
+  private async detailsWorker(
+    handles: LogHandle[]
+  ): Promise<WorkResult<LogWorkValue>[]> {
+    handles.forEach((log) => this._inFlightDetails.add(log.name));
+    try {
+      return await Promise.all(
+        handles.map(async (log): Promise<WorkResult<LogWorkValue>> => {
+          const fresh = this._freshDetails.delete(log.name);
           const deps = this._deps;
-          if (waiter) {
-            this._pendingFetches.delete(log.name);
-            if (deps) {
-              // Someone is waiting on this, so land it now rather than in the
-              // next batched flush; repaint the listing preview from the fresh
-              // status (a log cached as "started" may have since finished).
-              this.ensureListed(log.name);
-              void deps.sink
-                .writeDetails({ [log.name]: detail })
-                .catch(() => {});
-              deps.sink.mergePreviews({ [log.name]: toLogPreview(detail) });
-            }
-            waiter.resolve(detail);
-          } else {
-            this._pendingDetailWrites[log.name] = detail;
-            this._throttledFlushDetailWrites();
+          if (!deps) {
+            return { ok: false, error: new Error("Fetch engine stopped") };
           }
-        });
-        return Promise.resolve();
-      },
+          try {
+            const details = await deps.api.get_log_details(
+              log.name,
+              fresh ? false : undefined
+            );
+            return { ok: true, value: { kind: "details", value: details } };
+          } catch (error) {
+            return {
+              ok: false,
+              error: error instanceof Error ? error : new Error(String(error)),
+            };
+          }
+        })
+      );
+    } finally {
+      // Scoped to the worker call (not to "settled"), so a retried item is
+      // correctly no longer "in flight" once it's back in the queue.
+      handles.forEach((log) => this._inFlightDetails.delete(log.name));
+    }
+  }
+
+  private onDetailsComplete(
+    results: WorkResult<LogWorkValue>[],
+    inputs: LogWork[]
+  ): void {
+    const deps = this._deps;
+    inputs.forEach((work, i) => {
+      const name = work.handle.name;
+      const result = results[i];
+      if (!result) {
+        return;
+      }
+      const waiter = this._pendingFetches.get(name);
+      if (!result.ok) {
+        if (waiter) {
+          this._pendingFetches.delete(name);
+          waiter.reject(result.error);
+        }
+        return;
+      }
+      if (result.value.kind !== "details") {
+        return;
+      }
+      const detail = result.value.value;
+      // Cross-kind coalesce: these details already repaint the preview via
+      // toLogPreview below, so a queued preview fetch for the same log is
+      // now redundant.
+      this._queue.removeByIds([workId("preview", name)]);
+      if (waiter) {
+        this._pendingFetches.delete(name);
+        if (deps) {
+          // Someone is waiting on this, so land it now rather than in the
+          // next batched flush; repaint the listing preview from the fresh
+          // status (a log cached as "started" may have since finished).
+          this.ensureListed(name);
+          void deps.sink.writeDetails({ [name]: detail }).catch(() => {});
+          deps.sink.mergePreviews({ [name]: toLogPreview(detail) });
+        }
+        waiter.resolve(detail);
+      } else {
+        this._pendingDetailWrites[name] = detail;
+        this._throttledFlushDetailWrites();
+      }
     });
   }
 
@@ -301,8 +393,7 @@ export class FetchEngine {
   public stop(): void {
     this._deps = undefined;
     this._handles = [];
-    this._previewQueue.clear();
-    this._detailQueue.clear();
+    this._queue.clear();
     this._freshDetails.clear();
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
@@ -325,41 +416,62 @@ export class FetchEngine {
 
   /**
    * Get a log's details at the given priority: an enqueue-or-bump on the
-   * shared detail queue, never a separate code path. Read-through: a cached
-   * row for a completed log resolves immediately (seeding the cache) and a
-   * fresh read is scheduled in the background; a cached *running* log is only
-   * provisional, so the promise waits for the fresh read. Concurrent calls
-   * for the same log share one fetch.
+   * shared queue, never a separate code path. Read-through: a cached row for
+   * a completed log resolves immediately (seeding the cache) and a fresh
+   * read is scheduled in the background; a cached *running* log is only
+   * provisional, so the promise waits for the fresh read. `opts.fresh` skips
+   * the immediate cache resolution outright (the caller knows the cached row
+   * is stale, e.g. after editing the log), so the promise always waits for
+   * the network read. Concurrent calls for the same log share one fetch.
    */
-  public fetch(logFile: string, priority: FetchPriority): Promise<LogDetails> {
+  public fetch(
+    logFile: string,
+    priority: FetchPriority,
+    opts: { fresh?: boolean } = {}
+  ): Promise<LogDetails> {
     this.requireDeps();
     const key = this.resolveKey(logFile);
     const pending = this._pendingFetches.get(key);
     if (pending) {
       if (!this._inFlightDetails.has(key)) {
-        this._detailQueue.enqueue([{ name: key }], toWorkPriority(priority));
+        this._queue.enqueue(
+          [detailsWork({ name: key })],
+          toWorkPriority(priority)
+        );
       }
       return pending.promise;
     }
     const waiter = deferred<LogDetails>();
     this._pendingFetches.set(key, waiter);
-    void this.beginFetch(key, priority, waiter);
+    void this.beginFetch(key, priority, waiter, opts.fresh ?? false);
     return waiter.promise;
+  }
+
+  /**
+   * Enqueue-or-bump a preview fetch, fire-and-forget — hooks read the result
+   * off the sink/cache rather than awaiting a promise here.
+   */
+  public requestPreview(logFile: string, priority: FetchPriority): void {
+    this.requireDeps();
+    const key = this.resolveKey(logFile);
+    this._queue.enqueue([previewWork({ name: key })], toWorkPriority(priority));
   }
 
   private async beginFetch(
     key: string,
     priority: FetchPriority,
-    waiter: Deferred<LogDetails>
+    waiter: Deferred<LogDetails>,
+    fresh: boolean
   ): Promise<void> {
     const deps = this._deps;
     if (!deps) {
       // Stopped since the sync `fetch()` call; `stop()` rejected the waiter.
       return;
     }
-    const cached = deps.database
-      ? await deps.database.readLogDetailsForFile(key)
-      : null;
+    const cached =
+      !fresh && deps.database
+        ? await deps.database.readLogDetailsForFile(key)
+        : null;
     if (this._pendingFetches.get(key) !== waiter) {
       return;
     }
@@ -373,7 +485,7 @@ export class FetchEngine {
       // refresh in the background at the caller's priority.
     }
     this._freshDetails.add(key);
-    this._detailQueue.enqueue([{ name: key }], toWorkPriority(priority));
+    this._queue.enqueue([detailsWork({ name: key })], toWorkPriority(priority));
   }
 
   /**
@@ -401,8 +513,12 @@ export class FetchEngine {
 
     const stale = [...update.deleted, ...update.invalidated];
     if (stale.length > 0) {
-      this._previewQueue.removeByIds(stale);
-      this._detailQueue.removeByIds(stale);
+      this._queue.removeByIds(
+        stale.flatMap((name) => [
+          workId("preview", name),
+          workId("details", name),
+        ])
+      );
       // A deleted file's queued work is gone for good (invalidated files get
       // re-enqueued below), so any fetch() waiter would otherwise hang.
       for (const name of update.deleted) {
@@ -453,7 +569,7 @@ export class FetchEngine {
       deps.sink.mergePreviews(loaded);
     }
     if (filtered.length > 0) {
-      this._previewQueue.enqueue(filtered, WorkPriority.High);
+      this._queue.enqueue(filtered.map(previewWork), WorkPriority.High);
     }
   }
 
@@ -522,11 +638,11 @@ export class FetchEngine {
       // (the client-api's memoized remote file) would re-serve the stale
       // snapshot it was invalidated to replace.
       invalidated.forEach((handle) => this._freshDetails.add(handle.name));
-      this._detailQueue.enqueue(invalidated, WorkPriority.High);
+      this._queue.enqueue(invalidated.map(detailsWork), WorkPriority.High);
     }
     if (missing.length > 0) {
-      this._detailQueue.enqueue(
-        missing,
+      this._queue.enqueue(
+        missing.map(detailsWork),
         persistListing ? WorkPriority.High : WorkPriority.Medium
       );
     }
@@ -562,12 +678,12 @@ export class FetchEngine {
     }
 
     if (tasks.length > 0) {
-      this._previewQueue.enqueue(
-        tasks.slice(0, kPreviewFirstWave),
+      this._queue.enqueue(
+        tasks.slice(0, kPreviewFirstWave).map(previewWork),
         WorkPriority.High
       );
-      this._previewQueue.enqueue(
-        tasks.slice(kPreviewFirstWave),
+      this._queue.enqueue(
+        tasks.slice(kPreviewFirstWave).map(previewWork),
         WorkPriority.Medium
       );
     }
