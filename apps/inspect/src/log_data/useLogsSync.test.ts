@@ -5,11 +5,15 @@ import { queryClient } from "../state/queryClient";
 
 import { clientEventsTick } from "./useLogsSync";
 
-const syncLogs = vi.hoisted(() => vi.fn());
-vi.mock("./replicationControl", () => ({ syncLogs }));
+vi.mock("./replicationControl", () => ({ syncLogs: vi.fn() }));
 
 const LOG_DIR = "/logs";
 const tickKey = ["client-events", LOG_DIR];
+const syncKeyForDir = { queryKey: ["logs-sync", LOG_DIR] };
+
+const invalidateQueries = vi
+  .spyOn(queryClient, "invalidateQueries")
+  .mockResolvedValue();
 
 const apiWith = (events: string[]): ClientAPI =>
   ({
@@ -18,37 +22,37 @@ const apiWith = (events: string[]): ClientAPI =>
 
 afterEach(() => {
   queryClient.clear();
-  syncLogs.mockReset();
+  invalidateQueries.mockClear();
 });
 
 describe("clientEventsTick", () => {
-  it("re-syncs the listing on a refresh-evals event", async () => {
+  it("invalidates the dir's listing sync on a refresh-evals event", async () => {
     const tick = await clientEventsTick(apiWith(["refresh-evals"]), LOG_DIR);
 
     expect(tick).toBe(1);
-    expect(syncLogs).toHaveBeenCalledWith(LOG_DIR);
+    expect(invalidateQueries).toHaveBeenCalledWith(syncKeyForDir);
   });
 
-  it("does not re-sync on an ordinary tick without events", async () => {
+  it("does not invalidate on an ordinary tick without events", async () => {
     const tick = await clientEventsTick(apiWith([]), LOG_DIR);
 
     expect(tick).toBe(1);
-    expect(syncLogs).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it("re-syncs periodically every 10th tick", async () => {
+  it("invalidates periodically every 10th tick", async () => {
     queryClient.setQueryData(tickKey, 9);
 
     const tick = await clientEventsTick(apiWith([]), LOG_DIR);
 
     expect(tick).toBe(10);
-    expect(syncLogs).toHaveBeenCalledWith(LOG_DIR);
+    expect(invalidateQueries).toHaveBeenCalledWith(syncKeyForDir);
   });
 
   it("ignores unrelated events", async () => {
     const tick = await clientEventsTick(apiWith(["something-else"]), LOG_DIR);
 
     expect(tick).toBe(1);
-    expect(syncLogs).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 });

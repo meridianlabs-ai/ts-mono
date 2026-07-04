@@ -23,8 +23,12 @@ const clientEventsKey = (logDir: string) => ["client-events", logDir] as const;
 
 /**
  * One client-events poll tick (the queryFn; exported for tests): ask the host
- * for events and re-run the listing sync on a `refresh-evals` event or every
- * `kPeriodicRefreshTicks`th tick. The query data is the tick counter.
+ * for events and, on a `refresh-evals` event or every
+ * `kPeriodicRefreshTicks`th tick, invalidate the dir's listing-sync queries —
+ * refetching whichever panel is subscribed (the tick only runs while a
+ * `useLogsSync` subscriber is mounted, so the refetch is guaranteed; the
+ * query, not a direct call, owns coalescing). The query data is the tick
+ * counter.
  */
 export const clientEventsTick = async (
   api: ClientAPI,
@@ -34,7 +38,7 @@ export const clientEventsTick = async (
   const tick =
     (queryClient.getQueryData<number>(clientEventsKey(logDir)) ?? 0) + 1;
   if (events.includes(kRefreshEvent) || tick % kPeriodicRefreshTicks === 0) {
-    await syncLogs(logDir);
+    await queryClient.invalidateQueries({ queryKey: [...logsSyncKey, logDir] });
   }
   return tick;
 };
@@ -60,10 +64,7 @@ export interface ListingStatus {
  * events and periodically. Poll lifetime is subscriber lifetime — no
  * imperative start/stop.
  */
-export const useLogsSync = (
-  logDir: string,
-  scope: string
-): ListingStatus => {
+export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
   useQuery({
     queryKey: clientEventsKey(logDir),
     queryFn: () => clientEventsTick(getApi(), logDir),

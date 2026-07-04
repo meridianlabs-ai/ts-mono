@@ -9,8 +9,8 @@ import {
   initDatabaseService,
 } from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
+import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
-import { replicationService } from "./replicationService";
 
 let injectedApi: ClientAPI | null = null;
 
@@ -53,15 +53,16 @@ export const openLogDirDatabase = async (
   }
 };
 
-// Ensure the per-dir database is open and the fetch engine + dir-mode
-// replication are running for `logDir`, (re)activating if they aren't.
-// Idempotent. This is the composition root for the engine: the database, api,
-// and per-dir cache sink are wired here.
+// Ensure the per-dir database is open and the fetch engine is running for
+// `logDir`, (re)activating if they aren't. Idempotent. This is the
+// composition root for the engine: the database, api, and per-dir cache sink
+// are wired here.
 const ensureActive = async (logDir: string): Promise<void> => {
   const databaseService = getDatabaseService();
   const databaseHandle = requireApi().get_log_dir_handle(logDir);
   const needsActivation =
-    !replicationService.isReplicating() ||
+    !fetchEngine.isStarted() ||
+    engineDir !== logDir ||
     !databaseService ||
     databaseService.getDatabaseHandle() !== databaseHandle;
 
@@ -76,7 +77,6 @@ const ensureActive = async (logDir: string): Promise<void> => {
       sink: createLogsContentSink(opened, logDir),
     });
     engineDir = logDir;
-    replicationService.startReplication(requireApi(), fetchEngine);
   }
 };
 
@@ -138,12 +138,40 @@ export const fetchLog = async (
   return fetchEngine.fetch(logFile, "user");
 };
 
+// Serialize listing syncs with a trailing coalesce: a request arriving
+// mid-sync waits out the in-flight run, then triggers exactly one more (the
+// event prompting it may postdate the in-flight run's server read); requests
+// arriving while a trailing run is already queued share the in-flight
+// promise. Concurrency policy only — the diff itself is the stateless
+// `syncListing`, and scheduling is react-query's (the sync query + tick
+// invalidation).
+let pendingSync: Promise<LogHandle[]> | null = null;
+let syncQueued = false;
+
+const serializedSyncListing = async (): Promise<LogHandle[]> => {
+  if (pendingSync && syncQueued) {
+    return pendingSync;
+  }
+  if (pendingSync) {
+    syncQueued = true;
+    // The in-flight run's failure belongs to its caller; ours still runs.
+    await pendingSync.catch(() => {});
+    syncQueued = false;
+    return serializedSyncListing();
+  }
+  pendingSync = syncListing(requireApi(), fetchEngine);
+  try {
+    return await pendingSync;
+  } finally {
+    pendingSync = null;
+  }
+};
+
 /**
- * Ensure dir-mode replication is active for `logDir` (defaulting to the
- * resolved dir), then sync. The queryFn behind `useLogsSync` — listing
+ * Ensure the engine is active for `logDir` (defaulting to the resolved dir),
+ * then run a listing sync. The queryFn behind `useLogsSync` — listing
  * freshness is driven by its subscribers. No-op in single-file mode / before
- * a dir is resolved. Lives here, not in the zustand slice — replication
- * orchestration is control-layer logic, not UI state.
+ * a dir is resolved.
  */
 export const syncLogs = async (
   logDir: string | undefined = getLogDir()
@@ -152,5 +180,5 @@ export const syncLogs = async (
     return [];
   }
   await ensureFetchEngine(logDir);
-  return (await replicationService.sync()) ?? [];
+  return serializedSyncListing();
 };
