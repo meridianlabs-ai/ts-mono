@@ -17,7 +17,7 @@ import {
   useLogDetail,
   useLogHandles,
   useLogPreviews,
-  usePassiveEvalSample,
+  usePassiveSampleData,
   useRunningMetrics,
   useSampleData,
   useSampleSummaries,
@@ -387,15 +387,15 @@ export const useSelectedSampleData = (): SampleData => {
 
 /**
  * The selected sample's invalidation record (if any) — the selection binding
- * projecting from the param-driven `usePassiveEvalSample` acquisition hook.
+ * projecting from the param-driven `usePassiveSampleData` acquisition hook.
  */
 export const useSelectedSampleInvalidation = ():
   | EvalSample["invalidation"]
   | undefined =>
-  usePassiveEvalSample(
+  usePassiveSampleData(
     useLogDir(),
     useStore((state) => state.log.selectedSampleHandle)
-  )?.invalidation ?? undefined;
+  )?.sample?.invalidation ?? undefined;
 
 export const useLogSelection = () => {
   const selectedSampleSummary = useSelectedSampleSummary();

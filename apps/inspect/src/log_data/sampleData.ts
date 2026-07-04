@@ -157,3 +157,22 @@ export const useSampleData = (
     [handle, summary, query, running, finalizedSample]
   );
 };
+
+/**
+ * The SampleData for a handle iff its EvalSample is resident, else undefined
+ * — a passive read that never fetches (see `usePassiveEvalSample` for the
+ * cache-rendezvous contract). Absence is a normal answer, not a loading
+ * state; the authoritative status for a sample being *shown* is
+ * `useSampleData`'s. For surfaces that must stay fetch-free (e.g. the
+ * invalidation banner in the title bar).
+ */
+export const usePassiveSampleData = (
+  logDir: string,
+  handle: SampleHandle | undefined
+): SampleData | undefined => {
+  const sample = usePassiveEvalSample(logDir, handle);
+  return useMemo(
+    () => (sample === undefined ? undefined : settledSampleData(sample)),
+    [sample]
+  );
+};

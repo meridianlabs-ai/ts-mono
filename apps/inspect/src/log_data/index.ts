@@ -56,8 +56,8 @@
 //                 invalidations — invalidateLogDetail (one log's details),
 //                 invalidateLogListing (the listing).
 // - passive read  Subscribe to cached data without independently inducing a
-//                 fetch (usePassiveEvalSample); absence is a normal answer, not
-//                 a loading state.
+//                 fetch (usePassiveSampleData); absence is a normal answer
+//                 (undefined), not a loading state.
 // - clear         Destroy the local replica — IndexedDB and the cached
 //                 collections — then request a listing re-sync so mounted
 //                 panels re-acquire. DbStats (useDatabaseStats) counts what
@@ -80,8 +80,11 @@ export {
   useLogPreviews,
 } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
-export { type SampleData, useSampleData } from "./sampleData";
+export {
+  type SampleData,
+  usePassiveSampleData,
+  useSampleData,
+} from "./sampleData";
 export { useSampleSummaries } from "./sampleSummaries";
-export { usePassiveEvalSample } from "./sampleQuery";
 export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

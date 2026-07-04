@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, ReactNode } from "react";
 import { describe, expect, test } from "vitest";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
@@ -7,7 +10,12 @@ import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
 import { RunningSampleData } from "./runningSampleQuery";
-import { deriveSampleData, SampleDataInputs } from "./sampleData";
+import {
+  deriveSampleData,
+  SampleDataInputs,
+  usePassiveSampleData,
+} from "./sampleData";
+import { sampleQueryKey } from "./sampleQuery";
 
 const handle: SampleHandle = { logFile: "run.eval", id: "s1", epoch: 1 };
 
@@ -134,5 +142,27 @@ describe("deriveSampleData", () => {
     );
     expect(errored.status).toBe("error");
     expect(errored.error).toBe(error);
+  });
+});
+
+describe("usePassiveSampleData", () => {
+  test("undefined while nothing is resident; SampleData once a writer primes the entry", async () => {
+    const client = new QueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+
+    const { result } = renderHook(() => usePassiveSampleData("/logs", handle), {
+      wrapper: Wrapper,
+    });
+    expect(result.current).toBeUndefined();
+
+    const primed = sample({ events: [{} as never] });
+    act(() => {
+      client.setQueryData(sampleQueryKey("/logs", handle), primed);
+    });
+    await waitFor(() => expect(result.current?.sample).toBe(primed));
+    expect(result.current?.status).toBe("ok");
+    expect(result.current?.running).toEqual([]);
+    expect(result.current?.error).toBeUndefined();
   });
 });
