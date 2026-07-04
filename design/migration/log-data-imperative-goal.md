@@ -103,6 +103,16 @@ OUT (future goals):
 
 ## Behavior changes vs origin/main — discuss with Charles
 
+**The selection principle** (what the change codifies): a sample is
+*selected* when a grid highlights it OR its detail view is open — one
+concept, `selectedSampleHandle`, owned by zustand, kept true by whichever
+surface the user is driving. Selection is an **identity claim only**: it
+never implies the sample's EvalSample is cache-resident (grid selection
+must stay fetch-free). Surfaces that *decorate* selection (the invalidation
+chip) therefore read passively (`usePassiveSampleData`) and treat absence as
+a normal answer; only a detail view — which shows the sample — acquires it
+(`useSampleData`).
+
 Landed alongside this goal (commit `318e2192`, "controlled grid selection"),
 accepted deliberately but **needs sign-off from Charles before the branch
 merges**:

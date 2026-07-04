@@ -10,7 +10,7 @@ import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { useLogDetails, useLogPreviews, useLogsSync } from "../../log_data";
 import { selectSample } from "../../state/actions";
-import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
+import { LogHandleWithRetried, useLogsWithRetried } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
@@ -110,7 +110,7 @@ export const SamplesPanel: FC = () => {
   const currentDir = join(samplesPath || "", logDir);
 
   const evalSet = useEvalSet().data;
-  const logFiles = useLogsWithretried();
+  const logFiles = useLogsWithRetried();
   const logPreviews = useLogPreviews(logDir);
 
   const currentDirLogFiles = useMemo(() => {
@@ -248,7 +248,7 @@ export const SamplesPanel: FC = () => {
 
     let anyLogInCurrentDirCouldBeSkipped = false;
     const logInCurrentDirByName = currentDirLogFiles.reduce(
-      (acc: Record<string, LogHandleWithretried>, log) => {
+      (acc: Record<string, LogHandleWithRetried>, log) => {
         if (log.retried) anyLogInCurrentDirCouldBeSkipped = true;
         acc[log.name] = log;
         return acc;

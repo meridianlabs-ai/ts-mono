@@ -565,7 +565,7 @@ export const useLogsListing = () => {
 const isActiveStatus = (status: EvalLogStatus | undefined) =>
   status === "started" || status === "success";
 
-export type LogHandleWithretried = LogHandle & { retried?: boolean };
+export type LogHandleWithRetried = LogHandle & { retried?: boolean };
 
 type LogPreviewStatusMap = Record<
   string,
@@ -573,7 +573,7 @@ type LogPreviewStatusMap = Record<
 >;
 
 /**
- * Pure dedup logic for {@link useLogsWithretried}.
+ * Pure dedup logic for {@link useLogsWithRetried}.
  *
  * Groups logs by (parent directory, task_id) so that logs sharing a task_id
  * across different folders (e.g. copied log directories under a shared parent)
@@ -585,9 +585,9 @@ type LogPreviewStatusMap = Record<
 export const computeLogsWithRetried = (
   logs: LogHandle[],
   logPreviews: LogPreviewStatusMap
-): LogHandleWithretried[] => {
+): LogHandleWithRetried[] => {
   const logsByGroup = logs.reduce(
-    (acc: Record<string, LogHandleWithretried[]>, log) => {
+    (acc: Record<string, LogHandleWithRetried[]>, log) => {
       const taskId = log.task_id;
       if (taskId) {
         const slash = log.name.lastIndexOf("/");
@@ -605,7 +605,7 @@ export const computeLogsWithRetried = (
   // started or success (treated as equivalent — both mean "not failed"),
   // then break ties by filename descending so the newest run wins.
   // An older `started` log is treated as orphaned once a newer log exists.
-  const bestByName: Record<string, LogHandleWithretried> = {};
+  const bestByName: Record<string, LogHandleWithRetried> = {};
   for (const items of Object.values(logsByGroup)) {
     items.sort((a, b) => {
       const aActive = isActiveStatus(logPreviews[a.name]?.status);
@@ -630,7 +630,7 @@ export const computeLogsWithRetried = (
   );
 };
 
-export const useLogsWithretried = (): LogHandleWithretried[] => {
+export const useLogsWithRetried = (): LogHandleWithRetried[] => {
   const logDir = useLogDir();
   const logs = useLogHandles(logDir);
   const logPreviews = useLogPreviews(logDir);
