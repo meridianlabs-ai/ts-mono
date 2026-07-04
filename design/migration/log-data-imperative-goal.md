@@ -1,0 +1,207 @@
+# Goal: shrink the imperative log_data surface — commands stay, plumbing dies
+
+## Intent (north star)
+
+`imperativeLogData` should hold only **irreducible commands** — verbs a user
+or external event genuinely issues — never plumbing that exists because a
+mechanism lives on the wrong side of the boundary. Today's four verbs, audited:
+
+- `fetchLog` — exists only because the selected-log *query* lives in `state/`,
+  so state needs a queryFn, so log_data must export a fetch. The rubric's own
+  smell ("a state binding growing a queryFn has sunk too low").
+- `init(api)` — self-feeding: main.tsx reads `getApi()` *from app_config* and
+  passes it back down (`initializeStore` → `init` → `injectedApi`), while
+  `useLogsSync.ts` already calls `getApi()` directly inside log_data. Two
+  sources of truth for one dependency, one of them ceremony.
+- `refreshLogListing` — a legitimate *invalidate* verb (host `backgroundUpdate`
+  message), though the same domain event ("listing may be stale") also arrives
+  by a second transport handled interiorly (`client_events` poll). Stays, for
+  now (see OUT).
+- `clearData` — a user command. Correctly imperative. Stays.
+
+Same audit interiorly: **"replication" names three different concerns**, and
+`ReplicationService` duplicates machinery react-query and `replicationControl`
+already own:
+
+| Concern | Today | Target |
+|---|---|---|
+| Activation/composition (engine+db per dir, teardown on dir change) | `replicationControl.ts` | unchanged — the one lifecycle owner |
+| Discovery (server-listing diff) | `ReplicationService` class | pure `syncListing()` function |
+| Coalescing/freshness scheduling | hand-rolled `_pendingSync`/`_syncQueued` queue | react-query (keys + invalidation) |
+| Content acquisition (fetch, persist, prioritize) | `FetchEngine` | unchanged — the one stateful machine |
+
+`ReplicationService`'s `startReplication`/`stopReplication`/`isReplicating`
+is DI plus a boolean paralleling activation state `replicationControl`
+already tracks (`engineDir`, `pendingActivation`, `fetchEngine.isStarted()`).
+Its coalescing queue exists only because `clientEventsTick` calls `syncLogs()`
+directly instead of invalidating the sync query.
+
+Target imperative surface:
+
+```
+imperativeLogData = {
+  refreshLogListing,   // external freshness event (until host events normalize)
+  clearData,           // user maintenance command
+}
+```
+
+Success is measured by reduction: `fetchLog` and `init` leave the interface;
+the `ReplicationService` class, its lifecycle triple, its queue, and
+`injectedApi`/`requireApi` are deleted, not relocated.
+
+## Scope
+
+IN:
+
+- **`ReplicationService` → pure function.** The diff algorithm (list server →
+  diff against `engine.listing()` → `engine.applyListing()`) becomes a
+  stateless `syncListing(api, engine)` in log_data; the class, singleton, and
+  `startReplication`/`stopReplication`/`isReplicating` die. Activation truth
+  lives solely in `replicationControl` (which already decides "needs
+  activation" without asking the service anything it couldn't know itself).
+- **Tick invalidates, never calls.** `clientEventsTick` stops calling
+  `syncLogs()` directly; it invalidates the logs-sync query for its `logDir`
+  (the tick only runs while a `useLogsSync` subscriber is mounted, so the
+  refetch is guaranteed). Coalescing of concurrent freshness requests becomes
+  react-query's per-key dedupe.
+- **Selected-log query → log_data.** The query + key + `staleTime`/`retry`
+  posture in `state/selectedLogDetails.ts` move into log_data as
+  `useLogDetailQuery(logDir, logFile): AsyncData<LogDetails>`;
+  `invalidateSelectedLog` becomes log_data's `invalidateLogDetail(logDir,
+  logFile)` (called by `refreshLog` in `state/actions.ts`). state/ keeps
+  `useSelectedLogQuery`/`useSelectedLogLoading` as selection bindings.
+  `fetchLog` leaves `ImperativeLogData` (interior only). This is a
+  *relocation*, not the details-read unification (OUT): query identity —
+  which `LogLoadController` keys off as its "fetch settled" event — is
+  unchanged by changing the query's home.
+- **One api source.** log_data reads `getApi()` from app_config everywhere
+  (it already does in `useLogsSync.ts`); `injectedApi`/`requireApi` die.
+- **`init` diet.** With the api param gone, `init`'s only job is
+  `initDatabaseService()`. Make database-service creation lazy on first
+  activation (`ensureFetchEngine`), keeping the injectable override as an
+  explicit test seam; `init` leaves the interface. If laziness proves too
+  magic (ordering, test ergonomics), fallback: zero-arg `init()` called from
+  **main.tsx** (the composition root), not from `initializeStore` — store
+  init must not own log_data's lifecycle either way.
+- **`domain-ownership.md` updated**: imperative surface list, interior table
+  (discovery as a pure function; activation as sole lifecycle owner),
+  awareness diagram, selected-log lifecycle entries.
+
+OUT (future goals):
+
+- **Host-event normalization.** `backgroundUpdate` postMessage (App.tsx) and
+  the polled `refresh-evals` client event are two transports of one domain
+  event; normalizing them into a client-layer stream log_data subscribes to
+  would retire `refreshLogListing` from the surface. Tangled with
+  `onMessage`'s selection concerns — separate goal.
+- **Details-read unification** (`useLogDetail` collection vs the relocated
+  selected-log query vs `fetchLog` absorption; the TODO at
+  `selectedLogDetails.ts:30`) — still blocked on a designed "fetch settled"
+  event for `LogLoadController`.
+- eslint enforcement of the barrel/layering.
+
+## Done when (all must hold)
+
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from
+  `apps/inspect`).
+- `ImperativeLogData` is exactly `{ refreshLogListing, clearData }`.
+- Structural invariants (greppable, scoped to `apps/inspect/src`):
+  - `rg "startReplication|stopReplication|isReplicating|ReplicationService"`
+    is empty.
+  - `rg "injectedApi|requireApi|initLogData"` is empty.
+  - `rg "fetchLog" src/state src/app` is empty; `syncLogs` is called only by
+    the logs-sync queryFn (the tick invalidates).
+  - `state/selectedLogDetails.ts` contains no queryFn/queryKey mechanics —
+    selection bindings only (or the file is gone).
+  - No log_data module holds a module-level api variable.
+- **Unit tests**: `syncListing` keeps the diff coverage as a pure-function
+  table (static list, incremental, full-response deletes); tick-invalidation
+  gets a test (tick → sync query refetches); the relocated query keeps
+  whatever coverage it has; wiring tests for the state bindings.
+- Behavior parity vs the current branch: listing re-syncs on `refresh-evals`
+  and periodic ticks; concurrent freshness requests coalesce (now via
+  react-query) with no duplicate `applyListing` interleavings; selected-log
+  fetch/loading/error surfaces unchanged; `LogLoadController`'s load/reset
+  reactions fire exactly as before; deep-link first fetch still activates the
+  engine on demand; clear-data still empties db + cache. Note timing shifts.
+- Net-subtractive overall (the class, queue, lifecycle triple, api plumbing
+  all die). Self-assess; surface if unsure.
+
+## Decision rubric (decide yourself — see Autonomy)
+
+- **Commands, not plumbing**: a verb stays on `ImperativeLogData` iff a human
+  or external event issues it. A verb that exists so another layer can run a
+  mechanism is a mis-homed mechanism.
+- **One owner per concern**: activation state lives in `replicationControl`
+  only; if a function needs to know "are we active", it asks the owner (or is
+  called by it) — no second registry.
+- **Coalescing belongs to react-query**: freshness requests rendezvous on
+  query keys. Hand-rolled single-flight is admissible only if a real
+  cross-key race survives (see unresolved: multi-scope sync), and then as a
+  module-local promise share, never a class lifecycle.
+- **Relocation before redesign**: the selected-log query moves as-is
+  (posture, key shape, TODO comment included). Unifying it with the
+  collection is the OUT goal.
+- **Lazy init must be deterministic**: first-activation creation is fine only
+  if every entry point (`syncLogs`, `fetchLog` interior, deep link) passes
+  through it; if any path can observe a missing service that `init` used to
+  guarantee, take the zero-arg-`init`-in-main.tsx fallback.
+- **Types**: no `any`/type assertions in `src` (tests may cast).
+- **Code health**: delete dead code, don't move it; no compat shims; comments
+  say WHY not WHAT.
+
+## Guardrails (must not break)
+
+- Behavior parity per Done-when; note poll-cadence/coalescing timing shifts.
+- Commit in the **ts-mono submodule**; parent repo gets gitlink bumps only.
+  **Always ask before pushing.** Commit per phase; never commit red.
+- Don't disable static-analysis warnings without discussing.
+
+## Autonomy contract (HIGH)
+
+- Proceed without asking on anything the rubric covers — module naming and
+  placement, function signatures, test relocation, phase sequencing.
+- Surface only: (a) a genuine fork the rubric doesn't resolve, (b) a real
+  behavior/parity risk, (c) scope creep into the OUT list, (d) before
+  pushing.
+- Suggested phases (each independently green + committed):
+  1) `ReplicationService` → pure `syncListing`; tick invalidates; queue and
+     lifecycle deleted. Interior only — zero surface change.
+  2) Selected-log query → log_data; `fetchLog` off the interface;
+     `invalidateLogDetail` verb.
+  3) api-sourcing unification + `init` diet; interface reaches target shape.
+  4) `domain-ownership.md`.
+
+## Unresolved questions
+
+- `LogLoadController`: confirm it keys off query *identity* only (move-safe),
+  not the query's state/ home — check before phase 2.
+- Multi-scope sync race: logs-sync queries are keyed per `(logDir, scope)`;
+  with the class queue gone, two mounted scopes invalidated together refetch
+  concurrently → overlapping `applyListing`. Verify whether two scopes ever
+  mount simultaneously; if yes, module-local single-flight on `syncListing`
+  or key sync by `logDir` alone — decide in phase 1.
+- `init`: fully lazy db-service creation vs zero-arg `init()` in main.tsx —
+  decide in phase 3 per the rubric's determinism test.
+- OK that `refreshLogListing` survives until host-event normalization?
+
+## Current state (branch `loglist-tanstack-phase1`, ts-mono submodule)
+
+- Precedent: `imperativeLogData` formalized (interface + single const);
+  data-hook-contract goal established the two-verbs rule (*invalidate* +
+  *initialize*) and absorbed the old `ReplicationController` component into
+  `replicationControl`.
+- Inventory — consumers: `init` at `state/store.ts:128` (api threaded from
+  main.tsx's own `getApi()` read); `fetchLog` at
+  `state/selectedLogDetails.ts:41` (queryFn); `refreshLogListing` at
+  `app/App.tsx:154` (host `backgroundUpdate`, focused case); `clearData` at
+  `app/log-list/ViewerOptionsPopover.tsx:35`.
+- Inventory — interior duplication: `ReplicationService`
+  (`log_data/replicationService.ts`) lifecycle triple + `_pendingSync`/
+  `_syncQueued` queue; direct `syncLogs()` call in `clientEventsTick`
+  (`useLogsSync.ts:37`); `injectedApi`/`requireApi`
+  (`replicationControl.ts:15,29`) vs ambient `getApi()`
+  (`useLogsSync.ts:69`).
+- Inventory — invalidation split: `refreshLogListing` in log_data vs
+  `invalidateSelectedLog` in `state/selectedLogDetails.ts:61` (called by
+  `refreshLog`, `state/actions.ts:38`).
