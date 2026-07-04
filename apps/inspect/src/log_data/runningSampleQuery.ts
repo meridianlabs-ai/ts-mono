@@ -40,7 +40,7 @@ export const runningSampleQueryKey = (
 export interface RunningSampleData {
   /** Events streamed so far; identity is stable across ticks that add none. */
   events: SampleEvent[];
-  /** The stream ended and the completed body was primed into `["sample"]`. */
+  /** The stream ended and the completed EvalSample was primed into `["sample"]`. */
   finalized: boolean;
 }
 
@@ -119,12 +119,12 @@ const findLiveSummary = (
   );
 
 /**
- * Fetch the completed body for a stream that reported done and prime it into
- * the `["sample"]` cache, so the completed-path query settles instantly once
- * the summary flips. Returns whether the stream is truly final: a flushed
- * buffer whose body isn't readable yet keeps streaming instead of erroring,
- * and a missing body whose summary records an error primes a synthesized
- * sample. Anything else propagates as the query's error.
+ * Fetch the completed EvalSample for a stream that reported done and prime it
+ * into the `["sample"]` cache, so the completed-path query settles instantly
+ * once the summary flips. Returns whether the stream is truly final: a
+ * flushed buffer whose EvalSample isn't readable yet keeps streaming instead
+ * of erroring, and a missing EvalSample whose summary records an error primes
+ * a synthesized sample. Anything else propagates as the query's error.
  */
 const finalizeRunningSample = async (
   api: ClientAPI,
@@ -193,7 +193,7 @@ export const streamRunningSampleTick = async (
  * enablement derives from the summary and the log's live status
  * (`shouldStreamRunningSample`), cadence is a fixed 2s `refetchInterval`, and
  * teardown is the key changing. When the stream ends, the tick primes the
- * completed body into the `["sample"]` cache and reports `finalized`; the
+ * completed EvalSample into the `["sample"]` cache and reports `finalized`; the
  * interval stops on `finalized` or error. Disabled with the same key (summary
  * settled first), the query still serves its cached events so the completed
  * path can bridge with them while its own fetch settles.
@@ -223,7 +223,7 @@ export const useRunningSample = (
         ? false
         : kRunningSampleIntervalMs,
     refetchIntervalInBackground: true,
-    // Streamed events are as large as sample bodies; don't retain idle ones.
+    // Streamed events are as large as EvalSamples; don't retain idle ones.
     gcTime: kSampleGcTimeMs,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

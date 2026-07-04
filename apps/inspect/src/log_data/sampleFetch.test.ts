@@ -172,7 +172,7 @@ describe("fetchSample", () => {
   const makeApi = (get_log_sample: ReturnType<typeof vi.fn>) =>
     ({ get_log_sample }) as unknown as ClientAPI;
 
-  it("fetches with the handle's coordinates and normalizes the body", async () => {
+  it("fetches with the handle's coordinates and normalizes the EvalSample", async () => {
     const get_log_sample = vi.fn().mockResolvedValue(
       makeSample({
         events_data: { messages: [sys, usr], calls: [] },
@@ -193,7 +193,7 @@ describe("fetchSample", () => {
     expect(sample.attachments).toEqual({});
   });
 
-  it("throws SampleNotFoundError when the backend has no body", async () => {
+  it("throws SampleNotFoundError when the backend has no EvalSample", async () => {
     const get_log_sample = vi.fn().mockResolvedValue(undefined);
 
     await expect(

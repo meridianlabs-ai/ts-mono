@@ -27,13 +27,13 @@
 //                 error); what sample lists render. Merged from the log's
 //                 details and, while running, the live stream — one list,
 //                 assembly private.
-// - body          The complete EvalSample: messages, events, scores. Large;
+// - EvalSample    The complete sample: messages, events, scores. Large;
 //                 fetched on demand, cache-resident only while recently
 //                 viewed.
-// - SampleData    The one answer to "show this sample": body + status +
-//                 still-streaming events. Which path serves it (completed
-//                 fetch, error-summary fallback, live stream, finalize
-//                 handoff) is private.
+// - SampleData    The one answer to "show this sample": EvalSample + status +
+//                 still-streaming events. Which path serves the EvalSample
+//                 (completed fetch, error-summary fallback, live stream,
+//                 finalize handoff) is private.
 // - running       Describes an eval still executing: its summaries, metrics
 //                 (RunningMetric), and sample events tick live until it
 //                 completes. Avoid: "pending" (wire-format word).
@@ -50,9 +50,9 @@
 //                 hooks, never awaited. Both imperative freshness verbs are
 //                 invalidations — invalidateLogDetail (one log's details),
 //                 invalidateLogListing (the listing).
-// - passive read  Subscribe to cached data without ever fetching
-//                 (usePassiveEvalSample); absence is a normal answer, not a
-//                 loading state.
+// - passive read  Subscribe to cached data without independently inducing a
+//                 fetch (usePassiveEvalSample); absence is a normal answer, not
+//                 a loading state.
 // - clear         Destroy the local replica — IndexedDB and the cached
 //                 collections — then request a listing re-sync so mounted
 //                 panels re-acquire. DbStats (useDatabaseStats) counts what
@@ -62,8 +62,9 @@
 // - A log dir has one listing; a listing has many LogHandles.
 // - LogHandle → LogPreview → LogDetails: one log file at increasing depth;
 //   LogDetails owns the log's SampleSummaries.
-// - SampleSummary → body: one sample at increasing depth; a body may be
-//   absent (never viewed, or evicted) while its summary is always present.
+// - SampleSummary → EvalSample: one sample at increasing depth; the
+//   EvalSample may be absent (never viewed, or evicted) while its summary is
+//   always present.
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
 export { useLogDetailQuery } from "./logDetailQuery";

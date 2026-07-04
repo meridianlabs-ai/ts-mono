@@ -187,7 +187,7 @@ describe("streamRunningSampleTick", () => {
     expect(primed?.id).toBe("sample-1");
   });
 
-  it("keeps streaming when a flushed buffer's body isn't readable yet", async () => {
+  it("keeps streaming when a flushed buffer's EvalSample isn't readable yet", async () => {
     const handle = makeHandle("buffer-unreadable.eval");
     mockApi.get_log_sample_data.mockResolvedValueOnce(
       okResponse({}, { complete: true, has_more: false })
@@ -201,7 +201,7 @@ describe("streamRunningSampleTick", () => {
     ).toBeUndefined();
   });
 
-  it("synthesizes an errored sample from the live summary on a missing body", async () => {
+  it("synthesizes an errored sample from the live summary on a missing EvalSample", async () => {
     const handle = makeHandle("errored.eval");
     seedLogDetails(handle.logFile, []);
     queryClient.setQueryData(pendingSamplesKey(LOG_DIR, handle.logFile), {
@@ -221,7 +221,7 @@ describe("streamRunningSampleTick", () => {
     expect(primed?.error?.message).toBe("boom");
   });
 
-  it("surfaces a missing body without a summary error as the query error", async () => {
+  it("surfaces a missing EvalSample without a summary error as the query error", async () => {
     const handle = makeHandle("missing.eval");
     seedLogDetails(handle.logFile, []);
     mockApi.get_log_sample_data.mockResolvedValueOnce({ status: "NotFound" });

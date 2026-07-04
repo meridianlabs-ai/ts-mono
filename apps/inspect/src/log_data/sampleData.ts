@@ -15,7 +15,7 @@ import { useSampleSummaries } from "./sampleSummaries";
 const kNoRunningEvents: Events = [];
 
 export interface SampleData {
-  /** The sample's settled body: completed fetch, error-summary fallback, or
+  /** The settled EvalSample: completed fetch, error-summary fallback, or
    *  a just-finalized streaming sample. */
   sample: EvalSample | undefined;
   status: SampleStatus;
@@ -40,11 +40,11 @@ export interface SampleDataInputs {
   handle: SampleHandle | undefined;
   /** The sample's merged summary (undefined while the summaries settle). */
   summary: SampleSummary | undefined;
-  /** The completed-path body query. */
+  /** The completed-path EvalSample query. */
   query: AsyncData<EvalSample>;
   /** The running-path stream query. */
   running: AsyncData<RunningSampleData>;
-  /** The finalized body a running stream primed into the sample cache. */
+  /** The finalized EvalSample a running stream primed into the sample cache. */
   finalizedSample: EvalSample | undefined;
 }
 
@@ -118,13 +118,13 @@ export const deriveSampleData = ({
 };
 
 /**
- * A sample's data — body, stream, and status — as one derivation over the
- * subsystem's sample queries. Which path serves the body (completed fetch,
- * error-summary fallback, live stream, finalize handoff) is subsystem-private;
- * a finalizing stream primes the completed body into the sample cache so the
- * handoff never flashes a loading state, and if the summary settles before
- * the stream finalizes, the stream's cached events bridge the completed
- * fetch.
+ * A sample's data — EvalSample, stream, and status — as one derivation over
+ * the subsystem's sample queries. Which path serves the EvalSample (completed
+ * fetch, error-summary fallback, live stream, finalize handoff) is
+ * subsystem-private; a finalizing stream primes the completed EvalSample into
+ * the sample cache so the handoff never flashes a loading state, and if the
+ * summary settles before the stream finalizes, the stream's cached events
+ * bridge the completed fetch.
  */
 export const useSampleData = (
   logDir: string,
@@ -147,7 +147,7 @@ export const useSampleData = (
     summary
   );
   const running = useRunningSample(logDir, handle, summary);
-  // The finalized body a running stream primed; read passively so the
+  // The finalized EvalSample a running stream primed; read passively so the
   // completed-path fetch stays owned by useSample.
   const finalizedSample = usePassiveEvalSample(logDir, handle);
 

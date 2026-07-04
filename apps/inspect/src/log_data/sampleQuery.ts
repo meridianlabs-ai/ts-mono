@@ -15,7 +15,7 @@ import {
   synthesizeErroredSampleFromSummary,
 } from "./sampleFetch";
 
-// Samples are large: keep unwatched bodies only briefly so back/forward
+// EvalSamples are large: keep unwatched ones only briefly so back/forward
 // navigation stays snappy without accumulating every visited sample.
 export const kSampleGcTimeMs = 30_000;
 
@@ -33,7 +33,7 @@ export const sampleQueryKey = (
 
 /**
  * The error-summary fallback for a completed-sample fetch: when the backend
- * has no body for the sample but its summary records an error, present a
+ * has no EvalSample for the sample but its summary records an error, present a
  * sample synthesized from the summary. This is presentation, not acquisition,
  * so it applies to the query result rather than inside `fetchSample`. A miss
  * without a summary error stays an error.
@@ -47,7 +47,7 @@ export const withErrorSummaryFallback = (
     : result;
 
 /**
- * A completed sample's body, keyed `["sample", logDir, logFile, id, epoch]`.
+ * A completed sample's EvalSample, keyed `["sample", logDir, logFile, id, epoch]`.
  * Idles (`skipToken`) without a handle — callers pass the handle only for
  * samples on the completed path. `summary` feeds the error-summary fallback.
  */
@@ -62,7 +62,7 @@ export const useSample = (
       ? () => fetchSample(getApi(), handle.logFile, handle.id, handle.epoch)
       : skipToken,
     gcTime: kSampleGcTimeMs,
-    // A missing body is a definitive miss (fallback territory), not a
+    // A missing EvalSample is a definitive miss (fallback territory), not a
     // transient failure; other errors surface immediately — parity with the
     // legacy single-shot loader.
     retry: false,
@@ -78,11 +78,11 @@ export const useSample = (
 /**
  * Passive read of the sample cache for a handle: subscribes without ever
  * fetching, so consumers outside the sample views (e.g. the invalidation
- * banner) don't trigger downloads of large bodies. The entry is a rendezvous
- * through `sampleQueryKey` with exactly two writers — `useSample`'s completed
- * fetch and the running stream's finalize priming (`streamRunningSampleTick`)
- * — so absence is a normal answer: the body is resident only while the sample
- * is (recently) loaded.
+ * banner) don't trigger downloads of large EvalSamples. The entry is a
+ * rendezvous through `sampleQueryKey` with exactly two writers — `useSample`'s
+ * completed fetch and the running stream's finalize priming
+ * (`streamRunningSampleTick`) — so absence is a normal answer: the EvalSample
+ * is resident only while the sample is (recently) loaded.
  */
 export const usePassiveEvalSample = (
   logDir: string,

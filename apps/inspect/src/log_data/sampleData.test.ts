@@ -60,7 +60,10 @@ describe("deriveSampleData", () => {
     expect(deriveSampleData(inputs(base)).status).toBe("loading");
 
     const streaming = deriveSampleData(
-      inputs({ ...base, running: data({ events: events(2), finalized: false }) })
+      inputs({
+        ...base,
+        running: data({ events: events(2), finalized: false }),
+      })
     );
     expect(streaming.status).toBe("streaming");
     expect(streaming.running).toHaveLength(2);
@@ -78,7 +81,7 @@ describe("deriveSampleData", () => {
     expect(result.error).toBe(error);
   });
 
-  test("running path: finalize hands off to the primed body without a loading flash", () => {
+  test("running path: finalize hands off to the primed EvalSample without a loading flash", () => {
     const finalized = sample({ messages: [{} as never] });
     const result = deriveSampleData(
       inputs({
@@ -93,7 +96,7 @@ describe("deriveSampleData", () => {
     expect(result.eventsCleared).toBe(true);
   });
 
-  test("running path: finalized stream without a primed body keeps streaming", () => {
+  test("running path: finalized stream without a primed EvalSample keeps streaming", () => {
     const result = deriveSampleData(
       inputs({
         summary: summary({ completed: false }),
@@ -103,11 +106,11 @@ describe("deriveSampleData", () => {
     expect(result.status).toBe("streaming");
   });
 
-  test("completed path: settled body wins", () => {
-    const body = sample({ events: [{} as never] });
-    const result = deriveSampleData(inputs({ query: data(body) }));
+  test("completed path: settled EvalSample wins", () => {
+    const evalSample = sample({ events: [{} as never] });
+    const result = deriveSampleData(inputs({ query: data(evalSample) }));
     expect(result.status).toBe("ok");
-    expect(result.sample).toBe(body);
+    expect(result.sample).toBe(evalSample);
     expect(result.eventsCleared).toBe(false);
   });
 

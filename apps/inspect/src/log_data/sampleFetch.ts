@@ -5,7 +5,7 @@ import { ClientAPI, SampleSummary } from "../client/api/types";
 import { resolveAttachments } from "../utils/attachments";
 
 /**
- * The backend has no body for the sample (e.g. a running sample whose buffer
+ * The backend has no EvalSample for the sample (e.g. a running sample whose buffer
  * was flushed but whose log hasn't landed yet). A typed error rather than an
  * `undefined` return so react-query queryFns can call `fetchSample` directly;
  * callers that want the error-summary fallback catch this specifically.
@@ -59,9 +59,9 @@ export const resolveSample = (sample: any): EvalSample => {
 /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 
 /**
- * Fetch a completed sample's body and normalize it (legacy-shape migration,
+ * Fetch a completed sample's EvalSample and normalize it (legacy-shape migration,
  * pool-ref expansion, attachment resolution). Throws `SampleNotFoundError`
- * when the backend has no body for the sample.
+ * when the backend has no EvalSample for the sample.
  */
 export const fetchSample = async (
   api: ClientAPI,
@@ -79,7 +79,7 @@ export const fetchSample = async (
 /**
  * Build a minimal EvalSample from a pending-buffer summary that has errored —
  * the normalization the sample queries fall back to when the backend has no
- * body for the sample but its summary records an error.
+ * EvalSample for the sample but its summary records an error.
  *
  * SampleSummary.error is a plain string but EvalSample.error is shaped
  * `{ message, traceback, traceback_ansi }`; we populate all three with the

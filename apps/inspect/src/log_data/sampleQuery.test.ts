@@ -34,7 +34,7 @@ const notFound = (): AsyncData<EvalSample> => ({
 });
 
 describe("withErrorSummaryFallback", () => {
-  it("synthesizes an errored sample when the body is missing and the summary records an error", () => {
+  it("synthesizes an errored sample when the EvalSample is missing and the summary records an error", () => {
     const result = withErrorSummaryFallback(
       notFound(),
       makeSummary({ error: "boom" })
@@ -48,12 +48,12 @@ describe("withErrorSummaryFallback", () => {
 
   it.each([
     {
-      name: "missing body without a summary error stays an error",
+      name: "missing EvalSample without a summary error stays an error",
       result: notFound(),
       summary: makeSummary(),
     },
     {
-      name: "missing body without a summary stays an error",
+      name: "missing EvalSample without a summary stays an error",
       result: notFound(),
       summary: undefined,
     },

@@ -30,12 +30,12 @@ export interface SampleStreamTick {
   /**
    * Streaming should finalize: the buffer is flushed/complete (or the log
    * summary reports the sample completed) with no further deltas — fetch the
-   * completed sample body instead of ticking again.
+   * completed EvalSample instead of ticking again.
    */
   done: boolean;
   /**
    * Set when `done` because the buffer itself reported complete. The flushed
-   * body may not be readable yet, so a missing sample body is a transient
+   * EvalSample may not be readable yet, so a missing EvalSample is a transient
    * condition rather than an error in this case.
    */
   bufferComplete: boolean;

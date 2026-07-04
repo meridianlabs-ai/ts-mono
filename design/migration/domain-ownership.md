@@ -58,7 +58,7 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 
 Owns **all** backend log-data reads, at every granularity — collection-level
 (dir listing / discovery), item-level (previews, details), and sample-level
-(completed bodies, event streaming, the pending-samples buffer) — **and all
+(completed EvalSamples, event streaming, the pending-samples buffer) — **and all
 the freshness mechanism behind them**: poll cadence, enablement mechanics,
 etag threading, engine activation. Mode-independent: alive in dir mode and
 single-file mode alike (the discovery interior is dormant in single-file
@@ -84,14 +84,14 @@ invariant holds.
   running eval's live metrics. That they travel in the pending-samples
   buffer is subsystem-private.
 - `useSampleData(logDir, handle)` (`log_data/sampleData.ts`) — a sample's
-  body, stream, and status as one derivation. Which path serves the body
+  EvalSample, stream, and status as one derivation. Which path serves the EvalSample
   (completed fetch, error-summary fallback, live stream, finalize handoff)
   is subsystem-private.
 - `usePassiveEvalSample(logDir, handle)` (`log_data/sampleQuery.ts`) — a
-  sample's body if resident, read passively (never fetches). Absence is a
-  normal answer: the body is resident only while the sample is (recently)
+  sample's EvalSample if resident, read passively (never fetches). Absence is a
+  normal answer: the EvalSample is resident only while the sample is (recently)
   loaded. For surfaces that must stay fetch-free (e.g. the invalidation
-  banner in the title bar); anything that *wants* the body uses
+  banner in the title bar); anything that *wants* the EvalSample uses
   `useSampleData`.
 - `useLogDetailQuery(logDir, logFile)` (`log_data/logDetailQuery.ts`) — one
   log's details as the fetch-trigger query and the loading/error surface (a
@@ -126,8 +126,8 @@ replicator or an engine exists; they subscribe to data and it stays current.
 | Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job). | inside the engine; instance in `log_data/databaseServiceInstance.ts` |
 | Discovery | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode. | `log_data/listingSync.ts` |
 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`. | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts` |
-| Sample queries | The completed-body query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive read (`usePassiveEvalSample`, itself also surface) by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
-| Sample fetch | Completed-sample bodies: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
+| Sample queries | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive read (`usePassiveEvalSample`, itself also surface) by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
+| Sample fetch | Completed EvalSamples: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
 | Sample streaming | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions. | `log_data/sampleStream.ts` |
 
 ### Selected-log lifecycle
@@ -175,7 +175,7 @@ in `state/hooks.ts`), not in the slice.
 ## Media & derivations
 
 - **React-query cache** — the server-data medium: handles, previews, details,
-  sample bodies, running-sample streams, pending samples, flow, eval-set,
+  EvalSamples, running-sample streams, pending samples, flow, eval-set,
   versions; never in zustand. The log-list
   collections are fed by acquisition through its sink and read by the UI —
   two-sided cache entries, so the *medium* belongs to neither. The accessor
