@@ -216,6 +216,20 @@ After phase 6 the log-list migration is at a solid, shippable point. With the sa
 - **ARIA-label audit vs origin/main** — reconcile the DataGrid's roles/labels (the funnel `aria-label="Filter <columnId>"` substring-collides with header/segment names) so accessibility/automation don't regress.
 - **Filter-code export** — scout's Python/SQL "copy query" affordance was not ported.
 
+### Parity sweep findings — 2026-07-04, data/config plumbing (two live viewers: main@7576, branch dev@5173→view-server@7575)
+
+Action items:
+
+- **TODO: never-completed logs sink to the bottom of the log listing.** The listing sorts by completed-date only, so logs without a completion (status `started`, including a currently-running eval) land at the end (~91% scroll depth in a 538-log dir; live-verified while an eval ran). origin/main slots them by file-name timestamp, so a just-started eval appears at the top — the workflow of kicking off a run and watching for it in the viewer breaks. Fix: fall back to the file-name timestamp when `completed` is absent.
+- **TODO: listing rows first synced mid-run stay header-only after the eval completes.** A log replicated while running keeps a completed date but `-` for samples/tokens/duration/score, survives reload (IndexedDB), and heals only when the log is opened. NOT a regression — origin/main's client shows identical stale rows after a full reload — but `/api/logs` returns `mtime`, which could key a header re-sync.
+- **TODO: confirm log-list column order vs origin/main is intentional.** Branch: Model after Task, Sample Limits before Tokens; main: Model/Sample Limits at the end.
+
+No action (recorded so the next sweep doesn't re-flag them):
+
+- Branch no longer polls `pending-samples` for completed logs (main fires it and 404s) — improvement.
+- `/api/flow` 404s on both versions — baseline noise, not from this migration.
+- Verified parity: listing counts incl. retried-logs toggle (538/551), top-level Samples mode (1,171 samples, scorer columns) and Folders mode, per-log SAMPLES/TASK/MODELS/INFO/JSON tabs, sample TRANSCRIPT/MESSAGES/SCORING/USAGE/METADATA/JSON tabs, filter expressions, grid keyboard nav + route→selection sync, sample deep-link cold reload, live RUNNING log view (progressive pending samples) and running→complete finalize on an open sample.
+
 ### logDir gate & content-in-react-query follow-ups
 
 The collection content (handles/previews/details) and the resolved `logDir` now live in the react-query cache, behind a single `LoaderGate`. Open items from that work:
