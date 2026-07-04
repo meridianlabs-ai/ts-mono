@@ -3,6 +3,7 @@
 // imperative entry-point object. Everything not exported here is
 // subsystem-private; external modules must import from this barrel.
 export { imperativeLogData } from "./imperativeLogData";
+export { useLogDetailQuery } from "./logDetailQuery";
 export {
   useLogDetail,
   useLogDetails,

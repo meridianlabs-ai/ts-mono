@@ -6,9 +6,9 @@
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 
 import { getAppConfig } from "../app_config";
+import { imperativeLogData } from "../log_data";
 import { isUri, join, prettyDirUri } from "../utils/uri";
 
-import { invalidateSelectedLog } from "./selectedLogDetails";
 import { storeImplementation, StoreState } from "./store";
 
 const state = (): StoreState => {
@@ -35,7 +35,7 @@ export const unloadLog = () => {
 
 /** Re-fetch the selected log's details and reset filtering. */
 export const refreshLog = () => {
-  void invalidateSelectedLog(
+  void imperativeLogData.invalidateLogDetail(
     getAppConfig().logDir,
     state().logs.selectedLogFile
   );

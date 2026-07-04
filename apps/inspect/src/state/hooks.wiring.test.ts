@@ -1,16 +1,21 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { loading } from "@tsmono/util";
+
 import { RunningMetric, SampleSummary } from "../client/api/types";
 
 import { useSelectedRunningMetrics, useSelectedSampleSummaries } from "./hooks";
+import { useSelectedLogQuery } from "./selectedLogDetails";
 
 // Thin wiring test: the binding reads the selection and delegates to the
 // param-driven acquisition hook — mock both sides and assert the plumbing.
+const useLogDetailQuery = vi.hoisted(() => vi.fn());
 const useRunningMetrics = vi.hoisted(() => vi.fn());
 const useSampleSummaries = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../log_data")>()),
+  useLogDetailQuery,
   useRunningMetrics,
   useSampleSummaries,
 }));
@@ -34,6 +39,17 @@ describe("useSelectedRunningMetrics", () => {
 
     expect(useRunningMetrics).toHaveBeenCalledWith("/logs", "run.eval");
     expect(result.current).toBe(metrics);
+  });
+});
+
+describe("useSelectedLogQuery", () => {
+  it("delegates to useLogDetailQuery with the selected log", () => {
+    useLogDetailQuery.mockReturnValue(loading);
+
+    const { result } = renderHook(() => useSelectedLogQuery());
+
+    expect(useLogDetailQuery).toHaveBeenCalledWith("/logs", "run.eval");
+    expect(result.current).toBe(loading);
   });
 });
 

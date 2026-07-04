@@ -40,6 +40,7 @@ Target imperative surface:
 
 ```
 imperativeLogData = {
+  invalidateLogDetail, // user refresh / edit-save — the log-detail invalidate verb
   refreshLogListing,   // external freshness event (until host events normalize)
   clearData,           // user maintenance command
 }
@@ -104,7 +105,9 @@ OUT (future goals):
 
 - `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from
   `apps/inspect`).
-- `ImperativeLogData` is exactly `{ refreshLogListing, clearData }`.
+- `ImperativeLogData` is exactly `{ invalidateLogDetail, refreshLogListing,
+  clearData }` (`invalidateLogDetail` passes the membership test — `refreshLog`
+  is a user command).
 - Structural invariants (greppable, scoped to `apps/inspect/src`):
   - `rg "startReplication|stopReplication|isReplicating|ReplicationService"`
     is empty.
@@ -174,16 +177,15 @@ OUT (future goals):
 
 ## Unresolved questions
 
-- `LogLoadController`: confirm it keys off query *identity* only (move-safe),
-  not the query's state/ home — check before phase 2.
-- Multi-scope sync race: logs-sync queries are keyed per `(logDir, scope)`;
-  with the class queue gone, two mounted scopes invalidated together refetch
-  concurrently → overlapping `applyListing`. Verify whether two scopes ever
-  mount simultaneously; if yes, module-local single-flight on `syncListing`
-  or key sync by `logDir` alone — decide in phase 1.
 - `init`: fully lazy db-service creation vs zero-arg `init()` in main.tsx —
   decide in phase 3 per the rubric's determinism test.
 - OK that `refreshLogListing` survives until host-event normalization?
+
+Resolved during execution: `LogLoadController` depends only on the query
+result's object identity (effect deps) — move-safe. Multi-scope: panels are
+route-exclusive, but same-dir overlap survives via `invalidateQueries`'
+cancel-refetch and scope transitions → module-local trailing-coalesce
+single-flight in `syncLogs` (per rubric).
 
 ## Current state (branch `loglist-tanstack-phase1`, ts-mono submodule)
 
