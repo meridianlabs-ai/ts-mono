@@ -13,8 +13,9 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./App.css";
 
+import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect } from "react";
 import { RouterProvider } from "react-router-dom";
@@ -25,6 +26,7 @@ import {
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename } from "@tsmono/util";
+import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
   AppConfigGate,
@@ -39,7 +41,7 @@ import { imperativeLogData } from "../log_data";
 import { selectLogFile } from "../state/actions.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
-import { useStore } from "../state/store.ts";
+import { storeImplementation, useStore } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
@@ -196,11 +198,30 @@ export const AppContent: FC = () => {
  * Renders the Main Application. Owns the query client provider so the
  * exported <App> stays self-contained for external embedders.
  */
+// Reads the live `storeImplementation` binding at render time: the store
+// doesn't exist until app initialization, which can be after devtools mount.
+const ZustandStorePanel: FC<{ theme: "light" | "dark" }> = ({ theme }) =>
+  storeImplementation ? (
+    <ZustandDevtoolsPanel store={storeImplementation} theme={theme} />
+  ) : (
+    <div>Store not initialized</div>
+  );
+
 export const App: FC = () => (
   <QueryClientProvider client={queryClient}>
     <AppConfigGate>
       <AppContent />
     </AppConfigGate>
-    <ReactQueryDevtools initialIsOpen={false} />
+    {import.meta.env.DEV && (
+      <TanStackDevtools
+        plugins={[
+          { name: "TanStack Query", render: <ReactQueryDevtoolsPanel /> },
+          {
+            name: "Zustand",
+            render: (_el, props) => <ZustandStorePanel theme={props.theme} />,
+          },
+        ]}
+      />
+    )}
   </QueryClientProvider>
 );
