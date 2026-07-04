@@ -264,6 +264,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [gridStateByScope, scopeKey]
   );
 
+  // Per-scope persisted column order (drag-to-reorder).
+  const columnOrder = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.columnOrder : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
   // Folders (logs mode) are presentation: pinned on top, independent of sort.
   // Sort/filter/paginate runs over the file rows only.
   const { folders, files } = useMemo(() => {
@@ -296,9 +302,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
           sorting: next,
           columnFilters,
           columnSizing,
+          columnOrder,
         });
     },
-    [scopeKey, setGridState, columnFilters, columnSizing]
+    [scopeKey, setGridState, columnFilters, columnSizing, columnOrder]
   );
 
   const handleColumnFilterChange = useCallback(
@@ -314,17 +321,40 @@ export const LogListGrid: FC<LogListGridProps> = ({
       } else {
         next[columnId] = { columnId, filterType, condition };
       }
-      setGridState(scopeKey, { sorting, columnFilters: next, columnSizing });
+      setGridState(scopeKey, {
+        sorting,
+        columnFilters: next,
+        columnSizing,
+        columnOrder,
+      });
     },
-    [scopeKey, setGridState, sorting, columnFilters, columnSizing]
+    [scopeKey, setGridState, sorting, columnFilters, columnSizing, columnOrder]
   );
 
   const handleColumnSizingChange = useCallback(
     (next: Record<string, number>) => {
       if (scopeKey)
-        setGridState(scopeKey, { sorting, columnFilters, columnSizing: next });
+        setGridState(scopeKey, {
+          sorting,
+          columnFilters,
+          columnSizing: next,
+          columnOrder,
+        });
     },
-    [scopeKey, setGridState, sorting, columnFilters]
+    [scopeKey, setGridState, sorting, columnFilters, columnOrder]
+  );
+
+  const handleColumnOrderChange = useCallback(
+    (next: string[]) => {
+      if (scopeKey)
+        setGridState(scopeKey, {
+          sorting,
+          columnFilters,
+          columnSizing,
+          columnOrder: next,
+        });
+    },
+    [scopeKey, setGridState, sorting, columnFilters, columnSizing]
   );
 
   // Footer count = folders + matching files (reflects any active filter).
@@ -346,6 +376,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onColumnFilterChange={handleColumnFilterChange}
           columnSizing={columnSizing}
           onColumnSizingChange={handleColumnSizingChange}
+          columnOrder={columnOrder}
+          onColumnOrderChange={handleColumnOrderChange}
           getRowId={(row) => row.id}
           onRowActivate={handleRowActivate}
           loading={data.length === 0 && busy}

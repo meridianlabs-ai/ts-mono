@@ -70,7 +70,7 @@ Every current `LogListGrid` feature must survive the migration. Phase 1 delibera
 | Column resizing | **6** |
 | Auto-fit-to-grid-width (`autoSizeStrategy: fitGridWidth`) + user-resize-override suppression | **6** |
 | Column resizing + per-scope width persistence | **6** |
-| Column reordering (header drag) | deferred |
+| Column reordering (header drag) + per-scope order persistence | ✅ |
 | Column pinning (`type` icon col pinned-left) | deferred |
 | Multi-line/preformatted cell tooltips (model-roles, task-args JSON — was `PreformattedTooltip`, now native `title`) | deferred — accept native-`title` for now |
 | Infinite scroll / true pagination (cursor shape exists; client fetches all) | separate (server-side) |
@@ -208,7 +208,7 @@ After phase 6 the log-list migration is at a solid, shippable point. With the sa
 
 - **TODO: use `skipToken` for the logs-content query before a directory is known.** `state/logsContent.ts:24` keys the content query on `["logs-content", logDir ?? ""]`, so before `logDir` hydrates it runs/caches under an empty-string key (`["logs-content", ""]`). Switch to react-query's `skipToken` (disable the query until `logDir` is set) — the standard pattern scout uses (e.g. `apps/scout/.../TranscriptsPanel.tsx`).
 - **TODO: verify multi-column sort mechanics vs origin/main.** Our DataGrid runs TanStack `enableMultiSort: true` with the library defaults (Shift/Ctrl-click = additive multi-sort; plain click replaces). Confirm this matches AG's behavior on main — specifically what a **plain click on a second column header does when another column is already sorted** (replace the sort vs add to a multi-sort), and the modifier for additive sort. If it diverges, fix it and add an e2e; if it matches, capture an e2e to lock it in.
-- **Column reordering** (header drag) and **column pinning** (`type` icon col pinned-left) — low-use AG niceties.
+- **Column pinning** (`type` icon col pinned-left) — low-use AG nicety. (Column reordering has since landed: HTML5 header drag with drop indicator in `DataGrid`, order persisted per scope in `LogListGridState.columnOrder`; samples grid keeps it in unpersisted local state like its sort/filter.)
 - **Multi-line/preformatted tooltips** — accept the native-`title` drop (model-roles / task-args JSON); restore only if requested. It'll be a DataGrid-native hover popover, not the deleted AG `PreformattedTooltip` (that was an `ag-grid-react` `CustomTooltipProps` component and can't attach to DataGrid); its trivial monospace-`pre` styling is preserved in git history for reference.
 - **New-tab parity** beyond the task cell's `<a>` overlay (a row-level Cmd/middle-click handler would generalize it).
 - **Per-column filter clear affordance** and **filter autocomplete suggestions** (the latter needs an inspect API for per-column distinct values) — see `loglist-filtering.md`.

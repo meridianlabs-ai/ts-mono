@@ -204,6 +204,64 @@
   pointer-events: none;
 }
 
+/* --- Drag-to-reorder columns --- */
+
+/* While a header drag is in flight, rotated cells must catch dragover/drop
+ * themselves (they're pointer-transparent for hover/clicks — see
+ * .headerCellRotated), and their overflowing diagonal labels must NOT steal
+ * those events from the columns they fan across. Hit-testing for drag
+ * events follows pointer-events, so flip both for the drag's duration. */
+.theadDragging .headerCellRotated {
+  pointer-events: auto;
+}
+
+.theadDragging .rotatedLabel {
+  pointer-events: none;
+}
+
+.headerCellDragSource {
+  opacity: 0.35;
+}
+
+/* Cursor-attached drag image (setDragImage). Parked offscreen — the browser
+ * snapshots it at dragstart; it never renders in place. */
+.dragGhost {
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  padding: 4px 10px;
+  font-size: var(--inspect-font-size-small);
+  text-transform: uppercase;
+  color: var(--bs-body-color);
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  white-space: nowrap;
+}
+
+/* Insertion indicator on the drop target's edge. An absolutely-positioned
+ * overlay rather than a border so the cell's layout doesn't shift while
+ * dragging. */
+.headerCellDropLeft::after,
+.headerCellDropRight::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--bs-primary);
+  z-index: 3;
+}
+
+.headerCellDropLeft::after {
+  left: -1px;
+}
+
+.headerCellDropRight::after {
+  right: -2px;
+}
+
 .tbody {
   position: relative;
 }
@@ -254,6 +312,27 @@
 
 .cellCenter {
   justify-content: center;
+}
+
+/* First normal column after a rotated block. The preceding angled label's
+ * bottom-border diagonal rises from the shared column edge at 45° (1px up
+ * per 1px right), so content flush at the default 8px inset collides with
+ * it — the label's text/line cut through the header text (~22px tall at
+ * the cell bottom). Indenting by the gap (kAfterRotatedGap + the default
+ * 8px) puts the diagonal safely above where the text starts; the cell is
+ * rendered kAfterRotatedGap wider to compensate, so the content box is
+ * unchanged. Applied to header and body cells alike so the column's label
+ * and values stay left-aligned. */
+.afterRotatedGap {
+  padding-left: 32px;
+}
+
+/* Drop the vertical separator at the gap column's left edge — it rises
+ * straight through the anchor of the preceding angled label, whose diagonal
+ * bottom border already marks the boundary (same treatment as
+ * .headerCellRotated::before). */
+.afterRotatedGap::before {
+  display: none;
 }
 
 .empty {
