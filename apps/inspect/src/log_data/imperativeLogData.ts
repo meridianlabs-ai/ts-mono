@@ -21,13 +21,18 @@ export interface ImperativeLogData {
   /** Invalidate the listing-sync queries (external freshness events / user
    *  refresh) — the listing *invalidate* verb. */
   refreshLogListing(): void;
-  /** Clear all locally persisted log data (database + cache) — user-initiated
-   *  maintenance from the viewer options popover. */
+  /** Clear all locally persisted log data (database + cache), then request a
+   *  listing re-sync so mounted panels re-acquire instead of sitting empty
+   *  until the next poll tick — user-initiated maintenance from the viewer
+   *  options popover. */
   clearData(): void;
 }
 
 export const imperativeLogData: ImperativeLogData = {
   invalidateLogDetail,
   refreshLogListing,
-  clearData: () => fetchEngine.clearData(),
+  clearData: () => {
+    fetchEngine.clearData();
+    refreshLogListing();
+  },
 };
