@@ -13,7 +13,7 @@ mechanism lives on the wrong side of the boundary. Today's four verbs, audited:
   passes it back down (`initializeStore` → `init` → `injectedApi`), while
   `useLogsSync.ts` already calls `getApi()` directly inside log_data. Two
   sources of truth for one dependency, one of them ceremony.
-- `refreshLogListing` — a legitimate *invalidate* verb (host `backgroundUpdate`
+- `invalidateLogListing` — a legitimate *invalidate* verb (host `backgroundUpdate`
   message), though the same domain event ("listing may be stale") also arrives
   by a second transport handled interiorly (`client_events` poll). Stays, for
   now (see OUT).
@@ -40,9 +40,9 @@ Target imperative surface:
 
 ```
 imperativeLogData = {
-  invalidateLogDetail, // user refresh / edit-save — the log-detail invalidate verb
-  refreshLogListing,   // external freshness event (until host events normalize)
-  clearData,           // user maintenance command
+  invalidateLogDetail,  // user refresh / edit-save — the log-detail invalidate verb
+  invalidateLogListing, // external freshness event (until host events normalize)
+  clearData,            // user maintenance command
 }
 ```
 
@@ -93,7 +93,7 @@ OUT (future goals):
 - **Host-event normalization.** `backgroundUpdate` postMessage (App.tsx) and
   the polled `refresh-evals` client event are two transports of one domain
   event; normalizing them into a client-layer stream log_data subscribes to
-  would retire `refreshLogListing` from the surface. Tangled with
+  would retire `invalidateLogListing` from the surface. Tangled with
   `onMessage`'s selection concerns — separate goal.
 - **Details-read unification** (`useLogDetail` collection vs the relocated
   selected-log query vs `fetchLog` absorption; the TODO at
@@ -105,7 +105,7 @@ OUT (future goals):
 
 - `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from
   `apps/inspect`).
-- `ImperativeLogData` is exactly `{ invalidateLogDetail, refreshLogListing,
+- `ImperativeLogData` is exactly `{ invalidateLogDetail, invalidateLogListing,
   clearData }` (`invalidateLogDetail` passes the membership test — `refreshLog`
   is a user command).
 - Structural invariants (greppable, scoped to `apps/inspect/src`):
@@ -177,7 +177,7 @@ OUT (future goals):
 
 ## Unresolved questions
 
-- OK that `refreshLogListing` survives until host-event normalization?
+- OK that `invalidateLogListing` survives until host-event normalization?
 
 Resolved during execution: `LogLoadController` depends only on the query
 result's object identity (effect deps) — move-safe. Multi-scope: panels are
@@ -197,7 +197,7 @@ log_data self-wires).
   `replicationControl`.
 - Inventory — consumers: `init` at `state/store.ts:128` (api threaded from
   main.tsx's own `getApi()` read); `fetchLog` at
-  `state/selectedLogDetails.ts:41` (queryFn); `refreshLogListing` at
+  `state/selectedLogDetails.ts:41` (queryFn); `invalidateLogListing` at
   `app/App.tsx:154` (host `backgroundUpdate`, focused case); `clearData` at
   `app/log-list/ViewerOptionsPopover.tsx:35`.
 - Inventory — interior duplication: `ReplicationService`
@@ -206,6 +206,6 @@ log_data self-wires).
   (`useLogsSync.ts:37`); `injectedApi`/`requireApi`
   (`replicationControl.ts:15,29`) vs ambient `getApi()`
   (`useLogsSync.ts:69`).
-- Inventory — invalidation split: `refreshLogListing` in log_data vs
+- Inventory — invalidation split: `invalidateLogListing` in log_data vs
   `invalidateSelectedLog` in `state/selectedLogDetails.ts:61` (called by
   `refreshLog`, `state/actions.ts:38`).

@@ -1,6 +1,6 @@
 import { fetchEngine } from "./fetchEngine";
 import { invalidateLogDetail } from "./logDetailQuery";
-import { refreshLogListing } from "./useLogsSync";
+import { invalidateLogListing } from "./useLogsSync";
 
 /**
  * The imperative surface of the log-data acquisition subsystem — the minimal
@@ -20,7 +20,7 @@ export interface ImperativeLogData {
   invalidateLogDetail(logDir: string, logFile: string | undefined): void;
   /** Invalidate the listing-sync queries (external freshness events / user
    *  refresh) — the listing *invalidate* verb. */
-  refreshLogListing(): void;
+  invalidateLogListing(): void;
   /** Clear all locally persisted log data (database + cache), then request a
    *  listing re-sync so mounted panels re-acquire instead of sitting empty
    *  until the next poll tick — user-initiated maintenance from the viewer
@@ -30,9 +30,9 @@ export interface ImperativeLogData {
 
 export const imperativeLogData: ImperativeLogData = {
   invalidateLogDetail,
-  refreshLogListing,
+  invalidateLogListing,
   clearData: () => {
     fetchEngine.clearData();
-    refreshLogListing();
+    invalidateLogListing();
   },
 };

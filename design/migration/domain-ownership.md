@@ -23,7 +23,7 @@ The companion contract: **a data hook is called, returns data, and the data
 stays current**. How it is kept fresh — polling, streaming, invalidation,
 cache seeding, engine activation — is the implementing layer's private
 concern. Above log_data exactly two imperative verbs survive: *invalidate*
-(event handlers requesting freshness — `refreshLog`, `refreshLogListing`) and
+(event handlers requesting freshness — `refreshLog`, `invalidateLogListing`) and
 *initialize* (composition roots). Everything else is declarative
 subscription; no consumer kicks off lower-layer work from a lifecycle
 effect, and no third party mounts a hook to keep data warm for others.
@@ -74,7 +74,7 @@ invariant holds.
   one busy signal for listing surfaces, folding in engine activity);
   subscribing also keeps the listing fresh (a shared client-events poll
   re-syncs on host `refresh-evals` events and periodically).
-  `imperativeLogData.refreshLogListing()` is the invalidation counterpart for
+  `imperativeLogData.invalidateLogListing()` is the invalidation counterpart for
   external freshness events.
 - `useSampleSummaries(logDir, logFile)` (`log_data/sampleSummaries.ts`) — the
   live sample-summary list for a log. That the list is assembled from two
@@ -108,7 +108,7 @@ object holding every non-hook entry point consumed outside the subsystem.
 Membership test: a verb belongs there iff a human or external event issues
 it; a verb another layer needs to run a mechanism is a mis-homed mechanism.
 The verbs: `invalidateLogDetail(logDir, logFile)` (user refresh / edit-save),
-`refreshLogListing()` (external listing-freshness events), and `clearData()`
+`invalidateLogListing()` (external listing-freshness events), and `clearData()`
 (user-initiated local-data reset). There is no *initialize* verb — the
 subsystem wires itself lazily on first activation, reading the api from
 app_config. Growing the `ImperativeLogData` interface is a design decision,
@@ -219,7 +219,7 @@ Log-data acquisition      surface: data hooks (useLogsSync / useLogDetailQuery /
        │                  useSampleData / usePassiveEvalSample /
        │                  collection reads / useDatabaseStats) ·
        │                  imperativeLogData (invalidateLogDetail /
-       │                  refreshLogListing / clearData)
+       │                  invalidateLogListing / clearData)
        │                  interior: activation · fetchEngine · database · discovery
        │                  · poll mechanics · sample queries · status store ·
        │                  sampleFetch · sampleStream

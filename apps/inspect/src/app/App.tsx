@@ -151,7 +151,7 @@ export const AppContent: FC = () => {
               void api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
-            imperativeLogData.refreshLogListing();
+            imperativeLogData.invalidateLogListing();
           }
           break;
         }

@@ -98,6 +98,6 @@ export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
  * subscriber-driven. Fire-and-forget: completion is observed through
  * `ListingStatus.busy`, never awaited.
  */
-export const refreshLogListing = (): void => {
+export const invalidateLogListing = (): void => {
   void queryClient.invalidateQueries({ queryKey: logsSyncKey });
 };
