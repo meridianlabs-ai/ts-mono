@@ -5,12 +5,11 @@ import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { setDocumentTitle } from "../../../state/actions";
+import { selectSample, setDocumentTitle } from "../../../state/actions";
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
-import { isCurrentSample } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
 
@@ -60,20 +59,25 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     setDocumentTitle({ evalSpec });
   }, [evalSpec]);
 
+  // No selected-sample guard here: selection no longer implies "open" (arrow
+  // keys move it without navigating), and the list only renders while no
+  // sample detail is open — activating the highlighted row must navigate.
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
-      // Re-clicking the open sample would re-run selectSample + navigate and
-      // trigger a redundant reload of the same sample — skip it.
-      if (isCurrentSample(selectedSampleHandle, row.sampleId, row.epoch)) {
-        return;
-      }
       sampleNavigation.showSample(row.sampleId, row.epoch);
     },
-    [sampleNavigation, selectedSampleHandle]
+    [sampleNavigation]
   );
 
   const getRowId = useCallback(
     (row: SampleRow) => makeSampleRowId(row.sampleId, row.epoch),
+    []
+  );
+
+  // Keyboard/click selection moves flow to the selection's owner (zustand),
+  // which feeds back through selectedRowId — the grid never shadows it.
+  const handleRowSelect = useCallback(
+    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
     []
   );
 
@@ -137,6 +141,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         multiline={multiline}
         getRowId={getRowId}
         selectedRowId={selectedRowId}
+        onRowSelect={handleRowSelect}
         scrollRef={scrollRef}
         onRowOpen={handleRowOpen}
       />

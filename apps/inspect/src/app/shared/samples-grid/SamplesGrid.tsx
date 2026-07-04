@@ -35,6 +35,10 @@ interface SamplesGridProps {
   getRowId: (row: SampleRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
+  /** Report selection moves instead of applying them — the caller owns
+   *  selection and feeds it back through `selectedRowId` (see DataGrid's
+   *  `onSelectedRowChange`). */
+  onRowSelect?: (row: SampleRow) => void;
   /** Forwarded to the DataGrid's scroll container so the title bar can
    *  collapse on scroll. */
   scrollRef?: RefObject<HTMLDivElement | null>;
@@ -55,6 +59,7 @@ export const SamplesGrid = ({
   defaultSorting,
   getRowId,
   selectedRowId,
+  onRowSelect,
   scrollRef,
   onRowOpen,
   loading,
@@ -138,6 +143,7 @@ export const SamplesGrid = ({
       columnSizing={columnSizing}
       onColumnSizingChange={setColumnSizing}
       selectedRowId={selectedRowId}
+      onSelectedRowChange={onRowSelect}
       scrollRef={scrollRef}
       onRowActivate={onRowOpen}
       rowHeight={rowHeight}

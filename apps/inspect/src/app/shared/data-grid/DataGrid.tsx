@@ -92,6 +92,11 @@ export interface DataGridProps<TRow> {
   ) => void;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
+  /** Report selection moves (arrow keys / click) instead of applying them:
+   *  with this set the grid never mutates its own selection — the consumer
+   *  owns it (e.g. zustand) and feeds it back through `selectedRowId`.
+   *  Mirrors the `columnOrder`/`onColumnOrderChange` convention. */
+  onSelectedRowChange?: (row: TRow) => void;
   /** External ref to the scroll container, attached alongside the internal
    *  one so a parent can observe scrolling (e.g. title-bar collapse-on-scroll
    *  via `useScrollDirection`). */
@@ -129,6 +134,7 @@ export function DataGrid<TRow>({
   columnFilters,
   onColumnFilterChange,
   selectedRowId,
+  onSelectedRowChange,
   scrollRef,
   onRowActivate,
   rowHeight = kRowHeight,
@@ -149,15 +155,31 @@ export function DataGrid<TRow>({
     [scrollRef]
   );
 
-  // Selection is driven by clicks but seeded/synced from the external
-  // selectedRowId (e.g. the currently-open log) so the highlight survives
+  // Selection is controlled when `onSelectedRowChange` is set: moves are
+  // reported to the consumer (the selection's owner, e.g. zustand) and only
+  // `selectedRowId` renders — the grid never shadows external selection
+  // state. Without it, selection is a grid-local cursor seeded/synced from
+  // `selectedRowId` (e.g. the currently-open log) so the highlight survives
   // navigation back to the list.
-  const [selectedId, setSelectedId] = useState<string | undefined>(
-    selectedRowId
-  );
+  const [internalSelectedId, setInternalSelectedId] = useState<
+    string | undefined
+  >(selectedRowId);
   useEffect(() => {
-    if (selectedRowId !== undefined) setSelectedId(selectedRowId);
-  }, [selectedRowId]);
+    if (onSelectedRowChange === undefined && selectedRowId !== undefined) {
+      setInternalSelectedId(selectedRowId);
+    }
+  }, [selectedRowId, onSelectedRowChange]);
+  const selectedId = onSelectedRowChange ? selectedRowId : internalSelectedId;
+  const selectRow = useCallback(
+    (rowId: string, row: TRow) => {
+      if (onSelectedRowChange) {
+        onSelectedRowChange(row);
+      } else {
+        setInternalSelectedId(rowId);
+      }
+    },
+    [onSelectedRowChange]
+  );
 
   // Sorting is done by the caller (rows arrive pre-sorted); the table only
   // tracks sort state to drive header indicators (manualSorting).
@@ -394,10 +416,10 @@ export function DataGrid<TRow>({
       // Pull focus to the grid so arrow-key navigation works after a click
       // (relevant when onRowActivate doesn't navigate away).
       containerRef.current?.focus();
-      setSelectedId(rowId);
+      selectRow(rowId, row);
       onRowActivate(row);
     },
-    [onRowActivate]
+    [onRowActivate, selectRow]
   );
 
   // Keyboard navigation (arrows / Home / End / PgUp-Dn move the selection;
@@ -447,9 +469,9 @@ export function DataGrid<TRow>({
       // The selection change drives the scroll-into-view effect below; doing
       // the scroll here too is redundant (react-virtual keeps only the last
       // pending scrollToIndex, so the effect's call wins anyway).
-      setSelectedId(targetRow.id);
+      selectRow(targetRow.id, targetRow.original);
     },
-    [rows, selectedId, onRowActivate]
+    [rows, selectedId, onRowActivate, selectRow]
   );
 
   const virtualItems = rowVirtualizer.getVirtualItems();

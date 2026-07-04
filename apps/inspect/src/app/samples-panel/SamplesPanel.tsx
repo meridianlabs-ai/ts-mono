@@ -8,11 +8,8 @@ import { ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
-import {
-  useLogDetails,
-  useLogPreviews,
-  useLogsSync,
-} from "../../log_data";
+import { useLogDetails, useLogPreviews, useLogsSync } from "../../log_data";
+import { selectSample } from "../../state/actions";
 import { LogHandleWithretried, useLogsWithretried } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -98,7 +95,6 @@ export const SamplesPanel: FC = () => {
     (state) => state.logsActions.setPreviousSamplesPath
   );
 
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -343,17 +339,22 @@ export const SamplesPanel: FC = () => {
     []
   );
 
-  const selectedRowId =
-    selectedSampleHandle && selectedLogFile
-      ? sampleRowId(
-          selectedLogFile,
-          selectedSampleHandle.id,
-          selectedSampleHandle.epoch
-        )
-      : undefined;
+  const selectedRowId = selectedSampleHandle
+    ? sampleRowId(
+        selectedSampleHandle.logFile,
+        selectedSampleHandle.id,
+        selectedSampleHandle.epoch
+      )
+    : undefined;
 
-  const isEmptyAndLoading =
-    sampleRows.length === 0 && listing.busy;
+  // Keyboard/click selection moves flow to the selection's owner (zustand),
+  // which feeds back through selectedRowId — the grid never shadows it.
+  const handleRowSelect = useCallback(
+    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    []
+  );
+
+  const isEmptyAndLoading = sampleRows.length === 0 && listing.busy;
 
   return (
     <div className={clsx(styles.panel)}>
@@ -410,6 +411,7 @@ export const SamplesPanel: FC = () => {
           defaultSorting={kSamplesPanelDefaultSorting}
           getRowId={getRowId}
           selectedRowId={selectedRowId}
+          onRowSelect={handleRowSelect}
           onRowOpen={handleRowOpen}
           loading={isEmptyAndLoading}
         />
