@@ -15,12 +15,17 @@
 //                 Carries no content.
 // - SampleHandle  One sample's identity within a log: id + epoch + logFile.
 //
-// Log content (the same log file, at increasing depth)
+// Log content (the same log file, at increasing depth = increasing cost;
+// each tier exists because fetching the next one for every log would be too
+// expensive)
 // - listing       The set of LogHandles currently known for a log dir.
-// - LogPreview    Row-level display data for one log (status, task, model,
-//                 primary metric) — enough to render a list/grid row.
+// - LogPreview    The cheap projection of one log (status, task, model,
+//                 primary metric) — fetched first for every log in a dir, so
+//                 a large directory's grid renders immediately.
 // - LogDetails    The full parsed content of one log: spec, plan, results,
-//                 stats, and its sample summaries. Avoid: "header" (legacy).
+//                 stats, and its sample summaries. Backfilled dir-wide in the
+//                 background (grid scorer columns need full results);
+//                 elevated to user priority when a log is opened.
 //
 // Sample content (the same sample, at increasing depth)
 // - SampleSummary The row-level record of one sample (input, target, scores,
