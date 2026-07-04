@@ -9,14 +9,10 @@ import { useSelectedRunningMetrics, useSelectedSampleSummaries } from "./hooks";
 // param-driven acquisition hook — mock both sides and assert the plumbing.
 const useRunningMetrics = vi.hoisted(() => vi.fn());
 const useSampleSummaries = vi.hoisted(() => vi.fn());
-vi.mock("../log_data", () => ({
+vi.mock("../log_data", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../log_data")>()),
   useRunningMetrics,
   useSampleSummaries,
-  useLogDetail: vi.fn(),
-  useLogHandles: vi.fn(),
-  useLogPreviews: vi.fn(),
-  useSampleData: vi.fn(),
-  useSampleInvalidation: vi.fn(),
 }));
 
 vi.mock("../app_config", () => ({

@@ -78,9 +78,13 @@ export const useSample = (
 /**
  * Passive read of the sample cache for a handle: subscribes without ever
  * fetching, so consumers outside the sample views (e.g. the invalidation
- * banner) don't keep the query alive or trigger downloads of large bodies.
+ * banner) don't trigger downloads of large bodies. The entry is a rendezvous
+ * through `sampleQueryKey` with exactly two writers — `useSample`'s completed
+ * fetch and the running stream's finalize priming (`streamRunningSampleTick`)
+ * — so absence is a normal answer: the body is resident only while the sample
+ * is (recently) loaded.
  */
-export const useCachedSample = (
+export const usePassiveEvalSample = (
   logDir: string,
   handle: SampleHandle | undefined
 ): EvalSample | undefined => {

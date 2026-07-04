@@ -10,11 +10,8 @@ export {
   useLogPreviews,
 } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
-export {
-  type SampleData,
-  useSampleData,
-  useSampleInvalidation,
-} from "./sampleData";
+export { type SampleData, useSampleData } from "./sampleData";
 export { useSampleSummaries } from "./sampleSummaries";
+export { usePassiveEvalSample } from "./sampleQuery";
 export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

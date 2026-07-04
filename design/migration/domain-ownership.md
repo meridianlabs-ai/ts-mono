@@ -87,9 +87,12 @@ invariant holds.
   body, stream, and status as one derivation. Which path serves the body
   (completed fetch, error-summary fallback, live stream, finalize handoff)
   is subsystem-private.
-- `useSampleInvalidation(logDir, handle)` (`log_data/sampleData.ts`) — a
-  sample's invalidation record, read passively (never fetches or keeps the
-  sample query alive).
+- `usePassiveEvalSample(logDir, handle)` (`log_data/sampleQuery.ts`) — a
+  sample's body if resident, read passively (never fetches). Absence is a
+  normal answer: the body is resident only while the sample is (recently)
+  loaded. For surfaces that must stay fetch-free (e.g. the invalidation
+  banner in the title bar); anything that *wants* the body uses
+  `useSampleData`.
 - the collection read accessors on `log_data/logsContent.ts`
   (`useLogHandles` / `useLogPreviews` / `useLogDetails` / `useLogDetail`) and
   `useDatabaseStats`.
@@ -116,7 +119,7 @@ data and it stays current.
 | Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. | inside the engine; instance lifecycle in `log_data/databaseServiceInstance.ts` |
 | Discovery (replication) | List the dir, diff against the known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. No queues, no item fetching of its own. Keyed on `logDir`; UI-ignorant; dormant in single-file mode. | `log_data/replicationService.ts` |
 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`. | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts` |
-| Sample queries | The completed-body query (`useSample`, with the error-summary fallback), the passive cache read (`useCachedSample`), and the streaming query (`useRunningSample`) — composed by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
+| Sample queries | The completed-body query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive read (`usePassiveEvalSample`, itself also surface) by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
 | Sample fetch | Completed-sample bodies: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
 | Sample streaming | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions. | `log_data/sampleStream.ts` |
 
@@ -205,7 +208,7 @@ Server-data medium        react-query cache ←─ acquisition sink; queries:
        ▼
 Log-data acquisition      surface: data hooks (useLogsSync / useSampleSummaries /
        │                  useRunningMetrics / useSampleData /
-       │                  useSampleInvalidation / collection reads /
+       │                  usePassiveEvalSample / collection reads /
        │                  useDatabaseStats) ·
        │                  imperativeLogData (init / fetchLog /
        │                  refreshLogListing / clearData)

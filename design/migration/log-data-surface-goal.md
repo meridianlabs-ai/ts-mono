@@ -25,7 +25,7 @@ useLogDetail(logDir, logFile)              // one log's details
 useSampleSummaries(logDir, logFile)        // SampleSummary[] (merged, live)
 useRunningMetrics(logDir, logFile)         // a running eval's metrics
 useSampleData(logDir, handle)              // SampleData: body/stream/status, one state machine
-useSampleInvalidation(logDir, handle)      // passive read for the banner
+usePassiveEvalSample(logDir, handle)       // passive body read (fetch-free surfaces, e.g. the banner)
 useDatabaseStats()                         // local-db stats (options popover)
 ```
 

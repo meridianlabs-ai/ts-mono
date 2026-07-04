@@ -12,20 +12,16 @@ import {
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
+import { LogDetails, RunningMetric, SampleSummary } from "../client/api/types";
 import {
-  LogDetails,
-  RunningMetric,
-  SampleSummary,
-} from "../client/api/types";
-import {
-  type SampleData,
   useLogDetail,
   useLogHandles,
   useLogPreviews,
+  usePassiveEvalSample,
   useRunningMetrics,
   useSampleData,
-  useSampleInvalidation,
   useSampleSummaries,
+  type SampleData,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
@@ -391,15 +387,15 @@ export const useSelectedSampleData = (): SampleData => {
 
 /**
  * The selected sample's invalidation record (if any) — the selection binding
- * over the param-driven `useSampleInvalidation` acquisition hook.
+ * projecting from the param-driven `usePassiveEvalSample` acquisition hook.
  */
 export const useSelectedSampleInvalidation = ():
   | EvalSample["invalidation"]
-  | null => {
-  const logDir = useLogDir();
-  const handle = useStore((state) => state.log.selectedSampleHandle);
-  return useSampleInvalidation(logDir, handle);
-};
+  | undefined =>
+  usePassiveEvalSample(
+    useLogDir(),
+    useStore((state) => state.log.selectedSampleHandle)
+  )?.invalidation ?? undefined;
 
 export const useLogSelection = () => {
   const selectedSampleSummary = useSelectedSampleSummary();

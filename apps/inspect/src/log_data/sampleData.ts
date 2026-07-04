@@ -9,7 +9,7 @@ import { SampleHandle, SampleStatus } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
 import { RunningSampleData, useRunningSample } from "./runningSampleQuery";
-import { useCachedSample, useSample } from "./sampleQuery";
+import { usePassiveEvalSample, useSample } from "./sampleQuery";
 import { useSampleSummaries } from "./sampleSummaries";
 
 const kNoRunningEvents: Events = [];
@@ -149,7 +149,7 @@ export const useSampleData = (
   const running = useRunningSample(logDir, handle, summary);
   // The finalized body a running stream primed; read passively so the
   // completed-path fetch stays owned by useSample.
-  const finalizedSample = useCachedSample(logDir, handle);
+  const finalizedSample = usePassiveEvalSample(logDir, handle);
 
   return useMemo(
     () =>
@@ -157,14 +157,3 @@ export const useSampleData = (
     [handle, summary, query, running, finalizedSample]
   );
 };
-
-/**
- * A sample's invalidation record (if any). Reads the sample cache passively —
- * the banner renders outside the sample views and must not keep the sample
- * query alive.
- */
-export const useSampleInvalidation = (
-  logDir: string,
-  handle: SampleHandle | undefined
-): EvalSample["invalidation"] | null =>
-  useCachedSample(logDir, handle)?.invalidation ?? null;

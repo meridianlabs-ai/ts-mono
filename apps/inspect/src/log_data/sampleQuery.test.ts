@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
@@ -7,7 +10,11 @@ import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
 import { SampleNotFoundError } from "./sampleFetch";
-import { sampleQueryKey, withErrorSummaryFallback } from "./sampleQuery";
+import {
+  sampleQueryKey,
+  usePassiveEvalSample,
+  withErrorSummaryFallback,
+} from "./sampleQuery";
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
   ({
@@ -96,5 +103,37 @@ describe("sampleQueryKey", () => {
       null,
       null,
     ]);
+  });
+});
+
+describe("usePassiveEvalSample", () => {
+  const wrapperFor = (client: QueryClient) => {
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    return Wrapper;
+  };
+
+  it("reflects cache writes for its key reactively, without fetching", async () => {
+    const client = new QueryClient();
+    const handle: SampleHandle = { id: "s1", epoch: 1, logFile: "log.eval" };
+    const { result, rerender } = renderHook(
+      ({ h }: { h: SampleHandle }) => usePassiveEvalSample("/logs", h),
+      { wrapper: wrapperFor(client), initialProps: { h: handle } }
+    );
+
+    // Nothing resident: absence is a normal answer, not a loading state.
+    expect(result.current).toBeUndefined();
+
+    // A writer primes the entry (as useSample's fetch or the stream's
+    // finalize priming would); the passive observer must re-render with it.
+    const sample = makeSample();
+    act(() => {
+      client.setQueryData(sampleQueryKey("/logs", handle), sample);
+    });
+    await waitFor(() => expect(result.current).toBe(sample));
+
+    // Moving to another handle (selection change) reads as absence again.
+    rerender({ h: { id: "s2", epoch: 1, logFile: "log.eval" } });
+    await waitFor(() => expect(result.current).toBeUndefined());
   });
 });
