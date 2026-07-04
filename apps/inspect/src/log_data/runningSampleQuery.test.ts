@@ -277,6 +277,7 @@ describe("streamRunningSampleTick", () => {
 describe("runningSampleQueryKey", () => {
   it("keys on dir, file, id and epoch", () => {
     expect(runningSampleQueryKey(LOG_DIR, makeHandle("log.eval"))).toEqual([
+      "log_data",
       "running-sample",
       LOG_DIR,
       "log.eval",
@@ -287,6 +288,7 @@ describe("runningSampleQueryKey", () => {
 
   it("parks idle observers on a null slot per dir", () => {
     expect(runningSampleQueryKey(LOG_DIR, undefined)).toEqual([
+      "log_data",
       "running-sample",
       LOG_DIR,
       null,

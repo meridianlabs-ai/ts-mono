@@ -22,7 +22,7 @@ const kDefaultRefreshSeconds = 2;
 export const pendingSamplesKey = (
   logDir: string,
   logFile: string | undefined
-) => ["pending-samples", logDir, logFile ?? null] as const;
+) => ["log_data", "pending-samples", logDir, logFile ?? null] as const;
 
 /**
  * A running eval's sample buffer (pending sample summaries + running metrics)
@@ -147,8 +147,7 @@ export const usePendingSamples = (
 export const useRunningMetrics = (
   logDir: string,
   logFile: string | undefined
-): RunningMetric[] | undefined =>
-  usePendingSamples(logDir, logFile)?.metrics;
+): RunningMetric[] | undefined => usePendingSamples(logDir, logFile)?.metrics;
 
 /**
  * Non-React snapshot of the pending samples (for the running-sample query's

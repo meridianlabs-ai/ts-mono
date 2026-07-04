@@ -11,7 +11,7 @@ import { fetchLog } from "./replicationControl";
 export const logDetailQueryKey = (
   logDir: string,
   logFile: string | undefined
-) => ["selected-log", logDir, logFile ?? null] as const;
+) => ["log_data", "detail", logDir, logFile ?? null] as const;
 
 /**
  * One log's details as a react-query query over the fetch engine. The queryFn
@@ -26,7 +26,7 @@ export const logDetailQueryKey = (
  * loading/error surface.
  */
 // TODO: needs revisiting on the path to a single coherent data story. This
-// query's cached result duplicates the log's row in the ["log-details", logDir]
+// query's cached result duplicates the log's row in the ["log_data", "details", logDir]
 // collection (the sink writes every fetch there too). The duplicate survives
 // because LogLoadController keys off its identity as a "fetch settled" event —
 // distinct from the collection's every-poll-tick "data changed" stream.

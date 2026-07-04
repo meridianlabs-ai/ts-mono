@@ -10,7 +10,7 @@ import { queryClient } from "../state/queryClient";
 import { syncLogs } from "./replicationControl";
 import { useFetchEngineStatus } from "./useFetchEngineStatus";
 
-const logsSyncKey = ["logs-sync"] as const;
+const logsSyncKey = ["log_data", "sync"] as const;
 
 const kRefreshEvent = "refresh-evals";
 const kClientEventsIntervalMs = 5_000;
@@ -19,7 +19,8 @@ const kClientEventsIntervalMs = 5_000;
 // still picked up.
 const kPeriodicRefreshTicks = 10;
 
-const clientEventsKey = (logDir: string) => ["client-events", logDir] as const;
+const clientEventsKey = (logDir: string) =>
+  ["log_data", "client-events", logDir] as const;
 
 /**
  * One client-events poll tick (the queryFn; exported for tests): ask the host

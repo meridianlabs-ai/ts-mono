@@ -30,6 +30,7 @@ export const runningSampleQueryKey = (
   handle: SampleHandle | undefined
 ) =>
   [
+    "log_data",
     "running-sample",
     logDir,
     handle?.logFile ?? null,
@@ -40,7 +41,7 @@ export const runningSampleQueryKey = (
 export interface RunningSampleData {
   /** Events streamed so far; identity is stable across ticks that add none. */
   events: SampleEvent[];
-  /** The stream ended and the completed EvalSample was primed into `["sample"]`. */
+  /** The stream ended and the completed EvalSample was primed into `["log_data", "sample"]`. */
   finalized: boolean;
 }
 
@@ -120,7 +121,7 @@ const findLiveSummary = (
 
 /**
  * Fetch the completed EvalSample for a stream that reported done and prime it
- * into the `["sample"]` cache, so the completed-path query settles instantly
+ * into the `["log_data", "sample"]` cache, so the completed-path query settles instantly
  * once the summary flips. Returns whether the stream is truly final: a
  * flushed buffer whose EvalSample isn't readable yet keeps streaming instead
  * of erroring, and a missing EvalSample whose summary records an error primes
@@ -189,11 +190,11 @@ export const streamRunningSampleTick = async (
 
 /**
  * Poll-driven incremental query over a running sample's event stream, keyed
- * `["running-sample", logDir, logFile, id, epoch]`. Nothing imperative:
+ * `["log_data", "running-sample", logDir, logFile, id, epoch]`. Nothing imperative:
  * enablement derives from the summary and the log's live status
  * (`shouldStreamRunningSample`), cadence is a fixed 2s `refetchInterval`, and
  * teardown is the key changing. When the stream ends, the tick primes the
- * completed EvalSample into the `["sample"]` cache and reports `finalized`; the
+ * completed EvalSample into the `["log_data", "sample"]` cache and reports `finalized`; the
  * interval stops on `finalized` or error. Disabled with the same key (summary
  * settled first), the query still serves its cached events so the completed
  * path can bridge with them while its own fetch settles.

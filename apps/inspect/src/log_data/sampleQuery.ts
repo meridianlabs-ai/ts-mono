@@ -24,6 +24,7 @@ export const sampleQueryKey = (
   handle: SampleHandle | undefined
 ) =>
   [
+    "log_data",
     "sample",
     logDir,
     handle?.logFile ?? null,
@@ -47,7 +48,7 @@ export const withErrorSummaryFallback = (
     : result;
 
 /**
- * A completed sample's EvalSample, keyed `["sample", logDir, logFile, id, epoch]`.
+ * A completed sample's EvalSample, keyed `["log_data", "sample", logDir, logFile, id, epoch]`.
  * Idles (`skipToken`) without a handle — callers pass the handle only for
  * samples on the completed path. `summary` feeds the error-summary fallback.
  */

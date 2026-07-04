@@ -8,8 +8,8 @@ import { clientEventsTick } from "./useLogsSync";
 vi.mock("./replicationControl", () => ({ syncLogs: vi.fn() }));
 
 const LOG_DIR = "/logs";
-const tickKey = ["client-events", LOG_DIR];
-const syncKeyForDir = { queryKey: ["logs-sync", LOG_DIR] };
+const tickKey = ["log_data", "client-events", LOG_DIR];
+const syncKeyForDir = { queryKey: ["log_data", "sync", LOG_DIR] };
 
 const invalidateQueries = vi
   .spyOn(queryClient, "invalidateQueries")

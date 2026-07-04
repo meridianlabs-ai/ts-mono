@@ -87,6 +87,7 @@ describe("sampleQueryKey", () => {
   it("keys on dir, file, id and epoch", () => {
     const handle: SampleHandle = { id: 7, epoch: 2, logFile: "log.eval" };
     expect(sampleQueryKey("dir", handle)).toEqual([
+      "log_data",
       "sample",
       "dir",
       "log.eval",
@@ -97,6 +98,7 @@ describe("sampleQueryKey", () => {
 
   it("parks idle observers on a null slot per dir", () => {
     expect(sampleQueryKey("dir", undefined)).toEqual([
+      "log_data",
       "sample",
       "dir",
       null,

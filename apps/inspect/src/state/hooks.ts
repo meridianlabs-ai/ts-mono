@@ -161,7 +161,7 @@ const log = createLogger("hooks");
 
 /**
  * The details for the currently selected log, read from the react-query
- * `["log-details", logDir]` collection. Returns the settled value (or
+ * `["log_data", "details", logDir]` collection. Returns the settled value (or
  * `undefined` while loading / when no log is selected) — the drop-in for the
  * retired `log.selectedLogDetails`. Use `useLogDetail` directly for the
  * `AsyncData` (loading/error) surface.

@@ -31,11 +31,11 @@ const EMPTY_PREVIEWS: Record<string, LogPreview> = {};
 const EMPTY_DETAILS: Record<string, LogDetails> = {};
 
 export const logHandlesKey = (logDir: string) =>
-  ["log-handles", logDir] as const;
+  ["log_data", "handles", logDir] as const;
 export const logPreviewsKey = (logDir: string) =>
-  ["log-previews", logDir] as const;
+  ["log_data", "previews", logDir] as const;
 export const logDetailsKey = (logDir: string) =>
-  ["log-details", logDir] as const;
+  ["log_data", "details", logDir] as const;
 
 const currentHandles = (logDir: string): LogHandle[] =>
   queryClient.getQueryData<LogHandle[]>(logHandlesKey(logDir)) ?? EMPTY_HANDLES;
@@ -295,7 +295,7 @@ export const resolveLogKey = (
 };
 
 /**
- * The details for a single log, read from the `["log-details", logDir]`
+ * The details for a single log, read from the `["log_data", "details", logDir]`
  * collection — a passive projection, so `undefined` until the row is present
  * (the seam fills it on open and the replicator backfills it in the
  * background). The selected-log query is the loading/error surface. See
