@@ -5,8 +5,7 @@ import { immer } from "zustand/middleware/immer";
 
 import { createLogger, debounce } from "@tsmono/util";
 
-import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
-import { imperativeLogData } from "../log_data";
+import { Capabilities, ClientStorage } from "../client/api/types";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
@@ -54,7 +53,6 @@ export const useStore = ((selector?: (state: StoreState) => unknown) => {
 
 // Initialize the store
 export const initializeStore = (
-  api: ClientAPI,
   capabilities: Capabilities,
   storage?: ClientStorage
 ) => {
@@ -125,6 +123,5 @@ export const initializeStore = (
 
   // Set the implementation and initialize it
   storeImplementation = store;
-  imperativeLogData.init(api);
   store.getState().initialize(capabilities);
 };

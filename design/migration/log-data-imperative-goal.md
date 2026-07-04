@@ -177,15 +177,17 @@ OUT (future goals):
 
 ## Unresolved questions
 
-- `init`: fully lazy db-service creation vs zero-arg `init()` in main.tsx —
-  decide in phase 3 per the rubric's determinism test.
 - OK that `refreshLogListing` survives until host-event normalization?
 
 Resolved during execution: `LogLoadController` depends only on the query
 result's object identity (effect deps) — move-safe. Multi-scope: panels are
 route-exclusive, but same-dir overlap survives via `invalidateQueries`'
 cancel-refetch and scope transitions → module-local trailing-coalesce
-single-flight in `syncLogs` (per rubric).
+single-flight in `syncLogs` (per rubric). `init`: fully lazy passes the
+determinism test — every db-service read flows through `ensureFetchEngine`,
+`getApi()` is bootstrap-safe, and the injection seam had no test consumers;
+`init` deleted (`initializeStore` also loses its api param — unused once
+log_data self-wires).
 
 ## Current state (branch `loglist-tanstack-phase1`, ts-mono submodule)
 

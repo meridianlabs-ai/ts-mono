@@ -3,23 +3,12 @@ import { createDatabaseService, DatabaseService } from "../client/database";
 let instance: DatabaseService | null = null;
 
 /**
- * Install the shared DatabaseService singleton. Called once from
- * initLogData. The instance is injectable so tests can supply a fake
- * without reaching in to mock the accessor; production omits the arg and gets
- * a real service.
+ * The shared DatabaseService singleton, created lazily on first use — every
+ * acquisition path reaches it through `ensureFetchEngine`, so there is no
+ * initialize verb to call. Construction is side-effect free; the database
+ * itself opens later (`openLogDirDatabase`).
  */
-export function initDatabaseService(
-  svc: DatabaseService = createDatabaseService()
-): DatabaseService {
-  instance = svc;
-  return instance;
-}
-
-/**
- * The shared DatabaseService, or null before initLogData has run. Readers
- * already null-check (the service may be unavailable), so the nullable return
- * matches existing call sites.
- */
-export function getDatabaseService(): DatabaseService | null {
+export function getDatabaseService(): DatabaseService {
+  instance ??= createDatabaseService();
   return instance;
 }

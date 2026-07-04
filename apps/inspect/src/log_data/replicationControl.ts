@@ -1,39 +1,13 @@
 import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { getAppConfig, getLogDir } from "../app_config";
-import { ClientAPI, LogDetails } from "../client/api/types";
+import { getApi, getAppConfig, getLogDir } from "../app_config";
+import { LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
-import {
-  getDatabaseService,
-  initDatabaseService,
-} from "./databaseServiceInstance";
+import { getDatabaseService } from "./databaseServiceInstance";
 import { fetchEngine } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
-
-let injectedApi: ClientAPI | null = null;
-
-/**
- * Wire the subsystem's dependencies: the api its backend reads go through
- * (kept consistent with the api the consumer passed into the App tree) and
- * the database-service singleton. The subsystem's *initialize* verb, called
- * once from the composition root (`initializeStore`); activation itself is
- * on-demand inside the acquisition entry points.
- */
-export function initLogData(api: ClientAPI) {
-  injectedApi = api;
-  initDatabaseService();
-}
-
-const requireApi = (): ClientAPI => {
-  if (!injectedApi) {
-    throw new Error(
-      "Log-data api must be set via initLogData before activating replication"
-    );
-  }
-  return injectedApi;
-};
 
 // Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
 // DatabaseService once its database is open, or undefined if unavailable.
@@ -41,11 +15,8 @@ export const openLogDirDatabase = async (
   logDir: string
 ): Promise<DatabaseService | undefined> => {
   const databaseService = getDatabaseService();
-  if (!databaseService) {
-    return undefined;
-  }
   try {
-    await databaseService.openDatabase(requireApi().get_log_dir_handle(logDir));
+    await databaseService.openDatabase(getApi().get_log_dir_handle(logDir));
     return databaseService;
   } catch (e) {
     console.log(e);
@@ -58,13 +29,11 @@ export const openLogDirDatabase = async (
 // composition root for the engine: the database, api, and per-dir cache sink
 // are wired here.
 const ensureActive = async (logDir: string): Promise<void> => {
-  const databaseService = getDatabaseService();
-  const databaseHandle = requireApi().get_log_dir_handle(logDir);
+  const databaseHandle = getApi().get_log_dir_handle(logDir);
   const needsActivation =
     !fetchEngine.isStarted() ||
     engineDir !== logDir ||
-    !databaseService ||
-    databaseService.getDatabaseHandle() !== databaseHandle;
+    getDatabaseService().getDatabaseHandle() !== databaseHandle;
 
   if (needsActivation) {
     const opened = await openLogDirDatabase(logDir);
@@ -72,7 +41,7 @@ const ensureActive = async (logDir: string): Promise<void> => {
       throw new Error("Database service not available");
     }
     await fetchEngine.start({
-      api: requireApi(),
+      api: getApi(),
       database: opened,
       sink: createLogsContentSink(opened, logDir),
     });
@@ -91,11 +60,11 @@ let pendingActivation: { logDir: string; promise: Promise<void> } | null = null;
 /**
  * Ensure the fetch engine is running for `logDir` — the mode-independent
  * activation entry point, called on demand by every acquisition path
- * (`syncLogs`, `fetchLog`). Dir mode also opens the per-dir database and
- * starts the replication producer; single-file mode starts the engine alone
- * (the database stays unopened, so reads miss and writes are cache-only).
- * An ensure for a new dir tears the old activation down first (engine
- * `start()` self-stops; the database and replication producer re-point).
+ * (`syncLogs`, `fetchLog`). Dir mode also opens the per-dir database;
+ * single-file mode starts the engine alone (the database stays unopened, so
+ * reads miss and writes are cache-only). An ensure for a new dir tears the
+ * old activation down first (engine `start()` self-stops; the database
+ * re-points).
  */
 const ensureFetchEngine = (logDir: string): Promise<void> => {
   if (pendingActivation?.logDir === logDir) {
@@ -106,7 +75,7 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
       if (!fetchEngine.isStarted() || engineDir !== logDir) {
         const database = getDatabaseService();
         await fetchEngine.start({
-          api: requireApi(),
+          api: getApi(),
           database,
           sink: createLogsContentSink(database, logDir),
         });
@@ -159,7 +128,7 @@ const serializedSyncListing = async (): Promise<LogHandle[]> => {
     syncQueued = false;
     return serializedSyncListing();
   }
-  pendingSync = syncListing(requireApi(), fetchEngine);
+  pendingSync = syncListing(getApi(), fetchEngine);
   try {
     return await pendingSync;
   } finally {
