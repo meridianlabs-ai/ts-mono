@@ -163,6 +163,23 @@ just resolve to directory mode with the log selected (i.e., become a
 deep-link alias for `#/tasks/xxx`), reserving single-file mode for truly
 static hosting?
 
+**Deleted `fullScreen` + the log-history-sidebar CSS fossils — confirm we
+haven't misread it.** The branch deleted `LogViewLayout`'s
+`fullScreen = logFiles.length === 1 && !logDir` (a `full-screen` class on
+`.app-main-grid`) and the theme rules `.workspace.full-screen` /
+`.workspace { left: var(--sidebar-width) }` / `.workspace.off-canvas` /
+`--sidebar-width` / `#sidebarToggle` / `.sidebar .list-group*`. Evidence of
+deadness: the machinery belonged to the pre-#2026 "Log History" sidebar
+(inspect_ai `ebf29879d` removed the component, June 2025); on main today the
+only `.full-screen` CSS targets `.workspace`, which never receives the
+class (it's applied to `.app-main-grid`), and the workspace is statically
+positioned so the `left`/`top` offsets are ignored anyway — verified live by
+injecting the class on both elements (rects pixel-identical). On this
+branch the trigger is additionally unsatisfiable (`resolveSingleFileLogDir`
+guarantees a non-empty dir). Ask Charles: any deployment (VS Code webview,
+hosted export, downstream embedder) that still styles these class names
+from outside the monorepo's CSS?
+
 ## Done when (all must hold)
 
 - `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from

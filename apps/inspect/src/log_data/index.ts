@@ -81,7 +81,6 @@ export {
   resolveLogKey,
   useLogDetails,
   useLogFetchState,
-  useLogHandles,
   useLogPreviews,
 } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";

@@ -7,10 +7,9 @@ import {
   FindTargetProvider,
 } from "@tsmono/react/components";
 
-import { useAppConfig, useLogDir } from "../../app_config";
+import { useAppConfig } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
-import { useLogHandles } from "../../log_data";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -33,10 +32,6 @@ export const LogViewLayout: FC = () => {
 
   const { singleFileMode } = useAppConfig();
 
-  // Logs Data
-  const logDir = useLogDir();
-  const logFiles = useLogHandles(logDir);
-
   // Route params
   const { logPath } = useLogRouteParams();
   const prefix = useRoutePrefix();
@@ -45,10 +40,6 @@ export const LogViewLayout: FC = () => {
 
   // The main application reference
   const mainAppRef = useRef<HTMLDivElement>(null);
-
-  // Configure an app envelope specific to the current state
-  // if there are no log files, then don't show sidebar
-  const fullScreen = logFiles.length === 1 && !logDir;
 
   // Global keydown handler for keyboard shortcuts
   useEffect(() => {
@@ -83,7 +74,6 @@ export const LogViewLayout: FC = () => {
           ref={mainAppRef}
           className={clsx(
             "app-main-grid",
-            fullScreen ? "full-screen" : undefined,
             singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
