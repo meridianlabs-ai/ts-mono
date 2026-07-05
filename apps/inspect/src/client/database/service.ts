@@ -4,7 +4,7 @@ import { createLogger } from "@tsmono/util";
 import { LogDetails, LogPreview, SampleSummary } from "../api/types";
 
 import { DatabaseManager } from "./manager";
-import { AppDatabase, LogHandleRecord } from "./schema";
+import { AppDatabase, LogFetchStateRecord, LogHandleRecord } from "./schema";
 
 const log = createLogger("DatabaseService");
 
@@ -300,6 +300,31 @@ export class DatabaseService {
     }
   }
 
+  // === LOG FETCH STATE ===
+  async writeFetchStates(
+    states: Record<string, LogFetchStateRecord>
+  ): Promise<void> {
+    const db = this.getDb();
+    log.debug(`Caching ${Object.keys(states).length} fetch-state records`);
+    await db.log_fetch_state.bulkPut(Object.values(states));
+  }
+
+  async readFetchStates(): Promise<Record<string, LogFetchStateRecord>> {
+    try {
+      const db = this.getDb();
+      const records = await db.log_fetch_state.toArray();
+
+      const result: Record<string, LogFetchStateRecord> = {};
+      for (const record of records) {
+        result[record.file_path] = record;
+      }
+      return result;
+    } catch (error) {
+      log.error("Error retrieving fetch-state records:", error);
+      return {};
+    }
+  }
+
   // === SAMPLE SUMMARIES (extracted from LogDetails) ===
   async readAllSampleSummaries(): Promise<SampleSummary[]> {
     const db = this.getDb();
@@ -396,6 +421,7 @@ export class DatabaseService {
       db.logs.clear(),
       db.log_previews.clear(),
       db.log_details.clear(),
+      db.log_fetch_state.clear(),
     ]);
   }
 
@@ -410,6 +436,7 @@ export class DatabaseService {
       db.logs.where("file_path").equals(filePath).delete(),
       db.log_previews.where("file_path").equals(filePath).delete(),
       db.log_details.where("file_path").equals(filePath).delete(),
+      db.log_fetch_state.where("file_path").equals(filePath).delete(),
     ]);
   }
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { LogHandle } from "@tsmono/inspect-common";
 
 import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { DatabaseService, LogFetchStateRecord } from "../client/database";
 import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
@@ -57,6 +57,9 @@ interface FakeApiOptions {
   /** Files that always fail get_log_summaries_settled (every attempt,
    *  including retries). */
   failSummaryFor?: string[];
+  /** Dynamic per-call predicate for get_log_summaries_settled failures — lets
+   *  a test flip failure on/off between separate `requestPreview` calls. */
+  failSummaryWhen?: (file: string) => boolean;
 }
 
 const createFakeApi = (options: FakeApiOptions = {}) => {
@@ -91,7 +94,8 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
         callOrder.push(`preview:${files.join(",")}`);
         return Promise.resolve(
           files.map((file) =>
-            options.failSummaryFor?.includes(file)
+            options.failSummaryFor?.includes(file) ||
+            options.failSummaryWhen?.(file)
               ? { ok: false, error: new Error(`summary failed: ${file}`) }
               : { ok: true, value: makePreview(file) }
           )
@@ -127,6 +131,7 @@ interface FakeDbData {
   logs?: LogHandle[];
   previews?: Record<string, LogPreview>;
   details?: Record<string, LogDetails>;
+  fetchStates?: Record<string, LogFetchStateRecord>;
 }
 
 const createFakeDb = (data: FakeDbData = {}): DatabaseService => {
@@ -139,6 +144,12 @@ const createFakeDb = (data: FakeDbData = {}): DatabaseService => {
         .filter((log) => record && log.name in record)
         .map((log) => [log.name, (record as Record<string, T>)[log.name] as T])
     );
+
+  // Mutable so writeFetchStates (relayed from the fake sink) is visible to a
+  // later readFetchStates — exercising the real start()-time reset round-trip.
+  const fetchStates: Record<string, LogFetchStateRecord> = {
+    ...data.fetchStates,
+  };
 
   return {
     opened: () => true,
@@ -162,11 +173,19 @@ const createFakeDb = (data: FakeDbData = {}): DatabaseService => {
       Promise.resolve(
         logs.filter((log) => !(log.name in (data.previews ?? {})))
       ),
+    readFetchStates: () => Promise.resolve({ ...fetchStates }),
+    writeFetchStates: (states: Record<string, LogFetchStateRecord>) => {
+      Object.assign(fetchStates, states);
+      return Promise.resolve();
+    },
     countRows: () => Promise.resolve(0),
   } as unknown as DatabaseService;
 };
 
-const createFakeSink = () => {
+// `db`, when provided, is a realism relay for writeFetchStates only — mirrors
+// how the real sink (logsContent.ts) persists through to IndexedDB, so tests
+// can exercise the start()-time reset round-trip without a real database.
+const createFakeSink = (db?: DatabaseService) => {
   const calls = {
     setHandles: [] as LogHandle[][],
     mergePreviews: [] as Record<string, LogPreview>[],
@@ -174,6 +193,11 @@ const createFakeSink = () => {
     writeHandles: [] as LogHandle[][],
     writePreviews: [] as Record<string, LogPreview>[],
     writeDetails: [] as Record<string, LogDetails>[],
+    mergeFetchStates: [] as Record<string, LogFetchStateRecord>[],
+    writeFetchStates: [] as Record<string, LogFetchStateRecord>[],
+    // Accumulated view of the latest fetch-state per file, as observed
+    // through either merge or write calls — stands in for the cache mirror.
+    fetchStates: {} as Record<string, LogFetchStateRecord>,
     clearFile: [] as string[],
     clearPreview: [] as string[],
     clearAll: 0,
@@ -200,8 +224,18 @@ const createFakeSink = () => {
       calls.writeDetails.push(details);
       return Promise.resolve();
     },
+    mergeFetchStates: (states) => {
+      calls.mergeFetchStates.push(states);
+      Object.assign(calls.fetchStates, states);
+    },
+    writeFetchStates: async (states) => {
+      calls.writeFetchStates.push(states);
+      Object.assign(calls.fetchStates, states);
+      await db?.writeFetchStates(states);
+    },
     clearFile: (name) => {
       calls.clearFile.push(name);
+      delete calls.fetchStates[name];
       return Promise.resolve();
     },
     clearPreview: (name) => {
@@ -210,6 +244,7 @@ const createFakeSink = () => {
     },
     clearAll: () => {
       calls.clearAll++;
+      calls.fetchStates = {};
       return Promise.resolve();
     },
   };
@@ -225,7 +260,7 @@ const createEngine = async (
     statsDelayMs: 0,
     ...options,
   });
-  const { sink, calls } = createFakeSink();
+  const { sink, calls } = createFakeSink(deps.database ?? undefined);
   await engine.start({
     api: deps.api,
     database: deps.database ?? null,
@@ -733,5 +768,165 @@ describe("FetchEngine.stop", () => {
     expect(() => engine.fetch("a.eval", "user")).toThrow(
       "Fetch engine used before start()"
     );
+  });
+});
+
+describe("FetchEngine fetch-state (retrieval errors)", () => {
+  it("records a background preview failure without writing a preview", async () => {
+    const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    engine.requestPreview("bad.eval", "background");
+
+    await vi.waitFor(() => {
+      expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
+        preview_fetch_error: "summary failed: bad.eval",
+        preview_attempts: 1,
+      });
+    });
+    expect(
+      sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)
+    ).toBe(false);
+  });
+
+  it("a subsequent successful preview clears the recorded error", async () => {
+    let failing = true;
+    const fake = createFakeApi({
+      failSummaryWhen: (file) => failing && file === "flaky.eval",
+    });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    engine.requestPreview("flaky.eval", "background");
+    await vi.waitFor(() => {
+      expect(sinkCalls.fetchStates["flaky.eval"]?.preview_attempts).toBe(1);
+    });
+
+    failing = false;
+    engine.requestPreview("flaky.eval", "background");
+
+    await vi.waitFor(() => {
+      expect(sinkCalls.fetchStates["flaky.eval"]).toMatchObject({
+        preview_fetch_error: undefined,
+        preview_attempts: 0,
+      });
+    });
+  });
+
+  it("a waitered details failure both rejects the caller and records the error", async () => {
+    const fake = createFakeApi({ failFor: ["a.eval"] });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    await expect(engine.fetch("a.eval", "user")).rejects.toThrow(
+      "fetch failed: a.eval"
+    );
+
+    expect(sinkCalls.fetchStates["a.eval"]).toMatchObject({
+      details_fetch_error: "fetch failed: a.eval",
+      details_attempts: 1,
+    });
+  });
+
+  it("stops backfilling a file after kMaxFetchAttempts settled failures (row retains the error)", async () => {
+    const target = handle("bad.eval");
+    const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: [target] }),
+    });
+
+    for (let i = 0; i < 5; i++) {
+      engine.requestPreview("bad.eval", "background");
+      await vi.waitFor(() => {
+        expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(
+          i + 1
+        );
+      });
+    }
+
+    fake.summaryCalls.length = 0;
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await tick();
+
+    expect(fake.summaryCalls.flat()).not.toContain("bad.eval");
+    expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
+      preview_fetch_error: "summary failed: bad.eval",
+      preview_attempts: 5,
+    });
+  });
+
+  it("clearFile from invalidation resets fetch-state so backfill retries from scratch", async () => {
+    const target = handle("bad.eval");
+    const fake = createFakeApi({ failFor: ["bad.eval"] });
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: [target] }),
+    });
+
+    for (let i = 0; i < 5; i++) {
+      await expect(engine.fetch("bad.eval", "background")).rejects.toThrow();
+    }
+    expect(sinkCalls.fetchStates["bad.eval"]?.details_attempts).toBe(5);
+
+    // A later backfill pass gives up on it.
+    fake.detailCalls.length = 0;
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await tick();
+    expect(fake.detailCalls.map((call) => call.file)).not.toContain(
+      "bad.eval"
+    );
+
+    // The file changes on the server: invalidation wipes its fetch-state row.
+    await engine.applyListing({
+      listing: [target],
+      invalidated: ["bad.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+    expect(sinkCalls.clearFile).toContain("bad.eval");
+    expect(sinkCalls.fetchStates["bad.eval"]).toBeUndefined();
+
+    // Confirm the reset actually landed — a fresh failure records attempts
+    // starting from 1, not 6.
+    await expect(engine.fetch("bad.eval", "background")).rejects.toThrow();
+    expect(sinkCalls.fetchStates["bad.eval"]?.details_attempts).toBe(1);
+  });
+
+  it("restart (stop/start) zeroes attempts but keeps the error text, and persists the reset", async () => {
+    const fake = createFakeApi({ failFor: ["a.eval"] });
+    const db = createFakeDb({ logs: [handle("a.eval")] });
+    const { sink, calls } = createFakeSink(db);
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    await engine.start({ api: fake.api, database: db, sink });
+
+    await expect(engine.fetch("a.eval", "user")).rejects.toThrow();
+    expect(calls.fetchStates["a.eval"]).toMatchObject({
+      details_fetch_error: "fetch failed: a.eval",
+      details_attempts: 1,
+    });
+
+    engine.stop();
+    await engine.start({ api: fake.api, database: db, sink });
+
+    expect(calls.fetchStates["a.eval"]).toMatchObject({
+      details_fetch_error: "fetch failed: a.eval",
+      details_attempts: 0,
+    });
+
+    // The reset landed in the database, not just the cache mirror.
+    const persisted = await db.readFetchStates();
+    expect(persisted["a.eval"]).toMatchObject({
+      details_fetch_error: "fetch failed: a.eval",
+      details_attempts: 0,
+    });
   });
 });

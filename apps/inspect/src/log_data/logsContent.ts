@@ -1,12 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { LogDetails, LogPreview } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { DatabaseService, LogFetchStateRecord } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
+import { getDatabaseService } from "./databaseServiceInstance";
 import type { LogsContentSink } from "./fetchEngine";
 
 /**
@@ -36,6 +37,8 @@ export const logPreviewsKey = (logDir: string) =>
   ["log_data", "previews", logDir] as const;
 export const logDetailsKey = (logDir: string) =>
   ["log_data", "details", logDir] as const;
+export const logFetchStateKey = (logDir: string, name: string) =>
+  ["log_data", "fetch_state", logDir, name] as const;
 
 const currentHandles = (logDir: string): LogHandle[] =>
   queryClient.getQueryData<LogHandle[]>(logHandlesKey(logDir)) ?? EMPTY_HANDLES;
@@ -89,11 +92,42 @@ export const mergeDetails = (
   );
 };
 
+/**
+ * Push a fetch-state row into the cache, but ONLY if it is already observed
+ * (a query cache entry exists) — a bulk backfill (or a start()-time attempts
+ * reset) touches every listed file, and must not materialize a cache entry
+ * for handles nobody is looking at. The per-handle key means an unobserved
+ * handle's push is simply a no-op, not a leak.
+ */
+const pushFetchState = (
+  logDir: string,
+  name: string,
+  state: LogFetchStateRecord
+): void => {
+  const key = logFetchStateKey(logDir, name);
+  if (queryClient.getQueryCache().find({ queryKey: key })) {
+    queryClient.setQueryData<LogFetchStateRecord>(key, state);
+  }
+};
+
+export const mergeFetchStates = (
+  logDir: string,
+  states: Record<string, LogFetchStateRecord>
+): void => {
+  for (const [name, state] of Object.entries(states)) {
+    pushFetchState(logDir, name, state);
+  }
+};
+
 const evictPreview = (logDir: string, name: string): void => {
   queryClient.setQueryData<Record<string, LogPreview>>(
     logPreviewsKey(logDir),
     (prev) => omitKey(prev, name)
   );
+};
+
+const evictFetchState = (logDir: string, name: string): void => {
+  queryClient.removeQueries({ queryKey: logFetchStateKey(logDir, name) });
 };
 
 const evictFile = (logDir: string, name: string): void => {
@@ -105,6 +139,7 @@ const evictFile = (logDir: string, name: string): void => {
     logDetailsKey(logDir),
     (prev) => omitKey(prev, name)
   );
+  evictFetchState(logDir, name);
 };
 
 const clearCache = (logDir: string): void => {
@@ -117,6 +152,9 @@ const clearCache = (logDir: string): void => {
     logDetailsKey(logDir),
     EMPTY_DETAILS
   );
+  // Per-handle keys, not a single collection — remove every fetch-state
+  // query under this dir (a prefix match on the query key).
+  queryClient.removeQueries({ queryKey: ["log_data", "fetch_state", logDir] });
 };
 
 // ---------------------------------------------------------------------------
@@ -183,6 +221,17 @@ export const writeDetail = async (
   }
 };
 
+export const writeFetchStates = async (
+  db: DatabaseService | null | undefined,
+  logDir: string,
+  states: Record<string, LogFetchStateRecord>
+): Promise<void> => {
+  mergeFetchStates(logDir, states);
+  if (db?.opened()) {
+    await db.writeFetchStates(states);
+  }
+};
+
 export const clearFile = async (
   db: DatabaseService | null | undefined,
   logDir: string,
@@ -230,6 +279,8 @@ export const createLogsContentSink = (
   writeHandles: (handles) => writeHandles(db, logDir, handles),
   writePreviews: (previews) => writePreviews(db, logDir, previews),
   writeDetails: (details) => writeDetails(db, logDir, details),
+  mergeFetchStates: (states) => mergeFetchStates(logDir, states),
+  writeFetchStates: (states) => writeFetchStates(db, logDir, states),
   clearFile: (name) => clearFile(db, logDir, name),
   clearPreview: (name) => clearPreview(db, logDir, name),
   clearAll: () => clearAll(db, logDir),
@@ -274,6 +325,41 @@ export const useLogDetails = (logDir: string): Record<string, LogDetails> => {
     staleTime: Infinity,
   });
   return details ?? EMPTY_DETAILS;
+};
+
+/**
+ * A single handle's fetch-state (retrieval errors/attempts — a domain
+ * separate from eval status/error), for detail-path consumers (e.g. a badge
+ * on the currently-open log). Unlike `useLogHandles`/`useLogPreviews`/
+ * `useLogDetails`, this is per-handle, not a whole-collection cache mirror:
+ * the listing will read fetch-state from IndexedDB directly via paged joins
+ * rather than mounting one of these per row. Idles (`skipToken`) without a
+ * name. The `queryFn` reads straight from IndexedDB (there is no
+ * self-seeded collection to fall back to for a handle nobody has queried
+ * yet); once mounted, the query cache entry it creates is what makes this
+ * handle's engine pushes (`mergeFetchStates`) observed instead of guarded
+ * no-ops.
+ */
+export const useLogFetchState = (
+  logDir: string,
+  name: string | undefined
+): LogFetchStateRecord | undefined => {
+  const { data } = useQuery({
+    queryKey: logFetchStateKey(logDir, name ?? ""),
+    queryFn:
+      name === undefined
+        ? skipToken
+        : async () => {
+            const db = getDatabaseService();
+            if (!db.opened()) {
+              return null;
+            }
+            const states = await db.readFetchStates();
+            return states[name] ?? null;
+          },
+    staleTime: Infinity,
+  });
+  return data ?? undefined;
 };
 
 /**

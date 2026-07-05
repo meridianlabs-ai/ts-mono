@@ -2,7 +2,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 import { throttle } from "@tsmono/util";
 
 import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { DatabaseService, LogFetchStateRecord } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
 import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
 
@@ -79,6 +79,8 @@ export interface LogsContentSink {
   writeHandles(handles: LogHandle[]): Promise<LogHandle[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
   writeDetails(details: Record<string, LogDetails>): Promise<void>;
+  mergeFetchStates(states: Record<string, LogFetchStateRecord>): void;
+  writeFetchStates(states: Record<string, LogFetchStateRecord>): Promise<void>;
   clearFile(name: string): Promise<void>;
   clearPreview(name: string): Promise<void>;
   clearAll(): Promise<void>;
@@ -154,6 +156,19 @@ const kInitialStats: DbStats = {
 // to Medium — keeps the first screenful fresh without starving detail work.
 const kPreviewFirstWave = 25;
 
+// A file whose fetch has settled-failed this many times is presumed
+// permanently broken (not transient) — backfill gives up on it until an
+// invalidation (a changed file) wipes its fetch-state row.
+const kMaxFetchAttempts = 5;
+
+const emptyFetchState = (name: string): LogFetchStateRecord => ({
+  file_path: name,
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+  updated_at: new Date().toISOString(),
+});
+
 export class FetchEngine {
   private _deps: FetchEngineDeps | undefined = undefined;
 
@@ -173,6 +188,12 @@ export class FetchEngine {
   private readonly _inFlightDetails = new Set<string>();
   // Names whose next fetch must bypass any server-side cache (cached=false).
   private readonly _freshDetails = new Set<string>();
+
+  // Engine-private mirror of the fetch-state table, hydrated at start() and
+  // kept in sync as completions settle — the source of truth for backfill
+  // gating (avoids a db round-trip per batch). Writes still go through the
+  // sink so the db ⟹ cache invariant holds.
+  private _fetchStates: Record<string, LogFetchStateRecord> = {};
 
   // Batched sink writes for background completions (user-awaited completions
   // write immediately).
@@ -266,8 +287,6 @@ export class FetchEngine {
         return;
       }
       if (!result.ok) {
-        // Task 3 records this per-file failure; for now it's visible but
-        // doesn't block the rest of the batch from landing.
         console.error(
           `Preview fetch failed for ${work.handle.name}:`,
           result.error
@@ -280,6 +299,77 @@ export class FetchEngine {
       this._pendingPreviewWrites[work.handle.name] = result.value.value;
     });
     this._throttledFlushPreviewWrites();
+    this.recordFetchOutcomes("preview", results, inputs);
+  }
+
+  /**
+   * Record retrieval (fetch) outcomes into the fetch-state store — a domain
+   * separate from eval status/error (those live in LogPreview/LogDetails). A
+   * settled failure upserts the kind's error/attempts; a settled success
+   * clears them, but only when a row already carries them (no write churn
+   * for the common case of a log that has never failed). Updates the
+   * engine-private mirror in place and writes the batch through the sink
+   * (persists to db; the cache mirror push is separately guarded there).
+   */
+  private recordFetchOutcomes(
+    kind: LogWorkKind,
+    results: WorkResult<LogWorkValue>[],
+    inputs: LogWork[]
+  ): void {
+    const deps = this._deps;
+    if (!deps) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const updates: Record<string, LogFetchStateRecord> = {};
+    inputs.forEach((work, i) => {
+      const result = results[i];
+      if (!result) {
+        return;
+      }
+      const name = work.handle.name;
+      const row = this._fetchStates[name];
+      if (!result.ok) {
+        const next: LogFetchStateRecord = {
+          ...(row ?? emptyFetchState(name)),
+          updated_at: now,
+          ...(kind === "preview"
+            ? {
+                preview_fetch_error: result.error.message,
+                preview_attempts: (row?.preview_attempts ?? 0) + 1,
+              }
+            : {
+                details_fetch_error: result.error.message,
+                details_attempts: (row?.details_attempts ?? 0) + 1,
+              }),
+        };
+        this._fetchStates[name] = next;
+        updates[name] = next;
+        return;
+      }
+      if (!row) {
+        return;
+      }
+      const hadError =
+        kind === "preview"
+          ? row.preview_fetch_error !== undefined || row.preview_attempts > 0
+          : row.details_fetch_error !== undefined || row.details_attempts > 0;
+      if (!hadError) {
+        return;
+      }
+      const next: LogFetchStateRecord = {
+        ...row,
+        updated_at: now,
+        ...(kind === "preview"
+          ? { preview_fetch_error: undefined, preview_attempts: 0 }
+          : { details_fetch_error: undefined, details_attempts: 0 }),
+      };
+      this._fetchStates[name] = next;
+      updates[name] = next;
+    });
+    if (Object.keys(updates).length > 0) {
+      void deps.sink.writeFetchStates(updates).catch(() => {});
+    }
   }
 
   private async detailsWorker(
@@ -331,6 +421,7 @@ export class FetchEngine {
     inputs: LogWork[]
   ): void {
     const deps = this._deps;
+    this.recordFetchOutcomes("details", results, inputs);
     inputs.forEach((work, i) => {
       const name = work.handle.name;
       const result = results[i];
@@ -362,6 +453,10 @@ export class FetchEngine {
           this.ensureListed(name);
           void deps.sink.writeDetails({ [name]: detail }).catch(() => {});
           deps.sink.mergePreviews({ [name]: toLogPreview(detail) });
+          // A waitered (user-priority) settle — bump the session-local
+          // counter so callers can detect a fresh landing without diffing
+          // content. Cache-only: persisting it is harmless but not required.
+          this.bumpDetailsSettledSeq(name, deps);
         }
         waiter.resolve(detail);
       } else {
@@ -369,6 +464,16 @@ export class FetchEngine {
         this._throttledFlushDetailWrites();
       }
     });
+  }
+
+  private bumpDetailsSettledSeq(name: string, deps: FetchEngineDeps): void {
+    const base = this._fetchStates[name] ?? emptyFetchState(name);
+    const bumped: LogFetchStateRecord = {
+      ...base,
+      details_settled_seq: base.details_settled_seq + 1,
+    };
+    this._fetchStates[name] = bumped;
+    deps.sink.mergeFetchStates({ [name]: bumped });
   }
 
   /**
@@ -397,6 +502,26 @@ export class FetchEngine {
     if (Object.keys(details).length > 0) {
       deps.sink.mergeDetails(details);
     }
+
+    // A restart retries every previously-failed file once more — zero the
+    // attempts (but keep the error text visible until it's superseded) and
+    // persist the reset so a changed-attempts row isn't left stale in db.
+    const fetchStates = await deps.database.readFetchStates();
+    const reset: Record<string, LogFetchStateRecord> = {};
+    const now = new Date().toISOString();
+    for (const [name, row] of Object.entries(fetchStates)) {
+      reset[name] = {
+        ...row,
+        preview_attempts: 0,
+        details_attempts: 0,
+        updated_at: now,
+      };
+    }
+    this._fetchStates = reset;
+    if (Object.keys(reset).length > 0) {
+      await deps.sink.writeFetchStates(reset);
+    }
+
     await this.updateDbStats();
   }
 
@@ -406,6 +531,7 @@ export class FetchEngine {
     this._handles = [];
     this._queue.clear();
     this._freshDetails.clear();
+    this._fetchStates = {};
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
     const error = new Error("Fetch engine stopped");
@@ -542,6 +668,11 @@ export class FetchEngine {
       await Promise.all(
         stale.map((name) => deps.sink.clearFile(name).catch(() => {}))
       );
+      // The row is wiped alongside the file's other cached content — an
+      // invalidated (changed) file's backfill gating naturally resets.
+      stale.forEach((name) => {
+        delete this._fetchStates[name];
+      });
     }
 
     let full: LogHandle[];
@@ -589,6 +720,7 @@ export class FetchEngine {
     const deps = this.requireDeps();
     void deps.sink.clearAll().catch(() => {});
     this._handles = [];
+    this._fetchStates = {};
     this._throttledUpdateDbStats();
   }
 
@@ -635,6 +767,37 @@ export class FetchEngine {
     }
   };
 
+  private attemptsFor(name: string, kind: LogWorkKind): number {
+    const row = this._fetchStates[name];
+    if (!row) {
+      return 0;
+    }
+    return kind === "preview" ? row.preview_attempts : row.details_attempts;
+  }
+
+  /**
+   * Partition backfill candidates by prior fetch-state attempts: a file that
+   * has settled-failed `kMaxFetchAttempts` times is skipped outright (it's
+   * presumed broken, not transient); one with fewer prior failures is
+   * demoted to Low priority so it can't crowd out never-tried files: `normal`
+   * keeps the caller's already-decided priority.
+   */
+  private gateBackfill(
+    handles: LogHandle[],
+    kind: LogWorkKind
+  ): { normal: LogHandle[]; retry: LogHandle[] } {
+    const normal: LogHandle[] = [];
+    const retry: LogHandle[] = [];
+    for (const handle of handles) {
+      const attempts = this.attemptsFor(handle.name, kind);
+      if (attempts >= kMaxFetchAttempts) {
+        continue;
+      }
+      (attempts > 0 ? retry : normal).push(handle);
+    }
+    return { normal, retry };
+  }
+
   private async queueDetailBackfill(
     full: LogHandle[],
     invalidated: LogHandle[],
@@ -651,11 +814,15 @@ export class FetchEngine {
       invalidated.forEach((handle) => this._freshDetails.add(handle.name));
       this._queue.enqueue(invalidated.map(detailsWork), WorkPriority.High);
     }
-    if (missing.length > 0) {
+    const { normal, retry } = this.gateBackfill(missing, "details");
+    if (normal.length > 0) {
       this._queue.enqueue(
-        missing.map(detailsWork),
+        normal.map(detailsWork),
         persistListing ? WorkPriority.High : WorkPriority.Medium
       );
+    }
+    if (retry.length > 0) {
+      this._queue.enqueue(retry.map(detailsWork), WorkPriority.Low);
     }
   }
 
@@ -667,12 +834,15 @@ export class FetchEngine {
     const tasks = [...invalidated];
     const seen = new Set(tasks.map((task) => task.name));
 
-    for (const handle of await this.findMissingPreviews(full)) {
-      if (!seen.has(handle.name)) {
-        seen.add(handle.name);
-        tasks.push(handle);
-      }
-    }
+    const missing = (await this.findMissingPreviews(full)).filter(
+      (handle) => !seen.has(handle.name)
+    );
+    const { normal, retry } = this.gateBackfill(missing, "preview");
+    normal.forEach((handle) => {
+      seen.add(handle.name);
+      tasks.push(handle);
+    });
+    retry.forEach((handle) => seen.add(handle.name));
 
     // A preview persisted as "started" is a snapshot of a run that may have
     // finished since — drop it and re-fetch.
@@ -697,6 +867,9 @@ export class FetchEngine {
         tasks.slice(kPreviewFirstWave).map(previewWork),
         WorkPriority.Medium
       );
+    }
+    if (retry.length > 0) {
+      this._queue.enqueue(retry.map(previewWork), WorkPriority.Low);
     }
   }
 

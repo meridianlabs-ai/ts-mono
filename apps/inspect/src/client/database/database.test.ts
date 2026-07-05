@@ -14,6 +14,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 
 import { LogDetails, LogPreview, SampleSummary } from "../api/types";
 
+import { LogFetchStateRecord } from "./schema";
 import { createDatabaseService, DatabaseService } from "./service";
 
 // Helper function to create test LogSummary
@@ -479,6 +480,86 @@ describe("Database Service", () => {
 
       const stats = await databaseService.getCacheStats();
       expect(stats.sampleSummaries).toBe(5); // Total samples across both files
+    });
+  });
+
+  describe("Log Fetch State Caching", () => {
+    function createTestFetchState(
+      overrides: Partial<LogFetchStateRecord> = {}
+    ): LogFetchStateRecord {
+      return {
+        file_path: "/test/logs/eval1.json",
+        preview_attempts: 0,
+        details_attempts: 0,
+        details_settled_seq: 0,
+        updated_at: "2024-01-01T00:00:00Z",
+        ...overrides,
+      };
+    }
+
+    test("round-trips a fetch-state record", async () => {
+      const state = createTestFetchState({
+        file_path: "/test/logs/eval1.json",
+        preview_fetch_error: "boom",
+        preview_attempts: 2,
+        details_fetch_error: "kaboom",
+        details_attempts: 1,
+        details_settled_seq: 3,
+      });
+
+      await databaseService.writeFetchStates({
+        "/test/logs/eval1.json": state,
+      });
+
+      const read = await databaseService.readFetchStates();
+      expect(read["/test/logs/eval1.json"]).toEqual(state);
+    });
+
+    test("writes multiple fetch-state records in one call", async () => {
+      const a = createTestFetchState({ file_path: "/test/logs/a.json" });
+      const b = createTestFetchState({
+        file_path: "/test/logs/b.json",
+        details_attempts: 5,
+      });
+
+      await databaseService.writeFetchStates({
+        "/test/logs/a.json": a,
+        "/test/logs/b.json": b,
+      });
+
+      const read = await databaseService.readFetchStates();
+      expect(Object.keys(read).sort()).toEqual([
+        "/test/logs/a.json",
+        "/test/logs/b.json",
+      ]);
+      expect(read["/test/logs/b.json"]?.details_attempts).toBe(5);
+    });
+
+    test("clearCacheForFile deletes the fetch-state row", async () => {
+      await databaseService.writeFetchStates({
+        "/test/logs/eval1.json": createTestFetchState(),
+      });
+
+      await databaseService.clearCacheForFile("/test/logs/eval1.json");
+
+      const read = await databaseService.readFetchStates();
+      expect(read["/test/logs/eval1.json"]).toBeUndefined();
+    });
+
+    test("clearAllCaches deletes all fetch-state rows", async () => {
+      await databaseService.writeFetchStates({
+        "/test/logs/a.json": createTestFetchState({
+          file_path: "/test/logs/a.json",
+        }),
+        "/test/logs/b.json": createTestFetchState({
+          file_path: "/test/logs/b.json",
+        }),
+      });
+
+      await databaseService.clearAllCaches();
+
+      const read = await databaseService.readFetchStates();
+      expect(Object.keys(read)).toHaveLength(0);
     });
   });
 

@@ -37,8 +37,25 @@ export interface LogDetailsRecord {
   cached_at: string;
 }
 
+// Log Fetch State Table - Per-handle retrieval (fetch) error/attempt tracking.
+// This is a SEPARATE domain from eval status/error (those live inside
+// LogPreview/LogDetails) — an absent row means no known retrieval problem.
+export interface LogFetchStateRecord {
+  // Primary key
+  file_path: string;
+
+  preview_fetch_error?: string;
+  preview_attempts: number;
+  details_fetch_error?: string;
+  details_attempts: number;
+  /** Session-local settle counter for waitered (user) details fetches;
+   *  cache-only in practice, harmless if persisted. */
+  details_settled_seq: number;
+  updated_at: string;
+}
+
 // Current database schema version
-export const DB_VERSION = 9;
+export const DB_VERSION = 10;
 
 // Resolves a log dir into a database name
 function resolveDBName(databaseHandle: string): string {
@@ -51,6 +68,7 @@ export class AppDatabase extends Dexie {
   logs!: Dexie.Table<LogHandleRecord, number>;
   log_previews!: Dexie.Table<LogPreviewRecord, string>;
   log_details!: Dexie.Table<LogDetailsRecord, string>;
+  log_fetch_state!: Dexie.Table<LogFetchStateRecord, string>;
 
   /**
    * Check if an existing database needs to be recreated due to version mismatch.
@@ -98,6 +116,9 @@ export class AppDatabase extends Dexie {
 
       // Complete log info from get_log_details() - includes samples
       log_details: "file_path, details.status, cached_at",
+
+      // Per-handle retrieval error/attempt tracking
+      log_fetch_state: "file_path",
     });
   }
 }
