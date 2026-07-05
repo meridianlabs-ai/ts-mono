@@ -289,14 +289,11 @@ export class FetchEngine {
     try {
       return await Promise.all(
         handles.map(async (log): Promise<WorkResult<LogWorkValue>> => {
-          // Read without consuming: a failed attempt is retried, and the
-          // retry must stay fresh too. The flag is cleared on final settle
-          // (onDetailsComplete), never mid-retry.
-          const fresh = this._freshDetails.has(log.name);
           const deps = this._deps;
           if (!deps) {
             return { ok: false, error: new Error("Fetch engine stopped") };
           }
+          const fresh = this._freshDetails.delete(log.name);
           try {
             const details = await deps.api.get_log_details(
               log.name,
@@ -304,6 +301,17 @@ export class FetchEngine {
             );
             return { ok: true, value: { kind: "details", value: details } };
           } catch (error) {
+            if (fresh) {
+              // Re-arm for the retry. Consume-at-read + re-add-on-failure
+              // (never clear on settle) because the flag is keyed by name:
+              // a mid-flight invalidation can set it for a NEWER re-enqueued
+              // fetch while this attempt is in flight, and a settle-time
+              // delete would consume that newer intent, letting the re-fetch
+              // serve the memoized stale snapshot. A final failure
+              // deliberately leaves the flag set — the next fetch of this
+              // log over-fetches fresh once, erring safe.
+              this._freshDetails.add(log.name);
+            }
             return {
               ok: false,
               error: error instanceof Error ? error : new Error(String(error)),
@@ -329,9 +337,6 @@ export class FetchEngine {
       if (!result) {
         return;
       }
-      // Settled (success or final failure) — the one-shot fresh flag must
-      // not leak to a later unrelated fetch of the same log.
-      this._freshDetails.delete(name);
       const waiter = this._pendingFetches.get(name);
       if (!result.ok) {
         if (waiter) {

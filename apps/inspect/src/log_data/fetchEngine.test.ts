@@ -488,6 +488,40 @@ describe("FetchEngine.applyListing", () => {
     });
   });
 
+  it("a mid-flight invalidation's fresh flag survives the older attempt's settle", async () => {
+    const target = handle("x.eval", 1);
+    const fake = createFakeApi({ gated: true });
+    const { engine } = await createEngine(
+      { api: fake.api, database: createFakeDb({ logs: [target] }) },
+      { concurrency: 1 }
+    );
+
+    // Missing-details backfill: a non-fresh fetch of x.eval, gated in flight.
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    expect(fake.detailCalls[0]).toEqual({ file: "x.eval", cached: undefined });
+
+    // While that attempt is in flight, the file changes on the server.
+    await engine.applyListing({
+      listing: [handle("x.eval", 2)],
+      invalidated: ["x.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+
+    void fake.releaseAll();
+
+    // The re-enqueued invalidation fetch must be fresh — the older attempt's
+    // settle must not have consumed the flag the invalidation just set.
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    expect(fake.detailCalls[1]).toEqual({ file: "x.eval", cached: false });
+  });
+
   it("re-fetches previews persisted as started (the run may have finished)", async () => {
     const running = handle("running.eval", 1);
     const fake = createFakeApi();
