@@ -292,7 +292,7 @@ export const useLogFetchState = (
 Details get their end-state cache shape for the detail-view path: one query per handle whose `queryFn` reads the Dexie row. Eviction is desired — IndexedDB re-seeds on remount. The whole-dir details `Record` collection is RETAINED as a transitional listing feed (samples mode and listing columns aggregate details across all logs: `SamplesPanel.tsx`, `LogListGrid.tsx`, `columns/hooks.tsx`) — the sink dual-writes it alongside guarded per-handle pushes, `start()` keeps its bulk seed, and its removal belongs to the samples-table/paged migration. (Previews likewise untouched — see north star.)
 
 **Files:**
-- Modify: `apps/inspect/src/log_data/logsContent.ts` (per-handle detail entries, sink rework, `useLogDetail` reshape, delete `useLogDetails`/`logDetailsKey`)
+- Modify: `apps/inspect/src/log_data/logsContent.ts` (per-handle detail entries, sink rework, `useLogDetail` reshape; `useLogDetails`/`logDetailsKey` are RETAINED — see the amended intro above)
 - Modify: `apps/inspect/src/log_data/fetchEngine.ts` (`start()` no longer bulk-seeds details into the cache — read-through `queryFn` replaced it; previews seed stays)
 - Delete: `apps/inspect/src/log_data/logDetailQuery.ts`
 - Modify: `apps/inspect/src/log_data/index.ts` (exports)
