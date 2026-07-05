@@ -72,13 +72,9 @@
 //   always present.
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
+export { type LogDataState, useLogDetail } from "./logDetail";
 export { useLogDetailQuery } from "./logDetailQuery";
-export {
-  useLogDetail,
-  useLogDetails,
-  useLogHandles,
-  useLogPreviews,
-} from "./logsContent";
+export { useLogDetails, useLogHandles, useLogPreviews } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
   type SampleData,

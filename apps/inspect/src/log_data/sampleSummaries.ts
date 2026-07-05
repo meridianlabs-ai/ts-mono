@@ -2,7 +2,8 @@ import { useMemo } from "react";
 
 import { SampleSummary } from "../client/api/types";
 
-import { getLogDetail, useLogDetail } from "./logsContent";
+import { useLogDetail } from "./logDetail";
+import { getLogDetail } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
 
 // Merge a log's completed summaries with its pending-buffer samples
@@ -47,7 +48,7 @@ export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
 ): SampleSummary[] => {
-  const logSummaries = useLogDetail(logDir, logFile)?.sampleSummaries;
+  const logSummaries = useLogDetail(logDir, logFile).data?.sampleSummaries;
   const pending = usePendingSamples(logDir, logFile)?.samples;
   return useMemo(
     () => mergeSampleSummaries(logSummaries ?? [], pending ?? []),

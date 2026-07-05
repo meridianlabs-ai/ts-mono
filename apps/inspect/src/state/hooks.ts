@@ -160,16 +160,15 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
 const log = createLogger("hooks");
 
 /**
- * The details for the currently selected log, read from the react-query
- * `["log_data", "details", logDir]` collection. Returns the settled value (or
+ * The details for the currently selected log. Returns the settled value (or
  * `undefined` while loading / when no log is selected) — the drop-in for the
  * retired `log.selectedLogDetails`. Use `useLogDetail` directly for the
- * `AsyncData` (loading/error) surface.
+ * loading/error surface.
  */
 export const useSelectedLogDetails = (): LogDetails | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  return useLogDetail(logDir, selectedLogFile);
+  return useLogDetail(logDir, selectedLogFile).data;
 };
 
 export const useEvalSpec = () => {

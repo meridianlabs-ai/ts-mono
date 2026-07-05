@@ -9,7 +9,8 @@ import { SampleHandle } from "../app/types";
 import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
-import { getLogDetail, useLogDetail } from "./logsContent";
+import { useLogDetail } from "./logDetail";
+import { getLogDetail } from "./logsContent";
 import {
   fetchSample,
   SampleNotFoundError,
@@ -204,7 +205,7 @@ export const useRunningSample = (
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {
-  const logStatus = useLogDetail(logDir, handle?.logFile)?.status;
+  const logStatus = useLogDetail(logDir, handle?.logFile).data?.status;
   const enabled = shouldStreamRunningSample({
     handle,
     summaryCompleted: summary?.completed,

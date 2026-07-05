@@ -13,7 +13,7 @@ import {
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
-import { useLogDetail } from "./logsContent";
+import { useLogDetail } from "./logDetail";
 
 const log = createLogger("pendingSamples");
 
@@ -111,7 +111,7 @@ export const usePendingSamples = (
   logFile: string | undefined
 ): PendingSamples | undefined => {
   const api = getApi();
-  const liveStatus = useLogDetail(logDir, logFile)?.status;
+  const liveStatus = useLogDetail(logDir, logFile).data?.status;
   const enabled =
     shouldPollPendingSamples({
       logFile,

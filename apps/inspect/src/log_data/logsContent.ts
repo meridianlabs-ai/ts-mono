@@ -1,5 +1,4 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
@@ -37,6 +36,8 @@ export const logPreviewsKey = (logDir: string) =>
   ["log_data", "previews", logDir] as const;
 export const logDetailsKey = (logDir: string) =>
   ["log_data", "details", logDir] as const;
+export const logDetailKey = (logDir: string, name: string) =>
+  ["log_data", "detail", logDir, name] as const;
 export const logFetchStateKey = (logDir: string, name: string) =>
   ["log_data", "fetch_state", logDir, name] as const;
 
@@ -82,6 +83,23 @@ export const mergePreviews = (
   );
 };
 
+/**
+ * Push a fresh value to a handle's per-handle detail entry WITHOUT creating
+ * one: a bulk backfill writing `setQueryData` unconditionally would
+ * materialize every log's details in memory, defeating GC. Unobserved /
+ * evicted keys re-seed from IndexedDB via the entry's `queryFn` on next
+ * mount.
+ */
+const pushDetail = (logDir: string, name: string, detail: LogDetails): void => {
+  const key = logDetailKey(logDir, name);
+  if (queryClient.getQueryCache().find({ queryKey: key })) {
+    queryClient.setQueryData<LogDetails>(key, detail);
+  }
+};
+
+// Dual-write: the whole-dir map is a transitional listing feed (samples mode
+// and listing columns aggregate across all logs); the guarded per-handle
+// pushes keep mounted `useLogDetail` entries fresh.
 export const mergeDetails = (
   logDir: string,
   details: Record<string, LogDetails>
@@ -90,6 +108,9 @@ export const mergeDetails = (
     logDetailsKey(logDir),
     (prev) => ({ ...(prev ?? EMPTY_DETAILS), ...details })
   );
+  for (const [name, detail] of Object.entries(details)) {
+    pushDetail(logDir, name, detail);
+  }
 };
 
 /**
@@ -139,6 +160,7 @@ const evictFile = (logDir: string, name: string): void => {
     logDetailsKey(logDir),
     (prev) => omitKey(prev, name)
   );
+  queryClient.removeQueries({ queryKey: logDetailKey(logDir, name) });
   evictFetchState(logDir, name);
 };
 
@@ -152,8 +174,9 @@ const clearCache = (logDir: string): void => {
     logDetailsKey(logDir),
     EMPTY_DETAILS
   );
-  // Per-handle keys, not a single collection — remove every fetch-state
-  // query under this dir (a prefix match on the query key).
+  // Per-handle keys, not single collections — remove every per-handle detail
+  // and fetch-state query under this dir (a prefix match on the query key).
+  queryClient.removeQueries({ queryKey: ["log_data", "detail", logDir] });
   queryClient.removeQueries({ queryKey: ["log_data", "fetch_state", logDir] });
 };
 
@@ -378,29 +401,6 @@ export const resolveLogKey = (
     handle.name.endsWith(logFile)
   );
   return match?.name ?? logFile;
-};
-
-/**
- * The details for a single log, read from the `["log_data", "details", logDir]`
- * collection — a passive projection, so `undefined` until the row is present
- * (the seam fills it on open and the replicator backfills it in the
- * background). The selected-log query is the loading/error surface. See
- * `design/migration/selected-log-details-react-query.md`.
- */
-export const useLogDetail = (
-  logDir: string,
-  logFile: string | undefined
-): LogDetails | undefined => {
-  const details = useLogDetails(logDir);
-  const handles = useLogHandles(logDir);
-  return useMemo(() => {
-    if (!logFile) {
-      return undefined;
-    }
-    const key =
-      handles.find((handle) => handle.name.endsWith(logFile))?.name ?? logFile;
-    return details[key];
-  }, [details, handles, logFile]);
 };
 
 /**
