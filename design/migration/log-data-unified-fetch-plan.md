@@ -174,7 +174,7 @@ Worker dispatches by kind (the "kind descriptor" is this dispatch plus the per-k
 
 `onComplete` per kind:
 - preview success → pending preview writes (as today); preview failure → `console.error` (Task 3 records it).
-- details success → existing waiter/batched-write logic, **plus cross-kind coalesce**: `queue.removeByIds([workId("preview", name)])` (the fetched details already repaint the preview via `toLogPreview`); details failure → reject waiter if present (as today).
+- details success → existing waiter/batched-write logic, **plus cross-kind coalesce**: `queue.removeByIds([workId("preview", name)])` (the fetched details already repaint the preview via `toLogPreview`); details failure → reject waiter if present. Note: rejection happens after the queue's per-item retries are exhausted (uniform behavior across kinds — the DRY point of the unification; transient blips self-heal before surfacing). The fresh flag must survive retries: check without consuming in the worker, clear on final settle.
 
 `client-api.ts` — replace the all-or-nothing fallback:
 

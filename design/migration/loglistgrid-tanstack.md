@@ -228,6 +228,13 @@ No action (recorded so the next sweep doesn't re-flag them):
 - `/api/flow` 404s on both versions — baseline noise, not from this migration.
 - Verified parity: listing counts incl. retried-logs toggle (538/551), top-level Samples mode (1,171 samples, scorer columns) and Folders mode, per-log SAMPLES/TASK/MODELS/INFO/JSON tabs, sample TRANSCRIPT/MESSAGES/SCORING/USAGE/METADATA/JSON tabs, filter expressions, grid keyboard nav + route→selection sync, sample deep-link cold reload, live RUNNING log view (progressive pending samples) and running→complete finalize on an open sample.
 
+### Unified fetch flow — intentional behavior changes (plan: log-data-unified-fetch-plan.md)
+
+Recorded as they land so the test sweep can distinguish intent from regression:
+
+- **Detail fetch failures retry up to 3× (per-item, ~10ms apart) before surfacing** — previews and details now share one queue with uniform per-item retry; the old immediate waiter-rejection is gone (deliberate: transient blips self-heal before the ErrorPanel).
+- **User detail fetches and background preview backfill share one priority-ordered queue (global concurrency 6)** — a user click front-runs backfill instead of competing with it for the browser connection pool; one bad file in a preview batch no longer drops the other 23.
+
 ### logDir gate & content-in-react-query follow-ups
 
 The collection content (handles/previews/details) and the resolved `logDir` now live in the react-query cache, behind a single `LoaderGate`. Open items from that work:
