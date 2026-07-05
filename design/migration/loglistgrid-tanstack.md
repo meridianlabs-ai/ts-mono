@@ -234,6 +234,8 @@ Recorded as they land so the test sweep can distinguish intent from regression:
 
 - **Detail fetch failures retry up to 3× (per-item, ~10ms apart) before surfacing** — previews and details now share one queue with uniform per-item retry; the old immediate waiter-rejection is gone (deliberate: transient blips self-heal before the ErrorPanel).
 - **User detail fetches and background preview backfill share one priority-ordered queue (global concurrency 6)** — a user click front-runs backfill instead of competing with it for the browser connection pool; one bad file in a preview batch no longer drops the other 23.
+- **Retrieval failures are now recorded per handle** (`log_fetch_state` table + per-handle cache mirror) instead of dropped on the floor; backfill retries recorded-failed logs at Low priority and gives up after 5 attempts (mtime invalidation or restart re-arms). Listing rows still omit failed logs — recording only, no new UI.
+- **IndexedDB schema v10** — first load after this change deletes and recreates each per-dir database (cold cache; replication refills it). One-time, expected.
 
 ### logDir gate & content-in-react-query follow-ups
 
