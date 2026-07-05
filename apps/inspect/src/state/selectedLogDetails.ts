@@ -5,11 +5,14 @@ import { LogDataState, useLogDetail } from "../log_data";
 import { useStore } from "./store";
 
 /** Selection binding: the selected log's details — the fetch trigger and
- *  loading/error surface (see `useLogDetail`). */
+ *  loading/error surface (see `useLogDetail`). Active demand: this is the ONE
+ *  consumer declaring "someone is looking at this log" — see
+ *  `useLogDetail`'s `demand` option. */
 export const useSelectedLogDetail = (): LogDataState<LogDetails> =>
   useLogDetail(
     useLogDir(),
-    useStore((state) => state.logs.selectedLogFile)
+    useStore((state) => state.logs.selectedLogFile),
+    { demand: "active" }
   );
 
 /** Whether the selected log's details are loading. `LogDataState.loading` is

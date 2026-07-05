@@ -188,6 +188,19 @@ export class FetchEngine {
   private readonly _inFlightDetails = new Set<string>();
   // Names whose next fetch must bypass any server-side cache (cached=false).
   private readonly _freshDetails = new Set<string>();
+  // Names with an ACTIVE (non-passive) fetch() outstanding — a passive call
+  // (ensure-presence, e.g. a sample-adjacent mount) never adds itself here,
+  // so its settle must not bump `details_settled_seq`. A later active call
+  // joining the same in-flight fetch adds the key too, upgrading it.
+  private readonly _activeSettles = new Set<string>();
+  // Engine generation, bumped on every stop() — a batch claimed under an
+  // earlier generation that settles after a stop()/start() (dir switch) is
+  // discarded rather than recorded/waited-on/coalesced into the new
+  // session's state.
+  private _epoch = 0;
+  // The generation active when a work item's batch was claimed, keyed by
+  // `workId` (kind-scoped — a preview and a details item can share a name).
+  private readonly _claimEpoch = new Map<string, number>();
 
   // Engine-private mirror of the fetch-state table, hydrated at start() and
   // kept in sync as completions settle — the source of truth for backfill
@@ -259,9 +272,45 @@ export class FetchEngine {
     });
   }
 
+  /** Record the generation active right now against every item in a
+   *  just-claimed batch — called as the first statement of each kind's
+   *  worker, i.e. synchronously, before any await, so it reflects the
+   *  generation at claim time. */
+  private markClaimEpoch(kind: LogWorkKind, handles: LogHandle[]): void {
+    const epoch = this._epoch;
+    handles.forEach((log) =>
+      this._claimEpoch.set(workId(kind, log.name), epoch)
+    );
+  }
+
+  /** Partition a settled batch into items claimed under the CURRENT
+   *  generation ("fresh") vs. an earlier one whose stop()/start() has since
+   *  passed ("stale") — stale items are dropped by every onComplete handler:
+   *  no fetch-state recording, no waiter interaction, no preview coalesce. */
+  private dropStaleEpoch(
+    results: WorkResult<LogWorkValue>[],
+    inputs: LogWork[]
+  ): { results: WorkResult<LogWorkValue>[]; inputs: LogWork[] } {
+    const freshResults: WorkResult<LogWorkValue>[] = [];
+    const freshInputs: LogWork[] = [];
+    inputs.forEach((work, i) => {
+      const id = workId(work.kind, work.handle.name);
+      const claimEpoch = this._claimEpoch.get(id);
+      this._claimEpoch.delete(id);
+      const result = results[i];
+      if (!result || claimEpoch !== this._epoch) {
+        return;
+      }
+      freshResults.push(result);
+      freshInputs.push(work);
+    });
+    return { results: freshResults, inputs: freshInputs };
+  }
+
   private async previewWorker(
     handles: LogHandle[]
   ): Promise<WorkResult<LogWorkValue>[]> {
+    this.markClaimEpoch("preview", handles);
     const deps = this._deps;
     if (!deps) {
       const error = new Error("Fetch engine stopped");
@@ -278,9 +327,13 @@ export class FetchEngine {
   }
 
   private onPreviewComplete(
-    results: WorkResult<LogWorkValue>[],
-    inputs: LogWork[]
+    rawResults: WorkResult<LogWorkValue>[],
+    rawInputs: LogWork[]
   ): void {
+    const { results, inputs } = this.dropStaleEpoch(rawResults, rawInputs);
+    if (inputs.length === 0) {
+      return;
+    }
     inputs.forEach((work, i) => {
       const result = results[i];
       if (!result) {
@@ -350,11 +403,19 @@ export class FetchEngine {
       if (!row) {
         return;
       }
-      const hadError =
+      const hadOwnError =
         kind === "preview"
           ? row.preview_fetch_error !== undefined || row.preview_attempts > 0
           : row.details_fetch_error !== undefined || row.details_attempts > 0;
-      if (!hadError) {
+      // A details success also lands a derived preview (the cross-kind
+      // coalesce persists it — see onDetailsComplete), so it must clear a
+      // stale PREVIEW fetch-state too; otherwise a file whose preview once
+      // hit the gating cap keeps thrashing findMissingPreviews forever even
+      // after details recovered.
+      const hadStalePreview =
+        kind === "details" &&
+        (row.preview_fetch_error !== undefined || row.preview_attempts > 0);
+      if (!hadOwnError && !hadStalePreview) {
         return;
       }
       const next: LogFetchStateRecord = {
@@ -363,6 +424,9 @@ export class FetchEngine {
         ...(kind === "preview"
           ? { preview_fetch_error: undefined, preview_attempts: 0 }
           : { details_fetch_error: undefined, details_attempts: 0 }),
+        ...(hadStalePreview
+          ? { preview_fetch_error: undefined, preview_attempts: 0 }
+          : {}),
       };
       this._fetchStates[name] = next;
       updates[name] = next;
@@ -375,6 +439,7 @@ export class FetchEngine {
   private async detailsWorker(
     handles: LogHandle[]
   ): Promise<WorkResult<LogWorkValue>[]> {
+    this.markClaimEpoch("details", handles);
     handles.forEach((log) => this._inFlightDetails.add(log.name));
     try {
       return await Promise.all(
@@ -417,10 +482,14 @@ export class FetchEngine {
   }
 
   private onDetailsComplete(
-    results: WorkResult<LogWorkValue>[],
-    inputs: LogWork[]
+    rawResults: WorkResult<LogWorkValue>[],
+    rawInputs: LogWork[]
   ): void {
     const deps = this._deps;
+    const { results, inputs } = this.dropStaleEpoch(rawResults, rawInputs);
+    if (inputs.length === 0) {
+      return;
+    }
     this.recordFetchOutcomes("details", results, inputs);
     inputs.forEach((work, i) => {
       const name = work.handle.name;
@@ -432,6 +501,7 @@ export class FetchEngine {
       if (!result.ok) {
         if (waiter) {
           this._pendingFetches.delete(name);
+          this._activeSettles.delete(name);
           waiter.reject(result.error);
         }
         return;
@@ -442,21 +512,30 @@ export class FetchEngine {
       const detail = result.value.value;
       // Cross-kind coalesce: these details already repaint the preview via
       // toLogPreview below, so a queued preview fetch for the same log is
-      // now redundant.
+      // now redundant. Persist the derived preview (not just cache it) on
+      // EVERY ok settle — waitered or background — so a coalesced-away
+      // preview fetch still lands a real, db-backed preview row instead of
+      // leaving the file to thrash findMissingPreviews.
       this._queue.removeByIds([workId("preview", name)]);
+      this._pendingPreviewWrites[name] = toLogPreview(detail);
+      this._throttledFlushPreviewWrites();
       if (waiter) {
         this._pendingFetches.delete(name);
         if (deps) {
           // Someone is waiting on this, so land it now rather than in the
           // next batched flush; repaint the listing preview from the fresh
-          // status (a log cached as "started" may have since finished).
+          // status (a log cached as "started" may have since finished) —
+          // immediate cache-only repaint, ahead of the throttled persist above.
           this.ensureListed(name);
           void deps.sink.writeDetails({ [name]: detail }).catch(() => {});
           deps.sink.mergePreviews({ [name]: toLogPreview(detail) });
-          // A waitered (user-priority) settle — bump the session-local
-          // counter so callers can detect a fresh landing without diffing
-          // content. Cache-only: persisting it is harmless but not required.
-          this.bumpDetailsSettledSeq(name, deps);
+          // A waitered settle bumps the session-local "landed" counter, but
+          // only for ACTIVE demand (someone genuinely wants this log open) —
+          // a passive ensure-presence fetch (sample-adjacent mount) must not
+          // refire LogLoadController just because it happened to settle here.
+          if (this._activeSettles.delete(name)) {
+            this.bumpDetailsSettledSeq(name, deps);
+          }
         }
         waiter.resolve(detail);
       } else {
@@ -473,7 +552,14 @@ export class FetchEngine {
       details_settled_seq: base.details_settled_seq + 1,
     };
     this._fetchStates[name] = bumped;
+    // Cache-only push first — the immediate signal for the guarded
+    // per-handle query. Persisting it too closes the loss window where an
+    // in-flight `useLogFetchState` queryFn (a full `readFetchStates` scan)
+    // settles AFTER this push and overwrites the seq back to null for a
+    // recreated/late-mounted per-handle entry (staleTime: Infinity — it
+    // would never self-correct).
     deps.sink.mergeFetchStates({ [name]: bumped });
+    void deps.sink.writeFetchStates({ [name]: bumped }).catch(() => {});
   }
 
   /**
@@ -525,12 +611,16 @@ export class FetchEngine {
     await this.updateDbStats();
   }
 
-  /** Drop dependencies, queued work, and pending waiters (rejected). */
+  /** Drop dependencies, queued work, and pending waiters (rejected). Bumps
+   *  the epoch so any batch already claimed (in flight, no longer in the
+   *  queue) settles into the void instead of the next session's state. */
   public stop(): void {
+    this._epoch += 1;
     this._deps = undefined;
     this._handles = [];
     this._queue.clear();
     this._freshDetails.clear();
+    this._activeSettles.clear();
     this._fetchStates = {};
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
@@ -560,16 +650,31 @@ export class FetchEngine {
    * the immediate cache resolution outright (the caller knows the cached row
    * is stale, e.g. after editing the log), so the promise always waits for
    * the network read. Concurrent calls for the same log share one fetch.
+   *
+   * `opts.passive` (default false = active) marks ensure-presence demand: a
+   * passive caller wants the data to exist, not to declare "someone is
+   * looking at this" — it never bumps `details_settled_seq` and, on a cache
+   * hit, never re-enqueues a background refresh. An active call sharing an
+   * in-flight passive fetch upgrades it (the settle still bumps).
    */
   public fetch(
     logFile: string,
     priority: FetchPriority,
-    opts: { fresh?: boolean } = {}
+    opts: { fresh?: boolean; passive?: boolean } = {}
   ): Promise<LogDetails> {
     this.requireDeps();
     const key = this.resolveKey(logFile);
+    if (!opts.passive) {
+      this._activeSettles.add(key);
+    }
     const pending = this._pendingFetches.get(key);
     if (pending) {
+      if (opts.fresh) {
+        // The in-flight attempt already consumed its own fresh flag at read
+        // time; re-arm it so the NEXT fetch (not this joined one) honors it
+        // — erring fresh rather than silently dropping the request.
+        this._freshDetails.add(key);
+      }
       if (!this._inFlightDetails.has(key)) {
         this._queue.enqueue(
           [detailsWork({ name: key })],
@@ -617,12 +722,24 @@ export class FetchEngine {
       deps.sink.mergeDetails({ [key]: cached });
       deps.sink.mergePreviews({ [key]: toLogPreview(cached) });
       this._pendingFetches.delete(key);
+      // Consult `_activeSettles` live (not a `passive` flag captured at call
+      // start) so an active fetch that joined this same pending fetch while
+      // the db read above was in flight still gets credit — the set, not the
+      // originating call, is the source of truth for "does this settle count
+      // as active demand."
+      const active = this._activeSettles.delete(key);
+      waiter.resolve(cached);
+      if (!active) {
+        // Ensure-presence only: the data exists, so resolve — but nobody
+        // actively wants this log open, so no "landed" signal and no
+        // background refresh (an active fetch later triggers both).
+        return;
+      }
       // A cache hit is a waitered success settle too — without this bump,
       // already-cached logs never signal "landed" and settle-seq consumers
       // (LogLoadController) hang on their guard. The background refresh below
       // completes unwaitered and correctly does not bump.
       this.bumpDetailsSettledSeq(key, deps);
-      waiter.resolve(cached);
       // The row may be stale (e.g. edited server-side since it was cached);
       // refresh in the background at the caller's priority.
     }
@@ -667,6 +784,7 @@ export class FetchEngine {
         const waiter = this._pendingFetches.get(name);
         if (waiter && !this._inFlightDetails.has(name)) {
           this._pendingFetches.delete(name);
+          this._activeSettles.delete(name);
           waiter.reject(new Error(`Log file deleted: ${name}`));
         }
       }
@@ -694,8 +812,13 @@ export class FetchEngine {
       invalidatedSet.has(handle.name)
     );
 
-    await this.queueDetailBackfill(full, invalidated, update.persistListing);
+    // Previews enqueue first so their High-priority first wave sorts ahead
+    // of the (also High, on a cold/synced listing) details backfill —
+    // `claimNextBatch` breaks priority ties by insertion order, so a cold
+    // listing's first claimed batch paints previews instead of starving them
+    // behind every detail fetch.
     await this.queuePreviewBackfill(full, invalidated);
+    await this.queueDetailBackfill(full, invalidated, update.persistListing);
     this._throttledUpdateDbStats();
     return full;
   }

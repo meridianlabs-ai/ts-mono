@@ -97,13 +97,15 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
 /**
  * Fetch a log's details at user priority, activating the engine for `logDir`
  * on demand first (a deep link's first fetch can run before any listing
- * subscriber has activated). `opts.fresh` threads through to `engine.fetch`
- * for callers that know the cached row is stale (e.g. after an edit).
+ * subscriber has activated). `opts` threads through to `engine.fetch`:
+ * `fresh` for callers that know the cached row is stale (e.g. after an
+ * edit), `passive` for ensure-presence callers that don't want to declare
+ * active interest (see `useLogDetail`'s `demand` option).
  */
 export const fetchLog = async (
   logDir: string,
   logFile: string,
-  opts?: { fresh?: boolean }
+  opts?: { fresh?: boolean; passive?: boolean }
 ): Promise<LogDetails> => {
   await ensureFetchEngine(logDir);
   return fetchEngine.fetch(logFile, "user", opts);

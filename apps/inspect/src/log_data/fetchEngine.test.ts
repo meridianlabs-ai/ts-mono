@@ -4,6 +4,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 
 import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
 import { DatabaseService, LogFetchStateRecord } from "../client/database";
+import { toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
@@ -604,6 +605,77 @@ describe("FetchEngine.applyListing", () => {
     await blocker;
     expect(fake.detailCalls.map((call) => call.file)).toEqual(["blocker.eval"]);
   });
+
+  // F1a: on a cold db every file is invalidated/missing; details backfill
+  // used to enqueue before preview backfill, so priority ties (both High)
+  // broke by insertion order in details' favor — starving the listing's
+  // paint behind every detail fetch.
+  it("cold-listing apply claims previews before completing all details backfill (paint ordering)", async () => {
+    const files = [handle("a.eval"), handle("b.eval"), handle("c.eval")];
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: files }),
+    });
+
+    await engine.applyListing({
+      listing: files,
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => expect(fake.callOrder.length).toBeGreaterThan(0));
+    expect(fake.callOrder[0]).toMatch(/^preview:/);
+  });
+
+  // F1b: the cross-kind coalesce removes a queued preview item on EVERY ok
+  // details settle, but only the waitered branch used to repaint the
+  // preview — a background (unwaitered) settle dropped the preview on the
+  // floor entirely, leaving the file to thrash findMissingPreviews forever.
+  it("a background details success stashes a persisted preview for the log whose preview fetch it coalesced away", async () => {
+    const target = handle("a.eval");
+    const fake = createFakeApi({ gated: true });
+    const { engine, sinkCalls } = await createEngine(
+      {
+        api: fake.api,
+        // A preview already on file (so backfill won't itself enqueue one)
+        // keeps the ONLY preview job at the Medium priority our explicit
+        // requestPreview call below gives it, so the High-priority missing-
+        // details backfill claims first and the coalesce has something
+        // still-queued to remove.
+        database: createFakeDb({
+          logs: [target],
+          previews: { "a.eval": makePreview("a.eval") },
+        }),
+      },
+      { concurrency: 1 }
+    );
+
+    const blocker = engine.fetch("blocker.eval", "background");
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    engine.requestPreview("a.eval", "background");
+    // Unwaitered (background) details backfill for the same file — distinct
+    // from the waitered branch already covered by "a successful details
+    // fetch removes a queued preview fetch for the same log".
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    void fake.releaseAll();
+    await blocker;
+
+    await vi.waitFor(() => {
+      expect(sinkCalls.writePreviews).toContainEqual({
+        "a.eval": toLogPreview(makeDetails("a.eval")),
+      });
+    });
+    expect(fake.summaryCalls.flat()).not.toContain("a.eval");
+  });
 });
 
 describe("FetchEngine.ensurePreviews", () => {
@@ -831,7 +903,14 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [target] }),
+      // Details already cached (not missing) so the later applyListing below
+      // exercises ONLY preview backfill gating — a details success would
+      // clear the preview error per F4 (covered by its own test), which
+      // would muddy this test's isolated assertion.
+      database: createFakeDb({
+        logs: [target],
+        details: { "bad.eval": makeDetails("bad.eval") },
+      }),
     });
 
     for (let i = 0; i < 5; i++) {
@@ -986,5 +1065,178 @@ describe("FetchEngine details settle seq", () => {
     await expect(engine.fetch("a.eval", "user")).rejects.toThrow();
 
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
+  });
+});
+
+// F2: passive demand (ensure-presence, e.g. a sample-adjacent mount) must
+// not bump the seq or force a background refresh; active demand (the
+// selection binding) must, including when it joins a passive fetch already
+// in flight.
+describe("FetchEngine passive vs active demand (F2)", () => {
+  it("a passive fetch on a cache hit does not bump the seq and enqueues no refresh", async () => {
+    const cached = makeDetails("a.eval", "success");
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ details: { "a.eval": cached } }),
+    });
+
+    const details = await engine.fetch("a.eval", "user", { passive: true });
+
+    expect(details).toEqual(cached);
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
+    await tick();
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("an active fetch on a cache hit bumps and refreshes in the background (default demand)", async () => {
+    const cached = makeDetails("a.eval", "success");
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ details: { "a.eval": cached } }),
+    });
+
+    await engine.fetch("a.eval", "user");
+
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+  });
+
+  it("an active fetch joining an in-flight passive fetch still bumps on settle", async () => {
+    const fake = createFakeApi({ gated: true });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    const passive = engine.fetch("a.eval", "background", { passive: true });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    const active = engine.fetch("a.eval", "user"); // joins, upgrades to active
+    void fake.releaseAll();
+
+    await Promise.all([passive, active]);
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
+  });
+
+  it("a passive fetch that misses the cache still fetches (it needs the data) but its own settle does not bump", async () => {
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    const details = await engine.fetch("a.eval", "background", {
+      passive: true,
+    });
+
+    expect(details).toEqual(makeDetails("a.eval"));
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
+  });
+});
+
+// F3: the settle-seq bump must persist, not just live in the cache mirror —
+// otherwise an in-flight full readFetchStates scan (a recreated/late
+// per-handle entry's queryFn) can settle after the bump and overwrite it
+// back to null, and that never self-corrects (staleTime: Infinity).
+describe("FetchEngine details settle seq persistence (F3)", () => {
+  it("persists the bump to the database (a fresh readFetchStates scan sees it)", async () => {
+    const fake = createFakeApi();
+    const db = createFakeDb({ logs: [handle("a.eval")] });
+    const { sink, calls } = createFakeSink(db);
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    await engine.start({ api: fake.api, database: db, sink });
+
+    await engine.fetch("a.eval", "user");
+
+    expect(calls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
+    // A fresh per-handle entry's queryFn does a full readFetchStates scan —
+    // it must see the persisted bump, not race back to null.
+    const persisted = await db.readFetchStates();
+    expect(persisted["a.eval"]?.details_settled_seq).toBe(1);
+  });
+});
+
+// F4: details success must also clear a stale PREVIEW fetch-state — the
+// coalesced/derived preview (F1b) means the file has moved on even though
+// its preview never itself re-succeeded.
+describe("FetchEngine clears stale preview fetch-state on details success (F4)", () => {
+  it("a details success clears a preview fetch-state that hit the gating cap", async () => {
+    const target = handle("bad.eval");
+    const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: [target] }),
+    });
+
+    for (let i = 0; i < 5; i++) {
+      engine.requestPreview("bad.eval", "background");
+      await vi.waitFor(() => {
+        expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(i + 1);
+      });
+    }
+
+    // Details succeed (the fake api only fails preview summaries).
+    await engine.fetch("bad.eval", "user");
+
+    expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
+      preview_fetch_error: undefined,
+      preview_attempts: 0,
+    });
+    // F1b: the coalesced preview is derived from the details success, so the
+    // file stops thrashing findMissingPreviews.
+    expect(sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)).toBe(
+      true
+    );
+  });
+});
+
+// F5: a batch claimed before stop() must not pollute the session started by
+// the following start() — recording, waiter interaction, and re-queueing all
+// belong to the torn-down session's epoch.
+describe("FetchEngine generation drops post-restart in-flight settles (F5)", () => {
+  it("an in-flight fetch across stop()/start() settles into the void — nothing lands in the new session", async () => {
+    const fakeA = createFakeApi({ gated: true });
+    const dbA = createFakeDb({ logs: [handle("a.eval")] });
+    const { sink: sinkA } = createFakeSink(dbA);
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    await engine.start({ api: fakeA.api, database: dbA, sink: sinkA });
+
+    const inFlight = engine.fetch("a.eval", "user");
+    await vi.waitFor(() => expect(fakeA.detailCalls.length).toBe(1));
+
+    // Dir switch mid-flight: stop() rejects the old waiter; start() points
+    // the engine at an entirely different session.
+    engine.stop();
+    const fakeB = createFakeApi();
+    const dbB = createFakeDb({ logs: [handle("b.eval")] });
+    const { sink: sinkB, calls: callsB } = createFakeSink(dbB);
+    await engine.start({ api: fakeB.api, database: dbB, sink: sinkB });
+
+    await expect(inFlight).rejects.toThrow("Fetch engine stopped");
+
+    // The old batch's network call finally resolves, well after the switch.
+    await fakeA.releaseAll();
+
+    expect(callsB.fetchStates["a.eval"]).toBeUndefined();
+    expect(callsB.writeDetails.some((batch) => "a.eval" in batch)).toBe(false);
+    const persistedB = await dbB.readFetchStates();
+    expect(persistedB["a.eval"]).toBeUndefined();
+  });
+});
+
+// F6: the dedupe-join branch used to ignore opts entirely — a `fresh: true`
+// join was silently dropped instead of re-arming for the next fetch.
+describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
+  it("a fresh fetch joining an in-flight fetch does not throw and shares the settle", async () => {
+    const fake = createFakeApi({ gated: true });
+    const { engine } = await createEngine({ api: fake.api });
+
+    const first = engine.fetch("a.eval", "user");
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    // The in-flight attempt already consumed its own fresh flag at read
+    // time, so this can't retroactively change ITS cached param — it must
+    // re-arm `_freshDetails` for the NEXT fetch instead of being dropped.
+    const second = engine.fetch("a.eval", "user", { fresh: true });
+
+    void fake.releaseAll();
+    const [firstDetails, secondDetails] = await Promise.all([first, second]);
+
+    expect(firstDetails).toEqual(secondDetails);
+    expect(fake.detailCalls.length).toBe(1);
   });
 });

@@ -22,15 +22,27 @@ export interface LogDataState<T> {
  * One log's details as a per-handle, db-backed cache entry. The `queryFn` is
  * the re-seed path only (an evicted/unmounted entry re-reads its IndexedDB
  * row on remount); the engine's sink pushes own freshness while the entry is
- * observed. Mounting is demand: each (dir, file) triggers a user-priority
- * engine fetch, whose read-through resolves instantly on a cached row and
- * refreshes in the background. Retrieval failures surface from the handle's
- * fetch-state, not from the query.
+ * observed. Mounting is demand: each (dir, file) triggers an engine fetch,
+ * whose read-through resolves instantly on a cached row and refreshes in the
+ * background. Retrieval failures surface from the handle's fetch-state, not
+ * from the query.
+ *
+ * `opts.demand` distinguishes WHO is asking: `"active"` (default `"passive"`)
+ * declares "someone is looking at this log" — only the selection binding
+ * (`useSelectedLogDetail`) uses it. Every other mount (sample-adjacent hooks:
+ * summaries, pending-samples, running-sample) just needs the data to exist,
+ * so it stays passive — ensure-presence only, never bumping
+ * `details_settled_seq` or forcing a server-cache-bypassing refresh. Without
+ * this split, switching tabs (mounting a passive consumer for the
+ * ALREADY-selected log) would refire `LogLoadController` as if a new log had
+ * loaded.
  */
 export const useLogDetail = (
   logDir: string,
-  logFile: string | undefined
+  logFile: string | undefined,
+  opts: { demand?: "active" | "passive" } = {}
 ): LogDataState<LogDetails> => {
+  const demand = opts.demand ?? "passive";
   const handles = useLogHandles(logDir);
   // The queryKey must use the resolved handle name so it matches sink pushes.
   const key =
@@ -57,9 +69,11 @@ export const useLogDetail = (
   useEffect(() => {
     if (logFile !== undefined) {
       // Failures land in fetch-state (surfaced below), not here.
-      void fetchLog(logDir, logFile).catch(() => {});
+      void fetchLog(logDir, logFile, { passive: demand !== "active" }).catch(
+        () => {}
+      );
     }
-  }, [logDir, logFile]);
+  }, [logDir, logFile, demand]);
   return useMemo(() => {
     const detail = data ?? undefined;
     const message =

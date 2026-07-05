@@ -19,12 +19,15 @@ import { useStore } from "../../../state/store";
  *
  * The effect keys off `details_settled_seq`, not `detail.data` identity: the
  * details cache entry also receives poll-tick merges (running logs), which
- * must not re-run this effect. Only a waitered fetch settling bumps the seq.
+ * must not re-run this effect. Only an ACTIVE waitered fetch settling bumps
+ * the seq — `demand: "active"` here declares that (the other, passive
+ * consumers of this same log — sample-adjacent hooks mounting elsewhere in
+ * the tree — must not be able to refire this controller just by mounting).
  */
 export const LogLoadController: FC = () => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const detail = useLogDetail(logDir, selectedLogFile);
+  const detail = useLogDetail(logDir, selectedLogFile, { demand: "active" });
   const key = selectedLogFile
     ? resolveLogKey(logDir, selectedLogFile)
     : undefined;

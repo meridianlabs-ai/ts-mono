@@ -124,18 +124,29 @@ describe("useLogDetail", () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("demands exactly one engine fetch per (dir, file) mount", async () => {
+  it("demands exactly one engine fetch per (dir, file) mount, passively by default", async () => {
     const { result, rerender } = renderHook(
       () => useLogDetail(LOG_DIR, LOG_FILE),
       { wrapper }
     );
 
     await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
-    expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE);
+    expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, { passive: true });
 
     rerender();
     expect(fetchLog).toHaveBeenCalledTimes(1);
     expect(result.current.loading).toBe(true);
+  });
+
+  it("demands actively when opted in (the selection binding)", async () => {
+    renderHook(() => useLogDetail(LOG_DIR, LOG_FILE, { demand: "active" }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
+    expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, {
+      passive: false,
+    });
   });
 
   it("re-seeds from the Dexie row on remount after eviction, without an engine settle", async () => {

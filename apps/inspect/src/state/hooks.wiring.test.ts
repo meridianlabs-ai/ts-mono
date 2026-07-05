@@ -64,7 +64,12 @@ describe("useSelectedLogDetail", () => {
 
     const { result } = renderHook(() => useSelectedLogDetail());
 
-    expect(useLogDetail).toHaveBeenCalledWith("/logs", "run.eval");
+    // Active demand: the selection binding is the one consumer that must
+    // bump the settle seq / trigger a background refresh (see F2 in
+    // fetchEngine.test.ts's "passive vs active demand" suite).
+    expect(useLogDetail).toHaveBeenCalledWith("/logs", "run.eval", {
+      demand: "active",
+    });
     expect(result.current).toBe(state);
   });
 });

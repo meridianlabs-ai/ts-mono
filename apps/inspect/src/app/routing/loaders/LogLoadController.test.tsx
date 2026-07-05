@@ -83,6 +83,29 @@ describe("LogLoadController", () => {
     expect(clearSelectedScores).toHaveBeenCalledTimes(2);
   });
 
+  // F2: LogLoadController must declare ACTIVE demand for the selected log —
+  // a passive-consumer mount elsewhere (a sample-adjacent hook, e.g. the
+  // Samples tab) must not be able to produce a settle-seq bump on its own,
+  // so it must not be able to refire this controller. Combined with
+  // fetchEngine's guarantee that a passive fetch() never bumps the seq
+  // (see fetchEngine.test.ts "FetchEngine passive vs active demand"), this
+  // wiring assertion closes the loop: the ONLY thing that can bump the seq
+  // for this log is this controller's own active demand.
+  it("requests active demand from useLogDetail (not the passive default)", () => {
+    useLogDetail.mockReturnValue({
+      data: makeDetails(1),
+      loading: false,
+      error: undefined,
+    });
+    useLogFetchState.mockReturnValue({ details_settled_seq: 1 });
+
+    render(<LogLoadController />);
+
+    expect(useLogDetail).toHaveBeenCalledWith("/logs", "run.eval", {
+      demand: "active",
+    });
+  });
+
   it("holds while settledSeq is undefined, then fires once it becomes defined", () => {
     // Data can precede the settle signal (a Dexie re-seed lands before the
     // engine's waitered settle bumps the seq) — the effect must hold.
