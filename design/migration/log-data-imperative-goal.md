@@ -142,6 +142,27 @@ merges**:
   (route-derived, not `selectedSampleHandle`) — fixes the stale-chip bug
   with no zustand semantics change.
 
+**`?log_file=xxx` vs `#/tasks/xxx` — why do two URL forms for "open this
+log" behave so differently?** (Pre-existing on main, not a branch change —
+raised here because the difference is non-obvious and feels arbitrary.)
+`?log_file=` is an *invocation-time* signal read once by `resolveApi`/
+`resolveAppConfig` (`app_config/`): it selects **single-file mode** — bare
+form resolves `staticHttpApi` (the app reads the `.eval` bytes relative to
+the page origin; against a dev/view server this 404s unless
+`&inspect_server=true` is added), no listing sync, no replication, no
+per-dir IndexedDB, and therefore no next/prev-log navigation. `#/tasks/xxx`
+is *navigation state* inside directory mode: full listing, replication,
+persistence, next/prev all work. So the same log opened via the two forms
+gets two different apps. The single-file semantics exist for genuinely
+listing-less hosting (S3/static export; VS Code embeds inject
+`#log_dir_context` instead) — but when the backend *can* list the directory
+(view server), forcing single-file mode is arbitrary: the dir is derivable
+from the file (`resolveAppConfig` already does this for the db handle).
+Question for Charles: should `?log_file=` against a listing-capable server
+just resolve to directory mode with the log selected (i.e., become a
+deep-link alias for `#/tasks/xxx`), reserving single-file mode for truly
+static hosting?
+
 ## Done when (all must hold)
 
 - `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` green (from
