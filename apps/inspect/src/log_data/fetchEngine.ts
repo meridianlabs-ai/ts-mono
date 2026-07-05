@@ -617,6 +617,11 @@ export class FetchEngine {
       deps.sink.mergeDetails({ [key]: cached });
       deps.sink.mergePreviews({ [key]: toLogPreview(cached) });
       this._pendingFetches.delete(key);
+      // A cache hit is a waitered success settle too — without this bump,
+      // already-cached logs never signal "landed" and settle-seq consumers
+      // (LogLoadController) hang on their guard. The background refresh below
+      // completes unwaitered and correctly does not bump.
+      this.bumpDetailsSettledSeq(key, deps);
       waiter.resolve(cached);
       // The row may be stale (e.g. edited server-side since it was cached);
       // refresh in the background at the caller's priority.

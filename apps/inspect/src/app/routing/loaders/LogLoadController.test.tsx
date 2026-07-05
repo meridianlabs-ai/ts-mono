@@ -83,7 +83,9 @@ describe("LogLoadController", () => {
     expect(clearSelectedScores).toHaveBeenCalledTimes(2);
   });
 
-  it("does not run the settle effect while settledSeq is undefined", () => {
+  it("holds while settledSeq is undefined, then fires once it becomes defined", () => {
+    // Data can precede the settle signal (a Dexie re-seed lands before the
+    // engine's waitered settle bumps the seq) — the effect must hold.
     useLogDetail.mockReturnValue({
       data: makeDetails(1),
       loading: false,
@@ -91,9 +93,14 @@ describe("LogLoadController", () => {
     });
     useLogFetchState.mockReturnValue(undefined);
 
-    render(<LogLoadController />);
-
+    const { rerender } = render(<LogLoadController />);
     expect(setLoadedLog).not.toHaveBeenCalled();
     expect(clearSelectedScores).not.toHaveBeenCalled();
+
+    // The waitered settle (cache hit or network) bumps the seq.
+    useLogFetchState.mockReturnValue({ details_settled_seq: 1 });
+    rerender(<LogLoadController />);
+    expect(setLoadedLog).toHaveBeenCalledTimes(1);
+    expect(clearSelectedScores).toHaveBeenCalledTimes(1);
   });
 });

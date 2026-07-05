@@ -784,9 +784,9 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
         preview_attempts: 1,
       });
     });
-    expect(
-      sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)
-    ).toBe(false);
+    expect(sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)).toBe(
+      false
+    );
   });
 
   it("a subsequent successful preview clears the recorded error", async () => {
@@ -837,9 +837,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     for (let i = 0; i < 5; i++) {
       engine.requestPreview("bad.eval", "background");
       await vi.waitFor(() => {
-        expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(
-          i + 1
-        );
+        expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(i + 1);
       });
     }
 
@@ -881,9 +879,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
       persistListing: true,
     });
     await tick();
-    expect(fake.detailCalls.map((call) => call.file)).not.toContain(
-      "bad.eval"
-    );
+    expect(fake.detailCalls.map((call) => call.file)).not.toContain("bad.eval");
 
     // The file changes on the server: invalidation wipes its fetch-state row.
     await engine.applyListing({
@@ -928,5 +924,67 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
       details_fetch_error: "fetch failed: a.eval",
       details_attempts: 0,
     });
+  });
+});
+
+// The settle seq is the controller's "a waitered fetch landed" signal: it must
+// bump on EVERY waitered success settle — including the read-through cache-hit
+// path, where the waiter resolves before any network completion — and never on
+// unwaitered (background) completions, which are poll/backfill noise.
+describe("FetchEngine details settle seq", () => {
+  it("bumps on a waitered network settle", async () => {
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    await engine.fetch("a.eval", "user");
+
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
+  });
+
+  it("bumps on a read-through cache hit (the waiter resolves without a network settle)", async () => {
+    const cached = makeDetails("a.eval", "success");
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ details: { "a.eval": cached } }),
+    });
+
+    await engine.fetch("a.eval", "user");
+
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
+  });
+
+  it("does not bump on an unwaitered background backfill completion", async () => {
+    const added = handle("added.eval", 1);
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb({ logs: [added] }),
+    });
+
+    await engine.applyListing({
+      listing: [added],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => {
+      expect(sinkCalls.writeDetails).toContainEqual({
+        "added.eval": makeDetails("added.eval"),
+      });
+    });
+    expect(sinkCalls.fetchStates["added.eval"]?.details_settled_seq ?? 0).toBe(
+      0
+    );
+  });
+
+  it("does not bump on a waitered failure", async () => {
+    const fake = createFakeApi({ failFor: ["a.eval"] });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    await expect(engine.fetch("a.eval", "user")).rejects.toThrow();
+
+    expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
   });
 });
