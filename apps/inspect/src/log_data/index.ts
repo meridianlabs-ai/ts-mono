@@ -75,7 +75,7 @@ export { imperativeLogData } from "./imperativeLogData";
 export { type LogDataState, useLogDetail } from "./logDetail";
 export {
   type LogHandleWithRetried,
-  useLogsWithRetried,
+  useLogHandlesWithRetried,
 } from "./logListing";
 export {
   resolveLogKey,

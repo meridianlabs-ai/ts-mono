@@ -11,9 +11,9 @@ import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogHandleWithRetried,
   useLogDetails,
+  useLogHandlesWithRetried,
   useLogPreviews,
   useLogsSync,
-  useLogsWithRetried,
 } from "../../log_data";
 import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
@@ -115,7 +115,7 @@ export const SamplesPanel: FC = () => {
   const currentDir = join(samplesPath || "", logDir);
 
   const evalSet = useEvalSet().data;
-  const logFiles = useLogsWithRetried(logDir);
+  const logFiles = useLogHandlesWithRetried(logDir);
   const logPreviews = useLogPreviews(logDir);
 
   const currentDirLogFiles = useMemo(() => {

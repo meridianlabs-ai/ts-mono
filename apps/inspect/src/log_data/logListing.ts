@@ -25,7 +25,7 @@ type LogPreviewStatusMap = Record<
 >;
 
 /**
- * Pure dedup logic for {@link useLogsWithRetried}.
+ * Pure dedup logic for {@link useLogHandlesWithRetried}.
  *
  * Groups logs by (parent directory, task_id) so that logs sharing a task_id
  * across different folders (e.g. copied log directories under a shared parent)
@@ -82,7 +82,9 @@ export const computeLogsWithRetried = (
   );
 };
 
-export const useLogsWithRetried = (logDir: string): LogHandleWithRetried[] => {
+export const useLogHandlesWithRetried = (
+  logDir: string
+): LogHandleWithRetried[] => {
   const logs = useLogHandles(logDir);
   const logPreviews = useLogPreviews(logDir);
 
