@@ -75,6 +75,9 @@ IN:
   *relocation*, not the details-read unification (OUT): query identity —
   which `LogLoadController` keys off as its "fetch settled" event — is
   unchanged by changing the query's home.
+  *(Since superseded: the unification landed — `useLogDetailQuery` was
+  absorbed into the tri-state `useLogDetail`, and `LogLoadController` keys
+  off `details_settled_seq`. See `log-data-unified-fetch-plan.md`.)*
 - **One api source.** log_data reads `getApi()` from app_config everywhere
   (it already does in `useLogsSync.ts`); `injectedApi`/`requireApi` die.
 - **`init` diet.** With the api param gone, `init`'s only job is

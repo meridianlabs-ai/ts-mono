@@ -93,14 +93,17 @@ invariant holds.
   is resident only while the sample is (recently) loaded. For surfaces that
   must stay fetch-free (e.g. the invalidation banner in the title bar);
   anything that *wants* the sample uses `useSampleData`.
-- `useLogDetailQuery(logDir, logFile)` (`log_data/logDetailQuery.ts`) — one
-  log's details as the fetch-trigger query and the loading/error surface (a
-  user-priority engine fetch; the engine's read-through makes a cached log
-  settle instantly with a background refresh). Consumers wanting the
-  freshest row read `useLogDetail`; refreshing is
+- `useLogDetail(logDir, logFile)` (`log_data/logDetail.ts`) — one log's
+  details as `LogDataState<LogDetails>` (`{data, loading, error}`): a
+  per-handle db-backed cache entry (evictable; the Dexie row re-seeds on
+  remount) whose mount demands a user-priority engine fetch (read-through:
+  a cached log settles instantly with a background refresh). `error` is the
+  log's recorded *retrieval* failure from the per-handle fetch-state — eval
+  errors are data inside `data`. Refreshing is
   `imperativeLogData.invalidateLogDetail`, never an imperative fetch.
 - the collection read accessors on `log_data/logsContent.ts`
-  (`useLogHandles` / `useLogPreviews` / `useLogDetails` / `useLogDetail`) and
+  (`useLogHandles` / `useLogPreviews` / `useLogDetails` — the latter a
+  transitional listing feed — and per-handle `useLogFetchState`) and
   `useDatabaseStats`.
 
 plus **`imperativeLogData`** (`log_data/imperativeLogData.ts`) — the single
@@ -113,8 +116,9 @@ The verbs: `invalidateLogDetail(logDir, logFile)` (user refresh / edit-save),
 subsystem wires itself lazily on first activation, reading the api from
 app_config. Growing the `ImperativeLogData` interface is a design decision,
 not a convenience. (`syncLogs` and `fetchLog` stay in-subsystem as the
-queryFns behind `useLogsSync` / `useLogDetailQuery`.) Consumers don't know a
-replicator or an engine exists; they subscribe to data and it stays current.
+queryFn behind `useLogsSync` and the mount-demand behind `useLogDetail`.)
+Consumers don't know a replicator or an engine exists; they subscribe to
+data and it stays current.
 
 **Interior** (sole consumers: each other):
 
@@ -137,8 +141,8 @@ Everything that follows from "the user is viewing this log" — thin
 param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
-- **Details-query binding** — `useSelectedLogQuery()` delegates to
-  `useLogDetailQuery(logDir, selectedLogFile)`; `useSelectedLogLoading()`
+- **Details binding** — `useSelectedLogDetail()` delegates to
+  `useLogDetail(logDir, selectedLogFile)`; `useSelectedLogLoading()`
   derives from it. Refresh = `imperativeLogData.invalidateLogDetail` (the
   `refreshLog` action) — there is no imperative refresh path.
   (`state/selectedLogDetails.ts`)
@@ -214,7 +218,7 @@ Server-data medium        react-query cache ←─ acquisition sink; queries:
        │                  log-detail, sample, running-sample,
        │                  pending samples, logs-sync, client-events, flow, eval-set
        ▼
-Log-data acquisition      surface: data hooks (useLogsSync / useLogDetailQuery /
+Log-data acquisition      surface: data hooks (useLogsSync / useLogDetail /
        │                  useSampleSummaries / useRunningMetrics /
        │                  useSampleData / usePassiveSampleData /
        │                  collection reads / useDatabaseStats) ·

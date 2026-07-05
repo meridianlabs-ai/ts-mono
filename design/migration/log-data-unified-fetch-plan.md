@@ -47,7 +47,7 @@ Consequences honored here:
 | `["log_data", "sample", logDir, logFile, id, epoch]` | `EvalSample` | queryFn fetch, gcTime 30s | unchanged |
 | `["log_data", "running-sample", logDir, logFile, id, epoch]` | stream state | queryFn | unchanged |
 | `["log_data", "pending-samples", logDir, logFile]` | pending-sample poll | queryFn | unchanged |
-| `["log_data", "details", logDir]` | whole-dir `Record` | — | **removed (Task 4)** |
+| `["log_data", "details", logDir]` | whole-dir `Record` | passive container, sink merges (dual-written alongside per-handle entries) | **transitional** — retained as the listing-shaped feed for samples mode / listing columns (`SamplesPanel`, `LogListGrid`, `columns/hooks` aggregate across all logs); removal belongs to the samples-table/paged migration |
 | `["log_data", "listing", logDir, filter, orderBy, pageSize]` (infinite) | preview pages from Dexie | — | future, not this plan |
 | `["log_data", "sample_summaries", logDir, name, filter, orderBy, pageSize]` (infinite) | summary pages from Dexie | — | future, not this plan |
 
@@ -275,7 +275,7 @@ export const useLogFetchState = (
 
 **Engine behavior:**
 - On a settled *failure* (from Task 1's `onComplete`): upsert the file's fetch-state — set `<kind>_fetch_error = error.message`, increment `<kind>_attempts`, stamp `updated_at`. Applies to background AND waitered fetches (waiter still rejects too).
-- On a settled *success*: if the file has a fetch-state row with that kind's error/attempts set, clear them (write only when needed — no churn). Details success with a waiter also increments `details_settled_seq` (cache-only `mergeFetchStates` is fine).
+- On a settled *success*: if the file has a fetch-state row with that kind's error/attempts set, clear them (write only when needed — no churn). Details success with a waiter also increments `details_settled_seq` (cache-only `mergeFetchStates` is fine) — at EVERY waitered success settle, including `beginFetch`'s read-through cache-hit resolution, not just network completions in `onDetailsComplete`; otherwise the seq never fires for already-cached logs and `LogLoadController` goes dead on the majority path. Error rejections do not bump.
 - Backfill gating (`queueDetailBackfill`/`queuePreviewBackfill`): partition `findMissing*` results by fetch-state: `attempts >= kMaxFetchAttempts (= 5)` → skip (recorded, gave up); `attempts > 0` → enqueue at `WorkPriority.Low`; else current priority. Invalidation (`clearFile`) wipes the row, so a changed file retries from scratch — the existing mtime invalidation is the natural reset.
 - `start()`: after seeding collections, read fetch-states, zero all `*_attempts` (keep the error text), write back, and merge into cache — a restart retries everything once more but the last error stays visible until it's superseded.
 
@@ -289,7 +289,7 @@ export const useLogFetchState = (
 
 ### Task 4: Details per-handle (db-backed, GC-able) + tri-state hook; absorb useLogDetailQuery
 
-Details get their end-state cache shape: one query per handle whose `queryFn` reads the Dexie row. Eviction is desired — IndexedDB re-seeds on remount. The whole-dir details `Record` collection is deleted. (Previews intentionally untouched — see north star.)
+Details get their end-state cache shape for the detail-view path: one query per handle whose `queryFn` reads the Dexie row. Eviction is desired — IndexedDB re-seeds on remount. The whole-dir details `Record` collection is RETAINED as a transitional listing feed (samples mode and listing columns aggregate details across all logs: `SamplesPanel.tsx`, `LogListGrid.tsx`, `columns/hooks.tsx`) — the sink dual-writes it alongside guarded per-handle pushes, `start()` keeps its bulk seed, and its removal belongs to the samples-table/paged migration. (Previews likewise untouched — see north star.)
 
 **Files:**
 - Modify: `apps/inspect/src/log_data/logsContent.ts` (per-handle detail entries, sink rework, `useLogDetail` reshape, delete `useLogDetails`/`logDetailsKey`)

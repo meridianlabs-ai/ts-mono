@@ -236,6 +236,9 @@ Recorded as they land so the test sweep can distinguish intent from regression:
 - **User detail fetches and background preview backfill share one priority-ordered queue (global concurrency 6)** — a user click front-runs backfill instead of competing with it for the browser connection pool; one bad file in a preview batch no longer drops the other 23.
 - **Retrieval failures are now recorded per handle** (`log_fetch_state` table + per-handle cache mirror) instead of dropped on the floor; backfill retries recorded-failed logs at Low priority and gives up after 5 attempts (mtime invalidation or restart re-arms). Listing rows still omit failed logs — recording only, no new UI.
 - **IndexedDB schema v10** — first load after this change deletes and recreates each per-dir database (cold cache; replication refills it). One-time, expected.
+- **Opening a db-cached mid-run log renders its provisional row immediately** while the fresh read runs (the old selected-log query blanked to loading until the fresh read settled). `LogLoadController` still waits for the settle seq, so per-log state resets don't run early.
+- **The selected-log ErrorPanel is now fed by the recorded per-handle fetch-state** (`useLogDetail(...).error`), not a react-query error object — so a log whose background replication failed shows its error as soon as it's selected, instead of re-discovering the failure. `useLogDetailQuery`/`useSelectedLogQuery` no longer exist; details are per-handle, db-backed, GC-able cache entries (`log_data/logDetail.ts`).
+- **Sample-adjacent hooks (`sampleSummaries`/`pendingSamples`/`runningSampleQuery`) now demand-fetch their log's details on mount** (engine-deduped) instead of relying on the selected-log query being mounted elsewhere in the tree.
 
 ### logDir gate & content-in-react-query follow-ups
 

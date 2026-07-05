@@ -84,6 +84,11 @@ OUT (future goals):
   `LogLoadController`'s "fetch settled" event before `useLogDetail` can
   absorb `fetchLog` — separate goal. `fetchLog` stays on
   `imperativeLogData` until then.
+  *(Since landed: `useLogDetail` is a per-handle db-backed tri-state hook
+  whose mount demands the fetch; the query and `useSelectedLogQuery` are
+  gone; the controller keys off `details_settled_seq`. The `useLogDetails`
+  collection remains as a transitional listing feed. See
+  `log-data-unified-fetch-plan.md`.)*
 - Collection-identity churn workarounds (`useStableValue` at
   `grid/columns/hooks.tsx:110`) — symptom of the details-read grain; same
   future goal.
