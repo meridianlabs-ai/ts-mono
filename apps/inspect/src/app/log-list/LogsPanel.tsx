@@ -15,9 +15,9 @@ import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { useLogPreviews, useLogsSync } from "../../log_data";
+import { useLogPreviews, useLogsSync, useLogsWithRetried } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
-import { useLogsListing, useLogsWithRetried } from "../../state/hooks";
+import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
@@ -61,7 +61,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.setShowRetriedLogs
   );
   const logDir = useLogDir();
-  const logFiles = useLogsWithRetried();
+  const logFiles = useLogsWithRetried(logDir);
   const evalSet = useEvalSet().data;
   const logPreviews = useLogPreviews(logDir);
   // Defer previews so the burst of preview flushes during initial sync
