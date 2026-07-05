@@ -14,13 +14,22 @@ not around wire payloads:
   to a Log. (`EvalSample` remains the on-demand deep form of a sample —
   unchanged by this goal.)
 
-`LogPreview` and `LogDetails` are **transport shapes**, not entities: a
-preview is a cheap projection of a Log; a details response is a deeper
-projection of the same Log *bundled with rows of a different entity* (its
-sample summaries). Today those payload shapes leak all the way up — cache
-keys, Dexie tables, hook names, and panels that hand-join
-handles ⋈ previews ⋈ details by name. The goal: **normalize at the sink,
-denormalize in queries.** The engine keeps fetching whatever the endpoints
+**The motivating principle — everything else in this doc serves it: the
+acquisition tiering must not leak upward.** The tiers exist because of
+fetch physics (a dir stat is cheap; a preview cracks the log zip for a
+small JSON; summaries crack it for a large one) — they are *how the engine
+schedules work*, and they must remain fully intact there. But today the
+tiers leak all the way up the stack: `LogPreview` and `LogDetails` are
+**transport shapes**, not entities (a preview is a cheap projection of a
+Log; a details response is a deeper projection of the same Log *bundled
+with rows of a different entity* — its sample summaries), yet those payload
+shapes name our cache keys, Dexie tables, and public hooks, and force
+panels to hand-join handles ⋈ previews ⋈ details by name. Every consumer
+has to know which endpoint its data rode in on. That leakage — not naming,
+not tidiness — is what this goal removes. The test for every design
+decision here: *could a panel author, seeing only the public surface, tell
+that previews and details are fetched separately?* If yes, the tier has
+leaked. The goal: **normalize at the sink, denormalize in queries.** The engine keeps fetching whatever the endpoints
 give it (that's acquisition); the sink splits payloads into entity stores at
 write time; consumers ask domain questions and never learn which endpoint
 the answer rode in on. Dexie is the entity store; react-query is the
@@ -124,6 +133,11 @@ OUT (future goals):
     production call sites unchanged (client-api + engine only).
   - Scorer columns derive from the subsystem query, not from a details map
     in `app/`.
+- **Leakage audit** (the motivating principle, judged not grepped): no
+  module outside `log_data/` decides *when or whether* a tier is fetched,
+  branches on which payload carried a fact, or could reveal to its reader
+  that previews and details are separate fetches. Depth may be *read* off a
+  row and *requested* as a demand hint — never dispatched on as a type.
 - Tiered-UX parity, verified against a live dir (the branch's two-viewer
   setup): listing rows appear from the dir stat before previews land;
   preview first-wave still front-runs summary backfill (cold-dir test);
