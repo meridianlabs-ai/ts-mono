@@ -11,10 +11,7 @@ import { useAppConfig, useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
 import { useLogHandles } from "../../log_data";
-import {
-  useSelectedLogLoading,
-  useSelectedLogQuery,
-} from "../../state/selectedLogDetails";
+import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
@@ -25,9 +22,8 @@ import { LogView } from "./LogView";
  * AppContent component with the main UI layout
  */
 export const LogViewLayout: FC = () => {
-  // Loading/error for the open log derive from the details query.
-  const logLoading = useSelectedLogLoading();
-  const logError = useSelectedLogQuery().error;
+  // Loading/error for the open log derive from the selected log's details.
+  const { loading: logLoading, error: logError } = useSelectedLogDetail();
 
   // Find
   const showFind = useStore((state) => state.app.showFind);

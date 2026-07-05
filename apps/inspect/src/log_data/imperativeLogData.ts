@@ -1,5 +1,5 @@
 import { fetchEngine } from "./fetchEngine";
-import { invalidateLogDetail } from "./logDetailQuery";
+import { fetchLog } from "./replicationControl";
 import { invalidateLogListing } from "./useLogsSync";
 
 /**
@@ -29,7 +29,12 @@ export interface ImperativeLogData {
 }
 
 export const imperativeLogData: ImperativeLogData = {
-  invalidateLogDetail,
+  invalidateLogDetail: (logDir, logFile) => {
+    if (logFile === undefined) return;
+    // fresh: true bypasses the read-through's cached-row shortcut — the
+    // caller (toolbar refresh / edit-save) knows the row is stale.
+    void fetchLog(logDir, logFile, { fresh: true }).catch(() => {});
+  },
   invalidateLogListing,
   clearData: () => {
     fetchEngine.clearData();

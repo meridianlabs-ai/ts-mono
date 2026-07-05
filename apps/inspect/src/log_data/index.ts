@@ -50,7 +50,7 @@
 //                 dir fresh; its `scope` keys a panel's subscription so
 //                 navigating re-syncs. ListingStatus (busy, error) is its
 //                 one progress signal.
-// - invalidate    Mark a query stale so mounted subscribers re-fetch.
+// - invalidate    Force a fresh read so mounted subscribers pick it up.
 //                 Fire-and-forget: consequences are observed through the
 //                 hooks, never awaited. Both imperative freshness verbs are
 //                 invalidations — invalidateLogDetail (one log's details),
@@ -73,8 +73,13 @@
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
 export { type LogDataState, useLogDetail } from "./logDetail";
-export { useLogDetailQuery } from "./logDetailQuery";
-export { useLogDetails, useLogHandles, useLogPreviews } from "./logsContent";
+export {
+  resolveLogKey,
+  useLogDetails,
+  useLogFetchState,
+  useLogHandles,
+  useLogPreviews,
+} from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
   type SampleData,

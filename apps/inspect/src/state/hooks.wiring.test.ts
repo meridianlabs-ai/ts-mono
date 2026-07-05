@@ -1,21 +1,23 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-
-import { loading } from "@tsmono/util";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RunningMetric, SampleSummary } from "../client/api/types";
+import { LogDataState } from "../log_data";
 
 import { useSelectedRunningMetrics, useSelectedSampleSummaries } from "./hooks";
-import { useSelectedLogQuery } from "./selectedLogDetails";
+import {
+  useSelectedLogDetail,
+  useSelectedLogLoading,
+} from "./selectedLogDetails";
 
 // Thin wiring test: the binding reads the selection and delegates to the
 // param-driven acquisition hook — mock both sides and assert the plumbing.
-const useLogDetailQuery = vi.hoisted(() => vi.fn());
+const useLogDetail = vi.hoisted(() => vi.fn());
 const useRunningMetrics = vi.hoisted(() => vi.fn());
 const useSampleSummaries = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../log_data")>()),
-  useLogDetailQuery,
+  useLogDetail,
   useRunningMetrics,
   useSampleSummaries,
 }));
@@ -25,10 +27,18 @@ vi.mock("../app_config", () => ({
   useLogDir: () => "/logs",
 }));
 
+// Mutable so the "no file selected" test (e) can override selectedLogFile.
+const storeState: { selectedLogFile: string | undefined } = vi.hoisted(() => ({
+  selectedLogFile: "run.eval",
+}));
 vi.mock("./store", () => ({
   useStore: (selector: (state: unknown) => unknown) =>
-    selector({ logs: { selectedLogFile: "run.eval" } }),
+    selector({ logs: { selectedLogFile: storeState.selectedLogFile } }),
 }));
+
+beforeEach(() => {
+  storeState.selectedLogFile = "run.eval";
+});
 
 describe("useSelectedRunningMetrics", () => {
   it("delegates to useRunningMetrics with the selected log", () => {
@@ -42,14 +52,35 @@ describe("useSelectedRunningMetrics", () => {
   });
 });
 
-describe("useSelectedLogQuery", () => {
-  it("delegates to useLogDetailQuery with the selected log", () => {
-    useLogDetailQuery.mockReturnValue(loading);
+describe("useSelectedLogDetail", () => {
+  it("delegates to useLogDetail with the selected log", () => {
+    const state: LogDataState<unknown> = {
+      data: undefined,
+      loading: true,
+      error: undefined,
+    };
+    useLogDetail.mockReturnValue(state);
+    storeState.selectedLogFile = "run.eval";
 
-    const { result } = renderHook(() => useSelectedLogQuery());
+    const { result } = renderHook(() => useSelectedLogDetail());
 
-    expect(useLogDetailQuery).toHaveBeenCalledWith("/logs", "run.eval");
-    expect(result.current).toBe(loading);
+    expect(useLogDetail).toHaveBeenCalledWith("/logs", "run.eval");
+    expect(result.current).toBe(state);
+  });
+});
+
+describe("useSelectedLogLoading", () => {
+  it("is false when no file is selected", () => {
+    useLogDetail.mockReturnValue({
+      data: undefined,
+      loading: false,
+      error: undefined,
+    });
+    storeState.selectedLogFile = undefined;
+
+    const { result } = renderHook(() => useSelectedLogLoading());
+
+    expect(result.current).toBe(false);
   });
 });
 
