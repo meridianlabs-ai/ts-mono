@@ -18,10 +18,16 @@
 // Log content (the same log file, at increasing depth = increasing cost;
 // each tier exists because fetching the next one for every log would be too
 // expensive)
-// - listing       The set of LogHandles currently known for a log dir.
+// - listing       The set of log files currently known for a log dir, read
+//                 as LogListingRows.
+// - LogListingRow One log file's row in the listing: its handle, retried
+//                 marking, and preview (absent until acquired). The one shape
+//                 listing surfaces render; the handles ⋈ previews join is
+//                 subsystem-private.
 // - LogPreview    The cheap projection of one log (status, task, model,
 //                 primary metric) — fetched first for every log in a dir, so
-//                 a large directory's grid renders immediately.
+//                 a large directory's grid renders immediately. Surfaces as
+//                 a LogListingRow's `preview`, never as its own collection.
 // - LogDetails    The full parsed content of one log: spec, plan, results,
 //                 stats, and its sample summaries. Backfilled dir-wide in the
 //                 background (grid scorer columns need full results);
@@ -64,7 +70,8 @@
 //                 the replica holds.
 //
 // Relationships
-// - A log dir has one listing; a listing has many LogHandles.
+// - A log dir has one listing; a listing has many LogListingRows, each
+//   wrapping one LogHandle.
 // - LogHandle → LogPreview → LogDetails: one log file at increasing depth;
 //   LogDetails owns the log's SampleSummaries.
 // - SampleSummary → EvalSample: one sample at increasing depth; the
@@ -73,15 +80,11 @@
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
 export { type LogDataState, useLogDetail } from "./logDetail";
-export {
-  type LogHandleWithRetried,
-  useLogHandlesWithRetried,
-} from "./logListing";
+export { type LogListingRow, useLogListing } from "./logListing";
 export {
   resolveLogKey,
   useLogDetails,
   useLogFetchState,
-  useLogPreviews,
 } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {

@@ -9,10 +9,9 @@ import { ProgressBar } from "@tsmono/react/components";
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
-  LogHandleWithRetried,
+  LogListingRow,
   useLogDetails,
-  useLogHandlesWithRetried,
-  useLogPreviews,
+  useLogListing,
   useLogsSync,
 } from "../../log_data";
 import { selectSample } from "../../state/actions";
@@ -115,8 +114,7 @@ export const SamplesPanel: FC = () => {
   const currentDir = join(samplesPath || "", logDir);
 
   const evalSet = useEvalSet().data;
-  const logFiles = useLogHandlesWithRetried(logDir);
-  const logPreviews = useLogPreviews(logDir);
+  const logFiles = useLogListing(logDir);
 
   const currentDirLogFiles = useMemo(() => {
     const files = [];
@@ -144,13 +142,12 @@ export const SamplesPanel: FC = () => {
   const completedTaskCount = useMemo(() => {
     let count = 0;
     for (const logFile of currentDirLogFiles) {
-      const preview = logPreviews[logFile.name];
-      if (preview && preview.status !== "started") {
+      if (logFile.preview && logFile.preview.status !== "started") {
         count++;
       }
     }
     return count;
-  }, [logPreviews, currentDirLogFiles]);
+  }, [currentDirLogFiles]);
 
   // Filter logDetails based on samplesPath.
   const logDetailsInPath = useMemo(() => {
@@ -253,7 +250,7 @@ export const SamplesPanel: FC = () => {
 
     let anyLogInCurrentDirCouldBeSkipped = false;
     const logInCurrentDirByName = currentDirLogFiles.reduce(
-      (acc: Record<string, LogHandleWithRetried>, log) => {
+      (acc: Record<string, LogListingRow>, log) => {
         if (log.retried) anyLogInCurrentDirCouldBeSkipped = true;
         acc[log.name] = log;
         return acc;

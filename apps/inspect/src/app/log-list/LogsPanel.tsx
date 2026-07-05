@@ -1,12 +1,5 @@
 import clsx from "clsx";
-import {
-  FC,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
@@ -15,11 +8,7 @@ import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import {
-  useLogHandlesWithRetried,
-  useLogPreviews,
-  useLogsSync,
-} from "../../log_data";
+import { useLogListing, useLogsSync } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -65,12 +54,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.setShowRetriedLogs
   );
   const logDir = useLogDir();
-  const logFiles = useLogHandlesWithRetried(logDir);
+  const logFiles = useLogListing(logDir);
   const evalSet = useEvalSet().data;
-  const logPreviews = useLogPreviews(logDir);
-  // Defer previews so the burst of preview flushes during initial sync
-  // can't block input — see the matching note in LogListGrid.
-  const deferredLogPreviews = useDeferredValue(logPreviews);
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const navigate = useNavigate();
@@ -128,7 +113,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: tasksUrl(decodedPath, logDir),
             log: logFile,
-            logPreview: deferredLogPreviews[logFile.name],
+            logPreview: logFile.preview,
           });
         }
       }
@@ -205,7 +190,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: logsUrl(path, logDir),
             log: logFile,
-            logPreview: deferredLogPreviews[logFile.name],
+            logPreview: logFile.preview,
           });
         }
       } else if (name.startsWith(dirWithSlash)) {
@@ -237,15 +222,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     );
 
     return [_logFiles, _hasRetriedLogs];
-  }, [
-    mode,
-    evalSet,
-    logFiles,
-    currentDir,
-    logDir,
-    deferredLogPreviews,
-    showRetriedLogs,
-  ]);
+  }, [mode, evalSet, logFiles, currentDir, logDir, showRetriedLogs]);
 
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.

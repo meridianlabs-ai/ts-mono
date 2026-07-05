@@ -1,15 +1,18 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { EvalLogStatus } from "../@types/extraInspect";
+import { LogPreview } from "../client/api/types";
 
 import { useLogHandles, useLogPreviews } from "./logsContent";
 
 /**
- * The listing read: the directory's logs with retried runs marked — the
- * handles ⋈ previews join, derived entirely from this subsystem's
- * collections. Lives here (not in state/) so the paged-listing migration can
+ * The listing read: one row per log file in the directory — its handle,
+ * retried marking, and preview content. The join across this subsystem's
+ * collections happens here, once; consumers never learn that handles and
+ * previews arrive by separate fetches beyond `preview` being briefly
+ * undefined. Lives here (not in state/) so the paged-listing migration can
  * swap its internals (whole-dir join → paged Dexie query) without touching
  * consumers.
  */
@@ -19,13 +22,20 @@ const isActiveStatus = (status: EvalLogStatus | undefined) =>
 
 export type LogHandleWithRetried = LogHandle & { retried?: boolean };
 
+/**
+ * One log file's row in the listing. `preview` is optional because preview
+ * content genuinely lags handle discovery — the acquisition tiering expressed
+ * as a single nullable field, not a separate collection.
+ */
+export type LogListingRow = LogHandleWithRetried & { preview?: LogPreview };
+
 type LogPreviewStatusMap = Record<
   string,
   { status?: EvalLogStatus } | undefined
 >;
 
 /**
- * Pure dedup logic for {@link useLogHandlesWithRetried}.
+ * Pure dedup logic for {@link useLogListing}.
  *
  * Groups logs by (parent directory, task_id) so that logs sharing a task_id
  * across different folders (e.g. copied log directories under a shared parent)
@@ -82,14 +92,20 @@ export const computeLogsWithRetried = (
   );
 };
 
-export const useLogHandlesWithRetried = (
-  logDir: string
-): LogHandleWithRetried[] => {
+export const useLogListing = (logDir: string): LogListingRow[] => {
   const logs = useLogHandles(logDir);
   const logPreviews = useLogPreviews(logDir);
+  // Deferred so the burst of preview flushes during initial sync can't block
+  // click/scroll input — rows render from the prior previews and catch up
+  // when the main thread is idle.
+  const deferredPreviews = useDeferredValue(logPreviews);
 
   return useMemo(
-    () => computeLogsWithRetried(logs, logPreviews),
-    [logs, logPreviews]
+    () =>
+      computeLogsWithRetried(logs, deferredPreviews).map((log) => ({
+        ...log,
+        preview: deferredPreviews[log.name],
+      })),
+    [logs, deferredPreviews]
   );
 };
