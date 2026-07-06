@@ -11,12 +11,12 @@ import { LogLoadController } from "./LogLoadController";
 // identity — a running log's details cache entry also receives poll-tick
 // merges, which must not re-run the settle effect. Mock the log_data hooks so
 // the two signals (data identity, settled seq) can be driven independently.
-const useLog = vi.hoisted(() => vi.fn());
+const useLogHeader = vi.hoisted(() => vi.fn());
 const resolveLogKey = vi.hoisted(() => vi.fn());
 const useLogFetchState = vi.hoisted(() => vi.fn());
 vi.mock("../../../log_data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../log_data")>()),
-  useLog,
+  useLogHeader,
   resolveLogKey,
   useLogFetchState,
 }));
@@ -49,7 +49,7 @@ beforeEach(() => {
   setLoadedLog.mockReset();
   clearSelectedScores.mockReset();
   setWorkspaceTab.mockReset();
-  useLog.mockReset();
+  useLogHeader.mockReset();
   resolveLogKey.mockReset();
   resolveLogKey.mockReturnValue("run.eval");
   useLogFetchState.mockReset();
@@ -57,7 +57,7 @@ beforeEach(() => {
 
 describe("LogLoadController", () => {
   it("refires the settle effect on a settled-seq bump, not on a data-identity-only change", () => {
-    useLog.mockReturnValue({
+    useLogHeader.mockReturnValue({
       data: makeDetails(1),
       loading: false,
       error: undefined,
@@ -69,7 +69,7 @@ describe("LogLoadController", () => {
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);
 
     // Poll-tick merge: a new details object, same settled seq — must NOT refire.
-    useLog.mockReturnValue({
+    useLogHeader.mockReturnValue({
       data: makeDetails(2),
       loading: false,
       error: undefined,
@@ -93,8 +93,8 @@ describe("LogLoadController", () => {
   // (see fetchEngine.test.ts "FetchEngine passive vs active demand"), this
   // wiring assertion closes the loop: the ONLY thing that can bump the seq
   // for this log is this controller's own active demand.
-  it("requests active demand from useLog (not the passive default)", () => {
-    useLog.mockReturnValue({
+  it("requests active demand from useLogHeader (not the passive default)", () => {
+    useLogHeader.mockReturnValue({
       data: makeDetails(1),
       loading: false,
       error: undefined,
@@ -103,7 +103,7 @@ describe("LogLoadController", () => {
 
     render(<LogLoadController />);
 
-    expect(useLog).toHaveBeenCalledWith("/logs", "run.eval", {
+    expect(useLogHeader).toHaveBeenCalledWith("/logs", "run.eval", {
       demand: "active",
     });
   });
@@ -111,7 +111,7 @@ describe("LogLoadController", () => {
   it("holds while settledSeq is undefined, then fires once it becomes defined", () => {
     // Data can precede the settle signal (a Dexie re-seed lands before the
     // engine's waitered settle bumps the seq) — the effect must hold.
-    useLog.mockReturnValue({
+    useLogHeader.mockReturnValue({
       data: makeDetails(1),
       loading: false,
       error: undefined,

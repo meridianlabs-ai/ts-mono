@@ -53,7 +53,7 @@ const useLogRow = (
  * (mounting a passive consumer for the ALREADY-selected log) would refire
  * `LogLoadController` as if a new log had loaded.
  */
-export const useLog = (
+export const useLogHeader = (
   logDir: string,
   logFile: string | undefined,
   opts: { demand: "active" | "passive" }
@@ -65,8 +65,7 @@ export const useLog = (
   const key =
     logFile === undefined
       ? undefined
-      : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ??
-        logFile);
+      : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ?? logFile);
   const row = useLogRow(logDir, key);
   useEffect(() => {
     if (logFile !== undefined) {
@@ -101,7 +100,7 @@ export const useLog = (
  * A single log's retrieval facts (fetch errors/attempts/settled-seq — a
  * domain separate from eval status/error), for detail-path consumers (e.g.
  * a badge on the currently-open log, the load controller's settle guard).
- * Reads the same per-entity row `useLog` does; mounting it is what makes the
+ * Reads the same per-entity row `useLogHeader` does; mounting it is what makes the
  * row's engine pushes observed instead of guarded no-ops. `name` must be the
  * resolved row name; idles (reads as loading) without one. `data` is
  * undefined when the row isn't resident yet.

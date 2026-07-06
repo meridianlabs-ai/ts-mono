@@ -7,7 +7,7 @@ import { Log, LogDetails } from "../client/api/types";
 import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
-import { useLog } from "./log";
+import { useLogHeader } from "./log";
 import { clearFile, logKey, logsKey, writeDetails } from "./logsContent";
 
 const fetchLog = vi.hoisted(() => vi.fn());
@@ -70,11 +70,14 @@ afterEach(() => {
   queryClient.clear();
 });
 
-describe("useLog", () => {
+describe("useLogHeader", () => {
   it("reports loading while there is neither data nor a retrieval error", async () => {
-    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
 
     await waitFor(() => expect(result.current.loading).toBe(true));
     expect(result.current.data).toBeUndefined();
@@ -82,9 +85,12 @@ describe("useLog", () => {
   });
 
   it("is not loading when no file is given", () => {
-    const { result } = renderHook(() => useLog(LOG_DIR, undefined, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, undefined, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
 
     expect(result.current.loading).toBe(false);
     expect(result.current.data).toBeUndefined();
@@ -95,9 +101,12 @@ describe("useLog", () => {
     db.opened.mockReturnValue(true);
     db.readLogRow.mockResolvedValue(erroredRow(LOG_FILE, "boom"));
 
-    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
 
     await waitFor(() => expect(result.current.error?.message).toBe("boom"));
     expect(result.current.data).toBeUndefined();
@@ -112,9 +121,12 @@ describe("useLog", () => {
     db.opened.mockReturnValue(true);
     db.readLogRow.mockResolvedValue(row);
 
-    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
 
     await waitFor(() => expect(result.current.data).toBe(row.header));
     expect(result.current.error).toBeUndefined();
@@ -122,9 +134,12 @@ describe("useLog", () => {
   });
 
   it("demands exactly one engine fetch per (dir, file) mount, passively by default", async () => {
-    const { result, rerender } = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result, rerender } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
 
     await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
     expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, { passive: true });
@@ -135,7 +150,7 @@ describe("useLog", () => {
   });
 
   it("demands actively when opted in (the selection binding)", async () => {
-    renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "active" }), {
+    renderHook(() => useLogHeader(LOG_DIR, LOG_FILE, { demand: "active" }), {
       wrapper,
     });
 
@@ -150,18 +165,24 @@ describe("useLog", () => {
     db.opened.mockReturnValue(true);
     db.readLogRow.mockResolvedValue(row);
 
-    const first = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const first = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(first.result.current.data).toBe(row.header));
     first.unmount();
 
     // Simulate gc eviction of the idle entry.
     queryClient.removeQueries({ queryKey: logKey(LOG_DIR, LOG_FILE) });
 
-    const second = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const second = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(second.result.current.data).toBe(row.header));
     expect(db.readLogRow).toHaveBeenCalledTimes(2);
     second.unmount();
@@ -169,9 +190,12 @@ describe("useLog", () => {
 
   it("receives sink pushes while mounted", async () => {
     const details = makeDetails(LOG_FILE);
-    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "passive" }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(result.current.loading).toBe(true));
 
     await writeDetails(null, LOG_DIR, { [LOG_FILE]: details });

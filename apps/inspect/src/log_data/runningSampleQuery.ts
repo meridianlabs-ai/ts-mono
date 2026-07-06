@@ -9,7 +9,7 @@ import { SampleHandle } from "../app/types";
 import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
-import { useLog } from "./log";
+import { useLogHeader } from "./log";
 import { resolveLogKey } from "./logsContent";
 import {
   fetchSample,
@@ -212,7 +212,7 @@ export const useRunningSample = (
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {
-  const logStatus = useLog(logDir, handle?.logFile, { demand: "passive" })
+  const logStatus = useLogHeader(logDir, handle?.logFile, { demand: "passive" })
     .data?.status;
   const enabled = shouldStreamRunningSample({
     handle,

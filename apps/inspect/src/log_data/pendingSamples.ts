@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import {
   AsyncData,
-  createLogger,
   data as asyncData,
+  createLogger,
   map as mapAsyncData,
 } from "@tsmono/util";
 
@@ -20,7 +20,7 @@ import {
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
-import { useLog } from "./log";
+import { useLogHeader } from "./log";
 
 const log = createLogger("pendingSamples");
 
@@ -102,7 +102,10 @@ export const fetchPendingSamples = async (
   } else if (response.status === "NotFound") {
     // Buffer gone: await the details refresh so the pending rows are dropped
     // only once the fresh summaries/status (which may end the poll) are in.
-    await fetchEngine.ensure(logFile, { depth: "detailed", priority: "elevated" });
+    await fetchEngine.ensure(logFile, {
+      depth: "detailed",
+      priority: "elevated",
+    });
   }
   return nextPendingSamples(prev, response);
 };
@@ -119,7 +122,7 @@ export const usePendingSamples = (
   logFile: string | undefined
 ): AsyncData<PendingSamples | undefined> => {
   const api = getApi();
-  const liveStatus = useLog(logDir, logFile, { demand: "passive" }).data
+  const liveStatus = useLogHeader(logDir, logFile, { demand: "passive" }).data
     ?.status;
   const enabled =
     shouldPollPendingSamples({

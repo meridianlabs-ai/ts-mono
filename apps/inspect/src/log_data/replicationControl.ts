@@ -99,7 +99,7 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
  * subscriber has activated). `opts` threads through to `engine.fetch`:
  * `fresh` for callers that know the cached row is stale (e.g. after an
  * edit), `passive` for ensure-presence callers that don't want to declare
- * active interest (see `useLog`'s `demand` option).
+ * active interest (see `useLogHeader`'s `demand` option).
  */
 export const fetchLog = async (
   logDir: string,
