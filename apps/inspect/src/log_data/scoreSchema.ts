@@ -1,4 +1,7 @@
-import { useMemo } from "react";
+import { useCallback } from "react";
+
+import { useMapAsyncData } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
 import { Log } from "../client/api/types";
 import { useStableValue } from "../app/shared/useStableValue";
@@ -102,13 +105,28 @@ export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
  * so consumers (and the column defs keyed on it) keep a stable reference
  * across flushes.
  */
+const asyncScorerMapsEqual = (
+  a: AsyncData<ScorerMap>,
+  b: AsyncData<ScorerMap>
+): boolean =>
+  a.loading === b.loading &&
+  a.error === b.error &&
+  (a.data !== undefined && b.data !== undefined
+    ? scorerMapsEqual(a.data, b.data)
+    : a.data === b.data);
+
 export const useScoreSchema = (
   logDir: string,
   scopePrefix?: string
-): ScorerMap => {
+): AsyncData<ScorerMap> => {
   const logs = useLogs(logDir);
   return useStableValue(
-    useMemo(() => computeScorerMap(logs, scopePrefix), [logs, scopePrefix]),
-    scorerMapsEqual
+    useMapAsyncData(
+      logs,
+      useCallback((rows: Log[]) => computeScorerMap(rows, scopePrefix), [
+        scopePrefix,
+      ])
+    ),
+    asyncScorerMapsEqual
   );
 };

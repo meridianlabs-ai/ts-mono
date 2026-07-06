@@ -1,6 +1,13 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
+import { useMemo } from "react";
 
-import { createLogger } from "@tsmono/util";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import {
+  AsyncData,
+  createLogger,
+  data as asyncData,
+  map as mapAsyncData,
+} from "@tsmono/util";
 
 import { getApi } from "../app_config";
 import {
@@ -102,23 +109,25 @@ export const fetchPendingSamples = async (
 
 /**
  * The pending samples for a log, polled while it is running. Settles to
- * `undefined` when there is nothing pending (log not running, api without a
- * buffer, no data yet). Polling lifetime is subscriber lifetime: every
- * dependent calls this to declare its own dependency.
+ * `data(undefined)` when there is nothing pending (log not running, api
+ * without a buffer, buffer gone). A parked poll (ticks exhausted their
+ * retries) surfaces as `error`. Polling lifetime is subscriber lifetime:
+ * every dependent calls this to declare its own dependency.
  */
 export const usePendingSamples = (
   logDir: string,
   logFile: string | undefined
-): PendingSamples | undefined => {
+): AsyncData<PendingSamples | undefined> => {
   const api = getApi();
-  const liveStatus = useLog(logDir, logFile).data?.status;
+  const liveStatus = useLog(logDir, logFile, { demand: "passive" }).data
+    ?.status;
   const enabled =
     shouldPollPendingSamples({
       logFile,
       logStatus: liveStatus,
       apiSupportsPendingSamples: api.get_log_pending_samples !== undefined,
     }) && logFile !== undefined;
-  const { data } = useQuery({
+  const result = useAsyncDataFromQuery({
     queryKey: pendingSamplesKey(logDir, logFile),
     queryFn: enabled
       ? () => fetchPendingSamples(api, logDir, logFile)
@@ -136,18 +145,30 @@ export const usePendingSamples = (
   });
   // Gate the read on enablement: once the log stops running, the final
   // details refresh owns the summaries and any cached buffer data is stale.
-  return enabled ? (data ?? undefined) : undefined;
+  return useMemo(
+    () =>
+      enabled
+        ? mapAsyncData(result, (data) => data ?? undefined)
+        : asyncData(undefined),
+    [enabled, result]
+  );
 };
 
 /**
- * A running eval's live metrics. Settles to `undefined` when the log isn't
+ * A running eval's live metrics. `data(undefined)` when the log isn't
  * running or no metrics have been reported yet. That the metrics travel in
  * the pending-samples buffer is subsystem-private.
  */
 export const useRunningMetrics = (
   logDir: string,
   logFile: string | undefined
-): RunningMetric[] | undefined => usePendingSamples(logDir, logFile)?.metrics;
+): AsyncData<RunningMetric[] | undefined> => {
+  const pending = usePendingSamples(logDir, logFile);
+  return useMemo(
+    () => mapAsyncData(pending, (data) => data?.metrics),
+    [pending]
+  );
+};
 
 /**
  * Non-React snapshot of the pending samples (for the running-sample query's

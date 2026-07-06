@@ -75,14 +75,10 @@ export const LogSampleDetailView: FC = () => {
 
   // Handle UUID routes by redirecting to id/epoch URL
   useEffect(() => {
-    if (
-      logPath &&
-      sampleUuid &&
-      sampleSummaries &&
-      sampleSummaries.length > 0
-    ) {
+    const summaries = sampleSummaries.data;
+    if (logPath && sampleUuid && summaries && summaries.length > 0) {
       // Find the sample with the matching UUID
-      const sample = sampleSummaries.find((s) => s.uuid === sampleUuid);
+      const sample = summaries.find((s) => s.uuid === sampleUuid);
       if (sample) {
         const url = logSamplesUrl(
           logPath,

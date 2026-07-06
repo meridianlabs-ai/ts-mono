@@ -123,8 +123,9 @@ describe("usePassiveEvalSample", () => {
       { wrapper: wrapperFor(client), initialProps: { h: handle } }
     );
 
-    // Nothing resident: absence is a normal answer, not a loading state.
-    expect(result.current).toBeUndefined();
+    // Nothing resident: reads as loading until a writer lands data.
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
 
     // A writer primes the entry (as useSample's fetch or the stream's
     // finalize priming would); the passive observer must re-render with it.
@@ -132,10 +133,10 @@ describe("usePassiveEvalSample", () => {
     act(() => {
       client.setQueryData(sampleQueryKey("/logs", handle), sample);
     });
-    await waitFor(() => expect(result.current).toBe(sample));
+    await waitFor(() => expect(result.current.data).toBe(sample));
 
-    // Moving to another handle (selection change) reads as absence again.
+    // Moving to another handle (selection change) reads as not-resident again.
     rerender({ h: { id: "s2", epoch: 1, logFile: "log.eval" } });
-    await waitFor(() => expect(result.current).toBeUndefined());
+    await waitFor(() => expect(result.current.loading).toBe(true));
   });
 });

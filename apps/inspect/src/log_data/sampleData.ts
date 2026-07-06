@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
+import { useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { Events } from "../@types/extraInspect";
@@ -38,27 +39,30 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
 
 export interface SampleDataInputs {
   handle: SampleHandle | undefined;
-  /** The sample's merged summary (undefined while the summaries settle). */
+  /** The log's merged summaries query. */
+  summaries: AsyncData<SampleSummary[]>;
+  /** The sample's merged summary (undefined while the summaries settle or
+   *  when the handle isn't among them). */
   summary: SampleSummary | undefined;
   /** The completed-path EvalSample query. */
   query: AsyncData<EvalSample>;
   /** The running-path stream query. */
   running: AsyncData<RunningSampleData>;
-  /** The finalized EvalSample a running stream primed into the sample cache. */
-  finalizedSample: EvalSample | undefined;
+  /** The finalized EvalSample a running stream primed into the sample cache
+   *  (a passive read: not-resident reads as loading). */
+  finalizedSample: AsyncData<EvalSample>;
 }
 
 /** The path-selection state machine (exported for tests). */
 export const deriveSampleData = ({
   handle,
+  summaries,
   summary,
   query,
   running,
   finalizedSample,
 }: SampleDataInputs): EvalSampleData => {
-  // Without a summary the sample isn't loadable yet (the legacy loader
-  // waited for it too), so idle rather than reading as loading.
-  if (handle === undefined || summary === undefined) {
+  if (handle === undefined) {
     return {
       sample: undefined,
       status: "ok",
@@ -67,11 +71,32 @@ export const deriveSampleData = ({
       eventsCleared: false,
     };
   }
+  if (summaries.error) {
+    return {
+      sample: undefined,
+      status: "error",
+      error: summaries.error,
+      running: kNoRunningEvents,
+      eventsCleared: false,
+    };
+  }
+  // Without a settled summary the sample isn't loadable yet (the legacy
+  // loader waited for it too): loading while the summaries settle, idle when
+  // they settled without this handle.
+  if (summary === undefined) {
+    return {
+      sample: undefined,
+      status: summaries.loading ? "loading" : "ok",
+      error: undefined,
+      running: kNoRunningEvents,
+      eventsCleared: false,
+    };
+  }
   // `completed !== false` mirrors the legacy loader: only an explicitly
   // incomplete summary takes the running path.
   if (summary.completed === false) {
-    if (running.data?.finalized === true && finalizedSample !== undefined) {
-      return settledSampleData(finalizedSample);
+    if (running.data?.finalized === true && finalizedSample.data !== undefined) {
+      return settledSampleData(finalizedSample.data);
     }
     if (running.error) {
       return {
@@ -135,7 +160,7 @@ export const useEvalSampleData = (
     () =>
       handle === undefined
         ? undefined
-        : summaries.find(
+        : summaries.data?.find(
             (s) => sampleIdsEqual(s.id, handle.id) && s.epoch === handle.epoch
           ),
     [summaries, handle]
@@ -153,26 +178,30 @@ export const useEvalSampleData = (
 
   return useMemo(
     () =>
-      deriveSampleData({ handle, summary, query, running, finalizedSample }),
-    [handle, summary, query, running, finalizedSample]
+      deriveSampleData({
+        handle,
+        summaries,
+        summary,
+        query,
+        running,
+        finalizedSample,
+      }),
+    [handle, summaries, summary, query, running, finalizedSample]
   );
 };
 
 /**
- * The SampleData for a handle iff its EvalSample is resident, else undefined
- * — a passive read that never fetches (see `usePassiveEvalSample` for the
- * cache-rendezvous contract). Absence is a normal answer, not a loading
- * state; the authoritative status for a sample being *shown* is
- * `useEvalSampleData`'s. For surfaces that must stay fetch-free (e.g. the
- * invalidation banner in the title bar).
+ * The SampleData for a handle iff its EvalSample is resident — a passive
+ * read that never fetches (see `usePassiveEvalSample` for the
+ * cache-rendezvous contract; not-resident reads as loading). The
+ * authoritative status for a sample being *shown* is `useEvalSampleData`'s.
+ * For surfaces that must stay fetch-free (e.g. the invalidation banner in
+ * the title bar).
  */
 export const usePassiveEvalSampleData = (
   logDir: string,
   handle: SampleHandle | undefined
-): EvalSampleData | undefined => {
+): AsyncData<EvalSampleData> => {
   const sample = usePassiveEvalSample(logDir, handle);
-  return useMemo(
-    () => (sample === undefined ? undefined : settledSampleData(sample)),
-    [sample]
-  );
+  return useMapAsyncData(sample, settledSampleData);
 };

@@ -134,7 +134,9 @@ describe("useSamplesListing", () => {
           logDir: LOG_DIR,
           scope: { file: FILE_A },
         });
-        observedLengths.push(rows.length);
+        // A render without settled data shows an empty list — count it as 0
+        // so the no-flash invariant below covers loading states too.
+        observedLengths.push(rows.data?.length ?? 0);
         return rows;
       },
       { wrapper }
@@ -143,8 +145,8 @@ describe("useSamplesListing", () => {
     await writeDetails(db, LOG_DIR, {
       [FILE_A]: payload(FILE_A, "started", [summary("s1"), summary("s2")]),
     });
-    await waitFor(() => expect(result.current).toHaveLength(2));
-    expect(result.current[0]?.log.status).toBe("started");
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+    expect(result.current.data?.[0]?.log.status).toBe("started");
 
     await writeDetails(db, LOG_DIR, {
       [FILE_A]: payload(FILE_A, "success", [
@@ -153,8 +155,8 @@ describe("useSamplesListing", () => {
         summary("s3"),
       ]),
     });
-    await waitFor(() => expect(result.current).toHaveLength(3));
-    expect(result.current[0]?.log.status).toBe("success");
+    await waitFor(() => expect(result.current.data).toHaveLength(3));
+    expect(result.current.data?.[0]?.log.status).toBe("success");
 
     // Once rows have landed, no render may see an empty list again — the
     // finalize handoff must not flash.
@@ -174,15 +176,18 @@ describe("useSamplesListing", () => {
       () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
       { wrapper }
     );
-    await waitFor(() => expect(result.current).toHaveLength(1));
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
 
     await writeDetails(db, LOG_DIR, {
       [FILE_B]: payload(FILE_B, "success", [summary("b1"), summary("b2")]),
     });
-    await waitFor(() => expect(result.current).toHaveLength(3));
+    await waitFor(() => expect(result.current.data).toHaveLength(3));
 
     const byFile = new Map(
-      result.current.map((row) => [`${row.logFile}:${row.summary.id}`, row])
+      (result.current.data ?? []).map((row) => [
+        `${row.logFile}:${row.summary.id}`,
+        row,
+      ])
     );
     expect(byFile.has(`${FILE_A}:a1`)).toBe(true);
     expect(byFile.has(`${FILE_B}:b2`)).toBe(true);
@@ -204,8 +209,8 @@ describe("useSamplesListing", () => {
         useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs/sub" } }),
       { wrapper }
     );
-    await waitFor(() => expect(result.current).toHaveLength(1));
-    expect(result.current[0]?.logFile).toBe(FILE_B);
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(result.current.data?.[0]?.logFile).toBe(FILE_B);
   });
 
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {
@@ -221,7 +226,7 @@ describe("useSamplesListing", () => {
     await writeDetails(unopened, LOG_DIR, {
       [FILE_A]: payload(FILE_A, "success", [summary("s1")]),
     });
-    await waitFor(() => expect(result.current).toHaveLength(1));
-    expect(result.current[0]?.summary.id).toBe("s1");
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(result.current.data?.[0]?.summary.id).toBe("s1");
   });
 });

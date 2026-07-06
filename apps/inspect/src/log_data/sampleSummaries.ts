@@ -1,5 +1,11 @@
 import { useMemo } from "react";
 
+import {
+  AsyncData,
+  compose,
+  map as mapAsyncData,
+} from "@tsmono/util";
+
 import { SampleSummary } from "../client/api/types";
 
 import { resolveLogKey } from "./logsContent";
@@ -48,18 +54,20 @@ export const mergeSampleSummaries = (
 export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
-): SampleSummary[] => {
+): AsyncData<SampleSummary[]> => {
   const rows = useSamplesListing({
     logDir,
     // "" matches no stored file; the row set stays empty until a log is given.
     scope: { file: logFile === undefined ? "" : resolveLogKey(logDir, logFile) },
   });
-  const pending = usePendingSamples(logDir, logFile)?.samples;
+  const pending = usePendingSamples(logDir, logFile);
   return useMemo(
     () =>
-      mergeSampleSummaries(
-        rows.map((row) => row.summary),
-        pending ?? []
+      mapAsyncData(compose({ rows, pending }), (settled) =>
+        mergeSampleSummaries(
+          settled.rows.map((row) => row.summary),
+          settled.pending?.samples ?? []
+        )
       ),
     [rows, pending]
   );

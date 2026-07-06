@@ -212,7 +212,8 @@ export const useRunningSample = (
   handle: SampleHandle | undefined,
   summary: SampleSummary | undefined
 ): AsyncData<RunningSampleData> => {
-  const logStatus = useLog(logDir, handle?.logFile).data?.status;
+  const logStatus = useLog(logDir, handle?.logFile, { demand: "passive" })
+    .data?.status;
   const enabled = shouldStreamRunningSample({
     handle,
     summaryCompleted: summary?.completed,

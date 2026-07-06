@@ -1,4 +1,7 @@
-import { useDeferredValue, useMemo } from "react";
+import { useDeferredValue } from "react";
+
+import { useMapAsyncData } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
 import { Log } from "../client/api/types";
@@ -68,12 +71,12 @@ export const computeLogsWithRetried = (logs: Log[]): LogListingRow[] => {
   );
 };
 
-export const useLogListing = (logDir: string): LogListingRow[] => {
+export const useLogListing = (logDir: string): AsyncData<LogListingRow[]> => {
   const logs = useLogs(logDir);
   // Deferred so the burst of row flushes during initial sync can't block
   // click/scroll input — the listing renders from the prior rows and
   // catches up when the main thread is idle.
   const deferredLogs = useDeferredValue(logs);
 
-  return useMemo(() => computeLogsWithRetried(deferredLogs), [deferredLogs]);
+  return useMapAsyncData(deferredLogs, computeLogsWithRetried);
 };

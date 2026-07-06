@@ -51,9 +51,9 @@ export const LogViewContainer: FC = () => {
 
   useEffect(() => {
     // Redirect to an id/epoch url if a sampleUuid is provided
-    if (logPath && sampleUuid && sampleSummaries) {
+    if (logPath && sampleUuid && sampleSummaries.data) {
       // Find the sample with the matching UUID
-      const sample = sampleSummaries.find((s) => s.uuid === sampleUuid);
+      const sample = sampleSummaries.data.find((s) => s.uuid === sampleUuid);
       if (sample) {
         const url = logSamplesUrl(
           logPath,

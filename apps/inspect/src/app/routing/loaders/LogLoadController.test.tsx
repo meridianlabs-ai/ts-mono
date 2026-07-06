@@ -1,6 +1,8 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { data, loading } from "@tsmono/util";
+
 import { LogDetails } from "../../../client/api/types";
 
 import { LogLoadController } from "./LogLoadController";
@@ -60,7 +62,7 @@ describe("LogLoadController", () => {
       loading: false,
       error: undefined,
     });
-    useLogFetchState.mockReturnValue({ details_settled_seq: 1 });
+    useLogFetchState.mockReturnValue(data({ details_settled_seq: 1 }));
 
     const { rerender } = render(<LogLoadController />);
     expect(setLoadedLog).toHaveBeenCalledTimes(1);
@@ -77,7 +79,7 @@ describe("LogLoadController", () => {
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);
 
     // A waitered fetch settling bumps the seq — must refire.
-    useLogFetchState.mockReturnValue({ details_settled_seq: 2 });
+    useLogFetchState.mockReturnValue(data({ details_settled_seq: 2 }));
     rerender(<LogLoadController />);
     expect(setLoadedLog).toHaveBeenCalledTimes(2);
     expect(clearSelectedScores).toHaveBeenCalledTimes(2);
@@ -97,7 +99,7 @@ describe("LogLoadController", () => {
       loading: false,
       error: undefined,
     });
-    useLogFetchState.mockReturnValue({ details_settled_seq: 1 });
+    useLogFetchState.mockReturnValue(data({ details_settled_seq: 1 }));
 
     render(<LogLoadController />);
 
@@ -114,14 +116,14 @@ describe("LogLoadController", () => {
       loading: false,
       error: undefined,
     });
-    useLogFetchState.mockReturnValue(undefined);
+    useLogFetchState.mockReturnValue(loading);
 
     const { rerender } = render(<LogLoadController />);
     expect(setLoadedLog).not.toHaveBeenCalled();
     expect(clearSelectedScores).not.toHaveBeenCalled();
 
     // The waitered settle (cache hit or network) bumps the seq.
-    useLogFetchState.mockReturnValue({ details_settled_seq: 1 });
+    useLogFetchState.mockReturnValue(data({ details_settled_seq: 1 }));
     rerender(<LogLoadController />);
     expect(setLoadedLog).toHaveBeenCalledTimes(1);
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);

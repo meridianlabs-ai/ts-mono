@@ -4,12 +4,13 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { ProgressBar } from "@tsmono/react/components";
+import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
+  type SamplesListingRow,
   useLogListing,
   useLogsSync,
   useSamplesListing,
@@ -66,6 +67,9 @@ const completedAtTime = (row: SampleRow): number => {
   return v ? new Date(v).getTime() : 0;
 };
 
+const kNoSamplesRows: SamplesListingRow[] = [];
+const kNoLogRows: LogListingRow[] = [];
+
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
   const logDir = useLogDir();
@@ -113,13 +117,16 @@ export const SamplesPanel: FC = () => {
 
   // Every sample summary under this panel's scope, each row carrying its
   // log's display context (the subsystem joins; no by-name lookups here).
-  const scopedSamples = useSamplesListing({
+  const samplesListing = useSamplesListing({
     logDir,
     scope: { prefix: currentDir },
   });
+  const scopedSamples = samplesListing.data ?? kNoSamplesRows;
 
   const evalSet = useEvalSet().data;
-  const logFiles = useLogListing(logDir);
+  const logListing = useLogListing(logDir);
+  const logFiles = logListing.data ?? kNoLogRows;
+  const error = listing.error ?? samplesListing.error ?? logListing.error;
 
   const currentDirLogFiles = useMemo(() => {
     const files = [];
@@ -344,7 +351,8 @@ export const SamplesPanel: FC = () => {
     []
   );
 
-  const isEmptyAndLoading = sampleRows.length === 0 && listing.busy;
+  const isEmptyAndLoading =
+    sampleRows.length === 0 && (listing.busy || samplesListing.loading);
 
   return (
     <div className={clsx(styles.panel)}>
@@ -394,17 +402,24 @@ export const SamplesPanel: FC = () => {
 
       <ActivityBar animating={listing.busy} />
       <div className={clsx(styles.list, "text-size-smaller")}>
-        <SamplesGrid
-          rowData={sampleRows}
-          columnDefs={allColumns}
-          columnVisibility={visibilityForGrid}
-          defaultSorting={kSamplesPanelDefaultSorting}
-          getRowId={getRowId}
-          selectedRowId={selectedRowId}
-          onRowSelect={handleRowSelect}
-          onRowOpen={handleRowOpen}
-          loading={isEmptyAndLoading}
-        />
+        {error ? (
+          <ErrorPanel
+            title="Error"
+            error={{ message: error.message, stack: error.stack }}
+          />
+        ) : (
+          <SamplesGrid
+            rowData={sampleRows}
+            columnDefs={allColumns}
+            columnVisibility={visibilityForGrid}
+            defaultSorting={kSamplesPanelDefaultSorting}
+            getRowId={getRowId}
+            selectedRowId={selectedRowId}
+            onRowSelect={handleRowSelect}
+            onRowOpen={handleRowOpen}
+            loading={isEmptyAndLoading}
+          />
+        )}
       </div>
 
       <LogListFooter

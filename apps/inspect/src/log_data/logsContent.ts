@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { LogHandle } from "@tsmono/inspect-common/types";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
 import {
   Log,
@@ -388,14 +388,12 @@ export const getLogRows = (logDir: string | undefined): Log[] =>
 
 // Callers pass a resolved dir (`useLogDir()`); the loader gate guarantees one
 // before any consumer of these mounts.
-export const useLogs = (logDir: string): Log[] => {
-  const { data } = useQuery({
+export const useLogs = (logDir: string): AsyncData<Log[]> =>
+  useAsyncDataFromQuery({
     queryKey: logsKey(logDir),
     queryFn: () => currentLogs(logDir),
     staleTime: Infinity,
   });
-  return data ?? EMPTY_LOGS;
-};
 
 /**
  * Resolve a log file (which may be a relative name or an absolute path) to the

@@ -39,7 +39,9 @@ export const LogView: FC = () => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = useEvalSpec();
-  const runningMetrics = useSelectedRunningMetrics();
+  // Settled metrics only: the title view is decorative here — poll
+  // loading/error surface through the samples tab's summaries instead.
+  const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(

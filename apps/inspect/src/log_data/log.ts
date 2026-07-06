@@ -1,5 +1,8 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData, data as asyncData, loading } from "@tsmono/util";
 
 import { Log, LogFetchState, LogHeader } from "../client/api/types";
 
@@ -8,27 +11,17 @@ import { logKey, useLogs } from "./logsContent";
 import { fetchLog } from "./replicationControl";
 
 /**
- * Tri-state for db-backed log data. `error` is a RETRIEVAL (fetch) error —
- * eval errors are inside `data`.
- */
-export interface LogDataState<T> {
-  data: T | undefined;
-  /** File specified, no data yet, no retrieval error. */
-  loading: boolean;
-  error: Error | undefined;
-}
-
-/**
  * One log's entity row as a per-entity, db-backed cache entry. The `queryFn`
  * is the re-seed path only (an evicted/unmounted entry re-reads its
  * IndexedDB row on remount); the sink's guarded pushes own freshness while
- * the entry is observed. `key` must be the resolved row name.
+ * the entry is observed. `key` must be the resolved row name; idles
+ * (`skipToken`, reads as loading) without one.
  */
 const useLogRow = (
   logDir: string,
   key: string | undefined
-): Log | undefined => {
-  const { data } = useQuery({
+): AsyncData<Log | null> =>
+  useAsyncDataFromQuery({
     queryKey: logKey(logDir, key ?? ""),
     // Returns null on a miss — react-query forbids undefined from a queryFn.
     queryFn:
@@ -41,38 +34,39 @@ const useLogRow = (
     staleTime: Infinity,
     // default gcTime: eviction is desired — IndexedDB re-seeds on remount.
   });
-  return data ?? undefined;
-};
 
 /**
- * One log at detailed depth: its header, as a tri-state. Mounting is demand:
- * each (dir, file) requests detailed depth from the engine, whose
- * read-through resolves instantly on a cached row and refreshes in the
- * background. Retrieval failures surface from the row's retrieval facts, not
- * from the query.
+ * One log at detailed depth: its header. `data(undefined)` when no file is
+ * given (idle); `error` is a RETRIEVAL failure — the db re-seed read failing
+ * or the row's retrieval facts recording a fetch error (eval errors are
+ * inside `data`). Mounting is demand: each (dir, file) requests detailed
+ * depth from the engine, whose read-through resolves instantly on a cached
+ * row and refreshes in the background.
  *
- * `opts.demand` distinguishes WHO is asking: `"active"` (default `"passive"`)
- * declares "someone is looking at this log" — only the selection binding
- * (`useSelectedLogDetail`) uses it. Every other mount (sample-adjacent hooks:
- * summaries, pending-samples, running-sample) just needs the data to exist,
- * so it stays passive — ensure-presence only, never bumping
- * `details_settled_seq` or forcing a server-cache-bypassing refresh. Without
- * this split, switching tabs (mounting a passive consumer for the
- * ALREADY-selected log) would refire `LogLoadController` as if a new log had
- * loaded.
+ * `opts.demand` distinguishes WHO is asking (required — every mount states
+ * its role): `"active"` declares "someone is looking at this log" — only the
+ * selection binding (`useSelectedLogDetail`) and `LogLoadController` use it.
+ * Every other mount (sample-adjacent hooks: summaries, pending-samples,
+ * running-sample) just needs the data to exist, so it is passive —
+ * ensure-presence only, never bumping `details_settled_seq` or forcing a
+ * server-cache-bypassing refresh. Without this split, switching tabs
+ * (mounting a passive consumer for the ALREADY-selected log) would refire
+ * `LogLoadController` as if a new log had loaded.
  */
 export const useLog = (
   logDir: string,
   logFile: string | undefined,
-  opts: { demand?: "active" | "passive" } = {}
-): LogDataState<LogHeader> => {
-  const demand = opts.demand ?? "passive";
-  const rows = useLogs(logDir);
-  // The queryKey must use the resolved row name so it matches sink pushes.
+  opts: { demand: "active" | "passive" }
+): AsyncData<LogHeader | undefined> => {
+  const demand = opts.demand;
+  const logs = useLogs(logDir);
+  // The queryKey must use the resolved row name so it matches sink pushes;
+  // while the listing collection settles, the file itself is the fallback.
   const key =
     logFile === undefined
       ? undefined
-      : (rows.find((row) => row.name.endsWith(logFile))?.name ?? logFile);
+      : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ??
+        logFile);
   const row = useLogRow(logDir, key);
   useEffect(() => {
     if (logFile !== undefined) {
@@ -82,18 +76,25 @@ export const useLog = (
       );
     }
   }, [logDir, logFile, demand]);
-  return useMemo(() => {
-    const header = row?.header;
-    const message =
-      header === undefined ? row?.details_fetch_error : undefined;
-    const error = message !== undefined ? new Error(message) : undefined;
-    return {
-      data: header,
-      loading:
-        logFile !== undefined && header === undefined && error === undefined,
-      error,
-    };
-  }, [row, logFile]);
+  return useMemo<AsyncData<LogHeader | undefined>>(() => {
+    if (logFile === undefined) {
+      return asyncData(undefined);
+    }
+    if (logs.error) {
+      return { loading: false, error: logs.error };
+    }
+    if (row.error) {
+      return row;
+    }
+    const header = row.data?.header;
+    if (header !== undefined) {
+      return asyncData<LogHeader | undefined>(header);
+    }
+    const message = row.data?.details_fetch_error;
+    return message !== undefined
+      ? { loading: false, error: new Error(message) }
+      : loading;
+  }, [logs.error, row, logFile]);
 };
 
 /**
@@ -102,9 +103,16 @@ export const useLog = (
  * a badge on the currently-open log, the load controller's settle guard).
  * Reads the same per-entity row `useLog` does; mounting it is what makes the
  * row's engine pushes observed instead of guarded no-ops. `name` must be the
- * resolved row name; idles without one.
+ * resolved row name; idles (reads as loading) without one. `data` is
+ * undefined when the row isn't resident yet.
  */
 export const useLogFetchState = (
   logDir: string,
   name: string | undefined
-): LogFetchState | undefined => useLogRow(logDir, name);
+): AsyncData<LogFetchState | undefined> => {
+  const row = useLogRow(logDir, name);
+  return useMemo<AsyncData<LogFetchState | undefined>>(
+    () => (row.loading || row.error ? row : asyncData(row.data ?? undefined)),
+    [row]
+  );
+};

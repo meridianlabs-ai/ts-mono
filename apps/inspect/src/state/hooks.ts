@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
-import { createLogger } from "@tsmono/util";
+import { AsyncData, createLogger } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
 import {
@@ -165,7 +165,7 @@ const log = createLogger("hooks");
 export const useSelectedLogDetails = (): LogHeader | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  return useLog(logDir, selectedLogFile).data;
+  return useLog(logDir, selectedLogFile, { demand: "passive" }).data;
 };
 
 export const useEvalSpec = () => {
@@ -176,7 +176,9 @@ export const useEvalSpec = () => {
  * The selected log's running metrics — the selection binding over the
  * param-driven `useRunningMetrics` acquisition hook.
  */
-export const useSelectedRunningMetrics = (): RunningMetric[] | undefined => {
+export const useSelectedRunningMetrics = (): AsyncData<
+  RunningMetric[] | undefined
+> => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   return useRunningMetrics(logDir, selectedLogFile);
@@ -219,15 +221,23 @@ export const useLogEditAffordance = (): LogEditAffordance => {
  * — the selection binding over the param-driven `useSampleSummaries`
  * acquisition hook.
  */
-export const useSelectedSampleSummaries = (): SampleSummary[] => {
+export const useSelectedSampleSummaries = (): AsyncData<SampleSummary[]> => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   return useSampleSummaries(logDir, selectedLogFile);
 };
 
+const kNoSummaries: SampleSummary[] = [];
+
+// The settled rows for the derivation hooks below — pure computations over
+// whatever has settled (loading/error render in SamplesTab, which reads the
+// AsyncData binding directly).
+const useSelectedSampleSummariesData = (): SampleSummary[] =>
+  useSelectedSampleSummaries().data ?? kNoSummaries;
+
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)
 export const useTotalSampleCount = () => {
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     return sampleSummaries.length;
   }, [sampleSummaries]);
@@ -238,7 +248,7 @@ export const useTotalSampleCount = () => {
 // selected
 export const useSelectedScores = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selected = useStore((state) => state.log.selectedScores);
   return useMemo(() => {
     if (selected !== undefined) {
@@ -256,7 +266,7 @@ export const useSelectedScores = () => {
 // metrics)
 export const useScores = () => {
   const selectedLogDetails = useSelectedLogDetails();
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     if (!selectedLogDetails) {
       return [];
@@ -271,7 +281,7 @@ export const useScores = () => {
 // Provides the eval descriptor
 export const useEvalDescriptor = () => {
   const scores = useScores();
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
   }, [scores, sampleSummaries]);
@@ -279,7 +289,7 @@ export const useEvalDescriptor = () => {
 
 export const useSampleDescriptor = () => {
   const evalDescriptor = useEvalDescriptor();
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selectedScores = useSelectedScores();
   return useMemo(() => {
     return evalDescriptor
@@ -315,7 +325,7 @@ export const samplesAreSorted = (samples: SampleSummary[]): boolean =>
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
   const samplesDescriptor = useSampleDescriptor();
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const filter = useStore((state) => state.log.filter);
   const setFilterError = useStore((state) => state.logActions.setFilterError);
   const clearFilterError = useStore(
@@ -355,7 +365,7 @@ export const useFilteredSamples = () => {
 
 // Provides the currently selected sample summary
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
-  const sampleSummaries = useSelectedSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -392,7 +402,7 @@ export const useSelectedSampleInvalidation = ():
   usePassiveEvalSampleData(
     useLogDir(),
     useStore((state) => state.log.selectedSampleHandle)
-  )?.sample?.invalidation ?? undefined;
+  ).data?.sample?.invalidation ?? undefined;
 
 export const useLogSelection = () => {
   const selectedSampleSummary = useSelectedSampleSummary();

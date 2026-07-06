@@ -1,4 +1,4 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
@@ -78,21 +78,19 @@ export const useSample = (
 
 /**
  * Passive read of the sample cache for a handle: subscribes without ever
- * fetching, so consumers outside the sample views (e.g. the invalidation
- * banner) don't trigger downloads of large EvalSamples. The entry is a
- * rendezvous through `sampleQueryKey` with exactly two writers — `useSample`'s
- * completed fetch and the running stream's finalize priming
- * (`streamRunningSampleTick`) — so absence is a normal answer: the EvalSample
- * is resident only while the sample is (recently) loaded.
+ * fetching (`skipToken`), so consumers outside the sample views (e.g. the
+ * invalidation banner) don't trigger downloads of large EvalSamples. The
+ * entry is a rendezvous through `sampleQueryKey` with exactly two writers —
+ * `useSample`'s completed fetch and the running stream's finalize priming
+ * (`streamRunningSampleTick`) — so a non-resident EvalSample reads as
+ * `loading` (the query stays pending until a writer lands data at the key).
  */
 export const usePassiveEvalSample = (
   logDir: string,
   handle: SampleHandle | undefined
-): EvalSample | undefined => {
-  const { data } = useQuery<EvalSample>({
+): AsyncData<EvalSample> =>
+  useAsyncDataFromQuery<EvalSample>({
     queryKey: sampleQueryKey(logDir, handle),
     queryFn: skipToken,
     gcTime: kSampleGcTimeMs,
   });
-  return data;
-};

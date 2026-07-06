@@ -1,4 +1,7 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
+
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
 import { Log, LogHeader, SampleSummary } from "../client/api/types";
@@ -136,15 +139,13 @@ const readSamplesListing = async (
  */
 export const useSamplesListing = (
   params: SamplesListingParams
-): SamplesListingRow[] => {
-  const { data } = useQuery({
+): AsyncData<SamplesListingRow[]> =>
+  useAsyncDataFromQuery({
     queryKey: samplesListingKey(params),
     queryFn: () => readSamplesListing(params),
     staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
-  return data ?? EMPTY_ROWS;
-};
 
 /**
  * Non-React snapshot of a file's settled summaries (no pending merge) — for

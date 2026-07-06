@@ -8,7 +8,11 @@ import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { useLogListing, useLogsSync } from "../../log_data";
+import {
+  type LogListingRow,
+  useLogListing,
+  useLogsSync,
+} from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -34,6 +38,8 @@ const rootName = (relativePath: string) => {
   return relativePath.split("/")[0] ?? "";
 };
 
+const kNoListingRows: LogListingRow[] = [];
+
 export type LogsPanelMode = "logs" | "tasks";
 
 interface LogsPanelProps {
@@ -54,7 +60,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.setShowRetriedLogs
   );
   const logDir = useLogDir();
-  const logFiles = useLogListing(logDir);
+  const listing = useLogListing(logDir);
+  const logFiles = listing.data ?? kNoListingRows;
   const evalSet = useEvalSet().data;
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
@@ -62,8 +69,11 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const { logPath } = useLogRouteParams();
   // Sync the listing for this panel's scope; the error panel and busy
-  // indications derive from its status.
-  const { busy, error } = useLogsSync(logDir, logPath ?? "");
+  // indications derive from its status folded with the listing read's own
+  // loading/error.
+  const sync = useLogsSync(logDir, logPath ?? "");
+  const busy = sync.busy || listing.loading;
+  const error = sync.error ?? listing.error;
 
   const currentDir = join(logPath || "", logDir);
 

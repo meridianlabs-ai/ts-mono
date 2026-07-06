@@ -12,7 +12,11 @@ import {
 } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { NoContentsPanel, ToolButton } from "@tsmono/react/components";
+import {
+  ErrorPanel,
+  NoContentsPanel,
+  ToolButton,
+} from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
@@ -28,6 +32,7 @@ import {
   useSampleDescriptor,
   useScores,
   useSelectedLogDetails,
+  useSelectedSampleSummaries,
   useSelectedScores,
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
@@ -172,6 +177,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   columnButtonEl,
 }) => {
   const sampleSummaries = useFilteredSamples();
+  // The summaries' loading/error surface — the derivation hooks above all
+  // compute over the settled rows this AsyncData carries.
+  const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
@@ -395,9 +403,21 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     }
   }, [sampleSummaries, selectedLogFile]);
 
+  if (summariesState.error) {
+    return (
+      <ErrorPanel
+        title="An error occurred while loading samples."
+        error={summariesState.error}
+      />
+    );
+  }
+
   if (totalSampleCount === 0) {
     if (running) {
       return <RunningNoSamples />;
+    } else if (summariesState.loading) {
+      // Not "No samples" yet — the summaries haven't settled.
+      return null;
     } else {
       return <NoContentsPanel text="No samples" />;
     }

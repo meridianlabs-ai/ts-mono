@@ -42,24 +42,42 @@ const events = (n: number): RunningSampleData["events"] =>
 
 const inputs = (overrides: Partial<SampleDataInputs>): SampleDataInputs => ({
   handle,
+  summaries: data([summary()]),
   summary: summary(),
   query: loading,
   running: loading,
-  finalizedSample: undefined,
+  finalizedSample: loading,
   ...overrides,
 });
 
 describe("deriveSampleData", () => {
-  test("idles without a handle or summary", () => {
+  test("idles without a handle, or when the settled summaries lack one", () => {
     for (const input of [
       inputs({ handle: undefined }),
-      inputs({ summary: undefined }),
+      inputs({ summaries: data([]), summary: undefined }),
     ]) {
       const result = deriveSampleData(input);
       expect(result.status).toBe("ok");
       expect(result.sample).toBeUndefined();
       expect(result.running).toHaveLength(0);
     }
+  });
+
+  test("loads while the summaries settle", () => {
+    const result = deriveSampleData(
+      inputs({ summaries: loading, summary: undefined })
+    );
+    expect(result.status).toBe("loading");
+    expect(result.sample).toBeUndefined();
+  });
+
+  test("summaries error surfaces", () => {
+    const error = new Error("summaries failed");
+    const result = deriveSampleData(
+      inputs({ summaries: { loading: false, error }, summary: undefined })
+    );
+    expect(result.status).toBe("error");
+    expect(result.error).toBe(error);
   });
 
   test("running path: loads until the stream ticks, then streams", () => {
@@ -95,7 +113,7 @@ describe("deriveSampleData", () => {
       inputs({
         summary: summary({ completed: false }),
         running: data({ events: events(1), finalized: true }),
-        finalizedSample: finalized,
+        finalizedSample: data(finalized),
       })
     );
     expect(result.status).toBe("ok");
@@ -146,7 +164,7 @@ describe("deriveSampleData", () => {
 });
 
 describe("usePassiveEvalSampleData", () => {
-  test("undefined while nothing is resident; SampleData once a writer primes the entry", async () => {
+  test("loading while nothing is resident; SampleData once a writer primes the entry", async () => {
     const client = new QueryClient();
     const Wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children);
@@ -157,15 +175,16 @@ describe("usePassiveEvalSampleData", () => {
         wrapper: Wrapper,
       }
     );
-    expect(result.current).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
 
     const primed = sample({ events: [{} as never] });
     act(() => {
       client.setQueryData(sampleQueryKey("/logs", handle), primed);
     });
-    await waitFor(() => expect(result.current?.sample).toBe(primed));
-    expect(result.current?.status).toBe("ok");
-    expect(result.current?.running).toEqual([]);
-    expect(result.current?.error).toBeUndefined();
+    await waitFor(() => expect(result.current.data?.sample).toBe(primed));
+    expect(result.current.data?.status).toBe("ok");
+    expect(result.current.data?.running).toEqual([]);
+    expect(result.current.data?.error).toBeUndefined();
   });
 });

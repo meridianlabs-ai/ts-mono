@@ -1,8 +1,9 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AsyncData, data, loading } from "@tsmono/util";
+
 import { RunningMetric, SampleSummary } from "../client/api/types";
-import { LogDataState } from "../log_data";
 
 import { useSelectedRunningMetrics, useSelectedSampleSummaries } from "./hooks";
 import {
@@ -42,7 +43,7 @@ beforeEach(() => {
 
 describe("useSelectedRunningMetrics", () => {
   it("delegates to useRunningMetrics with the selected log", () => {
-    const metrics: RunningMetric[] = [];
+    const metrics: AsyncData<RunningMetric[]> = data([]);
     useRunningMetrics.mockReturnValue(metrics);
 
     const { result } = renderHook(() => useSelectedRunningMetrics());
@@ -54,11 +55,7 @@ describe("useSelectedRunningMetrics", () => {
 
 describe("useSelectedLogDetail", () => {
   it("delegates to useLog with the selected log", () => {
-    const state: LogDataState<unknown> = {
-      data: undefined,
-      loading: true,
-      error: undefined,
-    };
+    const state: AsyncData<unknown> = loading;
     useLog.mockReturnValue(state);
     storeState.selectedLogFile = "run.eval";
 
@@ -76,11 +73,7 @@ describe("useSelectedLogDetail", () => {
 
 describe("useSelectedLogLoading", () => {
   it("is false when no file is selected", () => {
-    useLog.mockReturnValue({
-      data: undefined,
-      loading: false,
-      error: undefined,
-    });
+    useLog.mockReturnValue(data(undefined));
     storeState.selectedLogFile = undefined;
 
     const { result } = renderHook(() => useSelectedLogLoading());
@@ -91,7 +84,7 @@ describe("useSelectedLogLoading", () => {
 
 describe("useSelectedSampleSummaries", () => {
   it("delegates to useSampleSummaries with the selected log", () => {
-    const summaries: SampleSummary[] = [];
+    const summaries: AsyncData<SampleSummary[]> = data([]);
     useSampleSummaries.mockReturnValue(summaries);
 
     const { result } = renderHook(() => useSelectedSampleSummaries());

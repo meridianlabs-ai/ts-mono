@@ -66,6 +66,10 @@ export interface ListingStatus {
  * imperative start/stop.
  */
 export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
+  // TODO: deliberate exception to the useAsyncDataFromQuery convention — a
+  // side-effect-only query whose result nobody consumes. Smells worth further
+  // study: a parked (errored) poll silently stops listing freshness; should
+  // that surface through ListingStatus?
   useQuery({
     queryKey: clientEventsKey(logDir),
     queryFn: () => clientEventsTick(getApi(), logDir),

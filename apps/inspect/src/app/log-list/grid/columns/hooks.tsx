@@ -7,7 +7,12 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
-import { useLogListing, useScoreSchema } from "../../../../log_data";
+import {
+  type LogListingRow,
+  type ScorerMap,
+  useLogListing,
+  useScoreSchema,
+} from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
@@ -35,6 +40,9 @@ const numberCompare: ColumnComparator = (a, b, isDescending) =>
 const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 
 const EmptyCell = () => <div>-</div>;
+
+const kNoScorerMap: ScorerMap = {};
+const kNoListingRows: LogListingRow[] = [];
 
 const displayModelRoles = (row: LogListRow | undefined): [string, string][] => {
   if (!row) return [];
@@ -104,7 +112,10 @@ export const useLogListColumns = (
     (state) => state.logsActions.setLogsColumnVisibility
   );
   const logDir = useLogDir();
-  const scorerMap = useScoreSchema(logDir, scopePrefix);
+  // Settled schema only: column defs are decorative config — while the
+  // listing loads there are simply no scorer columns yet, and listing errors
+  // render in LogsPanel's error surface.
+  const scorerMap = useScoreSchema(logDir, scopePrefix).data ?? kNoScorerMap;
 
   // Auto-hide scorer columns by default if not explicitly set. Seed defaults
   // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
@@ -775,7 +786,7 @@ export const useLogListColumns = (
 
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
   // has a sample that ended with a limit (an ingestion-derived header fact).
-  const listingRows = useLogListing(logDir);
+  const listingRows = useLogListing(logDir).data ?? kNoListingRows;
   const hasSampleLimits = useMemo(
     () =>
       listingRows.some(

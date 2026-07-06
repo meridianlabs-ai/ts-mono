@@ -31,7 +31,7 @@ export const LogLoadController: FC = () => {
   const key = selectedLogFile
     ? resolveLogKey(logDir, selectedLogFile)
     : undefined;
-  const settledSeq = useLogFetchState(logDir, key)?.details_settled_seq;
+  const settledSeq = useLogFetchState(logDir, key).data?.details_settled_seq;
 
   const setLoadedLog = useStore((state) => state.logActions.setLoadedLog);
   const clearSelectedScores = useStore(

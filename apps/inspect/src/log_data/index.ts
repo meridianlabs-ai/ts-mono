@@ -75,8 +75,8 @@
 //                 invalidations — invalidateLogDetail (one log's details),
 //                 invalidateLogListing (the listing).
 // - passive read  Subscribe to cached data without independently inducing a
-//                 fetch (usePassiveEvalSampleData); absence is a normal
-//                 answer (undefined), not a loading state.
+//                 fetch (usePassiveEvalSampleData); a not-resident value
+//                 reads as loading — only a writer landing data settles it.
 // - clear         Destroy the local replica — IndexedDB and the cached
 //                 collections — then request a listing re-sync so mounted
 //                 panels re-acquire. DbStats (useDatabaseStats) counts what
@@ -92,7 +92,7 @@
 //   always present.
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
-export { type LogDataState, useLog, useLogFetchState } from "./log";
+export { useLog, useLogFetchState } from "./log";
 export { type LogListingRow, useLogListing } from "./logListing";
 export { resolveLogKey } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
