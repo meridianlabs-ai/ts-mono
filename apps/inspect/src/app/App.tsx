@@ -212,7 +212,9 @@ export const App: FC = () => (
     <AppConfigGate>
       <AppContent />
     </AppConfigGate>
-    {import.meta.env.DEV && (
+    {/* navigator.webdriver: skip devtools under Playwright — the floating
+        button is an extra img/button that trips strict-mode locators. */}
+    {import.meta.env.DEV && !navigator.webdriver && (
       <TanStackDevtools
         plugins={[
           { name: "TanStack Query", render: <ReactQueryDevtoolsPanel /> },
