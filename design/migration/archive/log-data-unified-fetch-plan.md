@@ -1,5 +1,7 @@
 # Unified Log Fetch Flow + Fetch-State Implementation Plan
 
+> **Status: COMPLETE.** All tasks landed on `loglist-tanstack-phase1` — `useLogDetailQuery` is absorbed into the tri-state `useLogDetail`, the `WorkQueue`/`fetchEngine` and fetch-state schema are in place, and the data-model tables below mark the stores/keys as landed. The unchecked `- [ ]` boxes are historical execution scaffolding, not pending work; kept as a record. Current design lives in `domain-ownership.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** One flow acquires previews and details (shared priority queue, dedupe, per-item error isolation); retrieval errors are recorded per handle in IndexedDB; details become per-handle, db-backed, GC-able cache entries with a final `{data, loading, error}` contract; `useLogDetailQuery` is absorbed.

@@ -1,7 +1,7 @@
 # DataGrid: user-resizable columns
 
 **Date:** 2026-07-01
-**Status:** Design approved; ready for implementation plan.
+**Status:** Implemented — the column-resizing half (plan Tasks 1–5) landed; e2e + manual sweep outstanding (see `loglist-resize-columns-plan.md`). Auto-fit-to-grid-width stays deferred.
 **Related:** `design/migration/loglistgrid-tanstack.md` (Phase 6 — Layout fit). This spec covers the **column-resizing** half of Phase 6; **auto-fit-to-grid-width** stays deferred.
 
 ## Context & goal

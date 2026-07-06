@@ -78,17 +78,12 @@ IN:
 
 OUT (future goals):
 
-- **Unifying the three details reads** (`useLogDetails` collection /
-  `useLogDetail` row / state's `useSelectedLogQuery` third cache entry, its
-  own TODO at `state/selectedLogDetails.ts:30`). Needs a design for
-  `LogLoadController`'s "fetch settled" event before `useLogDetail` can
-  absorb `fetchLog` — separate goal. `fetchLog` stays on
-  `imperativeLogData` until then.
-  *(Since landed: `useLogDetail` is a per-handle db-backed tri-state hook
-  whose mount demands the fetch; the query and `useSelectedLogQuery` are
-  gone; the controller keys off `details_settled_seq`. The `useLogDetails`
-  collection remains as a transitional listing feed. See
-  `log-data-unified-fetch-plan.md`.)*
+- **Details reads are unified** (was a future goal, now landed):
+  `useLogDetail` is a per-handle db-backed tri-state hook whose mount demands
+  the fetch; the separate query and `useSelectedLogQuery` are gone, and
+  `LogLoadController` keys off `details_settled_seq`. The `useLogDetails`
+  collection remains the transitional listing feed. See
+  `log-data-unified-fetch-plan.md` and `domain-ownership.md`.
 - Collection-identity churn workarounds (`useStableValue` at
   `grid/columns/hooks.tsx:110`) — symptom of the details-read grain; same
   future goal.

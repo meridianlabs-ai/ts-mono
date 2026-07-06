@@ -1,5 +1,7 @@
 # Resizable DataGrid Columns — Implementation Plan
 
+> **Status: Tasks 1–5 landed** on `loglist-tanstack-phase1` (resize engine + regular-header handle, rotated-header handle, non-resizable presentational columns, log-list per-scope width persistence, samples session-local width state). **Outstanding: Task 6 (drag-resize e2e) and Task 7 (manual parity sweep)** — tracked in `merge-punchlist.md` §2. Unchecked `- [ ]` boxes for Tasks 1–5 are stale, not pending.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add user-draggable column resizing to the shared inspect `DataGrid`, with the resize handle confined to the bottom divider band so it never conflicts with the angled score-headers, plus per-scope width persistence for the log list.

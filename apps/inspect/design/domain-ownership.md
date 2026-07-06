@@ -1,7 +1,7 @@
 # Viewer domain concerns & ownership
 
-The ownership map for the inspect viewer's startup/data layer. Companion to
-[replication-startup-modes.md](replication-startup-modes.md).
+The ownership map for the inspect viewer's startup/data layer. For historical startup context see the
+archived, partially-superseded [replication-startup-modes.md](../../../design/migration/archive/replication-startup-modes.md).
 
 The map has three kinds of entries, and they are not interchangeable:
 

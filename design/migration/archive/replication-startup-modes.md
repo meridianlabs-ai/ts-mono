@@ -1,5 +1,20 @@
 # Viewer startup: API backends & replication init
 
+> **⚠️ Partially superseded — the loader-wiring sections are stale.** The
+> current replication/fetch lifecycle is **on-demand `ensureFetchEngine(logDir)`**
+> (idempotent, coalesced, no mount/cleanup bracket) run inside the acquisition
+> entry points (`syncLogs`, `fetchLog`), with item-level fetch via the
+> `fetchEngine` singleton — see `domain-ownership.md`, the authoritative
+> reference. The symbols this doc's "The two loaders" and "The invariant"
+> sections describe — `<ReplicationController>`, `activateReplication` /
+> `deactivateReplication`, `replicationService.startReplication`,
+> `<DirModeLoaderHost>` / `<SingleFileLoaderHost>` — **no longer exist in code.**
+> Still accurate: the `AppConfig` resolution model (`<AppConfigGate>`,
+> `getAppConfig`, the gated `["log-dir"]` query), the backend × single-file-mode
+> table, the mutual-exclusivity rule, and the gated-`logDir` invariant *principle*.
+> Rewriting the wiring sections to the fetch-engine model is a tracked follow-up
+> (`merge-punchlist.md` §7).
+
 Everything the viewer needs to decide at startup lives on one object, the
 `AppConfig`, resolved in two steps:
 

@@ -71,13 +71,11 @@ IN:
   `invalidateSelectedLog` becomes log_data's `invalidateLogDetail(logDir,
   logFile)` (called by `refreshLog` in `state/actions.ts`). state/ keeps
   `useSelectedLogQuery`/`useSelectedLogLoading` as selection bindings.
-  `fetchLog` leaves `ImperativeLogData` (interior only). This is a
-  *relocation*, not the details-read unification (OUT): query identity —
-  which `LogLoadController` keys off as its "fetch settled" event — is
-  unchanged by changing the query's home.
-  *(Since superseded: the unification landed — `useLogDetailQuery` was
-  absorbed into the tri-state `useLogDetail`, and `LogLoadController` keys
-  off `details_settled_seq`. See `log-data-unified-fetch-plan.md`.)*
+  `fetchLog` leaves `ImperativeLogData` (interior only). This relocation was
+  subsequently folded into the details-read unification: `useLogDetailQuery`
+  is now the tri-state `useLogDetail`, and `LogLoadController` keys off
+  `details_settled_seq` (the "fetch settled" signal). See
+  `log-data-unified-fetch-plan.md` and `domain-ownership.md`.
 - **One api source.** log_data reads `getApi()` from app_config everywhere
   (it already does in `useLogsSync.ts`); `injectedApi`/`requireApi` die.
 - **`init` diet.** With the api param gone, `init`'s only job is
