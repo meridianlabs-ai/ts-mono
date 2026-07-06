@@ -10,13 +10,14 @@ import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
 import { useLogDetail } from "./logDetail";
-import { getLogDetail } from "./logsContent";
+import { resolveLogKey } from "./logsContent";
 import {
   fetchSample,
   SampleNotFoundError,
   synthesizeErroredSampleFromSummary,
 } from "./sampleFetch";
 import { kSampleGcTimeMs, sampleQueryKey } from "./sampleQuery";
+import { readSettledSummaries } from "./samplesListing";
 import {
   createSampleStreamSession,
   SampleEvent,
@@ -99,23 +100,29 @@ const slotFor = (
   return slot;
 };
 
-/** The opened log's summaries report the sample completed (finalize input). */
-const hasCompletedLogSummary = (
+/** The opened log's settled summaries report the sample completed (finalize
+ *  input) — no pending merge, mirroring what the log file itself records. */
+const hasCompletedLogSummary = async (
   logDir: string,
   handle: SampleHandle
-): boolean =>
-  getLogDetail(logDir, handle.logFile)?.sampleSummaries.some(
+): Promise<boolean> => {
+  const summaries = await readSettledSummaries(
+    logDir,
+    resolveLogKey(logDir, handle.logFile)
+  );
+  return summaries.some(
     (summary) =>
       sampleIdsEqual(summary.id, handle.id) &&
       summary.epoch === handle.epoch &&
       summary.completed !== false
-  ) === true;
+  );
+};
 
-const findLiveSummary = (
+const findLiveSummary = async (
   logDir: string,
   handle: SampleHandle
-): SampleSummary | undefined =>
-  getSampleSummaries(logDir, handle.logFile).find(
+): Promise<SampleSummary | undefined> =>
+  (await getSampleSummaries(logDir, handle.logFile)).find(
     (summary) =>
       sampleIdsEqual(summary.id, handle.id) && summary.epoch === handle.epoch
   );
@@ -148,7 +155,7 @@ const finalizeRunningSample = async (
       return false;
     }
     if (error instanceof SampleNotFoundError) {
-      const summary = findLiveSummary(logDir, handle);
+      const summary = await findLiveSummary(logDir, handle);
       if (summary?.error) {
         queryClient.setQueryData(
           sampleQueryKey(logDir, handle),
@@ -169,7 +176,7 @@ export const streamRunningSampleTick = async (
 ): Promise<RunningSampleData> => {
   const streamSlot = slotFor(api, logDir, handle);
   const tick = await streamSlot.session.tick(
-    hasCompletedLogSummary(logDir, handle)
+    await hasCompletedLogSummary(logDir, handle)
   );
   const finalized = tick.done
     ? await finalizeRunningSample(api, logDir, handle, tick.bufferComplete)

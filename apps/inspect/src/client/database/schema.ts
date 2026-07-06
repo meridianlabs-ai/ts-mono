@@ -1,6 +1,6 @@
 import Dexie from "dexie";
 
-import { LogDetails, LogPreview } from "../api/types";
+import { LogHeader, LogPreview, SampleSummary } from "../api/types";
 
 // Logs Table - Basic file listing
 export interface LogHandleRecord {
@@ -25,14 +25,27 @@ export interface LogPreviewRecord {
   cached_at: string;
 }
 
-// Log Details Table - Stores complete results from get_log_info()
-// This includes the full header and sample summaries
+// Log Details Table - one log's header (details payload minus sample
+// summaries, plus ingestion-derived sample facts). The summaries themselves
+// live in sample_summaries.
 export interface LogDetailsRecord {
   // Primary key
   file_path: string;
 
-  // The complete log info object (includes sample summaries)
-  details: LogDetails;
+  details: LogHeader;
+
+  cached_at: string;
+}
+
+// Sample Summaries Table - one row per sample summary, split out of the
+// details payload at ingestion.
+export interface SampleSummaryRecord {
+  // [file_path+id+epoch] is the primary key
+  file_path: string;
+  id: string | number;
+  epoch: number;
+
+  summary: SampleSummary;
 
   cached_at: string;
 }
@@ -55,7 +68,7 @@ export interface LogFetchStateRecord {
 }
 
 // Current database schema version
-export const DB_VERSION = 10;
+export const DB_VERSION = 11;
 
 // Resolves a log dir into a database name
 function resolveDBName(databaseHandle: string): string {
@@ -68,6 +81,10 @@ export class AppDatabase extends Dexie {
   logs!: Dexie.Table<LogHandleRecord, number>;
   log_previews!: Dexie.Table<LogPreviewRecord, string>;
   log_details!: Dexie.Table<LogDetailsRecord, string>;
+  sample_summaries!: Dexie.Table<
+    SampleSummaryRecord,
+    [string, string | number, number]
+  >;
   log_fetch_state!: Dexie.Table<LogFetchStateRecord, string>;
 
   /**
@@ -106,19 +123,43 @@ export class AppDatabase extends Dexie {
   constructor(databaseHandle: string) {
     super(resolveDBName(databaseHandle));
 
-    this.version(DB_VERSION).stores({
-      // Basic file listing - indexes for querying and sorting
-      logs: "++id, &file_path, mtime, task, task_id, cached_at",
+    this.version(DB_VERSION)
+      .stores({
+        // Basic file listing - indexes for querying and sorting
+        logs: "++id, &file_path, mtime, task, task_id, cached_at",
 
-      // Log summaries from get_log_summaries() - indexes for common queries
-      log_previews:
-        "file_path, preview.status, preview.task_id, preview.model, cached_at",
+        // Log summaries from get_log_summaries() - indexes for common queries
+        log_previews:
+          "file_path, preview.status, preview.task_id, preview.model, cached_at",
 
-      // Complete log info from get_log_details() - includes samples
-      log_details: "file_path, details.status, cached_at",
+        // Log headers (details minus summaries + derived sample facts)
+        log_details: "file_path, details.status, cached_at",
 
-      // Per-handle retrieval error/attempt tracking
-      log_fetch_state: "file_path",
-    });
+        // Sample summaries split out of details payloads. file_path serves
+        // scope reads (equals / startsWith); summary.completed_at serves the
+        // default listing sort.
+        sample_summaries:
+          "[file_path+id+epoch], file_path, summary.completed_at",
+
+        // Per-handle retrieval error/attempt tracking
+        log_fetch_state: "file_path",
+      })
+      // Recreate-on-mismatch is the policy (this is a cache; rows written
+      // under an older schema may not match current record shapes). The
+      // delete path in checkVersionMismatch can be missed (it swallows
+      // errors, e.g. a probe blocked by another tab's open connection), and
+      // Dexie then upgrades the old file IN PLACE, keeping stale rows — so
+      // the upgrade itself wipes every table too.
+      .upgrade((tx) =>
+        Promise.all(
+          [
+            "logs",
+            "log_previews",
+            "log_details",
+            "sample_summaries",
+            "log_fetch_state",
+          ].map((table) => tx.table(table).clear())
+        )
+      );
   }
 }

@@ -2,9 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
 
-import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
+import {
+  ClientAPI,
+  LogDetails,
+  LogHeader,
+  LogPreview,
+} from "../client/api/types";
 import { DatabaseService, LogFetchStateRecord } from "../client/database";
-import { toLogPreview } from "../client/utils/type-utils";
+import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
@@ -23,6 +28,13 @@ const makeDetails = (
     sampleSummaries: [],
     ...extra,
   }) as unknown as LogDetails;
+
+// The stored/cached form of the same fixture (what a db row holds).
+const makeHeader = (
+  name: string,
+  status: "success" | "started" | "error" = "success",
+  extra: Record<string, unknown> = {}
+): LogHeader => toLogHeader(makeDetails(name, status, extra));
 
 const makePreview = (
   name: string,
@@ -131,7 +143,7 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
 interface FakeDbData {
   logs?: LogHandle[];
   previews?: Record<string, LogPreview>;
-  details?: Record<string, LogDetails>;
+  details?: Record<string, LogHeader>;
   fetchStates?: Record<string, LogFetchStateRecord>;
 }
 
@@ -190,7 +202,7 @@ const createFakeSink = (db?: DatabaseService) => {
   const calls = {
     setHandles: [] as LogHandle[][],
     mergePreviews: [] as Record<string, LogPreview>[],
-    mergeDetails: [] as Record<string, LogDetails>[],
+    mergeDetails: [] as Record<string, LogHeader>[],
     writeHandles: [] as LogHandle[][],
     writePreviews: [] as Record<string, LogPreview>[],
     writeDetails: [] as Record<string, LogDetails>[],
@@ -279,9 +291,8 @@ describe("FetchEngine.fetch", () => {
     const { api, detailCalls } = createFakeApi();
     const { engine, sinkCalls } = await createEngine({ api });
 
-    const details = await engine.fetch("logs/a.eval", "user");
+    await engine.fetch("logs/a.eval", "user");
 
-    expect(details).toEqual(makeDetails("logs/a.eval"));
     expect(detailCalls).toEqual([{ file: "logs/a.eval", cached: false }]);
     await vi.waitFor(() => {
       expect(sinkCalls.writeDetails).toEqual([
@@ -315,16 +326,15 @@ describe("FetchEngine.fetch", () => {
   });
 
   it("read-through: cached completed details resolve immediately, then refresh in the background", async () => {
-    const cached = makeDetails("a.eval", "success", { tags: ["cached"] });
+    const cached = makeHeader("a.eval", "success", { tags: ["cached"] });
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
       database: createFakeDb({ details: { "a.eval": cached } }),
     });
 
-    const details = await engine.fetch("a.eval", "user");
+    await engine.fetch("a.eval", "user");
 
-    expect(details).toEqual(cached);
     expect(sinkCalls.mergeDetails).toContainEqual({ "a.eval": cached });
     // The background refresh still fetches fresh data and writes it through.
     await vi.waitFor(() => {
@@ -336,17 +346,20 @@ describe("FetchEngine.fetch", () => {
   });
 
   it("read-through: a cached running log is not served stale", async () => {
-    const cached = makeDetails("a.eval", "started");
+    const cached = makeHeader("a.eval", "started");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
       database: createFakeDb({ details: { "a.eval": cached } }),
     });
 
-    const details = await engine.fetch("a.eval", "user");
+    await engine.fetch("a.eval", "user");
 
-    expect(details.status).toBe("success");
+    // The settle came from the network (fresh, success), not the stale row.
     expect(sinkCalls.mergeDetails).not.toContainEqual({ "a.eval": cached });
+    expect(sinkCalls.writeDetails).toContainEqual({
+      "a.eval": makeDetails("a.eval"),
+    });
     expect(fake.detailCalls).toEqual([{ file: "a.eval", cached: false }]);
   });
 
@@ -414,7 +427,7 @@ describe("FetchEngine.start", () => {
   it("hydrates the cache from persisted rows (cache-only seed)", async () => {
     const logs = [handle("a.eval", 2), handle("b.eval", 1)];
     const previews = { "a.eval": makePreview("a.eval") };
-    const details = { "a.eval": makeDetails("a.eval") };
+    const details = { "a.eval": makeHeader("a.eval") };
     const { api } = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api,
@@ -439,7 +452,7 @@ describe("FetchEngine.applyListing", () => {
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
       database: createFakeDb({
-        details: { "kept.eval": makeDetails("kept.eval") },
+        details: { "kept.eval": makeHeader("kept.eval") },
         previews: { "kept.eval": makePreview("kept.eval") },
       }),
     });
@@ -481,7 +494,7 @@ describe("FetchEngine.applyListing", () => {
     const { engine } = await createEngine({
       api: fake.api,
       database: createFakeDb({
-        details: { "changed.eval": makeDetails("changed.eval", "started") },
+        details: { "changed.eval": makeHeader("changed.eval", "started") },
       }),
     });
 
@@ -505,7 +518,7 @@ describe("FetchEngine.applyListing", () => {
     const { engine } = await createEngine({
       api: fake.api,
       database: createFakeDb({
-        details: { "changed.eval": makeDetails("changed.eval", "started") },
+        details: { "changed.eval": makeHeader("changed.eval", "started") },
       }),
     });
 
@@ -564,7 +577,7 @@ describe("FetchEngine.applyListing", () => {
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
       database: createFakeDb({
-        details: { "running.eval": makeDetails("running.eval", "started") },
+        details: { "running.eval": makeHeader("running.eval", "started") },
         previews: { "running.eval": makePreview("running.eval", "started") },
       }),
     });
@@ -909,7 +922,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
       // would muddy this test's isolated assertion.
       database: createFakeDb({
         logs: [target],
-        details: { "bad.eval": makeDetails("bad.eval") },
+        details: { "bad.eval": makeHeader("bad.eval") },
       }),
     });
 
@@ -1021,7 +1034,7 @@ describe("FetchEngine details settle seq", () => {
   });
 
   it("bumps on a read-through cache hit (the waiter resolves without a network settle)", async () => {
-    const cached = makeDetails("a.eval", "success");
+    const cached = makeHeader("a.eval", "success");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
@@ -1074,23 +1087,23 @@ describe("FetchEngine details settle seq", () => {
 // in flight.
 describe("FetchEngine passive vs active demand (F2)", () => {
   it("a passive fetch on a cache hit does not bump the seq and enqueues no refresh", async () => {
-    const cached = makeDetails("a.eval", "success");
+    const cached = makeHeader("a.eval", "success");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
       database: createFakeDb({ details: { "a.eval": cached } }),
     });
 
-    const details = await engine.fetch("a.eval", "user", { passive: true });
+    await engine.fetch("a.eval", "user", { passive: true });
 
-    expect(details).toEqual(cached);
+    expect(sinkCalls.mergeDetails).toContainEqual({ "a.eval": cached });
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
     await tick();
     expect(fake.detailCalls).toEqual([]);
   });
 
   it("an active fetch on a cache hit bumps and refreshes in the background (default demand)", async () => {
-    const cached = makeDetails("a.eval", "success");
+    const cached = makeHeader("a.eval", "success");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
@@ -1120,11 +1133,9 @@ describe("FetchEngine passive vs active demand (F2)", () => {
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    const details = await engine.fetch("a.eval", "background", {
-      passive: true,
-    });
+    await engine.fetch("a.eval", "background", { passive: true });
 
-    expect(details).toEqual(makeDetails("a.eval"));
+    expect(fake.detailCalls.length).toBe(1);
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
   });
 });

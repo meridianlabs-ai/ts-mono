@@ -28,16 +28,25 @@
 //                 primary metric) — fetched first for every log in a dir, so
 //                 a large directory's grid renders immediately. Surfaces as
 //                 a LogListingRow's `preview`, never as its own collection.
-// - LogDetails    The full parsed content of one log: spec, plan, results,
-//                 stats, and its sample summaries. Backfilled dir-wide in the
+// - log header    The full parsed header of one log: spec, plan, results,
+//                 stats, plus derived sample facts (count, error count,
+//                 limit kinds) — a LogListingRow's `header`, and the deep
+//                 form `useLogDetail` serves. Backfilled dir-wide in the
 //                 background (grid scorer columns need full results);
-//                 elevated to user priority when a log is opened.
+//                 elevated to user priority when a log is opened. The
+//                 acquisition payload also carries the log's sample
+//                 summaries; the sink splits those into their own store —
+//                 no consumer ever sees them embedded.
 //
 // Sample content (the same sample, at increasing depth)
 // - SampleSummary The row-level record of one sample (input, target, scores,
-//                 error); what sample lists render. Merged from the log's
-//                 details and, while running, the live stream — one list,
-//                 assembly private.
+//                 error); what sample lists render. Belongs to a Log; lives
+//                 in its own store. Merged from the settled store and, while
+//                 running, the live stream — one list, assembly private.
+// - samples scope Which samples a read covers: one log file (the log view's
+//                 list) or a path prefix (samples mode). useSamplesListing
+//                 rows carry their log's display context — consumers never
+//                 join by name.
 // - EvalSample    The complete sample: messages, events, scores. Large;
 //                 fetched on demand, cache-resident only while recently
 //                 viewed.
@@ -72,8 +81,8 @@
 // Relationships
 // - A log dir has one listing; a listing has many LogListingRows, each
 //   wrapping one LogHandle.
-// - LogHandle → LogPreview → LogDetails: one log file at increasing depth;
-//   LogDetails owns the log's SampleSummaries.
+// - LogHandle → LogPreview → log header: one log file at increasing depth.
+//   A Log owns its SampleSummaries (their own store, read by samples scope).
 // - SampleSummary → EvalSample: one sample at increasing depth; the
 //   EvalSample may be absent (never viewed, or evicted) while its summary is
 //   always present.
@@ -81,17 +90,19 @@
 export { imperativeLogData } from "./imperativeLogData";
 export { type LogDataState, useLogDetail } from "./logDetail";
 export { type LogListingRow, useLogListing } from "./logListing";
-export {
-  resolveLogKey,
-  useLogDetails,
-  useLogFetchState,
-} from "./logsContent";
+export { resolveLogKey, useLogFetchState } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
   type SampleData,
   usePassiveSampleData,
   useSampleData,
 } from "./sampleData";
+export {
+  type SamplesListingRow,
+  type SamplesScope,
+  useSamplesListing,
+} from "./samplesListing";
 export { useSampleSummaries } from "./sampleSummaries";
+export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

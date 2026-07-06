@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import type { LogDetails } from "../../../client/api/types";
+import type { SampleSummary } from "../../../client/api/types";
 
 import { buildSampleColumns, SCORE_FIELD_RAW_PREFIX } from "./columns";
 import type { SampleRow } from "./types";
 
 const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
 
-// Minimal cross-log details with a single numeric score `quality`, used to
+// Minimal cross-log samples with a single numeric score `quality`, used to
 // exercise raw-mode score-column discovery + colour-scale wiring without a
 // full SamplesDescriptor.
-const detailsWith = (values: number[]): Record<string, LogDetails> => ({
-  "log.eval": {
-    sampleSummaries: values.map((v, i) => ({
-      id: i,
-      epoch: 1,
-      scores: { quality: { value: v } },
-    })),
-  } as unknown as LogDetails,
-});
+const samplesWith = (values: number[]): SampleSummary[] =>
+  values.map(
+    (v, i) =>
+      ({
+        id: i,
+        epoch: 1,
+        scores: { quality: { value: v } },
+      }) as unknown as SampleSummary
+  );
 
 const rowWith = (value: number): SampleRow =>
   ({ [kField]: value }) as unknown as SampleRow;
@@ -28,7 +28,7 @@ describe("buildSampleColumns score colour scales", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: true,
-      logDetails: detailsWith([0, 10]),
+      samples: samplesWith([0, 10]),
       scoreColorScales: { quality: "good-high" },
     });
     const col = cols.find((c) => c.id === kField);
@@ -47,7 +47,7 @@ describe("buildSampleColumns score colour scales", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: true,
-      logDetails: detailsWith([0, 10]),
+      samples: samplesWith([0, 10]),
       scoreColorScales: {},
     });
     expect(cols.find((c) => c.id === kField)?.meta?.cellStyle).toBeUndefined();
@@ -59,7 +59,7 @@ describe("buildSampleColumns compact scores", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: true,
-      logDetails: detailsWith([0, 10]),
+      samples: samplesWith([0, 10]),
       compactScores: true,
     });
     const col = cols.find((c) => c.id === kField);
@@ -72,7 +72,7 @@ describe("buildSampleColumns compact scores", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: true,
-      logDetails: detailsWith([0, 10]),
+      samples: samplesWith([0, 10]),
     });
     const col = cols.find((c) => c.id === kField);
     expect(col?.meta?.rotateHeader).toBeFalsy();

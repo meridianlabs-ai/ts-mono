@@ -1,6 +1,24 @@
 import { EvalMetric, EvalResults } from "@tsmono/inspect-common/types";
 
-import { EvalHeader, LogDetails, LogPreview } from "../api/types";
+import { EvalHeader, LogDetails, LogHeader, LogPreview } from "../api/types";
+
+/** Split a details payload into its stored header form: everything but the
+ *  sample summaries, plus the sample facts derived from them. */
+export const toLogHeader = (details: LogDetails): LogHeader => {
+  const { sampleSummaries, ...header } = details;
+  const limits = new Set<string>();
+  let errorCount = 0;
+  for (const sample of sampleSummaries) {
+    if (sample.error) errorCount += 1;
+    if (sample.limit) limits.add(sample.limit);
+  }
+  return {
+    ...header,
+    sampleCount: sampleSummaries.length,
+    sampleErrorCount: errorCount,
+    sampleLimits: [...limits].sort(),
+  };
+};
 
 export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
   const model_roles = header.eval.model_roles

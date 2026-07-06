@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LogDetails } from "../client/api/types";
 import { LogFetchStateRecord } from "../client/database";
+import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { useLogDetail } from "./logDetail";
@@ -180,7 +181,10 @@ describe("useLogDetail", () => {
 
     await writeDetails(null, LOG_DIR, { [LOG_FILE]: details });
 
-    await waitFor(() => expect(result.current.data).toBe(details));
+    // The cache holds the stored form: the payload's header + sample facts.
+    await waitFor(() =>
+      expect(result.current.data).toEqual(toLogHeader(details))
+    );
   });
 });
 
@@ -195,12 +199,12 @@ describe("details sink per-handle pushes", () => {
         .getQueryCache()
         .find({ queryKey: logDetailKey(LOG_DIR, "bg.eval") })
     ).toBeUndefined();
-    // The transitional whole-dir map still gets the row (listing feed).
+    // The subsystem-internal whole-dir map still gets the header row.
     expect(
       queryClient.getQueryData<Record<string, LogDetails>>(
         logDetailsKey(LOG_DIR)
       )
-    ).toEqual({ "bg.eval": details });
+    ).toEqual({ "bg.eval": toLogHeader(details) });
   });
 
   it("clearFile removes the per-handle detail entry", async () => {

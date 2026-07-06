@@ -1,6 +1,6 @@
 import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
-import { FC, useCallback, useDeferredValue, useEffect, useMemo } from "react";
+import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { SimpleCondition } from "@tsmono/inspect-common/query";
@@ -10,9 +10,7 @@ import type {
 } from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { useLogDir } from "../../../app_config";
-import { LogDetails } from "../../../client/api/types";
-import { useLogDetails } from "../../../log_data";
+import { LogHeader } from "../../../client/api/types";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
@@ -51,15 +49,12 @@ type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
 // first (mirrors the samples view's `completed_at desc` default).
 const kDefaultSorting: SortingState = [{ id: "completedAt", desc: true }];
 
-const detailsForItem = (
-  item: LogListItem,
-  logDetails: Record<string, LogDetails>
-): LogDetails | undefined =>
-  item.type === "file" && item.log ? logDetails[item.log.name] : undefined;
+const headerForItem = (item: LogListItem): LogHeader | undefined =>
+  item.type === "file" ? item.log.header : undefined;
 
 const buildLogListRow = (
   item: LogListItem,
-  details: LogDetails | undefined
+  details: LogHeader | undefined
 ): LogListRow => {
   const preview = item.type === "file" ? item.logPreview : undefined;
 
@@ -105,25 +100,14 @@ const buildLogListRow = (
     percentCompleted = (completed / total) * 100;
   }
 
-  // Count of sample errors
-  let sampleErrors: number | undefined;
-  if (details?.sampleSummaries) {
-    sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
-  }
-
-  // Distinct limit types across samples in this task, comma-joined.
-  // Empty when no sample ended with a limit. Sorted for stable
-  // text-filtering and predictable display order.
-  let sampleLimits: string | undefined;
-  if (details?.sampleSummaries) {
-    const limits = new Set<string>();
-    for (const s of details.sampleSummaries) {
-      if (s.limit) limits.add(s.limit);
-    }
-    if (limits.size > 0) {
-      sampleLimits = Array.from(limits).sort().join(", ");
-    }
-  }
+  // Sample facts are derived at ingestion and carried on the header.
+  const sampleErrors = details?.sampleErrorCount;
+  // Distinct limit types across samples in this task, comma-joined (already
+  // sorted for stable text-filtering). Empty when no sample hit a limit.
+  const sampleLimits =
+    details !== undefined && details.sampleLimits.length > 0
+      ? details.sampleLimits.join(", ")
+      : undefined;
 
   const row: LogListRow = {
     id: item.id,
@@ -191,12 +175,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
 }) => {
   const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
 
-  const logDir = useLogDir();
-  const logDetails = useLogDetails(logDir);
-  // Defer the detail map so a burst of detail flushes during initial sync
-  // can't block click/scroll input — the grid renders from the prior value
-  // and catches up when the main thread is idle.
-  const deferredLogDetails = useDeferredValue(logDetails);
   const navigate = useNavigate();
 
   // Scope the column list to the current folder's logs in folder (logs) mode.
@@ -212,7 +190,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
     useLogListColumns(mode, scopePrefix, scoresViewMode);
 
   // Reuse the prior row object for any item whose display inputs (preview,
-  // details, structural fields) are unchanged, so only changed rows pay the
+  // header, structural fields) are unchanged, so only changed rows pay the
   // per-row rebuild. Keyed on store references (which stay stable across
   // flushes for unchanged logs) rather than the `item` object, so it works
   // even though `items` is rebuilt each flush upstream.
@@ -228,9 +206,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
       item.type === "file" ? item.logPreview : undefined,
       item.type === "folder" ? item.itemCount : undefined,
       item.type === "pending-task" ? item.model : undefined,
-      detailsForItem(item, deferredLogDetails),
+      headerForItem(item),
     ],
-    (item) => buildLogListRow(item, detailsForItem(item, deferredLogDetails))
+    (item) => buildLogListRow(item, headerForItem(item))
   );
 
   const handleRowActivate = useCallback(

@@ -12,7 +12,6 @@ import {
 } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
-import { mergeDetails } from "./logsContent";
 import { pendingSamplesKey } from "./pendingSamples";
 import {
   runningSampleQueryKey,
@@ -21,6 +20,7 @@ import {
 } from "./runningSampleQuery";
 import { SampleNotFoundError } from "./sampleFetch";
 import { sampleQueryKey } from "./sampleQuery";
+import { samplesListingKey, SamplesListingRow } from "./samplesListing";
 
 const LOG_DIR = "/logs";
 
@@ -61,10 +61,13 @@ const makeHandle = (logFile: string): SampleHandle => ({
   logFile,
 });
 
+// Seed the settled summaries the way a db-less sink push lands them: rows in
+// the file-scope samples listing entry (what readSettledSummaries reads).
 const seedLogDetails = (logFile: string, summaries: SampleSummary[]) => {
-  mergeDetails(LOG_DIR, {
-    [logFile]: { sampleSummaries: summaries } as unknown as never,
-  });
+  queryClient.setQueryData<SamplesListingRow[]>(
+    samplesListingKey({ logDir: LOG_DIR, scope: { file: logFile } }),
+    summaries.map((summary) => ({ logFile, summary, log: {} }))
+  );
 };
 
 const rawSample = (overrides: Record<string, unknown> = {}) =>

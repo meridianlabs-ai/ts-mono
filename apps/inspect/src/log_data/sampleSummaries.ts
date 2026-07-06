@@ -2,9 +2,9 @@ import { useMemo } from "react";
 
 import { SampleSummary } from "../client/api/types";
 
-import { useLogDetail } from "./logDetail";
-import { getLogDetail } from "./logsContent";
+import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
+import { readSettledSummaries, useSamplesListing } from "./samplesListing";
 
 // Merge a log's completed summaries with its pending-buffer samples
 // (exported for tests; consumers use useSampleSummaries / getSampleSummaries)
@@ -39,20 +39,29 @@ export const mergeSampleSummaries = (
 };
 
 /**
- * The live sample-summary list for a log: the details' completed summaries
- * merged with the pending-buffer samples. How the list is assembled (two
- * sources, dedup, streaming-path normalization) is subsystem-private —
- * consumers just get all of a log's samples, kept current.
+ * The live sample-summary list for a log: the settled summaries (the
+ * samples store) merged with the pending-buffer samples. How the list is
+ * assembled (two sources, dedup, streaming-path normalization) is
+ * subsystem-private — consumers just get all of a log's samples, kept
+ * current.
  */
 export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
 ): SampleSummary[] => {
-  const logSummaries = useLogDetail(logDir, logFile).data?.sampleSummaries;
+  const rows = useSamplesListing({
+    logDir,
+    // "" matches no stored file; the row set stays empty until a log is given.
+    scope: { file: logFile === undefined ? "" : resolveLogKey(logDir, logFile) },
+  });
   const pending = usePendingSamples(logDir, logFile)?.samples;
   return useMemo(
-    () => mergeSampleSummaries(logSummaries ?? [], pending ?? []),
-    [logSummaries, pending]
+    () =>
+      mergeSampleSummaries(
+        rows.map((row) => row.summary),
+        pending ?? []
+      ),
+    [rows, pending]
   );
 };
 
@@ -60,11 +69,13 @@ export const useSampleSummaries = (
  * Non-React snapshot of {@link useSampleSummaries} (for the running-sample
  * query's tick decisions). Empty when there's no resolved dir.
  */
-export const getSampleSummaries = (
+export const getSampleSummaries = async (
   logDir: string | undefined,
   logFile: string
-): SampleSummary[] =>
-  mergeSampleSummaries(
-    getLogDetail(logDir, logFile)?.sampleSummaries ?? [],
-    getPendingSamples(logDir, logFile)?.samples ?? []
-  );
+): Promise<SampleSummary[]> =>
+  logDir === undefined
+    ? []
+    : mergeSampleSummaries(
+        await readSettledSummaries(logDir, resolveLogKey(logDir, logFile)),
+        getPendingSamples(logDir, logFile)?.samples ?? []
+      );

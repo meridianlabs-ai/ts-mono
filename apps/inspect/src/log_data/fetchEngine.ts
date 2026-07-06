@@ -1,7 +1,12 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { throttle } from "@tsmono/util";
 
-import { ClientAPI, LogDetails, LogPreview } from "../client/api/types";
+import {
+  ClientAPI,
+  LogDetails,
+  LogHeader,
+  LogPreview,
+} from "../client/api/types";
 import { DatabaseService, LogFetchStateRecord } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
 import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
@@ -71,11 +76,14 @@ type LogWorkValue =
  * `logsContent` seam bound to a log dir (and its database) at the composition
  * root. `write*`/`clear*` persist to the database and mirror into the cache;
  * `set*`/`merge*` are cache-only (for seeding data that is already persisted).
+ * Note the asymmetry: `writeDetails` takes transport payloads (the sink
+ * normalizes them into entity stores); `mergeDetails` takes the stored
+ * header form (its inputs come back OUT of the store).
  */
 export interface LogsContentSink {
   setHandles(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
-  mergeDetails(details: Record<string, LogDetails>): void;
+  mergeDetails(headers: Record<string, LogHeader>): void;
   writeHandles(handles: LogHandle[]): Promise<LogHandle[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
   writeDetails(details: Record<string, LogDetails>): Promise<void>;
@@ -181,8 +189,10 @@ export class FetchEngine {
 
   // Completion promises for `fetch()` callers, keyed by resolved log name.
   // An entry exists from enqueue until resolve/reject, so concurrent callers
-  // share one fetch (in-flight dedupe).
-  private readonly _pendingFetches = new Map<string, Deferred<LogDetails>>();
+  // share one fetch (in-flight dedupe). Settle-only (void): no caller reads
+  // the payload, and the cache-hit path couldn't produce one without
+  // re-reading every summary row.
+  private readonly _pendingFetches = new Map<string, Deferred<void>>();
   // Names currently claimed by a worker (no longer in the queue) — a
   // duplicate `fetch()` must not re-enqueue these.
   private readonly _inFlightDetails = new Set<string>();
@@ -537,7 +547,7 @@ export class FetchEngine {
             this.bumpDetailsSettledSeq(name, deps);
           }
         }
-        waiter.resolve(detail);
+        waiter.resolve();
       } else {
         this._pendingDetailWrites[name] = detail;
         this._throttledFlushDetailWrites();
@@ -661,7 +671,7 @@ export class FetchEngine {
     logFile: string,
     priority: FetchPriority,
     opts: { fresh?: boolean; passive?: boolean } = {}
-  ): Promise<LogDetails> {
+  ): Promise<void> {
     this.requireDeps();
     const key = this.resolveKey(logFile);
     if (!opts.passive) {
@@ -683,7 +693,7 @@ export class FetchEngine {
       }
       return pending.promise;
     }
-    const waiter = deferred<LogDetails>();
+    const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
     void this.beginFetch(key, priority, waiter, opts.fresh ?? false);
     return waiter.promise;
@@ -702,7 +712,7 @@ export class FetchEngine {
   private async beginFetch(
     key: string,
     priority: FetchPriority,
-    waiter: Deferred<LogDetails>,
+    waiter: Deferred<void>,
     fresh: boolean
   ): Promise<void> {
     const deps = this._deps;
@@ -728,7 +738,7 @@ export class FetchEngine {
       // originating call, is the source of truth for "does this settle count
       // as active demand."
       const active = this._activeSettles.delete(key);
-      waiter.resolve(cached);
+      waiter.resolve();
       if (!active) {
         // Ensure-presence only: the data exists, so resolve — but nobody
         // actively wants this log open, so no "landed" signal and no

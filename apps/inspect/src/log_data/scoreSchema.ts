@@ -1,4 +1,16 @@
-import { LogDetails } from "../../../../client/api/types";
+import { useMemo } from "react";
+
+import { LogHeader } from "../client/api/types";
+import { useStableValue } from "../app/shared/useStableValue";
+
+import { useLogHeaders } from "./logsContent";
+
+/**
+ * Scorer/metric column discovery — the answer to "which score columns does
+ * this scope offer", derived from the logs' results. That it is computed
+ * from header content this subsystem holds (not from any particular payload)
+ * is private; consumers get a content-stable map.
+ */
 
 export interface ScorerMetricInfo {
   scorerName: string;
@@ -27,22 +39,22 @@ export const scorerMetricKey = (
  * from their results. Collapsing on metric name alone would merge distinct
  * scorers emitting the same metric (e.g. two "accuracy"s) into one column.
  *
- * @param logDetails - Details map keyed by log file name
+ * @param headers - Header map keyed by log file name
  * @param scopePrefix - When set, only logs whose name starts with this
  *   prefix contribute (folder view scoping)
  */
 export function computeScorerMap(
-  logDetails: Record<string, LogDetails>,
+  headers: Record<string, LogHeader>,
   scopePrefix?: string
 ): ScorerMap {
   const info: ScorerMap = {};
 
-  for (const [logName, details] of Object.entries(logDetails)) {
+  for (const [logName, header] of Object.entries(headers)) {
     if (scopePrefix && !logName.startsWith(scopePrefix)) {
       continue;
     }
-    if (details.results?.scores) {
-      for (const evalScore of details.results.scores) {
+    if (header.results?.scores) {
+      for (const evalScore of header.results.scores) {
         if (evalScore.metrics) {
           for (const [metricName, metric] of Object.entries(
             evalScore.metrics
@@ -62,14 +74,7 @@ export function computeScorerMap(
   return info;
 }
 
-/**
- * Content equality for two scorer maps, independent of key order.
- *
- * `logDetails` gets a new store identity on every detail flush while a
- * directory is loading, but the set of scorer columns it implies almost
- * never changes. Comparing content lets callers keep a stable map (and
- * thus stable ag-grid column defs) across those flushes.
- */
+/** Content equality for two scorer maps, independent of key order. */
 export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
   if (a === b) return true;
   const aKeys = Object.keys(a);
@@ -78,12 +83,10 @@ export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
     const av = a[key];
     const bv = b[key];
     if (
+      !av ||
       !bv ||
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.scorerName !== bv.scorerName ||
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.metricName !== bv.metricName ||
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       av.valueType !== bv.valueType
     ) {
       return false;
@@ -91,3 +94,24 @@ export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
   }
   return true;
 }
+
+/**
+ * The score columns available in a scope. Header content gets a new store
+ * identity on every detail flush while a directory loads, but the scorer
+ * columns it implies almost never change — the result is content-stabilized
+ * so consumers (and the column defs keyed on it) keep a stable reference
+ * across flushes.
+ */
+export const useScoreSchema = (
+  logDir: string,
+  scopePrefix?: string
+): ScorerMap => {
+  const headers = useLogHeaders(logDir);
+  return useStableValue(
+    useMemo(
+      () => computeScorerMap(headers, scopePrefix),
+      [headers, scopePrefix]
+    ),
+    scorerMapsEqual
+  );
+};

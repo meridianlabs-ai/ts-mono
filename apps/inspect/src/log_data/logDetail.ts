@@ -1,7 +1,7 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
-import { LogDetails } from "../client/api/types";
+import { LogHeader } from "../client/api/types";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import { logDetailKey, useLogFetchState, useLogHandles } from "./logsContent";
@@ -41,7 +41,7 @@ export const useLogDetail = (
   logDir: string,
   logFile: string | undefined,
   opts: { demand?: "active" | "passive" } = {}
-): LogDataState<LogDetails> => {
+): LogDataState<LogHeader> => {
   const demand = opts.demand ?? "passive";
   const handles = useLogHandles(logDir);
   // The queryKey must use the resolved handle name so it matches sink pushes.

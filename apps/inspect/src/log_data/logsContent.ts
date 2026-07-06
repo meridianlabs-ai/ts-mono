@@ -2,18 +2,31 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { LogDetails, LogPreview } from "../client/api/types";
+import { LogDetails, LogHeader, LogPreview } from "../client/api/types";
 import { DatabaseService, LogFetchStateRecord } from "../client/database";
+import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import type { LogsContentSink } from "./fetchEngine";
+import {
+  invalidateSamplesListings,
+  pushFileSamples,
+  removeSamplesListings,
+  toSamplesListingRows,
+} from "./samplesListing";
 
 /**
- * The log-list content backed by IndexedDB — handles, previews, and details for
- * a directory — mirrored into the react-query cache so React consumers can
+ * The log-list content backed by IndexedDB — handles, previews, and headers
+ * for a directory — mirrored into the react-query cache so React consumers can
  * subscribe to it. Each collection lives under its own query key, so a preview
  * update doesn't re-render handle-only consumers (and vice versa).
+ *
+ * Details INGESTION happens here too (`writeDetails`): the transport payload
+ * is normalized at this sink — header (plus derived sample facts) into the
+ * detail stores, sample summaries into their own store and the samples
+ * listing queries (see design/migration/log-data-summaries-entity.md). The
+ * cache and per-handle keys carry `LogHeader`, never the payload.
  *
  * The invariant for this module: IndexedDB is never written without the same
  * write landing in the cache. The `write*` / `clear*` seam below are the only
@@ -28,7 +41,7 @@ import type { LogsContentSink } from "./fetchEngine";
 
 const EMPTY_HANDLES: LogHandle[] = [];
 const EMPTY_PREVIEWS: Record<string, LogPreview> = {};
-const EMPTY_DETAILS: Record<string, LogDetails> = {};
+const EMPTY_DETAILS: Record<string, LogHeader> = {};
 
 export const logHandlesKey = (logDir: string) =>
   ["log_data", "handles", logDir] as const;
@@ -47,8 +60,8 @@ const currentPreviews = (logDir: string): Record<string, LogPreview> =>
   queryClient.getQueryData<Record<string, LogPreview>>(
     logPreviewsKey(logDir)
   ) ?? EMPTY_PREVIEWS;
-const currentDetails = (logDir: string): Record<string, LogDetails> =>
-  queryClient.getQueryData<Record<string, LogDetails>>(logDetailsKey(logDir)) ??
+const currentDetails = (logDir: string): Record<string, LogHeader> =>
+  queryClient.getQueryData<Record<string, LogHeader>>(logDetailsKey(logDir)) ??
   EMPTY_DETAILS;
 
 const omitKey = <T>(
@@ -90,26 +103,26 @@ export const mergePreviews = (
  * evicted keys re-seed from IndexedDB via the entry's `queryFn` on next
  * mount.
  */
-const pushDetail = (logDir: string, name: string, detail: LogDetails): void => {
+const pushDetail = (logDir: string, name: string, header: LogHeader): void => {
   const key = logDetailKey(logDir, name);
   if (queryClient.getQueryCache().find({ queryKey: key })) {
-    queryClient.setQueryData<LogDetails>(key, detail);
+    queryClient.setQueryData<LogHeader>(key, header);
   }
 };
 
-// Dual-write: the whole-dir map is a transitional listing feed (samples mode
-// and listing columns aggregate across all logs); the guarded per-handle
-// pushes keep mounted `useLogDetail` entries fresh.
+// Dual-write: the whole-dir map is the subsystem-internal listing feed (the
+// listing row join and score-schema discovery read it); the guarded
+// per-handle pushes keep mounted `useLogDetail` entries fresh.
 export const mergeDetails = (
   logDir: string,
-  details: Record<string, LogDetails>
+  headers: Record<string, LogHeader>
 ): void => {
-  queryClient.setQueryData<Record<string, LogDetails>>(
+  queryClient.setQueryData<Record<string, LogHeader>>(
     logDetailsKey(logDir),
-    (prev) => ({ ...(prev ?? EMPTY_DETAILS), ...details })
+    (prev) => ({ ...(prev ?? EMPTY_DETAILS), ...headers })
   );
-  for (const [name, detail] of Object.entries(details)) {
-    pushDetail(logDir, name, detail);
+  for (const [name, header] of Object.entries(headers)) {
+    pushDetail(logDir, name, header);
   }
 };
 
@@ -156,7 +169,7 @@ const evictFile = (logDir: string, name: string): void => {
     (prev ?? EMPTY_HANDLES).filter((handle) => handle.name !== name)
   );
   evictPreview(logDir, name);
-  queryClient.setQueryData<Record<string, LogDetails>>(
+  queryClient.setQueryData<Record<string, LogHeader>>(
     logDetailsKey(logDir),
     (prev) => omitKey(prev, name)
   );
@@ -170,7 +183,7 @@ const clearCache = (logDir: string): void => {
     logPreviewsKey(logDir),
     EMPTY_PREVIEWS
   );
-  queryClient.setQueryData<Record<string, LogDetails>>(
+  queryClient.setQueryData<Record<string, LogHeader>>(
     logDetailsKey(logDir),
     EMPTY_DETAILS
   );
@@ -178,6 +191,7 @@ const clearCache = (logDir: string): void => {
   // and fetch-state query under this dir (a prefix match on the query key).
   queryClient.removeQueries({ queryKey: ["log_data", "detail", logDir] });
   queryClient.removeQueries({ queryKey: ["log_data", "fetch_state", logDir] });
+  removeSamplesListings(logDir);
 };
 
 // ---------------------------------------------------------------------------
@@ -221,14 +235,47 @@ export const writePreviews = async (
   }
 };
 
+/**
+ * Details INGESTION: normalize each transport payload into the entity
+ * stores — header (with derived sample facts) into the detail keys, sample
+ * summaries into their own store. Cache updates land synchronously (headers
+ * merged, observed file-scope samples listings pushed — the running→complete
+ * handoff depends on the status flip and the settled rows arriving in the
+ * same update); persistence is one transaction per call; the invalidation
+ * sweep then refreshes prefix-scope listings from the committed rows. In
+ * db-less sessions the pushes are the only landing spot, and invalidating
+ * would clobber them with an empty read — so the sweep is persistence-gated.
+ */
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
   logDir: string,
   details: Record<string, LogDetails>
 ): Promise<void> => {
-  mergeDetails(logDir, details);
+  const headers = Object.fromEntries(
+    Object.entries(details).map(([name, payload]) => [
+      name,
+      toLogHeader(payload),
+    ])
+  );
+  // Samples rows land BEFORE the header merge: the header's status flip is
+  // what drops a running log's pending-buffer rows, so a render between the
+  // two updates must already have the settled rows.
+  await Promise.all(
+    Object.entries(details).map(([name, payload]) => {
+      const header = headers[name];
+      return header === undefined
+        ? Promise.resolve()
+        : pushFileSamples(
+            logDir,
+            name,
+            toSamplesListingRows(name, header, payload.sampleSummaries)
+          );
+    })
+  );
+  mergeDetails(logDir, headers);
   if (db?.opened()) {
     await db.writeLogDetails(details);
+    invalidateSamplesListings(logDir);
   }
 };
 
@@ -237,12 +284,7 @@ export const writeDetail = async (
   logDir: string,
   name: string,
   details: LogDetails
-): Promise<void> => {
-  mergeDetails(logDir, { [name]: details });
-  if (db?.opened()) {
-    await db.writeLogDetail(name, details);
-  }
-};
+): Promise<void> => writeDetails(db, logDir, { [name]: details });
 
 export const writeFetchStates = async (
   db: DatabaseService | null | undefined,
@@ -264,6 +306,9 @@ export const clearFile = async (
   if (db?.opened()) {
     await db.clearCacheForFile(name);
   }
+  // After the rows are gone (db) — or cache-only (db-less), where a refetch
+  // correctly reads empty — refresh any samples listing that carried them.
+  invalidateSamplesListings(logDir);
 };
 
 export const clearPreview = async (
@@ -341,20 +386,22 @@ export const useLogPreviews = (logDir: string): Record<string, LogPreview> => {
   return data ?? EMPTY_PREVIEWS;
 };
 
-export const useLogDetails = (logDir: string): Record<string, LogDetails> => {
-  const { data: details } = useQuery({
+// Subsystem-internal (the listing row join + score-schema discovery); app
+// modules consume the joined listing rows instead.
+export const useLogHeaders = (logDir: string): Record<string, LogHeader> => {
+  const { data: headers } = useQuery({
     queryKey: logDetailsKey(logDir),
     queryFn: () => currentDetails(logDir),
     staleTime: Infinity,
   });
-  return details ?? EMPTY_DETAILS;
+  return headers ?? EMPTY_DETAILS;
 };
 
 /**
  * A single handle's fetch-state (retrieval errors/attempts — a domain
  * separate from eval status/error), for detail-path consumers (e.g. a badge
  * on the currently-open log). Unlike `useLogHandles`/`useLogPreviews`/
- * `useLogDetails`, this is per-handle, not a whole-collection cache mirror:
+ * `useLogHeaders`, this is per-handle, not a whole-collection cache mirror:
  * the listing will read fetch-state from IndexedDB directly via paged joins
  * rather than mounting one of these per row. Idles (`skipToken`) without a
  * name. The `queryFn` reads straight from IndexedDB (there is no
@@ -403,14 +450,3 @@ export const resolveLogKey = (
   return match?.name ?? logFile;
 };
 
-/**
- * Non-React snapshot of a single log's details (for slice / polling). Returns
- * `undefined` when there's no resolved dir — honest "no scope yet", not a "" bucket.
- */
-export const getLogDetail = (
-  logDir: string | undefined,
-  logFile: string
-): LogDetails | undefined =>
-  logDir === undefined
-    ? undefined
-    : currentDetails(logDir)[resolveLogKey(logDir, logFile)];

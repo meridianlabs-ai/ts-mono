@@ -1,5 +1,5 @@
 import { useLogDir } from "../app_config";
-import { LogDetails } from "../client/api/types";
+import { LogHeader } from "../client/api/types";
 import { LogDataState, useLogDetail } from "../log_data";
 
 import { useStore } from "./store";
@@ -8,7 +8,7 @@ import { useStore } from "./store";
  *  loading/error surface (see `useLogDetail`). Active demand: this is the ONE
  *  consumer declaring "someone is looking at this log" — see
  *  `useLogDetail`'s `demand` option. */
-export const useSelectedLogDetail = (): LogDataState<LogDetails> =>
+export const useSelectedLogDetail = (): LogDataState<LogHeader> =>
   useLogDetail(
     useLogDir(),
     useStore((state) => state.logs.selectedLogFile),

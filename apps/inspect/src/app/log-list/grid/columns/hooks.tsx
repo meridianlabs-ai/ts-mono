@@ -7,7 +7,7 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
-import { useLogDetails } from "../../../../log_data";
+import { useLogListing, useScoreSchema } from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
@@ -18,11 +18,9 @@ import {
 } from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import { comparators } from "../../../shared/gridComparators";
-import { useStableValue } from "../../../shared/useStableValue";
 
 import localStyles from "./columns.module.css";
 import { completedAtValue } from "./completedAt";
-import { computeScorerMap, scorerMapsEqual } from "./scorerMap";
 import { LogListRow } from "./types";
 
 const styles = { ...sharedStyles, ...localStyles };
@@ -106,20 +104,7 @@ export const useLogListColumns = (
     (state) => state.logsActions.setLogsColumnVisibility
   );
   const logDir = useLogDir();
-  const logDetails = useLogDetails(logDir);
-
-  // `logDetails` gets a new identity on every detail flush while a
-  // directory loads, so the memo alone would return a fresh map (and
-  // cascade fresh column defs into the grid) on every flush. Content
-  // equality keeps the map — and everything keyed on it — stable unless
-  // the scorer columns actually changed.
-  const scorerMap = useStableValue(
-    useMemo(
-      () => computeScorerMap(logDetails, scopePrefix),
-      [logDetails, scopePrefix]
-    ),
-    scorerMapsEqual
-  );
+  const scorerMap = useScoreSchema(logDir, scopePrefix);
 
   // Auto-hide scorer columns by default if not explicitly set. Seed defaults
   // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
@@ -789,14 +774,17 @@ export const useLogListColumns = (
   }, [scorerMap, mode]);
 
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
-  // has a sample that ended with a limit.
-  const hasSampleLimits = useMemo(() => {
-    for (const [logName, details] of Object.entries(logDetails)) {
-      if (scopePrefix && !logName.startsWith(scopePrefix)) continue;
-      if (details.sampleSummaries?.some((s) => s.limit)) return true;
-    }
-    return false;
-  }, [logDetails, scopePrefix]);
+  // has a sample that ended with a limit (an ingestion-derived header fact).
+  const listingRows = useLogListing(logDir);
+  const hasSampleLimits = useMemo(
+    () =>
+      listingRows.some(
+        (row) =>
+          (!scopePrefix || row.name.startsWith(scopePrefix)) &&
+          (row.header?.sampleLimits.length ?? 0) > 0
+      ),
+    [listingRows, scopePrefix]
+  );
 
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {

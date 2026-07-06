@@ -11,7 +11,7 @@ import {
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
-import { LogDetails, RunningMetric, SampleSummary } from "../client/api/types";
+import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
   useLogDetail,
   usePassiveSampleData,
@@ -162,7 +162,7 @@ const log = createLogger("hooks");
  * retired `log.selectedLogDetails`. Use `useLogDetail` directly for the
  * loading/error surface.
  */
-export const useSelectedLogDetails = (): LogDetails | undefined => {
+export const useSelectedLogDetails = (): LogHeader | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   return useLogDetail(logDir, selectedLogFile).data;

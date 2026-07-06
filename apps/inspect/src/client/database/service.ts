@@ -1,10 +1,20 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { LogDetails, LogPreview, SampleSummary } from "../api/types";
+import { LogDetails, LogHeader, LogPreview } from "../api/types";
+import { toLogHeader } from "../utils/type-utils";
 
 import { DatabaseManager } from "./manager";
-import { AppDatabase, LogFetchStateRecord, LogHandleRecord } from "./schema";
+import {
+  AppDatabase,
+  LogFetchStateRecord,
+  LogHandleRecord,
+  SampleSummaryRecord,
+} from "./schema";
+
+/** Scope of a sample-summaries read: one log file, or every file under a
+ *  path prefix. */
+export type SampleSummariesScope = { file: string } | { prefix: string };
 
 const log = createLogger("DatabaseService");
 
@@ -201,35 +211,56 @@ export class DatabaseService {
   }
 
   // === LOG DETAILS ===
-  async writeLogDetail(filePath: string, info: LogDetails): Promise<void> {
-    const db = this.getDb();
-    const now = new Date().toISOString();
 
-    const record = {
-      file_path: filePath,
-      cached_at: now,
-      details: info,
-    };
-
-    log.debug(`Caching log info for: ${filePath}`);
-    await db.log_details.put(record);
-  }
-
+  /**
+   * Ingest details payloads: split each into a header row and its sample
+   * summary rows, written in one transaction per call so a reader never sees
+   * a header whose summary rows are from an older ingestion. Old summary
+   * rows for each file are dropped first — re-ingestion replaces, never
+   * accretes.
+   */
   async writeLogDetails(details: Record<string, LogDetails>): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const records = Object.entries(details).map(([filePath, info]) => ({
-      file_path: filePath,
-      cached_at: now,
-      details: info,
-    }));
-
-    log.debug(`Caching ${records.length} log details`);
-    await db.log_details.bulkPut(records);
+    const entries = Object.entries(details);
+    log.debug(`Caching ${entries.length} log details (split)`);
+    await db.transaction("rw", db.log_details, db.sample_summaries, async () => {
+      await db.log_details.bulkPut(
+        entries.map(([filePath, payload]) => ({
+          file_path: filePath,
+          cached_at: now,
+          details: toLogHeader(payload),
+        }))
+      );
+      const files = entries.map(([filePath]) => filePath);
+      await db.sample_summaries.where("file_path").anyOf(files).delete();
+      await db.sample_summaries.bulkPut(
+        entries.flatMap(([filePath, payload]) =>
+          payload.sampleSummaries.map<SampleSummaryRecord>((summary) => ({
+            file_path: filePath,
+            id: summary.id,
+            epoch: summary.epoch,
+            summary,
+            cached_at: now,
+          }))
+        )
+      );
+    });
   }
 
-  async readLogDetailsForFile(filePath: string): Promise<LogDetails | null> {
+  async readSampleSummaries(
+    scope: SampleSummariesScope
+  ): Promise<SampleSummaryRecord[]> {
+    const db = this.getDb();
+    const collection =
+      "file" in scope
+        ? db.sample_summaries.where("file_path").equals(scope.file)
+        : db.sample_summaries.where("file_path").startsWith(scope.prefix);
+    return collection.toArray();
+  }
+
+  async readLogDetailsForFile(filePath: string): Promise<LogHeader | null> {
     try {
       const db = this.getDb();
       const record = await db.log_details.get(filePath);
@@ -247,9 +278,14 @@ export class DatabaseService {
     }
   }
 
-  async readLogDetails(logs: LogHandle[]): Promise<Record<string, LogDetails>> {
+  async readLogDetails(logs: LogHandle[]): Promise<Record<string, LogHeader>> {
+    return this.readLogHeaders(logs.map((log) => log.name));
+  }
+
+  async readLogHeaders(
+    filePaths: string[]
+  ): Promise<Record<string, LogHeader>> {
     try {
-      const filePaths = logs.map((log) => log.name);
       const db = this.getDb();
       const records = await db.log_details
         .where("file_path")
@@ -257,17 +293,17 @@ export class DatabaseService {
         .toArray();
 
       log.debug(
-        `Retrieved ${records.length} cached log details out of ${filePaths.length} requested`
+        `Retrieved ${records.length} cached log headers out of ${filePaths.length} requested`
       );
 
-      const result: Record<string, LogDetails> = {};
+      const result: Record<string, LogHeader> = {};
       for (const record of records) {
         result[record.file_path] = record.details;
       }
 
       return result;
     } catch (error) {
-      log.error("Error retrieving cached log details:", error);
+      log.error("Error retrieving cached log headers:", error);
       return {};
     }
   }
@@ -325,89 +361,6 @@ export class DatabaseService {
     }
   }
 
-  // === SAMPLE SUMMARIES (extracted from LogDetails) ===
-  async readAllSampleSummaries(): Promise<SampleSummary[]> {
-    const db = this.getDb();
-    const records = await db.log_details.toArray();
-
-    const allSummaries: SampleSummary[] = [];
-    for (const record of records) {
-      if (record.details.sampleSummaries) {
-        allSummaries.push(...record.details.sampleSummaries);
-      }
-    }
-
-    log.debug(
-      `Retrieved ${allSummaries.length} sample summaries across all files`
-    );
-    return allSummaries;
-  }
-
-  async readSampleSummariesForFile(filePath: string): Promise<SampleSummary[]> {
-    const logInfo = await this.readLogDetailsForFile(filePath);
-    if (!logInfo || !logInfo.sampleSummaries) {
-      return [];
-    }
-    return logInfo.sampleSummaries;
-  }
-
-  async querySampleSummaries(filter?: {
-    completed?: boolean;
-    hasError?: boolean;
-    scoreRange?: { min: number; max: number; scoreName?: string };
-  }): Promise<SampleSummary[]> {
-    const allSummaries = await this.readAllSampleSummaries();
-
-    let filtered = allSummaries;
-
-    // Apply filters
-    if (filter?.completed !== undefined) {
-      filtered = filtered.filter(
-        (summary) => summary.completed === filter.completed
-      );
-    }
-
-    if (filter?.hasError !== undefined) {
-      filtered = filtered.filter((summary) => {
-        const hasError = !!summary.error;
-        return hasError === filter.hasError;
-      });
-    }
-
-    // Apply score range filter (if specified)
-    if (filter?.scoreRange) {
-      const { min, max, scoreName } = filter.scoreRange;
-      filtered = filtered.filter((summary) => {
-        if (!summary.scores) return false;
-
-        // Check specific score or any score
-        if (scoreName) {
-          const score = summary.scores[scoreName];
-          return (
-            score &&
-            typeof score.value === "number" &&
-            score.value >= min &&
-            score.value <= max
-          );
-        } else {
-          // Check if any score is in range
-          return Object.values(summary.scores).some(
-            (score) =>
-              score &&
-              typeof score.value === "number" &&
-              score.value >= min &&
-              score.value <= max
-          );
-        }
-      });
-    }
-
-    log.debug(
-      `Query returned ${filtered.length} sample summaries (filtered from ${allSummaries.length})`
-    );
-    return filtered;
-  }
-
   // === MANAGEMENT ===
 
   /**
@@ -421,6 +374,7 @@ export class DatabaseService {
       db.logs.clear(),
       db.log_previews.clear(),
       db.log_details.clear(),
+      db.sample_summaries.clear(),
       db.log_fetch_state.clear(),
     ]);
   }
@@ -436,6 +390,7 @@ export class DatabaseService {
       db.logs.where("file_path").equals(filePath).delete(),
       db.log_previews.where("file_path").equals(filePath).delete(),
       db.log_details.where("file_path").equals(filePath).delete(),
+      db.sample_summaries.where("file_path").equals(filePath).delete(),
       db.log_fetch_state.where("file_path").equals(filePath).delete(),
     ]);
   }
@@ -457,20 +412,13 @@ export class DatabaseService {
   }> {
     const db = this.getDb();
 
-    const [logFiles, logSummaries, logInfo] = await Promise.all([
-      db.logs.count(),
-      db.log_previews.count(),
-      db.log_details.count(),
-    ]);
-
-    // Count sample summaries from log info
-    let sampleSummaries = 0;
-    const logInfoRecords = await db.log_details.toArray();
-    for (const record of logInfoRecords) {
-      if (record.details.sampleSummaries) {
-        sampleSummaries += record.details.sampleSummaries.length;
-      }
-    }
+    const [logFiles, logSummaries, logInfo, sampleSummaries] =
+      await Promise.all([
+        db.logs.count(),
+        db.log_previews.count(),
+        db.log_details.count(),
+        db.sample_summaries.count(),
+      ]);
 
     return {
       logFiles,

@@ -20,7 +20,7 @@ import { debounce } from "@tsmono/util";
 
 import {
   useEvalDescriptor,
-  useSelectedLogDetails,
+  useSelectedSampleSummaries,
 } from "../../../../state/hooks";
 import { useStore } from "../../../../state/store";
 import { FilterError } from "../../../types";
@@ -159,7 +159,7 @@ export const SampleFilter: FC = () => {
 
   const filter = useStore((state) => state.log.filter);
   const filterError = useStore((state) => state.log.filterError);
-  const samples = useSelectedLogDetails()?.sampleSummaries;
+  const samples = useSelectedSampleSummaries();
   const setFilter = useStore((state) => state.logActions.setFilter);
 
   const handleFocus = useCallback((event: FocusEvent, view: EditorView) => {

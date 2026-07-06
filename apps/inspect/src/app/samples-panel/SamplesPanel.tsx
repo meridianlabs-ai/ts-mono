@@ -10,9 +10,9 @@ import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
-  useLogDetails,
   useLogListing,
   useLogsSync,
+  useSamplesListing,
 } from "../../log_data";
 import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
@@ -107,11 +107,16 @@ export const SamplesPanel: FC = () => {
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
 
-  const logDetails = useLogDetails(logDir);
-
   const flowData = useFlowQuery(samplesPath || "").data;
 
   const currentDir = join(samplesPath || "", logDir);
+
+  // Every sample summary under this panel's scope, each row carrying its
+  // log's display context (the subsystem joins; no by-name lookups here).
+  const scopedSamples = useSamplesListing({
+    logDir,
+    scope: { prefix: currentDir },
+  });
 
   const evalSet = useEvalSet().data;
   const logFiles = useLogListing(logDir);
@@ -149,30 +154,15 @@ export const SamplesPanel: FC = () => {
     return count;
   }, [currentDirLogFiles]);
 
-  // Filter logDetails based on samplesPath.
-  const logDetailsInPath = useMemo(() => {
-    if (!samplesPath) return logDetails;
-    const samplesPathAbs = join(samplesPath, logDir);
-    return Object.entries(logDetails).reduce(
-      (acc, [logFile, details]) => {
-        if (logFile.startsWith(samplesPathAbs)) {
-          acc[logFile] = details;
-        }
-        return acc;
-      },
-      {} as typeof logDetails
-    );
-  }, [logDetails, logDir, samplesPath]);
-
   // Build the superset of columns.
   const allColumns = useMemo(
     () =>
       buildSampleColumns({
         viewMode: "grid",
         multiLog: true,
-        logDetails: logDetailsInPath,
+        samples: scopedSamples.map((row) => row.summary),
       }),
-    [logDetailsInPath]
+    [scopedSamples]
   );
 
   const pickerColumns = useMemo(
@@ -188,17 +178,15 @@ export const SamplesPanel: FC = () => {
       limit = false,
       retries = false,
       fallbacks = false;
-    outer: for (const details of Object.values(logDetailsInPath)) {
-      for (const sample of details.sampleSummaries) {
-        if (sample.error) error = true;
-        if (sample.limit) limit = true;
-        if (sample.retries) retries = true;
-        if (sample.model_fallbacks?.length) fallbacks = true;
-        if (error && limit && retries && fallbacks) break outer;
-      }
+    for (const { summary } of scopedSamples) {
+      if (summary.error) error = true;
+      if (summary.limit) limit = true;
+      if (summary.retries) retries = true;
+      if (summary.model_fallbacks?.length) fallbacks = true;
+      if (error && limit && retries && fallbacks) break;
     }
     return { error, limit, retries, fallbacks };
-  }, [logDetailsInPath]);
+  }, [scopedSamples]);
 
   const defaultsForUnseededColumns = useCallback(
     (col: ColDef<SampleRow>) => {
@@ -242,24 +230,24 @@ export const SamplesPanel: FC = () => {
     setPreviousSamplesPath,
   ]);
 
-  // Transform logDetails into flat rows, pre-sorted by completion time
-  // (descending) since interactive sorting is deferred.
+  // Transform the scoped samples into flat grid rows, pre-sorted by
+  // completion time (descending) since interactive sorting is deferred.
   const [sampleRows, hasRetriedLogs] = useMemo(() => {
-    const allRows: SampleRow[] = [];
     let displayIndex = 1;
 
-    let anyLogInCurrentDirCouldBeSkipped = false;
+    const anyLogInCurrentDirCouldBeSkipped = currentDirLogFiles.some(
+      (log) => log.retried
+    );
     const logInCurrentDirByName = currentDirLogFiles.reduce(
       (acc: Record<string, LogListingRow>, log) => {
-        if (log.retried) anyLogInCurrentDirCouldBeSkipped = true;
         acc[log.name] = log;
         return acc;
       },
       {}
     );
 
-    Object.entries(logDetailsInPath).forEach(([logFile, logDetail]) => {
-      logDetail.sampleSummaries.forEach((sample) => {
+    const allRows: SampleRow[] = scopedSamples.map(
+      ({ logFile, summary: sample, log }) => {
         const tokens = sample.model_usage
           ? Object.values(sample.model_usage).reduce(
               (sum, u) => sum + (u.total_tokens ?? 0),
@@ -271,10 +259,10 @@ export const SamplesPanel: FC = () => {
           sampleId: sample.id,
           epoch: sample.epoch,
           data: sample,
-          created: logDetail.eval.created,
-          task: logDetail.eval.task || "",
-          model: logDetail.eval.model || "",
-          status: logDetail.status,
+          created: log.created ?? "",
+          task: log.task || "",
+          model: log.model || "",
+          status: log.status,
           input: inputString(sample.input).join("\n"),
           target: Array.isArray(sample.target)
             ? sample.target.join(", ")
@@ -292,9 +280,9 @@ export const SamplesPanel: FC = () => {
             row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = score.value;
           }
         }
-        allRows.push(row);
-      });
-    });
+        return row;
+      }
+    );
 
     const _sampleRows = allRows.filter(
       (row) => row.logFile in logInCurrentDirByName
@@ -309,7 +297,7 @@ export const SamplesPanel: FC = () => {
       _sampleRows.length < allRows.length || anyLogInCurrentDirCouldBeSkipped;
 
     return [_sampleRows, _hasRetriedLogs];
-  }, [logDetailsInPath, currentDirLogFiles]);
+  }, [scopedSamples, currentDirLogFiles]);
 
   const { navigateToSampleDetail } = useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(

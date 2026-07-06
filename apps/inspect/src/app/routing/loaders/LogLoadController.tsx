@@ -49,7 +49,7 @@ export const LogLoadController: FC = () => {
     }
     const details = detail.data;
     clearSelectedScores();
-    if (details.status !== "started" && details.sampleSummaries.length === 0) {
+    if (details.status !== "started" && details.sampleCount === 0) {
       // If there are no samples, use the info tab by default
       setWorkspaceTab(kLogViewInfoTabId);
     }

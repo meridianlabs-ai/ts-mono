@@ -3,9 +3,9 @@ import { useDeferredValue, useMemo } from "react";
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { EvalLogStatus } from "../@types/extraInspect";
-import { LogPreview } from "../client/api/types";
+import { LogHeader, LogPreview } from "../client/api/types";
 
-import { useLogHandles, useLogPreviews } from "./logsContent";
+import { useLogHandles, useLogHeaders, useLogPreviews } from "./logsContent";
 
 /**
  * The listing read: one row per log file in the directory — its handle,
@@ -23,11 +23,15 @@ const isActiveStatus = (status: EvalLogStatus | undefined) =>
 export type LogHandleWithRetried = LogHandle & { retried?: boolean };
 
 /**
- * One log file's row in the listing. `preview` is optional because preview
- * content genuinely lags handle discovery — the acquisition tiering expressed
- * as a single nullable field, not a separate collection.
+ * One log file's row in the listing. `preview` and `header` are optional
+ * because that content genuinely lags handle discovery (and header lags
+ * preview) — the acquisition tiering expressed as nullable fields on one
+ * row, not separate collections.
  */
-export type LogListingRow = LogHandleWithRetried & { preview?: LogPreview };
+export type LogListingRow = LogHandleWithRetried & {
+  preview?: LogPreview;
+  header?: LogHeader;
+};
 
 type LogPreviewStatusMap = Record<
   string,
@@ -95,17 +99,20 @@ export const computeLogsWithRetried = (
 export const useLogListing = (logDir: string): LogListingRow[] => {
   const logs = useLogHandles(logDir);
   const logPreviews = useLogPreviews(logDir);
-  // Deferred so the burst of preview flushes during initial sync can't block
-  // click/scroll input — rows render from the prior previews and catch up
-  // when the main thread is idle.
+  const logHeaders = useLogHeaders(logDir);
+  // Deferred so the burst of preview/header flushes during initial sync
+  // can't block click/scroll input — rows render from the prior content and
+  // catch up when the main thread is idle.
   const deferredPreviews = useDeferredValue(logPreviews);
+  const deferredHeaders = useDeferredValue(logHeaders);
 
   return useMemo(
     () =>
       computeLogsWithRetried(logs, deferredPreviews).map((log) => ({
         ...log,
         preview: deferredPreviews[log.name],
+        header: deferredHeaders[log.name],
       })),
-    [logs, deferredPreviews]
+    [logs, deferredPreviews, deferredHeaders]
   );
 };

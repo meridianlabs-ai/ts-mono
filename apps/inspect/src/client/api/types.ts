@@ -436,6 +436,22 @@ export interface LogPreview {
   primary_metric?: EvalMetric;
 }
 
+/**
+ * The stored/cached form of one log's content: the details payload minus its
+ * sample summaries (those are their own store — see
+ * design/migration/log-data-summaries-entity.md), plus facts about the log's
+ * samples derived once at ingestion. Deriving at write time is what keeps
+ * whole-dir summary scans off every read path — these facts are listing
+ * columns (Sample Errors / Sample Limits) and the zero-samples check.
+ */
+export interface LogHeader extends EvalHeader {
+  etag?: string;
+  sampleCount: number;
+  sampleErrorCount: number;
+  /** Distinct limit kinds across the log's samples, sorted. */
+  sampleLimits: string[];
+}
+
 export interface LogRoot {
   logs: LogHandle[];
   log_dir?: string;

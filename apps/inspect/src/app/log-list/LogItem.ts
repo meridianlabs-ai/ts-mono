@@ -1,6 +1,5 @@
-import { LogHandle } from "@tsmono/inspect-common";
-
 import { LogPreview } from "../../client/api/types";
+import { LogListingRow } from "../../log_data";
 
 export interface LogItem {
   id: string;
@@ -16,7 +15,7 @@ export interface FolderLogItem extends LogItem {
 
 export interface FileLogItem extends LogItem {
   type: "file";
-  log: LogHandle;
+  log: LogListingRow;
   logPreview?: LogPreview;
 }
 

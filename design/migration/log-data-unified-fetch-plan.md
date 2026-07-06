@@ -24,15 +24,15 @@ Consequences honored here:
 
 ## Data model
 
-### Dexie tables (per-dir database `InspectAI_<sanitized dir>`, v10 after Task 3)
+### Dexie tables (per-dir database `InspectAI_<sanitized dir>`, v11 after entity-model phase 2)
 
 | Table | Record / pk | Indexes | Status |
 |---|---|---|---|
 | `logs` | `LogHandleRecord` / `++id` | `&file_path, mtime, task, task_id, cached_at` | unchanged — the listing index; future paged listing sorts/filters here |
 | `log_previews` | `LogPreviewRecord` / `file_path` | `preview.status, preview.task_id, preview.model, cached_at` | unchanged — future paged listing joins it |
-| `log_details` | `LogDetailsRecord` / `file_path` | `details.status, cached_at` | unchanged shape; still embeds `sampleSummaries` (shrinks toward header-only when the samples table lands — future) |
+| `log_details` | `LogDetailsRecord` (`details: LogHeader`) / `file_path` | `details.status, cached_at` | **header-only since entity-model phase 2** — payload minus summaries, plus ingestion-derived sample facts (`sampleCount`/`sampleErrorCount`/`sampleLimits`) |
 | `log_fetch_state` | `LogFetchStateRecord` / `file_path` | (pk only) | **new in Task 3** — per-handle retrieval errors/attempts; future paged listing joins it |
-| `sample_summaries` | keyed `[file_path+id+epoch]`, sort/filter indexes | — | **future, not this plan** — paged sample summaries; carved out of `log_details` |
+| `sample_summaries` | `SampleSummaryRecord` / `[file_path+id+epoch]` | `file_path, summary.completed_at` | **landed (entity-model phase 2)** — populated by the sink's ingestion split |
 
 ### RQ query keys (after this plan)
 
@@ -42,14 +42,14 @@ Consequences honored here:
 | `["log_data", "client-events", logDir]` | server event poll | queryFn | unchanged |
 | `["log_data", "handles", logDir]` | `LogHandle[]` | passive container, sink `setHandles` | transitional — folds into the paged listing |
 | `["log_data", "previews", logDir]` | `Record<string, LogPreview>` | passive container, sink merges | **transitional** — the degenerate one-page listing; replaced by paged listing keys |
-| `["log_data", "detail", logDir, name]` | `LogDetails \| null` | db-backed queryFn (Dexie row), sink guarded-push, `staleTime: Infinity`, default gcTime (evicts; db re-seeds) | **end-state (Task 4)** — key segment is the resolved handle name; supersedes `logDetailQuery`'s same-family key which used the raw route file arg |
+| `["log_data", "detail", logDir, name]` | `LogHeader \| null` | db-backed queryFn (Dexie row), sink guarded-push, `staleTime: Infinity`, default gcTime (evicts; db re-seeds) | **end-state (Task 4)** — key segment is the resolved handle name; supersedes `logDetailQuery`'s same-family key which used the raw route file arg |
 | `["log_data", "fetch_state", logDir, name]` | `LogFetchStateRecord \| null` | db-backed queryFn, sink guarded-push | **new (Task 3), end-state** |
 | `["log_data", "sample", logDir, logFile, id, epoch]` | `EvalSample` | queryFn fetch, gcTime 30s | unchanged |
 | `["log_data", "running-sample", logDir, logFile, id, epoch]` | stream state | queryFn | unchanged |
 | `["log_data", "pending-samples", logDir, logFile]` | pending-sample poll | queryFn | unchanged |
-| `["log_data", "details", logDir]` | whole-dir `Record` | passive container, sink merges (dual-written alongside per-handle entries) | **transitional** — retained as the listing-shaped feed for samples mode / listing columns (`SamplesPanel`, `LogListGrid`, `columns/hooks` aggregate across all logs); removal belongs to the samples-table/paged migration |
+| `["log_data", "details", logDir]` | whole-dir `Record<string, LogHeader>` | passive container, sink merges (dual-written alongside per-handle entries) | **subsystem-internal since entity-model phase 2** — feeds the listing-row header join + score schema; no `app/` consumer |
 | `["log_data", "listing", logDir, filter, orderBy, pageSize]` (infinite) | preview pages from Dexie | — | future, not this plan |
-| `["log_data", "sample_summaries", logDir, name, filter, orderBy, pageSize]` (infinite) | summary pages from Dexie | — | future, not this plan |
+| `["log_data", "samples", logDir, scope, limit, cursor]` | `SamplesListingRow[]` from Dexie (log context joined) | db-backed queryFn, sink push (file scope) + invalidation, `keepPreviousData` | **landed (entity-model phase 2)** — paged-shape params; infinite paging is the future listing goal |
 
 ## Global Constraints
 

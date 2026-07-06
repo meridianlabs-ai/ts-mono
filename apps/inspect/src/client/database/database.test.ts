@@ -244,18 +244,26 @@ describe("Database Service", () => {
         sampleSummaries: samples,
       });
 
-      // Cache the log info
-      await databaseService.writeLogDetail("/test/logs/eval1.json", logInfo);
+      // Ingest the payload (split: header row + summary rows)
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": logInfo,
+      });
 
-      // Retrieve cached log info
+      // Retrieve the stored header
       const cached = await databaseService.readLogDetailsForFile(
         "/test/logs/eval1.json"
       );
 
       expect(cached).not.toBeNull();
       expect(cached?.eval.eval_id).toBe("eval-1");
-      expect(cached?.sampleSummaries).toHaveLength(2);
-      expect(cached?.sampleSummaries[0]?.id).toBe(1);
+      expect(cached).not.toHaveProperty("sampleSummaries");
+      expect(cached?.sampleCount).toBe(2);
+
+      const rows = await databaseService.readSampleSummaries({
+        file: "/test/logs/eval1.json",
+      });
+      expect(rows).toHaveLength(2);
+      expect(rows[0]?.summary.id).toBe(1);
     });
 
     test("should return null for non-cached log info", async () => {
@@ -268,14 +276,10 @@ describe("Database Service", () => {
     test("findMissingDetails treats details cached as started as missing", async () => {
       // A "started" details row is a mid-run snapshot — the run may have
       // finished since, so backfill must re-fetch it.
-      await databaseService.writeLogDetail(
-        "/test/logs/running.json",
-        createTestLogInfo({ status: "started" })
-      );
-      await databaseService.writeLogDetail(
-        "/test/logs/done.json",
-        createTestLogInfo({ status: "success" })
-      );
+      await databaseService.writeLogDetails({
+        "/test/logs/running.json": createTestLogInfo({ status: "started" }),
+        "/test/logs/done.json": createTestLogInfo({ status: "success" }),
+      });
 
       const missing = await databaseService.findMissingDetails([
         { name: "/test/logs/running.json" },
@@ -290,126 +294,81 @@ describe("Database Service", () => {
     });
   });
 
-  describe("Sample Summaries Extraction", () => {
-    test("should extract sample summaries from cached log info", async () => {
+  describe("Sample Summaries Store", () => {
+    test("should split sample summaries into their own rows at ingestion", async () => {
       const samples = [
         createTestSampleSummary({ id: 1, completed: true }),
         createTestSampleSummary({ id: 2, completed: false }),
         createTestSampleSummary({ id: 3, error: "timeout" }),
       ];
 
-      const logInfo = createTestLogInfo({
-        sampleSummaries: samples,
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
+          sampleSummaries: samples,
+        }),
       });
 
-      // Cache the log info
-      await databaseService.writeLogDetail("/test/logs/eval1.json", logInfo);
+      const rows = await databaseService.readSampleSummaries({
+        file: "/test/logs/eval1.json",
+      });
 
-      // Get samples for the file
-      const retrievedSamples = await databaseService.readSampleSummariesForFile(
-        "/test/logs/eval1.json"
-      );
-
-      expect(retrievedSamples).toHaveLength(3);
-      expect(retrievedSamples[0]?.id).toBe(1);
-      expect(retrievedSamples[1]?.completed).toBe(false);
-      expect(retrievedSamples[2]?.error).toBe("timeout");
+      expect(rows).toHaveLength(3);
+      expect(rows[0]?.summary.id).toBe(1);
+      expect(rows[1]?.summary.completed).toBe(false);
+      expect(rows[2]?.summary.error).toBe("timeout");
     });
 
     test("should return empty array for file without cached info", async () => {
-      const samples = await databaseService.readSampleSummariesForFile(
-        "/test/logs/nonexistent.json"
-      );
-      expect(samples).toEqual([]);
+      const rows = await databaseService.readSampleSummaries({
+        file: "/test/logs/nonexistent.json",
+      });
+      expect(rows).toEqual([]);
     });
 
-    test("should get all sample summaries across multiple files", async () => {
-      const logInfo1 = createTestLogInfo({
-        sampleSummaries: [
-          createTestSampleSummary({ id: 1 }),
-          createTestSampleSummary({ id: 2 }),
-        ],
+    test("should read sample summaries across files by prefix", async () => {
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
+          sampleSummaries: [
+            createTestSampleSummary({ id: 1 }),
+            createTestSampleSummary({ id: 2 }),
+          ],
+        }),
+        "/test/logs/sub/eval2.json": createTestLogInfo({
+          sampleSummaries: [createTestSampleSummary({ id: 3 })],
+        }),
       });
 
-      const logInfo2 = createTestLogInfo({
-        sampleSummaries: [createTestSampleSummary({ id: 3 })],
+      const all = await databaseService.readSampleSummaries({
+        prefix: "/test/logs/",
       });
+      expect(all).toHaveLength(3);
 
-      await databaseService.writeLogDetail("/test/logs/eval1.json", logInfo1);
-      await databaseService.writeLogDetail("/test/logs/eval2.json", logInfo2);
-
-      const allSamples = await databaseService.readAllSampleSummaries();
-      expect(allSamples).toHaveLength(3);
+      const sub = await databaseService.readSampleSummaries({
+        prefix: "/test/logs/sub",
+      });
+      expect(sub).toHaveLength(1);
+      expect(sub[0]?.summary.id).toBe(3);
     });
 
-    test("should query sample summaries with filters", async () => {
-      const samples = [
-        createTestSampleSummary({ id: 1, completed: true }),
-        createTestSampleSummary({
-          id: 2,
-          completed: false,
-          scores: {
-            accuracy: {
-              value: 0.7,
-              answer: null,
-              explanation: null,
-              metadata: {},
-              history: [],
-            },
-          },
+    test("re-ingestion replaces a file's summary rows", async () => {
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
+          sampleSummaries: [
+            createTestSampleSummary({ id: 1 }),
+            createTestSampleSummary({ id: 2 }),
+          ],
         }),
-        createTestSampleSummary({
-          id: 3,
-          completed: true,
-          error: "timeout",
-          scores: {
-            accuracy: {
-              value: 0.8,
-              answer: null,
-              explanation: null,
-              metadata: {},
-              history: [],
-            },
-          },
+      });
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
+          sampleSummaries: [createTestSampleSummary({ id: 1 })],
         }),
-        createTestSampleSummary({
-          id: 4,
-          completed: true,
-          scores: {
-            accuracy: {
-              value: 0.6,
-              answer: null,
-              explanation: null,
-              metadata: {},
-              history: [],
-            },
-          },
-        }),
-      ];
-
-      const logInfo = createTestLogInfo({ sampleSummaries: samples });
-      await databaseService.writeLogDetail("/test/logs/eval1.json", logInfo);
-
-      // Test completed filter
-      const completedSamples = await databaseService.querySampleSummaries({
-        completed: true,
       });
-      expect(completedSamples).toHaveLength(3);
 
-      // Test error filter
-      const errorSamples = await databaseService.querySampleSummaries({
-        hasError: true,
+      const rows = await databaseService.readSampleSummaries({
+        file: "/test/logs/eval1.json",
       });
-      expect(errorSamples).toHaveLength(1);
-      expect(errorSamples[0]?.id).toBe(3);
-
-      // Test score range filter
-      const highScoreSamples = await databaseService.querySampleSummaries({
-        scoreRange: { min: 0.8, max: 1.0, scoreName: "accuracy" },
-      });
-      expect(highScoreSamples).toHaveLength(2);
-      expect(highScoreSamples[0]?.id).toBe(1);
-      expect(highScoreSamples[1]?.id).toBe(3);
+      expect(rows).toHaveLength(1);
     });
   });
 
@@ -434,12 +393,11 @@ describe("Database Service", () => {
         ["/test/logs/eval1.json"]
       );
 
-      await databaseService.writeLogDetail(
-        "/test/logs/eval1.json",
-        createTestLogInfo({
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [createTestSampleSummary()],
-        })
-      );
+        }),
+      });
 
       const stats1 = await databaseService.getCacheStats();
       expect(stats1.logFiles).toBe(1);
@@ -457,26 +415,21 @@ describe("Database Service", () => {
 
     test("should count sample summaries correctly", async () => {
       // Cache multiple log info with different number of samples
-      await databaseService.writeLogDetail(
-        "/test/logs/eval1.json",
-        createTestLogInfo({
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [
             createTestSampleSummary({ id: 1 }),
             createTestSampleSummary({ id: 2 }),
           ],
-        })
-      );
-
-      await databaseService.writeLogDetail(
-        "/test/logs/eval2.json",
-        createTestLogInfo({
+        }),
+        "/test/logs/eval2.json": createTestLogInfo({
           sampleSummaries: [
             createTestSampleSummary({ id: 3 }),
             createTestSampleSummary({ id: 4 }),
             createTestSampleSummary({ id: 5 }),
           ],
-        })
-      );
+        }),
+      });
 
       const stats = await databaseService.getCacheStats();
       expect(stats.sampleSummaries).toBe(5); // Total samples across both files

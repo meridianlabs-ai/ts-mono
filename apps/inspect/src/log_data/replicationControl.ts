@@ -1,7 +1,6 @@
 import { LogHandle } from "@tsmono/inspect-common/types";
 
 import { getApi, getAppConfig, getLogDir } from "../app_config";
-import { LogDetails } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 
 import { getDatabaseService } from "./databaseServiceInstance";
@@ -106,7 +105,7 @@ export const fetchLog = async (
   logDir: string,
   logFile: string,
   opts?: { fresh?: boolean; passive?: boolean }
-): Promise<LogDetails> => {
+): Promise<void> => {
   await ensureFetchEngine(logDir);
   return fetchEngine.fetch(logFile, "user", opts);
 };

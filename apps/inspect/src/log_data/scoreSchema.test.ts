@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { LogDetails } from "../../../../client/api/types";
+import { LogHeader } from "../client/api/types";
 
-import { computeScorerMap, scorerMapsEqual } from "./scorerMap";
+import { computeScorerMap, scorerMapsEqual } from "./scoreSchema";
 
 const details = (
   scores: Array<{ name: string; metrics: Record<string, number | string> }>
-): LogDetails =>
+): LogHeader =>
   ({
     results: {
       scores: scores.map((s) => ({
@@ -16,7 +16,7 @@ const details = (
         ),
       })),
     },
-  }) as unknown as LogDetails;
+  }) as unknown as LogHeader;
 
 describe("computeScorerMap", () => {
   it("collects one entry per (scorer, metric) pair across logs", () => {
@@ -60,7 +60,7 @@ describe("computeScorerMap", () => {
 
   it("skips logs without score results", () => {
     const map = computeScorerMap({
-      "/dir/a.eval": { sampleSummaries: [] } as unknown as LogDetails,
+      "/dir/a.eval": { sampleSummaries: [] } as unknown as LogHeader,
     });
     expect(map).toEqual({});
   });

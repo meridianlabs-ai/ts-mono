@@ -6,7 +6,7 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { arrayToString, filename, formatNumber } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
-import { LogDetails } from "../../../client/api/types";
+import { SampleSummary } from "../../../client/api/types";
 import {
   kScoreTypeBoolean,
   kScoreTypeNumeric,
@@ -62,7 +62,7 @@ export interface SampleGridContext {
   scores?: ScoreLabel[];
   epochs?: number;
   /** Cross-log only — used to discover all distinct score names. */
-  logDetails?: Record<string, LogDetails>;
+  samples?: SampleSummary[];
   /** Per-metric display label overrides, e.g. `{ "ascii-art": "ASCII
    *  Art" }`. Falls through to the raw metric name when a key isn't
    *  present. Sourced from the eval-author's `task_samples_view`. */
@@ -455,7 +455,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
   const {
     descriptor,
     scores,
-    logDetails,
+    samples,
     scoreLabels,
     scoreColorScales,
     compactScores,
@@ -564,25 +564,23 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     });
   }
 
-  // Raw mode — discover score names across the supplied logDetails. Detect
+  // Raw mode — discover score names across the supplied samples. Detect
   // type collisions so a name with mixed value types falls back to text.
   // Also tally numeric min/max per column so colour-scale gradients have
   // something to anchor against (no descriptor exists in raw mode).
   const types: Record<string, Set<string>> = {};
   const ranges: Record<string, { min: number; max: number }> = {};
-  for (const details of Object.values(logDetails ?? {})) {
-    for (const sample of details.sampleSummaries) {
-      if (!sample.scores) continue;
-      for (const [name, score] of Object.entries(sample.scores)) {
-        if (!types[name]) types[name] = new Set();
-        types[name].add(typeof score.value);
-        if (typeof score.value === "number" && Number.isFinite(score.value)) {
-          const r = ranges[name];
-          if (!r) ranges[name] = { min: score.value, max: score.value };
-          else {
-            if (score.value < r.min) r.min = score.value;
-            if (score.value > r.max) r.max = score.value;
-          }
+  for (const sample of samples ?? []) {
+    if (!sample.scores) continue;
+    for (const [name, score] of Object.entries(sample.scores)) {
+      if (!types[name]) types[name] = new Set();
+      types[name].add(typeof score.value);
+      if (typeof score.value === "number" && Number.isFinite(score.value)) {
+        const r = ranges[name];
+        if (!r) ranges[name] = { min: score.value, max: score.value };
+        else {
+          if (score.value < r.min) r.min = score.value;
+          if (score.value > r.max) r.max = score.value;
         }
       }
     }
