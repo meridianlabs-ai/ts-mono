@@ -28,7 +28,7 @@ import {
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
-import { EvalHeader, LogDetails, SampleSummary } from "../client/api/types";
+import { EvalHeader, SampleSummary } from "../client/api/types";
 
 import type { SamplesViewState } from "./samples/list/samplesView";
 
@@ -174,11 +174,6 @@ export type Event =
   | InfoEvent
   | StepEvent
   | SubtaskEvent;
-
-export interface CurrentLog {
-  name: string;
-  contents: LogDetails;
-}
 
 export interface Logs {
   log_dir: string;

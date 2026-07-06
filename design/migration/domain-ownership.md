@@ -57,7 +57,8 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 ### Log-data acquisition
 
 Owns **all** backend log-data reads, at every granularity — collection-level
-(dir listing / discovery), item-level (previews, details), and sample-level
+(dir listing / discovery), item-level (Log content at previewed/detailed
+depth), and sample-level
 (completed EvalSamples, event streaming, the pending-samples buffer) — **and all
 the freshness mechanism behind them**: poll cadence, enablement mechanics,
 etag threading, engine activation. Mode-independent: alive in dir mode and
@@ -76,10 +77,20 @@ invariant holds.
   re-syncs on host `refresh-evals` events and periodically).
   `imperativeLogData.invalidateLogListing()` is the invalidation counterpart for
   external freshness events.
+- `useLogListing(logDir)` (`log_data/logListing.ts`) — the listing read: one
+  `LogListingRow` (the Log entity row + retried marking) per file, content
+  filling in as depth increases. Retried dedup and the flush-burst
+  `useDeferredValue` damping are subsystem-private.
+- `useSamplesListing({logDir, scope, …})` (`log_data/samplesListing.ts`) —
+  sample summaries under a scope (one file, or a path prefix), each row
+  carrying its log's display context. Db-backed queryFns, ingestion-driven
+  invalidation, paged-shape params from day one.
 - `useSampleSummaries(logDir, logFile)` (`log_data/sampleSummaries.ts`) — the
   live sample-summary list for a log. That the list is assembled from two
-  sources (the details' completed summaries + the pending buffer) with dedup
+  sources (the settled summaries store + the pending buffer) with dedup
   and streaming-path normalization is subsystem-private.
+- `useScoreSchema(logDir, scopePrefix?)` (`log_data/scoreSchema.ts`) — the
+  scorer/metric column discovery for a scope, content-stabilized.
 - `useRunningMetrics(logDir, logFile)` (`log_data/pendingSamples.ts`) — a
   running eval's live metrics. That they travel in the pending-samples
   buffer is subsystem-private.
@@ -93,18 +104,15 @@ invariant holds.
   is resident only while the sample is (recently) loaded. For surfaces that
   must stay fetch-free (e.g. the invalidation banner in the title bar);
   anything that *wants* the sample uses `useSampleData`.
-- `useLogDetail(logDir, logFile)` (`log_data/logDetail.ts`) — one log's
-  details as `LogDataState<LogDetails>` (`{data, loading, error}`): a
-  per-handle db-backed cache entry (evictable; the Dexie row re-seeds on
-  remount) whose mount demands a user-priority engine fetch (read-through:
+- `useLog(logDir, logFile)` (`log_data/log.ts`) — one log at detailed depth:
+  its header as `LogDataState<LogHeader>` (`{data, loading, error}`): a
+  per-entity db-backed cache entry (evictable; the Dexie row re-seeds on
+  remount) whose mount demands detailed depth from the engine (read-through:
   a cached log settles instantly with a background refresh). `error` is the
-  log's recorded *retrieval* failure from the per-handle fetch-state — eval
-  errors are data inside `data`. Refreshing is
-  `imperativeLogData.invalidateLogDetail`, never an imperative fetch.
-- the collection read accessors on `log_data/logsContent.ts`
-  (`useLogHandles` / `useLogPreviews` / `useLogDetails` — the latter a
-  transitional listing feed — and per-handle `useLogFetchState`) and
-  `useDatabaseStats`.
+  row's recorded *retrieval* failure — eval errors are data inside `data`.
+  Refreshing is `imperativeLogData.invalidateLogDetail`, never an imperative
+  fetch. `useLogFetchState` reads the same row's retrieval facts.
+- `useDatabaseStats`.
 
 plus **`imperativeLogData`** (`log_data/imperativeLogData.ts`) — the single
 object holding every non-hook entry point consumed outside the subsystem.
@@ -116,7 +124,7 @@ The verbs: `invalidateLogDetail(logDir, logFile)` (user refresh / edit-save),
 subsystem wires itself lazily on first activation, reading the api from
 app_config. Growing the `ImperativeLogData` interface is a design decision,
 not a convenience. (`syncLogs` and `fetchLog` stay in-subsystem as the
-queryFn behind `useLogsSync` and the mount-demand behind `useLogDetail`.)
+queryFn behind `useLogsSync` and the mount-demand behind `useLog`.)
 Consumers don't know a replicator or an engine exists; they subscribe to
 data and it stays current.
 
@@ -127,7 +135,7 @@ data and it stays current.
 | Activation lifecycle | `ensureFetchEngine(logDir)` — open the per-dir database and start the engine, idempotent and coalesced. Runs on demand inside every acquisition entry point (`syncLogs`, `fetchLog`); an ensure for a new dir tears the old activation down. The **sole owner of activation truth** (engine started, `engineDir`, db handle) and of sync concurrency (a module-local trailing-coalesce serializes overlapping listing syncs; scheduling itself is react-query's). No mount/cleanup bracket anywhere; the api arrives via app_config's `getApi()` — no injected copy. | `log_data/replicationControl.ts` |
 | Poll mechanics | Enablement derivations (`shouldPollPendingSamples`, `shouldStreamRunningSample`), cadence (server refresh hint / fixed intervals), etag threading, tick counters, the client-events tick. Polling lifetime = subscriber lifetime; no imperative start/stop. | `log_data/pendingSamples.ts`, `log_data/runningSampleQuery.ts`, `log_data/useLogsSync.ts` |
 | Fetch engine | The item-level fetch mechanism: priority `WorkQueue`s, in-flight dedupe (per-item completion promises), read-through cache over the local database, batched sink writes. Framework-free and dependency-injected (`api`, `database`, sink) — unit-testable with fakes (`log_data/fetchEngine.test.ts`); never imports react-query or zustand. Producer-ignorant: it doesn't know who enqueues. | `log_data/fetchEngine.ts` (singleton) |
-| Local log database | Persistence of handles / previews / details (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job). | inside the engine; instance in `log_data/databaseServiceInstance.ts` |
+| Local log database | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job). | inside the engine; instance in `log_data/databaseServiceInstance.ts` |
 | Discovery | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode. | `log_data/listingSync.ts` |
 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`. | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts` |
 | Sample queries | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
@@ -142,7 +150,7 @@ param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
 - **Details binding** — `useSelectedLogDetail()` delegates to
-  `useLogDetail(logDir, selectedLogFile)`; `useSelectedLogLoading()`
+  `useLog(logDir, selectedLogFile)`; `useSelectedLogLoading()`
   derives from it. Refresh = `imperativeLogData.invalidateLogDetail` (the
   `refreshLog` action) — there is no imperative refresh path.
   (`state/selectedLogDetails.ts`)
@@ -215,13 +223,15 @@ Lifecycle controllers     AppConfigGate, LogLoadController, SampleLoadController
        │                  Controller (reactions / irreducible effects; no fetching)
        ▼
 Server-data medium        react-query cache ←─ acquisition sink; queries:
-       │                  log-detail, sample, running-sample,
-       │                  pending samples, logs-sync, client-events, flow, eval-set
+       │                  logs collection, per-entity log, samples listings,
+       │                  sample, running-sample, pending samples,
+       │                  logs-sync, client-events, flow, eval-set
        ▼
-Log-data acquisition      surface: data hooks (useLogsSync / useLogDetail /
-       │                  useSampleSummaries / useRunningMetrics /
+Log-data acquisition      surface: data hooks (useLogsSync / useLogListing /
+       │                  useLog / useSamplesListing / useSampleSummaries /
+       │                  useScoreSchema / useRunningMetrics /
        │                  useSampleData / usePassiveSampleData /
-       │                  collection reads / useDatabaseStats) ·
+       │                  useLogFetchState / useDatabaseStats) ·
        │                  imperativeLogData (invalidateLogDetail /
        │                  invalidateLogListing / clearData)
        │                  interior: activation · fetchEngine · database · discovery

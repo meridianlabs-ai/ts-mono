@@ -15,28 +15,32 @@
 //                 Carries no content.
 // - SampleHandle  One sample's identity within a log: id + epoch + logFile.
 //
-// Log content (the same log file, at increasing depth = increasing cost;
-// each tier exists because fetching the next one for every log would be too
-// expensive)
-// - listing       The set of log files currently known for a log dir, read
-//                 as LogListingRows.
-// - LogListingRow One log file's row in the listing: its handle, retried
-//                 marking, and preview (absent until acquired). The one shape
-//                 listing surfaces render; the handles ⋈ previews join is
-//                 subsystem-private.
-// - LogPreview    The cheap projection of one log (status, task, model,
-//                 primary metric) — fetched first for every log in a dir, so
-//                 a large directory's grid renders immediately. Surfaces as
-//                 a LogListingRow's `preview`, never as its own collection.
+// Log content (one Log entity per file; content at increasing depth =
+// increasing acquisition cost. The tiers exist because fetching everything
+// for every log would be too expensive — they are scheduler policy, never
+// public vocabulary.)
+// - Log           The entity row: identity + attribute columns (status,
+//                 task, model, timestamps, primary metric…) + `header`,
+//                 filled in as depth increases, plus retrieval facts.
+// - depth         How much of a Log's content has been acquired: listed
+//                 (dir stat: name + mtime) → previewed (cheap projection:
+//                 status, task, model, primary metric — acquired first for
+//                 every log so a large directory's grid renders
+//                 immediately) → detailed (full header). A column on the
+//                 row — consumers may READ it (a field being absent yet) and
+//                 REQUEST it, never dispatch on payload kinds.
+// - listing       The set of Logs currently known for a log dir, read as
+//                 LogListingRows.
+// - LogListingRow The Log row with retried runs marked — the one shape
+//                 listing surfaces render.
 // - log header    The full parsed header of one log: spec, plan, results,
 //                 stats, plus derived sample facts (count, error count,
-//                 limit kinds) — a LogListingRow's `header`, and the deep
-//                 form `useLog` serves. Backfilled dir-wide in the
-//                 background (grid scorer columns need full results);
-//                 elevated to user priority when a log is opened. The
-//                 acquisition payload also carries the log's sample
-//                 summaries; the sink splits those into their own store —
-//                 no consumer ever sees them embedded.
+//                 limit kinds) — the row's deep form, what `useLog` serves.
+//                 Backfilled dir-wide in the background (grid scorer columns
+//                 need full results); elevated to user priority when a log
+//                 is opened. The acquisition payload also carries the log's
+//                 sample summaries; the sink splits those into their own
+//                 store — no consumer ever sees them embedded.
 //
 // Sample content (the same sample, at increasing depth)
 // - SampleSummary The row-level record of one sample (input, target, scores,
@@ -79,10 +83,10 @@
 //                 the replica holds.
 //
 // Relationships
-// - A log dir has one listing; a listing has many LogListingRows, each
-//   wrapping one LogHandle.
-// - LogHandle → LogPreview → log header: one log file at increasing depth.
-//   A Log owns its SampleSummaries (their own store, read by samples scope).
+// - A log dir has one listing; a listing has many LogListingRows, one per
+//   Log.
+// - listed → previewed → detailed: one Log at increasing depth. A Log owns
+//   its SampleSummaries (their own store, read by samples scope).
 // - SampleSummary → EvalSample: one sample at increasing depth; the
 //   EvalSample may be absent (never viewed, or evicted) while its summary is
 //   always present.
