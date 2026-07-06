@@ -15,15 +15,10 @@
  * Issue #137: Navigating into a log and pressing back must PRESERVE the
  * filter and ordering on the task list (same scope round-trip).
  *
- * Tests drive AG-Grid via column-header sort clicks and via setFilterModel
- * through a dev-only window hook on LogListGrid (`__inspectGridApi`).
- *
- * SKIPPED during the AG Grid → TanStack Table migration. The log list now
- * renders via the inspect-local TanStack DataGrid (phase 1), which does not
- * yet implement sorting (phase 2), per-column filtering (later phase), or
- * grid-state persistence (phase 2), and no longer exposes `__inspectGridApi`.
- * Re-enable / rewrite these against the TanStack grid as those phases land.
- * See design/plans/loglistgrid-tanstack.md.
+ * Tests drive the TanStack DataGrid via column-header sort clicks (sort
+ * state shows as caret icons in the header) and via each column's filter
+ * funnel popover. Note the grid defaults to a Completed-descending sort, so
+ * "no sort" here means "no sort caret on the Task column" specifically.
  */
 import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
@@ -125,16 +120,24 @@ function setupHandlers(
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Scoped to the navbar so it doesn't collide with the grid's per-column
+// filter funnels (whose aria-labels like "Filter totalSamples" substring-match
+// segment names like "Samples").
 function segmentButton(page: Page, name: string) {
-  return page.getByRole("button", { name });
+  return page.getByRole("navigation").getByRole("button", { name });
 }
 
 function gridCell(page: Page, text: string) {
-  return page.locator(".ag-cell").filter({ hasText: text }).first();
+  return page.getByRole("gridcell").filter({ hasText: text }).first();
 }
 
+// Find a column header by its exact label text. Matching by accessible name
+// is unreliable because the (always-present) filter funnel button's aria-label
+// bleeds into the header's accessible name; match the header text node instead.
 function taskColumnHeader(page: Page) {
-  return page.locator('.ag-header-cell[col-id="task"]').first();
+  return page
+    .getByRole("columnheader")
+    .filter({ has: page.getByText("Task", { exact: true }) });
 }
 
 function resetFiltersButton(page: Page) {
@@ -142,41 +145,30 @@ function resetFiltersButton(page: Page) {
 }
 
 /**
- * Apply a "task contains <value>" filter via the dev-only window hook.
- * LogListGrid stashes its api on window.__inspectGridApi when running in
- * vite dev / Playwright (DEV mode); production builds drop the branch.
+ * Apply a "task contains <value>" filter through the Task column's filter
+ * funnel (hover-revealed) popover. LIKE (not =) so tests are robust to the
+ * Task cell rendering the full file name rather than the bare task name.
  */
 async function applyTaskFilter(page: Page, value: string) {
-  await page.waitForFunction(() => {
-    return (
-      (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi !==
-      undefined
-    );
-  });
-  await page.evaluate((filterValue: string) => {
-    const api = (
-      window as unknown as {
-        __inspectGridApi: {
-          setFilterModel: (m: unknown) => void;
-          onFilterChanged?: () => void;
-        };
-      }
-    ).__inspectGridApi;
-    api.setFilterModel({
-      task: { filterType: "text", type: "contains", filter: filterValue },
-    });
-  }, value);
+  const header = taskColumnHeader(page);
+  await header.hover();
+  await header
+    .getByRole("button", { name: "Filter task", exact: true })
+    .click();
+  await page.locator("#task-op").selectOption("LIKE");
+  await page.getByPlaceholder("Filter").fill(value);
+  await page.getByRole("button", { name: "Apply" }).click();
   await expect(resetFiltersButton(page)).toBeVisible();
 }
 
 async function waitForGrid(page: Page) {
-  await expect(page.locator(".ag-root-wrapper")).toBeVisible();
+  await expect(page.getByRole("grid")).toBeVisible();
   await expect(gridCell(page, "task-alpha")).toBeVisible();
 }
 
 async function sortByTaskDesc(page: Page) {
   const header = taskColumnHeader(page);
-  // Two clicks on Balham theme: asc, then desc.
+  // Two clicks: asc, then desc.
   await header.click();
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await header.click();
@@ -199,7 +191,7 @@ async function expectNoSort(page: Page) {
 // keeps its filter+sort independently.
 // ---------------------------------------------------------------------------
 
-test.describe.skip("Per-scope filter and ordering", () => {
+test.describe("Per-scope filter and ordering", () => {
   test("Tasks segment's sort doesn't leak into Folders segment", async ({
     page,
     network,
@@ -313,7 +305,7 @@ test.describe.skip("Per-scope filter and ordering", () => {
   });
 });
 
-test.describe.skip("Tasks ↔ Samples round-trip preserves ordering", () => {
+test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
   // Samples is a different surface, not a different log-list scope. Like
   // going to a log and back, this round-trip should leave the task list's
   // sort untouched.
@@ -341,7 +333,7 @@ test.describe.skip("Tasks ↔ Samples round-trip preserves ordering", () => {
 // Issue #137 — navigating into a log and back MUST preserve ordering
 // ---------------------------------------------------------------------------
 
-test.describe.skip("#137 – Back from a log preserves ordering", () => {
+test.describe("#137 – Back from a log preserves ordering", () => {
   test("Tasks → log → back preserves column ordering", async ({
     page,
     network,
@@ -418,7 +410,7 @@ test.describe.skip("#137 – Back from a log preserves ordering", () => {
 // after the fix.
 // ---------------------------------------------------------------------------
 
-test.describe.skip("Regression — adjacent behaviors", () => {
+test.describe("Regression — adjacent behaviors", () => {
   test("Sort indicator appears after clicking a column header", async ({
     page,
     network,
@@ -442,7 +434,9 @@ test.describe.skip("Regression — adjacent behaviors", () => {
 
     const header = taskColumnHeader(page);
     await header.click(); // asc
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
     await header.click(); // desc
+    await expect(header).toHaveAttribute("aria-sort", "descending");
     await header.click(); // none
     await expectNoSort(page);
   });

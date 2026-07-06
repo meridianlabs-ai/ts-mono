@@ -606,6 +606,13 @@ export function DataGrid<TRow>({
                     }}
                     title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
+                    aria-sort={
+                      sorted === "asc"
+                        ? "ascending"
+                        : sorted === "desc"
+                          ? "descending"
+                          : "none"
+                    }
                     onDragOver={(e) =>
                       handleHeaderDragOver(e, header.column.id)
                     }
@@ -833,6 +840,13 @@ function RotatedHeaderCell<TRow>({
       )}
       style={{ width: header.getSize() }}
       role="columnheader"
+      aria-sort={
+        sorted === "asc"
+          ? "ascending"
+          : sorted === "desc"
+            ? "descending"
+            : "none"
+      }
       // Drop targeting works during a drag because .theadDragging flips this
       // cell's pointer-events back on (see DataGrid.module.css).
       onDragOver={(e) => onHeaderDragOver(e, header.column.id)}
