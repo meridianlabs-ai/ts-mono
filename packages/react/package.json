@@ -61,6 +61,7 @@
     "@types/react-dom": "^19.2.3",
     "@vscode-elements/react-elements": "^2.4.0",
     "eslint": "^9.39.4",
+    "fast-check": "^4.8.0",
     "jsdom": "^29.1.1",
     "json5": "^2.2.3",
     "mathjax-full": "^3.2.2",
