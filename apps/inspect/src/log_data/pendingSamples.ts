@@ -13,7 +13,7 @@ import {
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
-import { useLogDetail } from "./logDetail";
+import { useLog } from "./log";
 
 const log = createLogger("pendingSamples");
 
@@ -90,12 +90,12 @@ export const fetchPendingSamples = async (
     // Fresh buffer data: let it land now; refresh the details in the
     // background.
     void fetchEngine
-      .fetch(logFile, "elevated")
+      .ensure(logFile, { depth: "detailed", priority: "elevated" })
       .catch((error) => log.debug("Error refreshing log details", error));
   } else if (response.status === "NotFound") {
     // Buffer gone: await the details refresh so the pending rows are dropped
     // only once the fresh summaries/status (which may end the poll) are in.
-    await fetchEngine.fetch(logFile, "elevated");
+    await fetchEngine.ensure(logFile, { depth: "detailed", priority: "elevated" });
   }
   return nextPendingSamples(prev, response);
 };
@@ -111,7 +111,7 @@ export const usePendingSamples = (
   logFile: string | undefined
 ): PendingSamples | undefined => {
   const api = getApi();
-  const liveStatus = useLogDetail(logDir, logFile).data?.status;
+  const liveStatus = useLog(logDir, logFile).data?.status;
   const enabled =
     shouldPollPendingSamples({
       logFile,

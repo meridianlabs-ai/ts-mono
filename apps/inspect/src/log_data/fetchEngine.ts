@@ -3,11 +3,13 @@ import { throttle } from "@tsmono/util";
 
 import {
   ClientAPI,
+  Log,
+  LogDepth,
   LogDetails,
-  LogHeader,
+  LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService, LogFetchStateRecord } from "../client/database";
+import { DatabaseService } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
 import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
 
@@ -74,23 +76,23 @@ type LogWorkValue =
 /**
  * The cache write surface the engine writes results through — the
  * `logsContent` seam bound to a log dir (and its database) at the composition
- * root. `write*`/`clear*` persist to the database and mirror into the cache;
- * `set*`/`merge*` are cache-only (for seeding data that is already persisted).
- * Note the asymmetry: `writeDetails` takes transport payloads (the sink
- * normalizes them into entity stores); `mergeDetails` takes the stored
- * header form (its inputs come back OUT of the store).
+ * root. `write*`/`clear*`/`reset*` persist to the database and mirror into
+ * the cache; `seed*`/`set*`/`merge*` are cache-only (for data that is
+ * transient or already persisted). `writeDetails` takes transport payloads —
+ * the sink normalizes them into the entity stores; the engine never learns
+ * about the split.
  */
 export interface LogsContentSink {
-  setHandles(handles: LogHandle[]): void;
+  seedRows(rows: Log[]): void;
+  setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
-  mergeDetails(headers: Record<string, LogHeader>): void;
-  writeHandles(handles: LogHandle[]): Promise<LogHandle[]>;
+  writeListing(handles: LogHandle[]): Promise<Log[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
   writeDetails(details: Record<string, LogDetails>): Promise<void>;
-  mergeFetchStates(states: Record<string, LogFetchStateRecord>): void;
-  writeFetchStates(states: Record<string, LogFetchStateRecord>): Promise<void>;
+  mergeFetchStates(states: Record<string, LogFetchState>): void;
+  writeFetchStates(states: Record<string, LogFetchState>): Promise<void>;
+  resetDepth(names: string[]): Promise<void>;
   clearFile(name: string): Promise<void>;
-  clearPreview(name: string): Promise<void>;
   clearAll(): Promise<void>;
 }
 
@@ -169,12 +171,10 @@ const kPreviewFirstWave = 25;
 // invalidation (a changed file) wipes its fetch-state row.
 const kMaxFetchAttempts = 5;
 
-const emptyFetchState = (name: string): LogFetchStateRecord => ({
-  file_path: name,
+const emptyFetchState = (): LogFetchState => ({
   preview_attempts: 0,
   details_attempts: 0,
   details_settled_seq: 0,
-  updated_at: new Date().toISOString(),
 });
 
 export class FetchEngine {
@@ -212,11 +212,11 @@ export class FetchEngine {
   // `workId` (kind-scoped — a preview and a details item can share a name).
   private readonly _claimEpoch = new Map<string, number>();
 
-  // Engine-private mirror of the fetch-state table, hydrated at start() and
-  // kept in sync as completions settle — the source of truth for backfill
-  // gating (avoids a db round-trip per batch). Writes still go through the
-  // sink so the db ⟹ cache invariant holds.
-  private _fetchStates: Record<string, LogFetchStateRecord> = {};
+  // Engine-private mirror of the rows' retrieval facts, hydrated at start()
+  // and kept in sync as completions settle — the source of truth for
+  // backfill gating (avoids a db round-trip per batch). Writes still go
+  // through the sink so the db ⟹ cache invariant holds.
+  private _fetchStates: Record<string, LogFetchState> = {};
 
   // Batched sink writes for background completions (user-awaited completions
   // write immediately).
@@ -383,8 +383,7 @@ export class FetchEngine {
     if (!deps) {
       return;
     }
-    const now = new Date().toISOString();
-    const updates: Record<string, LogFetchStateRecord> = {};
+    const updates: Record<string, LogFetchState> = {};
     inputs.forEach((work, i) => {
       const result = results[i];
       if (!result) {
@@ -393,9 +392,8 @@ export class FetchEngine {
       const name = work.handle.name;
       const row = this._fetchStates[name];
       if (!result.ok) {
-        const next: LogFetchStateRecord = {
-          ...(row ?? emptyFetchState(name)),
-          updated_at: now,
+        const next: LogFetchState = {
+          ...(row ?? emptyFetchState()),
           ...(kind === "preview"
             ? {
                 preview_fetch_error: result.error.message,
@@ -428,9 +426,8 @@ export class FetchEngine {
       if (!hadOwnError && !hadStalePreview) {
         return;
       }
-      const next: LogFetchStateRecord = {
+      const next: LogFetchState = {
         ...row,
-        updated_at: now,
         ...(kind === "preview"
           ? { preview_fetch_error: undefined, preview_attempts: 0 }
           : { details_fetch_error: undefined, details_attempts: 0 }),
@@ -556,8 +553,8 @@ export class FetchEngine {
   }
 
   private bumpDetailsSettledSeq(name: string, deps: FetchEngineDeps): void {
-    const base = this._fetchStates[name] ?? emptyFetchState(name);
-    const bumped: LogFetchStateRecord = {
+    const base = this._fetchStates[name] ?? emptyFetchState();
+    const bumped: LogFetchState = {
       ...base,
       details_settled_seq: base.details_settled_seq + 1,
     };
@@ -583,35 +580,33 @@ export class FetchEngine {
     if (!deps.database) {
       return;
     }
-    const handles = await deps.database.readLogs();
-    if (!handles) {
+    const rows = await deps.database.readLogs();
+    if (!rows) {
       return;
     }
-    deps.sink.setHandles(handles);
-    this._handles = handles;
-
-    const previews = await deps.database.readLogPreviews(handles);
-    if (Object.keys(previews).length > 0) {
-      deps.sink.mergePreviews(previews);
-    }
-    const details = await deps.database.readLogDetails(handles);
-    if (Object.keys(details).length > 0) {
-      deps.sink.mergeDetails(details);
-    }
+    deps.sink.seedRows(rows);
+    this._handles = rows;
 
     // A restart retries every previously-failed file once more — zero the
     // attempts (but keep the error text visible until it's superseded) and
     // persist the reset so a changed-attempts row isn't left stale in db.
-    const fetchStates = await deps.database.readFetchStates();
-    const reset: Record<string, LogFetchStateRecord> = {};
-    const now = new Date().toISOString();
-    for (const [name, row] of Object.entries(fetchStates)) {
-      reset[name] = {
-        ...row,
-        preview_attempts: 0,
-        details_attempts: 0,
-        updated_at: now,
-      };
+    const reset: Record<string, LogFetchState> = {};
+    for (const row of rows) {
+      if (
+        row.preview_attempts > 0 ||
+        row.details_attempts > 0 ||
+        row.preview_fetch_error !== undefined ||
+        row.details_fetch_error !== undefined ||
+        row.details_settled_seq > 0
+      ) {
+        reset[row.name] = {
+          preview_fetch_error: row.preview_fetch_error,
+          details_fetch_error: row.details_fetch_error,
+          preview_attempts: 0,
+          details_attempts: 0,
+          details_settled_seq: row.details_settled_seq,
+        };
+      }
     }
     this._fetchStates = reset;
     if (Object.keys(reset).length > 0) {
@@ -652,29 +647,49 @@ export class FetchEngine {
   }
 
   /**
-   * Get a log's details at the given priority: an enqueue-or-bump on the
-   * shared queue, never a separate code path. Read-through: a cached row for
-   * a completed log resolves immediately (seeding the cache) and a fresh
-   * read is scheduled in the background; a cached *running* log is only
-   * provisional, so the promise waits for the fresh read. `opts.fresh` skips
-   * the immediate cache resolution outright (the caller knows the cached row
-   * is stale, e.g. after editing the log), so the promise always waits for
-   * the network read. Concurrent calls for the same log share one fetch.
+   * Ensure a log's content reaches `depth` — the one demand entry point.
+   * The depth is a hint the engine translates to endpoint choice, batching,
+   * and priority; consumers never name payloads.
    *
-   * `opts.passive` (default false = active) marks ensure-presence demand: a
-   * passive caller wants the data to exist, not to declare "someone is
-   * looking at this" — it never bumps `details_settled_seq` and, on a cache
+   * `previewed`: an enqueue-or-bump of the cheap projection, fire-and-forget
+   * (the promise resolves at enqueue; hooks read the result off the cache).
+   * `listed` resolves immediately — listing discovery owns that tier.
+   *
+   * `detailed`: read-through — a cached row for a completed log resolves
+   * immediately (seeding the cache) and a fresh read is scheduled in the
+   * background; a cached *running* log is only provisional, so the promise
+   * waits for the fresh read. `opts.fresh` skips the immediate cache
+   * resolution outright (the caller knows the cached row is stale, e.g.
+   * after editing the log). Concurrent calls for the same log share one
+   * fetch.
+   *
+   * `opts.demand` (default `"active"`) marks WHO is asking: `"passive"` is
+   * ensure-presence — it never bumps `details_settled_seq` and, on a cache
    * hit, never re-enqueues a background refresh. An active call sharing an
    * in-flight passive fetch upgrades it (the settle still bumps).
    */
-  public fetch(
+  public ensure(
     logFile: string,
-    priority: FetchPriority,
-    opts: { fresh?: boolean; passive?: boolean } = {}
+    opts: {
+      depth: LogDepth;
+      priority: FetchPriority;
+      fresh?: boolean;
+      demand?: "active" | "passive";
+    }
   ): Promise<void> {
     this.requireDeps();
     const key = this.resolveKey(logFile);
-    if (!opts.passive) {
+    if (opts.depth === "listed") {
+      return Promise.resolve();
+    }
+    if (opts.depth === "previewed") {
+      this._queue.enqueue(
+        [previewWork({ name: key })],
+        toWorkPriority(opts.priority)
+      );
+      return Promise.resolve();
+    }
+    if (opts.demand !== "passive") {
       this._activeSettles.add(key);
     }
     const pending = this._pendingFetches.get(key);
@@ -688,25 +703,15 @@ export class FetchEngine {
       if (!this._inFlightDetails.has(key)) {
         this._queue.enqueue(
           [detailsWork({ name: key })],
-          toWorkPriority(priority)
+          toWorkPriority(opts.priority)
         );
       }
       return pending.promise;
     }
     const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
-    void this.beginFetch(key, priority, waiter, opts.fresh ?? false);
+    void this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
     return waiter.promise;
-  }
-
-  /**
-   * Enqueue-or-bump a preview fetch, fire-and-forget — hooks read the result
-   * off the sink/cache rather than awaiting a promise here.
-   */
-  public requestPreview(logFile: string, priority: FetchPriority): void {
-    this.requireDeps();
-    const key = this.resolveKey(logFile);
-    this._queue.enqueue([previewWork({ name: key })], toWorkPriority(priority));
   }
 
   private async beginFetch(
@@ -721,16 +726,13 @@ export class FetchEngine {
       return;
     }
     const cached =
-      !fresh && deps.database
-        ? await deps.database.readLogDetailsForFile(key)
-        : null;
+      !fresh && deps.database ? await deps.database.readLogRow(key) : null;
     if (this._pendingFetches.get(key) !== waiter) {
       return;
     }
-    if (cached && cached.status !== "started") {
+    if (cached?.header !== undefined && cached.status !== "started") {
       this.ensureListed(key);
-      deps.sink.mergeDetails({ [key]: cached });
-      deps.sink.mergePreviews({ [key]: toLogPreview(cached) });
+      deps.sink.seedRows([cached]);
       this._pendingFetches.delete(key);
       // Consult `_activeSettles` live (not a `passive` flag captured at call
       // start) so an active fetch that joined this same pending fetch while
@@ -766,7 +768,7 @@ export class FetchEngine {
   private ensureListed(key: string): void {
     if (!this._handles.some((handle) => handle.name === key)) {
       this._handles = [...this._handles, { name: key }];
-      this._deps?.sink.setHandles(this._handles);
+      this._deps?.sink.setListing(this._handles);
     }
   }
 
@@ -789,7 +791,7 @@ export class FetchEngine {
         ])
       );
       // A deleted file's queued work is gone for good (invalidated files get
-      // re-enqueued below), so any fetch() waiter would otherwise hang.
+      // re-enqueued below), so any waiter would otherwise hang.
       for (const name of update.deleted) {
         const waiter = this._pendingFetches.get(name);
         if (waiter && !this._inFlightDetails.has(name)) {
@@ -799,20 +801,26 @@ export class FetchEngine {
         }
       }
       await Promise.all(
-        stale.map((name) => deps.sink.clearFile(name).catch(() => {}))
+        update.deleted.map((name) => deps.sink.clearFile(name).catch(() => {}))
       );
-      // The row is wiped alongside the file's other cached content — an
-      // invalidated (changed) file's backfill gating naturally resets.
+      // An invalidated (changed) file keeps its row identity but drops
+      // content and retrieval facts back to listed depth — backfill gating
+      // naturally resets.
+      if (update.invalidated.length > 0) {
+        await deps.sink.resetDepth(update.invalidated).catch(() => {});
+      }
       stale.forEach((name) => {
         delete this._fetchStates[name];
       });
     }
 
-    let full: LogHandle[];
+    let full: Log[] | LogHandle[];
+    let rows: Log[] | undefined;
     if (update.persistListing) {
-      full = await deps.sink.writeHandles(update.listing);
+      rows = await deps.sink.writeListing(update.listing);
+      full = rows;
     } else {
-      deps.sink.setHandles(update.listing);
+      deps.sink.setListing(update.listing);
       full = update.listing;
     }
     this._handles = full;
@@ -827,30 +835,10 @@ export class FetchEngine {
     // `claimNextBatch` breaks priority ties by insertion order, so a cold
     // listing's first claimed batch paints previews instead of starving them
     // behind every detail fetch.
-    await this.queuePreviewBackfill(full, invalidated);
-    await this.queueDetailBackfill(full, invalidated, update.persistListing);
+    this.queuePreviewBackfill(full, rows, invalidated);
+    this.queueDetailBackfill(full, rows, invalidated, update.persistListing);
     this._throttledUpdateDbStats();
     return full;
-  }
-
-  /**
-   * Seed the cache with any persisted previews and queue fetches for logs
-   * without a settled ("success") preview — the whole listing, or just
-   * `logs`.
-   */
-  public async ensurePreviews(logs?: LogHandle[]): Promise<void> {
-    const deps = this.requireDeps();
-    const all = (await deps.database?.readLogs()) ?? this._handles;
-    const loaded = (await deps.database?.readLogPreviews(all)) ?? {};
-    const filtered = (logs ?? all).filter(
-      (log) => loaded[log.name]?.status !== "success"
-    );
-    if (Object.keys(loaded).length > 0) {
-      deps.sink.mergePreviews(loaded);
-    }
-    if (filtered.length > 0) {
-      this._queue.enqueue(filtered.map(previewWork), WorkPriority.High);
-    }
   }
 
   /** Clear all cached log data (database + cache). */
@@ -936,13 +924,45 @@ export class FetchEngine {
     return { normal, retry };
   }
 
-  private async queueDetailBackfill(
+  /**
+   * Which listed files still need their content backfilled at each tier —
+   * depth is read straight off the rows (no per-store probes). `rows` is
+   * the just-activated row list when the listing was persisted; a
+   * cache-only activation has no store to read depth from, so everything
+   * counts as missing (matching the db-less behavior before).
+   */
+  private missingAtDepth(
     full: LogHandle[],
+    rows: Log[] | undefined,
+    kind: LogWorkKind
+  ): LogHandle[] {
+    if (rows === undefined) {
+      return full;
+    }
+    const byName = new Map(rows.map((row) => [row.name, row]));
+    return full.filter((handle) => {
+      const row = byName.get(handle.name);
+      if (!row) {
+        return true;
+      }
+      if (kind === "details") {
+        // A detailed row with "started" status is a mid-run snapshot — the
+        // run may have finished since, so it doesn't count as cached.
+        return row.depth !== "detailed" || row.status === "started";
+      }
+      // A previewed "started" row is likewise a snapshot to re-fetch.
+      return row.depth === "listed" || row.status === "started";
+    });
+  }
+
+  private queueDetailBackfill(
+    full: LogHandle[],
+    rows: Log[] | undefined,
     invalidated: LogHandle[],
     persistListing: boolean
-  ): Promise<void> {
+  ): void {
     const seen = new Set(invalidated.map((handle) => handle.name));
-    const missing = (await this.findMissingDetails(full)).filter(
+    const missing = this.missingAtDepth(full, rows, "details").filter(
       (handle) => !seen.has(handle.name)
     );
     if (invalidated.length > 0) {
@@ -964,15 +984,15 @@ export class FetchEngine {
     }
   }
 
-  private async queuePreviewBackfill(
+  private queuePreviewBackfill(
     full: LogHandle[],
+    rows: Log[] | undefined,
     invalidated: LogHandle[]
-  ): Promise<void> {
-    const deps = this.requireDeps();
+  ): void {
     const tasks = [...invalidated];
     const seen = new Set(tasks.map((task) => task.name));
 
-    const missing = (await this.findMissingPreviews(full)).filter(
+    const missing = this.missingAtDepth(full, rows, "preview").filter(
       (handle) => !seen.has(handle.name)
     );
     const { normal, retry } = this.gateBackfill(missing, "preview");
@@ -981,20 +1001,6 @@ export class FetchEngine {
       tasks.push(handle);
     });
     retry.forEach((handle) => seen.add(handle.name));
-
-    // A preview persisted as "started" is a snapshot of a run that may have
-    // finished since — drop it and re-fetch.
-    const cached = (await deps.database?.readLogPreviews(full)) ?? {};
-    for (const handle of full) {
-      if (seen.has(handle.name)) {
-        continue;
-      }
-      if (cached[handle.name]?.status === "started") {
-        seen.add(handle.name);
-        await deps.sink.clearPreview(handle.name).catch(() => {});
-        tasks.push(handle);
-      }
-    }
 
     if (tasks.length > 0) {
       this._queue.enqueue(
@@ -1009,16 +1015,6 @@ export class FetchEngine {
     if (retry.length > 0) {
       this._queue.enqueue(retry.map(previewWork), WorkPriority.Low);
     }
-  }
-
-  private async findMissingDetails(logs: LogHandle[]): Promise<LogHandle[]> {
-    const database = this.requireDeps().database;
-    return database ? database.findMissingDetails(logs) : logs;
-  }
-
-  private async findMissingPreviews(logs: LogHandle[]): Promise<LogHandle[]> {
-    const database = this.requireDeps().database;
-    return database ? database.findMissingPreviews(logs) : logs;
   }
 
   private async flushPreviewWrites(): Promise<void> {
@@ -1065,12 +1061,14 @@ export class FetchEngine {
       return;
     }
     try {
-      const [logCount, previewCount, detailsCount] = await Promise.all([
-        database.countRows("logs"),
-        database.countRows("logPreviews"),
-        database.countRows("logDetails"),
-      ]);
-      this.setStatus({ dbStats: { logCount, previewCount, detailsCount } });
+      const stats = await database.getCacheStats();
+      this.setStatus({
+        dbStats: {
+          logCount: stats.logFiles,
+          previewCount: stats.logSummaries,
+          detailsCount: stats.logHeaders,
+        },
+      });
     } catch {
       // Stats are advisory; ignore read failures.
     }

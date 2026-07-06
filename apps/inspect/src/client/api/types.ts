@@ -452,6 +452,55 @@ export interface LogHeader extends EvalHeader {
   sampleLimits: string[];
 }
 
+/** How much of a Log's content has been acquired. Ratchets upward within a
+ *  row's lifetime; an mtime invalidation resets it (identity kept, content
+ *  dropped). A column on the row — never a different type or store. */
+export type LogDepth = "listed" | "previewed" | "detailed";
+
+/**
+ * The Log entity row — identity plus header attributes at progressive
+ * depth, plus retrieval facts. The one shape the store, the cache, and the
+ * listing share (see design/migration/log-data-summaries-entity.md, phase
+ * 3). Flat attribute columns arrive at `previewed` depth and are refreshed
+ * at `detailed`; `header` is the deep form.
+ */
+export interface Log extends LogHandle {
+  depth: LogDepth;
+
+  status?: EvalLogStatus;
+  error?: EvalError | null;
+  version?: EvalLogVersion;
+  eval_id?: string;
+  run_id?: string;
+  task_version?: EvalSpec["task_version"];
+  model?: string;
+  model_roles?: Record<string, string> | null;
+  started_at?: string;
+  completed_at?: string;
+  primary_metric?: EvalMetric;
+
+  header?: LogHeader;
+
+  // Retrieval (fetch) facts about the row — a domain separate from eval
+  // status/error. Attempts gate backfill retries; the settled seq is the
+  // session-local "landed" counter waitered fetches bump.
+  preview_fetch_error?: string;
+  preview_attempts: number;
+  details_fetch_error?: string;
+  details_attempts: number;
+  details_settled_seq: number;
+}
+
+/** The retrieval-facts slice of a Log row (what fetch outcomes update). */
+export type LogFetchState = Pick<
+  Log,
+  | "preview_fetch_error"
+  | "preview_attempts"
+  | "details_fetch_error"
+  | "details_attempts"
+  | "details_settled_seq"
+>;
+
 export interface LogRoot {
   logs: LogHandle[];
   log_dir?: string;

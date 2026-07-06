@@ -4,7 +4,7 @@ import { useLogDir } from "../../../app_config";
 import { kLogViewInfoTabId } from "../../../constants";
 import {
   resolveLogKey,
-  useLogDetail,
+  useLog,
   useLogFetchState,
 } from "../../../log_data";
 import { useStore } from "../../../state/store";
@@ -27,7 +27,7 @@ import { useStore } from "../../../state/store";
 export const LogLoadController: FC = () => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const detail = useLogDetail(logDir, selectedLogFile, { demand: "active" });
+  const detail = useLog(logDir, selectedLogFile, { demand: "active" });
   const key = selectedLogFile
     ? resolveLogKey(logDir, selectedLogFile)
     : undefined;

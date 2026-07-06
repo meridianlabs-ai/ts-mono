@@ -13,7 +13,7 @@ import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
-  useLogDetail,
+  useLog,
   usePassiveSampleData,
   useRunningMetrics,
   useSampleData,
@@ -159,13 +159,13 @@ const log = createLogger("hooks");
 /**
  * The details for the currently selected log. Returns the settled value (or
  * `undefined` while loading / when no log is selected) — the drop-in for the
- * retired `log.selectedLogDetails`. Use `useLogDetail` directly for the
+ * retired `log.selectedLogDetails`. Use `useLog` directly for the
  * loading/error surface.
  */
 export const useSelectedLogDetails = (): LogHeader | undefined => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  return useLogDetail(logDir, selectedLogFile).data;
+  return useLog(logDir, selectedLogFile).data;
 };
 
 export const useEvalSpec = () => {

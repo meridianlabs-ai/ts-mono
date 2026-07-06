@@ -31,7 +31,7 @@
 // - log header    The full parsed header of one log: spec, plan, results,
 //                 stats, plus derived sample facts (count, error count,
 //                 limit kinds) — a LogListingRow's `header`, and the deep
-//                 form `useLogDetail` serves. Backfilled dir-wide in the
+//                 form `useLog` serves. Backfilled dir-wide in the
 //                 background (grid scorer columns need full results);
 //                 elevated to user priority when a log is opened. The
 //                 acquisition payload also carries the log's sample
@@ -88,9 +88,9 @@
 //   always present.
 // ---------------------------------------------------------------------------
 export { imperativeLogData } from "./imperativeLogData";
-export { type LogDataState, useLogDetail } from "./logDetail";
+export { type LogDataState, useLog, useLogFetchState } from "./log";
 export { type LogListingRow, useLogListing } from "./logListing";
-export { resolveLogKey, useLogFetchState } from "./logsContent";
+export { resolveLogKey } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
   type SampleData,

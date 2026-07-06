@@ -10,7 +10,7 @@ import type {
 } from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { LogHeader } from "../../../client/api/types";
+import { LogListingRow } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import gridStyles from "../../shared/gridCells.module.css";
@@ -49,14 +49,12 @@ type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
 // first (mirrors the samples view's `completed_at desc` default).
 const kDefaultSorting: SortingState = [{ id: "completedAt", desc: true }];
 
-const headerForItem = (item: LogListItem): LogHeader | undefined =>
-  item.type === "file" ? item.log.header : undefined;
+const rowForItem = (item: LogListItem): LogListingRow | undefined =>
+  item.type === "file" ? item.log : undefined;
 
-const buildLogListRow = (
-  item: LogListItem,
-  details: LogHeader | undefined
-): LogListRow => {
-  const preview = item.type === "file" ? item.logPreview : undefined;
+const buildLogListRow = (item: LogListItem): LogListRow => {
+  const log = rowForItem(item);
+  const details = log?.header;
 
   // Compute total tokens across all models
   let totalTokens: number | undefined;
@@ -118,18 +116,18 @@ const buildLogListRow = (
         : undefined,
     type: item.type,
     url: item.url,
-    task: item.type === "file" ? preview?.task : item.name,
+    task: item.type === "file" ? (log?.task ?? undefined) : item.name,
     model:
       item.type === "file"
-        ? preview?.model
+        ? log?.model
         : item.type === "pending-task"
           ? item.model
           : undefined,
     modelRoles:
-      item.type === "file" ? (preview?.model_roles ?? undefined) : undefined,
-    score: preview?.primary_metric?.value,
-    status: preview?.status,
-    completedAt: preview?.completed_at,
+      item.type === "file" ? (log?.model_roles ?? undefined) : undefined,
+    score: log?.primary_metric?.value,
+    status: log?.status,
+    completedAt: log?.completed_at,
     itemCount: item.type === "folder" ? item.itemCount : undefined,
     log: item.type === "file" ? item.log : undefined,
     path: item.type === "file" ? item.name : undefined,
@@ -189,8 +187,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const { columns, visibility, getValue, getComparator, getFilterType } =
     useLogListColumns(mode, scopePrefix, scoresViewMode);
 
-  // Reuse the prior row object for any item whose display inputs (preview,
-  // header, structural fields) are unchanged, so only changed rows pay the
+  // Reuse the prior row object for any item whose display inputs (the Log
+  // row, structural fields) are unchanged, so only changed rows pay the
   // per-row rebuild. Keyed on store references (which stay stable across
   // flushes for unchanged logs) rather than the `item` object, so it works
   // even though `items` is rebuilt each flush upstream.
@@ -203,12 +201,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
       item.url,
       item.name,
       item.displayIndex,
-      item.type === "file" ? item.logPreview : undefined,
+      rowForItem(item),
       item.type === "folder" ? item.itemCount : undefined,
       item.type === "pending-task" ? item.model : undefined,
-      headerForItem(item),
     ],
-    (item) => buildLogListRow(item, headerForItem(item))
+    (item) => buildLogListRow(item)
   );
 
   const handleRowActivate = useCallback(

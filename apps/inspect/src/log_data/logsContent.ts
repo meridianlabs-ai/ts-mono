@@ -1,13 +1,22 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { LogHandle } from "@tsmono/inspect-common/types";
 
-import { LogDetails, LogHeader, LogPreview } from "../client/api/types";
-import { DatabaseService, LogFetchStateRecord } from "../client/database";
-import { toLogHeader } from "../client/utils/type-utils";
+import {
+  Log,
+  LogDetails,
+  LogFetchState,
+  LogPreview,
+} from "../client/api/types";
+import { DatabaseService } from "../client/database";
+import {
+  detailTier,
+  maxDepth,
+  previewTier,
+  toLogHeader,
+} from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
-import { getDatabaseService } from "./databaseServiceInstance";
 import type { LogsContentSink } from "./fetchEngine";
 import {
   invalidateSamplesListings,
@@ -17,180 +26,167 @@ import {
 } from "./samplesListing";
 
 /**
- * The log-list content backed by IndexedDB — handles, previews, and headers
- * for a directory — mirrored into the react-query cache so React consumers can
- * subscribe to it. Each collection lives under its own query key, so a preview
- * update doesn't re-render handle-only consumers (and vice versa).
- *
- * Details INGESTION happens here too (`writeDetails`): the transport payload
- * is normalized at this sink — header (plus derived sample facts) into the
- * detail stores, sample summaries into their own store and the samples
- * listing queries (see design/migration/log-data-summaries-entity.md). The
- * cache and per-handle keys carry `LogHeader`, never the payload.
+ * The Log entity content backed by IndexedDB — one ordered row collection per
+ * directory plus one per-entity key per log — mirrored into the react-query
+ * cache so React consumers can subscribe. Depth is a column on the row; the
+ * acquisition tiers exist only in how the write verbs below are named after
+ * the payloads the engine fetches.
  *
  * The invariant for this module: IndexedDB is never written without the same
- * write landing in the cache. The `write*` / `clear*` seam below are the only
- * callers of the `DatabaseService` mutators anywhere — each pairs the
- * persistence with its cache update. Cache-only writes (the `set*`/`merge*`
- * primitives) are allowed; the invariant is one-directional (db ⟹ cache).
- *
- * The queries are passive cache containers: `staleTime: Infinity` and a
- * `queryFn` that just returns the current snapshot. The seam (not react-query)
- * owns freshness, driving updates via `setQueryData`.
+ * write landing in the cache. The `write*` / `clear*` / `reset*` seam below
+ * are the only callers of the `DatabaseService` mutators anywhere — each
+ * pairs the persistence with its cache update. Cache-only writes (the
+ * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
+ * one-directional (db ⟹ cache).
  */
 
-const EMPTY_HANDLES: LogHandle[] = [];
-const EMPTY_PREVIEWS: Record<string, LogPreview> = {};
-const EMPTY_DETAILS: Record<string, LogHeader> = {};
+const EMPTY_LOGS: Log[] = [];
 
-export const logHandlesKey = (logDir: string) =>
-  ["log_data", "handles", logDir] as const;
-export const logPreviewsKey = (logDir: string) =>
-  ["log_data", "previews", logDir] as const;
-export const logDetailsKey = (logDir: string) =>
-  ["log_data", "details", logDir] as const;
-export const logDetailKey = (logDir: string, name: string) =>
-  ["log_data", "detail", logDir, name] as const;
-export const logFetchStateKey = (logDir: string, name: string) =>
-  ["log_data", "fetch_state", logDir, name] as const;
+export const logsKey = (logDir: string) =>
+  ["log_data", "logs", logDir] as const;
+export const logKey = (logDir: string, name: string) =>
+  ["log_data", "log", logDir, name] as const;
 
-const currentHandles = (logDir: string): LogHandle[] =>
-  queryClient.getQueryData<LogHandle[]>(logHandlesKey(logDir)) ?? EMPTY_HANDLES;
-const currentPreviews = (logDir: string): Record<string, LogPreview> =>
-  queryClient.getQueryData<Record<string, LogPreview>>(
-    logPreviewsKey(logDir)
-  ) ?? EMPTY_PREVIEWS;
-const currentDetails = (logDir: string): Record<string, LogHeader> =>
-  queryClient.getQueryData<Record<string, LogHeader>>(logDetailsKey(logDir)) ??
-  EMPTY_DETAILS;
+const currentLogs = (logDir: string): Log[] =>
+  queryClient.getQueryData<Log[]>(logsKey(logDir)) ?? EMPTY_LOGS;
 
-const omitKey = <T>(
-  record: Record<string, T> | undefined,
-  key: string
-): Record<string, T> | undefined => {
-  if (!record || !(key in record)) {
-    return record;
+const newRow = (handle: LogHandle): Log => ({
+  ...handle,
+  depth: "listed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
+
+/**
+ * Push a fresh row to a log's per-entity entry WITHOUT creating one: a bulk
+ * backfill writing `setQueryData` unconditionally would materialize every
+ * row in memory, defeating GC. Unobserved / evicted keys re-seed from
+ * IndexedDB via the entry's `queryFn` on next mount.
+ */
+const pushLog = (logDir: string, row: Log): void => {
+  const key = logKey(logDir, row.name);
+  if (queryClient.getQueryCache().find({ queryKey: key })) {
+    queryClient.setQueryData<Log>(key, row);
   }
-  const { [key]: _omitted, ...rest } = record;
-  return rest;
 };
 
 // ---------------------------------------------------------------------------
 // Cache-only primitives. Writing the cache without IndexedDB is allowed (the
 // invariant is db ⟹ cache, not the reverse): single-file mode and the
-// replicator's preload/activate paths seed the cache from data that is either
-// transient or already persisted.
+// engine's seed/activate paths carry data that is either transient or
+// already persisted.
 // ---------------------------------------------------------------------------
 
-export const setHandles = (logDir: string, handles: LogHandle[]): void => {
-  queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), handles);
+/** Replace the collection with `rows` (already-complete Log rows, e.g. read
+ *  back from the store) and refresh their observed per-entity entries. */
+export const setRows = (logDir: string, rows: Log[]): void => {
+  queryClient.setQueryData<Log[]>(logsKey(logDir), rows);
+  for (const row of rows) {
+    pushLog(logDir, row);
+  }
+};
+
+/**
+ * Activate a listing (cache-only): known files keep their depth/content and
+ * update identity fields; unknown files start at listed depth. Row order
+ * follows `handles`.
+ */
+export const setListing = (logDir: string, handles: LogHandle[]): void => {
+  const byName = new Map(currentLogs(logDir).map((row) => [row.name, row]));
+  setRows(
+    logDir,
+    handles.map((handle) => {
+      const existing = byName.get(handle.name);
+      return existing ? { ...existing, ...handle } : newRow(handle);
+    })
+  );
+};
+
+/** Merge per-file row patches into the collection (appending rows for
+ *  unknown files) and refresh observed per-entity entries. Depth ratchets. */
+const mergePatches = (
+  logDir: string,
+  patches: Record<string, Partial<Log>>
+): void => {
+  const rows = currentLogs(logDir);
+  const seen = new Set<string>();
+  const next = rows.map((row) => {
+    const patch = patches[row.name];
+    if (patch === undefined) {
+      return row;
+    }
+    seen.add(row.name);
+    return {
+      ...row,
+      ...patch,
+      depth: maxDepth(row.depth, patch.depth ?? row.depth),
+    };
+  });
+  for (const [name, patch] of Object.entries(patches)) {
+    if (!seen.has(name)) {
+      next.push({ ...newRow({ name }), ...patch });
+    }
+  }
+  queryClient.setQueryData<Log[]>(logsKey(logDir), next);
+  for (const row of next) {
+    if (row.name in patches) {
+      pushLog(logDir, row);
+    }
+  }
 };
 
 export const mergePreviews = (
   logDir: string,
   previews: Record<string, LogPreview>
 ): void => {
-  queryClient.setQueryData<Record<string, LogPreview>>(
-    logPreviewsKey(logDir),
-    (prev) => ({ ...(prev ?? EMPTY_PREVIEWS), ...previews })
+  mergePatches(
+    logDir,
+    Object.fromEntries(
+      Object.entries(previews).map(([name, preview]) => [
+        name,
+        previewTier(preview),
+      ])
+    )
   );
 };
 
 /**
- * Push a fresh value to a handle's per-handle detail entry WITHOUT creating
- * one: a bulk backfill writing `setQueryData` unconditionally would
- * materialize every log's details in memory, defeating GC. Unobserved /
- * evicted keys re-seed from IndexedDB via the entry's `queryFn` on next
- * mount.
+ * Push retrieval facts into observed per-entity entries only — the listing
+ * collection is deliberately NOT rewritten (fetch outcomes stream during
+ * backfill and would churn every listing subscriber; rows omit retrieval
+ * facts from the UI anyway). The collection's copy of these columns catches
+ * up on the next row write.
  */
-const pushDetail = (logDir: string, name: string, header: LogHeader): void => {
-  const key = logDetailKey(logDir, name);
-  if (queryClient.getQueryCache().find({ queryKey: key })) {
-    queryClient.setQueryData<LogHeader>(key, header);
-  }
-};
-
-// Dual-write: the whole-dir map is the subsystem-internal listing feed (the
-// listing row join and score-schema discovery read it); the guarded
-// per-handle pushes keep mounted `useLogDetail` entries fresh.
-export const mergeDetails = (
-  logDir: string,
-  headers: Record<string, LogHeader>
-): void => {
-  queryClient.setQueryData<Record<string, LogHeader>>(
-    logDetailsKey(logDir),
-    (prev) => ({ ...(prev ?? EMPTY_DETAILS), ...headers })
-  );
-  for (const [name, header] of Object.entries(headers)) {
-    pushDetail(logDir, name, header);
-  }
-};
-
-/**
- * Push a fetch-state row into the cache, but ONLY if it is already observed
- * (a query cache entry exists) — a bulk backfill (or a start()-time attempts
- * reset) touches every listed file, and must not materialize a cache entry
- * for handles nobody is looking at. The per-handle key means an unobserved
- * handle's push is simply a no-op, not a leak.
- */
-const pushFetchState = (
-  logDir: string,
-  name: string,
-  state: LogFetchStateRecord
-): void => {
-  const key = logFetchStateKey(logDir, name);
-  if (queryClient.getQueryCache().find({ queryKey: key })) {
-    queryClient.setQueryData<LogFetchStateRecord>(key, state);
-  }
-};
-
 export const mergeFetchStates = (
   logDir: string,
-  states: Record<string, LogFetchStateRecord>
+  states: Record<string, LogFetchState>
 ): void => {
+  const byName = new Map(currentLogs(logDir).map((row) => [row.name, row]));
   for (const [name, state] of Object.entries(states)) {
-    pushFetchState(logDir, name, state);
+    const key = logKey(logDir, name);
+    if (!queryClient.getQueryCache().find({ queryKey: key })) {
+      continue;
+    }
+    const current =
+      queryClient.getQueryData<Log | null>(key) ?? byName.get(name);
+    if (current) {
+      queryClient.setQueryData<Log>(key, { ...current, ...state });
+    }
   }
-};
-
-const evictPreview = (logDir: string, name: string): void => {
-  queryClient.setQueryData<Record<string, LogPreview>>(
-    logPreviewsKey(logDir),
-    (prev) => omitKey(prev, name)
-  );
-};
-
-const evictFetchState = (logDir: string, name: string): void => {
-  queryClient.removeQueries({ queryKey: logFetchStateKey(logDir, name) });
 };
 
 const evictFile = (logDir: string, name: string): void => {
-  queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), (prev) =>
-    (prev ?? EMPTY_HANDLES).filter((handle) => handle.name !== name)
+  queryClient.setQueryData<Log[]>(logsKey(logDir), (prev) =>
+    (prev ?? EMPTY_LOGS).filter((row) => row.name !== name)
   );
-  evictPreview(logDir, name);
-  queryClient.setQueryData<Record<string, LogHeader>>(
-    logDetailsKey(logDir),
-    (prev) => omitKey(prev, name)
-  );
-  queryClient.removeQueries({ queryKey: logDetailKey(logDir, name) });
-  evictFetchState(logDir, name);
+  queryClient.removeQueries({ queryKey: logKey(logDir, name) });
 };
 
 const clearCache = (logDir: string): void => {
-  queryClient.setQueryData<LogHandle[]>(logHandlesKey(logDir), EMPTY_HANDLES);
-  queryClient.setQueryData<Record<string, LogPreview>>(
-    logPreviewsKey(logDir),
-    EMPTY_PREVIEWS
-  );
-  queryClient.setQueryData<Record<string, LogHeader>>(
-    logDetailsKey(logDir),
-    EMPTY_DETAILS
-  );
-  // Per-handle keys, not single collections — remove every per-handle detail
-  // and fetch-state query under this dir (a prefix match on the query key).
-  queryClient.removeQueries({ queryKey: ["log_data", "detail", logDir] });
-  queryClient.removeQueries({ queryKey: ["log_data", "fetch_state", logDir] });
+  queryClient.setQueryData<Log[]>(logsKey(logDir), EMPTY_LOGS);
+  // Per-entity keys are a prefix match, not a single collection.
+  queryClient.removeQueries({ queryKey: ["log_data", "log", logDir] });
   removeSamplesListings(logDir);
 };
 
@@ -201,27 +197,30 @@ const clearCache = (logDir: string): void => {
 // ---------------------------------------------------------------------------
 
 /**
- * Persist `handles` to IndexedDB and cache the resulting full listing. The db
- * write is an upsert (delta) while the cache holds the full re-read, so the
- * full list is read back and returned for the caller's continued sync logic.
+ * Persist the listing identity tier and cache the resulting full row list.
+ * The db write is a merge-upsert (rows keep depth/content) and the cache
+ * holds the full re-read, so the full list is read back and returned for the
+ * caller's continued sync logic.
  */
-export const writeHandles = async (
+export const writeListing = async (
   db: DatabaseService | null | undefined,
   logDir: string,
   handles: LogHandle[]
-): Promise<LogHandle[]> => {
+): Promise<Log[]> => {
   if (db?.opened()) {
     await db.writeLogs(handles);
-    const all = (await db.readLogs()) ?? handles;
-    setHandles(logDir, all);
-    return all;
+    const all = await db.readLogs();
+    if (all) {
+      setRows(logDir, all);
+      return all;
+    }
   }
-  setHandles(logDir, handles);
-  return handles;
+  setListing(logDir, handles);
+  return currentLogs(logDir);
 };
 
-// The keyed merges and clears update the cache first (it's the read path, and
-// the cache value equals the write input), then persist to IndexedDB. So a
+// The keyed merges update the cache first (it's the read path, and the cache
+// value equals the write input), then persist to IndexedDB. So a
 // fire-and-forget call still reflects in the cache synchronously.
 
 export const writePreviews = async (
@@ -231,20 +230,20 @@ export const writePreviews = async (
 ): Promise<void> => {
   mergePreviews(logDir, previews);
   if (db?.opened()) {
-    await db.writeLogPreviews(Object.values(previews), Object.keys(previews));
+    await db.writeLogPreviews(previews);
   }
 };
 
 /**
  * Details INGESTION: normalize each transport payload into the entity
- * stores — header (with derived sample facts) into the detail keys, sample
- * summaries into their own store. Cache updates land synchronously (headers
- * merged, observed file-scope samples listings pushed — the running→complete
- * handoff depends on the status flip and the settled rows arriving in the
- * same update); persistence is one transaction per call; the invalidation
- * sweep then refreshes prefix-scope listings from the committed rows. In
- * db-less sessions the pushes are the only landing spot, and invalidating
- * would clobber them with an empty read — so the sweep is persistence-gated.
+ * stores — the detailed tier onto the log row, sample summaries into their
+ * own store. Cache updates land synchronously; samples rows land BEFORE the
+ * row merge (the status flip is what drops a running log's pending-buffer
+ * rows, so a render between the two updates must already have the settled
+ * rows). Persistence is one transaction per call; the invalidation sweep
+ * then refreshes prefix-scope listings from the committed rows. In db-less
+ * sessions the pushes are the only landing spot, and invalidating would
+ * clobber them with an empty read — so the sweep is persistence-gated.
  */
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
@@ -257,9 +256,6 @@ export const writeDetails = async (
       toLogHeader(payload),
     ])
   );
-  // Samples rows land BEFORE the header merge: the header's status flip is
-  // what drops a running log's pending-buffer rows, so a render between the
-  // two updates must already have the settled rows.
   await Promise.all(
     Object.entries(details).map(([name, payload]) => {
       const header = headers[name];
@@ -272,29 +268,64 @@ export const writeDetails = async (
           );
     })
   );
-  mergeDetails(logDir, headers);
+  mergePatches(
+    logDir,
+    Object.fromEntries(
+      Object.entries(headers).map(([name, header]) => [
+        name,
+        detailTier(header),
+      ])
+    )
+  );
   if (db?.opened()) {
     await db.writeLogDetails(details);
     invalidateSamplesListings(logDir);
   }
 };
 
-export const writeDetail = async (
-  db: DatabaseService | null | undefined,
-  logDir: string,
-  name: string,
-  details: LogDetails
-): Promise<void> => writeDetails(db, logDir, { [name]: details });
-
 export const writeFetchStates = async (
   db: DatabaseService | null | undefined,
   logDir: string,
-  states: Record<string, LogFetchStateRecord>
+  states: Record<string, LogFetchState>
 ): Promise<void> => {
   mergeFetchStates(logDir, states);
   if (db?.opened()) {
     await db.writeFetchStates(states);
   }
+};
+
+/**
+ * mtime invalidation: each row keeps its identity but drops content and
+ * retrieval facts back to listed depth; its sample summaries go with it.
+ * A row REPLACEMENT, not a patch — `mergePatches`' depth ratchet must not
+ * apply to explicit resets.
+ */
+export const resetDepth = async (
+  db: DatabaseService | null | undefined,
+  logDir: string,
+  names: string[]
+): Promise<void> => {
+  const nameSet = new Set(names);
+  const next = currentLogs(logDir).map((row) =>
+    nameSet.has(row.name)
+      ? newRow({
+          name: row.name,
+          task: row.task,
+          task_id: row.task_id,
+          mtime: row.mtime,
+        })
+      : row
+  );
+  queryClient.setQueryData<Log[]>(logsKey(logDir), next);
+  for (const row of next) {
+    if (nameSet.has(row.name)) {
+      pushLog(logDir, row);
+    }
+  }
+  if (db?.opened()) {
+    await db.resetDepth(names);
+  }
+  invalidateSamplesListings(logDir);
 };
 
 export const clearFile = async (
@@ -309,17 +340,6 @@ export const clearFile = async (
   // After the rows are gone (db) — or cache-only (db-less), where a refetch
   // correctly reads empty — refresh any samples listing that carried them.
   invalidateSamplesListings(logDir);
-};
-
-export const clearPreview = async (
-  db: DatabaseService | null | undefined,
-  logDir: string,
-  name: string
-): Promise<void> => {
-  evictPreview(logDir, name);
-  if (db?.opened()) {
-    await db.clearPreviewForFile(name);
-  }
 };
 
 export const clearAll = async (
@@ -341,16 +361,16 @@ export const createLogsContentSink = (
   db: DatabaseService | null,
   logDir: string
 ): LogsContentSink => ({
-  setHandles: (handles) => setHandles(logDir, handles),
+  seedRows: (rows) => setRows(logDir, rows),
+  setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),
-  mergeDetails: (details) => mergeDetails(logDir, details),
-  writeHandles: (handles) => writeHandles(db, logDir, handles),
+  writeListing: (handles) => writeListing(db, logDir, handles),
   writePreviews: (previews) => writePreviews(db, logDir, previews),
   writeDetails: (details) => writeDetails(db, logDir, details),
   mergeFetchStates: (states) => mergeFetchStates(logDir, states),
   writeFetchStates: (states) => writeFetchStates(db, logDir, states),
+  resetDepth: (names) => resetDepth(db, logDir, names),
   clearFile: (name) => clearFile(db, logDir, name),
-  clearPreview: (name) => clearPreview(db, logDir, name),
   clearAll: () => clearAll(db, logDir),
 });
 
@@ -359,83 +379,28 @@ export const createLogsContentSink = (
 // ---------------------------------------------------------------------------
 
 /**
- * Non-React snapshot of the handles (for slice / routing call sites). Tolerates
- * an unresolved dir (returns empty) — non-React code can run before a scope is
- * settled; React readers below the loader gate always have one.
+ * Non-React snapshot of the rows (for slice / routing call sites). Tolerates
+ * an unresolved dir (returns empty) — non-React code can run before a scope
+ * is settled; React readers below the loader gate always have one.
  */
-export const getLogHandles = (logDir: string | undefined): LogHandle[] =>
-  logDir === undefined ? EMPTY_HANDLES : currentHandles(logDir);
+export const getLogRows = (logDir: string | undefined): Log[] =>
+  logDir === undefined ? EMPTY_LOGS : currentLogs(logDir);
 
 // Callers pass a resolved dir (`useLogDir()`); the loader gate guarantees one
 // before any consumer of these mounts.
-export const useLogHandles = (logDir: string): LogHandle[] => {
+export const useLogs = (logDir: string): Log[] => {
   const { data } = useQuery({
-    queryKey: logHandlesKey(logDir),
-    queryFn: () => currentHandles(logDir),
+    queryKey: logsKey(logDir),
+    queryFn: () => currentLogs(logDir),
     staleTime: Infinity,
   });
-  return data ?? EMPTY_HANDLES;
-};
-
-export const useLogPreviews = (logDir: string): Record<string, LogPreview> => {
-  const { data } = useQuery({
-    queryKey: logPreviewsKey(logDir),
-    queryFn: () => currentPreviews(logDir),
-    staleTime: Infinity,
-  });
-  return data ?? EMPTY_PREVIEWS;
-};
-
-// Subsystem-internal (the listing row join + score-schema discovery); app
-// modules consume the joined listing rows instead.
-export const useLogHeaders = (logDir: string): Record<string, LogHeader> => {
-  const { data: headers } = useQuery({
-    queryKey: logDetailsKey(logDir),
-    queryFn: () => currentDetails(logDir),
-    staleTime: Infinity,
-  });
-  return headers ?? EMPTY_DETAILS;
-};
-
-/**
- * A single handle's fetch-state (retrieval errors/attempts — a domain
- * separate from eval status/error), for detail-path consumers (e.g. a badge
- * on the currently-open log). Unlike `useLogHandles`/`useLogPreviews`/
- * `useLogHeaders`, this is per-handle, not a whole-collection cache mirror:
- * the listing will read fetch-state from IndexedDB directly via paged joins
- * rather than mounting one of these per row. Idles (`skipToken`) without a
- * name. The `queryFn` reads straight from IndexedDB (there is no
- * self-seeded collection to fall back to for a handle nobody has queried
- * yet); once mounted, the query cache entry it creates is what makes this
- * handle's engine pushes (`mergeFetchStates`) observed instead of guarded
- * no-ops.
- */
-export const useLogFetchState = (
-  logDir: string,
-  name: string | undefined
-): LogFetchStateRecord | undefined => {
-  const { data } = useQuery({
-    queryKey: logFetchStateKey(logDir, name ?? ""),
-    queryFn:
-      name === undefined
-        ? skipToken
-        : async () => {
-            const db = getDatabaseService();
-            if (!db.opened()) {
-              return null;
-            }
-            const states = await db.readFetchStates();
-            return states[name] ?? null;
-          },
-    staleTime: Infinity,
-  });
-  return data ?? undefined;
+  return data ?? EMPTY_LOGS;
 };
 
 /**
  * Resolve a log file (which may be a relative name or an absolute path) to the
  * key it is stored under in the per-directory collections — the matching
- * `handle.name`, falling back to the file itself when no handle is present yet
+ * row name, falling back to the file itself when no row is present yet
  * (e.g. single-file mode before the listing is seeded). Both readers and the
  * opened-log writers route through this so the opened log lands on the same key
  * the listing uses.
@@ -444,9 +409,6 @@ export const resolveLogKey = (
   logDir: string | undefined,
   logFile: string
 ): string => {
-  const match = getLogHandles(logDir).find((handle) =>
-    handle.name.endsWith(logFile)
-  );
+  const match = getLogRows(logDir).find((row) => row.name.endsWith(logFile));
   return match?.name ?? logFile;
 };
-

@@ -147,7 +147,7 @@ export const SamplesPanel: FC = () => {
   const completedTaskCount = useMemo(() => {
     let count = 0;
     for (const logFile of currentDirLogFiles) {
-      if (logFile.preview && logFile.preview.status !== "started") {
+      if (logFile.status !== undefined && logFile.status !== "started") {
         count++;
       }
     }

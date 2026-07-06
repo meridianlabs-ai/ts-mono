@@ -1,4 +1,3 @@
-import { LogPreview } from "../../client/api/types";
 import { LogListingRow } from "../../log_data";
 
 export interface LogItem {
@@ -16,7 +15,6 @@ export interface FolderLogItem extends LogItem {
 export interface FileLogItem extends LogItem {
   type: "file";
   log: LogListingRow;
-  logPreview?: LogPreview;
 }
 
 export interface PendingTaskItem extends LogItem {

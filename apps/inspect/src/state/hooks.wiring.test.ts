@@ -12,12 +12,12 @@ import {
 
 // Thin wiring test: the binding reads the selection and delegates to the
 // param-driven acquisition hook — mock both sides and assert the plumbing.
-const useLogDetail = vi.hoisted(() => vi.fn());
+const useLog = vi.hoisted(() => vi.fn());
 const useRunningMetrics = vi.hoisted(() => vi.fn());
 const useSampleSummaries = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../log_data")>()),
-  useLogDetail,
+  useLog,
   useRunningMetrics,
   useSampleSummaries,
 }));
@@ -53,13 +53,13 @@ describe("useSelectedRunningMetrics", () => {
 });
 
 describe("useSelectedLogDetail", () => {
-  it("delegates to useLogDetail with the selected log", () => {
+  it("delegates to useLog with the selected log", () => {
     const state: LogDataState<unknown> = {
       data: undefined,
       loading: true,
       error: undefined,
     };
-    useLogDetail.mockReturnValue(state);
+    useLog.mockReturnValue(state);
     storeState.selectedLogFile = "run.eval";
 
     const { result } = renderHook(() => useSelectedLogDetail());
@@ -67,7 +67,7 @@ describe("useSelectedLogDetail", () => {
     // Active demand: the selection binding is the one consumer that must
     // bump the settle seq / trigger a background refresh (see F2 in
     // fetchEngine.test.ts's "passive vs active demand" suite).
-    expect(useLogDetail).toHaveBeenCalledWith("/logs", "run.eval", {
+    expect(useLog).toHaveBeenCalledWith("/logs", "run.eval", {
       demand: "active",
     });
     expect(result.current).toBe(state);
@@ -76,7 +76,7 @@ describe("useSelectedLogDetail", () => {
 
 describe("useSelectedLogLoading", () => {
   it("is false when no file is selected", () => {
-    useLogDetail.mockReturnValue({
+    useLog.mockReturnValue({
       data: undefined,
       loading: false,
       error: undefined,

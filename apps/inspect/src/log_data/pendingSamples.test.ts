@@ -18,7 +18,7 @@ import {
 
 const engineFetch = vi.hoisted(() => vi.fn());
 vi.mock("./fetchEngine", () => ({
-  fetchEngine: { fetch: engineFetch },
+  fetchEngine: { ensure: engineFetch },
 }));
 
 const sample = (id: string): SampleSummary =>
@@ -126,7 +126,10 @@ describe("fetchPendingSamples", () => {
 
     expect(getPending).toHaveBeenCalledWith(LOG_FILE, "etag-1");
     expect(result).toBe(fresh);
-    expect(engineFetch).toHaveBeenCalledWith(LOG_FILE, "elevated");
+    expect(engineFetch).toHaveBeenCalledWith(LOG_FILE, {
+      depth: "detailed",
+      priority: "elevated",
+    });
   });
 
   it("returns the previous data on NotModified without refreshing details", async () => {

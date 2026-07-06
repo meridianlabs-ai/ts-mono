@@ -113,7 +113,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: tasksUrl(decodedPath, logDir),
             log: logFile,
-            logPreview: logFile.preview,
           });
         }
       }
@@ -190,7 +189,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: logsUrl(path, logDir),
             log: logFile,
-            logPreview: logFile.preview,
           });
         }
       } else if (name.startsWith(dirWithSlash)) {
@@ -321,7 +319,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         total += 1;
         if (
           item.type === "pending-task" ||
-          item.logPreview?.status === "started"
+          item.log?.status === "started"
         ) {
           pending += 1;
         }

@@ -4,7 +4,7 @@ import { getApi, getAppConfig, getLogDir } from "../app_config";
 import { DatabaseService } from "../client/database";
 
 import { getDatabaseService } from "./databaseServiceInstance";
-import { fetchEngine, FetchPriority } from "./fetchEngine";
+import { fetchEngine } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
 
@@ -99,7 +99,7 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
  * subscriber has activated). `opts` threads through to `engine.fetch`:
  * `fresh` for callers that know the cached row is stale (e.g. after an
  * edit), `passive` for ensure-presence callers that don't want to declare
- * active interest (see `useLogDetail`'s `demand` option).
+ * active interest (see `useLog`'s `demand` option).
  */
 export const fetchLog = async (
   logDir: string,
@@ -107,22 +107,12 @@ export const fetchLog = async (
   opts?: { fresh?: boolean; passive?: boolean }
 ): Promise<void> => {
   await ensureFetchEngine(logDir);
-  return fetchEngine.fetch(logFile, "user", opts);
-};
-
-/**
- * Enqueue-or-bump a preview fetch, activating the engine for `logDir` on
- * demand like `fetchLog` — but fire-and-forget (no waiter), since hooks read
- * the result off the sink/cache rather than awaiting a promise here.
- */
-export const requestPreview = (
-  logDir: string,
-  logFile: string,
-  priority?: FetchPriority
-): void => {
-  void ensureFetchEngine(logDir).then(() =>
-    fetchEngine.requestPreview(logFile, priority ?? "user")
-  );
+  return fetchEngine.ensure(logFile, {
+    depth: "detailed",
+    priority: "user",
+    fresh: opts?.fresh,
+    demand: opts?.passive ? "passive" : "active",
+  });
 };
 
 // Serialize listing syncs with a trailing coalesce: a request arriving

@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { EvalLogStatus } from "../@types/extraInspect";
-import { LogHeader, SampleSummary } from "../client/api/types";
+import { Log, LogHeader, SampleSummary } from "../client/api/types";
 import { SampleSummariesScope } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
@@ -67,6 +67,16 @@ const logContext = (header: LogHeader | undefined): SamplesListingLogContext =>
         status: header.status,
       };
 
+const rowContext = (row: Log | undefined): SamplesListingLogContext =>
+  row === undefined
+    ? {}
+    : {
+        created: row.header?.eval.created,
+        task: row.task ?? undefined,
+        model: row.model,
+        status: row.status,
+      };
+
 /** Assemble listing rows from an ingested payload's parts (the sink's push
  *  path — the db read below produces the same shape). */
 export const toSamplesListingRows = (
@@ -105,9 +115,9 @@ const readSamplesListing = async (
   }
   const records = await db.readSampleSummaries(params.scope);
   const files = [...new Set(records.map((record) => record.file_path))];
-  const headers = await db.readLogHeaders(files);
+  const rows = await db.readLogRows(files);
   const contexts = new Map(
-    files.map((file) => [file, logContext(headers[file])])
+    files.map((file) => [file, rowContext(rows[file])])
   );
   return pageOf(
     records.map((record) => ({

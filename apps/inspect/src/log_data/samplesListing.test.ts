@@ -86,12 +86,13 @@ describe("details ingestion (sink split)", () => {
       ]),
     });
 
-    const header = await db.readLogDetailsForFile(FILE_A);
-    expect(header).not.toBeNull();
-    expect(header).not.toHaveProperty("sampleSummaries");
-    expect(header?.sampleCount).toBe(2);
-    expect(header?.sampleErrorCount).toBe(1);
-    expect(header?.sampleLimits).toEqual(["time"]);
+    const row = await db.readLogRow(FILE_A);
+    expect(row).not.toBeNull();
+    expect(row?.depth).toBe("detailed");
+    expect(row?.header).not.toHaveProperty("sampleSummaries");
+    expect(row?.header?.sampleCount).toBe(2);
+    expect(row?.header?.sampleErrorCount).toBe(1);
+    expect(row?.header?.sampleLimits).toEqual(["time"]);
 
     const rows = await db.readSampleSummaries({ file: FILE_A });
     expect(rows.map((row) => row.summary.id).sort()).toEqual(["s1", "s2"]);
@@ -110,8 +111,8 @@ describe("details ingestion (sink split)", () => {
 
     const rows = await db.readSampleSummaries({ file: FILE_A });
     expect(rows.map((row) => row.summary.id).sort()).toEqual(["s1", "s2"]);
-    const header = await db.readLogDetailsForFile(FILE_A);
-    expect(header?.sampleCount).toBe(2);
+    const logRow = await db.readLogRow(FILE_A);
+    expect(logRow?.header?.sampleCount).toBe(2);
   });
 
   it("clearFile removes the file's summary rows", async () => {

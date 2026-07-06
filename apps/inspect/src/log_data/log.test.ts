@@ -3,26 +3,19 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LogDetails } from "../client/api/types";
-import { LogFetchStateRecord } from "../client/database";
+import { Log, LogDetails } from "../client/api/types";
 import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
-import { useLogDetail } from "./logDetail";
-import {
-  clearFile,
-  logDetailKey,
-  logDetailsKey,
-  writeDetails,
-} from "./logsContent";
+import { useLog } from "./log";
+import { clearFile, logKey, logsKey, writeDetails } from "./logsContent";
 
 const fetchLog = vi.hoisted(() => vi.fn());
 vi.mock("./replicationControl", () => ({ fetchLog }));
 
 const db = vi.hoisted(() => ({
   opened: vi.fn(() => false),
-  readLogDetailsForFile: vi.fn(),
-  readFetchStates: vi.fn(),
+  readLogRow: vi.fn(),
 }));
 vi.mock("./databaseServiceInstance", () => ({
   getDatabaseService: () => db,
@@ -39,42 +32,47 @@ const makeDetails = (name: string): LogDetails =>
     sampleSummaries: [],
   }) as unknown as LogDetails;
 
-const fetchStateWithError = (
-  name: string,
-  message: string
-): LogFetchStateRecord => ({
-  file_path: name,
+const detailedRow = (name: string): Log => ({
+  name,
+  depth: "detailed",
+  status: "success",
+  header: toLogHeader(makeDetails(name)),
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
+
+const erroredRow = (name: string, message: string): Log => ({
+  name,
+  depth: "listed",
   preview_attempts: 0,
   details_attempts: 1,
   details_fetch_error: message,
   details_settled_seq: 0,
-  updated_at: new Date().toISOString(),
 });
 
 const wrapper = ({ children }: { children: ReactNode }) =>
   createElement(QueryClientProvider, { client: queryClient }, children);
 
 // A promise that never settles — the engine fetch staying in flight.
-const pendingForever = () => new Promise<LogDetails>(() => {});
+const pendingForever = () => new Promise<void>(() => {});
 
 beforeEach(() => {
   fetchLog.mockReset();
   fetchLog.mockImplementation(pendingForever);
   db.opened.mockReset();
   db.opened.mockReturnValue(false);
-  db.readLogDetailsForFile.mockReset();
-  db.readLogDetailsForFile.mockResolvedValue(null);
-  db.readFetchStates.mockReset();
-  db.readFetchStates.mockResolvedValue({});
+  db.readLogRow.mockReset();
+  db.readLogRow.mockResolvedValue(null);
 });
 
 afterEach(() => {
   queryClient.clear();
 });
 
-describe("useLogDetail", () => {
+describe("useLog", () => {
   it("reports loading while there is neither data nor a retrieval error", async () => {
-    const { result } = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
 
@@ -84,7 +82,7 @@ describe("useLogDetail", () => {
   });
 
   it("is not loading when no file is given", () => {
-    const { result } = renderHook(() => useLogDetail(LOG_DIR, undefined), {
+    const { result } = renderHook(() => useLog(LOG_DIR, undefined), {
       wrapper,
     });
 
@@ -93,13 +91,11 @@ describe("useLogDetail", () => {
     expect(result.current.error).toBeUndefined();
   });
 
-  it("surfaces the fetch-state retrieval error when there is no data row", async () => {
+  it("surfaces the row's retrieval error when it has no header", async () => {
     db.opened.mockReturnValue(true);
-    db.readFetchStates.mockResolvedValue({
-      [LOG_FILE]: fetchStateWithError(LOG_FILE, "boom"),
-    });
+    db.readLogRow.mockResolvedValue(erroredRow(LOG_FILE, "boom"));
 
-    const { result } = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
 
@@ -109,27 +105,26 @@ describe("useLogDetail", () => {
   });
 
   it("data wins over a stale retrieval error message", async () => {
-    const details = makeDetails(LOG_FILE);
+    const row = {
+      ...detailedRow(LOG_FILE),
+      details_fetch_error: "stale",
+    };
     db.opened.mockReturnValue(true);
-    db.readLogDetailsForFile.mockResolvedValue(details);
-    db.readFetchStates.mockResolvedValue({
-      [LOG_FILE]: fetchStateWithError(LOG_FILE, "stale"),
-    });
+    db.readLogRow.mockResolvedValue(row);
 
-    const { result } = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.data).toBe(details));
+    await waitFor(() => expect(result.current.data).toBe(row.header));
     expect(result.current.error).toBeUndefined();
     expect(result.current.loading).toBe(false);
   });
 
   it("demands exactly one engine fetch per (dir, file) mount, passively by default", async () => {
-    const { result, rerender } = renderHook(
-      () => useLogDetail(LOG_DIR, LOG_FILE),
-      { wrapper }
-    );
+    const { result, rerender } = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
+      wrapper,
+    });
 
     await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
     expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, { passive: true });
@@ -140,7 +135,7 @@ describe("useLogDetail", () => {
   });
 
   it("demands actively when opted in (the selection binding)", async () => {
-    renderHook(() => useLogDetail(LOG_DIR, LOG_FILE, { demand: "active" }), {
+    renderHook(() => useLog(LOG_DIR, LOG_FILE, { demand: "active" }), {
       wrapper,
     });
 
@@ -151,30 +146,30 @@ describe("useLogDetail", () => {
   });
 
   it("re-seeds from the Dexie row on remount after eviction, without an engine settle", async () => {
-    const details = makeDetails(LOG_FILE);
+    const row = detailedRow(LOG_FILE);
     db.opened.mockReturnValue(true);
-    db.readLogDetailsForFile.mockResolvedValue(details);
+    db.readLogRow.mockResolvedValue(row);
 
-    const first = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const first = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
-    await waitFor(() => expect(first.result.current.data).toBe(details));
+    await waitFor(() => expect(first.result.current.data).toBe(row.header));
     first.unmount();
 
     // Simulate gc eviction of the idle entry.
-    queryClient.removeQueries({ queryKey: logDetailKey(LOG_DIR, LOG_FILE) });
+    queryClient.removeQueries({ queryKey: logKey(LOG_DIR, LOG_FILE) });
 
-    const second = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const second = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
-    await waitFor(() => expect(second.result.current.data).toBe(details));
-    expect(db.readLogDetailsForFile).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(second.result.current.data).toBe(row.header));
+    expect(db.readLogRow).toHaveBeenCalledTimes(2);
     second.unmount();
   });
 
   it("receives sink pushes while mounted", async () => {
     const details = makeDetails(LOG_FILE);
-    const { result } = renderHook(() => useLogDetail(LOG_DIR, LOG_FILE), {
+    const { result } = renderHook(() => useLog(LOG_DIR, LOG_FILE), {
       wrapper,
     });
     await waitFor(() => expect(result.current.loading).toBe(true));
@@ -188,35 +183,31 @@ describe("useLogDetail", () => {
   });
 });
 
-describe("details sink per-handle pushes", () => {
-  it("a background writeDetails for an unobserved log creates NO per-handle entry", async () => {
+describe("details sink per-entity pushes", () => {
+  it("a background writeDetails for an unobserved log creates NO per-entity entry", async () => {
     const details = makeDetails("bg.eval");
 
     await writeDetails(null, LOG_DIR, { "bg.eval": details });
 
     expect(
-      queryClient
-        .getQueryCache()
-        .find({ queryKey: logDetailKey(LOG_DIR, "bg.eval") })
+      queryClient.getQueryCache().find({ queryKey: logKey(LOG_DIR, "bg.eval") })
     ).toBeUndefined();
-    // The subsystem-internal whole-dir map still gets the header row.
-    expect(
-      queryClient.getQueryData<Record<string, LogDetails>>(
-        logDetailsKey(LOG_DIR)
-      )
-    ).toEqual({ "bg.eval": toLogHeader(details) });
+    // The subsystem-internal row collection still gets the detailed row.
+    const rows = queryClient.getQueryData<Log[]>(logsKey(LOG_DIR));
+    expect(rows?.map((row) => [row.name, row.depth])).toEqual([
+      ["bg.eval", "detailed"],
+    ]);
+    expect(rows?.[0]?.header).toEqual(toLogHeader(details));
   });
 
-  it("clearFile removes the per-handle detail entry", async () => {
-    const details = makeDetails(LOG_FILE);
-    queryClient.setQueryData(logDetailKey(LOG_DIR, LOG_FILE), details);
+  it("clearFile removes the per-entity entry", async () => {
+    const row = detailedRow(LOG_FILE);
+    queryClient.setQueryData(logKey(LOG_DIR, LOG_FILE), row);
 
     await clearFile(null, LOG_DIR, LOG_FILE);
 
     expect(
-      queryClient
-        .getQueryCache()
-        .find({ queryKey: logDetailKey(LOG_DIR, LOG_FILE) })
+      queryClient.getQueryCache().find({ queryKey: logKey(LOG_DIR, LOG_FILE) })
     ).toBeUndefined();
   });
 });

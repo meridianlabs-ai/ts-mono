@@ -2,19 +2,23 @@
  * Automated tests for database functionality
  * Uses fake-indexeddb for testing IndexedDB operations in Vitest
  *
- * Schema v3 structure:
- * - logs: stores results from get_log_files() (LogHandles)
- * - log_previews: stores results from get_log_summaries() (LogPreviews)
- * - log_details: stores complete results from get_log_info() including samples (LogDetails)
+ * Schema v12 structure:
+ * - logs: THE unified Log entity row — identity + attribute columns at
+ *   progressive depth (listed/previewed/detailed) + retrieval facts
+ * - sample_summaries: sample summaries split out of details payloads
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
 
-import { LogDetails, LogPreview, SampleSummary } from "../api/types";
+import {
+  LogDetails,
+  LogFetchState,
+  LogPreview,
+  SampleSummary,
+} from "../api/types";
 
-import { LogFetchStateRecord } from "./schema";
 import { createDatabaseService, DatabaseService } from "./service";
 
 // Helper function to create test LogSummary
@@ -121,7 +125,7 @@ describe("Database Service", () => {
     }
   });
 
-  describe("Log Files Caching", () => {
+  describe("Log Rows (identity tier)", () => {
     test("should cache and retrieve log files", async () => {
       const testLogRoot: LogHandle[] = [
         {
@@ -148,6 +152,9 @@ describe("Database Service", () => {
       expect(files).toHaveLength(2);
       expect(files?.[0]?.name).toBe("/test/logs/eval1.json");
       expect(files?.[0]?.task).toBe("test-task-1");
+      // A fresh listing row starts at listed depth with zeroed facts.
+      expect(files?.[0]?.depth).toBe("listed");
+      expect(files?.[0]?.preview_attempts).toBe(0);
     });
 
     test("should update existing cached log files", async () => {
@@ -171,48 +178,59 @@ describe("Database Service", () => {
         "additional-task"
       );
     });
+
+    test("re-listing preserves a row's depth and content", async () => {
+      await databaseService.writeLogPreviews({
+        "/test/logs/eval1.json": createTestLogSummary(),
+      });
+
+      // The next listing sync upserts the identity tier only.
+      await databaseService.writeLogs([
+        { name: "/test/logs/eval1.json", task: "renamed-task" },
+      ]);
+
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row?.task).toBe("renamed-task");
+      expect(row?.depth).toBe("previewed");
+      expect(row?.status).toBe("success");
+    });
   });
 
-  describe("Log Summaries Caching", () => {
-    test("should cache and retrieve log summaries", async () => {
-      const summaries = [
-        createTestLogSummary({ eval_id: "eval-1", task: "task-1" }),
-        createTestLogSummary({ eval_id: "eval-2", task: "task-2" }),
-      ];
-      const logHandles: LogHandle[] = [
-        { name: "/test/logs/eval1.json" },
-        { name: "/test/logs/eval2.json" },
-      ];
+  describe("Previewed Tier", () => {
+    test("should cache and retrieve log previews as flat row columns", async () => {
+      await databaseService.writeLogPreviews({
+        "/test/logs/eval1.json": createTestLogSummary({
+          eval_id: "eval-1",
+          task: "task-1",
+        }),
+        "/test/logs/eval2.json": createTestLogSummary({
+          eval_id: "eval-2",
+          task: "task-2",
+        }),
+      });
 
-      // Cache the summaries
-      await databaseService.writeLogPreviews(
-        summaries,
-        logHandles.map((logHandle) => logHandle.name)
-      );
+      const row1 = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row1).not.toBeNull();
+      expect(row1?.depth).toBe("previewed");
+      expect(row1?.eval_id).toBe("eval-1");
+      expect(row1?.status).toBe("success");
+      expect(row1?.model).toBe("gpt-4");
 
-      // Retrieve cached summaries
-      const cached = await databaseService.readLogPreviews(logHandles);
-
-      expect(Object.keys(cached)).toHaveLength(2);
-      expect(cached["/test/logs/eval1.json"]).toBeDefined();
-      expect(cached["/test/logs/eval1.json"]?.eval_id).toBe("eval-1");
-      expect(cached["/test/logs/eval2.json"]?.task).toBe("task-2");
+      const row2 = await databaseService.readLogRow("/test/logs/eval2.json");
+      expect(row2?.task).toBe("task-2");
     });
 
     test("should handle partial cache hits", async () => {
-      const summary = createTestLogSummary({ eval_id: "eval-1" });
+      // Cache only one preview
+      await databaseService.writeLogPreviews({
+        "/test/logs/eval1.json": createTestLogSummary({ eval_id: "eval-1" }),
+      });
 
-      // Cache only one summary
-      await databaseService.writeLogPreviews(
-        [summary],
-        ["/test/logs/eval1.json"]
-      );
-
-      // Request multiple summaries
-      const cached = await databaseService.readLogPreviews([
-        { name: "/test/logs/eval1.json" },
-        { name: "/test/logs/eval2.json" },
-        { name: "/test/logs/eval3.json" },
+      // Request multiple rows
+      const cached = await databaseService.readLogRows([
+        "/test/logs/eval1.json",
+        "/test/logs/eval2.json",
+        "/test/logs/eval3.json",
       ]);
 
       // Should only return the cached one
@@ -222,7 +240,7 @@ describe("Database Service", () => {
     });
   });
 
-  describe("Log Info Caching", () => {
+  describe("Detailed Tier", () => {
     test("should cache and retrieve log info with samples", async () => {
       const samples = [
         createTestSampleSummary({ id: 1 }),
@@ -244,17 +262,17 @@ describe("Database Service", () => {
         sampleSummaries: samples,
       });
 
-      // Ingest the payload (split: header row + summary rows)
+      // Ingest the payload (split: detailed row tier + summary rows)
       await databaseService.writeLogDetails({
         "/test/logs/eval1.json": logInfo,
       });
 
-      // Retrieve the stored header
-      const cached = await databaseService.readLogDetailsForFile(
-        "/test/logs/eval1.json"
-      );
+      // Retrieve the stored header off the row
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row?.depth).toBe("detailed");
 
-      expect(cached).not.toBeNull();
+      const cached = row?.header;
+      expect(cached).toBeDefined();
       expect(cached?.eval.eval_id).toBe("eval-1");
       expect(cached).not.toHaveProperty("sampleSummaries");
       expect(cached?.sampleCount).toBe(2);
@@ -266,31 +284,11 @@ describe("Database Service", () => {
       expect(rows[0]?.summary.id).toBe(1);
     });
 
-    test("should return null for non-cached log info", async () => {
-      const cached = await databaseService.readLogDetailsForFile(
+    test("should return null for a non-cached log row", async () => {
+      const row = await databaseService.readLogRow(
         "/test/logs/nonexistent.json"
       );
-      expect(cached).toBeNull();
-    });
-
-    test("findMissingDetails treats details cached as started as missing", async () => {
-      // A "started" details row is a mid-run snapshot — the run may have
-      // finished since, so backfill must re-fetch it.
-      await databaseService.writeLogDetails({
-        "/test/logs/running.json": createTestLogInfo({ status: "started" }),
-        "/test/logs/done.json": createTestLogInfo({ status: "success" }),
-      });
-
-      const missing = await databaseService.findMissingDetails([
-        { name: "/test/logs/running.json" },
-        { name: "/test/logs/done.json" },
-        { name: "/test/logs/absent.json" },
-      ]);
-
-      expect(missing.map((log) => log.name).sort()).toEqual([
-        "/test/logs/absent.json",
-        "/test/logs/running.json",
-      ]);
+      expect(row).toBeNull();
     });
   });
 
@@ -378,20 +376,20 @@ describe("Database Service", () => {
 
       expect(stats.logFiles).toBe(0);
       expect(stats.logSummaries).toBe(0);
+      expect(stats.logHeaders).toBe(0);
       expect(stats.sampleSummaries).toBe(0);
       expect(stats.logHandle).toBe("/test/logs");
     });
 
     test("should clear all caches", async () => {
-      // Cache data in all tables
+      // Build one row up through every tier
       await databaseService.writeLogs([
         { name: "/test/logs/eval1.json", task: "task-1", task_id: "task1" },
       ]);
 
-      await databaseService.writeLogPreviews(
-        [createTestLogSummary()],
-        ["/test/logs/eval1.json"]
-      );
+      await databaseService.writeLogPreviews({
+        "/test/logs/eval1.json": createTestLogSummary(),
+      });
 
       await databaseService.writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
@@ -400,8 +398,11 @@ describe("Database Service", () => {
       });
 
       const stats1 = await databaseService.getCacheStats();
+      // One unified row, now at detailed depth: it counts as a log file, as
+      // previewed-or-deeper (logSummaries) and as detailed (logHeaders).
       expect(stats1.logFiles).toBe(1);
       expect(stats1.logSummaries).toBe(1);
+      expect(stats1.logHeaders).toBe(1);
       expect(stats1.sampleSummaries).toBe(1);
 
       // Clear all caches
@@ -410,7 +411,23 @@ describe("Database Service", () => {
       const stats2 = await databaseService.getCacheStats();
       expect(stats2.logFiles).toBe(0);
       expect(stats2.logSummaries).toBe(0);
+      expect(stats2.logHeaders).toBe(0);
       expect(stats2.sampleSummaries).toBe(0);
+    });
+
+    test("counts logSummaries as previewed-or-deeper and logHeaders as detailed", async () => {
+      await databaseService.writeLogs([{ name: "/test/logs/listed.json" }]);
+      await databaseService.writeLogPreviews({
+        "/test/logs/previewed.json": createTestLogSummary(),
+      });
+      await databaseService.writeLogDetails({
+        "/test/logs/detailed.json": createTestLogInfo(),
+      });
+
+      const stats = await databaseService.getCacheStats();
+      expect(stats.logFiles).toBe(3);
+      expect(stats.logSummaries).toBe(2); // previewed + detailed
+      expect(stats.logHeaders).toBe(1); // detailed only
     });
 
     test("should count sample summaries correctly", async () => {
@@ -436,23 +453,20 @@ describe("Database Service", () => {
     });
   });
 
-  describe("Log Fetch State Caching", () => {
+  describe("Retrieval Facts (fetch state)", () => {
     function createTestFetchState(
-      overrides: Partial<LogFetchStateRecord> = {}
-    ): LogFetchStateRecord {
+      overrides: Partial<LogFetchState> = {}
+    ): LogFetchState {
       return {
-        file_path: "/test/logs/eval1.json",
         preview_attempts: 0,
         details_attempts: 0,
         details_settled_seq: 0,
-        updated_at: "2024-01-01T00:00:00Z",
         ...overrides,
       };
     }
 
-    test("round-trips a fetch-state record", async () => {
+    test("round-trips retrieval facts onto the log row", async () => {
       const state = createTestFetchState({
-        file_path: "/test/logs/eval1.json",
         preview_fetch_error: "boom",
         preview_attempts: 2,
         details_fetch_error: "kaboom",
@@ -464,55 +478,104 @@ describe("Database Service", () => {
         "/test/logs/eval1.json": state,
       });
 
-      const read = await databaseService.readFetchStates();
-      expect(read["/test/logs/eval1.json"]).toEqual(state);
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row).toMatchObject(state);
+      // Retrieval facts alone never raise a row's content depth.
+      expect(row?.depth).toBe("listed");
     });
 
-    test("writes multiple fetch-state records in one call", async () => {
-      const a = createTestFetchState({ file_path: "/test/logs/a.json" });
-      const b = createTestFetchState({
-        file_path: "/test/logs/b.json",
-        details_attempts: 5,
-      });
-
+    test("writes multiple files' retrieval facts in one call", async () => {
       await databaseService.writeFetchStates({
-        "/test/logs/a.json": a,
-        "/test/logs/b.json": b,
+        "/test/logs/a.json": createTestFetchState(),
+        "/test/logs/b.json": createTestFetchState({ details_attempts: 5 }),
       });
 
-      const read = await databaseService.readFetchStates();
-      expect(Object.keys(read).sort()).toEqual([
+      const rows = await databaseService.readLogRows([
         "/test/logs/a.json",
         "/test/logs/b.json",
       ]);
-      expect(read["/test/logs/b.json"]?.details_attempts).toBe(5);
+      expect(Object.keys(rows).sort()).toEqual([
+        "/test/logs/a.json",
+        "/test/logs/b.json",
+      ]);
+      expect(rows["/test/logs/b.json"]?.details_attempts).toBe(5);
     });
 
-    test("clearCacheForFile deletes the fetch-state row", async () => {
+    test("merging facts preserves the row's content", async () => {
+      await databaseService.writeLogPreviews({
+        "/test/logs/eval1.json": createTestLogSummary(),
+      });
+
+      await databaseService.writeFetchStates({
+        "/test/logs/eval1.json": createTestFetchState({
+          details_attempts: 2,
+        }),
+      });
+
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row?.details_attempts).toBe(2);
+      expect(row?.depth).toBe("previewed");
+      expect(row?.status).toBe("success");
+    });
+
+    test("clearCacheForFile deletes the row (and its facts)", async () => {
       await databaseService.writeFetchStates({
         "/test/logs/eval1.json": createTestFetchState(),
       });
 
       await databaseService.clearCacheForFile("/test/logs/eval1.json");
 
-      const read = await databaseService.readFetchStates();
-      expect(read["/test/logs/eval1.json"]).toBeUndefined();
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row).toBeNull();
     });
 
-    test("clearAllCaches deletes all fetch-state rows", async () => {
+    test("clearAllCaches deletes all rows", async () => {
       await databaseService.writeFetchStates({
-        "/test/logs/a.json": createTestFetchState({
-          file_path: "/test/logs/a.json",
-        }),
-        "/test/logs/b.json": createTestFetchState({
-          file_path: "/test/logs/b.json",
-        }),
+        "/test/logs/a.json": createTestFetchState(),
+        "/test/logs/b.json": createTestFetchState(),
       });
 
       await databaseService.clearAllCaches();
 
-      const read = await databaseService.readFetchStates();
-      expect(Object.keys(read)).toHaveLength(0);
+      const files = await databaseService.readLogs();
+      expect(files).toHaveLength(0);
+    });
+  });
+
+  describe("Depth Reset (invalidation)", () => {
+    test("resetDepth keeps identity but drops content, facts, and summaries", async () => {
+      await databaseService.writeLogs([
+        { name: "/test/logs/eval1.json", task: "task-1", mtime: 42 },
+      ]);
+      await databaseService.writeLogDetails({
+        "/test/logs/eval1.json": createTestLogInfo({
+          sampleSummaries: [createTestSampleSummary()],
+        }),
+      });
+      await databaseService.writeFetchStates({
+        "/test/logs/eval1.json": {
+          preview_attempts: 3,
+          details_attempts: 2,
+          details_settled_seq: 1,
+        },
+      });
+
+      await databaseService.resetDepth(["/test/logs/eval1.json"]);
+
+      const row = await databaseService.readLogRow("/test/logs/eval1.json");
+      expect(row?.name).toBe("/test/logs/eval1.json");
+      // The detailed tier refreshed task from the payload before the reset.
+      expect(row?.task).toBe("test-task");
+      expect(row?.mtime).toBe(42);
+      expect(row?.depth).toBe("listed");
+      expect(row?.header).toBeUndefined();
+      expect(row?.preview_attempts).toBe(0);
+      expect(row?.details_attempts).toBe(0);
+
+      const summaries = await databaseService.readSampleSummaries({
+        file: "/test/logs/eval1.json",
+      });
+      expect(summaries).toEqual([]);
     });
   });
 

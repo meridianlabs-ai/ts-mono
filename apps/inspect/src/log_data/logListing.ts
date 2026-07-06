@@ -1,42 +1,23 @@
 import { useDeferredValue, useMemo } from "react";
 
-import { LogHandle } from "@tsmono/inspect-common/types";
-
 import { EvalLogStatus } from "../@types/extraInspect";
-import { LogHeader, LogPreview } from "../client/api/types";
+import { Log } from "../client/api/types";
 
-import { useLogHandles, useLogHeaders, useLogPreviews } from "./logsContent";
+import { useLogs } from "./logsContent";
 
 /**
- * The listing read: one row per log file in the directory — its handle,
- * retried marking, and preview content. The join across this subsystem's
- * collections happens here, once; consumers never learn that handles and
- * previews arrive by separate fetches beyond `preview` being briefly
- * undefined. Lives here (not in state/) so the paged-listing migration can
- * swap its internals (whole-dir join → paged Dexie query) without touching
- * consumers.
+ * The listing read: one row per log file in the directory — the Log entity
+ * row with retried runs marked. Content fills in as depth increases; that
+ * the tiers are fetched separately is not observable here beyond attribute
+ * columns being briefly undefined. Lives here (not in state/) so the
+ * paged-listing migration can swap its internals (whole-dir read → paged
+ * Dexie query) without touching consumers.
  */
 
 const isActiveStatus = (status: EvalLogStatus | undefined) =>
   status === "started" || status === "success";
 
-export type LogHandleWithRetried = LogHandle & { retried?: boolean };
-
-/**
- * One log file's row in the listing. `preview` and `header` are optional
- * because that content genuinely lags handle discovery (and header lags
- * preview) — the acquisition tiering expressed as nullable fields on one
- * row, not separate collections.
- */
-export type LogListingRow = LogHandleWithRetried & {
-  preview?: LogPreview;
-  header?: LogHeader;
-};
-
-type LogPreviewStatusMap = Record<
-  string,
-  { status?: EvalLogStatus } | undefined
->;
+export type LogListingRow = Log & { retried?: boolean };
 
 /**
  * Pure dedup logic for {@link useLogListing}.
@@ -48,41 +29,32 @@ type LogPreviewStatusMap = Record<
  * broken by filename descending so the newest run wins. The winner is
  * marked `retried: false`; the rest are marked `retried: true`.
  */
-export const computeLogsWithRetried = (
-  logs: LogHandle[],
-  logPreviews: LogPreviewStatusMap
-): LogHandleWithRetried[] => {
-  const logsByGroup = logs.reduce(
-    (acc: Record<string, LogHandleWithRetried[]>, log) => {
-      const taskId = log.task_id;
-      if (taskId) {
-        const slash = log.name.lastIndexOf("/");
-        const parent = slash >= 0 ? log.name.substring(0, slash) : "";
-        const key = `${parent}|${taskId}`;
-        if (!(key in acc)) acc[key] = [];
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        acc[key].push(log);
-      }
-      return acc;
-    },
-    {}
-  );
+export const computeLogsWithRetried = (logs: Log[]): LogListingRow[] => {
+  const logsByGroup = logs.reduce((acc: Record<string, Log[]>, log) => {
+    const taskId = log.task_id;
+    if (taskId) {
+      const slash = log.name.lastIndexOf("/");
+      const parent = slash >= 0 ? log.name.substring(0, slash) : "";
+      const key = `${parent}|${taskId}`;
+      (acc[key] ??= []).push(log);
+    }
+    return acc;
+  }, {});
   // For each group, select the best item: prefer logs whose status is
   // started or success (treated as equivalent — both mean "not failed"),
   // then break ties by filename descending so the newest run wins.
   // An older `started` log is treated as orphaned once a newer log exists.
-  const bestByName: Record<string, LogHandleWithRetried> = {};
+  const bestByName: Record<string, LogListingRow> = {};
   for (const items of Object.values(logsByGroup)) {
-    items.sort((a, b) => {
-      const aActive = isActiveStatus(logPreviews[a.name]?.status);
-      const bActive = isActiveStatus(logPreviews[b.name]?.status);
+    const best = [...items].sort((a, b) => {
+      const aActive = isActiveStatus(a.status);
+      const bActive = isActiveStatus(b.status);
       if (aActive !== bActive) return aActive ? -1 : 1;
       return b.name.localeCompare(a.name);
-    });
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-    const { name } = items[0];
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-    bestByName[name] = { ...items[0], retried: false }; // eslint-disable-line @typescript-eslint/no-unsafe-member-access -- TODO: pre-existing noUncheckedIndexedAccess fallout
+    })[0];
+    if (best !== undefined) {
+      bestByName[best.name] = { ...best, retried: false };
+    }
   }
 
   // Rebuild logs maintaining order, marking duplicates as skippable
@@ -97,22 +69,11 @@ export const computeLogsWithRetried = (
 };
 
 export const useLogListing = (logDir: string): LogListingRow[] => {
-  const logs = useLogHandles(logDir);
-  const logPreviews = useLogPreviews(logDir);
-  const logHeaders = useLogHeaders(logDir);
-  // Deferred so the burst of preview/header flushes during initial sync
-  // can't block click/scroll input — rows render from the prior content and
-  // catch up when the main thread is idle.
-  const deferredPreviews = useDeferredValue(logPreviews);
-  const deferredHeaders = useDeferredValue(logHeaders);
+  const logs = useLogs(logDir);
+  // Deferred so the burst of row flushes during initial sync can't block
+  // click/scroll input — the listing renders from the prior rows and
+  // catches up when the main thread is idle.
+  const deferredLogs = useDeferredValue(logs);
 
-  return useMemo(
-    () =>
-      computeLogsWithRetried(logs, deferredPreviews).map((log) => ({
-        ...log,
-        preview: deferredPreviews[log.name],
-        header: deferredHeaders[log.name],
-      })),
-    [logs, deferredPreviews, deferredHeaders]
-  );
+  return useMemo(() => computeLogsWithRetried(deferredLogs), [deferredLogs]);
 };

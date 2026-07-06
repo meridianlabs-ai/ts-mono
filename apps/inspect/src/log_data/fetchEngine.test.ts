@@ -4,11 +4,13 @@ import { LogHandle } from "@tsmono/inspect-common";
 
 import {
   ClientAPI,
+  Log,
   LogDetails,
+  LogFetchState,
   LogHeader,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService, LogFetchStateRecord } from "../client/database";
+import { DatabaseService } from "../client/database";
 import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
@@ -29,7 +31,7 @@ const makeDetails = (
     ...extra,
   }) as unknown as LogDetails;
 
-// The stored/cached form of the same fixture (what a db row holds).
+// The stored/cached form of the same fixture (what a db row's header holds).
 const makeHeader = (
   name: string,
   status: "success" | "started" | "error" = "success",
@@ -44,6 +46,38 @@ const makePreview = (
 
 const handle = (name: string, mtime?: number): LogHandle =>
   mtime === undefined ? { name } : { name, mtime };
+
+// Log row fixtures at each depth (zeroed retrieval facts).
+const fetchFacts = {
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+};
+
+const listedRow = (h: LogHandle): Log => ({
+  ...h,
+  depth: "listed",
+  ...fetchFacts,
+});
+
+const previewedRow = (h: LogHandle, status: Log["status"] = "success"): Log => ({
+  ...h,
+  depth: "previewed",
+  status,
+  ...fetchFacts,
+});
+
+const detailedRow = (
+  h: LogHandle,
+  status: "success" | "started" | "error" = "success",
+  extra: Record<string, unknown> = {}
+): Log => ({
+  ...h,
+  depth: "detailed",
+  status,
+  header: makeHeader(h.name, status, extra),
+  ...fetchFacts,
+});
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -71,7 +105,7 @@ interface FakeApiOptions {
    *  including retries). */
   failSummaryFor?: string[];
   /** Dynamic per-call predicate for get_log_summaries_settled failures — lets
-   *  a test flip failure on/off between separate `requestPreview` calls. */
+   *  a test flip failure on/off between separate preview requests. */
   failSummaryWhen?: (file: string) => boolean;
 }
 
@@ -140,94 +174,102 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
   };
 };
 
-interface FakeDbData {
-  logs?: LogHandle[];
-  previews?: Record<string, LogPreview>;
-  details?: Record<string, LogHeader>;
-  fetchStates?: Record<string, LogFetchStateRecord>;
-}
+// Holds the unified Log rows keyed by name — the fake analogue of the v12
+// `logs` table. Mutable so relayed writes (fetch states, resets, deletes)
+// are visible to later reads, exercising the real persistence round-trips.
+const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
+  const rows: Record<string, Log> = Object.fromEntries(
+    initialRows.map((row) => [row.name, { ...row }])
+  );
 
-const createFakeDb = (data: FakeDbData = {}): DatabaseService => {
-  const pick = <T>(
-    record: Record<string, T> | undefined,
-    logs: LogHandle[]
-  ): Record<string, T> =>
-    Object.fromEntries(
-      logs
-        .filter((log) => record && log.name in record)
-        .map((log) => [log.name, (record as Record<string, T>)[log.name] as T])
-    );
-
-  // Mutable so writeFetchStates (relayed from the fake sink) is visible to a
-  // later readFetchStates — exercising the real start()-time reset round-trip.
-  const fetchStates: Record<string, LogFetchStateRecord> = {
-    ...data.fetchStates,
-  };
-
-  return {
+  const fake = {
     opened: () => true,
-    readLogs: () => Promise.resolve(data.logs ?? []),
-    readLogPreviews: (logs: LogHandle[]) =>
-      Promise.resolve(pick(data.previews, logs)),
-    readLogDetails: (logs: LogHandle[]) =>
-      Promise.resolve(pick(data.details, logs)),
-    readLogDetailsForFile: (file: string) =>
-      Promise.resolve(data.details?.[file] ?? null),
-    // Mirrors the real service: a "started" details row is a mid-run
-    // snapshot and doesn't count as cached.
-    findMissingDetails: (logs: LogHandle[]) =>
+    readLogs: () => Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
+    readLogRow: (file: string) =>
+      Promise.resolve(rows[file] ? { ...rows[file] } : null),
+    readLogRows: (files: string[]) =>
       Promise.resolve(
-        logs.filter((log) => {
-          const cached = data.details?.[log.name];
-          return !cached || cached.status === "started";
-        })
+        Object.fromEntries(
+          files.flatMap((file) => {
+            const row = rows[file];
+            return row ? [[file, { ...row }] as const] : [];
+          })
+        )
       ),
-    findMissingPreviews: (logs: LogHandle[]) =>
-      Promise.resolve(
-        logs.filter((log) => !(log.name in (data.previews ?? {})))
-      ),
-    readFetchStates: () => Promise.resolve({ ...fetchStates }),
-    writeFetchStates: (states: Record<string, LogFetchStateRecord>) => {
-      Object.assign(fetchStates, states);
+    writeFetchStates: (states: Record<string, LogFetchState>) => {
+      for (const [file, state] of Object.entries(states)) {
+        const current = rows[file] ?? listedRow({ name: file });
+        rows[file] = { ...current, ...state };
+      }
       return Promise.resolve();
     },
-    countRows: () => Promise.resolve(0),
-  } as unknown as DatabaseService;
+    resetDepth: (files: string[]) => {
+      for (const file of files) {
+        const current = rows[file];
+        if (current) {
+          rows[file] = listedRow({
+            name: current.name,
+            task: current.task,
+            task_id: current.task_id,
+            mtime: current.mtime,
+          });
+        }
+      }
+      return Promise.resolve();
+    },
+    clearCacheForFile: (file: string) => {
+      delete rows[file];
+      return Promise.resolve();
+    },
+    getCacheStats: () =>
+      Promise.resolve({
+        logFiles: Object.keys(rows).length,
+        logSummaries: 0,
+        logHeaders: 0,
+        sampleSummaries: 0,
+        logHandle: null,
+      }),
+  };
+  return fake as unknown as DatabaseService;
 };
 
-// `db`, when provided, is a realism relay for writeFetchStates only — mirrors
-// how the real sink (logsContent.ts) persists through to IndexedDB, so tests
-// can exercise the start()-time reset round-trip without a real database.
+// `db`, when provided, is a realism relay — mirrors how the real sink
+// (logsContent.ts) persists through to IndexedDB, so tests can exercise
+// persistence round-trips (start()-time reset, settle-seq bumps, invalidation
+// resets) without a real database.
 const createFakeSink = (db?: DatabaseService) => {
   const calls = {
-    setHandles: [] as LogHandle[][],
+    seedRows: [] as Log[][],
+    setListing: [] as LogHandle[][],
     mergePreviews: [] as Record<string, LogPreview>[],
-    mergeDetails: [] as Record<string, LogHeader>[],
-    writeHandles: [] as LogHandle[][],
+    writeListing: [] as LogHandle[][],
     writePreviews: [] as Record<string, LogPreview>[],
     writeDetails: [] as Record<string, LogDetails>[],
-    mergeFetchStates: [] as Record<string, LogFetchStateRecord>[],
-    writeFetchStates: [] as Record<string, LogFetchStateRecord>[],
+    mergeFetchStates: [] as Record<string, LogFetchState>[],
+    writeFetchStates: [] as Record<string, LogFetchState>[],
     // Accumulated view of the latest fetch-state per file, as observed
     // through either merge or write calls — stands in for the cache mirror.
-    fetchStates: {} as Record<string, LogFetchStateRecord>,
+    fetchStates: {} as Record<string, LogFetchState>,
+    resetDepth: [] as string[][],
     clearFile: [] as string[],
-    clearPreview: [] as string[],
     clearAll: 0,
   };
   const sink: LogsContentSink = {
-    setHandles: (handles) => {
-      calls.setHandles.push(handles);
+    seedRows: (rows) => {
+      calls.seedRows.push(rows);
+    },
+    setListing: (handles) => {
+      calls.setListing.push(handles);
     },
     mergePreviews: (previews) => {
       calls.mergePreviews.push(previews);
     },
-    mergeDetails: (details) => {
-      calls.mergeDetails.push(details);
-    },
-    writeHandles: (handles) => {
-      calls.writeHandles.push(handles);
-      return Promise.resolve(handles);
+    writeListing: async (handles) => {
+      calls.writeListing.push(handles);
+      const known: Record<string, Log> = db
+        ? await db.readLogRows(handles.map((h) => h.name))
+        : {};
+      return handles.map((h) => known[h.name] ?? listedRow(h));
     },
     writePreviews: (previews) => {
       calls.writePreviews.push(previews);
@@ -246,14 +288,15 @@ const createFakeSink = (db?: DatabaseService) => {
       Object.assign(calls.fetchStates, states);
       await db?.writeFetchStates(states);
     },
-    clearFile: (name) => {
+    resetDepth: async (names) => {
+      calls.resetDepth.push(names);
+      names.forEach((name) => delete calls.fetchStates[name]);
+      await db?.resetDepth(names);
+    },
+    clearFile: async (name) => {
       calls.clearFile.push(name);
       delete calls.fetchStates[name];
-      return Promise.resolve();
-    },
-    clearPreview: (name) => {
-      calls.clearPreview.push(name);
-      return Promise.resolve();
+      await db?.clearCacheForFile(name);
     },
     clearAll: () => {
       calls.clearAll++;
@@ -286,12 +329,12 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // --- tests ---
 
-describe("FetchEngine.fetch", () => {
+describe("FetchEngine.ensure (detailed)", () => {
   it("fetches a missing log fresh and writes it through the sink (single-file mode: no database, no producer)", async () => {
     const { api, detailCalls } = createFakeApi();
     const { engine, sinkCalls } = await createEngine({ api });
 
-    await engine.fetch("logs/a.eval", "user");
+    await engine.ensure("logs/a.eval", { depth: "detailed", priority: "user" });
 
     expect(detailCalls).toEqual([{ file: "logs/a.eval", cached: false }]);
     await vi.waitFor(() => {
@@ -306,13 +349,15 @@ describe("FetchEngine.fetch", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine({ api: fake.api });
 
-    const first = engine.fetch("a.eval", "user");
-    const second = engine.fetch("a.eval", "user");
+    const first = engine.ensure("a.eval", { depth: "detailed", priority: "user" });
+    const second = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
     void fake.releaseAll();
 
-    const [firstDetails, secondDetails] = await Promise.all([first, second]);
-    expect(firstDetails).toEqual(secondDetails);
+    await Promise.all([first, second]);
     expect(fake.detailCalls.length).toBe(1);
   });
 
@@ -320,22 +365,27 @@ describe("FetchEngine.fetch", () => {
     const fake = createFakeApi({ failFor: ["a.eval"] });
     const { engine } = await createEngine({ api: fake.api });
 
-    await expect(engine.fetch("a.eval", "user")).rejects.toThrow(
-      "fetch failed: a.eval"
-    );
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow("fetch failed: a.eval");
   });
 
   it("read-through: cached completed details resolve immediately, then refresh in the background", async () => {
-    const cached = makeHeader("a.eval", "success", { tags: ["cached"] });
+    const cached = detailedRow(handle("a.eval"), "success", {
+      tags: ["cached"],
+    });
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ details: { "a.eval": cached } }),
+      database: createFakeDb([cached]),
     });
 
-    await engine.fetch("a.eval", "user");
+    const seedsAtStart = sinkCalls.seedRows.length;
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
-    expect(sinkCalls.mergeDetails).toContainEqual({ "a.eval": cached });
+    // The hit seeds the cached row into the cache (beyond the start() seed).
+    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
+    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
     // The background refresh still fetches fresh data and writes it through.
     await vi.waitFor(() => {
       expect(fake.detailCalls).toEqual([{ file: "a.eval", cached: false }]);
@@ -346,17 +396,19 @@ describe("FetchEngine.fetch", () => {
   });
 
   it("read-through: a cached running log is not served stale", async () => {
-    const cached = makeHeader("a.eval", "started");
+    const cached = detailedRow(handle("a.eval"), "started");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ details: { "a.eval": cached } }),
+      database: createFakeDb([cached]),
     });
 
-    await engine.fetch("a.eval", "user");
+    const seedsAtStart = sinkCalls.seedRows.length;
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
-    // The settle came from the network (fresh, success), not the stale row.
-    expect(sinkCalls.mergeDetails).not.toContainEqual({ "a.eval": cached });
+    // The settle came from the network (fresh, success), not the stale row —
+    // no read-through seed happened.
+    expect(sinkCalls.seedRows.length).toBe(seedsAtStart);
     expect(sinkCalls.writeDetails).toContainEqual({
       "a.eval": makeDetails("a.eval"),
     });
@@ -367,10 +419,10 @@ describe("FetchEngine.fetch", () => {
     const fake = createFakeApi();
     const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [handle("dir/logs/a.eval", 5)] }),
+      database: createFakeDb([listedRow(handle("dir/logs/a.eval", 5))]),
     });
 
-    await engine.fetch("logs/a.eval", "user");
+    await engine.ensure("logs/a.eval", { depth: "detailed", priority: "user" });
 
     expect(fake.detailCalls).toEqual([
       { file: "dir/logs/a.eval", cached: false },
@@ -384,10 +436,19 @@ describe("FetchEngine.fetch", () => {
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    const background = engine.fetch("background.eval", "background");
-    const user = engine.fetch("user.eval", "user");
+    const background = engine.ensure("background.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
+    const user = engine.ensure("user.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     void fake.releaseAll();
     await Promise.all([blocker, background, user]);
 
@@ -398,19 +459,31 @@ describe("FetchEngine.fetch", () => {
     ]);
   });
 
-  it("a duplicate fetch bumps the queued item's priority", async () => {
+  it("a duplicate ensure bumps the queued item's priority", async () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api },
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    const c = engine.fetch("c.eval", "background");
-    const d = engine.fetch("d.eval", "elevated");
+    const c = engine.ensure("c.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
+    const d = engine.ensure("d.eval", {
+      depth: "detailed",
+      priority: "elevated",
+    });
     // Without the bump, d (elevated) would beat c (background).
-    const cAgain = engine.fetch("c.eval", "user");
+    const cAgain = engine.ensure("c.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     expect(cAgain).toBe(c);
     void fake.releaseAll();
     await Promise.all([blocker, c, d]);
@@ -425,36 +498,34 @@ describe("FetchEngine.fetch", () => {
 
 describe("FetchEngine.start", () => {
   it("hydrates the cache from persisted rows (cache-only seed)", async () => {
-    const logs = [handle("a.eval", 2), handle("b.eval", 1)];
-    const previews = { "a.eval": makePreview("a.eval") };
-    const details = { "a.eval": makeHeader("a.eval") };
+    const rows = [
+      detailedRow(handle("a.eval", 2)),
+      listedRow(handle("b.eval", 1)),
+    ];
     const { api } = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api,
-      database: createFakeDb({ logs, previews, details }),
+      database: createFakeDb(rows),
     });
 
-    expect(sinkCalls.setHandles).toEqual([logs]);
-    expect(sinkCalls.mergePreviews).toEqual([previews]);
-    expect(sinkCalls.mergeDetails).toEqual([details]);
-    expect(engine.listing()).toEqual(logs);
+    expect(sinkCalls.seedRows).toEqual([rows]);
+    expect(engine.listing()).toEqual(rows);
     // Seeding is cache-only: nothing is re-persisted or fetched.
     expect(sinkCalls.writeDetails).toEqual([]);
+    // All rows had zero attempts/errors/seq, so no fetch-state reset write.
+    expect(sinkCalls.writeFetchStates).toEqual([]);
   });
 });
 
 describe("FetchEngine.applyListing", () => {
-  it("clears deleted and invalidated files, activates the listing, and backfills", async () => {
+  it("clears deleted files, resets invalidated rows to listed depth, activates the listing, and backfills", async () => {
     const kept = handle("kept.eval", 1);
     const changed = handle("changed.eval", 3);
     const added = handle("added.eval", 2);
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({
-        details: { "kept.eval": makeHeader("kept.eval") },
-        previews: { "kept.eval": makePreview("kept.eval") },
-      }),
+      database: createFakeDb([detailedRow(kept)]),
     });
 
     const full = await engine.applyListing({
@@ -464,15 +535,16 @@ describe("FetchEngine.applyListing", () => {
       persistListing: true,
     });
 
-    // Invalidated files (changed or newly discovered) and deleted files are
-    // cleared before the fresh listing is activated.
-    expect(sinkCalls.clearFile.sort()).toEqual([
-      "added.eval",
+    // Deleted files are cleared outright; invalidated (changed or newly
+    // discovered) rows keep their identity but drop back to listed depth.
+    expect(sinkCalls.clearFile).toEqual(["gone.eval"]);
+    expect(sinkCalls.resetDepth).toEqual([["changed.eval", "added.eval"]]);
+    expect(sinkCalls.writeListing).toEqual([[kept, changed, added]]);
+    expect(full.map((h) => h.name)).toEqual([
+      "kept.eval",
       "changed.eval",
-      "gone.eval",
+      "added.eval",
     ]);
-    expect(sinkCalls.writeHandles).toEqual([[kept, changed, added]]);
-    expect(full).toEqual([kept, changed, added]);
     expect(engine.listing()).toEqual(full);
 
     // Invalidated + missing details and previews get fetched; kept has both.
@@ -493,9 +565,7 @@ describe("FetchEngine.applyListing", () => {
     const fake = createFakeApi();
     const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({
-        details: { "changed.eval": makeHeader("changed.eval", "started") },
-      }),
+      database: createFakeDb([detailedRow(changed, "started")]),
     });
 
     await engine.applyListing({
@@ -517,9 +587,7 @@ describe("FetchEngine.applyListing", () => {
     const fake = createFakeApi({ failDetailsOnceFor: ["changed.eval"] });
     const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({
-        details: { "changed.eval": makeHeader("changed.eval", "started") },
-      }),
+      database: createFakeDb([detailedRow(changed, "started")]),
     });
 
     await engine.applyListing({
@@ -541,7 +609,7 @@ describe("FetchEngine.applyListing", () => {
     const target = handle("x.eval", 1);
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
-      { api: fake.api, database: createFakeDb({ logs: [target] }) },
+      { api: fake.api, database: createFakeDb([listedRow(target)]) },
       { concurrency: 1 }
     );
 
@@ -574,22 +642,18 @@ describe("FetchEngine.applyListing", () => {
   it("re-fetches previews persisted as started (the run may have finished)", async () => {
     const running = handle("running.eval", 1);
     const fake = createFakeApi();
-    const { engine, sinkCalls } = await createEngine({
+    const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({
-        details: { "running.eval": makeHeader("running.eval", "started") },
-        previews: { "running.eval": makePreview("running.eval", "started") },
-      }),
+      database: createFakeDb([previewedRow(running, "started")]),
     });
 
     await engine.applyListing({
       listing: [running],
       invalidated: [],
       deleted: [],
-      persistListing: false,
+      persistListing: true,
     });
 
-    expect(sinkCalls.clearPreview).toEqual(["running.eval"]);
     await vi.waitFor(() => {
       expect(fake.summaryCalls.flat()).toEqual(["running.eval"]);
     });
@@ -602,9 +666,15 @@ describe("FetchEngine.applyListing", () => {
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    const doomed = engine.fetch("doomed.eval", "background");
+    const doomed = engine.ensure("doomed.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
 
     await engine.applyListing({
       listing: [],
@@ -628,7 +698,7 @@ describe("FetchEngine.applyListing", () => {
     const fake = createFakeApi();
     const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: files }),
+      database: createFakeDb(files.map(listedRow)),
     });
 
     await engine.applyListing({
@@ -645,30 +715,30 @@ describe("FetchEngine.applyListing", () => {
   // F1b: the cross-kind coalesce removes a queued preview item on EVERY ok
   // details settle, but only the waitered branch used to repaint the
   // preview — a background (unwaitered) settle dropped the preview on the
-  // floor entirely, leaving the file to thrash findMissingPreviews forever.
+  // floor entirely, leaving the file to thrash preview backfill forever.
   it("a background details success stashes a persisted preview for the log whose preview fetch it coalesced away", async () => {
     const target = handle("a.eval");
     const fake = createFakeApi({ gated: true });
     const { engine, sinkCalls } = await createEngine(
       {
         api: fake.api,
-        // A preview already on file (so backfill won't itself enqueue one)
+        // A previewed-depth row (so backfill won't itself enqueue a preview)
         // keeps the ONLY preview job at the Medium priority our explicit
-        // requestPreview call below gives it, so the High-priority missing-
+        // ensure(previewed) call below gives it, so the High-priority missing-
         // details backfill claims first and the coalesce has something
         // still-queued to remove.
-        database: createFakeDb({
-          logs: [target],
-          previews: { "a.eval": makePreview("a.eval") },
-        }),
+        database: createFakeDb([previewedRow(target)]),
       },
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    engine.requestPreview("a.eval", "background");
+    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
     // Unwaitered (background) details backfill for the same file — distinct
     // from the waitered branch already covered by "a successful details
     // fetch removes a queued preview fetch for the same log".
@@ -691,24 +761,28 @@ describe("FetchEngine.applyListing", () => {
   });
 });
 
-describe("FetchEngine.ensurePreviews", () => {
-  it("seeds persisted previews and queues fetches for unsettled ones", async () => {
+describe("FetchEngine preview backfill discovery (applyListing)", () => {
+  it("queues preview fetches for rows below previewed depth or persisted as started", async () => {
     const done = handle("done.eval", 1);
     const running = handle("running.eval", 2);
     const missing = handle("missing.eval", 3);
-    const previews = {
-      "done.eval": makePreview("done.eval"),
-      "running.eval": makePreview("running.eval", "started"),
-    };
     const fake = createFakeApi();
-    const { engine, sinkCalls } = await createEngine({
+    const { engine } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [done, running, missing], previews }),
+      database: createFakeDb([
+        previewedRow(done),
+        previewedRow(running, "started"),
+        listedRow(missing),
+      ]),
     });
 
-    await engine.ensurePreviews();
+    await engine.applyListing({
+      listing: [done, running, missing],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
 
-    expect(sinkCalls.mergePreviews).toContainEqual(previews);
     await vi.waitFor(() => {
       expect(fake.summaryCalls.flat().sort()).toEqual([
         "missing.eval",
@@ -719,18 +793,27 @@ describe("FetchEngine.ensurePreviews", () => {
 });
 
 describe("FetchEngine unified queue (previews + details share one queue)", () => {
-  it("a user fetch() claims before a queued Medium preview backfill", async () => {
+  it("a user details ensure claims before a queued Medium preview backfill", async () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
       { api: fake.api },
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    engine.requestPreview("backfill.eval", "background");
-    const user = engine.fetch("user.eval", "user");
+    void engine.ensure("backfill.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
+    const user = engine.ensure("user.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
 
     void fake.releaseAll();
     await Promise.all([blocker, user]);
@@ -749,13 +832,24 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       handle(`log${i}.eval`)
     );
     const failing = "log5.eval";
-    const fake = createFakeApi({ failSummaryFor: [failing] });
+    // Details fail for every file so no details success can land a derived
+    // preview for the failing file — writePreviews reflects the preview
+    // batch alone.
+    const fake = createFakeApi({
+      failSummaryFor: [failing],
+      failFor: handles.map((h) => h.name),
+    });
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: handles }),
+      database: createFakeDb(handles.map(listedRow)),
     });
 
-    await engine.ensurePreviews(handles);
+    await engine.applyListing({
+      listing: handles,
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
 
     await vi.waitFor(() => {
       const written = sinkCalls.writePreviews.reduce<
@@ -774,11 +868,17 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    engine.requestPreview("a.eval", "background");
-    const details = engine.fetch("a.eval", "user");
+    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
+    const details = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
 
     void fake.releaseAll();
     await Promise.all([blocker, details]);
@@ -787,19 +887,27 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     expect(fake.summaryCalls).toEqual([]);
   });
 
-  it("requestPreview dedupes with a queued preview backfill (no double fetch)", async () => {
+  it("ensure(previewed) dedupes with a queued preview backfill (no double fetch)", async () => {
     const target = handle("a.eval");
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine(
-      { api: fake.api, database: createFakeDb({ logs: [target] }) },
+      { api: fake.api, database: createFakeDb([listedRow(target)]) },
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    await engine.ensurePreviews([target]);
-    engine.requestPreview("a.eval", "user");
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    void engine.ensure("a.eval", { depth: "previewed", priority: "user" });
 
     void fake.releaseAll();
     await blocker;
@@ -819,7 +927,10 @@ describe("FetchEngine status", () => {
     engine.subscribeStatus(() => seen.push(engine.getStatus().syncing));
 
     expect(engine.getStatus().syncing).toBe(false);
-    const fetching = engine.fetch("a.eval", "user");
+    const fetching = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(true));
     void fake.releaseAll();
     await fetching;
@@ -839,9 +950,15 @@ describe("FetchEngine.stop", () => {
       { concurrency: 1 }
     );
 
-    const blocker = engine.fetch("blocker.eval", "background");
+    const blocker = engine.ensure("blocker.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    const queued = engine.fetch("queued.eval", "background");
+    const queued = engine.ensure("queued.eval", {
+      depth: "detailed",
+      priority: "background",
+    });
 
     engine.stop();
     void fake.releaseAll();
@@ -850,9 +967,9 @@ describe("FetchEngine.stop", () => {
     await expect(queued).rejects.toThrow("Fetch engine stopped");
     await tick();
     expect(fake.detailCalls.map((call) => call.file)).toEqual(["blocker.eval"]);
-    expect(() => engine.fetch("a.eval", "user")).toThrow(
-      "Fetch engine used before start()"
-    );
+    expect(() =>
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).toThrow("Fetch engine used before start()");
   });
 });
 
@@ -861,7 +978,10 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    engine.requestPreview("bad.eval", "background");
+    void engine.ensure("bad.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
 
     await vi.waitFor(() => {
       expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
@@ -881,13 +1001,19 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    engine.requestPreview("flaky.eval", "background");
+    void engine.ensure("flaky.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
     await vi.waitFor(() => {
       expect(sinkCalls.fetchStates["flaky.eval"]?.preview_attempts).toBe(1);
     });
 
     failing = false;
-    engine.requestPreview("flaky.eval", "background");
+    void engine.ensure("flaky.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
 
     await vi.waitFor(() => {
       expect(sinkCalls.fetchStates["flaky.eval"]).toMatchObject({
@@ -901,9 +1027,9 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const fake = createFakeApi({ failFor: ["a.eval"] });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    await expect(engine.fetch("a.eval", "user")).rejects.toThrow(
-      "fetch failed: a.eval"
-    );
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow("fetch failed: a.eval");
 
     expect(sinkCalls.fetchStates["a.eval"]).toMatchObject({
       details_fetch_error: "fetch failed: a.eval",
@@ -913,21 +1039,23 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
 
   it("stops backfilling a file after kMaxFetchAttempts settled failures (row retains the error)", async () => {
     const target = handle("bad.eval");
-    const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
+    // Details fail too: a details success would land a derived preview and
+    // clear the preview error per F4 (covered by its own test), which would
+    // muddy this test's isolated assertion.
+    const fake = createFakeApi({
+      failSummaryFor: ["bad.eval"],
+      failFor: ["bad.eval"],
+    });
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      // Details already cached (not missing) so the later applyListing below
-      // exercises ONLY preview backfill gating — a details success would
-      // clear the preview error per F4 (covered by its own test), which
-      // would muddy this test's isolated assertion.
-      database: createFakeDb({
-        logs: [target],
-        details: { "bad.eval": makeHeader("bad.eval") },
-      }),
+      database: createFakeDb([listedRow(target)]),
     });
 
     for (let i = 0; i < 5; i++) {
-      engine.requestPreview("bad.eval", "background");
+      void engine.ensure("bad.eval", {
+        depth: "previewed",
+        priority: "background",
+      });
       await vi.waitFor(() => {
         expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(i + 1);
       });
@@ -949,16 +1077,18 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
   });
 
-  it("clearFile from invalidation resets fetch-state so backfill retries from scratch", async () => {
+  it("resetDepth from invalidation resets fetch-state so backfill retries from scratch", async () => {
     const target = handle("bad.eval");
     const fake = createFakeApi({ failFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [target] }),
+      database: createFakeDb([listedRow(target)]),
     });
 
     for (let i = 0; i < 5; i++) {
-      await expect(engine.fetch("bad.eval", "background")).rejects.toThrow();
+      await expect(
+        engine.ensure("bad.eval", { depth: "detailed", priority: "background" })
+      ).rejects.toThrow();
     }
     expect(sinkCalls.fetchStates["bad.eval"]?.details_attempts).toBe(5);
 
@@ -973,30 +1103,35 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     await tick();
     expect(fake.detailCalls.map((call) => call.file)).not.toContain("bad.eval");
 
-    // The file changes on the server: invalidation wipes its fetch-state row.
+    // The file changes on the server: invalidation resets the row's
+    // retrieval facts (identity kept, depth back to listed).
     await engine.applyListing({
       listing: [target],
       invalidated: ["bad.eval"],
       deleted: [],
       persistListing: true,
     });
-    expect(sinkCalls.clearFile).toContain("bad.eval");
+    expect(sinkCalls.resetDepth).toContainEqual(["bad.eval"]);
     expect(sinkCalls.fetchStates["bad.eval"]).toBeUndefined();
 
     // Confirm the reset actually landed — a fresh failure records attempts
     // starting from 1, not 6.
-    await expect(engine.fetch("bad.eval", "background")).rejects.toThrow();
+    await expect(
+      engine.ensure("bad.eval", { depth: "detailed", priority: "background" })
+    ).rejects.toThrow();
     expect(sinkCalls.fetchStates["bad.eval"]?.details_attempts).toBe(1);
   });
 
   it("restart (stop/start) zeroes attempts but keeps the error text, and persists the reset", async () => {
     const fake = createFakeApi({ failFor: ["a.eval"] });
-    const db = createFakeDb({ logs: [handle("a.eval")] });
+    const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
     await engine.start({ api: fake.api, database: db, sink });
 
-    await expect(engine.fetch("a.eval", "user")).rejects.toThrow();
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow();
     expect(calls.fetchStates["a.eval"]).toMatchObject({
       details_fetch_error: "fetch failed: a.eval",
       details_attempts: 1,
@@ -1010,9 +1145,9 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
       details_attempts: 0,
     });
 
-    // The reset landed in the database, not just the cache mirror.
-    const persisted = await db.readFetchStates();
-    expect(persisted["a.eval"]).toMatchObject({
+    // The reset landed in the database row, not just the cache mirror.
+    const persisted = await db.readLogRow("a.eval");
+    expect(persisted).toMatchObject({
       details_fetch_error: "fetch failed: a.eval",
       details_attempts: 0,
     });
@@ -1028,20 +1163,19 @@ describe("FetchEngine details settle seq", () => {
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    await engine.fetch("a.eval", "user");
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
   });
 
   it("bumps on a read-through cache hit (the waiter resolves without a network settle)", async () => {
-    const cached = makeHeader("a.eval", "success");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ details: { "a.eval": cached } }),
+      database: createFakeDb([detailedRow(handle("a.eval"))]),
     });
 
-    await engine.fetch("a.eval", "user");
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
   });
@@ -1051,7 +1185,7 @@ describe("FetchEngine details settle seq", () => {
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [added] }),
+      database: createFakeDb([listedRow(added)]),
     });
 
     await engine.applyListing({
@@ -1075,7 +1209,9 @@ describe("FetchEngine details settle seq", () => {
     const fake = createFakeApi({ failFor: ["a.eval"] });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    await expect(engine.fetch("a.eval", "user")).rejects.toThrow();
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow();
 
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
   });
@@ -1087,30 +1223,35 @@ describe("FetchEngine details settle seq", () => {
 // in flight.
 describe("FetchEngine passive vs active demand (F2)", () => {
   it("a passive fetch on a cache hit does not bump the seq and enqueues no refresh", async () => {
-    const cached = makeHeader("a.eval", "success");
+    const cached = detailedRow(handle("a.eval"));
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ details: { "a.eval": cached } }),
+      database: createFakeDb([cached]),
     });
 
-    await engine.fetch("a.eval", "user", { passive: true });
+    const seedsAtStart = sinkCalls.seedRows.length;
+    await engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+      demand: "passive",
+    });
 
-    expect(sinkCalls.mergeDetails).toContainEqual({ "a.eval": cached });
+    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
+    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
     await tick();
     expect(fake.detailCalls).toEqual([]);
   });
 
   it("an active fetch on a cache hit bumps and refreshes in the background (default demand)", async () => {
-    const cached = makeHeader("a.eval", "success");
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ details: { "a.eval": cached } }),
+      database: createFakeDb([detailedRow(handle("a.eval"))]),
     });
 
-    await engine.fetch("a.eval", "user");
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
@@ -1120,9 +1261,17 @@ describe("FetchEngine passive vs active demand (F2)", () => {
     const fake = createFakeApi({ gated: true });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    const passive = engine.fetch("a.eval", "background", { passive: true });
+    const passive = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "background",
+      demand: "passive",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    const active = engine.fetch("a.eval", "user"); // joins, upgrades to active
+    // Joins, upgrades to active.
+    const active = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     void fake.releaseAll();
 
     await Promise.all([passive, active]);
@@ -1133,7 +1282,11 @@ describe("FetchEngine passive vs active demand (F2)", () => {
     const fake = createFakeApi();
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    await engine.fetch("a.eval", "background", { passive: true });
+    await engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "background",
+      demand: "passive",
+    });
 
     expect(fake.detailCalls.length).toBe(1);
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
@@ -1141,24 +1294,24 @@ describe("FetchEngine passive vs active demand (F2)", () => {
 });
 
 // F3: the settle-seq bump must persist, not just live in the cache mirror —
-// otherwise an in-flight full readFetchStates scan (a recreated/late
-// per-handle entry's queryFn) can settle after the bump and overwrite it
-// back to null, and that never self-corrects (staleTime: Infinity).
+// otherwise an in-flight full row scan (a recreated/late per-handle entry's
+// queryFn) can settle after the bump and overwrite it back to null, and that
+// never self-corrects (staleTime: Infinity).
 describe("FetchEngine details settle seq persistence (F3)", () => {
-  it("persists the bump to the database (a fresh readFetchStates scan sees it)", async () => {
+  it("persists the bump to the database (a fresh row read sees it)", async () => {
     const fake = createFakeApi();
-    const db = createFakeDb({ logs: [handle("a.eval")] });
+    const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
     await engine.start({ api: fake.api, database: db, sink });
 
-    await engine.fetch("a.eval", "user");
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
     expect(calls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
-    // A fresh per-handle entry's queryFn does a full readFetchStates scan —
-    // it must see the persisted bump, not race back to null.
-    const persisted = await db.readFetchStates();
-    expect(persisted["a.eval"]?.details_settled_seq).toBe(1);
+    // A fresh per-handle entry's queryFn reads the row — it must see the
+    // persisted bump, not race back to null.
+    const persisted = await db.readLogRow("a.eval");
+    expect(persisted?.details_settled_seq).toBe(1);
   });
 });
 
@@ -1171,28 +1324,33 @@ describe("FetchEngine clears stale preview fetch-state on details success (F4)",
     const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({
       api: fake.api,
-      database: createFakeDb({ logs: [target] }),
+      database: createFakeDb([listedRow(target)]),
     });
 
     for (let i = 0; i < 5; i++) {
-      engine.requestPreview("bad.eval", "background");
+      void engine.ensure("bad.eval", {
+        depth: "previewed",
+        priority: "background",
+      });
       await vi.waitFor(() => {
         expect(sinkCalls.fetchStates["bad.eval"]?.preview_attempts).toBe(i + 1);
       });
     }
 
     // Details succeed (the fake api only fails preview summaries).
-    await engine.fetch("bad.eval", "user");
+    await engine.ensure("bad.eval", { depth: "detailed", priority: "user" });
 
     expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
       preview_fetch_error: undefined,
       preview_attempts: 0,
     });
     // F1b: the coalesced preview is derived from the details success, so the
-    // file stops thrashing findMissingPreviews.
-    expect(sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)).toBe(
-      true
-    );
+    // file stops thrashing preview backfill.
+    await vi.waitFor(() => {
+      expect(sinkCalls.writePreviews.some((batch) => "bad.eval" in batch)).toBe(
+        true
+      );
+    });
   });
 });
 
@@ -1202,19 +1360,22 @@ describe("FetchEngine clears stale preview fetch-state on details success (F4)",
 describe("FetchEngine generation drops post-restart in-flight settles (F5)", () => {
   it("an in-flight fetch across stop()/start() settles into the void — nothing lands in the new session", async () => {
     const fakeA = createFakeApi({ gated: true });
-    const dbA = createFakeDb({ logs: [handle("a.eval")] });
+    const dbA = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink: sinkA } = createFakeSink(dbA);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
     await engine.start({ api: fakeA.api, database: dbA, sink: sinkA });
 
-    const inFlight = engine.fetch("a.eval", "user");
+    const inFlight = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     await vi.waitFor(() => expect(fakeA.detailCalls.length).toBe(1));
 
     // Dir switch mid-flight: stop() rejects the old waiter; start() points
     // the engine at an entirely different session.
     engine.stop();
     const fakeB = createFakeApi();
-    const dbB = createFakeDb({ logs: [handle("b.eval")] });
+    const dbB = createFakeDb([listedRow(handle("b.eval"))]);
     const { sink: sinkB, calls: callsB } = createFakeSink(dbB);
     await engine.start({ api: fakeB.api, database: dbB, sink: sinkB });
 
@@ -1225,8 +1386,7 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
 
     expect(callsB.fetchStates["a.eval"]).toBeUndefined();
     expect(callsB.writeDetails.some((batch) => "a.eval" in batch)).toBe(false);
-    const persistedB = await dbB.readFetchStates();
-    expect(persistedB["a.eval"]).toBeUndefined();
+    expect(await dbB.readLogRow("a.eval")).toBeNull();
   });
 });
 
@@ -1237,17 +1397,20 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine({ api: fake.api });
 
-    const first = engine.fetch("a.eval", "user");
+    const first = engine.ensure("a.eval", { depth: "detailed", priority: "user" });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
     // The in-flight attempt already consumed its own fresh flag at read
     // time, so this can't retroactively change ITS cached param — it must
     // re-arm `_freshDetails` for the NEXT fetch instead of being dropped.
-    const second = engine.fetch("a.eval", "user", { fresh: true });
+    const second = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+      fresh: true,
+    });
 
     void fake.releaseAll();
-    const [firstDetails, secondDetails] = await Promise.all([first, second]);
+    await Promise.all([first, second]);
 
-    expect(firstDetails).toEqual(secondDetails);
     expect(fake.detailCalls.length).toBe(1);
   });
 });

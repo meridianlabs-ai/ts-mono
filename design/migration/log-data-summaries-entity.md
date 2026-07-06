@@ -154,3 +154,64 @@ never empties between settles, and pending-merged assembly drops buffer rows
 only when their settled forms are present. Plus: split writes are atomic
 (header row and summary rows agree after each ingestion), invalidation
 reaches prefix-scope queries, db-less push path serves the file scope.
+
+# Unified Log row + depth (entity-model goal, phase 3)
+
+Phase 3 of the same goal: one `logs` entity table/collection; previews and
+details die as store/cache concepts.
+
+## Store model (Dexie v12)
+
+- **`logs`** — THE Log entity row: identity (`file_path`, `task`, `task_id`,
+  `mtime`) + `depth: "listed" | "previewed" | "detailed"` + attribute columns
+  populated as depth increases (flat: `status`, `error`, `eval_id`,
+  `run_id`, `task_version`, `model`, `model_roles`, `started_at`,
+  `completed_at`, `primary_metric`, `version`; deep: `header: LogHeader`) +
+  the folded former `log_fetch_state` columns (`preview_fetch_error`,
+  `preview_attempts`, `details_fetch_error`, `details_attempts`,
+  `details_settled_seq` — retrieval facts about the row). Indexes:
+  `++id, &file_path, mtime, task, task_id, depth`.
+- `log_previews`, `log_details`, `log_fetch_state` are **deleted** (v12
+  `stores` nulls); the destructive upgrade wipes `logs` + `sample_summaries`.
+- Flat attribute columns are refreshed at BOTH tiers (detail ingestion
+  re-derives them via `toLogPreview(header)`) — denormalized once, at the
+  sink. `depth` only ever ratchets up within a row's lifetime; **mtime
+  invalidation resets depth** (identity kept, content + fetch-state
+  dropped); deletion removes the row.
+
+## Types
+
+`Log` (client/api/types, next to `LogHeader`): `LogHandle` + depth +
+attribute columns + retrieval facts — the row shape shared by store, cache,
+and listing (`LogListingRow = Log & { retried?: boolean }`). `LogPreview`
+remains transport-only (the tier payload); consumers read flat row fields.
+
+## Cache keys
+
+- `["log_data", "logs", logDir]` → `Log[]` (ordered listing collection) —
+  replaces the handles/previews/details keys.
+- `["log_data", "log", logDir, name]` → `Log | null` per-entity — replaces
+  BOTH the per-handle detail key and the fetch-state key (one observed
+  entry; guarded pushes stay).
+- `useLogDetail` → **`useLog`**, contract unchanged
+  (`LogDataState<LogHeader>`, data = `row.header`); `useLogFetchState`
+  reads the same per-entity row.
+
+## Engine
+
+Public surface becomes **`ensure(logFile, { depth, priority, fresh?,
+demand? })`** — `fetch()`/`requestPreview()` become the two depth cases.
+Queue mechanics (two work kinds, batching, first-wave, coalesce, retry
+gating) are UNCHANGED — tiers stay scheduler policy. Backfill discovery
+reads the unified rows: missing previews = `depth === "listed"` (plus the
+started-preview re-fetch rule); missing details = `depth !== "detailed"` or
+a detailed row whose `status === "started"`.
+
+## Sink
+
+`setListing`/`writeListing` upsert the identity tier only (existing rows
+keep depth + content); `writePreviews` upserts the previewed tier;
+`writeDetails` upserts the detailed tier + splits summaries (phase-2
+semantics); `writeFetchStates` merges retrieval columns; `resetDepth`
+implements mtime invalidation; `seedRows` is the cache-only activation of
+rows read back from the store (start(), read-through hits).
