@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { SampleSummary } from "../../../client/api/types";
+import type { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 
 import { buildSampleColumns, SCORE_FIELD_RAW_PREFIX } from "./columns";
 import type { SampleRow } from "./types";
@@ -80,10 +81,51 @@ describe("buildSampleColumns compact scores", () => {
   });
 });
 
+// The `TaskSamplesColumnId` wire contract: the built-in column ids eval
+// authors may reference from `Task(viewer=ViewerConfig(task_samples_view=
+// TaskSamplesView(columns=[...], sort=[...])))`. Source of truth is the
+// Python literal in `src/inspect_ai/viewer/_config.py` (`TaskSamplesColumnId`),
+// mirrored in the generated wire types (`TaskSamplesColumn.id` /
+// `TaskSamplesSort.column` in `@tsmono/inspect-common` generated.ts). The
+// union is widened with `| string` on the wire, so TypeScript can't enforce
+// this — the ids are restated here to pin the contract at runtime.
+const kTaskSamplesColumnIds = [
+  "sampleStatus",
+  "sampleId",
+  "sampleUuid",
+  "epoch",
+  "input",
+  "target",
+  "answer",
+  "tokens",
+  "duration",
+  "retries",
+  "error",
+  "limit",
+] as const;
+
+describe("buildSampleColumns TaskSamplesColumnId wire contract", () => {
+  it("emits a column for every built-in TaskSamplesColumnId literal", () => {
+    // Single-log mode with a descriptor — the surface `task_samples_view`
+    // configures. Construction only touches `descriptor.messageShape`, so a
+    // bare stub suffices (cells aren't rendered here).
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: false,
+      descriptor: {} as unknown as SamplesDescriptor,
+    });
+    const ids = new Set(cols.map((c) => c.id));
+    const missing = kTaskSamplesColumnIds.filter((id) => !ids.has(id));
+    expect(missing).toEqual([]);
+  });
+});
+
 describe("buildSampleColumns non-resizable columns", () => {
   it("marks the status-icon and index columns non-resizable", () => {
     const cols = buildSampleColumns({ viewMode: "grid", multiLog: true });
-    expect(cols.find((c) => c.id === "statusIcon")?.enableResizing).toBe(false);
+    expect(cols.find((c) => c.id === "sampleStatus")?.enableResizing).toBe(
+      false
+    );
     expect(cols.find((c) => c.id === "displayIndex")?.enableResizing).toBe(
       false
     );

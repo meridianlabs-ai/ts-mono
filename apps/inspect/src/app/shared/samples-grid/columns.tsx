@@ -142,9 +142,12 @@ export function buildSampleColumns(
     });
   }
 
-  // sample-level status icon (always)
+  // sample-level status icon (always). The id is a wire contract — eval
+  // authors reference it as `TaskSamplesColumnId` "sampleStatus" from
+  // `Task(viewer=...)` (see `viewer/_config.py`) — so it must not track
+  // internal helper naming.
   cols.push({
-    id: "statusIcon",
+    id: "sampleStatus",
     header: isList ? "" : "Sample Status",
     headerTitle: "Sample Status",
     size: isList ? 28 : 100,
@@ -436,7 +439,7 @@ export function buildSampleColumns(
   // comparator (mirrors the log list). The status-icon and index columns are
   // presentational, so they're neither sortable nor filterable.
   for (const col of cols) {
-    if (col.id === "statusIcon" || col.id === "displayIndex") continue;
+    if (col.id === "sampleStatus" || col.id === "displayIndex") continue;
     const cmp = col.meta?.sortComparator;
     const filterType: FilterType =
       cmp === numberCompare
