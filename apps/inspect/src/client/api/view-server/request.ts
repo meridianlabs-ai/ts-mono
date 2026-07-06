@@ -73,8 +73,10 @@ export interface ServerRequestApi {
 
 export function serverRequestApi(
   baseUrl?: string,
-  getHeaders?: HeaderProvider
+  getHeaders?: HeaderProvider,
+  customFetch?: typeof fetch
 ): ServerRequestApi {
+  const fetchFn = customFetch ?? fetch;
   const apiUrl = baseUrl || "";
 
   function addViewRequestHeader(
@@ -130,7 +132,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, responseHeaders);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers: responseHeaders,
       body: request.body,
@@ -187,7 +189,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, requestHeaders);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers: requestHeaders,
       body,
@@ -225,7 +227,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, headers);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers,
       credentials: isApiCrossOrigin() ? "include" : "same-origin",

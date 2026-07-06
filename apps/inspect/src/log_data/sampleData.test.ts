@@ -40,6 +40,16 @@ const sample = (overrides: Partial<EvalSample> = {}): EvalSample =>
 const events = (n: number): RunningSampleData["events"] =>
   Array.from({ length: n }, (_, i) => ({ id: `e${i}` }) as never);
 
+const runningData = (
+  overrides: Partial<RunningSampleData> = {}
+): RunningSampleData => ({
+  events: [],
+  finalized: false,
+  backfilling: false,
+  catchup: false,
+  ...overrides,
+});
+
 const inputs = (overrides: Partial<SampleDataInputs>): SampleDataInputs => ({
   handle,
   summaries: data([summary()]),
@@ -88,7 +98,7 @@ describe("deriveSampleData", () => {
     const streaming = deriveSampleData(
       inputs({
         ...base,
-        running: data({ events: events(2), finalized: false }),
+        running: data(runningData({ events: events(2) })),
       })
     );
     expect(streaming.status).toBe("streaming");
@@ -112,7 +122,7 @@ describe("deriveSampleData", () => {
     const result = deriveSampleData(
       inputs({
         summary: summary({ completed: false }),
-        running: data({ events: events(1), finalized: true }),
+        running: data(runningData({ events: events(1), finalized: true })),
         finalizedSample: data(finalized),
       })
     );
@@ -126,7 +136,7 @@ describe("deriveSampleData", () => {
     const result = deriveSampleData(
       inputs({
         summary: summary({ completed: false }),
-        running: data({ events: events(1), finalized: true }),
+        running: data(runningData({ events: events(1), finalized: true })),
       })
     );
     expect(result.status).toBe("streaming");
@@ -140,11 +150,47 @@ describe("deriveSampleData", () => {
     expect(result.eventsCleared).toBe(false);
   });
 
+  test("completed path: settled EvalSample wins over leftover stream state (navigating away from a running sample)", () => {
+    const evalSample = sample({ events: [{} as never] });
+    const result = deriveSampleData(
+      inputs({
+        query: data(evalSample),
+        running: data(runningData({ events: events(2), backfilling: true })),
+      })
+    );
+    expect(result.status).toBe("ok");
+    expect(result.sample).toBe(evalSample);
+    expect(result.running).toHaveLength(0);
+    expect(result.backfilling).toBe(false);
+  });
+
+  test("running path: backfilling passes through from the stream; the bridge never reports it", () => {
+    const streaming = deriveSampleData(
+      inputs({
+        summary: summary({ completed: false }),
+        running: data(runningData({ events: events(1), backfilling: true })),
+      })
+    );
+    expect(streaming.status).toBe("streaming");
+    expect(streaming.backfilling).toBe(true);
+
+    // Summary settled (sample done) while the completed fetch is in flight:
+    // cached stream events bridge, but the sample is not backlog-loading.
+    const bridged = deriveSampleData(
+      inputs({
+        query: loading,
+        running: data(runningData({ events: events(1), backfilling: true })),
+      })
+    );
+    expect(bridged.status).toBe("streaming");
+    expect(bridged.backfilling).toBe(false);
+  });
+
   test("completed path: cached stream events bridge the settling fetch", () => {
     const result = deriveSampleData(
       inputs({
         query: loading,
-        running: data({ events: events(3), finalized: false }),
+        running: data(runningData({ events: events(3) })),
       })
     );
     expect(result.status).toBe("streaming");

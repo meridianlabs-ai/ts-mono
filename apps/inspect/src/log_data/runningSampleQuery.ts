@@ -26,6 +26,10 @@ import {
 import { getSampleSummaries } from "./sampleSummaries";
 
 const kRunningSampleIntervalMs = 2_000;
+// Near-immediate re-poll while draining the initial event backlog (matching
+// the legacy poll loop's "immediate" catch-up); the live cadence resumes once
+// caught up.
+const kCatchupIntervalMs = 10;
 
 export const runningSampleQueryKey = (
   logDir: string,
@@ -45,7 +49,33 @@ export interface RunningSampleData {
   events: SampleEvent[];
   /** The stream ended and the completed EvalSample was primed into `["log_data", "sample"]`. */
   finalized: boolean;
+  /** The initial event backlog is still draining (latched from the
+   *  transport's `has_more`): true means the events shown are history still
+   *  loading, not a live tail. Once caught up it stays live — a transient
+   *  `has_more` won't flip it back. */
+  backfilling: boolean;
+  /** This tick advanced AND reported more backlog — re-poll at catch-up
+   *  cadence instead of the live interval. */
+  catchup: boolean;
 }
+
+export interface BackfillResult {
+  backfilling: boolean;
+  reachedLive: boolean;
+}
+
+// Latch to live: once caught up, a transient has_more must not flip back to
+// loading. `hasMore` undefined means the tick carried no data signal — the
+// caller keeps its previous state instead of latching.
+export const computeBackfilling = (
+  hasMore: boolean | undefined,
+  reachedLive: boolean
+): BackfillResult => {
+  if (reachedLive || hasMore !== true) {
+    return { backfilling: false, reachedLive: true };
+  }
+  return { backfilling: true, reachedLive: false };
+};
 
 export interface RunningSampleStreamInputs {
   handle: SampleHandle | undefined;
@@ -70,6 +100,8 @@ interface StreamSlot {
   key: string;
   session: SampleStreamSession;
   last: RunningSampleData | undefined;
+  /** Backfill latch: the stream has caught up to live at least once. */
+  reachedLive: boolean;
 }
 
 // One streaming session at a time (there is one selected sample), addressed by
@@ -95,6 +127,7 @@ const slotFor = (
         handle.epoch
       ),
       last: undefined,
+      reachedLive: false,
     };
   }
   return slot;
@@ -181,14 +214,33 @@ export const streamRunningSampleTick = async (
   const finalized = tick.done
     ? await finalizeRunningSample(api, logDir, handle, tick.bufferComplete)
     : false;
-  const next = { events: tick.events, finalized };
+  // A done tick means the backlog is drained — the indicator must not stick
+  // when a sample finalizes mid-backfill. A signal-less tick keeps the
+  // previous state rather than latching live.
+  const backfill = tick.done
+    ? { backfilling: false, reachedLive: true }
+    : tick.hasMore === undefined
+      ? {
+          backfilling: streamSlot.last?.backfilling ?? false,
+          reachedLive: streamSlot.reachedLive,
+        }
+      : computeBackfilling(tick.hasMore, streamSlot.reachedLive);
+  streamSlot.reachedLive = backfill.reachedLive;
+  const next = {
+    events: tick.events,
+    finalized,
+    backfilling: backfill.backfilling,
+    catchup: !tick.done && tick.hasMore === true && tick.advanced,
+  };
   // Hand back the previous object when nothing changed so no-op ticks don't
   // churn the query data identity (structural sharing is off — see the hook).
   const last = streamSlot.last;
   if (
     last !== undefined &&
     last.events === next.events &&
-    last.finalized === next.finalized
+    last.finalized === next.finalized &&
+    last.backfilling === next.backfilling &&
+    last.catchup === next.catchup
   ) {
     return last;
   }
@@ -200,7 +252,8 @@ export const streamRunningSampleTick = async (
  * Poll-driven incremental query over a running sample's event stream, keyed
  * `["log_data", "running-sample", logDir, logFile, id, epoch]`. Nothing imperative:
  * enablement derives from the summary and the log's live status
- * (`shouldStreamRunningSample`), cadence is a fixed 2s `refetchInterval`, and
+ * (`shouldStreamRunningSample`), cadence is a 2s `refetchInterval` (dropping
+ * to near-immediate while the initial backlog drains — see `catchup`), and
  * teardown is the key changing. When the stream ends, the tick primes the
  * completed EvalSample into the `["log_data", "sample"]` cache and reports `finalized`; the
  * interval stops on `finalized` or error. Disabled with the same key (summary
@@ -231,7 +284,9 @@ export const useRunningSample = (
     refetchInterval: (query) =>
       query.state.status === "error" || query.state.data?.finalized === true
         ? false
-        : kRunningSampleIntervalMs,
+        : query.state.data?.catchup === true
+          ? kCatchupIntervalMs
+          : kRunningSampleIntervalMs,
     refetchIntervalInBackground: true,
     // Streamed events are as large as EvalSamples; don't retain idle ones.
     gcTime: kSampleGcTimeMs,

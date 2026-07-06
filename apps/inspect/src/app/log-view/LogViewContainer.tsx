@@ -96,7 +96,9 @@ export const LogViewContainer: FC = () => {
 
   // Clear the previous eval's data before paint when the route changes, so the
   // old eval doesn't flash while the new one loads. A useEffect would run after
-  // the browser has already painted the stale eval.
+  // the browser has already painted the stale eval. (Details and pending
+  // summaries are query-keyed per log file, so the selected sample handle is
+  // the only cross-log store state to clear.)
   useLayoutEffect(() => {
     const prevLogPath = prevLogPathRef.current;
     prevLogPathRef.current = logPath;

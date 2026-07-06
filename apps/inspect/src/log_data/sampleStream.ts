@@ -39,6 +39,15 @@ export interface SampleStreamTick {
    * condition rather than an error in this case.
    */
   bufferComplete: boolean;
+  /**
+   * The transport's `has_more` from an OK data response — more backlog is
+   * waiting server-side. Undefined when this tick carried no data signal
+   * (NotFound / finalize / non-OK response), so the caller can distinguish
+   * "caught up" from "no news".
+   */
+  hasMore?: boolean;
+  /** This tick moved at least one cursor (new events/attachments/pools). */
+  advanced: boolean;
 }
 
 /**
@@ -102,71 +111,84 @@ export const createSampleStreamSession = (
       throw new Error("Required API get_log_sample_data is undefined.");
     }
 
-    // Loop for has_more catch-up: when the server truncates the segment
-    // list, keep requesting immediately instead of waiting a poll interval.
-    for (;;) {
-      const priorEventId = state.eventId;
-      const priorAttachmentId = state.attachmentId;
-      const priorMessagePoolId = state.messagePoolId;
-      const priorCallPoolId = state.callPoolId;
+    // One response per tick: each segment lands (and paints) as it arrives.
+    // has_more catch-up cadence is the caller's decision, driven by the
+    // returned `hasMore`/`advanced` signals.
+    const priorEventId = state.eventId;
+    const priorAttachmentId = state.attachmentId;
+    const priorMessagePoolId = state.messagePoolId;
+    const priorCallPoolId = state.callPoolId;
 
-      const response = await api.get_log_sample_data(
-        logFile,
-        id,
-        epoch,
-        priorEventId,
-        priorAttachmentId,
-        priorMessagePoolId,
-        priorCallPoolId
+    const response = await api.get_log_sample_data(
+      logFile,
+      id,
+      epoch,
+      priorEventId,
+      priorAttachmentId,
+      priorMessagePoolId,
+      priorCallPoolId
+    );
+
+    if (response?.status === "NotFound") {
+      return {
+        events: emittedEvents,
+        done: true,
+        bufferComplete: false,
+        advanced: false,
+      };
+    }
+
+    if (shouldFinalizeStreamingSample(response, completedInLog)) {
+      return {
+        events: emittedEvents,
+        done: true,
+        bufferComplete: response?.complete === true,
+        advanced: false,
+      };
+    }
+
+    if (response?.status === "OK" && response.sampleData) {
+      processAttachments(response.sampleData, state);
+      // Pool entries must land before events so refs can be resolved.
+      processMessagePool(response.sampleData, state);
+      processCallPool(response.sampleData, state);
+      const eventsChanged = processEvents(
+        response.sampleData,
+        state,
+        api,
+        logFile
       );
 
-      if (response?.status === "NotFound") {
-        return { events: emittedEvents, done: true, bufferComplete: false };
+      state.attachmentId = findMaxId(
+        response.sampleData.attachments,
+        state.attachmentId
+      );
+      state.eventId = findMaxId(response.sampleData.events, state.eventId);
+
+      if (eventsChanged) {
+        emittedEvents = [...state.events];
       }
 
-      if (shouldFinalizeStreamingSample(response, completedInLog)) {
-        return {
-          events: emittedEvents,
-          done: true,
-          bufferComplete: response?.complete === true,
-        };
-      }
-
-      if (response?.status === "OK" && response.sampleData) {
-        processAttachments(response.sampleData, state);
-        // Pool entries must land before events so refs can be resolved.
-        processMessagePool(response.sampleData, state);
-        processCallPool(response.sampleData, state);
-        const eventsChanged = processEvents(
-          response.sampleData,
-          state,
-          api,
-          logFile
-        );
-
-        state.attachmentId = findMaxId(
-          response.sampleData.attachments,
-          state.attachmentId
-        );
-        state.eventId = findMaxId(response.sampleData.events, state.eventId);
-
-        if (eventsChanged) {
-          emittedEvents = [...state.events];
-        }
-
-        // Only catch up if we actually advanced, otherwise we'd spin.
-        const advanced =
-          state.eventId > priorEventId ||
-          state.attachmentId > priorAttachmentId ||
-          state.messagePoolId > priorMessagePoolId ||
-          state.callPoolId > priorCallPoolId;
-        if (response.has_more === true && advanced) {
-          continue;
-        }
-      }
-
-      return { events: emittedEvents, done: false, bufferComplete: false };
+      const advanced =
+        state.eventId > priorEventId ||
+        state.attachmentId > priorAttachmentId ||
+        state.messagePoolId > priorMessagePoolId ||
+        state.callPoolId > priorCallPoolId;
+      return {
+        events: emittedEvents,
+        done: false,
+        bufferComplete: false,
+        hasMore: response.has_more === true,
+        advanced,
+      };
     }
+
+    return {
+      events: emittedEvents,
+      done: false,
+      bufferComplete: false,
+      advanced: false,
+    };
   };
 
   const reset = () => {

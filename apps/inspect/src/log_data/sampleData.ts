@@ -26,6 +26,10 @@ export interface EvalSampleData {
   /** True when the preprocessor stripped events from an oversized sample
    *  (messages remain). */
   eventsCleared: boolean;
+  /** Streaming path only: the event backlog is still loading (history
+   *  draining), as opposed to waiting on live output. Drives the
+   *  "Loading events…" affordances. */
+  backfilling: boolean;
 }
 
 const settledSampleData = (sample: EvalSample): EvalSampleData => ({
@@ -35,6 +39,7 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   running: kNoRunningEvents,
   eventsCleared:
     sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+  backfilling: false,
 });
 
 export interface SampleDataInputs {
@@ -69,6 +74,7 @@ export const deriveSampleData = ({
       error: undefined,
       running: kNoRunningEvents,
       eventsCleared: false,
+      backfilling: false,
     };
   }
   if (summaries.error) {
@@ -78,6 +84,7 @@ export const deriveSampleData = ({
       error: summaries.error,
       running: kNoRunningEvents,
       eventsCleared: false,
+      backfilling: false,
     };
   }
   // Without a settled summary the sample isn't loadable yet (the legacy
@@ -90,6 +97,7 @@ export const deriveSampleData = ({
       error: undefined,
       running: kNoRunningEvents,
       eventsCleared: false,
+      backfilling: false,
     };
   }
   // `completed !== false` mirrors the legacy loader: only an explicitly
@@ -105,6 +113,7 @@ export const deriveSampleData = ({
         error: running.error,
         running: kNoRunningEvents,
         eventsCleared: false,
+        backfilling: false,
       };
     }
     return {
@@ -113,6 +122,7 @@ export const deriveSampleData = ({
       error: undefined,
       running: running.data?.events ?? kNoRunningEvents,
       eventsCleared: false,
+      backfilling: running.data?.backfilling ?? false,
     };
   }
   if (query.data !== undefined) {
@@ -125,12 +135,15 @@ export const deriveSampleData = ({
     running.data !== undefined &&
     running.data.events.length > 0
   ) {
+    // Bridging cached stream events while the completed fetch settles: the
+    // sample is done, so never present the bridge as backlog-loading.
     return {
       sample: undefined,
       status: "streaming",
       error: undefined,
       running: running.data.events,
       eventsCleared: false,
+      backfilling: false,
     };
   }
   return {
@@ -139,6 +152,7 @@ export const deriveSampleData = ({
     error: query.loading ? undefined : query.error,
     running: kNoRunningEvents,
     eventsCleared: false,
+    backfilling: false,
   };
 };
 

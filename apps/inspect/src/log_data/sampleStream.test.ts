@@ -295,7 +295,7 @@ describe("createSampleStreamSession", () => {
     ]);
   });
 
-  it("catches up immediately on has_more while cursors advance", async () => {
+  it("lands one segment per tick, reporting has_more/advanced for the caller's catch-up cadence", async () => {
     mockApi.get_log_sample_data
       .mockResolvedValueOnce(
         okResponse(
@@ -311,25 +311,35 @@ describe("createSampleStreamSession", () => {
       );
 
     const session = makeSession();
-    const { events, done } = await session.tick(false);
+    const first = await session.tick(false);
 
-    // Both segments drained in a single tick, with the cursor advancing.
-    expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(2);
+    // One segment per tick: the partial backlog paints instead of waiting
+    // for the full drain; the signals tell the caller to re-tick immediately.
+    expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(1);
+    expect(first.events.map((e: any) => e.data)).toEqual(["a"]);
+    expect(first.hasMore).toBe(true);
+    expect(first.advanced).toBe(true);
+    expect(first.done).toBe(false);
+
+    const second = await session.tick(false);
     expect(cursorArgs(1)?.[0]).toBe(1);
-    expect(events.map((e: any) => e.data)).toEqual(["a", "b"]);
-    expect(done).toBe(false);
+    expect(second.events.map((e: any) => e.data)).toEqual(["a", "b"]);
+    expect(second.hasMore).toBe(false);
+    expect(second.done).toBe(false);
   });
 
-  it("does not spin on has_more when nothing advanced", async () => {
+  it("reports advanced=false on has_more without progress (caller must not spin)", async () => {
     mockApi.get_log_sample_data.mockResolvedValue(
       okResponse({}, { has_more: true })
     );
 
     const session = makeSession();
-    const { done } = await session.tick(false);
+    const { done, hasMore, advanced } = await session.tick(false);
 
     expect(mockApi.get_log_sample_data).toHaveBeenCalledTimes(1);
     expect(done).toBe(false);
+    expect(hasMore).toBe(true);
+    expect(advanced).toBe(false);
   });
 
   it("keeps events identity stable across ticks that change nothing", async () => {

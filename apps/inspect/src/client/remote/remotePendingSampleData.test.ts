@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ApiError } from "../api/view-server/request";
 
-import { fetchPendingSampleDataDirect } from "./remotePendingSampleData";
+import {
+  fetchPendingSampleDataDirect,
+  SEGMENT_CAP_PER_CALL,
+} from "./remotePendingSampleData";
 
 vi.mock("./remoteZipFile", () => ({
   openZipFileFromBuffer: vi.fn((bytes: Uint8Array) =>
@@ -178,5 +181,41 @@ describe("fetchPendingSampleDataDirect", () => {
     expect(result).toBeDefined();
     expect(result!.complete).toBe(false);
     expect(result!.has_more).toBe(false);
+  });
+
+  test("requests up to SEGMENT_CAP_PER_CALL segments", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: false,
+      complete: true,
+    });
+    await fetchPendingSampleDataDirect(getUrls, "log", "s1", 1, {});
+    expect(getUrls).toHaveBeenCalledWith(
+      "log",
+      "s1",
+      1,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      SEGMENT_CAP_PER_CALL
+    );
+  });
+
+  test("reports has_more/complete from the response on the empty fast path", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: true,
+      complete: false,
+    });
+    const result = await fetchPendingSampleDataDirect(
+      getUrls,
+      "log",
+      "s1",
+      1,
+      {}
+    );
+    expect(result?.has_more).toBe(true);
+    expect(result?.complete).toBe(false);
   });
 });

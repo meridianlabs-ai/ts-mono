@@ -9,7 +9,9 @@ import { selectSample, setDocumentTitle } from "../../../state/actions";
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
+import { useLogRouteParams } from "../../routing/url";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
+import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
 
@@ -49,6 +51,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   } = props;
 
   const sampleNavigation = useSampleNavigationActions();
+  const { sampleId: routeSampleId, epoch: routeEpoch } = useLogRouteParams();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -59,14 +62,20 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     setDocumentTitle({ evalSpec });
   }, [evalSpec]);
 
-  // No selected-sample guard here: selection no longer implies "open" (arrow
-  // keys move it without navigating), and the list only renders while no
-  // sample detail is open — activating the highlighted row must navigate.
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
+      // Re-clicking the sample that's currently open in the detail view
+      // would re-run selectSample + navigate redundantly — skip only that.
+      // Keyed off the route (not selectedSampleHandle, which persists after
+      // navigating back to the log and would wrongly ignore the re-click).
+      if (
+        isSampleOpenInRoute(routeSampleId, routeEpoch, row.sampleId, row.epoch)
+      ) {
+        return;
+      }
       sampleNavigation.showSample(row.sampleId, row.epoch);
     },
-    [sampleNavigation]
+    [sampleNavigation, routeSampleId, routeEpoch]
   );
 
   const getRowId = useCallback(

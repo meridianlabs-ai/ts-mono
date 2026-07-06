@@ -57,13 +57,15 @@ export function viewServerApi(
     logDir?: string;
     apiBaseUrl?: string;
     headerProvider?: HeaderProvider;
+    customFetch?: typeof fetch;
   } = {}
 ): LogViewAPI {
-  const { apiBaseUrl, logDir, headerProvider } = options;
+  const { apiBaseUrl, logDir, headerProvider, customFetch } = options;
 
   const requestApi = serverRequestApi(
     apiBaseUrl || __VIEW_SERVER_API_URL__,
-    headerProvider
+    headerProvider,
+    customFetch
   );
 
   const client_events = async () => {
@@ -502,7 +504,7 @@ export function viewServerApi(
       })()
     );
 
-    const response = await fetch(url, {
+    const response = await (customFetch ?? fetch)(url, {
       method: "POST",
       headers,
       body: JSON.stringify(update),

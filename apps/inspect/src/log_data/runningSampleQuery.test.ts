@@ -14,6 +14,7 @@ import { queryClient } from "../state/queryClient";
 
 import { pendingSamplesKey } from "./pendingSamples";
 import {
+  computeBackfilling,
   runningSampleQueryKey,
   shouldStreamRunningSample,
   streamRunningSampleTick,
@@ -274,6 +275,112 @@ describe("streamRunningSampleTick", () => {
     expect(mockApi.get_log_sample_data.mock.calls[1]?.slice(3)).toEqual([
       -1, -1, -1, -1,
     ]);
+  });
+});
+
+describe("computeBackfilling", () => {
+  it("is backfilling while has_more is true and live not yet reached", () => {
+    expect(computeBackfilling(true, false)).toEqual({
+      backfilling: true,
+      reachedLive: false,
+    });
+  });
+
+  it("reaches live (not backfilling) when has_more is falsy", () => {
+    expect(computeBackfilling(false, false)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
+    expect(computeBackfilling(undefined, false)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
+  });
+
+  it("latches: once live, a transient has_more stays live", () => {
+    expect(computeBackfilling(true, true)).toEqual({
+      backfilling: false,
+      reachedLive: true,
+    });
+  });
+});
+
+describe("streamRunningSampleTick backfill", () => {
+  it("reports backfilling + catch-up cadence while the backlog drains, then latches live", async () => {
+    const handle = makeHandle("backfill.eval");
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce(
+        okResponse(
+          { events: [eventData(1, "event-1", "old-1")] },
+          { has_more: true }
+        )
+      )
+      .mockResolvedValueOnce(
+        okResponse(
+          { events: [eventData(2, "event-2", "old-2")] },
+          { has_more: false }
+        )
+      )
+      .mockResolvedValueOnce(
+        okResponse(
+          { events: [eventData(3, "event-3", "live")] },
+          { has_more: true }
+        )
+      );
+
+    const draining = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(draining.backfilling).toBe(true);
+    expect(draining.catchup).toBe(true);
+    expect(draining.events).toHaveLength(1);
+
+    const caughtUp = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(caughtUp.backfilling).toBe(false);
+    expect(caughtUp.catchup).toBe(false);
+
+    // Latched: a transient has_more after catching up must not flip the
+    // indicator back to loading.
+    const transient = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(transient.backfilling).toBe(false);
+    // ...but catch-up cadence still applies while the server reports more.
+    expect(transient.catchup).toBe(true);
+  });
+
+  it("a signal-less tick mid-backfill keeps the previous backfilling state", async () => {
+    const handle = makeHandle("backfill-notmodified.eval");
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce(
+        okResponse(
+          { events: [eventData(1, "event-1", "old")] },
+          { has_more: true }
+        )
+      )
+      .mockResolvedValueOnce({ status: "NotModified" });
+
+    await streamRunningSampleTick(api, LOG_DIR, handle);
+    const result = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(result.backfilling).toBe(true);
+    expect(result.catchup).toBe(false);
+  });
+
+  it("finalizing mid-backfill drops the indicator (no stuck 'Loading events')", async () => {
+    const handle = makeHandle("backfill-finalize.eval");
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce(
+        okResponse(
+          { events: [eventData(1, "event-1", "old")] },
+          { has_more: true }
+        )
+      )
+      .mockResolvedValueOnce(
+        okResponse({}, { complete: true, has_more: false })
+      );
+    mockApi.get_log_sample.mockResolvedValueOnce(rawSample());
+
+    await streamRunningSampleTick(api, LOG_DIR, handle);
+    const result = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(result.finalized).toBe(true);
+    expect(result.backfilling).toBe(false);
+    expect(result.catchup).toBe(false);
   });
 });
 

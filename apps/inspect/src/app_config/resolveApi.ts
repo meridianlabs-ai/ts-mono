@@ -1,13 +1,15 @@
 import JSON5 from "json5";
 
 import { AppConfig } from "@tsmono/inspect-common/types";
-import { dirname, getVscodeApi } from "@tsmono/util";
+import { dirname, getVscodeApi, kMethodHttpRequest } from "@tsmono/util";
 
 import { clientApi } from "../client/api/client-api";
 import staticHttpApi from "../client/api/static-http/api-static-http";
 import { ClientAPI } from "../client/api/types";
 import { viewServerApi } from "../client/api/view-server/api-view-server";
 import vscodeApi from "../client/api/vscode/api-vscode";
+import { apiVscodeHttp } from "../client/api/vscode/api-vscode-http";
+import { readHostCapabilities } from "../client/api/vscode/host-capabilities";
 
 import { UrlLogSource } from "./urlLogSource";
 
@@ -27,12 +29,20 @@ interface LogDirContext {
  */
 export const resolveApi = (source: UrlLogSource): ClientAPI => {
   const debug = false;
-  if (getVscodeApi()) {
+  const vscode = getVscodeApi();
+  if (vscode) {
     // VS Code runs either single-file (the extension embeds a `#logview-state`
     // for an opened log) or directory mode (the sidebar view carries a log_dir
-    // with nothing selected, so no `#logview-state` is injected). `vscodeApi`
-    // implements `get_log_root`, so the directory loader works here too.
-    return clientApi(vscodeApi, undefined, debug);
+    // with nothing selected, so no `#logview-state` is injected). Both APIs
+    // implement `get_log_root`, so the directory loader works here too.
+    // Prefer the generic http_request proxy API when the extension host
+    // advertises it; otherwise fall back to the legacy named-RPC API so
+    // newer viewers keep working on older extensions.
+    const capabilities = readHostCapabilities();
+    const api = capabilities.includes(kMethodHttpRequest)
+      ? apiVscodeHttp(vscode)
+      : vscodeApi;
+    return clientApi(api, undefined, debug);
   } else {
     // See if there is an log_file, log_dir embedded in the
     // document or passed via URL (could be hosted)

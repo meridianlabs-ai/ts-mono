@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { openRemoteLogFile } from "../remote/remoteLogFile";
+import { DirectFetchError } from "../remote/remotePendingSampleData";
 
 import { clientApi } from "./client-api";
 import {
@@ -96,6 +97,28 @@ describe("clientApi.get_log_sample_data path selection", () => {
     await client.get_log_sample_data!("log.eval", "s1", 0);
 
     expect(proxy).toHaveBeenCalledTimes(1);
+  });
+
+  test("falls back to proxy when the direct probe can't fetch segments (CORS)", async () => {
+    const direct = vi
+      .fn()
+      .mockRejectedValue(new DirectFetchError("Failed to fetch segment"));
+    const proxy = vi.fn().mockResolvedValue(okResponse());
+    const api: LogViewAPI = {
+      ...baseApi(),
+      eval_log_sample_data: proxy,
+      eval_log_sample_data_direct: direct,
+    };
+    const client = clientApi(api);
+
+    const first = await client.get_log_sample_data!("log.eval", "s1", 0);
+    const second = await client.get_log_sample_data!("log.eval", "s1", 0);
+
+    expect(first?.status).toBe("OK");
+    expect(second?.status).toBe("OK");
+    // Probed direct once, then pinned proxy for this log.
+    expect(direct).toHaveBeenCalledTimes(1);
+    expect(proxy).toHaveBeenCalledTimes(2);
   });
 
   test("real errors from the direct probe bubble up and don't pin a path", async () => {

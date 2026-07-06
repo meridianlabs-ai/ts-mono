@@ -6,8 +6,17 @@ import {
   LogFilesResponse,
   LogInfo,
   LogUpdate,
+  Result,
+  SearchInputListResponse,
+  SearchRequest,
+  SearchResponse,
 } from "@tsmono/inspect-common/types";
-import { getVscodeApi } from "@tsmono/util";
+import {
+  getVscodeApi,
+  JsonRpcClient,
+  kJsonRpcMethodNotFound,
+  webViewJsonRpcClient,
+} from "@tsmono/util";
 
 import { asyncJsonParse } from "../../../utils/json-worker";
 import {
@@ -21,12 +30,12 @@ import {
   PendingSamples,
   SampleData,
   SampleDataResponse,
+  SearchResultScope,
   UserInfo,
 } from "../types";
 import { ApiError } from "../view-server/request";
 
 import {
-  kJsonRpcMethodNotFound,
   kMethodAppConfig,
   kMethodEditLog,
   kMethodEvalLog,
@@ -36,11 +45,13 @@ import {
   kMethodEvalLogHeaders,
   kMethodEvalLogInfo,
   kMethodEvalLogs,
+  kMethodGetSearchResult,
   kMethodGetUserInfo,
+  kMethodListSearches,
   kMethodLogMessage,
   kMethodPendingSamples,
+  kMethodPostSearch,
   kMethodSampleData,
-  webViewJsonRpcClient,
 } from "./jsonrpc";
 
 const kNotFoundSignal = "NotFound";
@@ -51,7 +62,30 @@ const kNotModifiedSignal = "NotModified";
 const asRpcError = (e: unknown): { code?: number; message?: string } =>
   typeof e === "object" && e !== null ? e : {};
 
-const vscodeClient = webViewJsonRpcClient(getVscodeApi());
+// This module is imported eagerly even outside VS Code, but the client is only
+// ever exercised from the VS Code branch of resolveApi(). Build it lazily so
+// the transport receives a definite VSCodeApi rather than threading
+// `| undefined` through every signature.
+let _vscodeClient: JsonRpcClient | undefined;
+const vscodeClient: JsonRpcClient = (method, params) => {
+  if (!_vscodeClient) {
+    const vscode = getVscodeApi();
+    if (!vscode) {
+      throw new Error("VS Code API is not available in this environment.");
+    }
+    _vscodeClient = webViewJsonRpcClient(vscode);
+  }
+  return _vscodeClient(method, params);
+};
+
+// Existing RPC methods are inconsistent about whether their payload is
+// wire-encoded (string) or returned as an already-parsed object. Accept
+// both so callers aren't coupled to which form the extension chooses.
+const parsePayload = <T>(response: unknown): T =>
+  typeof response === "string" ? JSON5.parse<T>(response) : (response as T);
+
+const kSearchUnsupportedMessage =
+  "Transcript search requires a newer Inspect VS Code extension.";
 
 function client_events(): Promise<string[]> {
   return Promise.resolve([]);
@@ -348,6 +382,82 @@ async function get_app_config(): Promise<AppConfig> {
   }
 }
 
+/**
+ * Transcript search methods, forwarded to inspect_ai's /scout/* endpoints by
+ * the VS Code extension. The viewer passes the structured arguments and lets
+ * the extension build the request URLs (base64url-encoding the transcript
+ * dir, etc.), mirroring how the view server's request layer does it.
+ *
+ * Defining these is what surfaces the Search affordance: `useInspectSearchContext`
+ * gates the toolbar Search button on the presence of all three. Older extensions
+ * lack the handlers and report `kJsonRpcMethodNotFound`; the action methods turn
+ * that into an actionable "newer extension required" error.
+ */
+async function list_searches(
+  search_type: "grep" | "llm",
+  count: number
+): Promise<SearchInputListResponse> {
+  try {
+    const response = await vscodeClient(kMethodListSearches, [
+      search_type,
+      count,
+    ]);
+    return parsePayload<SearchInputListResponse>(response);
+  } catch (e: unknown) {
+    if (asRpcError(e).code === kJsonRpcMethodNotFound) {
+      throw new Error(kSearchUnsupportedMessage);
+    }
+    throw e;
+  }
+}
+
+async function post_search(
+  transcriptDir: string,
+  transcriptId: string,
+  request: SearchRequest
+): Promise<SearchResponse> {
+  try {
+    const response = await vscodeClient(kMethodPostSearch, [
+      transcriptDir,
+      transcriptId,
+      request,
+    ]);
+    return parsePayload<SearchResponse>(response);
+  } catch (e: unknown) {
+    if (asRpcError(e).code === kJsonRpcMethodNotFound) {
+      throw new Error(kSearchUnsupportedMessage);
+    }
+    throw e;
+  }
+}
+
+async function get_search_result(
+  transcriptDir: string,
+  transcriptId: string,
+  search_id: string,
+  scope: SearchResultScope
+): Promise<Result | null> {
+  try {
+    const response = await vscodeClient(kMethodGetSearchResult, [
+      transcriptDir,
+      transcriptId,
+      search_id,
+      scope,
+    ]);
+    // A result that isn't ready yet comes back as 404 (view-server parity) or
+    // an empty payload; both mean "keep polling", not an error.
+    if (!response) return null;
+    return parsePayload<Result>(response);
+  } catch (e: unknown) {
+    const err = asRpcError(e);
+    if (err.code === 404) return null;
+    if (err.code === kJsonRpcMethodNotFound) {
+      throw new Error(kSearchUnsupportedMessage);
+    }
+    throw e;
+  }
+}
+
 function open_log_file(log_file: string, log_dir: string): Promise<void> {
   const msg = {
     type: "displayLogFile",
@@ -377,6 +487,9 @@ const api: LogViewAPI = {
   edit_log,
   get_user_info,
   get_app_config,
+  list_searches,
+  post_search,
+  get_search_result,
 };
 
 export default api;

@@ -1,18 +1,29 @@
-import { VSCodeApi } from "@tsmono/util";
+/**
+ * JSON-RPC 2.0 transport over the VS Code webview `postMessage` channel.
+ *
+ * App-specific method-name constants (e.g. `eval_log`, `get_scan`) stay local
+ * to each app; only the wire-format machinery lives here so Inspect and Scout
+ * share one implementation.
+ */
 
-import { JsonArray, JsonObject, JsonValue } from "../types/json-value";
+import { JsonValue } from "./json-value";
+import { VSCodeApi } from "./vscode";
 
-// Type definitions
-export type JsonRpcParams = JsonArray | JsonObject;
+// This is a structured-clone channel (postMessage), not a JSON wire, so params
+// and results aren't restricted to JsonValue: callers legitimately pass
+// `undefined` positional args and receive binary (e.g. Uint8Array) results.
+// Typing them loosely keeps the transport honest; payload shapes are enforced
+// by each caller (e.g. createJsonRpcFetch validates its HttpProxyResponse).
+export type JsonRpcParams = readonly unknown[] | Record<string, unknown>;
 
-// This isn't strictly correct. The data field is spec'ed to be JsonValue, but since
-// we're in control of the server, it's fine.
+// This isn't strictly correct. The data field is spec'ed to be JsonValue, but
+// since we're in control of the server, it's fine.
 type JsonRpcErrorData = { description?: string } & { [key: string]: JsonValue };
 
 export type JsonRpcClient = (
   method: string,
   params?: JsonRpcParams
-) => Promise<JsonValue>;
+) => Promise<unknown>;
 
 interface JsonRpcMessage {
   jsonrpc: string;
@@ -25,7 +36,7 @@ interface JsonRpcRequest extends JsonRpcMessage {
 }
 
 interface JsonRpcResponse extends JsonRpcMessage {
-  result?: JsonValue;
+  result?: unknown;
   error?: JsonRpcError;
 }
 
@@ -36,7 +47,7 @@ interface JsonRpcError {
 }
 
 interface RequestHandlers {
-  resolve: (value: JsonValue) => void;
+  resolve: (value: unknown) => void;
   reject: (error: JsonRpcError) => void;
 }
 
@@ -46,25 +57,6 @@ interface PostMessageTarget {
   postMessage: (data: unknown) => void;
   onMessage: (handler: (data: unknown) => void) => () => void;
 }
-
-// Constants
-export const kMethodEvalLogDir = "eval_log_dir";
-export const kMethodEvalLogs = "eval_logs";
-export const kMethodEvalLogFiles = "eval_log_files";
-export const kMethodEvalLog = "eval_log";
-export const kMethodEvalLogSize = "eval_log_size";
-export const kMethodEvalLogBytes = "eval_log_bytes";
-export const kMethodEvalLogHeaders = "eval_log_headers";
-export const kMethodPendingSamples = "eval_log_pending_samples";
-export const kMethodSampleData = "eval_log_sample_data";
-export const kMethodLogMessage = "log_message";
-
-// Scout constants
-export const kMethodGetScan = "get_scan";
-export const kMethodGetScans = "get_scans";
-export const kMethodGetScannerDataframe = "get_scanner_dataframe";
-export const kMethodGetScannerDataframeInput = "get_scanner_dataframe_input";
-export const kMethodHttpRequest = "http_request";
 
 export const kJsonRpcParseError = -32700;
 export const kJsonRpcInvalidRequest = -32600;
@@ -138,7 +130,7 @@ export function jsonRpcPostMessageRequestTransport(target: PostMessageTarget) {
   });
 
   return {
-    request: (method: string, params?: JsonRpcParams): Promise<JsonValue> => {
+    request: (method: string, params?: JsonRpcParams): Promise<unknown> => {
       return new Promise((resolve, reject) => {
         const requestId = Math.floor(Math.random() * 1e6);
         requests.set(requestId, { resolve, reject });
@@ -158,8 +150,8 @@ export function jsonRpcPostMessageRequestTransport(target: PostMessageTarget) {
 export function jsonRpcPostMessageServer(
   target: PostMessageTarget,
   methods:
-    | { [key: string]: (params: unknown) => Promise<JsonValue> }
-    | ((name: string) => ((params: unknown) => Promise<JsonValue>) | undefined)
+    | { [key: string]: (params: unknown) => Promise<unknown> }
+    | ((name: string) => ((params: unknown) => Promise<unknown>) | undefined)
 ): () => void {
   const lookupMethod =
     typeof methods === "function" ? methods : (name: string) => methods[name];
@@ -226,7 +218,7 @@ function asJsonRpcResponse(data: unknown): JsonRpcResponse | null {
 
 function jsonRpcResponse(
   request: JsonRpcRequest,
-  result: JsonValue
+  result: unknown
 ): JsonRpcResponse {
   return {
     jsonrpc: request.jsonrpc,

@@ -192,7 +192,7 @@ const installHooks = (purify: DOMPurifyInstance): void => {
     if (
       node instanceof Element &&
       node.tagName.toLowerCase() === "a" &&
-      node.getAttribute("target") === "_blank"
+      node.getAttribute("target")?.toLowerCase() === "_blank"
     ) {
       node.setAttribute("rel", "noopener noreferrer");
     }
