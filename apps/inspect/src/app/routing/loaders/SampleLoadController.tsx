@@ -9,7 +9,7 @@ const kSampleBagKeys = ["scrollPosition", "listPosition"];
 
 /**
  * Reacts to the selected sample changing — no fetching (the sample queries are
- * mounted by the detail views through `useSelectedSampleData`). Resets the per-sample
+ * mounted by the detail views through `useSelectedEvalSampleData`). Resets the per-sample
  * UI state that isn't derivable from the new sample: scroll/list positions,
  * collapsed events, and the timeline selection. Keyed on the sample's identity
  * so re-selecting (or a running sample finalizing in place) doesn't reset.

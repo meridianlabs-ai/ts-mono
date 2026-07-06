@@ -13,12 +13,12 @@ import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
+  useEvalSampleData,
   useLog,
-  usePassiveSampleData,
+  usePassiveEvalSampleData,
   useRunningMetrics,
-  useSampleData,
   useSampleSummaries,
-  type SampleData,
+  type EvalSampleData,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
@@ -373,22 +373,23 @@ export const useSelectedSampleSummary = (): SampleSummary | undefined => {
 
 /**
  * The selected sample's data — the selection binding over the param-driven
- * `useSampleData` acquisition hook.
+ * `useEvalSampleData` acquisition hook.
  */
-export const useSelectedSampleData = (): SampleData => {
+export const useSelectedEvalSampleData = (): EvalSampleData => {
   const logDir = useLogDir();
   const handle = useStore((state) => state.log.selectedSampleHandle);
-  return useSampleData(logDir, handle);
+  return useEvalSampleData(logDir, handle);
 };
 
 /**
  * The selected sample's invalidation record (if any) — the selection binding
- * projecting from the param-driven `usePassiveSampleData` acquisition hook.
+ * projecting from the param-driven `usePassiveEvalSampleData` acquisition
+ * hook.
  */
 export const useSelectedSampleInvalidation = ():
   | EvalSample["invalidation"]
   | undefined =>
-  usePassiveSampleData(
+  usePassiveEvalSampleData(
     useLogDir(),
     useStore((state) => state.log.selectedSampleHandle)
   )?.sample?.invalidation ?? undefined;
@@ -557,4 +558,3 @@ export const useLogsListing = () => {
     clearGridState,
   };
 };
-

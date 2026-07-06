@@ -51,7 +51,7 @@ IN:
 - **Sample queries → log_data.** `state/sampleQuery.ts` and
   `state/runningSampleQuery.ts` move into log_data as param-driven hooks
   (`useSample(handle)`, `useRunningSample(handle)`); state/ keeps the
-  selection bindings feeding `useSampleData`. The running-sample tick's
+  selection bindings feeding `useEvalSampleData`. The running-sample tick's
   ambient reads (`getLogDetail`, `getPendingSamples` —
   `runningSampleQuery.ts:105,117`) become in-subsystem reads of acquisition's
   own collections; its test moves in-dir and seeds `logsContent` directly, so

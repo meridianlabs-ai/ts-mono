@@ -54,10 +54,10 @@
 // - EvalSample    The complete sample: messages, events, scores. Large;
 //                 fetched on demand, cache-resident only while recently
 //                 viewed.
-// - SampleData    The one answer to "show this sample": EvalSample + status +
-//                 still-streaming events. Which path serves the EvalSample
-//                 (completed fetch, error-summary fallback, live stream,
-//                 finalize handoff) is private.
+// - EvalSampleData The one answer to "show this sample": EvalSample +
+//                 status + still-streaming events. Which path serves the
+//                 EvalSample (completed fetch, error-summary fallback, live
+//                 stream, finalize handoff) is private.
 // - running       Describes an eval still executing: its summaries, metrics
 //                 (RunningMetric), and sample events tick live until it
 //                 completes. Avoid: "pending" (wire-format word).
@@ -75,8 +75,8 @@
 //                 invalidations — invalidateLogDetail (one log's details),
 //                 invalidateLogListing (the listing).
 // - passive read  Subscribe to cached data without independently inducing a
-//                 fetch (usePassiveSampleData); absence is a normal answer
-//                 (undefined), not a loading state.
+//                 fetch (usePassiveEvalSampleData); absence is a normal
+//                 answer (undefined), not a loading state.
 // - clear         Destroy the local replica — IndexedDB and the cached
 //                 collections — then request a listing re-sync so mounted
 //                 panels re-acquire. DbStats (useDatabaseStats) counts what
@@ -97,9 +97,9 @@ export { type LogListingRow, useLogListing } from "./logListing";
 export { resolveLogKey } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
-  type SampleData,
-  usePassiveSampleData,
-  useSampleData,
+  type EvalSampleData,
+  usePassiveEvalSampleData,
+  useEvalSampleData,
 } from "./sampleData";
 export {
   type SamplesListingRow,

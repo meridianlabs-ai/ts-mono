@@ -27,8 +27,8 @@ import {
 } from "../../../constants";
 import { selectLogFile, selectSample } from "../../../state/actions";
 import {
+  useSelectedEvalSampleData,
   useSelectedLogDetails,
-  useSelectedSampleData,
 } from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
@@ -61,7 +61,7 @@ export const SamplePrintView: FC = () => {
   }, [logPath, sampleId, epoch]);
 
   // Get sample data
-  const sample = useSelectedSampleData().sample;
+  const sample = useSelectedEvalSampleData().sample;
 
   const evalSpec = useSelectedLogDetails()?.eval;
 

@@ -72,7 +72,7 @@ import {
 } from "../../constants";
 import { setDocumentTitle } from "../../state/actions";
 import {
-  useSelectedSampleData,
+  useSelectedEvalSampleData,
   useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
@@ -130,7 +130,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const baseId = `sample-display`;
 
   const prefix = useRoutePrefix();
-  const sampleData = useSelectedSampleData();
+  const sampleData = useSelectedEvalSampleData();
   const sample = sampleData.sample;
   const eventsCleared = sampleData.eventsCleared;
 

@@ -14,7 +14,7 @@ import { useSampleSummaries } from "./sampleSummaries";
 
 const kNoRunningEvents: Events = [];
 
-export interface SampleData {
+export interface EvalSampleData {
   /** The settled EvalSample: completed fetch, error-summary fallback, or
    *  a just-finalized streaming sample. */
   sample: EvalSample | undefined;
@@ -27,7 +27,7 @@ export interface SampleData {
   eventsCleared: boolean;
 }
 
-const settledSampleData = (sample: EvalSample): SampleData => ({
+const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   sample,
   status: "ok",
   error: undefined,
@@ -55,7 +55,7 @@ export const deriveSampleData = ({
   query,
   running,
   finalizedSample,
-}: SampleDataInputs): SampleData => {
+}: SampleDataInputs): EvalSampleData => {
   // Without a summary the sample isn't loadable yet (the legacy loader
   // waited for it too), so idle rather than reading as loading.
   if (handle === undefined || summary === undefined) {
@@ -126,10 +126,10 @@ export const deriveSampleData = ({
  * summary settles before the stream finalizes, the stream's cached events
  * bridge the completed fetch.
  */
-export const useSampleData = (
+export const useEvalSampleData = (
   logDir: string,
   handle: SampleHandle | undefined
-): SampleData => {
+): EvalSampleData => {
   const summaries = useSampleSummaries(logDir, handle?.logFile);
   const summary = useMemo(
     () =>
@@ -163,13 +163,13 @@ export const useSampleData = (
  * — a passive read that never fetches (see `usePassiveEvalSample` for the
  * cache-rendezvous contract). Absence is a normal answer, not a loading
  * state; the authoritative status for a sample being *shown* is
- * `useSampleData`'s. For surfaces that must stay fetch-free (e.g. the
+ * `useEvalSampleData`'s. For surfaces that must stay fetch-free (e.g. the
  * invalidation banner in the title bar).
  */
-export const usePassiveSampleData = (
+export const usePassiveEvalSampleData = (
   logDir: string,
   handle: SampleHandle | undefined
-): SampleData | undefined => {
+): EvalSampleData | undefined => {
   const sample = usePassiveEvalSample(logDir, handle);
   return useMemo(
     () => (sample === undefined ? undefined : settledSampleData(sample)),

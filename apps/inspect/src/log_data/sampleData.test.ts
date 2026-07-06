@@ -13,7 +13,7 @@ import { RunningSampleData } from "./runningSampleQuery";
 import {
   deriveSampleData,
   SampleDataInputs,
-  usePassiveSampleData,
+  usePassiveEvalSampleData,
 } from "./sampleData";
 import { sampleQueryKey } from "./sampleQuery";
 
@@ -145,15 +145,18 @@ describe("deriveSampleData", () => {
   });
 });
 
-describe("usePassiveSampleData", () => {
+describe("usePassiveEvalSampleData", () => {
   test("undefined while nothing is resident; SampleData once a writer primes the entry", async () => {
     const client = new QueryClient();
     const Wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children);
 
-    const { result } = renderHook(() => usePassiveSampleData("/logs", handle), {
-      wrapper: Wrapper,
-    });
+    const { result } = renderHook(
+      () => usePassiveEvalSampleData("/logs", handle),
+      {
+        wrapper: Wrapper,
+      }
+    );
     expect(result.current).toBeUndefined();
 
     const primed = sample({ events: [{} as never] });

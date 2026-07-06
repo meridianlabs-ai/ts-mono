@@ -94,16 +94,16 @@ invariant holds.
 - `useRunningMetrics(logDir, logFile)` (`log_data/pendingSamples.ts`) — a
   running eval's live metrics. That they travel in the pending-samples
   buffer is subsystem-private.
-- `useSampleData(logDir, handle)` (`log_data/sampleData.ts`) — a sample's
+- `useEvalSampleData(logDir, handle)` (`log_data/sampleData.ts`) — a sample's
   EvalSample, stream, and status as one derivation. Which path serves the EvalSample
   (completed fetch, error-summary fallback, live stream, finalize handoff)
   is subsystem-private.
-- `usePassiveSampleData(logDir, handle)` (`log_data/sampleData.ts`) — the
-  SampleData for a handle iff its EvalSample is resident, read passively
+- `usePassiveEvalSampleData(logDir, handle)` (`log_data/sampleData.ts`) — the
+  EvalSampleData for a handle iff its EvalSample is resident, read passively
   (never fetches); else undefined. Absence is a normal answer: the EvalSample
   is resident only while the sample is (recently) loaded. For surfaces that
   must stay fetch-free (e.g. the invalidation banner in the title bar);
-  anything that *wants* the sample uses `useSampleData`.
+  anything that *wants* the sample uses `useEvalSampleData`.
 - `useLog(logDir, logFile)` (`log_data/log.ts`) — one log at detailed depth:
   its header as `LogDataState<LogHeader>` (`{data, loading, error}`): a
   per-entity db-backed cache entry (evictable; the Dexie row re-seeds on
@@ -138,7 +138,7 @@ data and it stays current.
 | Local log database | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job). | inside the engine; instance in `log_data/databaseServiceInstance.ts` |
 | Discovery | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode. | `log_data/listingSync.ts` |
 | Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`. | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts` |
-| Sample queries | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
+| Sample queries | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useEvalSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
 | Sample fetch | Completed EvalSamples: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
 | Sample streaming | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions. | `log_data/sampleStream.ts` |
 
@@ -158,8 +158,8 @@ writes; a binding that grows a queryFn has sunk too low.
   `useRunningMetrics(logDir, selectedLogFile)`. (`state/hooks.ts`)
 - **Sample-summaries binding** — `useSelectedSampleSummaries()` delegates to
   `useSampleSummaries(logDir, selectedLogFile)`. (`state/hooks.ts`)
-- **Sample-data binding** — `useSelectedSampleData()` delegates to
-  `useSampleData(logDir, selectedSampleHandle)`; likewise
+- **Sample-data binding** — `useSelectedEvalSampleData()` delegates to
+  `useEvalSampleData(logDir, selectedSampleHandle)`; likewise
   `useSelectedSampleInvalidation()`. (`state/hooks.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
   details query settling: recording `loadedLog`, per-log score resets,
@@ -230,7 +230,7 @@ Server-data medium        react-query cache ←─ acquisition sink; queries:
 Log-data acquisition      surface: data hooks (useLogsSync / useLogListing /
        │                  useLog / useSamplesListing / useSampleSummaries /
        │                  useScoreSchema / useRunningMetrics /
-       │                  useSampleData / usePassiveSampleData /
+       │                  useEvalSampleData / usePassiveEvalSampleData /
        │                  useLogFetchState / useDatabaseStats) ·
        │                  imperativeLogData (invalidateLogDetail /
        │                  invalidateLogListing / clearData)

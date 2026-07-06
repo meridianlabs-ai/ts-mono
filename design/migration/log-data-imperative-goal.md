@@ -112,9 +112,9 @@ concept, `selectedSampleHandle`, owned by zustand, kept true by whichever
 surface the user is driving. Selection is an **identity claim only**: it
 never implies the sample's EvalSample is cache-resident (grid selection
 must stay fetch-free). Surfaces that *decorate* selection (the invalidation
-chip) therefore read passively (`usePassiveSampleData`) and treat absence as
+chip) therefore read passively (`usePassiveEvalSampleData`) and treat absence as
 a normal answer; only a detail view — which shows the sample — acquires it
-(`useSampleData`).
+(`useEvalSampleData`).
 
 Landed alongside this goal (commit `318e2192`, "controlled grid selection"),
 accepted deliberately but **needs sign-off from Charles before the branch

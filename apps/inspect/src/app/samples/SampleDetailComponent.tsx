@@ -7,7 +7,7 @@ import {
 } from "@tsmono/react/components";
 
 import { FindBand } from "../../components/FindBand";
-import { useSelectedSampleData } from "../../state/hooks";
+import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { ApplicationIcons } from "../appearance/icons";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -91,7 +91,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   } = navbarConfig;
 
   // Sample data and status
-  const sampleData = useSelectedSampleData();
+  const sampleData = useSelectedEvalSampleData();
   const sample = sampleData.sample;
 
   // Returns true when sample is undefined (no stale data to worry about —

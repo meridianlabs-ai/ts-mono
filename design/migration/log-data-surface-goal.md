@@ -24,29 +24,29 @@ useLogDetails(logDir)                      // Record<string, LogDetails>
 useLogDetail(logDir, logFile)              // one log's details
 useSampleSummaries(logDir, logFile)        // SampleSummary[] (merged, live)
 useRunningMetrics(logDir, logFile)         // a running eval's metrics
-useSampleData(logDir, handle)              // SampleData: body/stream/status, one state machine
+useEvalSampleData(logDir, handle)          // EvalSampleData: body/stream/status, one state machine
 usePassiveEvalSample(logDir, handle)       // passive body read (fetch-free surfaces, e.g. the banner)
 useDatabaseStats()                         // local-db stats (options popover)
 ```
 
 Success is measured by reduction: `useSample`, `useRunningSample`,
 `useCachedSample`, `usePendingSamples`, and `useFetchEngineStatus` leave the
-barrel; the `useSampleData` state machine leaves `state/hooks.ts`; no summary
+barrel; the `useEvalSampleData` state machine leaves `state/hooks.ts`; no summary
 parameters remain on sample hooks.
 
 ## Scope
 
 IN:
 
-- **Sample data → one hook.** The `useSampleData` derivation
+- **Sample data → one hook.** The `useEvalSampleData` derivation
   (`state/hooks.ts:414`, ~90 lines: completed vs streaming path selection,
   cached-event bridging, finalize handoff) moves into log_data as
-  `useSampleData(logDir, handle): SampleData`. The trio (`useSample`,
+  `useEvalSampleData(logDir, handle): EvalSampleData`. The trio (`useSample`,
   `useRunningSample`, `useCachedSample`) becomes interior. The `summary`
   params die: log_data looks up the sample's merged summary itself
-  (`useSampleSummaries` / `getSampleSummaries`). `SampleData` /
+  (`useSampleSummaries` / `getSampleSummaries`). `EvalSampleData` /
   `SampleStatus` types travel with the hook. state/ keeps
-  `useSelectedSampleData()` as a selection binding.
+  `useSelectedEvalSampleData()` as a selection binding.
 - **`useSampleInvalidation(logDir, handle)`** — the passive cache read
   (today `state/hooks.ts:495` over `useCachedSample`) becomes a log_data
   export, preserving its never-fetch/never-keep-alive semantics. state/
@@ -110,7 +110,7 @@ OUT (future goals):
   - No log_data hook body calls `useLogDir()` (params only; `state/`
     bindings do the ambient read).
   - `state/hooks.ts` contains no sample-path state machine — only selection
-    bindings delegating to log_data (`useSelectedSampleData`,
+    bindings delegating to log_data (`useSelectedEvalSampleData`,
     `useSelectedSampleSummaries`, `useSelectedRunningMetrics`, …).
 - **Unit tests**: the moved state machine keeps table-driven coverage in
   `log_data/` (path selection, finalize handoff, error-summary fallback,
@@ -139,7 +139,7 @@ OUT (future goals):
 - **Passive reads stay passive**: `useSampleInvalidation` must not keep the
   sample query alive or trigger fetches (today's `skipToken` semantics).
 - **Types**: a hook's return type is exported iff a consumer names it in an
-  annotation (`SampleData` yes; keep the barrel's type surface as lean as
+  annotation (`EvalSampleData` yes; keep the barrel's type surface as lean as
   its value surface). No `any`/type assertions in `src`.
 - **Naming**: `useX(params)` in log_data answers "what is X for these
   params"; `useSelectedX()` bindings in state/. Domain nouns, not transport
@@ -165,7 +165,7 @@ OUT (future goals):
   1) `useRunningMetrics`; pending buffer interior.
   2) `useLogsSync` → `ListingStatus`; `useFetchEngineStatus` retired;
      `useDatabaseStats`.
-  3) `useSampleData` + `useSampleInvalidation` into log_data; trio interior;
+  3) `useEvalSampleData` + `useSampleInvalidation` into log_data; trio interior;
      summary params retired; state bindings.
   4) Conventions sweep (explicit `logDir`, return shapes, naming) +
      `domain-ownership.md`.
@@ -176,7 +176,7 @@ OUT (future goals):
   `getSampleSummaries` moved the summary merge into log_data (`360fcda2`);
   `imperativeLogData` formalized the imperative surface — the target shape
   in miniature.
-- Inventory — fractured sample API: `useSampleData` state machine at
+- Inventory — fractured sample API: `useEvalSampleData` state machine at
   `state/hooks.ts:414`; `summary` params at `log_data/sampleQuery.ts:55` and
   `log_data/runningSampleQuery.ts:201`; passive invalidation read at
   `state/hooks.ts:495`.
