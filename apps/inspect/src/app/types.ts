@@ -28,7 +28,7 @@ import {
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
-import { EvalHeader, SampleSummary } from "../client/api/types";
+import { SampleSummary } from "../client/api/types";
 
 import type { SamplesViewState } from "./samples/list/samplesView";
 
@@ -72,7 +72,6 @@ export interface DisplayedSample {
 export interface LogsState {
   selectedLogFile?: string;
   listing: LogsListing;
-  pendingRequests: Map<string, Promise<EvalHeader | null>>;
   samplesListState: {
     // samplesPanel is cross-log by nature (lists samples from many logs in
     // a directory); it keeps the single-bucket shape. The single-log view

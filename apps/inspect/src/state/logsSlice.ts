@@ -2,7 +2,6 @@ import { GridState } from "ag-grid-community";
 
 import type { SamplesViewState } from "../app/samples/list/samplesView";
 import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
-import { EvalHeader } from "../client/api/types";
 
 import { StoreState } from "./store";
 
@@ -45,7 +44,6 @@ const initialState: LogsState = {
     columnVisibility: {},
     gridStateByScope: {},
   },
-  pendingRequests: new Map<string, Promise<EvalHeader | null>>(),
   samplesListState: {
     byScope: {
       samplesPanel: { columnVisibility: {} },
