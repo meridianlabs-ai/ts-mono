@@ -21,6 +21,9 @@ interface ApplicationNavbarProps {
   bordered?: boolean;
   children?: ReactNode;
   breadcrumbsEnabled?: boolean;
+  /** Extra loading signal for the activity bar (e.g. the log listing
+   *  syncing), ORed with the selected log's own loading state. */
+  loading?: boolean;
 }
 
 export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
@@ -29,12 +32,13 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   bordered,
   children,
   breadcrumbsEnabled,
+  loading: loadingProp = false,
 }) => {
   const [optionsEl, setOptionsEl] = useState<HTMLButtonElement | null>(null);
   const themePreference = useUserSettings((s) => s.themePreference);
   const setThemePreference = useUserSettings((s) => s.setThemePreference);
   const isDark = useResolvedIsDark(themePreference);
-  const loading = useSelectedLogLoading();
+  const loading = useSelectedLogLoading() || loadingProp;
 
   const isShowing = useStore((state) => state.app.dialogs.options);
   const setShowing = useStore(
