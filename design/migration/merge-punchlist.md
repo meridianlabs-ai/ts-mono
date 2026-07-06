@@ -25,19 +25,19 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
 - [x] **Charles: deleted `fullScreen` flag + log-history-sidebar CSS fossils** (commit `570fe436`).
   Confirmed with Charles — the deletion is good; no external CSS consumer.
   — `log-data-imperative-goal.md:166-181`
-- [ ] **Ctrl+F find band (Phase 5)** — **owner: Matt Brandly.** Required for merge (its absence
+- [ ] Matt **Ctrl+F find band (Phase 5)** — **owner: Matt Brandly.** Required for merge (its absence
   is a real regression vs origin/main). Not optional; must land before the branch merges.
   — `loglistgrid-tanstack.md:69,200`
-- [ ] **Confirm log-list column order divergence vs main is intentional.** Branch: Model after
+- [ ] Matt **Confirm log-list column order divergence vs main is intentional.** Branch: Model after
   Task, Sample Limits before Tokens; main: Model / Sample Limits at the end.
   — `loglistgrid-tanstack.md:223`
-- [~] **OK that `invalidateLogListing` survives until host-event normalization?** Accept-and-defer
+- [~] Eric **OK that `invalidateLogListing` survives until host-event normalization?** Accept-and-defer
   is the current stance; confirm.
   — `log-data-imperative-goal.md:259`
 
 ## 2. Blockers — verification (we run these; no new feature work)
 
-- [ ] **Replication still ensured across all paths vs main.** `ensureReplication` was deleted and
+- [ ] Eric **Replication still ensured across all paths vs main.** `ensureReplication` was deleted and
   `syncLogs` moved into `replicationControl.ts`. Confirm the replicator is (re)activated on
   dir-mode mount, on re-sync triggers (`useLogs`/`useClientEvents`), and on the VS Code
   `App.onMessage` background-update. Functional-regression risk; flagged in two docs.
@@ -50,12 +50,10 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
   — `reactive-refactor-goal.md:110`, `loglistgrid-tanstack.md:254`
 - [ ] **Green gates:** `pnpm typecheck && lint && format:check && test` + `top-level-views`
   e2e — all clean. (The "Done when" acceptance set common to every goal doc.)
-- [ ] **Re-enable or delete the 3 `describe.skip`'d suites** in `apps/inspect/e2e/log-list-filters.spec.ts`
+- [ ] Matt **Re-enable or delete the 3 `describe.skip`'d suites** in `apps/inspect/e2e/log-list-filters.spec.ts`
   (lines 202, 316, 344) — they were skipped pending the filter UI, which has since landed.
   — `loglistgrid-tanstack.md:136,152`
-- [ ] **Add the missing resize e2e** (resize-plan Task 6) + run the manual parity sweep (Task 7).
-  Resize Tasks 1–4 landed (`4d861806`, `65c6ebe0`, per-scope persistence in `LogListGrid.tsx`);
-  only the e2e + manual sweep are outstanding.
+- [ ] Matt **Add the missing resize e2e** (resize-plan Task 6) + run the manual parity sweep (Task 7). Resize Tasks 1–4 landed (`4d861806`, `65c6ebe0`, per-scope persistence in `LogListGrid.tsx`); only the e2e + manual sweep are outstanding.
   — `loglist-resize-columns-plan.md:607-694`
 
 ## 3. Correctness smells — decide keep-vs-fix before merge
@@ -63,42 +61,40 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
 These were parked under "deliberately deferred," but each is a real defect, not a feature gap.
 Confirm each is acceptable to ship, or fix.
 
-- [~] **`skipToken` for the logs-content query before `logDir` is known.** `state/logsContent.ts:24`
+- [~] Eric **`skipToken` for the logs-content query before `logDir` is known.** `state/logsContent.ts:24`
   runs/caches under an empty-string key before `logDir` hydrates.
   — `loglistgrid-tanstack.md:209`
-- [~] **Details error channel unreachable.** Details cache is passive with no error source, so
+- [X] OK to defer. **Details error channel unreachable.** Details cache is passive with no error source, so
   `useLogDetail`'s error branch never fires (absent ⇒ loading forever on a real fetch error).
   — `loglistgrid-tanstack.md:256`
-- [~] **Loading-state not derived from the query** (stale-flash guard). Explicitly accepted as a
-  follow-up by `reactive-refactor-goal.md:46-47` (dormant loading UI is OK) — likely defer, but
-  record the decision.
+- [~] Eric & Matt **Loading-state not derived from the query** (stale-flash guard). Explicitly accepted as a
+  follow-up by `reactive-refactor-goal.md:46-47` (dormant loading UI is OK) — likely defer, but record the decision.
   — `loglistgrid-tanstack.md:255`
 
 ## 4. Verification / tuning — likely non-blocking, confirm
 
-- [ ] Multi-column sort mechanics vs main (plain-click on 2nd header); add e2e. — `loglistgrid-tanstack.md:210`
-- [ ] `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — right numbers? — `log-data-unified-fetch-plan.md:434`
-- [ ] Attempts reset on restart (error text kept) — confirm intended. — `log-data-unified-fetch-plan.md:435`
+- [X] Multi-column sort mechanics vs main (plain-click on 2nd header); add e2e. — `loglistgrid-tanstack.md:210`
+- [ ] Eric `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — right numbers? — `log-data-unified-fetch-plan.md:434`
+- [ ] Eric Attempts reset on restart (error text kept) — confirm intended. — `log-data-unified-fetch-plan.md:435`
 
 ## 5. Feature & parity work required for merge (reclassified from backlog 2026-07-06)
 
 These were in the "out of scope" backlog; on review they must land in this PR. Feature/parity work,
 not verification or decisions.
 
-- [ ] **Auto-fit-to-grid-width** + user-resize-override suppression (Phase 6's other half). origin/main
-  had it via AG `autoSizeStrategy: fitGridWidth`; without it columns don't fill the width. — `loglistgrid-tanstack.md:71`
-- [ ] **Column pinning** (`type` icon col pinned-left) + **multi-line/preformatted cell tooltips**
+- [ ] Matt **Auto-fit-to-grid-width** + user-resize-override suppression (Phase 6's other half). origin/main had it via AG `autoSizeStrategy: fitGridWidth`; without it columns don't fill the width. — `loglistgrid-tanstack.md:71`
+- [ ] Matt **Column pinning** (`type` icon col pinned-left) + **multi-line/preformatted cell tooltips**
   (model-roles, task-args JSON — was `PreformattedTooltip`, now degraded to native `title`). — `loglistgrid-tanstack.md:74,75`
-- [ ] **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
+- [ ] Matt **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
   with header/segment names), **filter-code export** ("copy query"), **per-column filter clear +
   autocomplete** (autocomplete needs an inspect API for per-column distinct values). — `loglistgrid-tanstack.md:215,216,217`
-- [ ] **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
+- [ ] Eric **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
   **residual AG type-only imports** (dormant `GridState` slice in `app/types.ts`/`logsSlice`/`state/hooks`,
   `ColDef` picker shims, `IRowNode` in `gridComparators`). — `loglistgrid-tanstack.md:192`
-- [ ] **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
+- [ ] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
   auto-scroll, pinning/resize/reorder, grid-state persistence, Reset-Filters/filtered-count chrome,
   new-tab (Cmd/middle-click) row parity. **Check with Matt Brandly — likely has some of this done.** — `loglistgrid-tanstack.md:183-192,262`
-- [ ] **Fix cold-dir preview-tail pacing regression.** On a large cold dir, preview rows 26+ arrive at
+- [ ] Eric **Fix cold-dir preview-tail pacing regression.** On a large cold dir, preview rows 26+ arrive at
   details pace — slower than pre-branch (where light previews had their own queue). Demote synced
   missing-details backfill below the preview tail, or High-wave all cold previews. — `loglistgrid-tanstack.md:242`
 - [x] **eslint import-path / layering enforcement — DONE.** Satisfied by
