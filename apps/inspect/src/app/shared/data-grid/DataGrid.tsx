@@ -1,10 +1,12 @@
 import {
+  Column,
   ColumnDef,
   ColumnSizingState,
   flexRender,
   getCoreRowModel,
   Header,
   OnChangeFn,
+  Row,
   SortingState,
   useReactTable,
   VisibilityState,
@@ -14,6 +16,7 @@ import clsx from "clsx";
 import {
   DragEvent,
   KeyboardEvent,
+  memo,
   MouseEvent,
   ReactElement,
   RefObject,
@@ -358,24 +361,31 @@ export function DataGrid<TRow>({
 
   // Rotated headers (compact score columns) need a taller header row, and
   // extra trailing scroll width so the last label isn't clipped.
+  // `getVisibleLeafColumns` keeps its identity until visibility/order change,
+  // so this memo — and `afterRotatedIds`, which GridRow's memo compares by
+  // reference — stays stable across unrelated re-renders (resize, selection).
   const visibleColumns = table.getVisibleLeafColumns();
-  const anyRotated = visibleColumns.some(
-    (c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader
-  );
-  // Normal columns directly after a rotated block: the previous column's
-  // angled label anchors at the shared edge and fans over this column's
-  // header, so its diagonal would slice through header text sitting flush
-  // left. Indent those columns (header + body cells, so they stay aligned)
-  // past the diagonal.
-  const afterRotatedIds = new Set<string>();
-  visibleColumns.forEach((c, i) => {
-    const prev = visibleColumns[i - 1];
-    if (!prev) return;
-    const rotated = (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader;
-    const prevRotated = (prev.columnDef as ExtendedColumnDef<TRow>).meta
-      ?.rotateHeader;
-    if (prevRotated && !rotated) afterRotatedIds.add(c.id);
-  });
+  const { anyRotated, afterRotatedIds } = useMemo(() => {
+    const anyRotated = visibleColumns.some(
+      (c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader
+    );
+    // Normal columns directly after a rotated block: the previous column's
+    // angled label anchors at the shared edge and fans over this column's
+    // header, so its diagonal would slice through header text sitting flush
+    // left. Indent those columns (header + body cells, so they stay aligned)
+    // past the diagonal.
+    const afterRotatedIds = new Set<string>();
+    visibleColumns.forEach((c, i) => {
+      const prev = visibleColumns[i - 1];
+      if (!prev) return;
+      const rotated = (c.columnDef as ExtendedColumnDef<TRow>).meta
+        ?.rotateHeader;
+      const prevRotated = (prev.columnDef as ExtendedColumnDef<TRow>).meta
+        ?.rotateHeader;
+      if (prevRotated && !rotated) afterRotatedIds.add(c.id);
+    });
+    return { anyRotated, afterRotatedIds };
+  }, [visibleColumns]);
   const gapExtra = afterRotatedIds.size * kAfterRotatedGap;
   const effectiveHeaderHeight = anyRotated
     ? kRotatedHeaderHeight
@@ -663,56 +673,21 @@ export function DataGrid<TRow>({
           {virtualItems.map((virtualRow) => {
             const row = rows[virtualRow.index];
             if (!row) return null;
-            const isSelected = row.id === selectedId;
             return (
-              <div
+              <GridRow
                 key={row.id}
-                className={clsx(styles.row, isSelected && styles.rowSelected)}
-                style={{
-                  height: rowHeight,
-                  width: totalWidth + gapExtra,
-                  // scrollMargin shifts virtual offsets by the header height;
-                  // the tbody already sits below the in-flow header, so
-                  // subtract it.
-                  transform: `translateY(${virtualRow.start - effectiveHeaderHeight}px)`,
-                }}
-                onClick={(e) => handleRowClick(e, row.id, row.original)}
-                role="row"
-                aria-selected={isSelected}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const cellDef = cell.column
-                    .columnDef as ExtendedColumnDef<TRow>;
-                  const align = cellDef.meta?.align;
-                  const cellStyle = cellDef.meta?.cellStyle?.(row.original);
-                  return (
-                    <div
-                      key={cell.id}
-                      className={clsx(
-                        styles.cell,
-                        align === "center" && styles.cellCenter,
-                        afterRotatedIds.has(cell.column.id) &&
-                          styles.afterRotatedGap
-                      )}
-                      style={{
-                        width:
-                          cell.column.getSize() +
-                          (afterRotatedIds.has(cell.column.id)
-                            ? kAfterRotatedGap
-                            : 0),
-                        ...cellStyle,
-                      }}
-                      title={cellDef.titleValue?.(row.original)}
-                      role="gridcell"
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                row={row}
+                visibleColumns={visibleColumns}
+                isSelected={row.id === selectedId}
+                rowHeight={rowHeight}
+                width={totalWidth + gapExtra}
+                // scrollMargin shifts virtual offsets by the header height;
+                // the tbody already sits below the in-flow header, so
+                // subtract it.
+                top={virtualRow.start - effectiveHeaderHeight}
+                afterRotatedIds={afterRotatedIds}
+                onRowClick={handleRowClick}
+              />
             );
           })}
         </div>
@@ -725,6 +700,82 @@ export function DataGrid<TRow>({
     </div>
   );
 }
+
+interface GridRowProps<TRow> {
+  row: Row<TRow>;
+  /** Not read directly (`row.getVisibleCells()` re-derives the cells) — a
+   *  memo cache key so the row re-renders on visibility/order changes that
+   *  don't move `width` (e.g. reordering columns keeps the total size). */
+  visibleColumns: Column<TRow, unknown>[];
+  isSelected: boolean;
+  rowHeight: number;
+  width: number;
+  top: number;
+  afterRotatedIds: ReadonlySet<string>;
+  onRowClick: (
+    e: MouseEvent<HTMLDivElement>,
+    rowId: string,
+    row: TRow
+  ) => void;
+}
+
+function GridRowInner<TRow>({
+  row,
+  isSelected,
+  rowHeight,
+  width,
+  top,
+  afterRotatedIds,
+  onRowClick,
+}: GridRowProps<TRow>): ReactElement {
+  return (
+    <div
+      className={clsx(styles.row, isSelected && styles.rowSelected)}
+      style={{
+        height: rowHeight,
+        width,
+        transform: `translateY(${top}px)`,
+      }}
+      onClick={(e) => onRowClick(e, row.id, row.original)}
+      role="row"
+      aria-selected={isSelected}
+    >
+      {row.getVisibleCells().map((cell) => {
+        const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
+        const align = cellDef.meta?.align;
+        const cellStyle = cellDef.meta?.cellStyle?.(row.original);
+        return (
+          <div
+            key={cell.id}
+            className={clsx(
+              styles.cell,
+              align === "center" && styles.cellCenter,
+              afterRotatedIds.has(cell.column.id) && styles.afterRotatedGap
+            )}
+            style={{
+              width:
+                cell.column.getSize() +
+                (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
+              ...cellStyle,
+            }}
+            title={cellDef.titleValue?.(row.original)}
+            role="gridcell"
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Memoized row: skips re-rendering when a grid-level state change (selection
+ * move, header drag-over, filter popover) doesn't touch this row's props.
+ * Cell contents live in `row`, whose identity TanStack preserves while `data`
+ * is unchanged. React.memo erases generics, so restore the signature.
+ */
+const GridRow = memo(GridRowInner) as typeof GridRowInner;
 
 /**
  * Rotated (compact score) header cell. The 45° label hosts the text, sort
