@@ -1029,11 +1029,8 @@ export interface components {
             new_limit: number;
             /** Old Limit */
             old_limit: number;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "slow_start" | "steady_state_up" | "rate_limit";
+            /** Reason */
+            reason: ("slow_start" | "steady_state_up" | "rate_limit") | "manual";
             /** Timestamp */
             timestamp: number;
         };
