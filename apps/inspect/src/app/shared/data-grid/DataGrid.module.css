@@ -37,7 +37,8 @@
   text-align: left;
   font-weight: 400;
   color: var(--bs-secondary);
-  font-size: var(--inspect-font-size-small) !important;
+  font-size: var(--inspect-font-size-smallestest) !important;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
