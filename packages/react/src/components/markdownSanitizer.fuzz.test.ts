@@ -1,17 +1,20 @@
 // @vitest-environment jsdom
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import {
+  assertNoNewFinding,
+  classify,
   evaluateInput,
   findXssViolations,
-  formatFinding,
-  runFuzzer,
+  inputArb,
 } from "./markdownSanitizerFuzzer";
 
 // Overridable so the same suite doubles as a hunting tool:
-//   FUZZ_ITERATIONS=200000 FUZZ_SEED=42 pnpm vitest run markdownSanitizer.fuzz
-const ITERATIONS = Number(process.env.FUZZ_ITERATIONS ?? 3000);
-const SEED = Number(process.env.FUZZ_SEED ?? 0x9e3779b1);
+//   FUZZ_RUNS=200000 FUZZ_SEED=42 pnpm vitest run markdownSanitizer.fuzz
+// A failing run prints the shrunk counterexample plus the seed to replay it.
+const NUM_RUNS = Number(process.env.FUZZ_RUNS ?? 5000);
+const SEED = process.env.FUZZ_SEED ? Number(process.env.FUZZ_SEED) : undefined;
 
 describe("markdown sanitizer fuzzing", () => {
   it("does not flag benign markdown (oracle sanity check)", () => {
@@ -34,18 +37,17 @@ describe("markdown sanitizer fuzzing", () => {
     expect(evaluateInput("markdown", payload).violations).toEqual([]);
   });
 
-  // The core security invariant: nothing dangerous survives the sanitizer at
-  // either entry point (rendered markdown/MathJax, or post-processed HTML).
-  it(`finds no XSS bypass across ${ITERATIONS} fuzzed inputs`, () => {
-    const finding = runFuzzer({
-      iterations: ITERATIONS,
-      seed: SEED,
-      kinds: ["xss"],
-    });
-    if (finding) {
-      console.error(formatFinding(finding));
-    }
-    expect(finding).toBeNull();
+  // Core security invariant: across fast-check-generated adversarial inputs
+  // (hand-authored vectors + the cure53/DOMPurify corpus), nothing dangerous
+  // survives the sanitizer at either entry point, and it never throws with an
+  // unexpected error. fast-check shrinks any counterexample to a minimal repro.
+  it(`no new XSS bypass or unexpected throw (${NUM_RUNS} runs)`, () => {
+    fc.assert(
+      fc.property(inputArb, (input) => {
+        assertNoNewFinding(input);
+      }),
+      { numRuns: NUM_RUNS, seed: SEED }
+    );
   }, 120_000);
 
   // FINDING (fuzzer): sanitizeRenderedHtml throws — rather than returning
@@ -69,13 +71,9 @@ describe("markdown sanitizer fuzzing", () => {
     }
   );
 
-  // The fuzzer discovers the throw on its own when both kinds are reported.
-  it("fuzzer surfaces the sanitizer-throws defect", () => {
-    const finding = runFuzzer({
-      iterations: ITERATIONS,
-      seed: SEED,
-      kinds: ["sanitizer-threw"],
-    });
-    expect(finding?.kind).toBe("sanitizer-threw");
-  }, 120_000);
+  it("classify identifies the sanitizer-throws defect", () => {
+    expect(classify("html", "<svg><style>a{}</style></svg>").kind).toBe(
+      "sanitizer-threw"
+    );
+  });
 });

@@ -8,11 +8,17 @@
  * pipeline, and re-parses the output the same way the browser does to detect
  * anything dangerous that survived.
  *
- * Not a test framework file on purpose — the vitest wrapper drives it, and it
- * can also be run standalone. Uses a seeded RNG so every failure replays from
- * its seed.
+ * Generation and shrinking are delegated to fast-check: `inputArb` composes an
+ * adversarial corpus (hand-authored MathJax/style vectors + the cure53/DOMPurify
+ * payload set) into markdown/MathJax/HTML inputs, and fast-check reduces any
+ * counterexample to a minimal repro. The oracle (`findXssViolations`) and the
+ * pipeline runner (`evaluateInput`) are hand-written — fast-check only drives
+ * the search.
  */
 
+import fc from "fast-check";
+
+import { CURE53_PAYLOADS } from "./cure53Corpus";
 import { renderMarkdown, type MarkdownRenderer } from "./markdownRendering";
 import { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
 
@@ -156,23 +162,6 @@ export const evaluateInput = (mode: FuzzMode, input: string): EvalResult => {
 };
 
 // ---------------------------------------------------------------------------
-// Seeded RNG (mulberry32) — deterministic so a failing seed replays exactly.
-// ---------------------------------------------------------------------------
-
-const mulberry32 = (seed: number): (() => number) => {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-const pick = <T>(rng: () => number, items: readonly T[]): T =>
-  items[Math.floor(rng() * items.length)] as T;
-
-// ---------------------------------------------------------------------------
 // Adversarial corpus.
 // ---------------------------------------------------------------------------
 
@@ -267,91 +256,105 @@ const BREAKOUTS = [
   "&#0;",
 ];
 
-const withUrl = (rng: () => number, payload: string): string =>
-  payload.replace(/URL/g, () => pick(rng, DANGEROUS_URLS));
+// LaTeX/MathJax templates. `URL` is substituted with a dangerous URL.
+const LATEX_TEMPLATES = LATEX_PAYLOADS;
 
-const upperMaybe = (rng: () => number, s: string): string =>
-  rng() < 0.15 ? s.toUpperCase() : s;
-
-const spliceBreakout = (rng: () => number, s: string): string => {
-  if (rng() < 0.6 || s.length === 0) {
-    return s;
-  }
-  const at = Math.floor(rng() * s.length);
-  return s.slice(0, at) + pick(rng, BREAKOUTS) + s.slice(at);
-};
-
-type Wrapper = (rng: () => number, fragment: string) => string;
-
-const WRAPPERS: Wrapper[] = [
-  (_r, f) => f,
-  (_r, f) => `$${f}$`,
-  (_r, f) => `$$${f}$$`,
-  (_r, f) => `[link](${f})`,
-  (_r, f) => `![alt](${f})`,
-  (_r, f) => `\`${f}\``,
-  (_r, f) => `\n\n\`\`\`\n${f}\n\`\`\`\n\n`,
-  (_r, f) => `<code>${f}</code>`,
-  (_r, f) => `<sup>${f}</sup>`,
-  (_r, f) => `> ${f}`,
-  (_r, f) => `- ${f}`,
-  (_r, f) => `[ref]: ${f}`,
+// Named markdown/HTML wrappers. "none" is first so fast-check shrinks toward
+// the bare payload.
+const WRAPPERS: ReadonlyArray<{
+  name: string;
+  apply: (fragment: string) => string;
+}> = [
+  { name: "none", apply: (f) => f },
+  { name: "inline-math", apply: (f) => `$${f}$` },
+  { name: "block-math", apply: (f) => `$$${f}$$` },
+  { name: "md-link", apply: (f) => `[link](${f})` },
+  { name: "md-image", apply: (f) => `![alt](${f})` },
+  { name: "inline-code", apply: (f) => `\`${f}\`` },
+  { name: "fenced-code", apply: (f) => `\n\n\`\`\`\n${f}\n\`\`\`\n\n` },
+  { name: "html-code", apply: (f) => `<code>${f}</code>` },
+  { name: "html-sup", apply: (f) => `<sup>${f}</sup>` },
+  { name: "blockquote", apply: (f) => `> ${f}` },
+  { name: "list-item", apply: (f) => `- ${f}` },
+  { name: "ref-def", apply: (f) => `[ref]: ${f}` },
 ];
 
-const PAYLOAD_SOURCES = [
-  (rng: () => number) => withUrl(rng, pick(rng, HTML_PAYLOADS)),
-  (rng: () => number) => withUrl(rng, pick(rng, LATEX_PAYLOADS)),
-  (rng: () => number) => pick(rng, ENTITY_PAYLOADS),
-  (rng: () => number) => pick(rng, DANGEROUS_URLS),
-];
+// ---------------------------------------------------------------------------
+// fast-check arbitraries. A fragment is a corpus payload, optionally wrapped in
+// a markdown/HTML context, optionally upper-cased, optionally spliced with a
+// context-breakout sequence. An input is 1-4 fragments joined under one mode.
+// fast-check shrinks the record fields (fewer fragments, "none" wrapper, no
+// breakout, earlier corpus entries), yielding clean minimal repros for free.
+// ---------------------------------------------------------------------------
 
-const makeFragment = (rng: () => number): string => {
-  const payload = pick(rng, PAYLOAD_SOURCES)(rng);
-  const wrapped = pick(rng, WRAPPERS)(rng, payload);
-  return spliceBreakout(rng, upperMaybe(rng, wrapped));
-};
+const dangerousUrlArb = fc.constantFrom(...DANGEROUS_URLS);
+
+const payloadArb: fc.Arbitrary<string> = fc.oneof(
+  fc.constantFrom(...CURE53_PAYLOADS),
+  fc.constantFrom(...HTML_PAYLOADS),
+  fc.constantFrom(...ENTITY_PAYLOADS),
+  dangerousUrlArb,
+  fc
+    .tuple(fc.constantFrom(...LATEX_TEMPLATES), dangerousUrlArb)
+    .map(([template, url]) => template.replace(/URL/g, url))
+);
+
+const fragmentArb: fc.Arbitrary<string> = fc
+  .record({
+    payload: payloadArb,
+    wrapper: fc.constantFrom(...WRAPPERS),
+    upper: fc.boolean(),
+    breakout: fc.option(fc.constantFrom(...BREAKOUTS), { nil: undefined }),
+    breakoutPos: fc.nat(),
+  })
+  .map(({ payload, wrapper, upper, breakout, breakoutPos }) => {
+    let fragment = wrapper.apply(payload);
+    if (upper) {
+      fragment = fragment.toUpperCase();
+    }
+    if (breakout !== undefined) {
+      const at = breakoutPos % (fragment.length + 1);
+      fragment = fragment.slice(0, at) + breakout + fragment.slice(at);
+    }
+    return fragment;
+  });
 
 export interface FuzzInput {
   mode: FuzzMode;
   input: string;
 }
 
-export const generateInput = (rng: () => number): FuzzInput => {
-  const modeRoll = rng();
-  const mode: FuzzMode =
-    modeRoll < 0.55 ? "markdown" : modeRoll < 0.75 ? "fragment" : "html";
-
-  const count = 1 + Math.floor(rng() * 4);
-  const fragments: string[] = [];
-  for (let i = 0; i < count; i++) {
-    fragments.push(makeFragment(rng));
-  }
-
-  const separator = mode === "html" ? "" : pick(rng, ["\n\n", "\n", " ", ""]);
-  return { mode, input: fragments.join(separator) };
-};
+export const inputArb: fc.Arbitrary<FuzzInput> = fc
+  .record({
+    mode: fc.constantFrom<FuzzMode>("markdown", "fragment", "html"),
+    fragments: fc.array(fragmentArb, { minLength: 1, maxLength: 4 }),
+    separator: fc.constantFrom("\n\n", "\n", " ", ""),
+  })
+  .map(({ mode, fragments, separator }) => ({
+    mode,
+    input: fragments.join(mode === "html" ? "" : separator),
+  }));
 
 // ---------------------------------------------------------------------------
-// A finding is either an XSS bypass (something dangerous survived) or a thrown
-// exception. A sanitizer that throws is itself a defect: callers treat it as
-// total (it feeds `dangerouslySetInnerHTML`), so a throw becomes a render
+// Classification + property. A finding is either an XSS bypass (something
+// dangerous survived) or a thrown exception. `sanitizeRenderedHtml` feeds
+// `dangerouslySetInnerHTML`, so a throw is itself a defect: it becomes a render
 // crash / failed-to-display rather than safe output.
 // ---------------------------------------------------------------------------
 
-export type FindingKind = "xss" | "sanitizer-threw";
+export type FindingKind = "ok" | "xss" | "sanitizer-threw";
 
-interface CheckResult {
-  kind: FindingKind | "ok";
+export interface Classification {
+  kind: FindingKind;
   violations: Violation[];
+  sanitized?: string;
   error?: string;
 }
 
-const check = (mode: FuzzMode, input: string): CheckResult => {
+export const classify = (mode: FuzzMode, input: string): Classification => {
+  let sanitized: string;
   try {
-    const { violations } = evaluateInput(mode, input);
-    return violations.length > 0
-      ? { kind: "xss", violations }
-      : { kind: "ok", violations: [] };
+    sanitized = evaluateInput(mode, input).sanitized;
   } catch (e) {
     return {
       kind: "sanitizer-threw",
@@ -359,130 +362,40 @@ const check = (mode: FuzzMode, input: string): CheckResult => {
       error: e instanceof Error ? e.message : String(e),
     };
   }
+  const violations = findXssViolations(sanitized);
+  return {
+    kind: violations.length ? "xss" : "ok",
+    violations,
+    sanitized,
+  };
 };
 
-// ---------------------------------------------------------------------------
-// Shrinking (ddmin-style): reduce a failing input while it still fails the
-// SAME way (same finding kind), so the minimal repro reproduces the finding.
-// ---------------------------------------------------------------------------
+// The already-documented DOMPurify double-remove throw (see the fuzz test's
+// `it.fails`). Tolerated here so the property surfaces only *new* findings; a
+// throw with any other message still fails.
+export const KNOWN_ISSUE_THROW = /refusing to sanitize in place/;
 
-const stillFails = (
-  mode: FuzzMode,
-  input: string,
-  kind: FindingKind
-): boolean => {
-  if (!input) {
-    return false;
-  }
-  return check(mode, input).kind === kind;
-};
-
-export const shrink = (
-  mode: FuzzMode,
-  input: string,
-  kind: FindingKind
-): string => {
-  let current = input;
-  let improved = true;
-
-  while (improved) {
-    improved = false;
-    let chunk = Math.max(1, Math.floor(current.length / 2));
-    while (chunk >= 1) {
-      let i = 0;
-      while (i < current.length) {
-        const candidate = current.slice(0, i) + current.slice(i + chunk);
-        if (stillFails(mode, candidate, kind)) {
-          current = candidate;
-          improved = true;
-        } else {
-          i += chunk;
-        }
-      }
-      chunk = Math.floor(chunk / 2);
+/**
+ * fast-check property predicate. Throws (fails the run) on any new finding — an
+ * XSS bypass, or a sanitizer throw other than the known DOMPurify one — with a
+ * message that carries the minimal repro fast-check shrank to.
+ */
+export const assertNoNewFinding = ({ mode, input }: FuzzInput): void => {
+  const result = classify(mode, input);
+  if (result.kind === "sanitizer-threw") {
+    if (result.error && KNOWN_ISSUE_THROW.test(result.error)) {
+      return;
     }
-  }
-
-  return current;
-};
-
-export interface FuzzFinding {
-  kind: FindingKind;
-  seed: number;
-  iteration: number;
-  mode: FuzzMode;
-  input: string;
-  minimal: string;
-  sanitized?: string;
-  violations: Violation[];
-  error?: string;
-}
-
-export interface FuzzOptions {
-  iterations: number;
-  seed: number;
-  /** Which finding kinds to report. Defaults to both. */
-  kinds?: readonly FindingKind[];
-}
-
-/** Run the fuzzer and return the first failing input (shrunk), or null. */
-export const runFuzzer = (options: FuzzOptions): FuzzFinding | null => {
-  const { iterations, seed } = options;
-  const kinds = new Set<FindingKind>(
-    options.kinds ?? ["xss", "sanitizer-threw"]
-  );
-
-  for (let i = 0; i < iterations; i++) {
-    const iterSeed = (seed + i) >>> 0;
-    const rng = mulberry32(iterSeed);
-    const { mode, input } = generateInput(rng);
-
-    const result = check(mode, input);
-    if (result.kind === "ok" || !kinds.has(result.kind)) {
-      continue;
-    }
-
-    const minimal = shrink(mode, input, result.kind);
-    const minimalResult = check(mode, minimal);
-    return {
-      kind: result.kind,
-      seed: iterSeed,
-      iteration: i,
-      mode,
-      input,
-      minimal,
-      sanitized:
-        result.kind === "xss"
-          ? evaluateInput(mode, minimal).sanitized
-          : undefined,
-      violations: minimalResult.violations,
-      error: minimalResult.error,
-    };
-  }
-
-  return null;
-};
-
-export const formatFinding = (finding: FuzzFinding): string => {
-  const header =
-    finding.kind === "xss"
-      ? "XSS sanitization bypass found by fuzzer"
-      : "sanitizeRenderedHtml threw instead of returning sanitized HTML";
-  const lines = [
-    header,
-    `  seed:       ${finding.seed} (replay: FUZZ_SEED=${finding.seed} FUZZ_ITERATIONS=1)`,
-    `  mode:       ${finding.mode}`,
-    `  input:      ${JSON.stringify(finding.input)}`,
-    `  minimal:    ${JSON.stringify(finding.minimal)}`,
-  ];
-  if (finding.kind === "xss") {
-    lines.push(`  sanitized:  ${JSON.stringify(finding.sanitized)}`);
-    lines.push("  violations:");
-    lines.push(
-      ...finding.violations.map((v) => `    - ${v.kind}: ${v.detail}`)
+    throw new Error(
+      `sanitizer threw (${mode}): ${result.error}\n  input: ${JSON.stringify(input)}`
     );
-  } else {
-    lines.push(`  error:      ${finding.error}`);
   }
-  return lines.join("\n");
+  if (result.kind === "xss") {
+    throw new Error(
+      `XSS bypass (${mode}): ` +
+        result.violations.map((v) => `${v.kind}:${v.detail}`).join(", ") +
+        `\n  input: ${JSON.stringify(input)}` +
+        `\n  sanitized: ${JSON.stringify(result.sanitized)}`
+    );
+  }
 };
