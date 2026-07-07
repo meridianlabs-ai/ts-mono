@@ -122,8 +122,8 @@ export function buildSampleColumns(
 
   const cols: SampleColumn[] = [];
 
-  // # column — index. Cross-log only (single-log doesn't benefit from a
-  // separate index since rows are naturally ordered).
+  // # column — pinned-left index. Cross-log only (single-log doesn't benefit
+  // from a separate index since rows are naturally ordered).
   if (multiLog) {
     cols.push({
       id: "displayIndex",
@@ -133,6 +133,7 @@ export function buildSampleColumns(
       maxSize: 80,
       enableSorting: false,
       enableResizing: false,
+      pinned: "left",
       accessorFn: (row) => row.displayIndex,
       cell: ({ row }) => {
         const value = row.original.displayIndex;

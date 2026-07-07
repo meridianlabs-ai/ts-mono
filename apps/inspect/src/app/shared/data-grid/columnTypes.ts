@@ -46,6 +46,12 @@ export interface BaseColumnMeta<TRow = unknown> {
  */
 export type ExtendedColumnDef<TRow> = ColumnDef<TRow> & {
   meta?: BaseColumnMeta<TRow>;
+  /**
+   * Pin the column to the left edge: it orders before unpinned columns,
+   * stays visible under horizontal scroll (sticky), and is excluded from
+   * drag-reorder.
+   */
+  pinned?: "left";
   /** Tooltip text for the column header. */
   headerTitle?: string;
   /** Tooltip text for a cell, derived from the full row. */

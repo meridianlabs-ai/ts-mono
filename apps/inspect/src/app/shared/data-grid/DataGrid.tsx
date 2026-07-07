@@ -259,6 +259,24 @@ export function DataGrid<TRow>({
     [onColumnOrderChange]
   );
 
+  // Left-pinned columns, declared on the defs. Feeding TanStack's
+  // columnPinning state orders them before unpinned columns (overriding
+  // columnOrder); rendering keeps them visible under horizontal scroll via
+  // position: sticky. Pinned columns are immovable — excluded from
+  // drag-reorder as both source and target (matching the AG grid).
+  const columnPinning = useMemo(
+    () => ({
+      left: columns.flatMap((c) =>
+        c.pinned === "left" && c.id !== undefined ? [c.id] : []
+      ),
+    }),
+    [columns]
+  );
+  const pinnedLeft = useMemo(
+    () => new Set(columnPinning.left),
+    [columnPinning]
+  );
+
   // Drag-to-reorder. Native HTML5 drag on the header content (never the
   // resize handles, which are sibling elements): the browser's built-in
   // drag threshold keeps plain sort-clicks intact, and a real drag
@@ -308,7 +326,9 @@ export function DataGrid<TRow>({
 
   const handleHeaderDragOver = useCallback(
     (e: DragEvent<HTMLElement>, colId: string) => {
-      if (!draggedColId) return;
+      // Pinned columns are not drop targets: skipping preventDefault leaves
+      // the cell an invalid target (browser shows no-drop).
+      if (!draggedColId || pinnedLeft.has(colId)) return;
       // preventDefault marks the cell as a valid drop target.
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
@@ -325,7 +345,7 @@ export function DataGrid<TRow>({
           : { colId, side }
       );
     },
-    [draggedColId, effectiveColumnOrder]
+    [draggedColId, effectiveColumnOrder, pinnedLeft]
   );
 
   const handleHeaderDragLeave = useCallback((e: DragEvent<HTMLElement>) => {
@@ -342,14 +362,14 @@ export function DataGrid<TRow>({
   const handleHeaderDrop = useCallback(
     (e: DragEvent<HTMLElement>, colId: string) => {
       e.preventDefault();
-      if (draggedColId) {
+      if (draggedColId && !pinnedLeft.has(colId)) {
         const next = moveColumn(effectiveColumnOrder, draggedColId, colId);
         if (next) commitColumnOrder(next);
       }
       setDraggedColId(null);
       setDropTarget(null);
     },
-    [draggedColId, effectiveColumnOrder, commitColumnOrder]
+    [draggedColId, effectiveColumnOrder, commitColumnOrder, pinnedLeft]
   );
 
   // Fires on the drag source after a drop OR a cancelled drag (Escape /
@@ -389,6 +409,7 @@ export function DataGrid<TRow>({
       sorting: sorting ?? [],
       columnSizing: effectiveSizing,
       columnOrder: effectiveColumnOrder,
+      columnPinning,
     },
     onSortingChange: handleSortingChange,
     onColumnSizingChange: handleColumnSizingChange,
@@ -587,6 +608,7 @@ export function DataGrid<TRow>({
 
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
+                const pinned = header.column.getIsPinned() === "left";
                 const sorted = header.column.getIsSorted();
                 const sortCaret = <SortIndicator header={header} />;
                 const headerLabel = header.isPlaceholder
@@ -620,6 +642,7 @@ export function DataGrid<TRow>({
                       anyRotated && styles.headerCellTall,
                       afterRotatedIds.has(header.column.id) &&
                         styles.afterRotatedGap,
+                      pinned && styles.headerCellPinned,
                       isDragSource && styles.headerCellDragSource,
                       dropSide === "left" && styles.headerCellDropLeft,
                       dropSide === "right" && styles.headerCellDropRight
@@ -630,6 +653,11 @@ export function DataGrid<TRow>({
                         (afterRotatedIds.has(header.column.id)
                           ? kAfterRotatedGap
                           : 0),
+                      ...(pinned && {
+                        position: "sticky" as const,
+                        left: header.column.getStart("left"),
+                        zIndex: 3,
+                      }),
                     }}
                     title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
@@ -651,13 +679,17 @@ export function DataGrid<TRow>({
                         styles.headerContent,
                         align === "center" && styles.headerCellCenter
                       )}
-                      draggable
-                      onDragStart={(e) =>
-                        handleHeaderDragStart(
-                          e,
-                          header.column.id,
-                          resolveHeaderTitle(columnDef) ?? header.column.id
-                        )
+                      draggable={!pinned}
+                      onDragStart={
+                        pinned
+                          ? undefined
+                          : (e) =>
+                              handleHeaderDragStart(
+                                e,
+                                header.column.id,
+                                resolveHeaderTitle(columnDef) ??
+                                  header.column.id
+                              )
                       }
                       onDragEnd={handleHeaderDragEnd}
                       onClick={header.column.getToggleSortingHandler()}
@@ -746,11 +778,7 @@ interface GridRowProps<TRow> {
   width: number;
   top: number;
   afterRotatedIds: ReadonlySet<string>;
-  onRowClick: (
-    e: MouseEvent<HTMLDivElement>,
-    rowId: string,
-    row: TRow
-  ) => void;
+  onRowClick: (e: MouseEvent<HTMLDivElement>, rowId: string, row: TRow) => void;
 }
 
 function GridRowInner<TRow>({
@@ -778,18 +806,25 @@ function GridRowInner<TRow>({
         const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
         const align = cellDef.meta?.align;
         const cellStyle = cellDef.meta?.cellStyle?.(row.original);
+        const pinned = cell.column.getIsPinned() === "left";
         return (
           <div
             key={cell.id}
             className={clsx(
               styles.cell,
               align === "center" && styles.cellCenter,
-              afterRotatedIds.has(cell.column.id) && styles.afterRotatedGap
+              afterRotatedIds.has(cell.column.id) && styles.afterRotatedGap,
+              pinned && styles.cellPinned
             )}
             style={{
               width:
                 cell.column.getSize() +
                 (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
+              ...(pinned && {
+                position: "sticky" as const,
+                left: cell.column.getStart("left"),
+                zIndex: 1,
+              }),
               ...cellStyle,
             }}
             title={cellDef.titleValue?.(row.original)}
