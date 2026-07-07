@@ -147,6 +147,7 @@ export const SamplesGrid = ({
       scrollRef={scrollRef}
       onRowActivate={onRowOpen}
       rowHeight={rowHeight}
+      multiline={multiline}
       loading={loading}
     />
   );

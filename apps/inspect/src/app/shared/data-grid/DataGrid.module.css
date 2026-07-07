@@ -334,6 +334,14 @@
   justify-content: center;
 }
 
+/* Multiline (list) mode: rows are tall enough to host wrapped, line-clamped
+ * cells, so top-align content — a single-line cell then sits at the first line
+ * of its multiline neighbours instead of floating in the vertical centre of
+ * the tall row (matches the AG grid this replaced). */
+.multiline .cell {
+  align-items: flex-start;
+}
+
 /* Left-pinned cells (position/left/z-index are inline — the sticky offset
  * comes from the table's pinned-column geometry). They need an opaque
  * background so unpinned cells sliding underneath don't show through, which

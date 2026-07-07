@@ -159,6 +159,10 @@ export interface DataGridProps<TRow> {
   onRowActivate: (row: TRow) => void;
   rowHeight?: number;
   headerHeight?: number;
+  /** Tall, wrapping rows (list mode). Top-aligns cell content so a single-line
+   *  cell sits at the first line of its multiline neighbours rather than
+   *  floating in the vertical centre of the tall row. */
+  multiline?: boolean;
   loading?: boolean;
   emptyMessage?: string;
   className?: string;
@@ -194,6 +198,7 @@ export function DataGrid<TRow>({
   onRowActivate,
   rowHeight = kRowHeight,
   headerHeight = kHeaderHeight,
+  multiline = false,
   loading = false,
   emptyMessage = "No matching items",
   className,
@@ -668,7 +673,7 @@ export function DataGrid<TRow>({
       onKeyDown={handleKeyDown}
     >
       <div
-        className={styles.table}
+        className={clsx(styles.table, multiline && styles.multiline)}
         // Add the rotated-label trailing room to the width, not as padding:
         // `.table` is `box-sizing: border-box`, so `paddingRight` would shrink
         // the content box and make the full-width rows overflow it — a second,
