@@ -2,16 +2,20 @@
  * Pure fit-to-width layout for DataGrid columns, kept free of React/DOM so
  * the distribution rules are unit-testable (same split as columnReorder.ts).
  *
- * Replicates the AG grid layouts this DataGrid replaced:
- * - columns with `flex` absorb the leftover width proportionally to their
- *   weight (AG `initialFlex` — the samples grid's text columns);
- * - with no flex columns visible, every resizable column scales
- *   proportionally from its declared size to fill the width (AG
- *   `autoSizeStrategy: fitGridWidth` — the log list).
+ * The "roomy + scroll" policy (chosen over AG's literal shrink-to-fit,
+ * whose one-shot timing on the old grid produced comfortable widths in
+ * practice): auto-layout only ever GROWS columns to fill the viewport —
+ * 1. columns with `flex` absorb the leftover width proportionally to their
+ *    weight (AG `initialFlex` — the samples grid's text columns);
+ * 2. with no flex columns visible, every column scales up proportionally
+ *    from its declared size (AG `autoSizeStrategy: fitGridWidth` — the
+ *    log list), capped at `maxSize`.
+ * A column is never auto-compressed below its declared width; when the
+ * declared widths overflow the viewport the grid scrolls horizontally.
+ * `minSize` gates user drag-resizes, not the auto layout (it serves as the
+ * layout floor only for a flex column with no declared size).
  *
- * User-resized widths (`overrides`) always win and never redistribute; when
- * minimum widths can't fit, columns floor at `minSize` and the grid scrolls
- * horizontally.
+ * User-resized widths (`overrides`) always win and never redistribute.
  */
 
 export interface FitColumn {
@@ -21,18 +25,15 @@ export interface FitColumn {
   maxSize?: number;
   /** Flex weight; when set the column absorbs leftover width. */
   flex?: number;
-  /** false ⇒ never scaled (mirrors `enableResizing: false`). */
-  resizable?: boolean;
 }
 
 const kDefaultWidth = 150;
 
 const baseWidth = (c: FitColumn): number =>
   c.size ?? c.minSize ?? kDefaultWidth;
-const lo = (c: FitColumn): number => c.minSize ?? 20;
 const hi = (c: FitColumn): number => c.maxSize ?? Infinity;
 const clampWidth = (w: number, c: FitColumn): number =>
-  Math.min(Math.max(w, lo(c)), hi(c));
+  Math.min(Math.max(w, baseWidth(c)), hi(c));
 
 /**
  * Resolve the width of every visible column for the given available width.
@@ -50,31 +51,49 @@ export function resolveColumnWidths(
   }
   if (availableWidth <= 0) return widths;
 
-  const isFitted = (c: FitColumn): boolean => overrides[c.id] === undefined;
-  const flexCols = columns.filter((c) => (c.flex ?? 0) > 0 && isFitted(c));
-  const fitted =
-    flexCols.length > 0
-      ? flexCols
-      : columns.filter((c) => isFitted(c) && c.resizable !== false);
+  const fitted = columns.filter((c) => overrides[c.id] === undefined);
   if (fitted.length === 0) return widths;
-
-  const fittedSet = new Set(fitted);
-  const fixedTotal = columns.reduce(
-    (sum, c) => (fittedSet.has(c) ? sum : sum + widths[c.id]!),
+  const overriddenTotal = columns.reduce(
+    (sum, c) => (overrides[c.id] === undefined ? sum : sum + widths[c.id]!),
     0
   );
-  const weightOf =
-    flexCols.length > 0
-      ? (c: FitColumn) => c.flex ?? 0
-      : (c: FitColumn) => baseWidth(c);
-  distribute(fitted, availableWidth - fixedTotal, weightOf, widths);
+
+  // Stage 1: flex columns absorb the width left over by everything else.
+  const flexCols = fitted.filter((c) => (c.flex ?? 0) > 0);
+  if (flexCols.length > 0) {
+    const flexSet = new Set(flexCols);
+    const nonFlexTotal = columns.reduce(
+      (sum, c) => (flexSet.has(c) ? sum : sum + widths[c.id]!),
+      0
+    );
+    distribute(
+      flexCols,
+      availableWidth - nonFlexTotal,
+      (c) => c.flex ?? 0,
+      widths
+    );
+  }
+
+  // Stage 2: grow every fitted column proportionally from its current
+  // width until the total fills the available width. Skipped when the
+  // columns already fill (or overflow — no shrinking) the viewport.
+  const total = columns.reduce((sum, c) => sum + widths[c.id]!, 0);
+  if (total < availableWidth) {
+    distribute(
+      fitted,
+      availableWidth - overriddenTotal,
+      (c) => widths[c.id]!,
+      widths
+    );
+  }
   return widths;
 }
 
-/** Split `target` px across `cols` proportionally to weight, clamping to
- *  each column's min/max and redistributing what clamping frees up. Widths
- *  land in `out` as integers whose total never exceeds `target` (except
- *  when the minimums alone overflow it — then the grid scrolls). */
+/** Split `target` px across `cols` proportionally to weight, clamping each
+ *  column between its declared width and `maxSize`, and redistributing what
+ *  clamping frees up. Widths land in `out` as integers whose total never
+ *  exceeds `target` (except when the declared widths alone overflow it —
+ *  then the grid scrolls). */
 function distribute(
   cols: readonly FitColumn[],
   target: number,
@@ -82,9 +101,9 @@ function distribute(
   out: Record<string, number>
 ): void {
   const exact = new Map<string, number>();
-  const minTotal = cols.reduce((sum, c) => sum + lo(c), 0);
-  if (target <= minTotal) {
-    for (const c of cols) out[c.id] = lo(c);
+  const floorTotal = cols.reduce((sum, c) => sum + baseWidth(c), 0);
+  if (target <= floorTotal) {
+    for (const c of cols) out[c.id] = baseWidth(c);
     return;
   }
 
@@ -93,7 +112,7 @@ function distribute(
   while (active.length > 0) {
     const weightSum = active.reduce((sum, c) => sum + weightOf(c), 0);
     if (weightSum <= 0) {
-      for (const c of active) exact.set(c.id, lo(c));
+      for (const c of active) exact.set(c.id, baseWidth(c));
       break;
     }
     const clamped: FitColumn[] = [];

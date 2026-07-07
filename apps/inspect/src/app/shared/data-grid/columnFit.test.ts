@@ -34,14 +34,27 @@ describe("resolveColumnWidths — flex distribution", () => {
     });
   });
 
-  test("flex floors at minSize when space is short (total may overflow)", () => {
+  test("flex floors at its declared width when space is short (grid scrolls)", () => {
+    const cols: FitColumn[] = [
+      { id: "fixed", size: 300, minSize: 200 },
+      { id: "a", flex: 1, size: 160, minSize: 120 },
+      { id: "b", flex: 1, size: 160, minSize: 120 },
+    ];
+    // Auto-layout never compresses below declared widths — the roomy +
+    // horizontal-scroll policy. minSize gates user drag-resizes only.
+    const widths = resolveColumnWidths(cols, 400, {});
+    expect(widths).toEqual({ fixed: 300, a: 160, b: 160 });
+  });
+
+  test("a flex column without a declared size floors at its minSize", () => {
     const cols: FitColumn[] = [
       { id: "fixed", size: 300 },
       { id: "a", flex: 1, minSize: 120 },
-      { id: "b", flex: 1, minSize: 120 },
     ];
-    const widths = resolveColumnWidths(cols, 400, {});
-    expect(widths).toEqual({ fixed: 300, a: 120, b: 120 });
+    expect(resolveColumnWidths(cols, 350, {})).toEqual({
+      fixed: 300,
+      a: 120,
+    });
   });
 
   test("a maxSize-capped flex column yields its excess to the others", () => {
@@ -76,14 +89,12 @@ describe("resolveColumnWidths — proportional scaling (no flex)", () => {
     expect(resolveColumnWidths(cols, 800, {})).toEqual({ a: 200, b: 600 });
   });
 
-  test("shrinks when columns overflow, flooring at minSize", () => {
+  test("never shrinks below declared sizes when columns overflow (grid scrolls)", () => {
     const cols: FitColumn[] = [
       { id: "a", size: 400, minSize: 300 },
       { id: "b", size: 400 },
     ];
-    const widths = resolveColumnWidths(cols, 400, {});
-    expect(widths.a).toBe(300);
-    expect(widths.b).toBeLessThan(400);
+    expect(resolveColumnWidths(cols, 400, {})).toEqual({ a: 400, b: 400 });
   });
 
   test("maxSize caps growth and the remainder flows to uncapped columns", () => {
@@ -97,9 +108,12 @@ describe("resolveColumnWidths — proportional scaling (no flex)", () => {
     });
   });
 
-  test("non-resizable columns never scale", () => {
+  test("a min=max column stays pinned while the others fit around it", () => {
+    // `resizable: false` gates drag handles only — like AG, the fit still
+    // scales such columns; pinning a width means min === max (the log
+    // list's 32px type-icon column).
     const cols: FitColumn[] = [
-      { id: "icon", size: 32, resizable: false },
+      { id: "icon", size: 32, minSize: 32, maxSize: 32 },
       { id: "name", size: 100 },
     ];
     expect(resolveColumnWidths(cols, 532, {})).toEqual({
@@ -121,7 +135,7 @@ describe("resolveColumnWidths — proportional scaling (no flex)", () => {
 
   test("when every column is pinned in place the widths pass through", () => {
     const cols: FitColumn[] = [
-      { id: "a", size: 100, resizable: false },
+      { id: "a", size: 100, minSize: 100, maxSize: 100 },
       { id: "b", size: 100, maxSize: 100 },
     ];
     expect(resolveColumnWidths(cols, 900, {})).toEqual({ a: 100, b: 100 });

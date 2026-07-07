@@ -128,7 +128,9 @@ export function buildSampleColumns(
     cols.push({
       id: "displayIndex",
       header: "#",
-      size: 80,
+      // 65 matches what the AG grid actually rendered (its declared 80 was
+      // always squeezed by the initial fit-to-grid pass).
+      size: 65,
       minSize: 50,
       maxSize: 80,
       enableSorting: false,

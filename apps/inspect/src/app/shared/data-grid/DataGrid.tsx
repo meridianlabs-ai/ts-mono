@@ -476,7 +476,6 @@ export function DataGrid<TRow>({
               minSize: c.minSize,
               maxSize: c.maxSize,
               flex: c.flex,
-              resizable: c.enableResizing,
             },
           ]
     );
