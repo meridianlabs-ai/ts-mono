@@ -42,9 +42,12 @@ const specToFragment = (
 
   // Number-style operators.
   if (mapping.kind === "number") {
+    // `Number("")` is 0, which would silently synthesize `var == 0`;
+    // reject empty/whitespace values like every other malformed input.
+    if (spec.value.trim() === "") return null;
     const n = Number(spec.value);
-    // Reject NaN / Infinity — a mid-typed value (e.g. "I" parses as NaN),
-    // and `var == NaN` is invalid filtrex.
+    // Reject unparseable / non-finite raw values (NaN, Infinity) —
+    // `var == NaN` is invalid filtrex.
     if (!Number.isFinite(n)) return null;
     switch (op) {
       case "=":
@@ -60,6 +63,7 @@ const specToFragment = (
       case ">=":
         return `${v} >= ${numberLiteral(n)}`;
       case "between": {
+        if ((spec.value2 ?? "").trim() === "") return null;
         const n2 = Number(spec.value2);
         if (!Number.isFinite(n2)) return null;
         return `(${v} >= ${numberLiteral(n)} and ${v} <= ${numberLiteral(n2)})`;

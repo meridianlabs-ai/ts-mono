@@ -5,12 +5,26 @@ import type {
   FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 
+import type { ScoreLabel } from "../../types";
+import type { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
+
 import { astToSpecs, parseFilterSpecs } from "./astToSpecs";
 import { parseFilter } from "./filterAst";
 import { buildSampleFilterSpecRegistry } from "./filterSpecRegistry";
 import { specsToFilterText } from "./specsToFilterText";
 
 const registry = buildSampleFilterSpecRegistry(undefined);
+
+const descriptorWith = (
+  scores: Array<{ name: string; scorer: string; scoreType: string }>
+): EvalDescriptor =>
+  ({
+    scores: scores.map(({ name, scorer }) => ({ name, scorer })),
+    scoreDescriptor: ({ name, scorer }: ScoreLabel) => {
+      const match = scores.find((s) => s.name === name && s.scorer === scorer);
+      return { scoreType: match?.scoreType ?? "other" } as ScoreDescriptor;
+    },
+  }) as unknown as EvalDescriptor;
 
 const toSpecs = (text: string): Record<string, ColumnFilter> | null =>
   parseFilterSpecs(text, registry);
@@ -149,6 +163,34 @@ describe("astToSpecs / parseFilterSpecs — string columns", () => {
     expect(toSpecs("error == None")).toEqual({
       error: entry("error", { operator: "is blank", value: "" }),
     });
+  });
+
+  it("empty-string equality is recognized", () => {
+    // The popover treats an empty value as clear-on-apply, so this spec
+    // can display but re-applying it clears the filter.
+    expect(toSpecs('input == ""')).toEqual({
+      input: entry("input", { operator: "=", value: "" }),
+    });
+  });
+});
+
+describe("astToSpecs / parseFilterSpecs — score columns", () => {
+  it("recognizes qualified score variables and round-trips them", () => {
+    const reg = buildSampleFilterSpecRegistry(
+      descriptorWith([
+        { name: "score", scorer: "graderA", scoreType: "numeric" },
+        { name: "score", scorer: "graderB", scoreType: "numeric" },
+      ])
+    );
+    const specs = parseFilterSpecs("graderA.score > 0.5", reg);
+    expect(specs).toEqual({
+      score__graderA__score: {
+        columnId: "score__graderA__score",
+        filterType: "number",
+        spec: { operator: ">", value: "0.5" },
+      },
+    });
+    expect(specsToFilterText(specs!, reg)).toBe("graderA.score > 0.5");
   });
 });
 

@@ -16,16 +16,16 @@ export interface FilterVarMapping {
   /** Filtrex variable name. */
   variable: string;
   kind: FilterVarKind;
-  /** If present, prefer this filtrex function for `contains`-style ag-grid
-   *  predicates — matches the case-insensitive semantics of the existing
-   *  `_contains` helpers. */
+  /** If present, prefer this filtrex function for `contains`-style
+   *  column-filter predicates — matches the case-insensitive semantics of
+   *  the existing `_contains` helpers. */
   containsFn?: string;
 }
 
 export interface SampleFilterSpecRegistry {
-  /** Lookup by ag-grid `colId` → filtrex variable. */
+  /** Lookup by samples-grid column id → filtrex variable. */
   byColId: Map<string, FilterVarMapping>;
-  /** Lookup by filtrex variable name → ag-grid `colId`. */
+  /** Lookup by filtrex variable name → samples-grid column id. */
   byVariable: Map<string, string>;
 }
 

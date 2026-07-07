@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ColumnFilter,
   FilterSpec,
+  FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
 import { buildSampleFilterSpecRegistry } from "./filterSpecRegistry";
@@ -13,8 +14,8 @@ const registry = buildSampleFilterSpecRegistry(undefined);
 const spec = (
   colId: string,
   s: FilterSpec,
-  filterType = "string"
-): ColumnFilter => ({ columnId: colId, filterType, spec: s }) as ColumnFilter;
+  filterType: FilterType = "string"
+): ColumnFilter => ({ columnId: colId, filterType, spec: s });
 
 const toText = (entries: Record<string, FilterSpec>): string | null =>
   specsToFilterText(
@@ -53,6 +54,14 @@ describe("specsToFilterText", () => {
     expect(toText({ tokens: { operator: "=", value: "Infinity" } })).toBeNull();
     expect(
       toText({ tokens: { operator: "between", value: "1", value2: "x" } })
+    ).toBeNull();
+  });
+
+  it("rejects empty/whitespace numeric values (Number('') is 0)", () => {
+    expect(toText({ tokens: { operator: "=", value: "" } })).toBeNull();
+    expect(toText({ tokens: { operator: "=", value: "   " } })).toBeNull();
+    expect(
+      toText({ tokens: { operator: "between", value: " ", value2: "5" } })
     ).toBeNull();
   });
 
