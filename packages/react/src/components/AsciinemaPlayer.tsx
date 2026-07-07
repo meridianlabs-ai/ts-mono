@@ -1,21 +1,6 @@
-import { CSSProperties, FC, lazy, Suspense } from "react";
+import { FC, lazy, Suspense } from "react";
 
-interface AsciinemaPlayerProps {
-  id?: string;
-  inputUrl: string;
-  outputUrl: string;
-  timingUrl: string;
-  rows?: number;
-  cols?: number;
-  fit?: string;
-  style?: CSSProperties;
-  speed?: number;
-  autoPlay?: boolean;
-  loop?: boolean;
-  theme?: string;
-  idleTimeLimit?: number;
-  className?: string;
-}
+import type { AsciinemaPlayerProps } from "./AsciinemaPlayerImpl";
 
 const LazyAsciinemaPlayer = lazy(() => import("./AsciinemaPlayerImpl"));
 

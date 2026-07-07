@@ -723,12 +723,7 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
       cellStyle,
       valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
         const v = params.value as
-          | string
-          | number
-          | boolean
-          | object
-          | null
-          | undefined;
+          string | number | boolean | object | null | undefined;
         if (v === "" || v === null || v === undefined) return "";
         if (Array.isArray(v)) return v.join(", ");
         if (typeof v === "object") return JSON.stringify(v);

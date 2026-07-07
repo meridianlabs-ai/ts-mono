@@ -14,8 +14,7 @@ class ClientEventsService {
   private abortController: AbortController | null = null;
   private isRefreshing = false;
   private onRefreshCallback:
-    | ((reason: "event" | "periodic") => Promise<void>)
-    | null = null;
+    ((reason: "event" | "periodic") => Promise<void>) | null = null;
 
   setRefreshCallback(
     callback: (reason: "event" | "periodic") => Promise<void>

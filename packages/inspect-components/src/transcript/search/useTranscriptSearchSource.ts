@@ -419,7 +419,7 @@ function positionSelectionAroundTerm(
   const lowered = term.toLowerCase();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let target: { node: Text; idx: number } | null = null;
-  for (let node; (node = walker.nextNode()); ) {
+  for (let node; (node = walker.nextNode());) {
     const textNode = node as Text;
     const text = textNode.data.toLowerCase();
     let from = 0;
@@ -467,7 +467,7 @@ function reselectTermInPanel(eventId: string, term: string): boolean {
   }
   const lowered = term.toLowerCase();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let node; (node = walker.nextNode()); ) {
+  for (let node; (node = walker.nextNode());) {
     const idx = (node.textContent ?? "").toLowerCase().indexOf(lowered);
     if (idx === -1) continue;
     const range = document.createRange();

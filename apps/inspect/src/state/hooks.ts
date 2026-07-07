@@ -46,8 +46,7 @@ export const useScorePanelView = (): [
   const stored = useStore(
     (state) =>
       state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
-        | ScoreView
-        | undefined
+        ScoreView | undefined
   );
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -84,8 +83,7 @@ export const useScorePanelSort = (): [
   const stored = useStore(
     (state) =>
       state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
-        | ScorePanelSortState
-        | undefined
+        ScorePanelSortState | undefined
   );
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -114,9 +112,7 @@ export const resolveScorePanelSort = (
 // count-based default downstream.
 export const readEvalScorePanelView = (
   panel:
-    | { default?: ScoreView | null; view?: ScoreView | null }
-    | null
-    | undefined
+    { default?: ScoreView | null; view?: ScoreView | null } | null | undefined
 ): ScoreView | undefined => panel?.default ?? panel?.view ?? undefined;
 
 /**

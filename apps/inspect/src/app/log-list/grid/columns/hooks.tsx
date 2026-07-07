@@ -661,11 +661,7 @@ export const useLogListColumns = (
         resizable: true,
         valueFormatter: (params) => {
           const value = params.value as
-            | string
-            | number
-            | boolean
-            | null
-            | undefined;
+            string | number | boolean | null | undefined;
           if (value === "" || value === null || value === undefined) {
             return "";
           }
@@ -749,11 +745,7 @@ export const useLogListColumns = (
           },
           valueFormatter: (params) => {
             const value = params.value as
-              | string
-              | number
-              | boolean
-              | null
-              | undefined;
+              string | number | boolean | null | undefined;
             if (value === "" || value === null || value === undefined) {
               return "";
             }

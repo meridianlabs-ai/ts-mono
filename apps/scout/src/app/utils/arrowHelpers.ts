@@ -80,11 +80,7 @@ export const parseScanResultData = async (
   const label = getOptionalColumn<string>(filtered, "label");
   const explanation = getOptionalColumn<string>(filtered, "explanation");
   const inputType = filtered.get("input_type", 0) as
-    | "transcript"
-    | "message"
-    | "messages"
-    | "event"
-    | "events";
+    "transcript" | "message" | "messages" | "event" | "events";
   const scanError = getOptionalColumn<string>(filtered, "scan_error");
   const scanErrorTraceback = getOptionalColumn<string>(
     filtered,
@@ -257,11 +253,7 @@ export const parseScanResultSummaries = async (
       resolveTranscriptPropertiesFromMetadata(baseSummary);
 
       const inputType = r.input_type as
-        | "transcript"
-        | "message"
-        | "messages"
-        | "event"
-        | "events";
+        "transcript" | "message" | "messages" | "event" | "events";
 
       return { ...baseSummary, inputType };
     })

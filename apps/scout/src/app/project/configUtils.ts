@@ -125,17 +125,9 @@ function cleanGenerateConfig(
     if (key === "cache" || key === "batch") {
       const cleanedNested = cleanNestedConfig(
         editedValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined,
+          Record<string, unknown> | boolean | number | null | undefined,
         originalValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined
+          Record<string, unknown> | boolean | number | null | undefined
       );
       if (cleanedNested !== undefined) {
         result[key] = cleanedNested;
