@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
+  padding: 0 2px;
   border: none;
   background: transparent;
   color: var(--bs-secondary);
