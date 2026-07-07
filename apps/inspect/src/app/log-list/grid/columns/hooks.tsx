@@ -8,10 +8,10 @@ import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
 import {
-  type LogListingRow,
-  type ScorerMap,
   useLogListing,
   useScoreSchema,
+  type LogListingRow,
+  type ScorerMap,
 } from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
@@ -279,6 +279,8 @@ export const useLogListColumns = (
         maxSize: 120,
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.score,
+        textValue: (row) =>
+          row.score === undefined ? null : formatPrettyDecimal(row.score),
         cell: ({ row }) => {
           const item = row.original;
           if (item.score === undefined) {
@@ -476,6 +478,8 @@ export const useLogListColumns = (
         accessorFn: (row) => row.duration,
         titleValue: (row) =>
           row.duration === undefined ? undefined : formatTime(row.duration),
+        textValue: (row) =>
+          row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
           if (value === undefined || value === null) {
@@ -536,6 +540,10 @@ export const useLogListColumns = (
         maxSize: 140,
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.percentCompleted,
+        textValue: (row) =>
+          row.percentCompleted === undefined
+            ? null
+            : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
           if (value === undefined || value === null) {
@@ -603,6 +611,12 @@ export const useLogListColumns = (
               ? { sortComparator: numberCompare }
               : undefined,
           accessorFn: (row) => row[`score_${key}`],
+          textValue: (row) => {
+            const value = row[`score_${key}`];
+            if (typeof value === "number") return formatPrettyDecimal(value);
+            if (typeof value === "boolean") return String(value);
+            return typeof value === "string" && value !== "" ? value : null;
+          },
           cell: ({ getValue }) => {
             const value = getValue<
               string | number | boolean | null | undefined
@@ -673,6 +687,13 @@ export const useLogListColumns = (
           minSize: 100,
           meta: allNumeric ? { sortComparator: numberCompare } : undefined,
           accessorFn: (row) => readContributors(row)[0]?.value,
+          textValue: (row) => {
+            const first = readContributors(row)[0];
+            if (!first) return null;
+            return typeof first.value === "number"
+              ? formatPrettyDecimal(first.value)
+              : String(first.value);
+          },
           cell: ({ row }) => {
             const [first, ...extras] = readContributors(row.original);
             if (!first) return <EmptyCell />;

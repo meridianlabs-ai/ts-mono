@@ -1,6 +1,14 @@
 import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo } from "react";
+import {
+  FC,
+  KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { SimpleCondition } from "@tsmono/inspect-common/query";
@@ -10,9 +18,14 @@ import type {
 } from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
+import { FindBandUI } from "../../../components/FindBandUI";
 import { LogListingRow } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
+import {
+  buildSearchIndex,
+  findMatches,
+} from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
 import { combineFilters } from "../listing/combineFilters";
@@ -337,8 +350,110 @@ export const LogListGrid: FC<LogListGridProps> = ({
     setFilteredCount(folders.length + total_count);
   }, [folders.length, total_count, setFilteredCount]);
 
+  // Find (Cmd/Ctrl+F) — data-level search so matches include rows outside
+  // the virtualized window. The active match drives `selectedRowId`, which
+  // the DataGrid keeps scrolled into view.
+  const [showFind, setShowFind] = useState(false);
+  const [findTerm, setFindTerm] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const findInputRef = useRef<HTMLInputElement>(null);
+
+  const closeFind = useCallback(() => {
+    setShowFind(false);
+    setFindTerm("");
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const searchColumns = useMemo(
+    () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
+    [columns, visibility]
+  );
+
+  // Built only while the band is open; per-row text is then cached across
+  // keystrokes (each keystroke just re-scans the index).
+  const searchIndex = useMemo(
+    () =>
+      showFind
+        ? buildSearchIndex(displayRows, searchColumns, (row) => row.id)
+        : undefined,
+    [showFind, displayRows, searchColumns]
+  );
+  const matchIds = useMemo(
+    () => (searchIndex ? findMatches(searchIndex, findTerm) : []),
+    [searchIndex, findTerm]
+  );
+
+  const handleFindTermChange = useCallback(() => {
+    setFindTerm(findInputRef.current?.value ?? "");
+    // New term: jump back to the first match.
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const goToMatch = useCallback(
+    (index: number) => {
+      if (matchIds.length === 0) return;
+      setCurrentMatchIndex(
+        ((index % matchIds.length) + matchIds.length) % matchIds.length
+      );
+    },
+    [matchIds.length]
+  );
+
+  // Clamp: a data flush can shrink the match list under a stale index.
+  const activeMatchIndex = Math.min(
+    currentMatchIndex,
+    Math.max(matchIds.length - 1, 0)
+  );
+  const activeMatchId =
+    matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
+
+  const handleFindInputKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Escape") {
+        closeFind();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        goToMatch(activeMatchIndex + (e.shiftKey ? -1 : 1));
+      }
+    },
+    [goToMatch, activeMatchIndex, closeFind]
+  );
+
+  useEffect(() => {
+    const handleFindKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowFind(true);
+        setTimeout(() => findInputRef.current?.focus(), 100);
+      }
+      if (e.key === "Escape" && showFind) {
+        closeFind();
+      }
+    };
+    // Capture phase so the shortcut wins before the browser's own find.
+    document.addEventListener("keydown", handleFindKeyDown, true);
+    return () =>
+      document.removeEventListener("keydown", handleFindKeyDown, true);
+  }, [closeFind, showFind]);
+
   return (
     <div className={clsx(gridStyles.gridWrapper)}>
+      {showFind && (
+        <FindBandUI
+          inputRef={findInputRef}
+          value={findTerm}
+          onChange={handleFindTermChange}
+          onKeyDown={handleFindInputKeyDown}
+          onClose={closeFind}
+          onPrevious={() => goToMatch(activeMatchIndex - 1)}
+          onNext={() => goToMatch(activeMatchIndex + 1)}
+          disableNav={matchIds.length === 0}
+          noResults={!!findTerm && matchIds.length === 0}
+          matchCount={findTerm ? matchIds.length : undefined}
+          matchIndex={findTerm ? activeMatchIndex : undefined}
+        />
+      )}
       <div className={clsx(gridStyles.gridContainer)}>
         <DataGrid<LogListRow>
           key={scopeKey ?? "pending"}
@@ -354,6 +469,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnOrder={columnOrder}
           onColumnOrderChange={handleColumnOrderChange}
           getRowId={(row) => row.id}
+          selectedRowId={activeMatchId}
           onRowActivate={handleRowActivate}
           loading={data.length === 0 && busy}
         />

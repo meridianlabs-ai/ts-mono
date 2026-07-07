@@ -66,7 +66,7 @@ Every current `LogListGrid` feature must survive the migration. Phase 1 delibera
 | Client-side sorting incl. folder-pinned + NaN-aware/date comparators, sort indicators, per-`scopeKey` persistence | **2** ✅ |
 | Per-column filter UI (text/number/date popovers → `Condition`) + Reset Filters + filtered-count | **3** ✅ |
 | Keyboard navigation (arrows / Home / End / PgUp-Dn / Enter), scroll-into-view | **4** ✅ |
-| Ctrl+F find band (`FindBandUI`) | **5** |
+| Ctrl+F find band (`FindBandUI`) | **5** ✅ |
 | Column resizing | **6** |
 | Auto-fit-to-grid-width (`autoSizeStrategy: fitGridWidth`) + user-resize-override suppression | **6** |
 | Column resizing + per-scope width persistence | **6** |
@@ -170,6 +170,15 @@ Restored the arrow-key navigation origin/main had (its AG `LogListGrid` wired `c
 - **e2e:** `Keyboard navigation` describe in `top-level-views.spec.ts` — focus the grid, ↓/↓/↑ move `aria-selected`, Enter navigates under `/tasks/`.
 - **Verified:** typecheck/lint/format clean; resolver units + full `top-level-views` e2e (12) green.
 
+## Phase 5 — Ctrl+F find band — ✅ DONE
+
+Restored the log list's Cmd/Ctrl+F find (a self-contained block in the AG `LogListGrid` that phase 1 dropped — the tasks/logs views fell through to browser find, which only sees the virtualized window).
+
+- **Pure search module.** `shared/data-grid/findMatches.ts`: `buildSearchIndex(rows, columns, getRowId)` builds a lowercased per-row-id text map from the visible columns' `textValue` (display formatting) else raw `accessorFn` value (primitives only — objects are skipped, never `"[object Object]"`); columns join with `\n` so a term can't match across a column boundary. `findMatches(index, term)` returns matching ids in row order. Unit-tested in `findMatches.test.ts`.
+- **`textValue` populated** on the columns whose AG `valueFormatter` fed search on main: score / per-scorer / by-metric (`formatPrettyDecimal`), duration (`formatTime`), percentCompleted. Everything else searches its raw accessor value (matches main, which had no formatter on dates/counts).
+- **`LogListGrid` wiring.** Document-level capture keydown intercepts Cmd/Ctrl+F (blocks browser find) and shows `FindBandUI`; the index is built only while the band is open (memo over `displayRows` × visible columns) and re-scanned per keystroke; Enter / Shift+Enter / band arrows cycle with wraparound; the active match id feeds DataGrid's `selectedRowId`, reusing its scroll-into-view (phase 4) — so off-window matches scroll to and select, replacing AG's `ensureNodeVisible`.
+- **Verified:** typecheck/lint/format clean, 711 units green; scripted browser pass against the dev server on the tasks view (band opens focused, "i of n" counts, cycling scrolls a below-the-fold match into view + selects it, no-results state, Escape closes).
+
 ## Samples grid — stood up on DataGrid — ✅ (sort + filter wired)
 
 The shared `SamplesGrid` (used by both the cross-log `SamplesPanel` at `#/samples` and the single-log Samples tab via `SampleList`/`SamplesTab`) was swapped off AG Grid onto the inspect `DataGrid`, with client-side sorting and per-column filtering wired in. The remaining heavy/AG-specific features are deferred. What shipped:
@@ -193,11 +202,11 @@ The shared `SamplesGrid` (used by both the cross-log `SamplesPanel` at `#/sample
 
 ## Where we are & the path to a good point
 
-**Done (phases 1–4).** The log list renders every column across tasks/folder modes, navigates on click *and keyboard*, sorts (multi-sort, folder-pinned, persisted), filters (per-column popovers + Reset Filters + filtered-count), toggles column visibility (Columns popover + score-mode switch), and persists sort+filters per scope — all served from the react-query content cache, off the old zustand content path. What remains is parity polish and getting the log list fully off AG Grid.
+**Done (phases 1–5).** The log list renders every column across tasks/folder modes, navigates on click *and keyboard*, sorts (multi-sort, folder-pinned, persisted), filters (per-column popovers + Reset Filters + filtered-count), finds (Cmd/Ctrl+F band over all rows, not just the virtual window), toggles column visibility (Columns popover + score-mode switch), and persists sort+filters per scope — all served from the react-query content cache, off the old zustand content path. What remains is parity polish and getting the log list fully off AG Grid.
 
-**Bar for "a pretty good point":** parity with origin/main's AG log list on what users actually feel, with the log list no longer depending on `ag-grid-*`. Two phases remain, in this order:
+**Bar for "a pretty good point":** parity with origin/main's AG log list on what users actually feel, with the log list no longer depending on `ag-grid-*`. One phase remains:
 
-- **Phase 5 — Ctrl+F find.** Port `FindBandUI` + a per-row search string built from visible columns' `textValue`/accessor (replacing AG's `getCellValue` cache); scroll-to-match + select. A real regression vs origin/main if left out. (Reuses the scroll-into-view established in phase 4.)
+- **Phase 5 — Ctrl+F find.** ✅ DONE — see the Phase 5 section above.
 - **Phase 6 — Layout fit.** Auto-fit-to-grid-width (`autoSizeStrategy: fitGridWidth` analog) so columns fill the grid — the most visible "unfinished" gap today, since we currently render fixed widths + horizontal scroll — plus user drag-resize (`enableColumnResizing` + resizer UI) with resize-override suppression, persisting widths per scope alongside sort/filters. Done together because resize overrides auto-fit.
 
 After phase 6 the log-list migration is at a solid, shippable point. With the samples views also migrated, the only remaining AG Grid render is `ScoreAgGrid` (see below).
