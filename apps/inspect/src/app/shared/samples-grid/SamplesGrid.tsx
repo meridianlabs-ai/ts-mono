@@ -149,6 +149,7 @@ export const SamplesGrid = ({
       rowHeight={rowHeight}
       multiline={multiline}
       loading={loading}
+      autoFocus
     />
   );
 };
