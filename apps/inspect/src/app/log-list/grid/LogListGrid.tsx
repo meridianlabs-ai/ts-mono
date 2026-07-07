@@ -11,9 +11,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
   ColumnFilter,
+  FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
@@ -313,17 +313,13 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
 
   const handleColumnFilterChange = useCallback(
-    (
-      columnId: string,
-      filterType: FilterType,
-      condition: SimpleCondition | null
-    ) => {
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
       if (!scopeKey) return;
       const next: Record<string, ColumnFilter> = { ...columnFilters };
-      if (condition === null) {
+      if (spec === null) {
         delete next[columnId];
       } else {
-        next[columnId] = { columnId, filterType, condition };
+        next[columnId] = { columnId, filterType, spec };
       }
       setGridState(scopeKey, {
         sorting,

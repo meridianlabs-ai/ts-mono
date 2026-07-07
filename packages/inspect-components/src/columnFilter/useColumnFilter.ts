@@ -1,356 +1,108 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  ConditionBuilder,
-  type OperatorModel,
-  type ScalarValue,
-  type SimpleCondition,
-} from "@tsmono/inspect-common/query";
-import {
-  formatDateForInput,
-  formatDateTimeForInput,
-  parseDateFromInput,
-} from "@tsmono/util";
-
-import type { FilterType } from "./types";
-
-const OPERATORS_BY_TYPE: Record<FilterType, OperatorModel[]> = {
-  string: [
-    "=",
-    "!=",
-    "LIKE",
-    "NOT LIKE",
-    "ILIKE",
-    "NOT ILIKE",
-    "IN",
-    "NOT IN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-  number: [
-    "=",
-    "!=",
-    "<",
-    "<=",
-    ">",
-    ">=",
-    "IN",
-    "NOT IN",
-    "BETWEEN",
-    "NOT BETWEEN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-  boolean: ["=", "!=", "IS NULL", "IS NOT NULL"],
-  date: [
-    "=",
-    "!=",
-    "<",
-    "<=",
-    ">",
-    ">=",
-    "BETWEEN",
-    "NOT BETWEEN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-  datetime: [
-    "=",
-    "!=",
-    "<",
-    "<=",
-    ">",
-    ">=",
-    "BETWEEN",
-    "NOT BETWEEN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-  duration: [
-    "=",
-    "!=",
-    "<",
-    "<=",
-    ">",
-    ">=",
-    "BETWEEN",
-    "NOT BETWEEN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-  unknown: [
-    "=",
-    "!=",
-    "LIKE",
-    "NOT LIKE",
-    "ILIKE",
-    "NOT ILIKE",
-    "IN",
-    "NOT IN",
-    "IS NULL",
-    "IS NOT NULL",
-  ],
-};
-
-const OPERATORS_WITHOUT_VALUE = new Set<OperatorModel>([
-  "IS NULL",
-  "IS NOT NULL",
-]);
-
-const OPERATORS_WITH_LIST_VALUE = new Set<OperatorModel>(["IN", "NOT IN"]);
-
-const OPERATORS_WITH_RANGE_VALUE = new Set<OperatorModel>([
-  "BETWEEN",
-  "NOT BETWEEN",
-]);
-
-/** Formats a single scalar value for display in an input field. */
-const formatScalarValue = (
-  value: ScalarValue,
-  filterType?: FilterType
-): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  // For date/datetime types, ensure ISO format for native inputs
-  if (filterType === "date" && typeof value !== "boolean") {
-    return formatDateForInput(value);
-  }
-  if (filterType === "datetime" && typeof value !== "boolean") {
-    return formatDateTimeForInput(value);
-  }
-  return String(value);
-};
-
-/**
- * Formats a filter value (single, array, or tuple) for the primary input.
- * For BETWEEN operators, returns only the first value.
- */
-const formatFilterValue = (
-  value: SimpleCondition["right"] | undefined,
-  filterType?: FilterType
-): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  if (Array.isArray(value)) {
-    // Tuple for BETWEEN - return first value only
-    if (value.length === 2) {
-      return formatScalarValue(value[0], filterType);
-    }
-    // Array for IN/NOT IN - join with comma
-    return value.map((v) => formatScalarValue(v, filterType)).join(", ");
-  }
-  return formatScalarValue(value, filterType);
-};
-
-/** Formats the second value for BETWEEN operators. */
-const formatFilterValue2 = (
-  value: SimpleCondition["right"] | undefined,
-  filterType?: FilterType
-): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  if (Array.isArray(value) && value.length === 2) {
-    return formatScalarValue(value[1], filterType);
-  }
-  return "";
-};
-
-const parseFilterValue = (
-  filterType: FilterType,
-  rawValue: string
-): ScalarValue | undefined => {
-  switch (filterType) {
-    case "number":
-    case "duration": {
-      const parsed = Number(rawValue);
-      return Number.isFinite(parsed) ? parsed : undefined;
-    }
-    case "boolean":
-      if (rawValue === "true") return true;
-      if (rawValue === "false") return false;
-      return undefined;
-    case "date":
-    case "datetime":
-      return parseDateFromInput(rawValue);
-    case "unknown":
-    case "string":
-    default:
-      return rawValue;
-  }
-};
-
-/** Parses a comma-separated string into a list for IN/NOT IN. */
-const parseListValue = (
-  filterType: FilterType,
-  rawValue: string
-): ScalarValue[] | undefined => {
-  const parts = rawValue
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s !== "");
-  if (parts.length === 0) {
-    return undefined;
-  }
-  const parsed: ScalarValue[] = [];
-  for (const part of parts) {
-    const value = parseFilterValue(filterType, part);
-    if (value === undefined) {
-      return undefined;
-    }
-    parsed.push(value);
-  }
-  return parsed;
-};
-
-/** Parses two values into a tuple for BETWEEN/NOT BETWEEN. */
-const parseRangeValue = (
-  filterType: FilterType,
-  rawValue1: string,
-  rawValue2: string
-): [ScalarValue, ScalarValue] | undefined => {
-  const parsed1 = parseFilterValue(filterType, rawValue1);
-  const parsed2 = parseFilterValue(filterType, rawValue2);
-  if (parsed1 === undefined || parsed2 === undefined) {
-    return undefined;
-  }
-  return [parsed1, parsed2];
-};
+  LIST_VALUE_OPERATORS,
+  NO_VALUE_OPERATORS,
+  OPERATORS_BY_TYPE,
+  RANGE_VALUE_OPERATORS,
+} from "./operators";
+import { specToCondition } from "./specToCondition";
+import type { FilterSpec, FilterType, UiOperator } from "./types";
 
 export interface UseColumnFilterParams {
   columnId: string;
   filterType: FilterType;
-  condition: SimpleCondition | null;
+  /** The column's applied filter (editor state re-syncs from it on open). */
+  spec: FilterSpec | null;
   isOpen: boolean;
+  /** Override the operator choices (defaults to the full set for the type). */
+  operators?: UiOperator[];
 }
 
 export interface UseColumnFilterReturn {
-  operator: OperatorModel;
-  setOperator: (operator: OperatorModel) => void;
-  operatorOptions: OperatorModel[];
+  operator: UiOperator;
+  setOperator: (operator: UiOperator) => void;
+  operatorOptions: UiOperator[];
   value: string;
   setValue: (value: string) => void;
-  /** Second value for BETWEEN/NOT BETWEEN operators */
+  /** Second value for between/not between operators */
   value2: string;
   setValue2: (value: string) => void;
-  /** True if operator requires no value (IS NULL, IS NOT NULL) */
-  usesValue: boolean;
-  /** True if operator expects a list of values (IN, NOT IN) */
+  /** True if the operator takes no value (is blank / is not blank) — the value input is disabled. */
+  takesNoValue: boolean;
+  /** True if operator expects a list of values (in / not in) */
   usesListValue: boolean;
-  /** True if operator expects a range with two values (BETWEEN, NOT BETWEEN) */
+  /** True if operator expects a range with two values (between / not between) */
   usesRangeValue: boolean;
-  buildCondition: (
-    operator: OperatorModel,
-    value: string,
-    value2?: string
-  ) => SimpleCondition | null | undefined;
+  /**
+   * Build the spec for the current editor state. `null` means "clear the
+   * filter" (empty/incomplete value); `undefined` means the input doesn't
+   * parse for this column's type (invalid — don't commit).
+   */
+  buildSpec: () => FilterSpec | null | undefined;
 }
 
 export function useColumnFilter({
   columnId,
   filterType,
-  condition,
+  spec,
   isOpen,
+  operators,
 }: UseColumnFilterParams): UseColumnFilterReturn {
-  const operatorOptions = OPERATORS_BY_TYPE[filterType];
-  const defaultOperator: OperatorModel = operatorOptions[0] ?? "=";
-  const [operator, setOperator] = useState<OperatorModel>(
-    condition?.operator ?? defaultOperator
+  const operatorOptions = operators ?? OPERATORS_BY_TYPE[filterType];
+  const defaultOperator: UiOperator = operatorOptions[0] ?? "=";
+  const [operator, setOperator] = useState<UiOperator>(
+    spec?.operator ?? defaultOperator
   );
-
-  const [value, setValue] = useState<string>(
-    formatFilterValue(condition?.right, filterType)
-  );
-  const [value2, setValue2] = useState<string>(
-    formatFilterValue2(condition?.right, filterType)
-  );
-
-  const isValueDisabled = OPERATORS_WITHOUT_VALUE.has(operator);
-  const usesListValue = OPERATORS_WITH_LIST_VALUE.has(operator);
-  const usesRangeValue = OPERATORS_WITH_RANGE_VALUE.has(operator);
+  const [value, setValue] = useState<string>(spec?.value ?? "");
+  const [value2, setValue2] = useState<string>(spec?.value2 ?? "");
 
   // Track the previous columnId to detect when we switch to a different filter
   const prevColumnIdRef = useRef(columnId);
 
-  // Sync state when closed OR when switching to a different column while opening
+  // Sync state when closed OR when switching to a different column while
+  // opening. Because closing re-syncs from the applied spec, edits abandoned
+  // via click-outside are discarded.
   useEffect(() => {
     const columnChanged = prevColumnIdRef.current !== columnId;
     prevColumnIdRef.current = columnId;
 
     if (!isOpen || columnChanged) {
-      setOperator(condition?.operator ?? defaultOperator);
-      setValue(formatFilterValue(condition?.right, filterType));
-      setValue2(formatFilterValue2(condition?.right, filterType));
+      setOperator(spec?.operator ?? defaultOperator);
+      setValue(spec?.value ?? "");
+      setValue2(spec?.value2 ?? "");
     }
-  }, [condition, defaultOperator, filterType, isOpen, columnId]);
+  }, [spec, defaultOperator, isOpen, columnId]);
 
-  const buildCondition = useCallback(
-    (operator: OperatorModel, value: string, value2?: string) => {
-      if (OPERATORS_WITHOUT_VALUE.has(operator)) {
-        return ConditionBuilder.simple(columnId, operator, null);
-      }
-      if (value.trim() === "") {
-        return null;
-      }
-
-      // Handle list operators (IN, NOT IN)
-      if (OPERATORS_WITH_LIST_VALUE.has(operator)) {
-        const parsed = parseListValue(filterType, value);
-        if (parsed === undefined) {
-          return undefined;
-        }
-        return ConditionBuilder.simple(columnId, operator, parsed);
-      }
-
-      // Handle range operators (BETWEEN, NOT BETWEEN)
-      if (OPERATORS_WITH_RANGE_VALUE.has(operator)) {
-        if (!value2 || value2.trim() === "") {
-          return null;
-        }
-        const parsed = parseRangeValue(filterType, value, value2);
-        if (parsed === undefined) {
-          return undefined;
-        }
-        return ConditionBuilder.simple(columnId, operator, parsed);
-      }
-
-      const parsed = parseFilterValue(filterType, value);
-      if (parsed === undefined) {
-        return undefined;
-      }
-
-      // Special case - inject wildcards if not specified
-      if (
-        operator === "LIKE" ||
-        operator === "NOT LIKE" ||
-        operator === "ILIKE" ||
-        operator === "NOT ILIKE"
-      ) {
-        let modified = String(parsed);
-        if (!modified.includes("%")) {
-          modified = `%${modified}%`;
-        }
-        return ConditionBuilder.simple(columnId, operator, modified);
-      } else {
-        return ConditionBuilder.simple(columnId, operator, parsed);
-      }
-    },
-    [columnId, filterType]
-  );
+  const buildSpec = useCallback((): FilterSpec | null | undefined => {
+    if (NO_VALUE_OPERATORS.has(operator)) {
+      return { operator, value: "" };
+    }
+    const next: FilterSpec = {
+      operator,
+      value,
+      value2: RANGE_VALUE_OPERATORS.has(operator) ? value2 : undefined,
+    };
+    // The wire compiler is the single authority on emptiness (null = clear)
+    // and validity (undefined = don't commit); the future filtrex target
+    // shares the same input-parsing rules.
+    const compiled = specToCondition(columnId, filterType, next);
+    if (compiled === undefined) return undefined;
+    if (compiled === null) return null;
+    return next;
+  }, [columnId, filterType, operator, value, value2]);
 
   return {
     operator,
     setOperator,
+    operatorOptions,
     value,
     setValue,
     value2,
     setValue2,
-    operatorOptions,
-    usesValue: isValueDisabled,
-    usesListValue,
-    usesRangeValue,
-    buildCondition,
+    takesNoValue: NO_VALUE_OPERATORS.has(operator),
+    usesListValue: LIST_VALUE_OPERATORS.has(operator),
+    usesRangeValue: RANGE_VALUE_OPERATORS.has(operator),
+    buildSpec,
   };
 }

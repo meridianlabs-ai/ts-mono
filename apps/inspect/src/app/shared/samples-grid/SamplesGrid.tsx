@@ -1,9 +1,9 @@
 import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
 import { ReactElement, RefObject, useCallback, useMemo, useState } from "react";
 
-import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import type {
   ColumnFilter,
+  FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
@@ -115,15 +115,11 @@ export const SamplesGrid = ({
   });
 
   const handleColumnFilterChange = useCallback(
-    (
-      columnId: string,
-      filterType: FilterType,
-      condition: SimpleCondition | null
-    ) => {
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
       setColumnFilters((prev) => {
         const next = { ...prev };
-        if (condition === null) delete next[columnId];
-        else next[columnId] = { columnId, filterType, condition };
+        if (spec === null) delete next[columnId];
+        else next[columnId] = { columnId, filterType, spec };
         return next;
       });
     },

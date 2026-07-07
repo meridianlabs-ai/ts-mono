@@ -1,17 +1,27 @@
 import type { Condition, SimpleCondition } from "@tsmono/inspect-common/query";
-import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
+import {
+  isColumnFilter,
+  specToCondition,
+  type ColumnFilter,
+} from "@tsmono/inspect-components/columnFilter";
 
 /**
- * AND-combine a scope's per-column filters into a single `Condition`
+ * AND-combine a scope's per-column filter specs into a single `Condition`
  * (`undefined` when none are active). Mirrors scout's `useFilterConditions`.
+ * Entries persisted by pre-FilterSpec builds (which stored a compiled
+ * `condition`) fail the guard and are dropped.
  */
 export function combineFilters(
   columnFilters: Record<string, ColumnFilter> | undefined
 ): Condition | undefined {
   if (!columnFilters) return undefined;
   return Object.values(columnFilters)
-    .map((f) => f.condition)
-    .filter((c): c is SimpleCondition => c !== null)
+    .map((f) =>
+      isColumnFilter(f)
+        ? specToCondition(f.columnId, f.filterType, f.spec)
+        : null
+    )
+    .filter((c): c is SimpleCondition => c !== null && c !== undefined)
     .reduce<Condition | undefined>(
       (acc, c) => (acc ? acc.and(c) : c),
       undefined

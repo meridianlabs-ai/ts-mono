@@ -27,10 +27,10 @@ import {
   useState,
 } from "react";
 
-import type { SimpleCondition } from "@tsmono/inspect-common/query";
 import {
   ColumnFilterControl,
   type ColumnFilter,
+  type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
@@ -141,7 +141,7 @@ export interface DataGridProps<TRow> {
   onColumnFilterChange?: (
     columnId: string,
     filterType: FilterType,
-    condition: SimpleCondition | null
+    spec: FilterSpec | null
   ) => void;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
@@ -709,8 +709,8 @@ export function DataGrid<TRow>({
               {headerGroup.headers.map((header) => {
                 const columnDef = header.column
                   .columnDef as ExtendedColumnDef<TRow>;
-                const filterCondition =
-                  columnFilters?.[header.column.id]?.condition ?? null;
+                const filterSpec =
+                  columnFilters?.[header.column.id]?.spec ?? null;
                 const isDragSource = draggedColId === header.column.id;
                 const dropSide =
                   dropTarget?.colId === header.column.id
@@ -727,7 +727,7 @@ export function DataGrid<TRow>({
                     <RotatedHeaderCell
                       key={header.id}
                       header={header}
-                      filterCondition={filterCondition}
+                      filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
                       isDragSource={isDragSource}
                       dropSide={dropSide}
@@ -757,13 +757,13 @@ export function DataGrid<TRow>({
                     <ColumnFilterControl
                       columnId={header.column.id}
                       filterType={filterType}
-                      condition={filterCondition}
+                      spec={filterSpec}
                       placement="bottom-start"
-                      onChange={(condition) =>
+                      onChange={(spec) =>
                         onColumnFilterChange?.(
                           header.column.id,
                           filterType,
-                          condition
+                          spec
                         )
                       }
                     />
@@ -841,7 +841,7 @@ export function DataGrid<TRow>({
                       <div
                         className={clsx(
                           styles.headerFilter,
-                          filterCondition && styles.headerFilterActive
+                          filterSpec && styles.headerFilterActive
                         )}
                       >
                         {filterControl}
@@ -995,7 +995,7 @@ const GridRow = memo(GridRowInner) as typeof GridRowInner;
  */
 function RotatedHeaderCell<TRow>({
   header,
-  filterCondition,
+  filterSpec,
   onColumnFilterChange,
   isDragSource,
   dropSide,
@@ -1007,11 +1007,11 @@ function RotatedHeaderCell<TRow>({
   onAutoSize,
 }: {
   header: Header<TRow, unknown>;
-  filterCondition: SimpleCondition | null;
+  filterSpec: FilterSpec | null;
   onColumnFilterChange?: (
     columnId: string,
     filterType: FilterType,
-    condition: SimpleCondition | null
+    spec: FilterSpec | null
   ) => void;
   isDragSource: boolean;
   dropSide: "left" | "right" | null;
@@ -1061,7 +1061,7 @@ function RotatedHeaderCell<TRow>({
       <div
         className={clsx(
           styles.rotatedLabel,
-          filterCondition && styles.rotatedLabelFiltered
+          filterSpec && styles.rotatedLabelFiltered
         )}
         // Native tooltip lives on the label (the outer cell is
         // pointer-events: none, so a title there would never fire) — shows
@@ -1091,11 +1091,11 @@ function RotatedHeaderCell<TRow>({
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}
-              condition={filterCondition}
+              spec={filterSpec}
               anchorEl={anchorEl}
               placement="bottom-start"
-              onChange={(condition) =>
-                onColumnFilterChange?.(header.column.id, filterType, condition)
+              onChange={(spec) =>
+                onColumnFilterChange?.(header.column.id, filterType, spec)
               }
             />
           </span>

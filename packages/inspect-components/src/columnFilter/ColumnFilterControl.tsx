@@ -1,22 +1,21 @@
 import { FC, useCallback, useRef } from "react";
 
-import type {
-  ScalarValue,
-  SimpleCondition,
-} from "@tsmono/inspect-common/query";
+import type { ScalarValue } from "@tsmono/inspect-common/query";
 import { PopOver } from "@tsmono/react/components";
 
 import { ColumnFilterButton } from "./ColumnFilterButton";
 import styles from "./ColumnFilterControl.module.css";
 import { ColumnFilterEditor } from "./ColumnFilterEditor";
-import type { FilterType } from "./types";
+import type { FilterSpec, FilterType, UiOperator } from "./types";
 import { useColumnFilterPopover } from "./useColumnFilterPopover";
 
 interface ColumnFilterControlProps {
   columnId: string;
   filterType: FilterType;
-  condition: SimpleCondition | null;
-  onChange: (condition: SimpleCondition | null) => void;
+  spec: FilterSpec | null;
+  onChange: (spec: FilterSpec | null) => void;
+  /** Override the operator choices (defaults to the full set for the type). */
+  operators?: UiOperator[];
   /** Autocomplete suggestions for the filter value. */
   suggestions?: ScalarValue[];
   /** Called when the popover opens/closes (for fetching suggestions). */
@@ -41,8 +40,9 @@ interface ColumnFilterControlProps {
 export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
   columnId,
   filterType,
-  condition,
+  spec,
   onChange,
+  operators,
   suggestions = [],
   onOpenChange,
   anchorEl,
@@ -67,8 +67,9 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
   } = useColumnFilterPopover({
     columnId,
     filterType,
-    condition,
+    spec,
     onChange,
+    operators,
   });
 
   const handlePopoverOpenChange = useCallback(
@@ -84,7 +85,7 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
       <ColumnFilterButton
         ref={buttonRef}
         columnId={columnId}
-        isActive={!!condition}
+        isActive={!!spec}
         onClick={(event) => {
           event.stopPropagation();
           handlePopoverOpenChange(!isOpen);

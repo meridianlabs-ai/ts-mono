@@ -1,27 +1,27 @@
 import clsx from "clsx";
 import { ChangeEvent, FC, KeyboardEvent, useCallback } from "react";
 
-import type { OperatorModel, ScalarValue } from "@tsmono/inspect-common/query";
+import type { ScalarValue } from "@tsmono/inspect-common/query";
 import { AutocompleteInput } from "@tsmono/react/components";
 
 import styles from "./ColumnFilterEditor.module.css";
 import { DurationInput } from "./DurationInput";
-import type { FilterType } from "./types";
+import type { FilterType, UiOperator } from "./types";
 
 export interface ColumnFilterEditorProps {
   columnId: string;
   filterType: FilterType;
-  operator: OperatorModel;
-  operatorOptions: OperatorModel[];
+  operator: UiOperator;
+  operatorOptions: UiOperator[];
   rawValue: string;
-  /** Second value for BETWEEN/NOT BETWEEN operators */
+  /** Second value for between/not between operators */
   rawValue2?: string;
   isValueDisabled: boolean;
-  /** True if operator expects a range with two values (BETWEEN, NOT BETWEEN) */
+  /** True if operator expects a range with two values (between / not between) */
   isRangeOperator?: boolean;
-  onOperatorChange: (operator: OperatorModel) => void;
+  onOperatorChange: (operator: UiOperator) => void;
   onValueChange: (value: string) => void;
-  /** Handler for second value changes (BETWEEN operators) */
+  /** Handler for second value changes (between / not between operators) */
   onValue2Change?: (value: string) => void;
   onCommit?: () => void;
   onCancel?: () => void;
@@ -46,7 +46,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
 }) => {
   const handleOperatorChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
-      onOperatorChange(event.target.value as OperatorModel);
+      onOperatorChange(event.target.value as UiOperator);
     },
     [onOperatorChange]
   );
@@ -155,7 +155,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
           />
         )}
       </div>
-      {/* Second input for BETWEEN/NOT BETWEEN operators */}
+      {/* Second input for between/not between operators */}
       {isRangeOperator && (
         <>
           <span className={styles.rangeLabel}>End</span>

@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
-import type { SimpleCondition } from "@tsmono/inspect-common/query";
-
-import type { FilterType } from "./types";
+import type { FilterSpec, FilterType, UiOperator } from "./types";
 import { useColumnFilter } from "./useColumnFilter";
 
 export interface UseColumnFilterPopoverParams {
   columnId: string;
   filterType: FilterType;
-  condition: SimpleCondition | null;
-  onChange: (condition: SimpleCondition | null) => void;
+  spec: FilterSpec | null;
+  onChange: (spec: FilterSpec | null) => void;
+  operators?: UiOperator[];
 }
 
 export interface UseColumnFilterPopoverReturn {
@@ -24,7 +23,7 @@ export interface UseColumnFilterPopoverReturn {
   setValue: ReturnType<typeof useColumnFilter>["setValue"];
   value2: ReturnType<typeof useColumnFilter>["value2"];
   setValue2: ReturnType<typeof useColumnFilter>["setValue2"];
-  isValueDisabled: ReturnType<typeof useColumnFilter>["usesValue"];
+  isValueDisabled: ReturnType<typeof useColumnFilter>["takesNoValue"];
   isRangeOperator: ReturnType<typeof useColumnFilter>["usesRangeValue"];
 
   commitAndClose: () => void;
@@ -34,12 +33,11 @@ export interface UseColumnFilterPopoverReturn {
 export function useColumnFilterPopover({
   columnId,
   filterType,
-  condition,
+  spec,
   onChange,
+  operators,
 }: UseColumnFilterPopoverParams): UseColumnFilterPopoverReturn {
   const [isOpen, setIsOpen] = useState(false);
-  const cancelRef = useRef(false);
-  const prevOpenRef = useRef(false);
 
   const {
     operator,
@@ -49,43 +47,26 @@ export function useColumnFilterPopover({
     value2,
     setValue2,
     operatorOptions,
-    usesValue: isValueDisabled,
+    takesNoValue: isValueDisabled,
     usesRangeValue: isRangeOperator,
-    buildCondition,
-  } = useColumnFilter({
-    columnId,
-    filterType,
-    condition,
-    isOpen,
-  });
+    buildSpec,
+  } = useColumnFilter({ columnId, filterType, spec, isOpen, operators });
 
   const cancelAndClose = useCallback(() => {
-    cancelRef.current = true;
     setIsOpen(false);
   }, []);
 
+  // Apply (button / Enter) is the only commit point. Closing any other way —
+  // click-outside, Escape — discards edits: useColumnFilter re-syncs the
+  // editor from the applied spec when the popover is closed.
   const commitAndClose = useCallback(() => {
-    const nextCondition = buildCondition(operator, value, value2);
-    if (nextCondition === undefined) {
-      return;
+    const next = buildSpec();
+    if (next === undefined) {
+      return; // invalid input — keep the popover open
     }
+    onChange(next);
     setIsOpen(false);
-  }, [buildCondition, operator, value, value2]);
-
-  // Commit changes when popover closes (unless cancelled).
-  useEffect(() => {
-    if (prevOpenRef.current && !isOpen) {
-      if (cancelRef.current) {
-        cancelRef.current = false;
-      } else {
-        const nextCondition = buildCondition(operator, value, value2);
-        if (nextCondition !== undefined) {
-          onChange(nextCondition);
-        }
-      }
-    }
-    prevOpenRef.current = isOpen;
-  }, [buildCondition, isOpen, onChange, operator, value, value2]);
+  }, [buildSpec, onChange]);
 
   return {
     isOpen,

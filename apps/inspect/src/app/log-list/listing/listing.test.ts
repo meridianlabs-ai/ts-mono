@@ -216,12 +216,12 @@ describe("type-aware filtering", () => {
       model: {
         columnId: "model",
         filterType: "string",
-        condition: ConditionBuilder.simple("model", "=", "gpt-4"),
+        spec: { operator: "=", value: "gpt-4" },
       },
       score: {
         columnId: "score",
         filterType: "number",
-        condition: ConditionBuilder.simple("score", ">", 0.5),
+        spec: { operator: ">", value: "0.5" },
       },
     };
     const filter = combineFilters(columnFilters);
@@ -233,5 +233,21 @@ describe("type-aware filtering", () => {
     });
     // r0 = gpt-4 & 0.9 matches; r2 = gpt-4 but missing score; others non-gpt-4.
     expect(res.items.map((r) => r.name)).toEqual(["a"]);
+  });
+
+  it("combineFilters drops legacy persisted entries (pre-FilterSpec shape)", () => {
+    const legacy = {
+      model: {
+        columnId: "model",
+        filterType: "string",
+        condition: {
+          is_compound: false,
+          left: "model",
+          operator: "=",
+          right: "gpt-4",
+        },
+      },
+    } as unknown as Record<string, ColumnFilter>;
+    expect(combineFilters(legacy)).toBeUndefined();
   });
 });
