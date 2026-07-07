@@ -102,6 +102,9 @@ export interface LogListGridState {
   /** User-reordered column ids (drag-to-reorder). Columns missing from the
    *  list render after it in definition order. */
   columnOrder?: string[];
+  /** Id of the last-selected row. Persisted so the highlight (and the
+   *  arrow-key anchor) survives navigating into a log and back. */
+  selectedRowId?: string;
 }
 
 export interface LogsListing {

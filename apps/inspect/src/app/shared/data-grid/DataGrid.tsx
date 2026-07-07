@@ -166,6 +166,10 @@ export interface DataGridProps<TRow> {
   loading?: boolean;
   emptyMessage?: string;
   className?: string;
+  /** Focus the grid container on mount so arrow-key navigation works
+   *  immediately — e.g. the log list, where returning from a log should
+   *  land you on the restored selection ready to arrow up/down. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -202,6 +206,7 @@ export function DataGrid<TRow>({
   loading = false,
   emptyMessage = "No matching items",
   className,
+  autoFocus = false,
 }: DataGridProps<TRow>): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -230,6 +235,16 @@ export function DataGrid<TRow>({
     }
   }, [selectedRowId, onSelectedRowChange]);
   const selectedId = onSelectedRowChange ? selectedRowId : internalSelectedId;
+
+  // Focus the grid on mount when requested so arrow-key navigation is live
+  // without a click first (e.g. returning from a log to the restored
+  // selection). Runs once — the log list remounts on scope change via
+  // `key`, so a new scope re-focuses too.
+  useEffect(() => {
+    if (autoFocus) containerRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const selectRow = useCallback(
     (rowId: string, row: TRow) => {
       if (onSelectedRowChange) {

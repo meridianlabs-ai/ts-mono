@@ -258,6 +258,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [gridStateByScope, scopeKey]
   );
 
+  // Per-scope persisted row selection — restored on remount (e.g. after
+  // navigating into a log and back) so the highlight and the arrow-key
+  // anchor survive, matching the prior AG grid.
+  const persistedSelectedId = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.selectedRowId : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
   // Folders (logs mode) are presentation: pinned on top, independent of sort.
   // Sort/filter/paginate runs over the file rows only.
   const { folders, files } = useMemo(() => {
@@ -291,9 +299,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnFilters,
           columnSizing,
           columnOrder,
+          selectedRowId: persistedSelectedId,
         });
     },
-    [scopeKey, setGridState, columnFilters, columnSizing, columnOrder]
+    [
+      scopeKey,
+      setGridState,
+      columnFilters,
+      columnSizing,
+      columnOrder,
+      persistedSelectedId,
+    ]
   );
 
   const handleColumnFilterChange = useCallback(
@@ -314,9 +330,18 @@ export const LogListGrid: FC<LogListGridProps> = ({
         columnFilters: next,
         columnSizing,
         columnOrder,
+        selectedRowId: persistedSelectedId,
       });
     },
-    [scopeKey, setGridState, sorting, columnFilters, columnSizing, columnOrder]
+    [
+      scopeKey,
+      setGridState,
+      sorting,
+      columnFilters,
+      columnSizing,
+      columnOrder,
+      persistedSelectedId,
+    ]
   );
 
   const handleColumnSizingChange = useCallback(
@@ -327,9 +352,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnFilters,
           columnSizing: next,
           columnOrder,
+          selectedRowId: persistedSelectedId,
         });
     },
-    [scopeKey, setGridState, sorting, columnFilters, columnOrder]
+    [
+      scopeKey,
+      setGridState,
+      sorting,
+      columnFilters,
+      columnOrder,
+      persistedSelectedId,
+    ]
   );
 
   const handleColumnOrderChange = useCallback(
@@ -340,9 +373,36 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnFilters,
           columnSizing,
           columnOrder: next,
+          selectedRowId: persistedSelectedId,
         });
     },
-    [scopeKey, setGridState, sorting, columnFilters, columnSizing]
+    [
+      scopeKey,
+      setGridState,
+      sorting,
+      columnFilters,
+      columnSizing,
+      persistedSelectedId,
+    ]
+  );
+
+  const persistSelectedId = useCallback(
+    (id: string | undefined) => {
+      if (scopeKey)
+        setGridState(scopeKey, {
+          sorting,
+          columnFilters,
+          columnSizing,
+          columnOrder,
+          selectedRowId: id,
+        });
+    },
+    [scopeKey, setGridState, sorting, columnFilters, columnSizing, columnOrder]
+  );
+
+  const handleSelectedRowChange = useCallback(
+    (row: LogListRow) => persistSelectedId(row.id),
+    [persistSelectedId]
   );
 
   // Footer count = folders + matching files (reflects any active filter).
@@ -407,6 +467,16 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const activeMatchId =
     matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
 
+  // Persist each active find match as the selection so the last match stays
+  // selected once the band closes (matches the AG grid). `selectedRowId`
+  // already prefers `activeMatchId` while the band is open; this keeps the
+  // persisted value in step so closing it doesn't snap back to the prior row.
+  useEffect(() => {
+    if (showFind && activeMatchId !== undefined) {
+      persistSelectedId(activeMatchId);
+    }
+  }, [showFind, activeMatchId, persistSelectedId]);
+
   const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
@@ -469,8 +539,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
           columnOrder={columnOrder}
           onColumnOrderChange={handleColumnOrderChange}
           getRowId={(row) => row.id}
-          selectedRowId={activeMatchId}
+          selectedRowId={activeMatchId ?? persistedSelectedId}
+          onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
+          autoFocus
           loading={data.length === 0 && busy}
         />
       </div>
