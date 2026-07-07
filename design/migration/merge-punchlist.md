@@ -118,7 +118,16 @@ not verification or decisions.
 - [ ] Matt **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
   with header/segment names), **filter-code export** ("copy query"), **per-column filter clear +
   autocomplete** (autocomplete needs an inspect API for per-column distinct values). — `loglistgrid-tanstack.md:215,216,217`
-- [x] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
+- [x] **FilterSpec UI layer — DONE** (2026-07-07). Popover edits/persists `FilterSpec` (friendly operators:
+  contains/starts with/…, compiled to wire `Condition` at the query boundary via `specToCondition`);
+  Apply/Enter is the only commit point (click-outside cancels); LIKE wildcards in user text are escaped
+  (evaluator understands `\`-escapes). See `design/migration/filter-spec-layer-plan.md`. **Plan 2 (not
+  started):** samples-page filtrex bridge — spec↔filtrex sync with the FILTER input, representability
+  gate, removal of SamplesGrid-local filter state (restores main's column↔text filter parity).
+- [ ] Eric **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
+  **residual AG type-only imports** (dormant `GridState` slice in `app/types.ts`/`logsSlice`/`state/hooks`,
+  `ColDef` picker shims, `IRowNode` in `gridComparators`). — `loglistgrid-tanstack.md:192`
+- [ ] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
   auto-scroll, pinning/resize/reorder, grid-state persistence, Reset-Filters/filtered-count chrome,
   new-tab (Cmd/middle-click) row parity. **Check with Matt Brandly — likely has some of this done.** — `loglistgrid-tanstack.md:183-192,262`
 - [x] Eric **Fix cold-dir preview-tail pacing regression — FIXED 2026-07-07.** Root cause was worse than
