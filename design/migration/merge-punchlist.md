@@ -62,8 +62,12 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
 These were parked under "deliberately deferred," but each is a real defect, not a feature gap.
 Confirm each is acceptable to ship, or fix.
 
-- [~] Eric **`skipToken` for the logs-content query before `logDir` is known.** `state/logsContent.ts:24`
-  runs/caches under an empty-string key before `logDir` hydrates.
+- [x] Resolved by architecture. **`skipToken` for the logs-content query before `logDir` is known.**
+  Obsolete: the app_config gate prevents the empty-key state — `loadResolvedAppConfig` throws on empty
+  `log_dir` (`app_config/appConfig.ts:122`), all `useLogs` consumers mount below `<AppConfigGate/>` and
+  take `logDir` from `useLogDir()`, and `useAppConfig` throws above the gate. Non-React `getLogRows`
+  tolerates `undefined` but never writes the cache. `skipToken` would guard an impossible state.
+  (Module moved: `state/logsContent.ts` → `log_data/logsContent.ts`.)
   — `loglistgrid-tanstack.md:209`
 - [X] OK to defer. **Details error channel unreachable.** Details cache is passive with no error source, so
   `useLogDetail`'s error branch never fires (absent ⇒ loading forever on a real fetch error).
@@ -77,7 +81,7 @@ Confirm each is acceptable to ship, or fix.
 - [X] Multi-column sort mechanics vs main (plain-click on 2nd header); add e2e. — `loglistgrid-tanstack.md:210`
 - [ ] Eric `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — right numbers? — `log-data-unified-fetch-plan.md:434`
 - [ ] Eric Attempts reset on restart (error text kept) — confirm intended. — `log-data-unified-fetch-plan.md:435`
-- [ ] **Default column sizes: confirm they initialize to a sane set** (meeting 2026-07-06 said likely
+- [ ] Matt **Default column sizes: confirm they initialize to a sane set** (meeting 2026-07-06 said likely
   not). May be subsumed by the fit-to-grid-width work (`aed3575f`, `ec3eea0f`) — verify.
 
 ## 5. Feature & parity work required for merge (reclassified from backlog 2026-07-06)
