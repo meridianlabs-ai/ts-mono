@@ -12,6 +12,10 @@ import {
 } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
+import type {
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 import {
   ErrorPanel,
   NoContentsPanel,
@@ -21,6 +25,9 @@ import {
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
+import { parseFilterSpecs } from "../../../app/samples/sample-tools/astToSpecs.ts";
+import { buildSampleFilterSpecRegistry } from "../../../app/samples/sample-tools/filterSpecRegistry.ts";
+import { specsToFilterText } from "../../../app/samples/sample-tools/specsToFilterText.ts";
 import {
   SampleTools,
   ScoreFilterTools,
@@ -228,6 +235,35 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [colorScalesEnabled, wireScoreColorScales]
   );
 
+  const filter = useStore((state) => state.log.filter);
+  const setFilter = useStore((state) => state.logActions.setFilter);
+
+  const filterSpecRegistry = useMemo(
+    () => buildSampleFilterSpecRegistry(samplesDescriptor?.evalDescriptor),
+    [samplesDescriptor?.evalDescriptor]
+  );
+
+  // Column funnels are a projection of the FILTER string: derive their state
+  // by parsing it, and hide them entirely when the expression isn't
+  // representable as per-column filters (so a funnel edit can't clobber a
+  // richer hand-typed expression).
+  const columnFilterSpecs = useMemo(
+    () => parseFilterSpecs(filter, filterSpecRegistry),
+    [filter, filterSpecRegistry]
+  );
+
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      if (columnFilterSpecs === null) return;
+      const next = { ...columnFilterSpecs };
+      if (spec === null) delete next[columnId];
+      else next[columnId] = { columnId, filterType, spec };
+      const text = specsToFilterText(next, filterSpecRegistry);
+      if (text !== null) setFilter(text);
+    },
+    [columnFilterSpecs, filterSpecRegistry, setFilter]
+  );
+
   const allColumns = useMemo(
     () =>
       buildSampleColumns({
@@ -239,6 +275,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         scoreLabels,
         scoreColorScales,
         compactScores,
+        filterSpecRegistry,
       }),
     [
       multiline,
@@ -248,6 +285,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       scoreLabels,
       scoreColorScales,
       compactScores,
+      filterSpecRegistry,
     ]
   );
 
@@ -440,6 +478,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           running={running}
           multiline={view.multiline}
           scrollRef={scrollRef}
+          columnFilters={columnFilterSpecs ?? {}}
+          onColumnFilterChange={handleColumnFilterChange}
+          hideColumnFilters={columnFilterSpecs === null}
         />
       ) : null}
       {listDisplay ? (

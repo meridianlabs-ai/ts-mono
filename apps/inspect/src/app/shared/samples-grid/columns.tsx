@@ -19,6 +19,10 @@ import {
 } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
+  samplesOperatorsForKind,
+  type SampleFilterSpecRegistry,
+} from "../../samples/sample-tools/filterSpecRegistry";
+import {
   deriveSampleStatus,
   SampleStatusIcon,
   statusSortValue,
@@ -78,6 +82,11 @@ export interface SampleGridContext {
    *  45° headers so many scorers fit horizontally. Off by default;
    *  eval authors opt in via `task_samples_view.compact_scores`. */
   compactScores?: boolean;
+  /** When set, only columns in the registry are filterable, with operator
+   *  lists narrowed to what round-trips through the filtrex bridge
+   *  (samples-tab mode). Absent → every column is filterable with default
+   *  operators (cross-log mode). */
+  filterSpecRegistry?: SampleFilterSpecRegistry;
 }
 
 type SampleColumn = ExtendedColumnDef<SampleRow>;
@@ -456,7 +465,20 @@ export function buildSampleColumns(
         : cmp === dateCompare
           ? "date"
           : "string";
-    col.meta = { ...col.meta, filterable: true, filterType };
+    if (ctx.filterSpecRegistry) {
+      const mapping = col.id
+        ? ctx.filterSpecRegistry.byColId.get(col.id)
+        : undefined;
+      if (!mapping) continue; // not representable in filtrex — no funnel
+      col.meta = {
+        ...col.meta,
+        filterable: true,
+        filterType,
+        operators: samplesOperatorsForKind(mapping.kind),
+      };
+    } else {
+      col.meta = { ...col.meta, filterable: true, filterType };
+    }
   }
 
   return cols;
