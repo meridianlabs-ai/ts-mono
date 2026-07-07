@@ -27,7 +27,7 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
   — `log-data-imperative-goal.md:166-181`
 - [x] Matt **Ctrl+F find band (Phase 5)** — landed (`4f57331d`).
   — `loglistgrid-tanstack.md:69,200`
-- [ ] Matt **Confirm log-list column order divergence vs main is intentional.** Branch: Model after
+- [x] Matt **Confirm log-list column order divergence vs main is intentional.** Branch: Model after
   Task, Sample Limits before Tokens; main: Model / Sample Limits at the end.
   Meeting 2026-07-06: main's ordering is buggy (`indexOf` on `field` returns -1, so Model mis-sorts);
   the branch's `column.id` compare is an accidental but correct fix. Position divergence still to confirm.
@@ -79,7 +79,7 @@ Confirm each is acceptable to ship, or fix.
 - [X] OK to defer. **Details error channel unreachable.** Details cache is passive with no error source, so
   `useLogDetail`'s error branch never fires (absent ⇒ loading forever on a real fetch error).
   — `loglistgrid-tanstack.md:256`
-- [~] Eric & Matt **Loading-state not derived from the query** (stale-flash guard). Explicitly accepted as a
+- [X] Eric & Matt **Loading-state not derived from the query** (stale-flash guard). Explicitly accepted as a
   follow-up by `reactive-refactor-goal.md:46-47` (dormant loading UI is OK) — likely defer, but record the decision.
   — `loglistgrid-tanstack.md:255`
 
@@ -112,13 +112,13 @@ not verification or decisions.
 
 - [x] Matt **Auto-fit-to-grid-width** + user-resize-override suppression (Phase 6's other half) —
   landed (`aed3575f`, `ec3eea0f` grow-only "roomy + scroll" + 65px `#` col, `ee852bc7`). — `loglistgrid-tanstack.md:71`
-- [ ] Matt **Column pinning** (`type` icon col pinned-left). Samples-grid `#` col pin landed
+- [x] Matt **Column pinning** (`type` icon col pinned-left). Samples-grid `#` col pin landed
   (`7cac3fbd`); log-list `type` col still open. — `loglistgrid-tanstack.md:74`
   (Preformatted-cell tooltips moved to §7 — meeting 2026-07-06 decided native `title` is OK for merge.)
 - [ ] Matt **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
   with header/segment names), **filter-code export** ("copy query"), **per-column filter clear +
   autocomplete** (autocomplete needs an inspect API for per-column distinct values). — `loglistgrid-tanstack.md:215,216,217`
-- [ ] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
+- [x] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
   auto-scroll, pinning/resize/reorder, grid-state persistence, Reset-Filters/filtered-count chrome,
   new-tab (Cmd/middle-click) row parity. **Check with Matt Brandly — likely has some of this done.** — `loglistgrid-tanstack.md:183-192,262`
 - [x] Eric **Fix cold-dir preview-tail pacing regression — FIXED 2026-07-07.** Root cause was worse than
