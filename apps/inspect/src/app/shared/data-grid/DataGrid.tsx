@@ -34,6 +34,7 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
+import { computeAutoSizeWidth } from "./autoSize";
 import {
   dropIndicatorSide,
   moveColumn,
@@ -58,6 +59,19 @@ function resolveHeaderTitle<TRow>(
 ): string | undefined {
   if (columnDef.headerTitle) return columnDef.headerTitle;
   return typeof columnDef.header === "string" ? columnDef.header : undefined;
+}
+
+/** Rendered width of an element's contents, measured with a Range so bare
+ *  text nodes count (a cell's clientWidth is the truncated box, not the
+ *  content). Guarded: jsdom's Range has no layout — measure as 0 there. */
+function measureContentWidth(el: Element): number {
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getBoundingClientRect().width;
+  } catch {
+    return 0;
+  }
 }
 
 /** Header sort indicator: direction arrow plus, when several columns are
@@ -381,6 +395,34 @@ export function DataGrid<TRow>({
     setDropTarget(null);
   }, [removeDragGhost]);
 
+  // Double-click on a resize handle auto-sizes the column to its content
+  // (the AG grid's built-in divider double-click). Only rendered cells are
+  // measured — AG does the same — via a Range so plain text nodes measure
+  // correctly. The result commits through the normal sizing path, so it
+  // persists exactly like a drag-resize.
+  const autoSizeColumn = useCallback(
+    (column: Column<TRow, unknown>) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const selector = `[role="gridcell"][data-col-id="${CSS.escape(column.id)}"]`;
+      const cellWidths = Array.from(container.querySelectorAll(selector)).map(
+        measureContentWidth
+      );
+      const headerEl = container.querySelector(
+        `[data-header-col-id="${CSS.escape(column.id)}"]`
+      );
+      const def = column.columnDef as ExtendedColumnDef<TRow>;
+      const width = computeAutoSizeWidth({
+        cellWidths,
+        headerWidth: headerEl ? measureContentWidth(headerEl) : 0,
+        minSize: def.minSize,
+        maxSize: def.maxSize,
+      });
+      handleColumnSizingChange((old) => ({ ...old, [column.id]: width }));
+    },
+    [handleColumnSizingChange]
+  );
+
   // useReactTable returns unmemoizable functions
   // https://github.com/TanStack/table/issues/5567
   // https://github.com/facebook/react/issues/33057
@@ -602,6 +644,7 @@ export function DataGrid<TRow>({
                       onHeaderDragOver={handleHeaderDragOver}
                       onHeaderDragLeave={handleHeaderDragLeave}
                       onHeaderDrop={handleHeaderDrop}
+                      onAutoSize={() => autoSizeColumn(header.column)}
                     />
                   );
                 }
@@ -694,7 +737,12 @@ export function DataGrid<TRow>({
                       onDragEnd={handleHeaderDragEnd}
                       onClick={header.column.getToggleSortingHandler()}
                     >
-                      <span className={styles.headerText}>{headerLabel}</span>
+                      <span
+                        className={styles.headerText}
+                        data-header-col-id={header.column.id}
+                      >
+                        {headerLabel}
+                      </span>
                       {sortCaret}
                     </div>
                     {filterControl && (
@@ -720,6 +768,7 @@ export function DataGrid<TRow>({
                         )}
                         onMouseDown={header.getResizeHandler()}
                         onTouchStart={header.getResizeHandler()}
+                        onDoubleClick={() => autoSizeColumn(header.column)}
                       />
                     )}
                   </div>
@@ -829,6 +878,7 @@ function GridRowInner<TRow>({
             }}
             title={cellDef.titleValue?.(row.original)}
             role="gridcell"
+            data-col-id={cell.column.id}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </div>
@@ -863,6 +913,7 @@ function RotatedHeaderCell<TRow>({
   onHeaderDragOver,
   onHeaderDragLeave,
   onHeaderDrop,
+  onAutoSize,
 }: {
   header: Header<TRow, unknown>;
   filterCondition: SimpleCondition | null;
@@ -882,6 +933,7 @@ function RotatedHeaderCell<TRow>({
   onHeaderDragOver: (e: DragEvent<HTMLElement>, colId: string) => void;
   onHeaderDragLeave: (e: DragEvent<HTMLElement>) => void;
   onHeaderDrop: (e: DragEvent<HTMLElement>, colId: string) => void;
+  onAutoSize: () => void;
 }): ReactElement {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
@@ -975,6 +1027,7 @@ function RotatedHeaderCell<TRow>({
           )}
           onMouseDown={header.getResizeHandler()}
           onTouchStart={header.getResizeHandler()}
+          onDoubleClick={onAutoSize}
         />
       )}
     </div>
