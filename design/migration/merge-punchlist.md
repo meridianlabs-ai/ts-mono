@@ -32,9 +32,6 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
   Meeting 2026-07-06: main's ordering is buggy (`indexOf` on `field` returns -1, so Model mis-sorts);
   the branch's `column.id` compare is an accidental but correct fix. Position divergence still to confirm.
   — `loglistgrid-tanstack.md:223`
-- [~] Eric **OK that `invalidateLogListing` survives until host-event normalization?** Accept-and-defer
-  is the current stance; confirm.
-  — `log-data-imperative-goal.md:259`
 
 ## 2. Blockers — verification (we run these; no new feature work)
 
@@ -182,7 +179,7 @@ NOT here — required, owned by Matt Brandly; see §1. The now-required grid/par
 
 **Data/architecture future** (all architecture/relocation with no user-facing behavior change):
 - `?log_file=` vs `#/tasks/` URL-form divergence — agreed with Charles to address *after* this first PR (`log-data-imperative-goal.md:145-164`, commit `64ac24db`).
-- Host-event normalization (retire `invalidateLogListing`; unify `backgroundUpdate` postMessage + `refresh-evals` poll).
+- Host-event normalization (retire `invalidateLogListing`; unify `backgroundUpdate` postMessage + `refresh-evals` poll). Eric confirmed 2026-07-07: OK that `invalidateLogListing` survives until then (`log-data-imperative-goal.md:259`).
 - Details-read unification / `LogLoadController` "fetch settled" event (TODO at `state/selectedLogDetails.ts:30`).
 - Dedicated samples table paged via `useInfiniteQuery` (server payload + schema split).
 - Server `/log-headers` per-file result contract (python; client falls back to per-file reads meanwhile — TODO in `log-data-unified-fetch-plan.md:176-179`). *Later if ever — unlikely to change python types.*
