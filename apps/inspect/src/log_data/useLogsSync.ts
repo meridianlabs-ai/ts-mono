@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-
 import { getApi } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
@@ -45,8 +43,15 @@ export const clientEventsTick = async (
 };
 
 export interface ListingStatus {
-  /** The subsystem is bringing the listing up to date: the sync query is in
-   *  flight or the engine is fetching items in the background. */
+  /** A listing sync round-trip is in flight — the signal for prominent
+   *  chrome like the navbar activity bar. Deliberately excludes engine
+   *  background fetching: a running eval's steady re-fetches or a large
+   *  dir's backfill would otherwise animate the bar near-continuously. */
+  loading: boolean;
+  /** The subsystem is bringing the listing up to date: the sync query is
+   *  fetching for the first time or the engine is fetching items in the
+   *  background. For subordinate indications (footer "Syncing data" text,
+   *  empty-grid overlays). */
   busy: boolean;
   /** The listing sync failed. */
   error: Error | undefined;
@@ -56,9 +61,9 @@ export interface ListingStatus {
  * Sync the log listing for a mounted panel and report its status (nothing
  * sets a busy flag imperatively). The listing data itself flows through the
  * logsContent collections via the engine's sink — subscribing triggers
- * discovery; the returned status is the one busy/error signal for listing
- * surfaces. Keyed by the panel's path scope so navigating between folders
- * re-syncs. No-ops in single-file mode.
+ * discovery; the returned status is the one loading/busy/error signal for
+ * listing surfaces. Keyed by the panel's path scope so navigating between
+ * folders re-syncs. No-ops in single-file mode.
  *
  * Subscribing also keeps the listing *fresh*: a client-events poll (shared
  * across subscribers via its `logDir` key) re-syncs on host `refresh-evals`
@@ -80,7 +85,7 @@ export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const sync = useAsyncDataFromQuery({
+  const sync = useQuery({
     queryKey: [...logsSyncKey, logDir, scope],
     queryFn: () => syncLogs(logDir),
     staleTime: 0,
@@ -89,9 +94,14 @@ export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
     refetchOnReconnect: false,
   });
   const { syncing } = useFetchEngineStatus();
+  const { isFetching, isPending, error } = sync;
   return useMemo(
-    () => ({ busy: sync.loading || syncing, error: sync.error }),
-    [sync, syncing]
+    () => ({
+      loading: isFetching,
+      busy: isPending || syncing,
+      error: error ?? undefined,
+    }),
+    [isFetching, isPending, error, syncing]
   );
 };
 

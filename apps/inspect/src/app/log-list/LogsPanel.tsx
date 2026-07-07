@@ -8,11 +8,7 @@ import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import {
-  type LogListingRow,
-  useLogListing,
-  useLogsSync,
-} from "../../log_data";
+import { useLogListing, useLogsSync, type LogListingRow } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -73,6 +69,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // loading/error.
   const sync = useLogsSync(logDir, logPath ?? "");
   const busy = sync.busy || listing.loading;
+  // The navbar bar tracks the sync round-trip only — engine background
+  // fetching (`busy`) stays in the footer/overlay indications.
+  const navbarLoading = sync.loading || listing.loading;
   const error = sync.error ?? listing.error;
 
   const currentDir = join(logPath || "", logDir);
@@ -327,10 +326,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     for (const item of logItems) {
       if (item.type === "file" || item.type === "pending-task") {
         total += 1;
-        if (
-          item.type === "pending-task" ||
-          item.log?.status === "started"
-        ) {
+        if (item.type === "pending-task" || item.log?.status === "started") {
           pending += 1;
         }
       }
@@ -353,7 +349,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       <ApplicationNavbar
         fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
         currentPath={mode === "tasks" ? undefined : logPath}
-        loading={busy}
+        loading={navbarLoading}
       >
         {hasFilter && (
           <NavbarButton

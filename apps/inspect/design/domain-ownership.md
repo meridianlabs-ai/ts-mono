@@ -71,8 +71,10 @@ invariant holds.
 `(logDir, logFile, …)` arguments and selection-ignorant:
 
 - `useLogsSync(logDir, scope)` (`log_data/useLogsSync.ts`) — sync the listing
-  for a mounted panel and report its `ListingStatus` (`busy`, `error` — the
-  one busy signal for listing surfaces, folding in engine activity);
+  for a mounted panel and report its `ListingStatus` (`loading` — a sync
+  round-trip in flight, for prominent chrome like the navbar activity bar;
+  `busy` — additionally folding in engine background fetching, for
+  subordinate indications; `error`);
   subscribing also keeps the listing fresh (a shared client-events poll
   re-syncs on host `refresh-evals` events and periodically).
   `imperativeLogData.invalidateLogListing()` is the invalidation counterpart for

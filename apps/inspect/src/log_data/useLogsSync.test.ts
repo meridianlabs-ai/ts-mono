@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -95,4 +95,29 @@ describe("useLogsSync", () => {
     expect(client_events.mock.calls.length).toBeGreaterThan(settledCalls);
   });
 
+  it("reports loading while the listing sync is in flight, then settles", async () => {
+    client_events.mockResolvedValue([]);
+    let resolveSync!: (value: unknown) => void;
+    syncLogs.mockReturnValue(new Promise((res) => (resolveSync = res)));
+
+    const { result } = renderHook(() => useLogsSync(LOG_DIR, ""), { wrapper });
+
+    await waitFor(() => expect(result.current.loading).toBe(true));
+    expect(result.current.busy).toBe(true);
+
+    resolveSync([]);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("folds engine background fetching into busy but not loading", async () => {
+    client_events.mockResolvedValue([]);
+    syncLogs.mockResolvedValue([]);
+    engineStatus.syncing = true;
+
+    const { result } = renderHook(() => useLogsSync(LOG_DIR, ""), { wrapper });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.busy).toBe(true);
+  });
 });
