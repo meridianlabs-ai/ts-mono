@@ -25,11 +25,12 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
 - [x] **Charles: deleted `fullScreen` flag + log-history-sidebar CSS fossils** (commit `570fe436`).
   Confirmed with Charles — the deletion is good; no external CSS consumer.
   — `log-data-imperative-goal.md:166-181`
-- [ ] Matt **Ctrl+F find band (Phase 5)** — **owner: Matt Brandly.** Required for merge (its absence
-  is a real regression vs origin/main). Not optional; must land before the branch merges.
+- [x] Matt **Ctrl+F find band (Phase 5)** — landed (`4f57331d`).
   — `loglistgrid-tanstack.md:69,200`
 - [ ] Matt **Confirm log-list column order divergence vs main is intentional.** Branch: Model after
   Task, Sample Limits before Tokens; main: Model / Sample Limits at the end.
+  Meeting 2026-07-06: main's ordering is buggy (`indexOf` on `field` returns -1, so Model mis-sorts);
+  the branch's `column.id` compare is an accidental but correct fix. Position divergence still to confirm.
   — `loglistgrid-tanstack.md:223`
 - [~] Eric **OK that `invalidateLogListing` survives until host-event normalization?** Accept-and-defer
   is the current stance; confirm.
@@ -50,9 +51,12 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
   — `reactive-refactor-goal.md:110`, `loglistgrid-tanstack.md:254`
 - [ ] **Green gates:** `pnpm typecheck && lint && format:check && test` + `top-level-views`
   e2e — all clean. (The "Done when" acceptance set common to every goal doc.)
-- [ ] Matt **Re-enable or delete the 3 `describe.skip`'d suites** in `apps/inspect/e2e/log-list-filters.spec.ts`
-  (lines 202, 316, 344) — they were skipped pending the filter UI, which has since landed.
+- [x] Matt **Re-enable or delete the 3 `describe.skip`'d suites** in `apps/inspect/e2e/log-list-filters.spec.ts`
+  — revived (`43d74b06`); no skips remain in the file.
   — `loglistgrid-tanstack.md:136,152`
+- [ ] Eric **Live-eval polling: new eval showed up late / not at all** in the live test (manual refresh
+  resolved it; poll interval may be too long). Re-test with a longer eval run and confirm new evals
+  appear promptly.
 - [ ] Matt **Add the missing resize e2e** (resize-plan Task 6) + run the manual parity sweep (Task 7). Resize Tasks 1–4 landed (`4d861806`, `65c6ebe0`, per-scope persistence in `LogListGrid.tsx`); only the e2e + manual sweep are outstanding.
   — `loglist-resize-columns-plan.md:607-694`
 
@@ -76,15 +80,19 @@ Confirm each is acceptable to ship, or fix.
 - [X] Multi-column sort mechanics vs main (plain-click on 2nd header); add e2e. — `loglistgrid-tanstack.md:210`
 - [ ] Eric `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — right numbers? — `log-data-unified-fetch-plan.md:434`
 - [ ] Eric Attempts reset on restart (error text kept) — confirm intended. — `log-data-unified-fetch-plan.md:435`
+- [ ] **Default column sizes: confirm they initialize to a sane set** (meeting 2026-07-06 said likely
+  not). May be subsumed by the fit-to-grid-width work (`aed3575f`, `ec3eea0f`) — verify.
 
 ## 5. Feature & parity work required for merge (reclassified from backlog 2026-07-06)
 
 These were in the "out of scope" backlog; on review they must land in this PR. Feature/parity work,
 not verification or decisions.
 
-- [ ] Matt **Auto-fit-to-grid-width** + user-resize-override suppression (Phase 6's other half). origin/main had it via AG `autoSizeStrategy: fitGridWidth`; without it columns don't fill the width. — `loglistgrid-tanstack.md:71`
-- [ ] Matt **Column pinning** (`type` icon col pinned-left) + **multi-line/preformatted cell tooltips**
-  (model-roles, task-args JSON — was `PreformattedTooltip`, now degraded to native `title`). — `loglistgrid-tanstack.md:74,75`
+- [x] Matt **Auto-fit-to-grid-width** + user-resize-override suppression (Phase 6's other half) —
+  landed (`aed3575f`, `ec3eea0f` grow-only "roomy + scroll" + 65px `#` col, `ee852bc7`). — `loglistgrid-tanstack.md:71`
+- [ ] Matt **Column pinning** (`type` icon col pinned-left). Samples-grid `#` col pin landed
+  (`7cac3fbd`); log-list `type` col still open. — `loglistgrid-tanstack.md:74`
+  (Preformatted-cell tooltips moved to §7 — meeting 2026-07-06 decided native `title` is OK for merge.)
 - [ ] Matt **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
   with header/segment names), **filter-code export** ("copy query"), **per-column filter clear +
   autocomplete** (autocomplete needs an inspect API for per-column distinct values). — `loglistgrid-tanstack.md:215,216,217`
@@ -100,6 +108,28 @@ not verification or decisions.
 - [x] **eslint import-path / layering enforcement — DONE.** Satisfied by
   `barrelOnly(["app_config", "log_data"])` in `apps/inspect/eslint.config.mjs`. The "deferred eslint
   enforcement" notes in the goal docs are stale. — `loglistgrid-tanstack.md:95`, `reactive-refactor-goal.md:84`
+
+### 5a. Parity findings from the 2026-07-06 meeting walkthrough
+
+Styling decision from the walkthrough: **match main, don't improve** (sort icons, fonts, affordances).
+
+- [x] **Tasks-view selection highlight lost on navigating away from a log** (users rely on it for
+  keyboard nav between rows) — selection persisted across navigation (`b8b57a77`); samples grid
+  focused on mount for keyboard nav (`361d034c`).
+- [x] **Multi-line mode vertical alignment** — ID/status/score cells center- instead of top-aligned;
+  fixed (`f1194e6f`).
+- [x] **Ordinal multi-sort order badges** (1/2 next to sort arrows) missing vs main — restored
+  (`485cd710`).
+- [x] **Sort icons + header font size differ from main** — aligned (`533f7490`, `410d3ed0`).
+- [x] **Double-click resize-handle auto-sizes column to content** (up to a max; Eric OK with
+  measuring only the client-side render buffer) — landed (`1e315c37`).
+- [ ] Eric **Infinite loading animation bug** — poll interval on the log poller syncs too frequently.
+  Check whether `c645f6a0` (ActivityBar animates while the listing syncs) already covers it.
+- [ ] **Leftmost icon column not sortable in folders view** — fix.
+- [ ] **Filter UI: keep the branch's Scout-style explicit-apply UI; add AND/OR support** (decision:
+  don't revert to main's apply-as-you-type). Apply should also dismiss the popover (today only
+  click-away closes it).
+- [ ] **Filter state not round-tripping through the filter UI** — half-done per meeting; finish.
 
 ---
 
@@ -140,6 +170,12 @@ NOT here — required, owned by Matt Brandly; see §1. The now-required grid/par
 
 **Listing / grid future:**
 - Server-side filter/sort + infinite scroll/pagination; delete the `log-list/listing/` evaluator.
+- **Folder replication caching bug (both branches):** log file copied into the root first, then moved
+  to a subfolder — the replicator caches it at the original location and never detects the move as a
+  delta. Worth fixing, not a merge blocker (meeting 2026-07-06).
+- **Styled-popover tooltips** for multi-line/preformatted cells (model-roles, task-args JSON — was
+  `PreformattedTooltip` on main, now native `title`). Meeting 2026-07-06: native is OK for merge;
+  restoration is a future upgrade. — `loglistgrid-tanstack.md:75`
 
 **AG Grid removal:** migrate `ScoreAgGrid` (last `<AgGridReact>`), then drop
 `ag-grid-community`/`ag-grid-react` + `agGrid.ts` registration.
@@ -166,6 +202,7 @@ NOT here — required, owned by Matt Brandly; see §1. The now-required grid/par
 - Collection-identity churn workaround `useStableValue` at `grid/columns/hooks.tsx:110`.
 - Where `urlLogSource` belongs; whether react-query is the sole upward medium (open design Qs).
 - Next/prev sample arrows disabled on direct navigation to a sample — not a regression (main behaves the same); the nav list is never populated on that path (`loglistgrid-tanstack.md:211`).
+- Tasks-view hover affordance lighter than main — accepted 2026-07-06 (leave it; match this same style for future affordances).
 
 ---
 
