@@ -121,9 +121,17 @@ not verification or decisions.
 - [x] **FilterSpec UI layer — DONE** (2026-07-07). Popover edits/persists `FilterSpec` (friendly operators:
   contains/starts with/…, compiled to wire `Condition` at the query boundary via `specToCondition`);
   Apply/Enter is the only commit point (click-outside cancels); LIKE wildcards in user text are escaped
-  (evaluator understands `\`-escapes). See `design/migration/filter-spec-layer-plan.md`. **Plan 2 (not
-  started):** samples-page filtrex bridge — spec↔filtrex sync with the FILTER input, representability
-  gate, removal of SamplesGrid-local filter state (restores main's column↔text filter parity).
+  (evaluator understands `\`-escapes). See `design/migration/filter-spec-layer-plan.md`.
+- [x] **Samples-page filtrex bridge — DONE** (2026-07-07). Restores main's column↔text filter parity on
+  the samples tab: funnel Apply writes a filtrex string into the FILTER input (`specsToFilterText`),
+  representable strings light up the funnels (`astToSpecs`), all-or-nothing representability gate hides
+  funnels for richer expressions, `state.log.filter` is the single source of truth (SamplesGrid gains a
+  controlled mode; cross-log SamplesPanel keeps local filtering). Registry (colId↔variable, dynamic
+  score columns, `sampleId` excluded) ported from main. See `design/migration/filter-filtrex-bridge-plan.md`.
+  Accepted parity loss vs main: a generic 2-condition AND per column (e.g. `tokens > 1 and tokens < 9`)
+  is expression-only now (only the `>=`/`<=` pair folds to `between`); `in`/`not in`/`not between` aren't
+  offered on the samples tab. "Filter-code export (copy query)" is superseded there — the FILTER string
+  *is* the query.
 - [ ] Eric **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
   **residual AG type-only imports** (dormant `GridState` slice in `app/types.ts`/`logsSlice`/`state/hooks`,
   `ColDef` picker shims, `IRowNode` in `gridComparators`). — `loglistgrid-tanstack.md:192`

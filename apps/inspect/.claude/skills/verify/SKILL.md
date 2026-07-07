@@ -24,6 +24,13 @@ Useful selectors (stable, used by e2e too):
 - Filter popover: operator `#<columnId>-op` (`<select>` of UI operators: contains/…), value `#<columnId>-val` (string columns use placeholder "Filter"), range end `#<columnId>-val2`, commit `getByRole("button", { name: "Apply" })`.
 - Applied-filter chrome: `getByRole("button", { name: "Reset Filters" })`; item count bottom-right ("1 / 33 items").
 
+## Samples-page specifics
+
+- The single-log samples page hosts TWO `role="grid"` elements (an AG results-summary grid plus the samples DataGrid) — scope to the DataGrid with `div[role="grid"][tabindex="0"]`.
+- The FILTER input is CodeMirror: read via `.cm-content` textContent; set by click + select-all + type (200ms debounce before the store updates).
+- The Tasks/Folders/Samples view-mode segmented control buttons have no accessible name — locate with `page.locator("button").filter({ hasText: /^Samples$/ })`. `getByRole("button", { name: "Samples" })` collides with funnel aria-labels like "Filter totalSamples".
+- Rendered row counts are virtualization-capped; assert filtering via the "N / M Samples" footer or row content, not `getByRole("row").count()`.
+
 ## Gotchas
 
 - **No persistence in plain-browser mode**: `src/client/storage/index.ts` returns `undefined` outside VS Code, so zustand persist is a no-op — filters/sort/widths never survive a browser reload. Don't report that as a bug; persistence is only observable in the VS Code webview.
