@@ -449,8 +449,9 @@ export function DataGrid<TRow>({
   // columns directly after a rotated block get indented (the previous
   // column's angled label anchors at the shared edge and fans over this
   // column's header, so its diagonal would slice through header text
-  // sitting flush left); the indent applies to header and body cells alike
-  // so the column's label and values stay aligned.
+  // sitting flush left). Only the header text is indented; body cells keep
+  // the default inset but carry the same extra render width, so the column
+  // edges stay aligned.
   const { anyRotated, afterRotatedIds } = useMemo(() => {
     const anyRotated = orderedVisibleDefs.some((c) => c.meta?.rotateHeader);
     const afterRotatedIds = new Set<string>();
@@ -953,7 +954,6 @@ function GridRowInner<TRow>({
             className={clsx(
               styles.cell,
               align === "center" && styles.cellCenter,
-              afterRotatedIds.has(cell.column.id) && styles.afterRotatedGap,
               pinned && styles.cellPinned
             )}
             style={{

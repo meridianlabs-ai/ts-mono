@@ -372,8 +372,9 @@
  * the cell bottom). Indenting by the gap (kAfterRotatedGap + the default
  * 8px) puts the diagonal safely above where the text starts; the cell is
  * rendered kAfterRotatedGap wider to compensate, so the content box is
- * unchanged. Applied to header and body cells alike so the column's label
- * and values stay left-aligned. */
+ * unchanged. Applied to the header cell only — the diagonal overlaps just
+ * the header, so body cells keep the default inset (they still carry the
+ * matching extra render width, so the column edges stay aligned). */
 .afterRotatedGap {
   padding-left: 32px;
 }
