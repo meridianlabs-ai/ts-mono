@@ -19,14 +19,29 @@ import type {
 
 const isNullish = (v: unknown): boolean => v === null || v === undefined;
 
-/** Translate a SQL LIKE pattern (`%` = any, `_` = one char) to a RegExp. */
+const regexEscapeChar = (ch: string): string =>
+  ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Translate a SQL LIKE pattern (`%` = any, `_` = one char, `\` escapes the
+ *  next char) to a RegExp. A trailing lone `\` matches a literal backslash. */
 const likeToRegExp = (pattern: string, caseInsensitive: boolean): RegExp => {
   let out = "";
+  let escaped = false;
   for (const ch of pattern) {
-    if (ch === "%") out += ".*";
-    else if (ch === "_") out += ".";
-    else out += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (escaped) {
+      out += regexEscapeChar(ch);
+      escaped = false;
+    } else if (ch === "\\") {
+      escaped = true;
+    } else if (ch === "%") {
+      out += ".*";
+    } else if (ch === "_") {
+      out += ".";
+    } else {
+      out += regexEscapeChar(ch);
+    }
   }
+  if (escaped) out += regexEscapeChar("\\");
   return new RegExp(`^${out}$`, caseInsensitive ? "is" : "s");
 };
 

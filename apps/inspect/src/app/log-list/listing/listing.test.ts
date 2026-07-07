@@ -65,6 +65,30 @@ describe("evaluateCondition", () => {
     expect(ev(new Column("model").like("gpt%"), r1)).toBe(false);
   });
 
+  it("LIKE treats backslash-escaped wildcards as literals", () => {
+    const done: Row = { name: "e", model: "50% done" };
+    const plain: Row = { name: "f", model: "50 done" };
+    const c = ConditionBuilder.simple("model", "ILIKE", "%50\\%%");
+    expect(ev(c, done)).toBe(true);
+    expect(ev(c, plain)).toBe(false);
+  });
+
+  it("LIKE handles escaped and dangling backslashes", () => {
+    // `\\` in the pattern is a literal backslash.
+    const withSlash: Row = { name: "g", model: "a\\b" };
+    const noSlash: Row = { name: "h", model: "ab" };
+    const escaped = ConditionBuilder.simple("model", "LIKE", "%a\\\\b%");
+    expect(ev(escaped, withSlash)).toBe(true);
+    expect(ev(escaped, noSlash)).toBe(false);
+
+    // A trailing lone `\` matches a literal backslash.
+    const endsSlash: Row = { name: "i", model: "x\\" };
+    const endsPlain: Row = { name: "j", model: "x" };
+    const dangling = ConditionBuilder.simple("model", "LIKE", "%x\\");
+    expect(ev(dangling, endsSlash)).toBe(true);
+    expect(ev(dangling, endsPlain)).toBe(false);
+  });
+
   it("IS NULL / IS NOT NULL", () => {
     expect(ev(new Column("score").isNull(), r2)).toBe(true);
     expect(ev(new Column("score").isNull(), r0)).toBe(false);
