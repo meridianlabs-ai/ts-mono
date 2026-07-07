@@ -50,7 +50,10 @@ interface SamplesGridProps {
    * filtering rows itself — the owner filters upstream (the samples tab
    * derives these from the filtrex FILTER string). When absent, the grid
    * keeps its own local filter state and applies it client-side
-   * (SamplesPanel's cross-log mode).
+   * (SamplesPanel's cross-log mode). Choose a mode for the component's
+   * lifetime — flipping between providing and omitting this prop mid-session
+   * would resurrect stale local state (standard React controlled-prop
+   * convention).
    */
   columnFilters?: Record<string, ColumnFilter>;
   onColumnFilterChange?: (
@@ -63,9 +66,12 @@ interface SamplesGridProps {
 }
 
 /**
- * Shared samples grid: a `DataGrid` wrapper that runs client-side sort +
- * per-column filtering over its rows via the same listing query the log list
- * uses. Sort/filter state is local to the grid; persistence is not wired yet.
+ * Shared samples grid: a `DataGrid` wrapper that runs client-side sort over
+ * its rows via the same listing query the log list uses. Per-column filtering
+ * is dual-mode: uncontrolled (no `columnFilters` prop — local state, applied
+ * client-side; SamplesPanel's cross-log mode) or controlled (the owner
+ * filters upstream — on the samples tab via the filtrex FILTER string, which
+ * is also the persistence).
  */
 export const SamplesGrid = ({
   rowData,

@@ -144,8 +144,8 @@ export interface DataGridProps<TRow> {
     spec: FilterSpec | null
   ) => void;
   /** Hide all column filter funnels (e.g. while the active filter expression
-   *  is not representable as per-column filters). Active filters still render
-   *  their state; only the entry points disappear. */
+   *  is not representable as per-column filters). The owner's `columnFilters`
+   *  still apply to its rows; this only removes the header entry points. */
   hideColumnFilters?: boolean;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;

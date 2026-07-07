@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { SampleSummary } from "../../../client/api/types";
 import type { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
+import {
+  buildSampleFilterSpecRegistry,
+  samplesOperatorsForKind,
+} from "../../samples/sample-tools/filterSpecRegistry";
 
 import { buildSampleColumns, SCORE_FIELD_RAW_PREFIX } from "./columns";
 import type { SampleRow } from "./types";
@@ -117,6 +121,39 @@ describe("buildSampleColumns TaskSamplesColumnId wire contract", () => {
     const ids = new Set(cols.map((c) => c.id));
     const missing = kTaskSamplesColumnIds.filter((id) => !ids.has(id));
     expect(missing).toEqual([]);
+  });
+});
+
+describe("buildSampleColumns registry-gated filterable pass", () => {
+  it("with a registry, only mapped columns get funnels, with narrowed operators", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: false,
+      descriptor: {} as unknown as SamplesDescriptor,
+      filterSpecRegistry: buildSampleFilterSpecRegistry(undefined),
+    });
+    // sampleId is intentionally unregistered (mixed number/string ids don't
+    // round-trip through filtrex) — no funnel.
+    expect(cols.find((c) => c.id === "sampleId")?.meta?.filterable).toBe(
+      undefined
+    );
+    const input = cols.find((c) => c.id === "input");
+    expect(input?.meta?.filterable).toBe(true);
+    expect(input?.meta?.operators).toEqual(samplesOperatorsForKind("string"));
+    const tokens = cols.find((c) => c.id === "tokens");
+    expect(tokens?.meta?.filterable).toBe(true);
+    expect(tokens?.meta?.operators).toEqual(samplesOperatorsForKind("number"));
+  });
+
+  it("without a registry, every column is filterable with default operators", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: false,
+      descriptor: {} as unknown as SamplesDescriptor,
+    });
+    const sampleId = cols.find((c) => c.id === "sampleId");
+    expect(sampleId?.meta?.filterable).toBe(true);
+    expect(sampleId?.meta?.operators).toBeUndefined();
   });
 });
 

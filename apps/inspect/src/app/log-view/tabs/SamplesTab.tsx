@@ -13,6 +13,7 @@ import {
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import type {
+  ColumnFilter,
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
@@ -76,6 +77,10 @@ interface SamplesTabExtraProps {
 const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
   {}
 );
+
+// Stable empty fallback: a fresh `{}` per render (while the representability
+// gate is active) would defeat SampleList's memo.
+const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
 
 // AG-shaped shim of the column list for the still-AG `useSamplesView` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
@@ -478,7 +483,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           running={running}
           multiline={view.multiline}
           scrollRef={scrollRef}
-          columnFilters={columnFilterSpecs ?? {}}
+          columnFilters={columnFilterSpecs ?? kNoColumnFilters}
           onColumnFilterChange={handleColumnFilterChange}
           hideColumnFilters={columnFilterSpecs === null}
         />
