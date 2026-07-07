@@ -51,9 +51,16 @@ live in `./archive/`** (moved there once their work landed). This punchlist stay
 - [x] Matt **Re-enable or delete the 3 `describe.skip`'d suites** in `apps/inspect/e2e/log-list-filters.spec.ts`
   — revived (`43d74b06`); no skips remain in the file.
   — `loglistgrid-tanstack.md:136,152`
-- [ ] Eric **Live-eval polling: new eval showed up late / not at all** in the live test (manual refresh
-  resolved it; poll interval may be too long). Re-test with a longer eval run and confirm new evals
-  appear promptly.
+- [x] Eric **Live-eval polling: new eval showed up late / not at all** — diagnosed + fixed (`d6246c86`).
+  "Not at all" was the client-events poll parking permanently: one transient outage (~7s of failed
+  ticks exhausts react-query's 3 retries; `refetchInterval` then returned `false` forever) killed
+  BOTH the refresh-evals path and the periodic sweep — reproduced by killing the view server 30s
+  (listing frozen until manual reload, matching the live test). Fix: `retry: false` + unconditional
+  interval, so an errored tick just retries next interval; verified live (eval run after an outage
+  appeared on the next tick). "Late" is main-parity cadence, not a bug: the server signals
+  `refresh-evals` only on eval *completion* (`notify.py`), so a newly *started* eval is discovered
+  by the every-10th-tick sweep — ≤50s, observed 19s; main has the identical 5s/×10 cadence.
+  Making starts announce faster would be a server-side feature, not a regression fix.
 - [ ] Matt **Add the missing resize e2e** (resize-plan Task 6) + run the manual parity sweep (Task 7). Resize Tasks 1–4 landed (`4d861806`, `65c6ebe0`, per-scope persistence in `LogListGrid.tsx`); only the e2e + manual sweep are outstanding.
   — `loglist-resize-columns-plan.md:607-694`
 
@@ -121,8 +128,15 @@ Styling decision from the walkthrough: **match main, don't improve** (sort icons
 - [x] **Sort icons + header font size differ from main** — aligned (`533f7490`, `410d3ed0`).
 - [x] **Double-click resize-handle auto-sizes column to content** (up to a max; Eric OK with
   measuring only the client-side render buffer) — landed (`1e315c37`).
-- [ ] Eric **Infinite loading animation bug** — poll interval on the log poller syncs too frequently.
-  Check whether `c645f6a0` (ActivityBar animates while the listing syncs) already covers it.
+- [x] Eric **Infinite loading animation bug** — fixed (`af60813b`). Root cause was signal semantics,
+  not poll frequency (cadence matches main exactly: `/events` every 5s, listing sweep every ~50s).
+  `ListingStatus.busy` conflated the sync round trip with the engine's background fetching, and
+  `c645f6a0` fed that to the navbar ActivityBar — so backfill/running-log re-fetches animated the
+  bar (measured: bar on for the whole cold backfill; on a big or live dir the engine is rarely idle
+  → reads as infinite). Fix splits the signal: `loading` (sync in flight) drives the navbar, `busy`
+  (engine folded in) stays on the footer "Syncing data"/empty-grid overlays — main's
+  `status.loading` / `status.syncing` split. `c645f6a0`'s intent (bar animates while the listing
+  syncs; error-state.spec) is preserved.
 - [ ] **Leftmost icon column not sortable in folders view** — fix.
 - [ ] **Filter UI: keep the branch's Scout-style explicit-apply UI; add AND/OR support** (decision:
   don't revert to main's apply-as-you-type). Apply should also dismiss the popover (today only
