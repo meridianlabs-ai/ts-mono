@@ -185,6 +185,7 @@ export function buildSampleColumns(
         header: "Task",
         size: 160,
         minSize: 100,
+        flex: 1,
         accessorFn: (row) => row.task,
         cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
@@ -193,6 +194,7 @@ export function buildSampleColumns(
         header: "Model",
         size: 160,
         minSize: 100,
+        flex: 1,
         accessorFn: (row) => row.model,
         cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
@@ -201,6 +203,7 @@ export function buildSampleColumns(
         header: "Log File",
         size: 200,
         minSize: 150,
+        flex: 1,
         accessorFn: (row) => row.logFile,
         cell: ({ getValue }) => {
           const value = getValue<string | undefined>();
@@ -260,6 +263,7 @@ export function buildSampleColumns(
     header: "Input",
     size: 360,
     minSize: 240,
+    flex: shape?.inputSize ? shape.inputSize : 3,
     accessorFn: (row) => inputText(row),
     cell: isList
       ? ({ row }) => (
@@ -277,6 +281,7 @@ export function buildSampleColumns(
     header: "Target",
     size: 200,
     minSize: 120,
+    flex: shape?.targetSize ? shape.targetSize : 1,
     accessorFn: (row) => targetText(row),
     cell: isList
       ? ({ row }) => {
@@ -300,6 +305,7 @@ export function buildSampleColumns(
       header: "Answer",
       size: 200,
       minSize: 120,
+      flex: shape?.answerSize ? shape.answerSize : 1,
       accessorFn: (row) => row.answer ?? "",
       cell: isList
         ? ({ row }) => (

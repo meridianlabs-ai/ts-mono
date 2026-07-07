@@ -52,6 +52,13 @@ export type ExtendedColumnDef<TRow> = ColumnDef<TRow> & {
    * drag-reorder.
    */
   pinned?: "left";
+  /**
+   * Flex weight (AG `initialFlex`): the column absorbs leftover grid width
+   * proportionally to its weight, floored at `minSize`. `size` serves as
+   * the fallback width until the container is measured. A user resize
+   * overrides the flex.
+   */
+  flex?: number;
   /** Tooltip text for the column header. */
   headerTitle?: string;
   /** Tooltip text for a cell, derived from the full row. */

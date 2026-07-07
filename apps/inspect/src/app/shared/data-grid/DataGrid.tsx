@@ -35,6 +35,7 @@ import {
 } from "@tsmono/inspect-components/columnFilter";
 
 import { computeAutoSizeWidth } from "./autoSize";
+import { resolveColumnWidths } from "./columnFit";
 import {
   dropIndicatorSide,
   moveColumn,
@@ -109,6 +110,12 @@ const kRotatedTrailingPad = 95;
 // block; paired with matching left padding (.afterRotatedGap) so the gap
 // separates the columns without shrinking the content box.
 const kAfterRotatedGap = 24;
+// Width reserved from the fit-to-width target: the last column's resize
+// handle overhangs its cell by 3px (.resizeHandle right: -3px), and columns
+// fitted flush to the container would let it trip a permanent horizontal
+// scrollbar. Rows stretch over the reserve (min-width: 100%), so it's
+// invisible.
+const kFitSlack = 4;
 
 export interface DataGridProps<TRow> {
   data: TRow[];
@@ -159,12 +166,14 @@ export interface DataGridProps<TRow> {
 
 /**
  * Inspect-local DataGrid: a minimal TanStack Table wrapper with row
- * virtualization, controlled column visibility, fixed column widths
- * (horizontal scroll), and single-row selection + click-to-activate.
+ * virtualization, controlled column visibility, fit-to-width column sizing
+ * (flex weights or proportional scaling — see columnFit.ts; horizontal
+ * scroll when minimums overflow), and single-row selection +
+ * click-to-activate.
  *
- * Sorting, filtering, keyboard navigation, and column resizing are wired up;
- * find and auto-fit are layered on in later phases — see
- * design/plans/loglistgrid-tanstack.md.
+ * Sorting, filtering, keyboard navigation, column resizing (drag +
+ * double-click auto-size), pinning, reordering, and find are wired up —
+ * see design/migration/archive/loglistgrid-tanstack.md.
  */
 export function DataGrid<TRow>({
   data,
@@ -395,6 +404,95 @@ export function DataGrid<TRow>({
     setDropTarget(null);
   }, [removeDragGhost]);
 
+  // Visible leaf defs in display order (pinned first, then columnOrder),
+  // derived from props rather than the table because the fit-to-width pass
+  // below feeds the table's own columnSizing state.
+  const orderedVisibleDefs = useMemo(() => {
+    const byId = new Map<string, ExtendedColumnDef<TRow>>();
+    for (const c of columns) {
+      if (c.id !== undefined) byId.set(c.id, c);
+    }
+    const rest = effectiveColumnOrder.filter((id) => !pinnedLeft.has(id));
+    return [...columnPinning.left, ...rest]
+      .filter((id) => (columnVisibility?.[id] ?? true) && byId.has(id))
+      .map((id) => byId.get(id)!);
+  }, [
+    columns,
+    columnVisibility,
+    effectiveColumnOrder,
+    columnPinning,
+    pinnedLeft,
+  ]);
+
+  // Rotated headers (compact score columns) need a taller header row and
+  // extra trailing scroll width so the last label isn't clipped. Normal
+  // columns directly after a rotated block get indented (the previous
+  // column's angled label anchors at the shared edge and fans over this
+  // column's header, so its diagonal would slice through header text
+  // sitting flush left); the indent applies to header and body cells alike
+  // so the column's label and values stay aligned.
+  const { anyRotated, afterRotatedIds } = useMemo(() => {
+    const anyRotated = orderedVisibleDefs.some((c) => c.meta?.rotateHeader);
+    const afterRotatedIds = new Set<string>();
+    orderedVisibleDefs.forEach((c, i) => {
+      const prev = orderedVisibleDefs[i - 1];
+      if (!prev || c.id === undefined) return;
+      if (prev.meta?.rotateHeader && !c.meta?.rotateHeader) {
+        afterRotatedIds.add(c.id);
+      }
+    });
+    return { anyRotated, afterRotatedIds };
+  }, [orderedVisibleDefs]);
+  const gapExtra = afterRotatedIds.size * kAfterRotatedGap;
+  const effectiveHeaderHeight = anyRotated
+    ? kRotatedHeaderHeight
+    : headerHeight;
+  const trailingPad = anyRotated ? kRotatedTrailingPad : 0;
+
+  // Fit-to-width (see columnFit.ts): flex columns absorb leftover space;
+  // with none visible, resizable columns scale proportionally. The container
+  // width arrives via ResizeObserver (guarded: absent in jsdom), so the
+  // first paint uses base sizes until the observer reports in — the AG grid
+  // this replaced painted initial widths before fitting too.
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      setContainerWidth(el.clientWidth);
+    });
+    observer.observe(el);
+    setContainerWidth(el.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+  const resolvedSizing = useMemo(() => {
+    const fitColumns = orderedVisibleDefs.flatMap((c) =>
+      c.id === undefined
+        ? []
+        : [
+            {
+              id: c.id,
+              size: c.size,
+              minSize: c.minSize,
+              maxSize: c.maxSize,
+              flex: c.flex,
+              resizable: c.enableResizing,
+            },
+          ]
+    );
+    return resolveColumnWidths(
+      fitColumns,
+      containerWidth - gapExtra - trailingPad - kFitSlack,
+      effectiveSizing
+    );
+  }, [
+    orderedVisibleDefs,
+    containerWidth,
+    gapExtra,
+    trailingPad,
+    effectiveSizing,
+  ]);
+
   // Double-click on a resize handle auto-sizes the column to its content
   // (the AG grid's built-in divider double-click). Only rendered cells are
   // measured — AG does the same — via a Range so plain text nodes measure
@@ -449,7 +547,9 @@ export function DataGrid<TRow>({
     state: {
       columnVisibility: columnVisibility ?? {},
       sorting: sorting ?? [],
-      columnSizing: effectiveSizing,
+      // The fit-resolved widths, not the sparse override map — the table
+      // is the single source the render reads sizes from (getSize/getStart).
+      columnSizing: resolvedSizing,
       columnOrder: effectiveColumnOrder,
       columnPinning,
     },
@@ -460,38 +560,10 @@ export function DataGrid<TRow>({
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
 
-  // Rotated headers (compact score columns) need a taller header row, and
-  // extra trailing scroll width so the last label isn't clipped.
-  // `getVisibleLeafColumns` keeps its identity until visibility/order change,
-  // so this memo — and `afterRotatedIds`, which GridRow's memo compares by
-  // reference — stays stable across unrelated re-renders (resize, selection).
+  // Kept for GridRow's memo cache key: `getVisibleLeafColumns` keeps its
+  // identity until visibility/order change, so rows skip re-rendering on
+  // unrelated grid-state changes.
   const visibleColumns = table.getVisibleLeafColumns();
-  const { anyRotated, afterRotatedIds } = useMemo(() => {
-    const anyRotated = visibleColumns.some(
-      (c) => (c.columnDef as ExtendedColumnDef<TRow>).meta?.rotateHeader
-    );
-    // Normal columns directly after a rotated block: the previous column's
-    // angled label anchors at the shared edge and fans over this column's
-    // header, so its diagonal would slice through header text sitting flush
-    // left. Indent those columns (header + body cells, so they stay aligned)
-    // past the diagonal.
-    const afterRotatedIds = new Set<string>();
-    visibleColumns.forEach((c, i) => {
-      const prev = visibleColumns[i - 1];
-      if (!prev) return;
-      const rotated = (c.columnDef as ExtendedColumnDef<TRow>).meta
-        ?.rotateHeader;
-      const prevRotated = (prev.columnDef as ExtendedColumnDef<TRow>).meta
-        ?.rotateHeader;
-      if (prevRotated && !rotated) afterRotatedIds.add(c.id);
-    });
-    return { anyRotated, afterRotatedIds };
-  }, [visibleColumns]);
-  const gapExtra = afterRotatedIds.size * kAfterRotatedGap;
-  const effectiveHeaderHeight = anyRotated
-    ? kRotatedHeaderHeight
-    : headerHeight;
-  const trailingPad = anyRotated ? kRotatedTrailingPad : 0;
 
   // The sticky header occupies layout space at the top of the scroll
   // container, so the virtualized rows start `headerHeight` px down. Two knobs
