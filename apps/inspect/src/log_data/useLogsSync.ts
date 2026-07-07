@@ -66,17 +66,16 @@ export interface ListingStatus {
  * imperative start/stop.
  */
 export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
-  // TODO: deliberate exception to the useAsyncDataFromQuery convention — a
-  // side-effect-only query whose result nobody consumes. Smells worth further
-  // study: a parked (errored) poll silently stops listing freshness; should
-  // that surface through ListingStatus?
+  // Deliberate exception to the useAsyncDataFromQuery convention — a
+  // side-effect-only query whose result nobody consumes.
   useQuery({
     queryKey: clientEventsKey(logDir),
     queryFn: () => clientEventsTick(getApi(), logDir),
-    // A failed tick retries per the client default, then parks the query in
-    // error state; stopping the interval there is the give-up.
-    refetchInterval: (query) =>
-      query.state.status === "error" ? false : kClientEventsIntervalMs,
+    // A tick must never park the poll: an errored query keeps refetching on
+    // the interval (retries are skipped — the next tick IS the retry), so
+    // listing freshness survives a transient outage of any length.
+    retry: false,
+    refetchInterval: kClientEventsIntervalMs,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

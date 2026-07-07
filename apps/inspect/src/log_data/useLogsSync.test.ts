@@ -1,11 +1,25 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { renderHook } from "@testing-library/react";
+import { createElement, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ClientAPI } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
-import { clientEventsTick } from "./useLogsSync";
+import { clientEventsTick, useLogsSync } from "./useLogsSync";
 
-vi.mock("./replicationControl", () => ({ syncLogs: vi.fn() }));
+const syncLogs = vi.hoisted(() => vi.fn());
+vi.mock("./replicationControl", () => ({ syncLogs }));
+
+const engineStatus = vi.hoisted(() => ({ syncing: false }));
+vi.mock("./useFetchEngineStatus", () => ({
+  useFetchEngineStatus: () => ({ ...engineStatus, dbStats: undefined }),
+}));
+
+const client_events = vi.hoisted(() => vi.fn());
+vi.mock("../app_config", () => ({
+  getApi: () => ({ client_events }),
+}));
 
 const LOG_DIR = "/logs";
 const tickKey = ["log_data", "client-events", LOG_DIR];
@@ -21,9 +35,16 @@ const apiWith = (events: string[]): ClientAPI =>
   }) as unknown as ClientAPI;
 
 afterEach(() => {
+  vi.useRealTimers();
   queryClient.clear();
   invalidateQueries.mockClear();
+  syncLogs.mockReset();
+  client_events.mockReset();
+  engineStatus.syncing = false;
 });
+
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client: queryClient }, children);
 
 describe("clientEventsTick", () => {
   it("invalidates the dir's listing sync on a refresh-evals event", async () => {
@@ -55,4 +76,23 @@ describe("clientEventsTick", () => {
     expect(tick).toBe(1);
     expect(invalidateQueries).not.toHaveBeenCalled();
   });
+});
+
+describe("useLogsSync", () => {
+  it("keeps polling client events after ticks fail (a transient outage must not park freshness)", async () => {
+    vi.useFakeTimers();
+    syncLogs.mockResolvedValue([]);
+    client_events.mockRejectedValue(new Error("server down"));
+
+    renderHook(() => useLogsSync(LOG_DIR, ""), { wrapper });
+
+    // Well past any retry window: the tick query has settled into error.
+    await vi.advanceTimersByTimeAsync(30_000);
+    const settledCalls = client_events.mock.calls.length;
+
+    // The poll must still be alive: more ticks arrive on the interval.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(client_events.mock.calls.length).toBeGreaterThan(settledCalls);
+  });
+
 });
