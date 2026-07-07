@@ -59,6 +59,35 @@ function resolveHeaderTitle<TRow>(
   if (columnDef.headerTitle) return columnDef.headerTitle;
   return typeof columnDef.header === "string" ? columnDef.header : undefined;
 }
+
+/** Header sort indicator: direction arrow plus, when several columns are
+ *  sorted, this column's 1-based position in the sort order (the number is
+ *  noise for a single sort, so it only appears for multi-sorts — matching
+ *  the previous AG grid). */
+function SortIndicator<TRow>({
+  header,
+}: {
+  header: Header<TRow, unknown>;
+}): ReactElement | null {
+  const sorted = header.column.getIsSorted();
+  if (!sorted) return null;
+  const sortIndex = header.column.getSortIndex();
+  const multiSorted = header.getContext().table.getState().sorting.length > 1;
+  return (
+    <>
+      <i
+        className={clsx(
+          sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
+          styles.sortIcon
+        )}
+        aria-hidden="true"
+      />
+      {multiSorted && sortIndex >= 0 && (
+        <span className={styles.sortOrder}>{sortIndex + 1}</span>
+      )}
+    </>
+  );
+}
 // Extra scroll width past the last column so its rotated label, which
 // fans up-and-right beyond the column edge, isn't clipped at max scroll.
 const kRotatedTrailingPad = 95;
@@ -343,6 +372,12 @@ export function DataGrid<TRow>({
     getRowId,
     manualSorting: true,
     enableMultiSort: true,
+    // TanStack's default multi-sort trigger is shift-only; also accept
+    // cmd/ctrl to match the AG grid this replaced.
+    isMultiSortEvent: (e) => {
+      const { shiftKey, metaKey, ctrlKey } = e as globalThis.MouseEvent;
+      return shiftKey || metaKey || ctrlKey;
+    },
     enableSortingRemoval: true,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
@@ -550,18 +585,7 @@ export function DataGrid<TRow>({
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
                 const sorted = header.column.getIsSorted();
-                const sortCaret =
-                  sorted === "asc" ? (
-                    <i
-                      className={clsx("bi bi-caret-up-fill", styles.sortIcon)}
-                      aria-hidden="true"
-                    />
-                  ) : sorted === "desc" ? (
-                    <i
-                      className={clsx("bi bi-caret-down-fill", styles.sortIcon)}
-                      aria-hidden="true"
-                    />
-                  ) : null;
+                const sortCaret = <SortIndicator header={header} />;
                 const headerLabel = header.isPlaceholder
                   ? null
                   : flexRender(
@@ -874,18 +898,7 @@ function RotatedHeaderCell<TRow>({
         onClick={header.column.getToggleSortingHandler()}
       >
         <span className={styles.rotatedText}>{headerLabel}</span>
-        {sorted === "asc" && (
-          <i
-            className={clsx("bi bi-caret-up-fill", styles.sortIcon)}
-            aria-hidden="true"
-          />
-        )}
-        {sorted === "desc" && (
-          <i
-            className={clsx("bi bi-caret-down-fill", styles.sortIcon)}
-            aria-hidden="true"
-          />
-        )}
+        <SortIndicator header={header} />
         {columnDef.meta?.filterable && filterType && (
           // The popover is portaled, but React events bubble through the
           // component tree — so clicks inside the filter would reach the

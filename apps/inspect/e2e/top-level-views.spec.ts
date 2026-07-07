@@ -318,9 +318,10 @@ test.describe("Sorting", () => {
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
-    // Caret is aria-hidden, so locate it within the Completed header by class.
+    // Sort arrow is aria-hidden, so locate it within the Completed header by
+    // class.
     const completedHeader = columnHeader(page, "Completed");
-    await expect(completedHeader.locator("i.bi-caret-down-fill")).toBeVisible();
+    await expect(completedHeader.locator("i.bi-arrow-down")).toBeVisible();
   });
 
   test("clicking the Task header sorts rows ascending then descending", async ({

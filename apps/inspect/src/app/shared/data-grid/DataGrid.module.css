@@ -73,6 +73,12 @@
   flex: 0 0 auto;
 }
 
+/* Multi-sort position badge next to the sort arrow. */
+.sortOrder {
+  font-size: var(--inspect-font-size-smallestest);
+  flex: 0 0 auto;
+}
+
 /* Filter funnel: hidden until the header is hovered, but stays visible when
  * the column has an active filter (matches the prior grid). */
 .headerFilter {
