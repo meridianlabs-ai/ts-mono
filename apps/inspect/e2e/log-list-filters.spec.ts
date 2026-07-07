@@ -146,8 +146,8 @@ function resetFiltersButton(page: Page) {
 
 /**
  * Apply a "task contains <value>" filter through the Task column's filter
- * funnel (hover-revealed) popover. LIKE (not =) so tests are robust to the
- * Task cell rendering the full file name rather than the bare task name.
+ * funnel (hover-revealed) popover. "contains" (not =) so tests are robust to
+ * the Task cell rendering the full file name rather than the bare task name.
  */
 async function applyTaskFilter(page: Page, value: string) {
   const header = taskColumnHeader(page);
@@ -155,7 +155,7 @@ async function applyTaskFilter(page: Page, value: string) {
   await header
     .getByRole("button", { name: "Filter task", exact: true })
     .click();
-  await page.locator("#task-op").selectOption("LIKE");
+  await page.locator("#task-op").selectOption("contains");
   await page.getByPlaceholder("Filter").fill(value);
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(resetFiltersButton(page)).toBeVisible();

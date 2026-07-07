@@ -355,14 +355,15 @@ test.describe("Filtering", () => {
     await expect(gridCell(page, "task-beta")).toBeVisible();
 
     // Open the Task column's filter funnel (hover-revealed) and apply a
-    // "contains task-alpha" filter. LIKE (not =) so the test is robust to the
-    // Task cell rendering the full file name rather than the bare task name.
+    // "contains task-alpha" filter. "contains" (not =) so the test is robust
+    // to the Task cell rendering the full file name rather than the bare task
+    // name.
     const taskHeader = columnHeader(page, "Task");
     await taskHeader.hover();
     await taskHeader
       .getByRole("button", { name: "Filter task", exact: true })
       .click();
-    await page.locator("#task-op").selectOption("LIKE");
+    await page.locator("#task-op").selectOption("contains");
     await page.getByPlaceholder("Filter").fill("task-alpha");
     await page.getByRole("button", { name: "Apply" }).click();
 
