@@ -44,6 +44,22 @@ interface SamplesGridProps {
   scrollRef?: RefObject<HTMLDivElement | null>;
   onRowOpen: (row: SampleRow) => void;
   loading?: boolean;
+  /**
+   * Controlled column filters. When provided, the grid renders funnel state
+   * from this map and reports edits via `onColumnFilterChange` WITHOUT
+   * filtering rows itself — the owner filters upstream (the samples tab
+   * derives these from the filtrex FILTER string). When absent, the grid
+   * keeps its own local filter state and applies it client-side
+   * (SamplesPanel's cross-log mode).
+   */
+  columnFilters?: Record<string, ColumnFilter>;
+  onColumnFilterChange?: (
+    columnId: string,
+    filterType: FilterType,
+    spec: FilterSpec | null
+  ) => void;
+  /** Hide all funnels (forwarded to DataGrid). */
+  hideColumnFilters?: boolean;
 }
 
 /**
@@ -63,14 +79,20 @@ export const SamplesGrid = ({
   scrollRef,
   onRowOpen,
   loading,
+  columnFilters,
+  onColumnFilterChange,
+  hideColumnFilters,
 }: SamplesGridProps): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
   const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
-  const [columnFilters, setColumnFilters] = useState<
+  const [localFilters, setLocalFilters] = useState<
     Record<string, ColumnFilter>
   >({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+
+  const controlled = columnFilters !== undefined;
+  const effectiveFilters = controlled ? columnFilters : localFilters;
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
@@ -102,7 +124,12 @@ export const SamplesGrid = ({
     [columnsById]
   );
 
-  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
+  // Controlled mode: rows arrive already filtered (filtrex upstream) — only
+  // sort here. Uncontrolled: filter + sort client-side as before.
+  const filter = useMemo(
+    () => (controlled ? undefined : combineFilters(localFilters)),
+    [controlled, localFilters]
+  );
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
   const { items } = useLogsListingQuery<SampleRow>({
@@ -116,14 +143,18 @@ export const SamplesGrid = ({
 
   const handleColumnFilterChange = useCallback(
     (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
-      setColumnFilters((prev) => {
+      if (onColumnFilterChange) {
+        onColumnFilterChange(columnId, filterType, spec);
+        return;
+      }
+      setLocalFilters((prev) => {
         const next = { ...prev };
         if (spec === null) delete next[columnId];
         else next[columnId] = { columnId, filterType, spec };
         return next;
       });
     },
-    []
+    [onColumnFilterChange]
   );
 
   return (
@@ -134,8 +165,9 @@ export const SamplesGrid = ({
       columnVisibility={columnVisibility}
       sorting={sorting}
       onSortingChange={setSorting}
-      columnFilters={columnFilters}
+      columnFilters={effectiveFilters}
       onColumnFilterChange={handleColumnFilterChange}
+      hideColumnFilters={hideColumnFilters}
       columnSizing={columnSizing}
       onColumnSizingChange={setColumnSizing}
       selectedRowId={selectedRowId}

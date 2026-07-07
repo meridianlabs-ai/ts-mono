@@ -2,6 +2,11 @@ import type { SortingState } from "@tanstack/react-table";
 import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
+import type {
+  ColumnFilter,
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
@@ -32,6 +37,17 @@ interface SampleListProps {
   /** Forwarded to the grid's scroll container so the title bar collapses on
    *  scroll (title-view collapse-on-scroll listens via `useScrollDirection`). */
   scrollRef?: RefObject<HTMLDivElement | null>;
+  /** Forwarded to the grid's controlled column-filter mode (see
+   *  `SamplesGrid`'s `columnFilters` doc). */
+  columnFilters?: Record<string, ColumnFilter>;
+  /** Forwarded to the grid's controlled column-filter mode. */
+  onColumnFilterChange?: (
+    columnId: string,
+    filterType: FilterType,
+    spec: FilterSpec | null
+  ) => void;
+  /** Forwarded to the grid (hides all funnels). */
+  hideColumnFilters?: boolean;
 }
 
 const makeSampleRowId = (id: string | number, epoch: number) =>
@@ -48,6 +64,9 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     running,
     multiline,
     scrollRef,
+    columnFilters,
+    onColumnFilterChange,
+    hideColumnFilters,
   } = props;
 
   const sampleNavigation = useSampleNavigationActions();
@@ -153,6 +172,9 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         onRowSelect={handleRowSelect}
         scrollRef={scrollRef}
         onRowOpen={handleRowOpen}
+        columnFilters={columnFilters}
+        onColumnFilterChange={onColumnFilterChange}
+        hideColumnFilters={hideColumnFilters}
       />
       <SampleFooter
         sampleCount={sampleCount}
