@@ -143,6 +143,10 @@ export interface DataGridProps<TRow> {
     filterType: FilterType,
     spec: FilterSpec | null
   ) => void;
+  /** Hide all column filter funnels (e.g. while the active filter expression
+   *  is not representable as per-column filters). Active filters still render
+   *  their state; only the entry points disappear. */
+  hideColumnFilters?: boolean;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
   /** Report selection moves (arrow keys / click) instead of applying them:
@@ -196,6 +200,7 @@ export function DataGrid<TRow>({
   onColumnOrderChange,
   columnFilters,
   onColumnFilterChange,
+  hideColumnFilters,
   selectedRowId,
   onSelectedRowChange,
   scrollRef,
@@ -729,6 +734,7 @@ export function DataGrid<TRow>({
                       header={header}
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
+                      hideColumnFilters={hideColumnFilters}
                       isDragSource={isDragSource}
                       dropSide={dropSide}
                       onHeaderDragStart={handleHeaderDragStart}
@@ -753,10 +759,13 @@ export function DataGrid<TRow>({
                       header.getContext()
                     );
                 const filterControl =
-                  columnDef.meta?.filterable && filterType ? (
+                  columnDef.meta?.filterable &&
+                  filterType &&
+                  !hideColumnFilters ? (
                     <ColumnFilterControl
                       columnId={header.column.id}
                       filterType={filterType}
+                      operators={columnDef.meta?.operators}
                       spec={filterSpec}
                       placement="bottom-start"
                       onChange={(spec) =>
@@ -997,6 +1006,7 @@ function RotatedHeaderCell<TRow>({
   header,
   filterSpec,
   onColumnFilterChange,
+  hideColumnFilters,
   isDragSource,
   dropSide,
   onHeaderDragStart,
@@ -1013,6 +1023,7 @@ function RotatedHeaderCell<TRow>({
     filterType: FilterType,
     spec: FilterSpec | null
   ) => void;
+  hideColumnFilters?: boolean;
   isDragSource: boolean;
   dropSide: "left" | "right" | null;
   onHeaderDragStart: (
@@ -1080,7 +1091,7 @@ function RotatedHeaderCell<TRow>({
       >
         <span className={styles.rotatedText}>{headerLabel}</span>
         <SortIndicator header={header} />
-        {columnDef.meta?.filterable && filterType && (
+        {columnDef.meta?.filterable && filterType && !hideColumnFilters && (
           // The popover is portaled, but React events bubble through the
           // component tree — so clicks inside the filter would reach the
           // label's sort handler. Stop them here.
@@ -1091,6 +1102,7 @@ function RotatedHeaderCell<TRow>({
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}
+              operators={columnDef.meta?.operators}
               spec={filterSpec}
               anchorEl={anchorEl}
               placement="bottom-start"

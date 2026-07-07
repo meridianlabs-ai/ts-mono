@@ -1,7 +1,10 @@
 import { ColumnDef } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
-import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+import type {
+  FilterType,
+  UiOperator,
+} from "@tsmono/inspect-components/columnFilter";
 
 /**
  * Value comparator carried on a column for client-side sorting. Sorts
@@ -25,6 +28,9 @@ export interface BaseColumnMeta<TRow = unknown> {
   filterable?: boolean;
   /** Filter editor + operator set for the column (when `filterable`). */
   filterType?: FilterType;
+  /** Narrowed operator choices for this column's filter popover (defaults to
+   *  the full set for the filterType). */
+  operators?: UiOperator[];
   /**
    * Render this column's header as a 45° rotated label (fans up-and-right
    * out of a narrow cell). DataGrid grows the header row when any visible
