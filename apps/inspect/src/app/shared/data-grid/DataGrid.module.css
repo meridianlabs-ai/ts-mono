@@ -152,6 +152,19 @@
   display: none;
 }
 
+/* ...except the first rotated header after a normal one: there's no preceding
+ * angled label whose diagonal could act as the divider (that's the job it does
+ * between adjacent rotated headers), so keep the vertical separator at the
+ * boundary — matching the prior grid. Use the bottom-aligned 22px form so it
+ * sits beside the rotated label, like the separator between two tall headers. */
+.headerCellTall + .headerCellRotated::before {
+  display: block;
+  top: auto;
+  bottom: 0;
+  transform: none;
+  height: 22px;
+}
+
 /* The 45° label, anchored flush to the column's right edge and rotated up
  * from its bottom-left corner so it fans up-and-to-the-right. */
 .rotatedLabel {
