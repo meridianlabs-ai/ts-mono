@@ -97,9 +97,6 @@ not verification or decisions.
 - [ ] Matt **ARIA-label audit vs origin/main** (funnel `aria-label="Filter <columnId>"` substring-collides
   with header/segment names), **filter-code export** ("copy query"), **per-column filter clear +
   autocomplete** (autocomplete needs an inspect API for per-column distinct values). — `loglistgrid-tanstack.md:215,216,217`
-- [ ] Eric **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
-  **residual AG type-only imports** (dormant `GridState` slice in `app/types.ts`/`logsSlice`/`state/hooks`,
-  `ColDef` picker shims, `IRowNode` in `gridComparators`). — `loglistgrid-tanstack.md:192`
 - [ ] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
   auto-scroll, pinning/resize/reorder, grid-state persistence, Reset-Filters/filtered-count chrome,
   new-tab (Cmd/middle-click) row parity. **Check with Matt Brandly — likely has some of this done.** — `loglistgrid-tanstack.md:183-192,262`
@@ -180,6 +177,14 @@ NOT here — required, owned by Matt Brandly; see §1. The now-required grid/par
 
 **AG Grid removal:** migrate `ScoreAgGrid` (last `<AgGridReact>`), then drop
 `ag-grid-community`/`ag-grid-react` + `agGrid.ts` registration.
+- Batched with it (moved from §5 on 2026-07-07 — type-only/internal, zero behavior change vs main):
+  move `log-list/listing/` engine dir → `shared/` (both grids consume it; `shared/samples-grid`
+  currently imports backwards into it), and clear residual AG type imports — `ColDef` picker shims
+  (`PickerColumn` is really `{colId, headerName}`), `IRowNode` in `gridComparators` (ScoreAgGrid does
+  NOT consume it), and AG `GridState` on the samples-panel slot (`app/types.ts:83`; live legacy-compat
+  via `legacyToView` — swap for a structural persisted-shape type, don't delete). NB the punchlist
+  previously called the `gridStateByScope` slice "dormant" — it is NOT; it's the TanStack grid's live
+  sort/filter/sizing persistence. — `loglistgrid-tanstack.md:192`
 
 **Data/architecture future** (all architecture/relocation with no user-facing behavior change):
 - `?log_file=` vs `#/tasks/` URL-form divergence — agreed with Charles to address *after* this first PR (`log-data-imperative-goal.md:145-164`, commit `64ac24db`).
@@ -213,9 +218,8 @@ NOT here — required, owned by Matt Brandly; see §1. The now-required grid/par
    `replication-startup-modes.md` superseded banner, backlog consolidated here.
 2. **Verification §2** (replication-ensured, embedded/deep-link manual pass, green gates,
    filters-spec un-skip, resize e2e) — these can surface real bugs, do them early.
-3. **Feature/parity §5** — auto-fit, pinning+tooltips, ARIA/filter-code/filter-clear, `listing/`→`shared/`
-   + AG-type-import cleanup, cold-dir pacing fix, eslint scope decision; **coordinate §5 samples-grid
-   restoration with Matt Brandly** (overlaps his in-flight work + Ctrl+F).
+3. **Feature/parity §5** — pinning, ARIA/filter-code/filter-clear, cold-dir pacing fix; **coordinate §5
+   samples-grid restoration with Matt Brandly** (overlaps his in-flight work).
 4. **Decisions §1 + §3** — batch the two remaining Charles confirmations and the correctness-smell
    keep-vs-fix calls into one review conversation.
 5. Merge once §1–§5 are resolved/green.
