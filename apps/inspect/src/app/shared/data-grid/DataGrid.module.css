@@ -73,10 +73,16 @@
   flex: 0 0 auto;
 }
 
-/* Multi-sort position badge next to the sort arrow. */
+.sortIndicator {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* Multi-sort position badge, tight against the arrow that follows it
+ * (matching the AG grid's `1↑`). */
 .sortOrder {
   font-size: var(--inspect-font-size-smallestest);
-  flex: 0 0 auto;
 }
 
 /* Filter funnel: hidden until the header is hovered, but stays visible when

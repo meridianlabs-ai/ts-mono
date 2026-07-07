@@ -74,7 +74,10 @@ function SortIndicator<TRow>({
   const sortIndex = header.column.getSortIndex();
   const multiSorted = header.getContext().table.getState().sorting.length > 1;
   return (
-    <>
+    <span className={styles.sortIndicator}>
+      {multiSorted && sortIndex >= 0 && (
+        <span className={styles.sortOrder}>{sortIndex + 1}</span>
+      )}
       <i
         className={clsx(
           sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
@@ -82,10 +85,7 @@ function SortIndicator<TRow>({
         )}
         aria-hidden="true"
       />
-      {multiSorted && sortIndex >= 0 && (
-        <span className={styles.sortOrder}>{sortIndex + 1}</span>
-      )}
-    </>
+    </span>
   );
 }
 // Extra scroll width past the last column so its rotated label, which
@@ -371,6 +371,9 @@ export function DataGrid<TRow>({
     getCoreRowModel: getCoreRowModel(),
     getRowId,
     manualSorting: true,
+    // TanStack defaults non-string columns to descending-first; the AG grid
+    // this replaced sorted every column ascending-first.
+    sortDescFirst: false,
     enableMultiSort: true,
     // TanStack's default multi-sort trigger is shift-only; also accept
     // cmd/ctrl to match the AG grid this replaced.
