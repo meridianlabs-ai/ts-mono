@@ -712,6 +712,40 @@ describe("FetchEngine.applyListing", () => {
     expect(fake.callOrder[0]).toMatch(/^preview:/);
   });
 
+  it("claims the entire preview tail before any missing-details backfill (cold dir)", async () => {
+    // More files than the High preview first wave (25) so a lower-priority
+    // preview tail exists; previewBatchSize 25 keeps the tail out of the
+    // wave's batch; concurrency 1 makes the claim order strictly serial.
+    const files = Array.from({ length: 28 }, (_, i) =>
+      handle(`log-${String(i).padStart(2, "0")}.eval`)
+    );
+    const fake = createFakeApi();
+    const { engine } = await createEngine(
+      { api: fake.api, database: createFakeDb(files.map(listedRow)) },
+      { concurrency: 1, previewBatchSize: 25 }
+    );
+
+    await engine.applyListing({
+      listing: files,
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => expect(fake.detailCalls).toHaveLength(files.length));
+    // Every file's preview must land via the cheap batched endpoint before
+    // any heavyweight detail fetch — when details outrank the preview tail
+    // they claim first and the cross-kind coalesce cancels the tail's queued
+    // previews outright (those rows then paint at details pace).
+    expect([...fake.summaryCalls.flat()].sort()).toEqual(
+      files.map((file) => file.name)
+    );
+    const kinds = fake.callOrder
+      .map((call) => (call.startsWith("preview:") ? "p" : "d"))
+      .join("");
+    expect(kinds).toMatch(/^p+d+$/);
+  });
+
   // F1b: the cross-kind coalesce removes a queued preview item on EVERY ok
   // details settle, but only the waitered branch used to repaint the
   // preview — a background (unwaitered) settle dropped the preview on the
@@ -722,11 +756,8 @@ describe("FetchEngine.applyListing", () => {
     const { engine, sinkCalls } = await createEngine(
       {
         api: fake.api,
-        // A previewed-depth row (so backfill won't itself enqueue a preview)
-        // keeps the ONLY preview job at the Medium priority our explicit
-        // ensure(previewed) call below gives it, so the High-priority missing-
-        // details backfill claims first and the coalesce has something
-        // still-queued to remove.
+        // A previewed-depth row so backfill won't itself enqueue a preview —
+        // the ONLY preview job is our explicit ensure(previewed) below.
         database: createFakeDb([previewedRow(target)]),
       },
       { concurrency: 1 }
@@ -738,7 +769,6 @@ describe("FetchEngine.applyListing", () => {
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
     // Unwaitered (background) details backfill for the same file — distinct
     // from the waitered branch already covered by "a successful details
     // fetch removes a queued preview fetch for the same log".
@@ -748,6 +778,10 @@ describe("FetchEngine.applyListing", () => {
       deleted: [],
       persistListing: true,
     });
+    // Enqueued AFTER the details backfill: both are Medium, ties break by
+    // insertion order, so the details fetch claims first and the coalesce
+    // has this still-queued preview to remove.
+    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
 
     void fake.releaseAll();
     await blocker;

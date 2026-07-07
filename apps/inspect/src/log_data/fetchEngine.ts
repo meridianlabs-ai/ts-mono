@@ -775,9 +775,9 @@ export class FetchEngine {
   /**
    * Apply a replication discovery result: clear deleted/invalidated files
    * (and drop their queued work), activate the listing, then backfill —
-   * invalidated and (in synced mode) missing details at High priority,
-   * missing/interrupted previews in a High first wave with a Medium tail.
-   * Returns the full activated listing.
+   * invalidated details at High priority, missing/interrupted previews in a
+   * High first wave with a Medium tail, missing details at Medium behind the
+   * tail. Returns the full activated listing.
    */
   public async applyListing(update: ListingUpdate): Promise<LogHandle[]> {
     const deps = this.requireDeps();
@@ -830,13 +830,12 @@ export class FetchEngine {
       invalidatedSet.has(handle.name)
     );
 
-    // Previews enqueue first so their High-priority first wave sorts ahead
-    // of the (also High, on a cold/synced listing) details backfill —
-    // `claimNextBatch` breaks priority ties by insertion order, so a cold
-    // listing's first claimed batch paints previews instead of starving them
-    // behind every detail fetch.
+    // Previews enqueue first — `claimNextBatch` breaks priority ties by
+    // insertion order, so the Medium preview tail sorts ahead of the Medium
+    // details backfill and a cold listing paints every preview before the
+    // per-file detail fetches start.
     this.queuePreviewBackfill(full, rows, invalidated);
-    this.queueDetailBackfill(full, rows, invalidated, update.persistListing);
+    this.queueDetailBackfill(full, rows, invalidated);
     this._throttledUpdateDbStats();
     return full;
   }
@@ -958,8 +957,7 @@ export class FetchEngine {
   private queueDetailBackfill(
     full: LogHandle[],
     rows: Log[] | undefined,
-    invalidated: LogHandle[],
-    persistListing: boolean
+    invalidated: LogHandle[]
   ): void {
     const seen = new Set(invalidated.map((handle) => handle.name));
     const missing = this.missingAtDepth(full, rows, "details").filter(
@@ -974,10 +972,13 @@ export class FetchEngine {
     }
     const { normal, retry } = this.gateBackfill(missing, "details");
     if (normal.length > 0) {
-      this._queue.enqueue(
-        normal.map(detailsWork),
-        persistListing ? WorkPriority.High : WorkPriority.Medium
-      );
+      // Medium, below the previews' High first wave and — because previews
+      // enqueue first and ties break by insertion order — behind the Medium
+      // preview tail too: on a cold dir every cheap batched preview paints
+      // before the heavyweight per-file details backfill starts. Details
+      // only outrank previews on explicit demand (User `ensure`) or
+      // invalidation (above).
+      this._queue.enqueue(normal.map(detailsWork), WorkPriority.Medium);
     }
     if (retry.length > 0) {
       this._queue.enqueue(retry.map(detailsWork), WorkPriority.Low);

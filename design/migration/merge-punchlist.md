@@ -86,8 +86,22 @@ Confirm each is acceptable to ship, or fix.
 ## 4. Verification / tuning — likely non-blocking, confirm
 
 - [X] Multi-column sort mechanics vs main (plain-click on 2nd header); add e2e. — `loglistgrid-tanstack.md:210`
-- [ ] Eric `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — right numbers? — `log-data-unified-fetch-plan.md:434`
-- [ ] Eric Attempts reset on restart (error text kept) — confirm intended. — `log-data-unified-fetch-plan.md:435`
+- [x] Eric `kMaxFetchAttempts = 5`, per-tick Low re-enqueue, no time-based backoff — **ratified 2026-07-07**.
+  Vs main this only adds a cap to an infinite retry loop (main: batch-poisoned previews retried 3×
+  then silently dropped; details dropped with no retry; both re-enqueued every sync forever, no error
+  record). "Per-tick" is really per listing sync (~50s quiet / event-driven) — a de facto
+  constant-interval backoff; Low demotion is gentler than main's normal-priority re-enqueue. Only
+  regression scenario: untouched background rows failing >5× during a long transient stay dark until
+  mtime change / user click (`ensure()` bypasses gating) / reload — accepted trade for bounded
+  network noise + recorded errors. Follow-up (non-blocking): pass the fetch queue's `maxRetries`
+  explicitly — it silently inherits WorkQueue's default 3, and the ~10ms back-to-back retries only
+  cover sub-second blips while 4×-amplifying requests for persistent failures; consider 1.
+  — `log-data-unified-fetch-plan.md:434`
+- [x] Eric Attempts reset on restart (error text kept) — **confirmed intended 2026-07-07**. Restart /
+  dir re-entry is the user's "try again" gesture; strictly less retrying than main's retry-forever;
+  kept error text is pure addition (main recorded nothing). Minor non-blocking: `start()`'s reset
+  condition includes error-text/seq, so rows already at attempts 0 are rewritten identically each
+  start — could tighten to `attempts > 0`. — `log-data-unified-fetch-plan.md:435`
 - [ ] Matt **Default column sizes: confirm they initialize to a sane set** (meeting 2026-07-06 said likely
   not). May be subsumed by the fit-to-grid-width work (`aed3575f`, `ec3eea0f`) — verify.
 
@@ -107,9 +121,13 @@ not verification or decisions.
 - [ ] Matt **Samples grid feature restoration** — rotated/compact score headers, colour scales, follow-output/
   auto-scroll, pinning/resize/reorder, grid-state persistence, Reset-Filters/filtered-count chrome,
   new-tab (Cmd/middle-click) row parity. **Check with Matt Brandly — likely has some of this done.** — `loglistgrid-tanstack.md:183-192,262`
-- [ ] Eric **Fix cold-dir preview-tail pacing regression.** On a large cold dir, preview rows 26+ arrive at
-  details pace — slower than pre-branch (where light previews had their own queue). Demote synced
-  missing-details backfill below the preview tail, or High-wave all cold previews. — `loglistgrid-tanstack.md:242`
+- [x] Eric **Fix cold-dir preview-tail pacing regression — FIXED 2026-07-07.** Root cause was worse than
+  pacing: synced missing-details backfill at High outranked the Medium preview tail, and each details
+  success *coalesced away* the file's queued preview — tail rows never got a batched preview fetch at
+  all. Fix: details backfill demoted to Medium; previews enqueue first so the insertion-order tie-break
+  drains the whole preview tail before any detail fetch. Invalidated details stay High (running-eval
+  freshness) and User `ensure()` still front-runs everything. Test: "claims the entire preview tail
+  before any missing-details backfill" in `fetchEngine.test.ts`. — `loglistgrid-tanstack.md:242`
 - [x] **eslint import-path / layering enforcement — DONE.** Satisfied by
   `barrelOnly(["app_config", "log_data"])` in `apps/inspect/eslint.config.mjs`. The "deferred eslint
   enforcement" notes in the goal docs are stale. — `loglistgrid-tanstack.md:95`, `reactive-refactor-goal.md:84`
