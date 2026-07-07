@@ -6,8 +6,13 @@
   outline: none;
 }
 
+/* The table, tbody, and rows carry explicit JS-computed widths (total column
+ * width); min-width stretches each to its parent when the columns underfill
+ * the viewport, so row borders and hover highlights span the full grid width
+ * (AG parity) instead of stopping at the last column. */
 .table {
   position: relative;
+  min-width: 100%;
 }
 
 .thead {
@@ -277,6 +282,7 @@
 
 .tbody {
   position: relative;
+  min-width: 100%;
 }
 
 .row {
@@ -284,6 +290,7 @@
   position: absolute;
   top: 0;
   left: 0;
+  min-width: 100%;
   border-bottom: 1px solid var(--bs-border-color);
   background: var(--bs-body-bg);
   cursor: pointer;
