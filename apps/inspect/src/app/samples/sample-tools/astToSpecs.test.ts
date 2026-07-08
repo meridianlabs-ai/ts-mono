@@ -72,8 +72,15 @@ describe("astToSpecs / parseFilterSpecs — number column simple ops", () => {
     });
   });
 
-  it("two non-foldable conditions on the same column is rejected (accepted parity loss)", () => {
-    expect(toSpecs("tokens > 100 and tokens < 500")).toBeNull();
+  it("two non-foldable conditions on the same column fold into an AND pair (plan 3: parity loss removed)", () => {
+    expect(toSpecs("tokens > 100 and tokens < 500")).toEqual({
+      tokens: entry("tokens", {
+        operator: ">",
+        value: "100",
+        join: "and",
+        second: { operator: "<", value: "500" },
+      }),
+    });
   });
 
   it("blank / notBlank via None", () => {
@@ -203,9 +210,86 @@ describe("astToSpecs / parseFilterSpecs — multi-column", () => {
   });
 });
 
+describe("astToSpecs / parseFilterSpecs — condition pairs", () => {
+  it("`>=`/`<=` pair still folds to between (fold wins over AND-pair)", () => {
+    expect(toSpecs("tokens >= 100 and tokens <= 500")).toEqual({
+      tokens: entry("tokens", {
+        operator: "between",
+        value: "100",
+        value2: "500",
+      }),
+    });
+  });
+
+  it("same-column OR produces an OR pair", () => {
+    expect(toSpecs("epoch == 1 or epoch == 3")).toEqual({
+      epoch: entry("epoch", {
+        operator: "=",
+        value: "1",
+        join: "or",
+        second: { operator: "=", value: "3" },
+      }),
+    });
+  });
+
+  it("OR pair ANDed with a simple predicate on another column", () => {
+    expect(toSpecs("(epoch == 1 or epoch == 3) and tokens > 5")).toEqual({
+      epoch: entry("epoch", {
+        operator: "=",
+        value: "1",
+        join: "or",
+        second: { operator: "=", value: "3" },
+      }),
+      tokens: entry("tokens", { operator: ">", value: "5" }),
+    });
+  });
+
+  it("3-way OR on the same column is rejected", () => {
+    expect(toSpecs("epoch == 1 or epoch == 2 or epoch == 3")).toBeNull();
+  });
+
+  it("a negated OR pair is rejected (stays expression-only)", () => {
+    expect(toSpecs("not (epoch == 1 or epoch == 2)")).toBeNull();
+  });
+
+  it("3+ AND predicates on the same column is still rejected", () => {
+    expect(toSpecs("tokens > 1 and tokens > 2 and tokens > 3")).toBeNull();
+  });
+
+  it("a between folded inside a larger AND pair is rejected (plan decision 6)", () => {
+    expect(
+      toSpecs("(tokens >= 1 and tokens <= 5) and tokens > 2")
+    ).toBeNull();
+  });
+
+  it("OR pair via xxx_contains() on both sides", () => {
+    expect(
+      toSpecs('input_contains("a") or input_contains("b")')
+    ).toEqual({
+      input: entry("input", {
+        operator: "contains",
+        value: "a",
+        join: "or",
+        second: { operator: "contains", value: "b" },
+      }),
+    });
+  });
+
+  it("OR pair with a negated side and a blank side", () => {
+    expect(toSpecs('not error_contains("x") or error == None')).toEqual({
+      error: entry("error", {
+        operator: "does not contain",
+        value: "x",
+        join: "or",
+        second: { operator: "is blank", value: "" },
+      }),
+    });
+  });
+});
+
 describe("astToSpecs / parseFilterSpecs — non-round-trippable", () => {
-  it("OR is rejected", () => {
-    expect(toSpecs("epoch == 1 or epoch == 2")).toBeNull();
+  it("cross-column OR is rejected", () => {
+    expect(toSpecs("epoch == 1 or tokens > 5")).toBeNull();
   });
 
   it("arithmetic in predicate is rejected", () => {
@@ -282,12 +366,38 @@ describe("astToSpecs — round-trip stability (text → specs → text)", () => 
       "epoch == 1 and tokens > 100"
     );
   });
+
+  it("AND pair round-trips through its parenthesized form", () => {
+    expect(roundTrip("(tokens > 100 and tokens < 500)")).toBe(
+      "(tokens > 100 and tokens < 500)"
+    );
+  });
+
+  it("OR pair round-trips through its parenthesized form", () => {
+    expect(roundTrip("(epoch == 1 or epoch == 3)")).toBe(
+      "(epoch == 1 or epoch == 3)"
+    );
+  });
 });
 
 describe("astToSpecs — reverse round-trip (specs → text → specs)", () => {
   it("contains with a regex metachar in the value", () => {
     const specs: Record<string, ColumnFilter> = {
       input: entry("input", { operator: "contains", value: "a.b" }),
+    };
+    const text = specsToFilterText(specs, registry);
+    expect(text).not.toBeNull();
+    expect(parseFilterSpecs(text!, registry)).toEqual(specs);
+  });
+
+  it("an OR pair", () => {
+    const specs: Record<string, ColumnFilter> = {
+      epoch: entry("epoch", {
+        operator: "=",
+        value: "1",
+        join: "or",
+        second: { operator: "=", value: "3" },
+      }),
     };
     const text = specsToFilterText(specs, registry);
     expect(text).not.toBeNull();

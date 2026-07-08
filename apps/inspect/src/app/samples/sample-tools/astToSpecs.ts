@@ -237,7 +237,12 @@ const predicateToSpecInner = (
     };
   }
 
-  // 2. var BINARY_OP literal
+  // 2. LEFT or RIGHT -> same-column OR pair
+  if (ast.kind === "binary" && ast.op === "or") {
+    return orToPairSpec(ast, registry);
+  }
+
+  // 3. var BINARY_OP literal
   if (ast.kind === "binary") {
     return binaryToSpec(ast, registry);
   }
@@ -255,11 +260,34 @@ const predicateToSpec = (
   const result = predicateToSpecInner(inner, registry);
   if (!result) return null;
   if (!negated) return result;
+  // A negated pair (`not (a or b)`) can't be flipped into a single
+  // condition — stays expression-only (plan decision 7).
+  if (result.spec.join) return null;
   const flipped = opposite[result.spec.operator];
   if (!flipped) return null; // can't negate this operator
   return {
     ...result,
     spec: { ...result.spec, operator: flipped },
+  };
+};
+
+/** Recognize a same-column OR leaf (`a or b`) as a two-condition pair.
+ *  Each side is resolved via the normal single-predicate path (including
+ *  negation); both sides must land on the same column as single
+ *  conditions (not already a pair) or this returns null. */
+const orToPairSpec = (
+  ast: Extract<FilterAst, { kind: "binary" }>,
+  registry: SampleFilterSpecRegistry
+): PredicateResult | null => {
+  const left = predicateToSpec(ast.left, registry);
+  const right = predicateToSpec(ast.right, registry);
+  if (!left || !right) return null;
+  if (left.colId !== right.colId) return null; // cross-column OR stays expression-only
+  if (left.spec.join || right.spec.join) return null; // no nested pairs
+  return {
+    colId: left.colId,
+    kind: left.kind,
+    spec: { ...left.spec, join: "or", second: right.spec },
   };
 };
 
@@ -314,12 +342,24 @@ export function astToSpecs(
       if (!spec) return null;
       specs[colId] = { columnId: colId, filterType, spec };
     } else if (column.specs.length === 2) {
-      // Only the >=/<= pair folds back into a single condition — the
-      // popover holds one condition per column, unlike main's ag-grid
-      // combined AND filter (see plan's "accepted parity loss").
+      // An OR-pair leaf already holds 2 conditions by itself; a second
+      // predicate alongside it on the same column can't be folded in
+      // (plan decision: OR-pair + anything else on that column -> null).
+      if (column.specs.some((s) => s.join)) return null;
+      // The >=/<= pair folds to `between` (fold wins, keeps round-trip
+      // stability); any other pair of predicates becomes an AND pair.
       const between = tryBetween(column.specs);
-      if (!between) return null;
-      specs[colId] = { columnId: colId, filterType, spec: between };
+      if (between) {
+        specs[colId] = { columnId: colId, filterType, spec: between };
+      } else {
+        const [first, second] = column.specs;
+        if (!first || !second) return null;
+        specs[colId] = {
+          columnId: colId,
+          filterType,
+          spec: { ...first, join: "and", second },
+        };
+      }
     } else {
       // ≥3 predicates on one column can't be represented in the popover.
       return null;

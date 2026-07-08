@@ -141,4 +141,70 @@ describe("specsToFilterText", () => {
   it("returns empty string for no specs", () => {
     expect(specsToFilterText({}, registry)).toBe("");
   });
+
+  it("AND pair synthesizes as a parenthesized conjunction", () => {
+    expect(
+      toText({
+        tokens: {
+          operator: ">",
+          value: "100",
+          join: "and",
+          second: { operator: "<", value: "500" },
+        },
+      })
+    ).toBe("(tokens > 100 and tokens < 500)");
+  });
+
+  it("OR pair synthesizes as a parenthesized disjunction", () => {
+    expect(
+      toText({
+        epoch: {
+          operator: "=",
+          value: "1",
+          join: "or",
+          second: { operator: "=", value: "3" },
+        },
+      })
+    ).toBe("(epoch == 1 or epoch == 3)");
+  });
+
+  it("OR pair on a contains column uses the containsFn on both sides", () => {
+    expect(
+      toText({
+        input: {
+          operator: "contains",
+          value: "a",
+          join: "or",
+          second: { operator: "contains", value: "b" },
+        },
+      })
+    ).toBe('(input_contains("a") or input_contains("b"))');
+  });
+
+  it("a pair whose second condition is unrepresentable is null", () => {
+    expect(
+      toText({
+        tokens: {
+          operator: ">",
+          value: "100",
+          join: "and",
+          second: { operator: "contains", value: "x" },
+        },
+      })
+    ).toBeNull();
+  });
+
+  it("a pair entry still ANDs with other columns at the top level", () => {
+    expect(
+      toText({
+        tokens: {
+          operator: ">",
+          value: "100",
+          join: "and",
+          second: { operator: "<", value: "500" },
+        },
+        epoch: { operator: "=", value: "1" },
+      })
+    ).toBe("(tokens > 100 and tokens < 500) and epoch == 1");
+  });
 });

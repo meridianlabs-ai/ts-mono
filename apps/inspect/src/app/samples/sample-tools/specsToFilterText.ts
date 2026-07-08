@@ -114,9 +114,16 @@ export function specsToFilterText(
   for (const [colId, filter] of Object.entries(specs)) {
     const mapping = registry.byColId.get(colId);
     if (!mapping) return null;
-    const text = specToFragment(mapping, filter.spec);
-    if (text === null) return null;
-    parts.push(text);
+    const spec = filter.spec;
+    const frag1 = specToFragment(mapping, spec);
+    if (frag1 === null) return null;
+    if (spec.join && spec.second) {
+      const frag2 = specToFragment(mapping, spec.second);
+      if (frag2 === null) return null;
+      parts.push(`(${frag1} ${spec.join} ${frag2})`);
+    } else {
+      parts.push(frag1);
+    }
   }
   return parts.join(" and ");
 }
