@@ -5,18 +5,19 @@ import { AsyncData } from "@tsmono/util";
 import { useAppConfig } from "../../app_config";
 
 /**
- * Resolve the eval-set for the current log dir. Keyed on the dir so a
- * navigation re-fetches; `staleTime: Infinity` because an eval-set's identity
- * doesn't change under a fixed dir.
+ * Resolve the eval-set for `dir`, a subdir RELATIVE to the configured log dir
+ * ("" at the listing root) — passing an absolute dir doubles the path
+ * server-side. Keyed on the dir so navigation re-fetches; `staleTime:
+ * Infinity` because an eval-set's identity doesn't change under a fixed dir.
  */
-export const useEvalSet = (): AsyncData<EvalSet | undefined> => {
-  const { api, logDir } = useAppConfig();
+export const useEvalSet = (dir: string): AsyncData<EvalSet | undefined> => {
+  const { api } = useAppConfig();
   return useAsyncDataFromQuery({
-    queryKey: ["eval-set", logDir],
+    queryKey: ["eval-set", dir],
     // react-query errors on an `undefined` queryFn result ("data is
     // undefined"), so a missing eval-set must be *stored* as `null`; `select`
     // converts it back so `null` never leaks to consumers.
-    queryFn: async () => (await api.get_eval_set(logDir)) ?? null,
+    queryFn: async () => (await api.get_eval_set(dir)) ?? null,
     select: (evalSet) => evalSet ?? undefined,
     staleTime: Infinity,
   });

@@ -45,18 +45,35 @@ afterEach(() => {
 });
 
 describe("useEvalSet", () => {
-  it("resolves the eval-set for the current log dir", async () => {
+  // The api's `dir` argument is a subdir RELATIVE to the configured log dir —
+  // passing the full logDir doubles the path server-side (404 on every
+  // listing load, eval-sets never detected). At the root the hook must ask
+  // with an empty dir.
+  it("resolves the eval-set for the current route subdir", async () => {
     const client = freshClient();
     const get_eval_set = vi.fn().mockResolvedValue(evalSet("set-1"));
     seedConfig(client, get_eval_set);
 
-    const { result } = renderHook(() => useEvalSet(), {
+    const { result } = renderHook(() => useEvalSet("sub/inner"), {
       wrapper: wrapperFor(client),
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(get_eval_set).toHaveBeenCalledWith("/logs");
+    expect(get_eval_set).toHaveBeenCalledWith("sub/inner");
     expect(result.current.data).toEqual(evalSet("set-1"));
+  });
+
+  it("asks with an empty dir at the listing root, never the log dir", async () => {
+    const client = freshClient();
+    const get_eval_set = vi.fn().mockResolvedValue(evalSet("set-1"));
+    seedConfig(client, get_eval_set);
+
+    const { result } = renderHook(() => useEvalSet(""), {
+      wrapper: wrapperFor(client),
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(get_eval_set).toHaveBeenCalledWith("");
   });
 
   it("resolves undefined when there is no eval-set (react-query rejects undefined internally)", async () => {
@@ -64,7 +81,7 @@ describe("useEvalSet", () => {
     const get_eval_set = vi.fn().mockResolvedValue(undefined);
     seedConfig(client, get_eval_set);
 
-    const { result } = renderHook(() => useEvalSet(), {
+    const { result } = renderHook(() => useEvalSet(""), {
       wrapper: wrapperFor(client),
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -78,7 +95,7 @@ describe("useEvalSet", () => {
     const get_eval_set = vi.fn().mockRejectedValue(new Error("boom"));
     seedConfig(client, get_eval_set);
 
-    const { result } = renderHook(() => useEvalSet(), {
+    const { result } = renderHook(() => useEvalSet(""), {
       wrapper: wrapperFor(client),
     });
     await waitFor(() => expect(result.current.loading).toBe(false));

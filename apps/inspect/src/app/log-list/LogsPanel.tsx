@@ -58,12 +58,12 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const logDir = useLogDir();
   const listing = useLogListing(logDir);
   const logFiles = listing.data ?? kNoListingRows;
-  const evalSet = useEvalSet().data;
   const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
 
   const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
+  const evalSet = useEvalSet(logPath || "").data;
   // Sync the listing for this panel's scope; the error panel and busy
   // indications derive from its status folded with the listing read's own
   // loading/error.

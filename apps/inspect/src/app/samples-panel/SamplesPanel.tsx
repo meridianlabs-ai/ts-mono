@@ -123,7 +123,7 @@ export const SamplesPanel: FC = () => {
   });
   const scopedSamples = samplesListing.data ?? kNoSamplesRows;
 
-  const evalSet = useEvalSet().data;
+  const evalSet = useEvalSet(samplesPath || "").data;
   const logListing = useLogListing(logDir);
   const logFiles = logListing.data ?? kNoLogRows;
   const error = listing.error ?? samplesListing.error ?? logListing.error;
