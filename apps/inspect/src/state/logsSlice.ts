@@ -11,7 +11,6 @@ export interface LogsSlice {
     setSelectedLogFile: (logFile: string) => void;
     clearSelectedLogFile: () => void;
 
-    setFilteredCount: (count: number) => void;
     setSelectedRowIndex: (index: number | null) => void;
 
     setLogsGridState: (scope: string, gridState: LogListGridState) => void;
@@ -116,11 +115,6 @@ export const createLogsSlice = (
       setSelectedLogFile: (logFile: string) => {
         set((state) => {
           state.logs.selectedLogFile = logFile;
-        });
-      },
-      setFilteredCount: (count: number) => {
-        set((state) => {
-          state.logs.listing.filteredCount = count;
         });
       },
       setSelectedRowIndex: (index: number | null) => {

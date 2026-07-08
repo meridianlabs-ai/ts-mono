@@ -19,7 +19,6 @@ import type {
 import { useProperty } from "@tsmono/react/hooks";
 
 import { FindBandUI } from "../../../components/FindBandUI";
-import { LogListingRow } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
@@ -27,13 +26,6 @@ import {
   findMatches,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
-import { useKeyedMemo } from "../../shared/useKeyedMemo";
-import { combineFilters } from "../listing/combineFilters";
-import {
-  sortingStateToOrderBy,
-  useLogsListingQuery,
-} from "../listing/useLogsListingQuery";
-import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import {
   useLogListColumns,
@@ -43,7 +35,16 @@ import {
 import { LogListRow } from "./columns/types";
 
 interface LogListGridProps {
-  items: Array<FileLogItem | FolderLogItem | PendingTaskItem>;
+  /** Display rows from `useLogListData` (folders pinned, files
+   *  filtered+sorted). */
+  rows: LogListRow[];
+  /** Pre-filter row count (drives the empty-state loading indicator, which
+   *  shouldn't show when filters merely matched nothing). */
+  totalRowCount: number;
+  /** The sorting/filters the rows were produced under (controlled DataGrid
+   *  state; changes persist via `setGridState`). */
+  sorting: SortingState;
+  columnFilters?: Record<string, ColumnFilter>;
   currentPath?: string;
   // Identifies the data scope of the current view (mode + directory). The
   // grid is keyed on this so switching scope (folder/tasks) gets a fresh
@@ -56,135 +57,17 @@ interface LogListGridProps {
   busy: boolean;
 }
 
-type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
-
-// Default sort for a scope with no persisted state: most-recently-completed
-// first (mirrors the samples view's `completed_at desc` default).
-const kDefaultSorting: SortingState = [{ id: "completedAt", desc: true }];
-
-const rowForItem = (item: LogListItem): LogListingRow | undefined =>
-  item.type === "file" ? item.log : undefined;
-
-const buildLogListRow = (item: LogListItem): LogListRow => {
-  const log = rowForItem(item);
-  const details = log?.header;
-
-  // Compute total tokens across all models
-  let totalTokens: number | undefined;
-  if (details?.stats?.model_usage) {
-    totalTokens = 0;
-    for (const usage of Object.values(details.stats.model_usage)) {
-      totalTokens += usage.total_tokens;
-    }
-  }
-
-  // Compute duration in seconds
-  let duration: number | undefined;
-  if (details?.stats?.started_at && details?.stats?.completed_at) {
-    const start = new Date(details.stats.started_at).getTime();
-    const end = new Date(details.stats.completed_at).getTime();
-    if (start && end && end > start) {
-      duration = (end - start) / 1000;
-    }
-  }
-
-  // Format task args. Prefer `task_args_passed` (the args the user
-  // actually supplied at the call site) over `task_args` (which
-  // would also include defaulted values).
-  const taskArgsSource =
-    details?.eval?.task_args_passed ?? details?.eval?.task_args;
-  let taskArgs: string | undefined;
-  if (taskArgsSource) {
-    const entries = Object.entries(taskArgsSource);
-    if (entries.length > 0) {
-      taskArgs = entries
-        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-        .join(", ");
-    }
-  }
-
-  // Percent of samples completed
-  let percentCompleted: number | undefined;
-  const total = details?.results?.total_samples;
-  const completed = details?.results?.completed_samples;
-  if (total && total > 0 && completed !== undefined) {
-    percentCompleted = (completed / total) * 100;
-  }
-
-  // Sample facts are derived at ingestion and carried on the header.
-  const sampleErrors = details?.sampleErrorCount;
-  // Distinct limit types across samples in this task, comma-joined (already
-  // sorted for stable text-filtering). Empty when no sample hit a limit.
-  const sampleLimits =
-    details !== undefined && details.sampleLimits.length > 0
-      ? details.sampleLimits.join(", ")
-      : undefined;
-
-  const row: LogListRow = {
-    id: item.id,
-    name: item.name,
-    displayIndex:
-      item.type === "file" || item.type === "pending-task"
-        ? item.displayIndex
-        : undefined,
-    type: item.type,
-    url: item.url,
-    task: item.type === "file" ? (log?.task ?? undefined) : item.name,
-    model:
-      item.type === "file"
-        ? log?.model
-        : item.type === "pending-task"
-          ? item.model
-          : undefined,
-    modelRoles:
-      item.type === "file" ? (log?.model_roles ?? undefined) : undefined,
-    score: log?.primary_metric?.value,
-    status: log?.status,
-    completedAt: log?.completed_at,
-    itemCount: item.type === "folder" ? item.itemCount : undefined,
-    log: item.type === "file" ? item.log : undefined,
-    path: item.type === "file" ? item.name : undefined,
-    totalSamples: details?.results?.total_samples,
-    completedSamples: details?.results?.completed_samples,
-    sandbox: details?.eval?.sandbox?.type,
-    totalTokens,
-    duration,
-    taskFile: details?.eval?.task_file ?? undefined,
-    taskArgs,
-    taskArgsRaw: taskArgsSource ?? undefined,
-    tags: details?.tags,
-    percentCompleted,
-    sampleErrors,
-    sampleLimits,
-    errorMessage: details?.error?.message,
-  };
-
-  // Add individual scorer columns from results. Key by (scorer, metric)
-  // so distinct scorers emitting the same metric name each get their own
-  // column. Reducer is omitted from the key: `reducer=null` (default,
-  // silently mean) and `reducer="mean"` (explicit) should land in the
-  // same column since the underlying computation is identical.
-  if (details?.results?.scores) {
-    for (const evalScore of details.results.scores) {
-      if (evalScore.metrics) {
-        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-          row[`score_${evalScore.name}/${metricName}`] = metric.value;
-        }
-      }
-    }
-  }
-
-  return row;
-};
-
 export const LogListGrid: FC<LogListGridProps> = ({
-  items,
+  rows,
+  totalRowCount,
+  sorting,
+  columnFilters,
   currentPath,
   scopeKey,
   mode = "logs",
   busy,
 }) => {
-  const { setFilteredCount, gridStateByScope, setGridState } = useLogsListing();
+  const { gridStateByScope, setGridState } = useLogsListing();
 
   const navigate = useNavigate();
 
@@ -197,28 +80,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns, visibility, getValue, getComparator, getFilterType } =
-    useLogListColumns(mode, scopePrefix, scoresViewMode);
-
-  // Reuse the prior row object for any item whose display inputs (the Log
-  // row, structural fields) are unchanged, so only changed rows pay the
-  // per-row rebuild. Keyed on store references (which stay stable across
-  // flushes for unchanged logs) rather than the `item` object, so it works
-  // even though `items` is rebuilt each flush upstream.
-  const data: LogListRow[] = useKeyedMemo(
-    items,
-    (item) => item.id,
-    (item) => [
-      item.id,
-      item.type,
-      item.url,
-      item.name,
-      item.displayIndex,
-      rowForItem(item),
-      item.type === "folder" ? item.itemCount : undefined,
-      item.type === "pending-task" ? item.model : undefined,
-    ],
-    (item) => buildLogListRow(item)
+  const { columns, visibility } = useLogListColumns(
+    mode,
+    scopePrefix,
+    scoresViewMode
   );
 
   const handleRowActivate = useCallback(
@@ -227,24 +92,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
     },
     [navigate]
   );
-
-  // Default to Completed (descending) until the user picks a sort — matches
-  // the samples view. A persisted entry (including an explicitly-cleared empty
-  // sort) takes over once this scope has one.
-  const sorting = useMemo<SortingState>(() => {
-    const persisted = scopeKey
-      ? gridStateByScope[scopeKey]?.sorting
-      : undefined;
-    return persisted ?? kDefaultSorting;
-  }, [gridStateByScope, scopeKey]);
-  const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
-
-  // Per-scope column filters (persisted), AND-combined into one condition.
-  const columnFilters = useMemo(
-    () => (scopeKey ? gridStateByScope[scopeKey]?.columnFilters : undefined),
-    [gridStateByScope, scopeKey]
-  );
-  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
   // Per-scope persisted column widths.
   const columnSizing = useMemo(
@@ -264,31 +111,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const persistedSelectedId = useMemo(
     () => (scopeKey ? gridStateByScope[scopeKey]?.selectedRowId : undefined),
     [gridStateByScope, scopeKey]
-  );
-
-  // Folders (logs mode) are presentation: pinned on top, independent of sort.
-  // Sort/filter/paginate runs over the file rows only.
-  const { folders, files } = useMemo(() => {
-    const folders: LogListRow[] = [];
-    const files: LogListRow[] = [];
-    for (const row of data) {
-      (row.type === "folder" ? folders : files).push(row);
-    }
-    return { folders, files };
-  }, [data]);
-
-  const { items: sortedFiles, total_count } = useLogsListingQuery({
-    rows: files,
-    filter,
-    orderBy,
-    getValue,
-    getComparator,
-    getFilterType,
-  });
-
-  const displayRows = useMemo(
-    () => (folders.length > 0 ? [...folders, ...sortedFiles] : sortedFiles),
-    [folders, sortedFiles]
   );
 
   const handleSortingChange = useCallback(
@@ -401,11 +223,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [persistSelectedId]
   );
 
-  // Footer count = folders + matching files (reflects any active filter).
-  useEffect(() => {
-    setFilteredCount(folders.length + total_count);
-  }, [folders.length, total_count, setFilteredCount]);
-
   // Find (Cmd/Ctrl+F) — data-level search so matches include rows outside
   // the virtualized window. The active match drives `selectedRowId`, which
   // the DataGrid keeps scrolled into view.
@@ -430,9 +247,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const searchIndex = useMemo(
     () =>
       showFind
-        ? buildSearchIndex(displayRows, searchColumns, (row) => row.id)
+        ? buildSearchIndex(rows, searchColumns, (row) => row.id)
         : undefined,
-    [showFind, displayRows, searchColumns]
+    [showFind, rows, searchColumns]
   );
   const matchIds = useMemo(
     () => (searchIndex ? findMatches(searchIndex, findTerm) : []),
@@ -523,7 +340,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
       <div className={clsx(gridStyles.gridContainer)}>
         <DataGrid<LogListRow>
           key={scopeKey ?? "pending"}
-          data={displayRows}
+          data={rows}
           columns={columns}
           columnVisibility={visibility}
           sorting={sorting}
@@ -540,7 +357,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onRowActivate={handleRowActivate}
           autoFocus
           ariaLabel="Evaluation logs"
-          loading={data.length === 0 && busy}
+          loading={totalRowCount === 0 && busy}
         />
       </div>
     </div>

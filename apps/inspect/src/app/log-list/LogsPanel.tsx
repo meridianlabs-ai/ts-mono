@@ -26,6 +26,7 @@ import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
 import { LogListGrid } from "./grid/LogListGrid";
+import { useLogListData } from "./grid/useLogListData";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
@@ -58,7 +59,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const logDir = useLogDir();
   const listing = useLogListing(logDir);
   const logFiles = listing.data ?? kNoListingRows;
-  const { filteredCount, gridStateByScope, setGridState } = useLogsListing();
+  const { gridStateByScope, setGridState } = useLogsListing();
 
   const navigate = useNavigate();
 
@@ -248,11 +249,22 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // LogsPanel uses `pickerColumns` for the popover so it only shows the
   // active view mode's checkboxes; the grid (LogListGrid) reads `columns`
   // from its own `useLogListColumns` call and gets both sets for stability.
-  const { pickerColumns, visibility, setColumnVisibility } = useLogListColumns(
-    mode,
-    scopePrefix,
-    scoresViewMode
-  );
+  const {
+    pickerColumns,
+    visibility,
+    setColumnVisibility,
+    getValue,
+    getComparator,
+    getFilterType,
+  } = useLogListColumns(mode, scopePrefix, scoresViewMode);
+
+  const listData = useLogListData({
+    items: logItems,
+    scopeKey,
+    getValue,
+    getComparator,
+    getFilterType,
+  });
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -260,12 +272,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   // Active per-column filters for this scope (drives the Reset button + the
   // Columns popover's filter markers).
-  const scopeFilters = scopeKey
-    ? gridStateByScope[scopeKey]?.columnFilters
-    : undefined;
   const filteredFields = useMemo(
-    () => Object.keys(scopeFilters ?? {}),
-    [scopeFilters]
+    () => Object.keys(listData.columnFilters ?? {}),
+    [listData.columnFilters]
   );
   const hasFilter = filteredFields.length > 0;
 
@@ -417,7 +426,10 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
             <LogListGrid
-              items={logItems}
+              rows={listData.rows}
+              totalRowCount={listData.totalRowCount}
+              sorting={listData.sorting}
+              columnFilters={listData.columnFilters}
               currentPath={currentDir}
               scopeKey={scopeKey}
               mode={mode}
@@ -426,7 +438,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
           </div>
           <LogListFooter
             itemCount={logItems.length}
-            filteredCount={filteredCount}
+            filteredCount={listData.filteredCount}
             progressText={busy ? "Syncing data" : undefined}
             progressBar={
               progress.total !== progress.complete ? (

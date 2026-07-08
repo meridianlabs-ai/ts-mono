@@ -547,11 +547,6 @@ export const useSamplePopover = (id: string) => {
 };
 
 export const useLogsListing = () => {
-  const filteredCount = useStore((state) => state.logs.listing.filteredCount);
-  const setFilteredCount = useStore(
-    (state) => state.logsActions.setFilteredCount
-  );
-
   const gridStateByScope = useStore(
     (state) => state.logs.listing.gridStateByScope
   );
@@ -561,8 +556,6 @@ export const useLogsListing = () => {
   );
 
   return {
-    filteredCount,
-    setFilteredCount,
     gridStateByScope,
     setGridState,
     clearGridState,
