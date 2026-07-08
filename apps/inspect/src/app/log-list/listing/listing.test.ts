@@ -235,6 +235,31 @@ describe("type-aware filtering", () => {
     expect(res.items.map((r) => r.name)).toEqual(["a"]);
   });
 
+  it("combineFilters ORs a two-condition column pair", () => {
+    const columnFilters: Record<string, ColumnFilter> = {
+      model: {
+        columnId: "model",
+        filterType: "string",
+        spec: {
+          operator: "=",
+          value: "gpt-4",
+          join: "or",
+          second: { operator: "=", value: "claude" },
+        },
+      },
+    };
+    const filter = combineFilters(columnFilters);
+    const res = applyListingQuery(rows, {
+      filter,
+      getValue,
+      getComparator,
+      getFilterType,
+    });
+    // r0 & r2 match via "= gpt-4"; r1 matches via "= claude"; r3 (gpt-4o)
+    // matches neither branch.
+    expect(res.items.map((r) => r.name).sort()).toEqual(["a", "b", "c"]);
+  });
+
   it("combineFilters drops legacy persisted entries (pre-FilterSpec shape)", () => {
     const legacy = {
       model: {

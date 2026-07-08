@@ -26,6 +26,20 @@ export interface UseColumnFilterPopoverReturn {
   isValueDisabled: ReturnType<typeof useColumnFilter>["takesNoValue"];
   isRangeOperator: ReturnType<typeof useColumnFilter>["usesRangeValue"];
 
+  join: ReturnType<typeof useColumnFilter>["join"];
+  setJoin: ReturnType<typeof useColumnFilter>["setJoin"];
+  secondOperator: ReturnType<typeof useColumnFilter>["secondOperator"];
+  setSecondOperator: ReturnType<typeof useColumnFilter>["setSecondOperator"];
+  secondValue: ReturnType<typeof useColumnFilter>["secondValue"];
+  setSecondValue: ReturnType<typeof useColumnFilter>["setSecondValue"];
+  secondValue2: ReturnType<typeof useColumnFilter>["secondValue2"];
+  setSecondValue2: ReturnType<typeof useColumnFilter>["setSecondValue2"];
+  showSecond: ReturnType<typeof useColumnFilter>["showSecond"];
+  secondUsesValue: ReturnType<typeof useColumnFilter>["secondUsesValue"];
+  secondUsesRangeValue: ReturnType<
+    typeof useColumnFilter
+  >["secondUsesRangeValue"];
+
   commitAndClose: () => void;
   cancelAndClose: () => void;
 }
@@ -49,6 +63,17 @@ export function useColumnFilterPopover({
     operatorOptions,
     takesNoValue: isValueDisabled,
     usesRangeValue: isRangeOperator,
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue,
+    secondUsesRangeValue,
     buildSpec,
   } = useColumnFilter({ columnId, filterType, spec, isOpen, operators });
 
@@ -80,6 +105,17 @@ export function useColumnFilterPopover({
     operatorOptions,
     isValueDisabled,
     isRangeOperator,
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue,
+    secondUsesRangeValue,
     commitAndClose,
     cancelAndClose,
   };

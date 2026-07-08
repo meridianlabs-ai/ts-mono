@@ -59,3 +59,17 @@
   color: var(--bs-secondary);
   padding-left: 2px;
 }
+
+.joinRow {
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.joinOption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  margin: 0;
+}

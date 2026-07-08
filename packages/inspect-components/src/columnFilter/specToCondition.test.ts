@@ -92,21 +92,36 @@ describe("specToCondition", () => {
 
   it("passes comparison operators through with typed values", () => {
     expect(
-      specToCondition("score", "number", { operator: ">", value: "0.5" })?.toJSON()
+      specToCondition("score", "number", {
+        operator: ">",
+        value: "0.5",
+      })?.toJSON()
     ).toEqual({ is_compound: false, left: "score", operator: ">", right: 0.5 });
     expect(
-      specToCondition("task", "string", { operator: "=", value: "petri" })?.toJSON()
-        .right
+      specToCondition("task", "string", {
+        operator: "=",
+        value: "petri",
+      })?.toJSON().right
     ).toBe("petri");
   });
 
   it("parses comma-separated lists per column type", () => {
     expect(
-      specToCondition("score", "number", { operator: "in", value: "1, 2, 3" })?.toJSON()
-    ).toEqual({ is_compound: false, left: "score", operator: "IN", right: [1, 2, 3] });
+      specToCondition("score", "number", {
+        operator: "in",
+        value: "1, 2, 3",
+      })?.toJSON()
+    ).toEqual({
+      is_compound: false,
+      left: "score",
+      operator: "IN",
+      right: [1, 2, 3],
+    });
     expect(
-      specToCondition("score", "number", { operator: "not in", value: "1" })?.toJSON()
-        .operator
+      specToCondition("score", "number", {
+        operator: "not in",
+        value: "1",
+      })?.toJSON().operator
     ).toBe("NOT IN");
     expect(
       specToCondition("score", "number", { operator: "in", value: "1, x" })
@@ -184,6 +199,77 @@ describe("specToCondition", () => {
       specToCondition("flag", "boolean", { operator: "=", value: "yes" })
     ).toBeUndefined();
   });
+
+  it("compiles an AND pair into a compound condition", () => {
+    const c = specToCondition("score", "number", {
+      operator: ">",
+      value: "100",
+      join: "and",
+      second: { operator: "<", value: "500" },
+    });
+    expect(c?.toJSON()).toEqual({
+      is_compound: true,
+      operator: "AND",
+      left: { is_compound: false, left: "score", operator: ">", right: 100 },
+      right: {
+        is_compound: false,
+        left: "score",
+        operator: "<",
+        right: 500,
+      },
+    });
+  });
+
+  it("compiles an OR pair into a compound condition", () => {
+    const c = specToCondition("model", "string", {
+      operator: "=",
+      value: "gpt-4",
+      join: "or",
+      second: { operator: "=", value: "claude" },
+    });
+    expect(c?.toJSON()).toEqual({
+      is_compound: true,
+      operator: "OR",
+      left: {
+        is_compound: false,
+        left: "model",
+        operator: "=",
+        right: "gpt-4",
+      },
+      right: {
+        is_compound: false,
+        left: "model",
+        operator: "=",
+        right: "claude",
+      },
+    });
+  });
+
+  it("returns the primary alone when the second condition is empty", () => {
+    const c = specToCondition("score", "number", {
+      operator: ">",
+      value: "100",
+      join: "and",
+      second: { operator: "<", value: "" },
+    });
+    expect(c?.toJSON()).toEqual({
+      is_compound: false,
+      left: "score",
+      operator: ">",
+      right: 100,
+    });
+  });
+
+  it("returns undefined when the second condition is invalid", () => {
+    expect(
+      specToCondition("score", "number", {
+        operator: ">",
+        value: "100",
+        join: "and",
+        second: { operator: "<", value: "abc" },
+      })
+    ).toBeUndefined();
+  });
 });
 
 describe("isColumnFilter", () => {
@@ -237,5 +323,71 @@ describe("isColumnFilter", () => {
     expect(isColumnFilter(undefined)).toBe(false);
     expect(isColumnFilter("contains")).toBe(false);
     expect(isColumnFilter(42)).toBe(false);
+  });
+
+  it("accepts a valid AND/OR condition pair", () => {
+    expect(
+      isColumnFilter({
+        columnId: "score",
+        filterType: "number",
+        spec: {
+          operator: ">",
+          value: "100",
+          join: "and",
+          second: { operator: "<", value: "500" },
+        },
+      })
+    ).toBe(true);
+    expect(
+      isColumnFilter({
+        columnId: "model",
+        filterType: "string",
+        spec: {
+          operator: "=",
+          value: "gpt-4",
+          join: "or",
+          second: { operator: "=", value: "claude" },
+        },
+      })
+    ).toBe(true);
+  });
+
+  it("rejects an invalid join value", () => {
+    expect(
+      isColumnFilter({
+        columnId: "score",
+        filterType: "number",
+        spec: {
+          operator: ">",
+          value: "100",
+          join: "xor",
+          second: { operator: "<", value: "500" },
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("rejects a second condition without a join", () => {
+    expect(
+      isColumnFilter({
+        columnId: "score",
+        filterType: "number",
+        spec: {
+          operator: ">",
+          value: "100",
+          second: { operator: "<", value: "500" },
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("rejects a join without a second condition", () => {
+    expect(
+      isColumnFilter({
+        columnId: "score",
+        filterType: "number",
+        spec: { operator: ">", value: "100", join: "and" },
+      })
+    ).toBe(false);
   });
 });

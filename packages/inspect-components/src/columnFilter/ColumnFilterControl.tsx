@@ -62,6 +62,17 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
     setValue2: setRawValue2,
     isValueDisabled,
     isRangeOperator,
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue,
+    secondUsesRangeValue,
     commitAndClose,
     cancelAndClose,
   } = useColumnFilterPopover({
@@ -124,6 +135,17 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
           onCommit={commitAndClose}
           onCancel={cancelAndClose}
           suggestions={suggestions}
+          showSecond={showSecond}
+          join={join}
+          onJoinChange={setJoin}
+          secondOperator={secondOperator}
+          onSecondOperatorChange={setSecondOperator}
+          secondValue={secondValue}
+          onSecondValueChange={setSecondValue}
+          secondValue2={secondValue2}
+          onSecondValue2Change={setSecondValue2}
+          isSecondValueDisabled={!secondUsesValue}
+          isSecondRangeOperator={secondUsesRangeValue}
         />
       </PopOver>
     </div>

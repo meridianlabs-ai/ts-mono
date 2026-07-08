@@ -7,7 +7,12 @@ import {
   RANGE_VALUE_OPERATORS,
 } from "./operators";
 import { specToCondition } from "./specToCondition";
-import type { FilterSpec, FilterType, UiOperator } from "./types";
+import type {
+  FilterCondition,
+  FilterSpec,
+  FilterType,
+  UiOperator,
+} from "./types";
 
 export interface UseColumnFilterParams {
   columnId: string;
@@ -34,6 +39,28 @@ export interface UseColumnFilterReturn {
   usesListValue: boolean;
   /** True if operator expects a range with two values (between / not between) */
   usesRangeValue: boolean;
+  /** AND/OR join between condition 1 and the (optional) second condition. */
+  join: "and" | "or";
+  setJoin: (join: "and" | "or") => void;
+  /** Operator for the second, optional condition. */
+  secondOperator: UiOperator;
+  setSecondOperator: (operator: UiOperator) => void;
+  secondValue: string;
+  setSecondValue: (value: string) => void;
+  secondValue2: string;
+  setSecondValue2: (value: string) => void;
+  /**
+   * True once condition 1 has content (a non-empty trimmed value, or a
+   * no-value operator) — the second-condition row is revealed once the user
+   * has started filling in the first.
+   */
+  showSecond: boolean;
+  /** True if the second operator takes a value (mirrors `!takesNoValue`). */
+  secondUsesValue: boolean;
+  /** True if the second operator expects a list of values (in / not in). */
+  secondUsesListValue: boolean;
+  /** True if the second operator expects a range with two values. */
+  secondUsesRangeValue: boolean;
   /**
    * Build the spec for the current editor state. `null` means "clear the
    * filter" (empty/incomplete value); `undefined` means the input doesn't
@@ -57,6 +84,17 @@ export function useColumnFilter({
   const [value, setValue] = useState<string>(spec?.value ?? "");
   const [value2, setValue2] = useState<string>(spec?.value2 ?? "");
 
+  const [join, setJoin] = useState<"and" | "or">(spec?.join ?? "and");
+  const [secondOperator, setSecondOperator] = useState<UiOperator>(
+    spec?.second?.operator ?? defaultOperator
+  );
+  const [secondValue, setSecondValue] = useState<string>(
+    spec?.second?.value ?? ""
+  );
+  const [secondValue2, setSecondValue2] = useState<string>(
+    spec?.second?.value2 ?? ""
+  );
+
   // Track the previous columnId to detect when we switch to a different filter
   const prevColumnIdRef = useRef(columnId);
 
@@ -71,26 +109,67 @@ export function useColumnFilter({
       setOperator(spec?.operator ?? defaultOperator);
       setValue(spec?.value ?? "");
       setValue2(spec?.value2 ?? "");
+      setJoin(spec?.join ?? "and");
+      setSecondOperator(spec?.second?.operator ?? defaultOperator);
+      setSecondValue(spec?.second?.value ?? "");
+      setSecondValue2(spec?.second?.value2 ?? "");
     }
   }, [spec, defaultOperator, isOpen, columnId]);
 
+  const takesNoValue = NO_VALUE_OPERATORS.has(operator);
+  const showSecond = takesNoValue || value.trim() !== "";
+
+  const secondTakesNoValue = NO_VALUE_OPERATORS.has(secondOperator);
+
   const buildSpec = useCallback((): FilterSpec | null | undefined => {
-    if (NO_VALUE_OPERATORS.has(operator)) {
-      return { operator, value: "" };
-    }
-    const next: FilterSpec = {
-      operator,
-      value,
-      value2: RANGE_VALUE_OPERATORS.has(operator) ? value2 : undefined,
-    };
+    const primary: FilterCondition = takesNoValue
+      ? { operator, value: "" }
+      : {
+          operator,
+          value,
+          value2: RANGE_VALUE_OPERATORS.has(operator) ? value2 : undefined,
+        };
+
+    const secondHasContent = secondTakesNoValue || secondValue.trim() !== "";
+
+    const candidate: FilterSpec =
+      showSecond && secondHasContent
+        ? {
+            ...primary,
+            join,
+            second: secondTakesNoValue
+              ? { operator: secondOperator, value: "" }
+              : {
+                  operator: secondOperator,
+                  value: secondValue,
+                  value2: RANGE_VALUE_OPERATORS.has(secondOperator)
+                    ? secondValue2
+                    : undefined,
+                },
+          }
+        : primary;
+
     // The wire compiler is the single authority on emptiness (null = clear)
     // and validity (undefined = don't commit); the future filtrex target
     // shares the same input-parsing rules.
-    const compiled = specToCondition(columnId, filterType, next);
+    const compiled = specToCondition(columnId, filterType, candidate);
     if (compiled === undefined) return undefined;
     if (compiled === null) return null;
-    return next;
-  }, [columnId, filterType, operator, value, value2]);
+    return candidate;
+  }, [
+    columnId,
+    filterType,
+    operator,
+    value,
+    value2,
+    takesNoValue,
+    showSecond,
+    join,
+    secondOperator,
+    secondValue,
+    secondValue2,
+    secondTakesNoValue,
+  ]);
 
   return {
     operator,
@@ -100,9 +179,21 @@ export function useColumnFilter({
     setValue,
     value2,
     setValue2,
-    takesNoValue: NO_VALUE_OPERATORS.has(operator),
+    takesNoValue,
     usesListValue: LIST_VALUE_OPERATORS.has(operator),
     usesRangeValue: RANGE_VALUE_OPERATORS.has(operator),
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue: !secondTakesNoValue,
+    secondUsesListValue: LIST_VALUE_OPERATORS.has(secondOperator),
+    secondUsesRangeValue: RANGE_VALUE_OPERATORS.has(secondOperator),
     buildSpec,
   };
 }

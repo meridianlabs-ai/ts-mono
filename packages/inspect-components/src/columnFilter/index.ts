@@ -16,6 +16,7 @@ export { isColumnFilter, UI_OPERATORS } from "./types";
 
 export type {
   ColumnFilter,
+  FilterCondition,
   FilterSpec,
   FilterType,
   UiOperator,
