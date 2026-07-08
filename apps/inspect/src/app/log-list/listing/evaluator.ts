@@ -189,14 +189,15 @@ export function evaluateCondition<TRow>(
   );
 }
 
-// Default (string-ish) compare: missing values sort last in both directions
-// (the `isDescending`-aware sentinel mirrors the AG number comparator).
-const defaultCompare: ValueComparator = (a, b, isDescending) => {
+// Default (string-ish) compare: missing values sort as smallest — first
+// ascending, last descending — matching the AG-default comparator the
+// pre-TanStack log list used for columns without a custom comparator.
+const defaultCompare: ValueComparator = (a, b) => {
   const am = isNullish(a) || a === "";
   const bm = isNullish(b) || b === "";
   if (am && bm) return 0;
-  if (am) return isDescending ? -1 : 1;
-  if (bm) return isDescending ? 1 : -1;
+  if (am) return -1;
+  if (bm) return 1;
   if (lt(a, b)) return -1;
   if (lt(b, a)) return 1;
   return 0;
@@ -205,8 +206,9 @@ const defaultCompare: ValueComparator = (a, b, isDescending) => {
 /**
  * Build a row comparator from an `OrderBy` list. Emulates AG Grid's model:
  * call the per-column comparator with `isDescending`, then reverse its result
- * for descending — so comparators that pin missing values last stay correct in
- * both directions.
+ * for descending — so a comparator can use `isDescending` to pin missing
+ * values to one end regardless of direction (as the samples grid does; the
+ * log list's own comparators sort missing as smallest and ignore it).
  */
 export function compareByOrderBy<TRow>(
   orderBy: OrderByModel[],

@@ -32,7 +32,8 @@ export interface LogsListingResult<TRow> {
 /** Compares two raw cell values. `isDescending` matches the AG comparator
  *  contract so `gridComparators` primitives are reusable: the function sorts
  *  ascending, and the caller negates the result for descending — the flag only
- *  lets comparators pin missing values last regardless of direction. */
+ *  lets a comparator pin missing values to one end regardless of direction
+ *  (unused by the log list's own comparators, which sort missing as smallest). */
 export type ValueComparator = (
   a: unknown,
   b: unknown,

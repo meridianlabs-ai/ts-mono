@@ -7,6 +7,8 @@ import type {
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
+import { numberCompare } from "../grid/columns/comparators";
+
 import { applyListingQuery } from "./applyListingQuery";
 import { combineFilters } from "./combineFilters";
 import { evaluateCondition } from "./evaluator";
@@ -27,18 +29,11 @@ const rows: Row[] = [r0, r1, r2, r3];
 
 const getValue = (row: Row, id: string): unknown => row[id];
 
-// Numeric comparator pinning missing values last regardless of direction
-// (the AG `comparators.number` contract).
-const numeric: ValueComparator = (a, b, desc) => {
-  const am = a === null || a === undefined;
-  const bm = b === null || b === undefined;
-  if (am && bm) return 0;
-  if (am) return desc ? -1 : 1;
-  if (bm) return desc ? 1 : -1;
-  return (a as number) - (b as number);
-};
+// The real score-column comparator, so these tests pin the grid's actual
+// missing-value ordering (nulls sort as smallest, matching the AG default
+// the pre-TanStack log list used).
 const getComparator = (id: string): ValueComparator | undefined =>
-  id === "score" ? numeric : undefined;
+  id === "score" ? numberCompare : undefined;
 
 describe("evaluateCondition", () => {
   const ev = (c: Condition, row: Row) => evaluateCondition(row, c, getValue);
@@ -117,23 +112,45 @@ describe("evaluateCondition", () => {
 });
 
 describe("applyListingQuery", () => {
-  it("sorts ascending with missing last", () => {
+  it("sorts ascending with missing first (nulls are smallest)", () => {
     const res = applyListingQuery(rows, {
       orderBy: { column: "score", direction: "ASC" },
       getValue,
       getComparator,
     });
-    expect(res.items.map((r) => r.name)).toEqual(["b", "d", "a", "c"]);
+    expect(res.items.map((r) => r.name)).toEqual(["c", "b", "d", "a"]);
     expect(res.total_count).toBe(4);
   });
 
-  it("sorts descending with missing still last", () => {
+  it("sorts descending with missing last", () => {
     const res = applyListingQuery(rows, {
       orderBy: { column: "score", direction: "DESC" },
       getValue,
       getComparator,
     });
     expect(res.items.map((r) => r.name)).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("default compare also treats missing as smallest", () => {
+    // No comparator registered for "notes" → the evaluator's defaultCompare.
+    const withNotes = [
+      { name: "a", model: "m", notes: "zeta" },
+      { name: "b", model: "m" }, // missing notes
+      { name: "c", model: "m", notes: "alpha" },
+    ];
+    const asc = applyListingQuery(withNotes, {
+      orderBy: { column: "notes", direction: "ASC" },
+      getValue,
+      getComparator,
+    });
+    expect(asc.items.map((r) => r.name)).toEqual(["b", "c", "a"]);
+
+    const desc = applyListingQuery(withNotes, {
+      orderBy: { column: "notes", direction: "DESC" },
+      getValue,
+      getComparator,
+    });
+    expect(desc.items.map((r) => r.name)).toEqual(["a", "c", "b"]);
   });
 
   it("filters then reports total_count", () => {

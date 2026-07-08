@@ -22,22 +22,15 @@ import {
   ExtendedColumnDef,
 } from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
-import { comparators } from "../../../shared/gridComparators";
 
 import localStyles from "./columns.module.css";
+import { dateCompare, numberCompare } from "./comparators";
 import { completedAtValue } from "./completedAt";
 import { LogListRow } from "./types";
 
 const styles = { ...sharedStyles, ...localStyles };
 
 type LogListColumn = ExtendedColumnDef<LogListRow>;
-
-// Value comparators for client-side sorting. `gridComparators` follows the AG
-// contract (`isDescending` flips the missing-value sentinel so missing sorts
-// last in both directions); the listing query negates the result for descending.
-const numberCompare: ColumnComparator = (a, b, isDescending) =>
-  comparators.number(a, b, undefined, undefined, isDescending);
-const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 
 const EmptyCell = () => <div>-</div>;
 
