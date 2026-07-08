@@ -38,6 +38,7 @@ const baseApi = (): ClientAPI => ({
   get_log_summaries: () => notMocked(),
   get_log_summaries_settled: () => notMocked(),
   get_log_details: () => notMocked(),
+  get_log_info: () => notMocked(),
   get_log_sample: () => notMocked(),
   client_events: () => Promise.resolve([]),
   download_file: () => Promise.resolve(),

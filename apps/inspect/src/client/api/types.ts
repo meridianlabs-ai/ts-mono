@@ -51,7 +51,7 @@ import { WorkResult } from "../../utils/workQueue";
 
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
-export type { CallPoolData, MessagePoolData };
+export type { CallPoolData, LogInfo, MessagePoolData };
 
 // Hand-coded — references the local EventData with typed event union
 export interface SampleData {
@@ -324,6 +324,9 @@ export interface ClientAPI {
     log_files: string[]
   ) => Promise<WorkResult<LogPreview>[]>;
   get_log_details: (log_file: string, cached?: boolean) => Promise<LogDetails>;
+  // Cheap stat of the log file (size, plus etag where the backend provides
+  // one) — the change probe live-watch polling re-reads details on.
+  get_log_info: (log_file: string) => Promise<LogInfo>;
 
   // Sample retrieval
   get_log_sample: (

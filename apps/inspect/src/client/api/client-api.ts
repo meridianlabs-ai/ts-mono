@@ -143,7 +143,16 @@ export const clientApi = (
     if (isEvalFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
       if (remoteLogFile) {
-        return await remoteLogFile.readLogSummary();
+        const details = await remoteLogFile.readLogSummary();
+        // A running log's zip is still being appended, so its memoized
+        // snapshot (the central directory at open time) can never see later
+        // flushes — drop it so every read while running re-opens fresh.
+        // Completed logs stay memoized.
+        if (details.status === "started" && loadedEvalFile.file === log_file) {
+          loadedEvalFile.file = undefined;
+          loadedEvalFile.remoteLog = undefined;
+        }
+        return details;
       } else {
         throw new Error("Unable to read remote eval file");
       }
@@ -570,6 +579,9 @@ export const clientApi = (
         }
         return result;
       }
+    ),
+    get_log_info: middleware("get_log_info", (log_file: string) =>
+      api.get_log_info(encodePathParts(log_file))
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {

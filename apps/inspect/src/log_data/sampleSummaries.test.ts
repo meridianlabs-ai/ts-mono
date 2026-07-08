@@ -101,9 +101,12 @@ describe("useSampleSummaries during a running eval", () => {
   const FILE = "run.eval";
 
   // Mutable "server" state the fake api serves from — tests advance the run
-  // by reassigning these between poll ticks.
+  // by reassigning these between poll ticks. `serverInfo.size` is the log
+  // file's stat: it grows when a flush becomes readable (the zip is
+  // append-only mid-run), independently of the buffer's etag.
   let serverDetails: LogDetails;
   let serverBuffer: { etag: string; samples: SampleSummary[] };
+  let serverInfo: { size: number };
 
   const details = (sampleSummaries: SampleSummary[]): LogDetails =>
     ({
@@ -123,19 +126,22 @@ describe("useSampleSummaries during a running eval", () => {
 
   const api = {
     get_log_dir_handle: (dir: string) => `test-${dir}`,
-    get_log_details: vi.fn(async () => serverDetails),
+    get_log_details: vi.fn(() => Promise.resolve(serverDetails)),
+    get_log_info: vi.fn(() => Promise.resolve(serverInfo)),
     get_log_pending_samples: vi.fn(
-      async (_file: string, etag?: string): Promise<PendingSampleResponse> =>
-        etag === serverBuffer.etag
-          ? { status: "NotModified" }
-          : {
-              status: "OK",
-              pendingSamples: {
-                samples: serverBuffer.samples,
-                refresh: 2,
-                etag: serverBuffer.etag,
-              },
-            }
+      (_file: string, etag?: string): Promise<PendingSampleResponse> =>
+        Promise.resolve(
+          etag === serverBuffer.etag
+            ? { status: "NotModified" }
+            : {
+                status: "OK",
+                pendingSamples: {
+                  samples: serverBuffer.samples,
+                  refresh: 2,
+                  etag: serverBuffer.etag,
+                },
+              }
+        )
     ),
   } as unknown as ClientAPI;
 
@@ -167,6 +173,7 @@ describe("useSampleSummaries during a running eval", () => {
       etag: "e1",
       samples: [createSampleSummary({ id: "s1", completed: false })],
     };
+    serverInfo = { size: 100 };
 
     const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
       wrapper,
@@ -179,7 +186,8 @@ describe("useSampleSummaries during a running eval", () => {
       { timeout: 3000 }
     );
 
-    // The run progresses: sample 1 flushes to the log, sample 2 starts.
+    // The run progresses: sample 1 flushes to the log (growing it), sample 2
+    // starts.
     serverDetails = details([
       createSampleSummary({ id: "s1", completed: true }),
     ]);
@@ -187,6 +195,7 @@ describe("useSampleSummaries during a running eval", () => {
       etag: "e2",
       samples: [createSampleSummary({ id: "s2", completed: false })],
     };
+    serverInfo = { size: 150 };
     await queryClient.refetchQueries({
       queryKey: pendingSamplesKey(LOG_DIR, FILE),
     });
@@ -206,13 +215,16 @@ describe("useSampleSummaries during a running eval", () => {
     expect(flushed?.completed).toBe(true);
   });
 
-  // Reproduces the live failure of watching a running eval that was opened
-  // before any sample had flushed (validated against `inspect view` with a
-  // slow mockllm eval). useSampleSummaries merges two sources: the log's
+  // Guards against a live failure (validated against `inspect view` with a
+  // slow mockllm eval) when watching a running eval that was opened before
+  // any sample had flushed. useSampleSummaries merges two sources: the log's
   // SamplesListingRow[] (useSamplesListing — SampleSummary rows ingested by
   // writeDetails from a LogDetails payload, i.e. the .eval zip read) and
   // PendingSamples.samples (usePendingSamples — the polled /pending-samples
   // response in the react-query cache).
+  //
+  // The failing sequence when the details re-read is triggered by buffer
+  // transitions instead of file changes:
   //
   //   1. Viewer opens mid-sample-1.
   //          .eval zip: [] (nothing flushed yet).
@@ -261,19 +273,22 @@ describe("useSampleSummaries during a running eval", () => {
   //      flush behind. A page reload at any point shows the correct list,
   //      proving the data was there all along.
   //
-  // The contract asserted here: a get_log_details read that races the flush
-  // must still CONVERGE — the flushed sample has to reach the
-  // SamplesListingRow[] side of the merge without another buffer
-  // transition. (The pre-log_data viewer converged via awaited OK-tick
-  // re-reads plus per-tick re-reads while the buffer 404'd, stopping only
-  // when a freshly re-read status said not-started.)
-  test("summaries converge when the transition-tick details read races the flush", async () => {
+  // The contract asserted here: the flushed sample must still CONVERGE onto
+  // the SamplesListingRow[] side of the merge without another buffer
+  // transition. The poll achieves this by probing the file itself
+  // (get_log_info) every tick and re-reading details when it changed —
+  // trigger on file change, not buffer change. (The pre-log_data viewer
+  // converged via awaited OK-tick re-reads plus per-tick re-reads while the
+  // buffer 404'd, stopping only when a freshly re-read status said
+  // not-started.)
+  test("summaries converge when the flush becomes readable only after the buffer transition", async () => {
     // The run begins: nothing flushed, sample 1 in the buffer.
     serverDetails = details([]);
     serverBuffer = {
       etag: "e1",
       samples: [createSampleSummary({ id: "s1", completed: false })],
     };
+    serverInfo = { size: 100 };
 
     const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
       wrapper,
@@ -282,13 +297,10 @@ describe("useSampleSummaries during a running eval", () => {
       () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
       { timeout: 3000 }
     );
-    const detailReadsBeforeTransition = (
-      api.get_log_details as ReturnType<typeof vi.fn>
-    ).mock.calls.length;
 
     // Sample 1 leaves the buffer (sample 2 starts) BEFORE its flush is
-    // readable in the log — the transition-triggered details read races the
-    // flush and still sees no summaries. serverDetails stays stale.
+    // readable in the log — the file is unchanged at the transition tick, so
+    // a details read now would see no summaries.
     serverBuffer = {
       etag: "e2",
       samples: [createSampleSummary({ id: "s2", completed: false })],
@@ -297,25 +309,21 @@ describe("useSampleSummaries during a running eval", () => {
       queryKey: pendingSamplesKey(LOG_DIR, FILE),
     });
     await waitFor(() =>
-      expect(
-        (api.get_log_details as ReturnType<typeof vi.fn>).mock.calls.length
-      ).toBeGreaterThan(detailReadsBeforeTransition)
+      expect(result.current.data?.map((s) => s.id)).toEqual(["s2"])
     );
 
-    // The flush lands moments later; the buffer stays unchanged for the
-    // whole next sample (NotModified ticks only).
+    // The flush lands moments later, growing the file; the buffer stays
+    // unchanged for the whole next sample (NotModified ticks only).
     serverDetails = details([
       createSampleSummary({ id: "s1", completed: true }),
     ]);
-    await queryClient.refetchQueries({
-      queryKey: pendingSamplesKey(LOG_DIR, FILE),
-    });
+    serverInfo = { size: 180 };
     await queryClient.refetchQueries({
       queryKey: pendingSamplesKey(LOG_DIR, FILE),
     });
 
-    // The flushed sample must still arrive — a one-shot racy read that never
-    // retries leaves the list one sample behind for the rest of the run.
+    // The flushed sample must still arrive — without file-change-triggered
+    // re-reads the list stays one sample behind for the rest of the run.
     await waitFor(
       () => {
         expect(result.current.data?.map((s) => s.id).sort()).toEqual([

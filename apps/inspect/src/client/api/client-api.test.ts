@@ -264,6 +264,47 @@ describe("clientApi.edit_log cache invalidation", () => {
   });
 });
 
+describe("clientApi.get_log_details running-log caching", () => {
+  // A memoized RemoteLogFile is a snapshot of the zip's central directory
+  // at open time — it can never see samples flushed after the open. For a
+  // RUNNING log the zip is still being appended, so re-serving the snapshot
+  // for cached reads leaves live views permanently stale (any consumer that
+  // reads without an explicit cached=false lands on it).
+
+  const remoteFileWith = (status: string) =>
+    ({
+      readLogSummary: vi
+        .fn()
+        .mockResolvedValue({ status, sampleSummaries: [] }),
+    }) as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>;
+
+  test("a running log is not re-served from the memoized remote file", async () => {
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockImplementation(() => Promise.resolve(remoteFileWith("started")));
+    const client = clientApi(baseApi());
+
+    await client.get_log_details("log.eval", true);
+    await client.get_log_details("log.eval", true);
+
+    // Each read re-opened the zip — a fresh central directory that sees
+    // newly flushed samples.
+    expect(openMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("a completed log stays memoized across cached reads", async () => {
+    const openMock = vi.mocked(openRemoteLogFile);
+    openMock.mockReset();
+    openMock.mockImplementation(() => Promise.resolve(remoteFileWith("success")));
+    const client = clientApi(baseApi());
+
+    await client.get_log_details("log.eval", true);
+    await client.get_log_details("log.eval", true);
+
+    expect(openMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("clientApi.edit_log etag plumbing", () => {
   // Concern: the API layer accepts `if_match_etag` and returns
   // `result.etag`, but the dialogs call `edit_log(file, update)` with no

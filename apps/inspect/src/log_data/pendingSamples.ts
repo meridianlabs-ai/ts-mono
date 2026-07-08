@@ -5,7 +5,6 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import {
   AsyncData,
   data as asyncData,
-  createLogger,
   map as mapAsyncData,
 } from "@tsmono/util";
 
@@ -13,6 +12,7 @@ import { getApi } from "../app_config";
 import {
   ClientAPI,
   LogDetails,
+  LogInfo,
   PendingSampleResponse,
   PendingSamples,
   RunningMetric,
@@ -21,8 +21,6 @@ import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
 import { useLogHeader } from "./log";
-
-const log = createLogger("pendingSamples");
 
 const kDefaultRefreshSeconds = 2;
 
@@ -36,9 +34,10 @@ export const pendingSamplesKey = (
  * as a poll-driven react-query query keyed on `(logDir, logFile)`. Polling has
  * no imperative start/stop: enablement derives from the log's live status,
  * cadence from the server's refresh hint, and teardown from the query key
- * changing. Each tick threads the previous data's etag and produces the
- * watched log into the fetch engine at elevated priority so the completed
- * summaries / status stay fresh alongside the buffer.
+ * changing. Each tick threads the previous data's etag, and probes the log
+ * file itself (a cheap `get_log_info`) so the completed summaries / status
+ * are re-read whenever the file has actually changed — the convergence loop
+ * that keeps the settled side of the merge fresh alongside the buffer.
  */
 
 export interface PendingSamplesPollInputs {
@@ -78,6 +77,40 @@ export const nextPendingSamples = (
   }
 };
 
+const detailsSignatureKey = (logDir: string, logFile: string) =>
+  ["log_data", "details-signature", logDir, logFile] as const;
+
+const logInfoSignature = (info: LogInfo): string =>
+  `${info.size}:${info.etag ?? ""}`;
+
+/**
+ * Re-read the log's details iff the file changed since the last read this
+ * poll issued. The signature is recorded only after the read settles: a read
+ * issued after observing a signature reflects at least that state (the log
+ * only grows mid-run), so a read that races a concurrent flush leaves the
+ * next tick's probe mismatched and re-reads — buffer transitions alone can't
+ * be the trigger, because a sample leaves the buffer before its flush is
+ * readable. `fresh` bypasses the memoized remote-file snapshot, which would
+ * otherwise re-serve pre-change content.
+ */
+const refreshDetailsOnChange = async (
+  api: ClientAPI,
+  logDir: string,
+  logFile: string
+): Promise<void> => {
+  const signature = logInfoSignature(await api.get_log_info(logFile));
+  const key = detailsSignatureKey(logDir, logFile);
+  if (queryClient.getQueryData<string>(key) === signature) {
+    return;
+  }
+  await fetchEngine.ensure(logFile, {
+    depth: "detailed",
+    priority: "elevated",
+    fresh: true,
+  });
+  queryClient.setQueryData(key, signature);
+};
+
 /** One poll tick (the queryFn; exported for tests). */
 export const fetchPendingSamples = async (
   api: ClientAPI,
@@ -93,20 +126,9 @@ export const fetchPendingSamples = async (
       pendingSamplesKey(logDir, logFile)
     ) ?? null;
   const response = await getPendingSamples(logFile, prev?.etag);
-  if (response.status === "OK") {
-    // Fresh buffer data: let it land now; refresh the details in the
-    // background.
-    void fetchEngine
-      .ensure(logFile, { depth: "detailed", priority: "elevated" })
-      .catch((error) => log.debug("Error refreshing log details", error));
-  } else if (response.status === "NotFound") {
-    // Buffer gone: await the details refresh so the pending rows are dropped
-    // only once the fresh summaries/status (which may end the poll) are in.
-    await fetchEngine.ensure(logFile, {
-      depth: "detailed",
-      priority: "elevated",
-    });
-  }
+  // Awaited so a NotFound tick drops the pending rows only once the fresh
+  // summaries/status (which may end the poll) are in.
+  await refreshDetailsOnChange(api, logDir, logFile);
   return nextPendingSamples(prev, response);
 };
 

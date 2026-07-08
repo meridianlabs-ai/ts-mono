@@ -96,13 +96,31 @@ describe("fetchPendingSamples", () => {
   const LOG_FILE = "run.eval";
 
   const apiWith = (
-    response: PendingSampleResponse
-  ): { api: ClientAPI; getPending: ReturnType<typeof vi.fn> } => {
+    response: PendingSampleResponse,
+    info: { size: number } = { size: 100 }
+  ): {
+    api: ClientAPI;
+    getPending: ReturnType<typeof vi.fn>;
+    setSize: (size: number) => void;
+  } => {
     const getPending = vi.fn().mockResolvedValue(response);
+    let currentInfo = info;
     return {
-      api: { get_log_pending_samples: getPending } as unknown as ClientAPI,
+      api: {
+        get_log_pending_samples: getPending,
+        get_log_info: vi.fn(() => Promise.resolve(currentInfo)),
+      } as unknown as ClientAPI,
       getPending,
+      setSize: (size: number) => {
+        currentInfo = { size };
+      },
     };
+  };
+
+  const freshEnsure = {
+    depth: "detailed",
+    priority: "elevated",
+    fresh: true,
   };
 
   afterEach(() => {
@@ -110,7 +128,7 @@ describe("fetchPendingSamples", () => {
     engineFetch.mockReset();
   });
 
-  it("threads the cached etag and lands fresh data with a background details refresh", async () => {
+  it("threads the cached etag and lands fresh data after a fresh details re-read", async () => {
     queryClient.setQueryData(
       pendingSamplesKey(LOG_DIR, LOG_FILE),
       pending(["a"], { etag: "etag-1" })
@@ -126,21 +144,46 @@ describe("fetchPendingSamples", () => {
 
     expect(getPending).toHaveBeenCalledWith(LOG_FILE, "etag-1");
     expect(result).toBe(fresh);
-    expect(engineFetch).toHaveBeenCalledWith(LOG_FILE, {
-      depth: "detailed",
-      priority: "elevated",
-    });
+    expect(engineFetch).toHaveBeenCalledWith(LOG_FILE, freshEnsure);
   });
 
-  it("returns the previous data on NotModified without refreshing details", async () => {
+  it("skips the details re-read when the file is unchanged since the last read", async () => {
     const prev = pending(["a"], { etag: "etag-1" });
     queryClient.setQueryData(pendingSamplesKey(LOG_DIR, LOG_FILE), prev);
     const { api } = apiWith({ status: "NotModified" });
+    engineFetch.mockResolvedValue(undefined);
 
+    await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
+    engineFetch.mockClear();
     const result = await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
 
     expect(result).toBe(prev);
     expect(engineFetch).not.toHaveBeenCalled();
+  });
+
+  it("re-reads details on a NotModified tick when the file changed", async () => {
+    const { api, setSize } = apiWith({ status: "NotModified" });
+    engineFetch.mockResolvedValue(undefined);
+
+    await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
+    engineFetch.mockClear();
+    setSize(150);
+    await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
+
+    expect(engineFetch).toHaveBeenCalledWith(LOG_FILE, freshEnsure);
+  });
+
+  it("retries the re-read on the next tick when it fails", async () => {
+    const { api } = apiWith({ status: "NotModified" });
+    engineFetch.mockRejectedValueOnce(new Error("read failed"));
+
+    await expect(fetchPendingSamples(api, LOG_DIR, LOG_FILE)).rejects.toThrow(
+      "read failed"
+    );
+    engineFetch.mockResolvedValue(undefined);
+    await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
+
+    expect(engineFetch).toHaveBeenCalledTimes(2);
   });
 
   it("clears on NotFound only after the details refresh has landed", async () => {
@@ -163,6 +206,7 @@ describe("fetchPendingSamples", () => {
 
   it("polls with no etag when nothing is cached", async () => {
     const { api, getPending } = apiWith({ status: "NotModified" });
+    engineFetch.mockResolvedValue(undefined);
 
     const result = await fetchPendingSamples(api, LOG_DIR, LOG_FILE);
 
