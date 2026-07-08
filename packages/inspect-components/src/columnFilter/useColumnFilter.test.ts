@@ -144,6 +144,30 @@ describe("useColumnFilter condition pairs", () => {
     });
   });
 
+  it("drops a second range condition missing its end value", () => {
+    const { result } = renderHook(() =>
+      useColumnFilter({
+        ...defaultParams,
+        columnId: "score",
+        filterType: "number",
+      })
+    );
+    act(() => {
+      result.current.setOperator(">");
+      result.current.setValue("1");
+      result.current.setJoin("and");
+      result.current.setSecondOperator("between");
+      result.current.setSecondValue("2");
+      // secondValue2 left empty: the half-filled range is inert, so Apply
+      // commits a plain single-condition spec instead of a pair.
+    });
+    expect(result.current.buildSpec()).toEqual({
+      operator: ">",
+      value: "1",
+      value2: undefined,
+    });
+  });
+
   it("re-syncs second-condition state from an applied pair spec", () => {
     const spec: FilterSpec = {
       operator: "=",

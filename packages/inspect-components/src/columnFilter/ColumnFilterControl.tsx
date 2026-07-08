@@ -123,29 +123,36 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
         <ColumnFilterEditor
           columnId={columnId}
           filterType={filterType}
-          operator={operator}
           operatorOptions={operatorOptions}
-          rawValue={rawValue}
-          rawValue2={rawValue2}
-          isValueDisabled={isValueDisabled}
-          isRangeOperator={isRangeOperator}
-          onOperatorChange={setOperator}
-          onValueChange={setRawValue}
-          onValue2Change={setRawValue2}
+          condition={{
+            operator,
+            onOperatorChange: setOperator,
+            value: rawValue,
+            onValueChange: setRawValue,
+            value2: rawValue2,
+            onValue2Change: setRawValue2,
+            isValueDisabled,
+            isRangeOperator,
+          }}
+          second={
+            showSecond
+              ? {
+                  operator: secondOperator,
+                  onOperatorChange: setSecondOperator,
+                  value: secondValue,
+                  onValueChange: setSecondValue,
+                  value2: secondValue2,
+                  onValue2Change: setSecondValue2,
+                  isValueDisabled: !secondUsesValue,
+                  isRangeOperator: secondUsesRangeValue,
+                }
+              : undefined
+          }
+          join={join}
+          onJoinChange={setJoin}
           onCommit={commitAndClose}
           onCancel={cancelAndClose}
           suggestions={suggestions}
-          showSecond={showSecond}
-          join={join}
-          onJoinChange={setJoin}
-          secondOperator={secondOperator}
-          onSecondOperatorChange={setSecondOperator}
-          secondValue={secondValue}
-          onSecondValueChange={setSecondValue}
-          secondValue2={secondValue2}
-          onSecondValue2Change={setSecondValue2}
-          isSecondValueDisabled={!secondUsesValue}
-          isSecondRangeOperator={secondUsesRangeValue}
         />
       </PopOver>
     </div>

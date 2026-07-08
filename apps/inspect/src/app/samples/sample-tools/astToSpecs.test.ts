@@ -83,6 +83,17 @@ describe("astToSpecs / parseFilterSpecs — number column simple ops", () => {
     });
   });
 
+  it("the same predicate twice folds into an AND pair with identical members (no dedupe)", () => {
+    expect(toSpecs("tokens > 100 and tokens > 100")).toEqual({
+      tokens: entry("tokens", {
+        operator: ">",
+        value: "100",
+        join: "and",
+        second: { operator: ">", value: "100" },
+      }),
+    });
+  });
+
   it("blank / notBlank via None", () => {
     expect(toSpecs("tokens == None")).toEqual({
       tokens: entry("tokens", { operator: "is blank", value: "" }),
@@ -257,15 +268,11 @@ describe("astToSpecs / parseFilterSpecs — condition pairs", () => {
   });
 
   it("a between folded inside a larger AND pair is rejected (plan decision 6)", () => {
-    expect(
-      toSpecs("(tokens >= 1 and tokens <= 5) and tokens > 2")
-    ).toBeNull();
+    expect(toSpecs("(tokens >= 1 and tokens <= 5) and tokens > 2")).toBeNull();
   });
 
   it("OR pair via xxx_contains() on both sides", () => {
-    expect(
-      toSpecs('input_contains("a") or input_contains("b")')
-    ).toEqual({
+    expect(toSpecs('input_contains("a") or input_contains("b")')).toEqual({
       input: entry("input", {
         operator: "contains",
         value: "a",

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  LIST_VALUE_OPERATORS,
   NO_VALUE_OPERATORS,
   OPERATORS_BY_TYPE,
   RANGE_VALUE_OPERATORS,
@@ -35,8 +34,6 @@ export interface UseColumnFilterReturn {
   setValue2: (value: string) => void;
   /** True if the operator takes no value (is blank / is not blank) — the value input is disabled. */
   takesNoValue: boolean;
-  /** True if operator expects a list of values (in / not in) */
-  usesListValue: boolean;
   /** True if operator expects a range with two values (between / not between) */
   usesRangeValue: boolean;
   /** AND/OR join between condition 1 and the (optional) second condition. */
@@ -57,8 +54,6 @@ export interface UseColumnFilterReturn {
   showSecond: boolean;
   /** True if the second operator takes a value (mirrors `!takesNoValue`). */
   secondUsesValue: boolean;
-  /** True if the second operator expects a list of values (in / not in). */
-  secondUsesListValue: boolean;
   /** True if the second operator expects a range with two values. */
   secondUsesRangeValue: boolean;
   /**
@@ -68,6 +63,21 @@ export interface UseColumnFilterReturn {
    */
   buildSpec: () => FilterSpec | null | undefined;
 }
+
+/** Assemble a condition from editor state, normalizing a no-value operator to
+ *  `value: ""` and dropping `value2` for non-range operators. */
+const buildCondition = (
+  operator: UiOperator,
+  value: string,
+  value2: string
+): FilterCondition =>
+  NO_VALUE_OPERATORS.has(operator)
+    ? { operator, value: "" }
+    : {
+        operator,
+        value,
+        value2: RANGE_VALUE_OPERATORS.has(operator) ? value2 : undefined,
+      };
 
 export function useColumnFilter({
   columnId,
@@ -122,30 +132,23 @@ export function useColumnFilter({
   const secondTakesNoValue = NO_VALUE_OPERATORS.has(secondOperator);
 
   const buildSpec = useCallback((): FilterSpec | null | undefined => {
-    const primary: FilterCondition = takesNoValue
-      ? { operator, value: "" }
-      : {
-          operator,
-          value,
-          value2: RANGE_VALUE_OPERATORS.has(operator) ? value2 : undefined,
-        };
+    const primary = buildCondition(operator, value, value2);
 
-    const secondHasContent = secondTakesNoValue || secondValue.trim() !== "";
+    // A half-filled second range (missing its end) is inert — commit a plain
+    // single-condition spec rather than a pair that compiles to the primary
+    // alone.
+    const secondHasContent =
+      secondTakesNoValue ||
+      (secondValue.trim() !== "" &&
+        (!RANGE_VALUE_OPERATORS.has(secondOperator) ||
+          secondValue2.trim() !== ""));
 
     const candidate: FilterSpec =
       showSecond && secondHasContent
         ? {
             ...primary,
             join,
-            second: secondTakesNoValue
-              ? { operator: secondOperator, value: "" }
-              : {
-                  operator: secondOperator,
-                  value: secondValue,
-                  value2: RANGE_VALUE_OPERATORS.has(secondOperator)
-                    ? secondValue2
-                    : undefined,
-                },
+            second: buildCondition(secondOperator, secondValue, secondValue2),
           }
         : primary;
 
@@ -162,7 +165,6 @@ export function useColumnFilter({
     operator,
     value,
     value2,
-    takesNoValue,
     showSecond,
     join,
     secondOperator,
@@ -180,7 +182,6 @@ export function useColumnFilter({
     value2,
     setValue2,
     takesNoValue,
-    usesListValue: LIST_VALUE_OPERATORS.has(operator),
     usesRangeValue: RANGE_VALUE_OPERATORS.has(operator),
     join,
     setJoin,
@@ -192,7 +193,6 @@ export function useColumnFilter({
     setSecondValue2,
     showSecond,
     secondUsesValue: !secondTakesNoValue,
-    secondUsesListValue: LIST_VALUE_OPERATORS.has(secondOperator),
     secondUsesRangeValue: RANGE_VALUE_OPERATORS.has(secondOperator),
     buildSpec,
   };

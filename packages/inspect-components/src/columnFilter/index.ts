@@ -25,7 +25,10 @@ export type {
   UseColumnFilterParams,
   UseColumnFilterReturn,
 } from "./useColumnFilter";
-export type { ColumnFilterEditorProps } from "./ColumnFilterEditor";
+export type {
+  ColumnFilterEditorProps,
+  ConditionEditorProps,
+} from "./ColumnFilterEditor";
 export type { ColumnFilterButtonProps } from "./ColumnFilterButton";
 export type {
   UseColumnFilterPopoverParams,

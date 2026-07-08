@@ -21,8 +21,8 @@ interface FilterValueInputProps {
   onCancel?: () => void;
 }
 
-/** Renders the type-appropriate value control, shared by condition 1 and the
- *  optional second condition. */
+/** Renders the type-appropriate value control, shared by both conditions'
+ *  value and range-end inputs. */
 const FilterValueInput: FC<FilterValueInputProps> = ({
   id,
   filterType,
@@ -110,66 +110,58 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
   );
 };
 
-export interface ColumnFilterEditorProps {
-  columnId: string;
-  filterType: FilterType;
+/** Editing state + handlers for one condition of a (possibly paired) filter. */
+export interface ConditionEditorProps {
   operator: UiOperator;
-  operatorOptions: UiOperator[];
-  rawValue: string;
-  /** Second value for between/not between operators */
-  rawValue2?: string;
-  isValueDisabled: boolean;
-  /** True if operator expects a range with two values (between / not between) */
-  isRangeOperator?: boolean;
   onOperatorChange: (operator: UiOperator) => void;
+  value: string;
   onValueChange: (value: string) => void;
-  /** Handler for second value changes (between / not between operators) */
-  onValue2Change?: (value: string) => void;
-  onCommit?: () => void;
-  onCancel?: () => void;
-  suggestions?: ScalarValue[];
-
-  /** Reveal the AND/OR + second-condition row once condition 1 has content. */
-  showSecond?: boolean;
-  join?: "and" | "or";
-  onJoinChange?: (join: "and" | "or") => void;
-  secondOperator?: UiOperator;
-  onSecondOperatorChange?: (operator: UiOperator) => void;
-  secondValue?: string;
-  onSecondValueChange?: (value: string) => void;
-  secondValue2?: string;
-  onSecondValue2Change?: (value: string) => void;
-  isSecondValueDisabled?: boolean;
-  isSecondRangeOperator?: boolean;
+  value2: string;
+  onValue2Change: (value: string) => void;
+  isValueDisabled: boolean;
+  isRangeOperator: boolean;
 }
 
-export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
+interface ConditionRowProps {
+  columnId: string;
+  filterType: FilterType;
+  operatorOptions: UiOperator[];
+  condition: ConditionEditorProps;
+  /**
+   * "" for condition 1, "-b" for condition 2. The `-b` suffix exists because
+   * `-val2` is already taken by condition 1's range end (condition 2 uses
+   * `-op-b` / `-val-b` / `-val-b2`).
+   */
+  idSuffix: "" | "-b";
+  autoFocus?: boolean;
+  suggestions: ScalarValue[];
+  onCommit?: () => void;
+  onCancel?: () => void;
+}
+
+/** One condition's rows: operator select + value input(s). */
+const ConditionRow: FC<ConditionRowProps> = ({
   columnId,
   filterType,
-  operator,
   operatorOptions,
-  rawValue,
-  rawValue2 = "",
-  isValueDisabled,
-  isRangeOperator = false,
-  onOperatorChange,
-  onValueChange,
-  onValue2Change,
+  condition,
+  idSuffix,
+  autoFocus = false,
+  suggestions,
   onCommit,
   onCancel,
-  suggestions = [],
-  showSecond = false,
-  join = "and",
-  onJoinChange,
-  secondOperator,
-  onSecondOperatorChange,
-  secondValue = "",
-  onSecondValueChange,
-  secondValue2 = "",
-  onSecondValue2Change,
-  isSecondValueDisabled = false,
-  isSecondRangeOperator = false,
 }) => {
+  const {
+    operator,
+    onOperatorChange,
+    value,
+    onValueChange,
+    value2,
+    onValue2Change,
+    isValueDisabled,
+    isRangeOperator,
+  } = condition;
+
   const handleOperatorChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       onOperatorChange(event.target.value as UiOperator);
@@ -177,32 +169,89 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
     [onOperatorChange]
   );
 
-  const handleValue2Change = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      onValue2Change?.(event.target.value);
-    },
-    [onValue2Change]
+  return (
+    <>
+      <div className={styles.filterRow}>
+        <select
+          id={`${columnId}-op${idSuffix}`}
+          className={styles.filterSelect}
+          value={operator}
+          onChange={handleOperatorChange}
+        >
+          {operatorOptions.map((option) => (
+            <option key={option} value={option}>
+              {OPERATOR_LABELS[option]}
+            </option>
+          ))}
+        </select>
+      </div>
+      {isRangeOperator && <span className={styles.rangeLabel}>Start</span>}
+      <div className={styles.filterRow}>
+        <FilterValueInput
+          id={`${columnId}-val${idSuffix}`}
+          filterType={filterType}
+          value={value}
+          onChange={onValueChange}
+          disabled={isValueDisabled}
+          autoFocus={autoFocus}
+          suggestions={suggestions}
+          onCommit={onCommit}
+          onCancel={onCancel}
+        />
+      </div>
+      {isRangeOperator && (
+        <>
+          <span className={styles.rangeLabel}>End</span>
+          <div className={styles.filterRow}>
+            <FilterValueInput
+              id={`${columnId}-val${idSuffix}2`}
+              filterType={filterType}
+              value={value2}
+              onChange={onValue2Change}
+              disabled={isValueDisabled}
+              suggestions={suggestions}
+              onCommit={onCommit}
+              onCancel={onCancel}
+            />
+          </div>
+        </>
+      )}
+    </>
   );
+};
 
+export interface ColumnFilterEditorProps {
+  columnId: string;
+  filterType: FilterType;
+  operatorOptions: UiOperator[];
+  condition: ConditionEditorProps;
+  /** Second condition of an AND/OR pair; pass only while it should render
+   *  (i.e. once condition 1 has content). */
+  second?: ConditionEditorProps;
+  join?: "and" | "or";
+  onJoinChange?: (join: "and" | "or") => void;
+  onCommit?: () => void;
+  onCancel?: () => void;
+  suggestions?: ScalarValue[];
+}
+
+export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
+  columnId,
+  filterType,
+  operatorOptions,
+  condition,
+  second,
+  join = "and",
+  onJoinChange,
+  onCommit,
+  onCancel,
+  suggestions = [],
+}) => {
   const handleJoinChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       onJoinChange?.(event.target.value as "and" | "or");
     },
     [onJoinChange]
-  );
-
-  const handleSecondOperatorChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      onSecondOperatorChange?.(event.target.value as UiOperator);
-    },
-    [onSecondOperatorChange]
-  );
-
-  const handleSecondValue2Change = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      onSecondValue2Change?.(event.target.value);
-    },
-    [onSecondValue2Change]
   );
 
   const handleKeyDown = useCallback(
@@ -223,72 +272,24 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
 
   return (
     <div className={styles.filterContent} onKeyDown={handleKeyDown}>
-      <div className={styles.filterRow}>
-        <select
-          id={`${columnId}-op`}
-          className={styles.filterSelect}
-          value={operator}
-          onChange={handleOperatorChange}
-        >
-          {operatorOptions.map((option) => (
-            <option key={option} value={option}>
-              {OPERATOR_LABELS[option]}
-            </option>
-          ))}
-        </select>
-      </div>
-      {isRangeOperator && <span className={styles.rangeLabel}>Start</span>}
-      <div className={styles.filterRow}>
-        <FilterValueInput
-          id={`${columnId}-val`}
-          filterType={filterType}
-          value={rawValue}
-          onChange={onValueChange}
-          disabled={isValueDisabled}
-          autoFocus
-          suggestions={suggestions}
-          onCommit={onCommit}
-          onCancel={onCancel}
-        />
-      </div>
-      {/* Second input for between/not between operators */}
-      {isRangeOperator && (
+      <ConditionRow
+        columnId={columnId}
+        filterType={filterType}
+        operatorOptions={operatorOptions}
+        condition={condition}
+        idSuffix=""
+        autoFocus
+        suggestions={suggestions}
+        onCommit={onCommit}
+        onCancel={onCancel}
+      />
+      {second && (
         <>
-          <span className={styles.rangeLabel}>End</span>
-          <div className={styles.filterRow}>
-            {filterType === "duration" ? (
-              <DurationInput
-                id={`${columnId}-val2`}
-                value={rawValue2}
-                onChange={handleValue2Change}
-                disabled={isValueDisabled}
-              />
-            ) : (
-              <input
-                id={`${columnId}-val2`}
-                className={styles.filterInput}
-                type={
-                  filterType === "number"
-                    ? "number"
-                    : filterType === "date"
-                      ? "date"
-                      : "datetime-local"
-                }
-                spellCheck="false"
-                value={rawValue2}
-                onChange={handleValue2Change}
-                placeholder="Filter"
-                disabled={isValueDisabled}
-                step={filterType === "number" ? "any" : undefined}
-              />
-            )}
-          </div>
-        </>
-      )}
-
-      {showSecond && (
-        <>
-          <div className={clsx(styles.filterRow, styles.joinRow)}>
+          <div
+            className={clsx(styles.filterRow, styles.joinRow)}
+            role="radiogroup"
+            aria-label="Join conditions"
+          >
             <label className={styles.joinOption}>
               <input
                 type="radio"
@@ -310,68 +311,16 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
               OR
             </label>
           </div>
-          <div className={styles.filterRow}>
-            <select
-              id={`${columnId}-op2`}
-              className={styles.filterSelect}
-              value={secondOperator}
-              onChange={handleSecondOperatorChange}
-            >
-              {operatorOptions.map((option) => (
-                <option key={option} value={option}>
-                  {OPERATOR_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {isSecondRangeOperator && (
-            <span className={styles.rangeLabel}>Start</span>
-          )}
-          <div className={styles.filterRow}>
-            <FilterValueInput
-              id={`${columnId}-val-b`}
-              filterType={filterType}
-              value={secondValue}
-              onChange={(v) => onSecondValueChange?.(v)}
-              disabled={isSecondValueDisabled}
-              suggestions={suggestions}
-              onCommit={onCommit}
-              onCancel={onCancel}
-            />
-          </div>
-          {isSecondRangeOperator && (
-            <>
-              <span className={styles.rangeLabel}>End</span>
-              <div className={styles.filterRow}>
-                {filterType === "duration" ? (
-                  <DurationInput
-                    id={`${columnId}-val-b2`}
-                    value={secondValue2}
-                    onChange={handleSecondValue2Change}
-                    disabled={isSecondValueDisabled}
-                  />
-                ) : (
-                  <input
-                    id={`${columnId}-val-b2`}
-                    className={styles.filterInput}
-                    type={
-                      filterType === "number"
-                        ? "number"
-                        : filterType === "date"
-                          ? "date"
-                          : "datetime-local"
-                    }
-                    spellCheck="false"
-                    value={secondValue2}
-                    onChange={handleSecondValue2Change}
-                    placeholder="Filter"
-                    disabled={isSecondValueDisabled}
-                    step={filterType === "number" ? "any" : undefined}
-                  />
-                )}
-              </div>
-            </>
-          )}
+          <ConditionRow
+            columnId={columnId}
+            filterType={filterType}
+            operatorOptions={operatorOptions}
+            condition={second}
+            idSuffix="-b"
+            suggestions={suggestions}
+            onCommit={onCommit}
+            onCancel={onCancel}
+          />
         </>
       )}
 
