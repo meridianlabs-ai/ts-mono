@@ -128,10 +128,16 @@ not verification or decisions.
   funnels for richer expressions, `state.log.filter` is the single source of truth (SamplesGrid gains a
   controlled mode; cross-log SamplesPanel keeps local filtering). Registry (colId↔variable, dynamic
   score columns, `sampleId` excluded) ported from main. See `design/migration/filter-filtrex-bridge-plan.md`.
-  Accepted parity loss vs main: a generic 2-condition AND per column (e.g. `tokens > 1 and tokens < 9`)
-  is expression-only now (only the `>=`/`<=` pair folds to `between`); `in`/`not in`/`not between` aren't
-  offered on the samples tab. "Filter-code export (copy query)" is superseded there — the FILTER string
-  *is* the query.
+  `in`/`not in`/`not between` aren't offered on the samples tab (no filtrex round-trip).
+  "Filter-code export (copy query)" is superseded there — the FILTER string *is* the query.
+- [x] **Filter word labels + AND/OR condition pairs — DONE** (2026-07-07). Operator dropdowns read as
+  words ("Contains", "Equals", "Less than", … — display-only; `UiOperator` values unchanged). A column
+  filter holds up to two conditions joined by AND/OR (AG parity), and — beyond main, where OR never
+  filtered the samples list — both joins genuinely filter on both pages. Same-column pairs round-trip
+  through the filtrex bridge (`(a and b)` / `(a or b)`; the `>=`/`<=` pair still folds to `between`),
+  which removes the earlier 2-condition-AND parity loss. Still expression-only (gate hides funnels):
+  cross-column OR, 3+ conditions per column, negated pairs, `between` inside a pair (same asymmetry
+  main had). See `design/migration/filter-pairs-labels-plan.md`.
 - [ ] Eric **Move `log-list/listing/` engine dir → `shared/`** now both grids consume it, and clear the
   **residual AG type-only imports** (dormant `GridState` slice in `app/types.ts`/`logsSlice`/`state/hooks`,
   `ColDef` picker shims, `IRowNode` in `gridComparators`). — `loglistgrid-tanstack.md:192`
