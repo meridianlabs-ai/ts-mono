@@ -1,8 +1,39 @@
-import { describe, expect, test } from "vitest";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import { createElement, ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { SampleSummary } from "../client/api/types";
+import {
+  ClientAPI,
+  LogDetails,
+  PendingSampleResponse,
+  SampleSummary,
+} from "../client/api/types";
+import { createDatabaseService, DatabaseService } from "../client/database";
+import { queryClient } from "../state/queryClient";
 
-import { mergeSampleSummaries } from "./sampleSummaries";
+import { fetchEngine } from "./fetchEngine";
+import { pendingSamplesKey } from "./pendingSamples";
+import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
+
+const holder = vi.hoisted(() => ({
+  service: null as DatabaseService | null,
+  api: null as ClientAPI | null,
+}));
+vi.mock("./databaseServiceInstance", () => ({
+  getDatabaseService: () => {
+    if (!holder.service) throw new Error("test service not initialized");
+    return holder.service;
+  },
+}));
+vi.mock("../app_config", () => ({
+  getApi: () => {
+    if (!holder.api) throw new Error("test api not initialized");
+    return holder.api;
+  },
+  getAppConfig: () => ({ singleFileMode: false }),
+  getLogDir: () => "/logs",
+}));
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
@@ -63,4 +94,236 @@ const createSampleSummary = (
   target: "target",
   scores: null,
   ...overrides,
+});
+
+describe("useSampleSummaries during a running eval", () => {
+  const LOG_DIR = "/logs";
+  const FILE = "run.eval";
+
+  // Mutable "server" state the fake api serves from — tests advance the run
+  // by reassigning these between poll ticks.
+  let serverDetails: LogDetails;
+  let serverBuffer: { etag: string; samples: SampleSummary[] };
+
+  const details = (sampleSummaries: SampleSummary[]): LogDetails =>
+    ({
+      version: 2,
+      status: "started",
+      eval: {
+        eval_id: "eval-run",
+        run_id: "run-run",
+        created: "2026-01-01T00:00:00Z",
+        task: "task",
+        task_id: "tid-run",
+        task_version: 1,
+        model: "mockllm/model",
+      },
+      sampleSummaries,
+    }) as unknown as LogDetails;
+
+  const api = {
+    get_log_dir_handle: (dir: string) => `test-${dir}`,
+    get_log_details: vi.fn(async () => serverDetails),
+    get_log_pending_samples: vi.fn(
+      async (_file: string, etag?: string): Promise<PendingSampleResponse> =>
+        etag === serverBuffer.etag
+          ? { status: "NotModified" }
+          : {
+              status: "OK",
+              pendingSamples: {
+                samples: serverBuffer.samples,
+                refresh: 2,
+                etag: serverBuffer.etag,
+              },
+            }
+    ),
+  } as unknown as ClientAPI;
+
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+
+  let db: DatabaseService;
+
+  beforeEach(async () => {
+    db = createDatabaseService();
+    holder.service = db;
+    holder.api = api;
+    await db.openDatabase(`sample-summaries-test-${crypto.randomUUID()}`);
+  });
+
+  afterEach(async () => {
+    fetchEngine.stop();
+    await db.closeDatabase();
+    holder.service = null;
+    holder.api = null;
+    queryClient.clear();
+    vi.clearAllMocks();
+  });
+
+  test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {
+    // The run begins: nothing flushed to the log yet, sample 1 in the buffer.
+    serverDetails = details([]);
+    serverBuffer = {
+      etag: "e1",
+      samples: [createSampleSummary({ id: "s1", completed: false })],
+    };
+
+    const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
+      wrapper,
+    });
+
+    await waitFor(
+      () => {
+        expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]);
+      },
+      { timeout: 3000 }
+    );
+
+    // The run progresses: sample 1 flushes to the log, sample 2 starts.
+    serverDetails = details([
+      createSampleSummary({ id: "s1", completed: true }),
+    ]);
+    serverBuffer = {
+      etag: "e2",
+      samples: [createSampleSummary({ id: "s2", completed: false })],
+    };
+    await queryClient.refetchQueries({
+      queryKey: pendingSamplesKey(LOG_DIR, FILE),
+    });
+
+    // The flushed sample must appear alongside the buffered one — losing it
+    // collapses the samples tab into the single-sample inline view mid-run.
+    await waitFor(
+      () => {
+        expect(result.current.data?.map((s) => s.id).sort()).toEqual([
+          "s1",
+          "s2",
+        ]);
+      },
+      { timeout: 3000 }
+    );
+    const flushed = result.current.data?.find((s) => s.id === "s1");
+    expect(flushed?.completed).toBe(true);
+  });
+
+  // Reproduces the live failure of watching a running eval that was opened
+  // before any sample had flushed (validated against `inspect view` with a
+  // slow mockllm eval). useSampleSummaries merges two sources: the log's
+  // SamplesListingRow[] (useSamplesListing — SampleSummary rows ingested by
+  // writeDetails from a LogDetails payload, i.e. the .eval zip read) and
+  // PendingSamples.samples (usePendingSamples — the polled /pending-samples
+  // response in the react-query cache).
+  //
+  //   1. Viewer opens mid-sample-1.
+  //          .eval zip: [] (nothing flushed yet).
+  //          Server pending buffer: [s1].
+  //          SamplesListingRow[]: [].
+  //          PendingSamples.samples: [s1].
+  //          Merged: [s1]
+  //          totalSampleCount === 1
+  //      so SamplesTab renders the inline single-sample view.
+  //   2. Sample 1 finishes; the buffer transitions before the flush is readable
+  //      (it only ever holds the currently running sample).
+  //          .eval zip: [] (s1's flush not yet readable).
+  //          Server pending buffer: [s2].
+  //          SamplesListingRow[]: [].
+  //          PendingSamples.samples: [s1] (client hasn't polled yet).
+  //          Merged: [s1]
+  //          totalSampleCount === 1
+  //      so the buffer change is observable BEFORE s1 is readable.
+  //   3. The next poll tick gets 200-OK (etag changed) and fires the one and only
+  //      get_log_details re-read (`void fetchEngine.ensure(detailed)`), which
+  //      races the flush and reads the pre-flush zip.
+  //          .eval zip: [] (still pre-flush at read time).
+  //          Server pending buffer: [s2].
+  //          SamplesListingRow[]: [] (ingested from the raced read).
+  //          PendingSamples.samples: [s2].
+  //          Merged: [s2]
+  //          totalSampleCount === 1
+  //      so the settled side of the merge stays empty.
+  //   4. Moments later the flush lands, but the buffer etag stays constant for
+  //      all of sample 2's lifetime.
+  //          .eval zip: [s1].
+  //          Server pending buffer: [s2] (etag unchanged).
+  //          SamplesListingRow[]: [] (nothing re-reads).
+  //          PendingSamples.samples: [s2].
+  //          Merged: [s2]
+  //          totalSampleCount === 1
+  //      so every subsequent tick is NotModified and nothing re-reads details.
+  //   5. Steady state for the rest of the sample.
+  //          .eval zip: [s1].
+  //          Server pending buffer: [s2].
+  //          SamplesListingRow[]: [].
+  //          PendingSamples.samples: [s2].
+  //          Merged: [s2] (should be [s1, s2])
+  //          totalSampleCount === 1
+  //      so the inline view persists ("RUNNING (1 SAMPLES)") — permanently one
+  //      flush behind. A page reload at any point shows the correct list,
+  //      proving the data was there all along.
+  //
+  // The contract asserted here: a get_log_details read that races the flush
+  // must still CONVERGE — the flushed sample has to reach the
+  // SamplesListingRow[] side of the merge without another buffer
+  // transition. (The pre-log_data viewer converged via awaited OK-tick
+  // re-reads plus per-tick re-reads while the buffer 404'd, stopping only
+  // when a freshly re-read status said not-started.)
+  test("summaries converge when the transition-tick details read races the flush", async () => {
+    // The run begins: nothing flushed, sample 1 in the buffer.
+    serverDetails = details([]);
+    serverBuffer = {
+      etag: "e1",
+      samples: [createSampleSummary({ id: "s1", completed: false })],
+    };
+
+    const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
+      wrapper,
+    });
+    await waitFor(
+      () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
+      { timeout: 3000 }
+    );
+    const detailReadsBeforeTransition = (
+      api.get_log_details as ReturnType<typeof vi.fn>
+    ).mock.calls.length;
+
+    // Sample 1 leaves the buffer (sample 2 starts) BEFORE its flush is
+    // readable in the log — the transition-triggered details read races the
+    // flush and still sees no summaries. serverDetails stays stale.
+    serverBuffer = {
+      etag: "e2",
+      samples: [createSampleSummary({ id: "s2", completed: false })],
+    };
+    await queryClient.refetchQueries({
+      queryKey: pendingSamplesKey(LOG_DIR, FILE),
+    });
+    await waitFor(() =>
+      expect(
+        (api.get_log_details as ReturnType<typeof vi.fn>).mock.calls.length
+      ).toBeGreaterThan(detailReadsBeforeTransition)
+    );
+
+    // The flush lands moments later; the buffer stays unchanged for the
+    // whole next sample (NotModified ticks only).
+    serverDetails = details([
+      createSampleSummary({ id: "s1", completed: true }),
+    ]);
+    await queryClient.refetchQueries({
+      queryKey: pendingSamplesKey(LOG_DIR, FILE),
+    });
+    await queryClient.refetchQueries({
+      queryKey: pendingSamplesKey(LOG_DIR, FILE),
+    });
+
+    // The flushed sample must still arrive — a one-shot racy read that never
+    // retries leaves the list one sample behind for the rest of the run.
+    await waitFor(
+      () => {
+        expect(result.current.data?.map((s) => s.id).sort()).toEqual([
+          "s1",
+          "s2",
+        ]);
+      },
+      { timeout: 4000 }
+    );
+  });
 });
