@@ -6,6 +6,7 @@ import { AutocompleteInput } from "@tsmono/react/components";
 
 import styles from "./ColumnFilterEditor.module.css";
 import { DurationInput } from "./DurationInput";
+import { OPERATOR_LABELS } from "./operators";
 import type { FilterType, UiOperator } from "./types";
 
 export interface ColumnFilterEditorProps {
@@ -92,7 +93,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
         >
           {operatorOptions.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {OPERATOR_LABELS[option]}
             </option>
           ))}
         </select>

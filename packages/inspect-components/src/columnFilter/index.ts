@@ -7,6 +7,7 @@ export { useColumnFilterPopover } from "./useColumnFilterPopover";
 export {
   LIST_VALUE_OPERATORS,
   NO_VALUE_OPERATORS,
+  OPERATOR_LABELS,
   OPERATORS_BY_TYPE,
   RANGE_VALUE_OPERATORS,
 } from "./operators";

@@ -69,3 +69,24 @@ export const RANGE_VALUE_OPERATORS: ReadonlySet<UiOperator> = new Set([
   "between",
   "not between",
 ]);
+
+/** Display labels for the operator dropdown (values stay the UiOperator
+ *  tokens — persisted specs and tests key on values, not labels). */
+export const OPERATOR_LABELS: Record<UiOperator, string> = {
+  contains: "Contains",
+  "does not contain": "Does not contain",
+  "starts with": "Starts with",
+  "ends with": "Ends with",
+  "=": "Equals",
+  "!=": "Not equal",
+  "<": "Less than",
+  "<=": "Less than or equal",
+  ">": "Greater than",
+  ">=": "Greater than or equal",
+  in: "In",
+  "not in": "Not in",
+  between: "Between",
+  "not between": "Not between",
+  "is blank": "Is blank",
+  "is not blank": "Is not blank",
+};
