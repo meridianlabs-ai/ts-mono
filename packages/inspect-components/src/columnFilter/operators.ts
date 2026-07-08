@@ -58,12 +58,6 @@ export const NO_VALUE_OPERATORS: ReadonlySet<UiOperator> = new Set([
   "is not blank",
 ]);
 
-/** Operators whose value is a comma-separated list. */
-export const LIST_VALUE_OPERATORS: ReadonlySet<UiOperator> = new Set([
-  "in",
-  "not in",
-]);
-
 /** Operators that take a start + end value pair. */
 export const RANGE_VALUE_OPERATORS: ReadonlySet<UiOperator> = new Set([
   "between",
