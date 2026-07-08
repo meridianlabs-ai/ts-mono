@@ -783,6 +783,7 @@ export function DataGrid<TRow>({
                     key={header.id}
                     className={clsx(
                       styles.headerCell,
+                      header.column.getCanSort() && styles.headerCellSortable,
                       anyRotated && styles.headerCellTall,
                       afterRotatedIds.has(header.column.id) &&
                         styles.afterRotatedGap,
@@ -817,6 +818,7 @@ export function DataGrid<TRow>({
                     }
                     onDragLeave={handleHeaderDragLeave}
                     onDrop={(e) => handleHeaderDrop(e, header.column.id)}
+                    onClick={header.column.getToggleSortingHandler()}
                   >
                     <div
                       className={clsx(
@@ -836,7 +838,6 @@ export function DataGrid<TRow>({
                               )
                       }
                       onDragEnd={handleHeaderDragEnd}
-                      onClick={header.column.getToggleSortingHandler()}
                     >
                       <span
                         className={styles.headerText}
@@ -847,11 +848,14 @@ export function DataGrid<TRow>({
                       {sortCaret}
                     </div>
                     {filterControl && (
+                      // The cell owns the sort click; the filter control isn't
+                      // a sort target, so stop its clicks from bubbling up.
                       <div
                         className={clsx(
                           styles.headerFilter,
                           filterSpec && styles.headerFilterActive
                         )}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {filterControl}
                       </div>
@@ -867,6 +871,7 @@ export function DataGrid<TRow>({
                           header.column.getIsResizing() &&
                             styles.resizeHandleActive
                         )}
+                        onClick={(e) => e.stopPropagation()}
                         onMouseDown={header.getResizeHandler()}
                         onTouchStart={header.getResizeHandler()}
                         onDoubleClick={() => autoSizeColumn(header.column)}

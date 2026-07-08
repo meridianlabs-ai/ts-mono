@@ -70,6 +70,11 @@
   gap: 4px;
   user-select: none;
   min-width: 0;
+}
+
+/* The whole cell is the sort target (so empty-label columns like the icon
+ * column are still clickable) — so the pointer cursor lives on the cell. */
+.headerCellSortable {
   cursor: pointer;
 }
 
