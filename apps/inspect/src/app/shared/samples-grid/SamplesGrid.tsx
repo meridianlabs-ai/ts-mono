@@ -184,6 +184,7 @@ export const SamplesGrid = ({
       multiline={multiline}
       loading={loading}
       autoFocus
+      ariaLabel="Samples"
     />
   );
 };

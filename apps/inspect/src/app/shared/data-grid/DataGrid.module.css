@@ -6,6 +6,31 @@
   outline: none;
 }
 
+/* Visually-hidden live region: read by screen readers, absent from layout and
+ * from pointer/scroll hit-testing. */
+.srStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Keyboard focus ring for the sortable header control (mouse clicks don't
+ * trigger :focus-visible, so this stays out of the way for pointer users). */
+.headerContent:focus-visible,
+.rotatedLabel:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
 /* The table, tbody, and rows carry explicit JS-computed widths (total column
  * width); min-width stretches each to its parent when the columns underfill
  * the viewport, so row borders and hover highlights span the full grid width

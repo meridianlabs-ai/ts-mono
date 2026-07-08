@@ -10,6 +10,7 @@ export interface DurationInputProps {
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  ariaLabel?: string;
 }
 
 export const DurationInput: FC<DurationInputProps> = ({
@@ -18,6 +19,7 @@ export const DurationInput: FC<DurationInputProps> = ({
   onChange,
   disabled,
   autoFocus,
+  ariaLabel,
 }) => {
   const parsedSeconds = useMemo(() => {
     const num = Number(value);
@@ -34,6 +36,7 @@ export const DurationInput: FC<DurationInputProps> = ({
         value={value}
         onChange={onChange}
         placeholder="Seconds"
+        aria-label={ariaLabel}
         disabled={disabled}
         step="any"
         min="0"

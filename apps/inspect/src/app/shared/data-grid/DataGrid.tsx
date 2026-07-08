@@ -62,6 +62,19 @@ function resolveHeaderTitle<TRow>(
   return typeof columnDef.header === "string" ? columnDef.header : undefined;
 }
 
+/** Keyboard activation for a sortable header: Enter or Space cycles the sort,
+ *  matching the pointer `onClick`. Stops propagation so the grid container's
+ *  key handler doesn't also treat Enter/Space as "activate the selected row".
+ *  Shift/Cmd/Ctrl carry through to the toggle handler for multi-sort. */
+function makeSortKeyDownHandler<TRow>(header: Header<TRow, unknown>) {
+  return (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation();
+    header.column.getToggleSortingHandler()?.(e);
+  };
+}
+
 /** Rendered width of an element's contents, measured with a Range so bare
  *  text nodes count (a cell's clientWidth is the truncated box, not the
  *  content). Guarded: jsdom's Range has no layout — measure as 0 there. */
@@ -174,6 +187,10 @@ export interface DataGridProps<TRow> {
    *  immediately — e.g. the log list, where returning from a log should
    *  land you on the restored selection ready to arrow up/down. */
   autoFocus?: boolean;
+  /** Accessible name for the grid as a whole (applied as `aria-label` on the
+   *  `role="grid"` container). ag-grid left the grid unnamed; supplying one
+   *  lets screen readers announce which grid has focus. */
+  ariaLabel?: string;
 }
 
 /**
@@ -212,6 +229,7 @@ export function DataGrid<TRow>({
   emptyMessage = "No matching items",
   className,
   autoFocus = false,
+  ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -685,14 +703,42 @@ export function DataGrid<TRow>({
   const virtualItems = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
+  // Polite live-region text. ag-grid maintained its own off-screen live region
+  // that spoke row-count/sort changes; reproduce a concise equivalent so a
+  // screen-reader user hears the result of filtering, sorting, and loading
+  // (React only rewrites the text node — and thus only announces — on change).
+  const statusMessage = useMemo(() => {
+    if (loading) return "Loading…";
+    if (rows.length === 0) return emptyMessage;
+    const active = sorting ?? [];
+    const sortDesc =
+      active.length > 0
+        ? `, sorted by ${active
+            .map((s) => `${s.id} ${s.desc ? "descending" : "ascending"}`)
+            .join(", ")}`
+        : "";
+    return `${rows.length} ${rows.length === 1 ? "row" : "rows"}${sortDesc}`;
+  }, [loading, rows.length, emptyMessage, sorting]);
+
+  // aria-rowcount includes the header row; data rows are indexed from 2.
+  const ariaRowCount = rows.length + 1;
+  const ariaColCount = visibleColumns.length;
+
   return (
     <div
       ref={setContainerRef}
       className={clsx(styles.container, className)}
       role="grid"
+      aria-label={ariaLabel}
+      aria-rowcount={ariaRowCount}
+      aria-colcount={ariaColCount}
+      aria-busy={loading || undefined}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
+      <div className={styles.srStatus} role="status" aria-live="polite">
+        {statusMessage}
+      </div>
       <div
         className={clsx(styles.table, multiline && styles.multiline)}
         // Add the rotated-label trailing room to the width, not as padding:
@@ -710,8 +756,13 @@ export function DataGrid<TRow>({
           role="rowgroup"
         >
           {table.getHeaderGroups().map((headerGroup) => (
-            <div key={headerGroup.id} className={styles.headerRow} role="row">
-              {headerGroup.headers.map((header) => {
+            <div
+              key={headerGroup.id}
+              className={styles.headerRow}
+              role="row"
+              aria-rowindex={1}
+            >
+              {headerGroup.headers.map((header, colIndex) => {
                 const columnDef = header.column
                   .columnDef as ExtendedColumnDef<TRow>;
                 const filterSpec =
@@ -732,6 +783,7 @@ export function DataGrid<TRow>({
                     <RotatedHeaderCell
                       key={header.id}
                       header={header}
+                      ariaColIndex={colIndex + 1}
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
                       hideColumnFilters={hideColumnFilters}
@@ -806,6 +858,7 @@ export function DataGrid<TRow>({
                     }}
                     title={resolveHeaderTitle(columnDef)}
                     role="columnheader"
+                    aria-colindex={colIndex + 1}
                     aria-sort={
                       sorted === "asc"
                         ? "ascending"
@@ -825,6 +878,15 @@ export function DataGrid<TRow>({
                         styles.headerContent,
                         align === "center" && styles.headerCellCenter
                       )}
+                      // A sortable header is a keyboard-operable control: Tab to
+                      // it, Enter/Space to cycle sort (restoring the ag-grid
+                      // behavior the click-only handler dropped). Non-sortable
+                      // headers stay out of the tab order.
+                      {...(header.column.getCanSort() && {
+                        role: "button",
+                        tabIndex: 0,
+                        onKeyDown: makeSortKeyDownHandler(header),
+                      })}
                       draggable={!pinned}
                       onDragStart={
                         pinned
@@ -898,6 +960,9 @@ export function DataGrid<TRow>({
               <GridRow
                 key={row.id}
                 row={row}
+                // aria-rowindex is 1-based over all rows incl. the header row
+                // (index 1), so the first data row is 2.
+                ariaRowIndex={virtualRow.index + 2}
                 visibleColumns={visibleColumns}
                 isSelected={row.id === selectedId}
                 rowHeight={rowHeight}
@@ -924,6 +989,7 @@ export function DataGrid<TRow>({
 
 interface GridRowProps<TRow> {
   row: Row<TRow>;
+  ariaRowIndex: number;
   /** Not read directly (`row.getVisibleCells()` re-derives the cells) — a
    *  memo cache key so the row re-renders on visibility/order changes that
    *  don't move `width` (e.g. reordering columns keeps the total size). */
@@ -938,6 +1004,7 @@ interface GridRowProps<TRow> {
 
 function GridRowInner<TRow>({
   row,
+  ariaRowIndex,
   isSelected,
   rowHeight,
   width,
@@ -955,9 +1022,10 @@ function GridRowInner<TRow>({
       }}
       onClick={(e) => onRowClick(e, row.id, row.original)}
       role="row"
+      aria-rowindex={ariaRowIndex}
       aria-selected={isSelected}
     >
-      {row.getVisibleCells().map((cell) => {
+      {row.getVisibleCells().map((cell, colIndex) => {
         const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
         const align = cellDef.meta?.align;
         const cellStyle = cellDef.meta?.cellStyle?.(row.original);
@@ -983,6 +1051,7 @@ function GridRowInner<TRow>({
             }}
             title={cellDef.titleValue?.(row.original)}
             role="gridcell"
+            aria-colindex={colIndex + 1}
             data-col-id={cell.column.id}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -1009,6 +1078,7 @@ const GridRow = memo(GridRowInner) as typeof GridRowInner;
  */
 function RotatedHeaderCell<TRow>({
   header,
+  ariaColIndex,
   filterSpec,
   onColumnFilterChange,
   hideColumnFilters,
@@ -1022,6 +1092,7 @@ function RotatedHeaderCell<TRow>({
   onAutoSize,
 }: {
   header: Header<TRow, unknown>;
+  ariaColIndex: number;
   filterSpec: FilterSpec | null;
   onColumnFilterChange?: (
     columnId: string,
@@ -1061,6 +1132,7 @@ function RotatedHeaderCell<TRow>({
       )}
       style={{ width: header.getSize() }}
       role="columnheader"
+      aria-colindex={ariaColIndex}
       aria-sort={
         sorted === "asc"
           ? "ascending"
@@ -1083,6 +1155,11 @@ function RotatedHeaderCell<TRow>({
         // pointer-events: none, so a title there would never fire) — shows
         // the full name when the narrow rotated label truncates it.
         title={resolveHeaderTitle(columnDef)}
+        {...(header.column.getCanSort() && {
+          role: "button",
+          tabIndex: 0,
+          onKeyDown: makeSortKeyDownHandler(header),
+        })}
         draggable
         onDragStart={(e) =>
           onHeaderDragStart(

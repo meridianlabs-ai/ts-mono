@@ -19,6 +19,9 @@ interface FilterValueInputProps {
   suggestions?: ScalarValue[];
   onCommit?: () => void;
   onCancel?: () => void;
+  /** Accessible name, when no visible <label> is associated with the control
+   *  (range inputs get their name from the visible Start/End labels instead). */
+  ariaLabel?: string;
 }
 
 /** Renders the type-appropriate value control, shared by both conditions'
@@ -33,6 +36,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
   suggestions = [],
   onCommit,
   onCancel,
+  ariaLabel,
 }) => {
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -46,6 +50,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
       <select
         id={id}
         className={styles.filterSelect}
+        aria-label={ariaLabel}
         value={value}
         onChange={handleChange}
         disabled={disabled}
@@ -68,6 +73,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
         onCancel={onCancel}
         disabled={disabled}
         placeholder="Filter"
+        ariaLabel={ariaLabel}
         suggestions={suggestions}
         className={styles.filterInput}
         autoFocus={autoFocus}
@@ -84,6 +90,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
         onChange={handleChange}
         disabled={disabled}
         autoFocus={autoFocus}
+        ariaLabel={ariaLabel}
       />
     );
   }
@@ -92,6 +99,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
     <input
       id={id}
       className={styles.filterInput}
+      aria-label={ariaLabel}
       type={
         filterType === "number"
           ? "number"
@@ -175,6 +183,7 @@ const ConditionRow: FC<ConditionRowProps> = ({
         <select
           id={`${columnId}-op${idSuffix}`}
           className={styles.filterSelect}
+          aria-label="Filter operator"
           value={operator}
           onChange={handleOperatorChange}
         >
@@ -185,7 +194,14 @@ const ConditionRow: FC<ConditionRowProps> = ({
           ))}
         </select>
       </div>
-      {isRangeOperator && <span className={styles.rangeLabel}>Start</span>}
+      {isRangeOperator && (
+        <label
+          className={styles.rangeLabel}
+          htmlFor={`${columnId}-val${idSuffix}`}
+        >
+          Start
+        </label>
+      )}
       <div className={styles.filterRow}>
         <FilterValueInput
           id={`${columnId}-val${idSuffix}`}
@@ -197,11 +213,19 @@ const ConditionRow: FC<ConditionRowProps> = ({
           suggestions={suggestions}
           onCommit={onCommit}
           onCancel={onCancel}
+          // Range inputs are named by the visible Start/End <label>s; the
+          // single-value case has no visible label, so name it directly.
+          ariaLabel={isRangeOperator ? undefined : "Filter value"}
         />
       </div>
       {isRangeOperator && (
         <>
-          <span className={styles.rangeLabel}>End</span>
+          <label
+            className={styles.rangeLabel}
+            htmlFor={`${columnId}-val${idSuffix}2`}
+          >
+            End
+          </label>
           <div className={styles.filterRow}>
             <FilterValueInput
               id={`${columnId}-val${idSuffix}2`}

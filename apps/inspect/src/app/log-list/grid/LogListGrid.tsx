@@ -539,6 +539,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
           autoFocus
+          ariaLabel="Evaluation logs"
           loading={data.length === 0 && busy}
         />
       </div>
