@@ -164,7 +164,6 @@ export function buildSampleColumns(
     headerTitle: "Sample Status",
     size: isList ? 28 : 100,
     minSize: isList ? 28 : 80,
-    enableSorting: false,
     enableResizing: false,
     accessorFn: (row) => statusValue(row),
     titleValue: (row) => {
@@ -454,8 +453,9 @@ export function buildSampleColumns(
   }
 
   // Mark columns filterable and derive the filter editor type from the sort
-  // comparator (mirrors the log list). The status-icon and index columns are
-  // presentational, so they're neither sortable nor filterable.
+  // comparator (mirrors the log list). The status-icon column sorts but has no
+  // useful filter editor, and the index column is purely presentational — so
+  // both are skipped here.
   for (const col of cols) {
     if (col.id === "sampleStatus" || col.id === "displayIndex") continue;
     const cmp = col.meta?.sortComparator;
