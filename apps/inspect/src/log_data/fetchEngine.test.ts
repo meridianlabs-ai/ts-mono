@@ -107,6 +107,9 @@ interface FakeApiOptions {
   /** Dynamic per-call predicate for get_log_summaries_settled failures — lets
    *  a test flip failure on/off between separate preview requests. */
   failSummaryWhen?: (file: string) => boolean;
+  /** Per-call get_log_details payload (nthCall is 1-based, per file) — lets a
+   *  test give overlapping reads of the same file distinguishable results. */
+  detailsFor?: (file: string, nthCall: number) => LogDetails;
 }
 
 const createFakeApi = (options: FakeApiOptions = {}) => {
@@ -118,6 +121,9 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
   const api = {
     get_log_details: vi.fn(async (file: string, cached?: boolean) => {
       detailCalls.push({ file, cached });
+      // Captured at call time — an overlapping later call must not shift
+      // this call's payload.
+      const nthCall = detailCalls.filter((call) => call.file === file).length;
       callOrder.push(`detail:${file}`);
       if (options.gated) {
         const gate = deferred<void>();
@@ -133,7 +139,7 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
       ) {
         throw new Error(`transient fetch failure: ${file}`);
       }
-      return makeDetails(file);
+      return options.detailsFor?.(file, nthCall) ?? makeDetails(file);
     }),
     get_log_summaries_settled: vi.fn(
       (files: string[]): Promise<WorkResult<LogPreview>[]> => {
@@ -1421,6 +1427,247 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
     expect(callsB.fetchStates["a.eval"]).toBeUndefined();
     expect(callsB.writeDetails.some((batch) => "a.eval" in batch)).toBe(false);
     expect(await dbB.readLogRow("a.eval")).toBeNull();
+  });
+});
+
+// F8: overlapping details reads of the same log (a backfill read racing an
+// invalidation's fresh re-read) had no ingest ordering — the two settles
+// shared one claim-epoch key, so whichever settled second was spuriously
+// dropped: a pre-change read settling first committed its stale snapshot AND
+// discarded the fresh read's data.
+describe("FetchEngine generation-stamped details ingest (F8)", () => {
+  it("a stale overlapping read settling before the fresh one does not win", async () => {
+    const target = handle("x.eval", 1);
+    const fake = createFakeApi({
+      gated: true,
+      // Read 1 (the backfill, opened pre-change) sees the running snapshot;
+      // read 2 (the invalidation's fresh re-read) sees the finished run.
+      detailsFor: (file, nthCall) =>
+        makeDetails(file, nthCall === 1 ? "started" : "success"),
+    });
+    const { engine, sinkCalls } = await createEngine(
+      { api: fake.api, database: createFakeDb([listedRow(target)]) },
+      { concurrency: 2 }
+    );
+
+    // Missing-details backfill read, gated in flight.
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    // The file changes on the server while that read is in flight — the
+    // invalidation enqueues a fresh re-read, claimed on the second slot.
+    await engine.applyListing({
+      listing: [handle("x.eval", 2)],
+      invalidated: ["x.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+
+    // The stale read settles FIRST, then the fresh one.
+    fake.gates.shift()?.resolve();
+    await tick();
+    fake.gates.shift()?.resolve();
+
+    // The fresh read's data must be what ends up written — not the stale
+    // snapshot, and not nothing (the fresh settle must not be dropped).
+    await vi.waitFor(() => {
+      const written = sinkCalls.writeDetails.reduce<
+        Record<string, LogDetails>
+      >((acc, batch) => ({ ...acc, ...batch }), {});
+      expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
+    });
+  });
+
+  it("a stale overlapping read settling after the fresh one does not overwrite it", async () => {
+    const target = handle("x.eval", 1);
+    const fake = createFakeApi({
+      gated: true,
+      detailsFor: (file, nthCall) =>
+        makeDetails(file, nthCall === 1 ? "started" : "success"),
+    });
+    const { engine, sinkCalls } = await createEngine(
+      { api: fake.api, database: createFakeDb([listedRow(target)]) },
+      { concurrency: 2 }
+    );
+
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    await engine.applyListing({
+      listing: [handle("x.eval", 2)],
+      invalidated: ["x.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+
+    // The fresh read settles FIRST this time; the stale one trails.
+    const staleGate = fake.gates.shift();
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(() => {
+      expect(
+        sinkCalls.writeDetails.some((batch) => "x.eval" in batch)
+      ).toBe(true);
+    });
+    staleGate?.resolve();
+    await tick();
+    await tick();
+
+    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
+      (acc, batch) => ({ ...acc, ...batch }),
+      {}
+    );
+    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
+  });
+
+  it("a waitered fetch overlapped by an in-flight stale read resolves with the fresh read's data", async () => {
+    const target = handle("x.eval", 1);
+    const fake = createFakeApi({
+      gated: true,
+      detailsFor: (file, nthCall) =>
+        makeDetails(file, nthCall === 1 ? "started" : "success"),
+    });
+    const { engine, sinkCalls } = await createEngine(
+      { api: fake.api, database: createFakeDb([listedRow(target)]) },
+      { concurrency: 2 }
+    );
+
+    // Background backfill read, gated in flight.
+    await engine.applyListing({
+      listing: [target],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+
+    // A user opens the log: a second read on the second slot, waitered.
+    const waited = engine.ensure("x.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+
+    // The stale backfill read settles first — it must neither resolve the
+    // waiter with its snapshot nor strand it; the fresh read settles it.
+    fake.gates.shift()?.resolve();
+    await tick();
+    fake.gates.shift()?.resolve();
+    await waited;
+
+    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
+      (acc, batch) => ({ ...acc, ...batch }),
+      {}
+    );
+    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
+  });
+});
+
+// F7: a throttled flush arriving while one was in flight used to return
+// without rescheduling — background (unwaitered) results sat in the staging
+// map indefinitely (observed live: fresh summaries read but never written).
+describe("FetchEngine batched flush trailing coalesce (F7)", () => {
+  it("a background details settle staged during an in-flight flush is still written", async () => {
+    const fake = createFakeApi({ gated: true });
+    const { sink, calls } = createFakeSink();
+    const writeGate = deferred<void>();
+    let firstWrite = true;
+    const gatedSink: LogsContentSink = {
+      ...sink,
+      writeDetails: async (details) => {
+        const wait = firstWrite ? writeGate.promise : Promise.resolve();
+        firstWrite = false;
+        await wait;
+        return sink.writeDetails(details);
+      },
+    };
+    const engine = new FetchEngine({
+      flushDelayMs: 0,
+      statsDelayMs: 0,
+      concurrency: 1,
+    });
+    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+
+    await engine.applyListing({
+      listing: [handle("a.eval"), handle("b.eval")],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    // a.eval settles (background) → its flush starts and blocks on the gate.
+    await vi.waitFor(() => expect(fake.gates.length).toBe(1));
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(() => expect(firstWrite).toBe(false));
+
+    // b.eval settles while that flush is in flight — its own flush attempt
+    // hits the in-flight guard.
+    await vi.waitFor(() => expect(fake.gates.length).toBe(1));
+    fake.gates.shift()?.resolve();
+    await tick();
+    await tick();
+
+    writeGate.resolve();
+
+    await vi.waitFor(() => {
+      const written = calls.writeDetails.reduce<Record<string, LogDetails>>(
+        (acc, batch) => ({ ...acc, ...batch }),
+        {}
+      );
+      expect(written["b.eval"]).toEqual(makeDetails("b.eval"));
+    });
+  });
+
+  it("a background preview settle staged during an in-flight flush is still written", async () => {
+    const fake = createFakeApi();
+    const { sink, calls } = createFakeSink();
+    const writeGate = deferred<void>();
+    let firstWrite = true;
+    const gatedSink: LogsContentSink = {
+      ...sink,
+      writePreviews: async (previews) => {
+        const wait = firstWrite ? writeGate.promise : Promise.resolve();
+        firstWrite = false;
+        await wait;
+        return sink.writePreviews(previews);
+      },
+    };
+    const engine = new FetchEngine({
+      flushDelayMs: 0,
+      statsDelayMs: 0,
+      concurrency: 1,
+    });
+    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+
+    // a.eval's preview settles → its flush starts and blocks on the gate.
+    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
+    await vi.waitFor(() => expect(firstWrite).toBe(false));
+
+    // b.eval's preview settles while that flush is in flight.
+    void engine.ensure("b.eval", { depth: "previewed", priority: "background" });
+    await vi.waitFor(() => expect(fake.summaryCalls.length).toBe(2));
+    await tick();
+    await tick();
+
+    writeGate.resolve();
+
+    await vi.waitFor(() => {
+      const written = calls.writePreviews.reduce<Record<string, LogPreview>>(
+        (acc, batch) => ({ ...acc, ...batch }),
+        {}
+      );
+      expect(written["b.eval"]).toEqual(makePreview("b.eval"));
+    });
   });
 });
 

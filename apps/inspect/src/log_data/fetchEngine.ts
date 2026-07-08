@@ -73,6 +73,13 @@ type LogWorkValue =
   | { kind: "preview"; value: LogPreview }
   | { kind: "details"; value: LogDetails };
 
+// Recorded per claimed work item: the engine generation (stop()/start()
+// staleness) and a monotonic claim seq (ingest ordering for details).
+interface ClaimStamp {
+  epoch: number;
+  seq: number;
+}
+
 /**
  * The cache write surface the engine writes results through — the
  * `logsContent` seam bound to a log dir (and its database) at the composition
@@ -208,9 +215,21 @@ export class FetchEngine {
   // discarded rather than recorded/waited-on/coalesced into the new
   // session's state.
   private _epoch = 0;
-  // The generation active when a work item's batch was claimed, keyed by
-  // `workId` (kind-scoped — a preview and a details item can share a name).
-  private readonly _claimEpoch = new Map<string, number>();
+  // Monotonic claim counter (never reset — a post-restart collision would
+  // let an old read's commit slip past the seq check below).
+  private _claimSeq = 0;
+  // Per-claim stamps, keyed by handle INSTANCE (each enqueue creates its
+  // own), per kind (backfill wraps one handle object in both a preview and
+  // a details item) — a name-keyed map here let overlapping same-name claims
+  // collide, spuriously dropping whichever settled second.
+  private readonly _claimStamps = {
+    preview: new WeakMap<LogHandle, ClaimStamp>(),
+    details: new WeakMap<LogHandle, ClaimStamp>(),
+  };
+  // The most recently CLAIMED details read per name — ingest ordering: a
+  // superseded read's commit is dropped so its stale snapshot can't land
+  // after (or instead of) the newer read's data.
+  private readonly _latestDetailsClaim = new Map<string, number>();
 
   // Engine-private mirror of the rows' retrieval facts, hydrated at start()
   // and kept in sync as completions settle — the source of truth for
@@ -282,15 +301,20 @@ export class FetchEngine {
     });
   }
 
-  /** Record the generation active right now against every item in a
-   *  just-claimed batch — called as the first statement of each kind's
-   *  worker, i.e. synchronously, before any await, so it reflects the
-   *  generation at claim time. */
-  private markClaimEpoch(kind: LogWorkKind, handles: LogHandle[]): void {
+  /** Stamp every item in a just-claimed batch with the current generation
+   *  and a fresh claim seq — called as the first statement of each kind's
+   *  worker, i.e. synchronously, before any await, so it reflects claim
+   *  time. Details claims also record the per-name latest seq, which ingest
+   *  checks to drop superseded reads' commits. */
+  private markClaimStamps(kind: LogWorkKind, handles: LogHandle[]): void {
     const epoch = this._epoch;
-    handles.forEach((log) =>
-      this._claimEpoch.set(workId(kind, log.name), epoch)
-    );
+    handles.forEach((log) => {
+      const seq = ++this._claimSeq;
+      this._claimStamps[kind].set(log, { epoch, seq });
+      if (kind === "details") {
+        this._latestDetailsClaim.set(log.name, seq);
+      }
+    });
   }
 
   /** Partition a settled batch into items claimed under the CURRENT
@@ -304,11 +328,9 @@ export class FetchEngine {
     const freshResults: WorkResult<LogWorkValue>[] = [];
     const freshInputs: LogWork[] = [];
     inputs.forEach((work, i) => {
-      const id = workId(work.kind, work.handle.name);
-      const claimEpoch = this._claimEpoch.get(id);
-      this._claimEpoch.delete(id);
+      const stamp = this._claimStamps[work.kind].get(work.handle);
       const result = results[i];
-      if (!result || claimEpoch !== this._epoch) {
+      if (!result || stamp?.epoch !== this._epoch) {
         return;
       }
       freshResults.push(result);
@@ -320,7 +342,7 @@ export class FetchEngine {
   private async previewWorker(
     handles: LogHandle[]
   ): Promise<WorkResult<LogWorkValue>[]> {
-    this.markClaimEpoch("preview", handles);
+    this.markClaimStamps("preview", handles);
     const deps = this._deps;
     if (!deps) {
       const error = new Error("Fetch engine stopped");
@@ -446,7 +468,7 @@ export class FetchEngine {
   private async detailsWorker(
     handles: LogHandle[]
   ): Promise<WorkResult<LogWorkValue>[]> {
-    this.markClaimEpoch("details", handles);
+    this.markClaimStamps("details", handles);
     handles.forEach((log) => this._inFlightDetails.add(log.name));
     try {
       return await Promise.all(
@@ -514,6 +536,14 @@ export class FetchEngine {
         return;
       }
       if (result.value.kind !== "details") {
+        return;
+      }
+      // A newer read of this log was claimed after this one — its result
+      // supersedes this one regardless of settle order, so committing here
+      // would let a stale snapshot land last. Skip entirely (data, derived
+      // preview, waiter): the newer read's own settle handles all three.
+      const stamp = this._claimStamps.details.get(work.handle);
+      if (stamp?.seq !== this._latestDetailsClaim.get(name)) {
         return;
       }
       const detail = result.value.value;
@@ -626,6 +656,7 @@ export class FetchEngine {
     this._queue.clear();
     this._freshDetails.clear();
     this._activeSettles.clear();
+    this._latestDetailsClaim.clear();
     this._fetchStates = {};
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
@@ -1034,6 +1065,10 @@ export class FetchEngine {
       this._throttledUpdateDbStats();
     } finally {
       this._flushingPreviews = false;
+      // Trailing coalesce — see flushDetailWrites.
+      if (Object.keys(this._pendingPreviewWrites).length > 0) {
+        void this.flushPreviewWrites();
+      }
     }
   }
 
@@ -1053,6 +1088,12 @@ export class FetchEngine {
       this._throttledUpdateDbStats();
     } finally {
       this._flushingDetails = false;
+      // Trailing coalesce: a settle that staged writes while this flush was
+      // in flight had its own flush attempt swallowed by the guard above —
+      // without a re-run those writes sit staged indefinitely.
+      if (Object.keys(this._pendingDetailWrites).length > 0) {
+        void this.flushDetailWrites();
+      }
     }
   }
 
