@@ -3,6 +3,11 @@ import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
+import type {
+  ColumnFilter,
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
@@ -111,6 +116,31 @@ export const SamplesPanel: FC = () => {
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
 
+  // Owned here (rather than left to SamplesGrid's local state) so the navbar's
+  // Reset Filters button and the column-selector's filter markers can react to
+  // the active per-column filters. The grid still filters client-side via
+  // `applyFiltersClientSide` — there's no upstream filtrex pass in this view.
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, ColumnFilter>
+  >({});
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        if (spec === null) delete next[columnId];
+        else next[columnId] = { columnId, filterType, spec };
+        return next;
+      });
+    },
+    []
+  );
+  const filteredFields = useMemo(
+    () => Object.keys(columnFilters),
+    [columnFilters]
+  );
+  const hasFilter = filteredFields.length > 0;
+  const handleResetFilters = useCallback(() => setColumnFilters({}), []);
+
   const flowData = useFlowQuery(samplesPath || "").data;
 
   const currentDir = join(samplesPath || "", logDir);
@@ -214,6 +244,26 @@ export const SamplesPanel: FC = () => {
     useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
       defaultsForUnseededColumns,
     });
+
+  // Hiding a column also drops any active filter on it — a hidden column
+  // shouldn't keep filtering invisibly (matches the log list's behavior).
+  const handleColumnVisibilityChange = useCallback(
+    (newVisibility: Record<string, boolean>) => {
+      setColumnFilters((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const id of Object.keys(prev)) {
+          if (newVisibility[id] === false) {
+            delete next[id];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+      setColumnVisibility(newVisibility);
+    },
+    [setColumnVisibility]
+  );
 
   // Controlled visibility map keyed by column id, consumed by the DataGrid.
   const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
@@ -357,6 +407,15 @@ export const SamplesPanel: FC = () => {
   return (
     <div className={clsx(styles.panel)}>
       <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
+        {hasFilter && (
+          <NavbarButton
+            key="reset-filters"
+            label="Reset Filters"
+            icon={ApplicationIcons.filter}
+            onClick={handleResetFilters}
+          />
+        )}
+
         {hasRetriedLogs && (
           <NavbarButton
             key="show-retried"
@@ -395,8 +454,9 @@ export const SamplesPanel: FC = () => {
         setShowing={setShowColumnSelector}
         columns={pickerColumns}
         visibility={visibilityForGrid}
-        onVisibilityChange={setColumnVisibility}
+        onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonEl}
+        filteredFields={filteredFields}
         scoresHeading="Scores"
       />
 
@@ -412,6 +472,9 @@ export const SamplesPanel: FC = () => {
             rowData={sampleRows}
             columnDefs={allColumns}
             columnVisibility={visibilityForGrid}
+            columnFilters={columnFilters}
+            onColumnFilterChange={handleColumnFilterChange}
+            applyFiltersClientSide
             defaultSorting={kSamplesPanelDefaultSorting}
             getRowId={getRowId}
             selectedRowId={selectedRowId}

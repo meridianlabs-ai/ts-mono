@@ -61,6 +61,13 @@ interface SamplesGridProps {
     filterType: FilterType,
     spec: FilterSpec | null
   ) => void;
+  /**
+   * Apply `columnFilters` client-side even in controlled mode. Lets an owner
+   * lift the filter state (e.g. to drive a "Reset Filters" button) while the
+   * grid still does the filtering — the cross-log SamplesPanel has no upstream
+   * filtrex pass. Ignored in uncontrolled mode (local filters always apply).
+   */
+  applyFiltersClientSide?: boolean;
   /** Hide all funnels (forwarded to DataGrid). */
   hideColumnFilters?: boolean;
 }
@@ -87,6 +94,7 @@ export const SamplesGrid = ({
   loading,
   columnFilters,
   onColumnFilterChange,
+  applyFiltersClientSide,
   hideColumnFilters,
 }: SamplesGridProps): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
@@ -130,11 +138,13 @@ export const SamplesGrid = ({
     [columnsById]
   );
 
-  // Controlled mode: rows arrive already filtered (filtrex upstream) — only
-  // sort here. Uncontrolled: filter + sort client-side as before.
+  // Controlled mode with upstream filtering: rows arrive already filtered
+  // (filtrex) — only sort here. Uncontrolled, or controlled with
+  // `applyFiltersClientSide`, filters here from `effectiveFilters`.
+  const filterClientSide = !controlled || !!applyFiltersClientSide;
   const filter = useMemo(
-    () => (controlled ? undefined : combineFilters(localFilters)),
-    [controlled, localFilters]
+    () => (filterClientSide ? combineFilters(effectiveFilters) : undefined),
+    [filterClientSide, effectiveFilters]
   );
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
