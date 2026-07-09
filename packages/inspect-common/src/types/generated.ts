@@ -1398,7 +1398,7 @@ export interface components {
             /** Token Limit */
             token_limit?: number | null;
             /** Token Limit Type */
-            token_limit_type?: ("all" | "output") | null;
+            token_limit_type?: string | null;
             /** Turn Limit */
             turn_limit?: number | null;
             /** Working Limit */
