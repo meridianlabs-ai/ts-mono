@@ -18,6 +18,7 @@ const targetWith = (local: LogHandle[]) => {
   const applied: ListingUpdate[] = [];
   const target: ListingTarget = {
     listing: () => local,
+    epoch: () => 7,
     applyListing: (update) => {
       applied.push(update);
       return Promise.resolve(update.listing);
@@ -42,6 +43,7 @@ describe("syncListing", () => {
         invalidated: ["a.eval", "b.eval"],
         deleted: [],
         persistListing: true,
+        epoch: 7,
       },
     ]);
   });
@@ -104,6 +106,7 @@ describe("syncListing", () => {
         invalidated: ["a.eval", "b.eval"],
         deleted: [],
         persistListing: false,
+        epoch: 7,
       },
     ]);
   });
@@ -126,6 +129,7 @@ describe("syncListing", () => {
         invalidated: [],
         deleted: [],
         persistListing: false,
+        epoch: 7,
       },
     ]);
   });

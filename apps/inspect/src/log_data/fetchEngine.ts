@@ -135,6 +135,13 @@ export interface ListingUpdate {
   invalidated: string[];
   deleted: string[];
   persistListing: boolean;
+  /** Engine generation (`engine.epoch()`) captured when the sync snapshotted
+   *  the local listing. A `stop()`/`start()` (dir switch) between snapshot
+   *  and apply makes the update stale — `applyListing` discards it rather
+   *  than writing one dir's listing into another dir's session. Omitted:
+   *  apply unconditionally (the caller didn't await between snapshot and
+   *  apply). */
+  epoch?: number;
 }
 
 /** Queue/batching tunables — production defaults; tests shrink them. */
@@ -672,6 +679,12 @@ export class FetchEngine {
     return this._deps !== undefined;
   }
 
+  /** Current engine generation — pair with `ListingUpdate.epoch` to fence a
+   *  listing sync against a `stop()`/`start()` racing its server read. */
+  public epoch(): number {
+    return this._epoch;
+  }
+
   /** The current listing (what the sink last activated). */
   public listing(): LogHandle[] {
     return this._handles;
@@ -813,6 +826,15 @@ export class FetchEngine {
   public async applyListing(update: ListingUpdate): Promise<LogHandle[]> {
     const deps = this.requireDeps();
 
+    // Fence against a dir switch: discard an update whose sync began under an
+    // earlier generation, and re-check after every await below (a switch can
+    // land mid-apply, after which `deps.sink` writes into the new session's
+    // database).
+    const epoch = update.epoch ?? this._epoch;
+    if (epoch !== this._epoch) {
+      return this._handles;
+    }
+
     const stale = [...update.deleted, ...update.invalidated];
     if (stale.length > 0) {
       this._queue.removeByIds(
@@ -837,8 +859,11 @@ export class FetchEngine {
       // An invalidated (changed) file keeps its row identity but drops
       // content and retrieval facts back to listed depth — backfill gating
       // naturally resets.
-      if (update.invalidated.length > 0) {
+      if (update.invalidated.length > 0 && epoch === this._epoch) {
         await deps.sink.resetDepth(update.invalidated).catch(() => {});
+      }
+      if (epoch !== this._epoch) {
+        return this._handles;
       }
       stale.forEach((name) => {
         delete this._fetchStates[name];
@@ -849,6 +874,9 @@ export class FetchEngine {
     let rows: Log[] | undefined;
     if (update.persistListing) {
       rows = await deps.sink.writeListing(update.listing);
+      if (epoch !== this._epoch) {
+        return this._handles;
+      }
       full = rows;
     } else {
       deps.sink.setListing(update.listing);

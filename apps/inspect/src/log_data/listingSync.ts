@@ -8,6 +8,7 @@ import { ListingUpdate } from "./fetchEngine";
  *  against, and application of the diff result. */
 export interface ListingTarget {
   listing(): LogHandle[];
+  epoch(): number;
   applyListing(update: ListingUpdate): Promise<LogHandle[]>;
 }
 
@@ -23,6 +24,7 @@ export const syncListing = async (
   engine: ListingTarget
 ): Promise<LogHandle[]> => {
   const localFiles = engine.listing();
+  const epoch = engine.epoch();
   const mtime = Math.max(0, ...localFiles.map((file) => file.mtime || 0));
 
   // A local listing with no mtime data is just a static list — no
@@ -42,6 +44,7 @@ export const syncListing = async (
         invalidated: localFiles.map((file) => file.name),
         deleted: [],
         persistListing: false,
+        epoch,
       });
     }
     // Unchanged: re-activate the current listing (backfilling any gaps).
@@ -50,6 +53,7 @@ export const syncListing = async (
       invalidated: [],
       deleted: [],
       persistListing: false,
+      epoch,
     });
   }
 
@@ -86,5 +90,6 @@ export const syncListing = async (
     invalidated,
     deleted,
     persistListing: true,
+    epoch,
   });
 };

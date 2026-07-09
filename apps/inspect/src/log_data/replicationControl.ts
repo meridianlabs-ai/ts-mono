@@ -35,6 +35,11 @@ const ensureActive = async (logDir: string): Promise<void> => {
     getDatabaseService().getDatabaseHandle() !== databaseHandle;
 
   if (needsActivation) {
+    // Bump the engine epoch before re-pointing the singleton database, so an
+    // in-flight listing sync for the old dir is fenced (see
+    // `ListingUpdate.epoch`) before its writes could land in the new dir's
+    // database.
+    fetchEngine.stop();
     const opened = await openLogDirDatabase(logDir);
     if (!opened) {
       throw new Error("Database service not available");

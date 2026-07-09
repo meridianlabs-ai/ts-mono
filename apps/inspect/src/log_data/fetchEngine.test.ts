@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { LogHandle } from "@tsmono/inspect-common";
+import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
 
 import {
   ClientAPI,
@@ -15,6 +15,7 @@ import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
+import { syncListing } from "./listingSync";
 
 // --- fakes (no jsdom, no react-query) ---
 
@@ -808,6 +809,96 @@ describe("FetchEngine.applyListing", () => {
       });
     });
     expect(fake.summaryCalls.flat()).not.toContain("a.eval");
+  });
+});
+
+describe("FetchEngine.applyListing epoch fencing", () => {
+  it("discards an update whose sync began before a restart (dir switch)", async () => {
+    const fake = createFakeApi();
+    const { engine } = await createEngine({ api: fake.api });
+    const stale = engine.epoch();
+
+    // Dir switch: restart binds the next session's sink.
+    const { sink, calls } = createFakeSink();
+    await engine.start({ api: fake.api, database: null, sink });
+    const before = engine.listing();
+
+    const result = await engine.applyListing({
+      listing: [handle("old-dir.eval", 1)],
+      invalidated: ["old-dir.eval"],
+      deleted: ["gone.eval"],
+      persistListing: true,
+      epoch: stale,
+    });
+
+    expect(result).toEqual(before);
+    expect(engine.listing()).toEqual(before);
+    expect(calls.clearFile).toEqual([]);
+    expect(calls.resetDepth).toEqual([]);
+    expect(calls.writeListing).toEqual([]);
+    expect(calls.setListing).toEqual([]);
+  });
+
+  it("stops mutating when a restart lands mid-apply", async () => {
+    const fake = createFakeApi();
+    const gate = deferred<void>();
+    const { sink: firstSink, calls: firstCalls } = createFakeSink();
+    const gatedSink: LogsContentSink = {
+      ...firstSink,
+      clearFile: async (name) => {
+        await gate.promise;
+        return firstSink.clearFile(name);
+      },
+    };
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+
+    const applied = engine.applyListing({
+      listing: [handle("old-dir.eval", 1)],
+      invalidated: [],
+      deleted: ["gone.eval"],
+      persistListing: true,
+      epoch: engine.epoch(),
+    });
+
+    const { sink: secondSink, calls: secondCalls } = createFakeSink();
+    await engine.start({ api: fake.api, database: null, sink: secondSink });
+    gate.resolve();
+
+    // The in-flight delete drains into the old session's sink; everything
+    // after the restart is discarded.
+    const result = await applied;
+    expect(firstCalls.clearFile).toEqual(["gone.eval"]);
+    expect(result).toEqual([]);
+    expect(engine.listing()).toEqual([]);
+    expect(secondCalls.writeListing).toEqual([]);
+    expect(secondCalls.setListing).toEqual([]);
+  });
+
+  it("a listing sync resolving after a dir switch cannot mutate the new session (regression)", async () => {
+    const fake = createFakeApi();
+    const gate = deferred<LogFilesResponse>();
+    const api: ClientAPI = {
+      ...fake.api,
+      get_logs: vi.fn(() => gate.promise),
+    };
+    const { engine } = await createEngine({ api });
+
+    const sync = syncListing(api, engine);
+
+    // Dir switch while the server read is in flight.
+    const { sink, calls } = createFakeSink();
+    await engine.start({ api, database: null, sink });
+    gate.resolve({
+      files: [handle("old-dir.eval", 1)],
+      response_type: "full",
+    });
+
+    expect(await sync).toEqual([]);
+    expect(engine.listing()).toEqual([]);
+    expect(calls.writeListing).toEqual([]);
+    expect(calls.setListing).toEqual([]);
+    expect(calls.resetDepth).toEqual([]);
   });
 });
 
