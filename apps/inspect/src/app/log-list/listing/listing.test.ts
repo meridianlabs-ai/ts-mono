@@ -95,6 +95,25 @@ describe("evaluateCondition", () => {
     expect(ev(new Column("score").between(0.4, 0.95), r1)).toBe(false);
   });
 
+  it("missing values match nothing but IS NULL (SQL NULL semantics)", () => {
+    // r2 has no score. SQL treats NULL compared with anything as NULL,
+    // which a WHERE clause drops — negative operators included.
+    expect(ev(new Column("score").ne(0.5), r2)).toBe(false);
+    expect(ev(new Column("score").notIn([0.5]), r2)).toBe(false);
+    expect(ev(new Column("score").between(0.1, 0.95), r2)).toBe(false);
+    expect(ev(new Column("score").notBetween(0.1, 0.95), r2)).toBe(false);
+    expect(ev(new Column("error").notLike("%boom%"), r2)).toBe(false);
+    expect(ev(new Column("error").notIlike("%BOOM%"), r2)).toBe(false);
+    expect(ev(new Column("score").isNull(), r2)).toBe(true);
+    expect(ev(new Column("score").isNotNull(), r2)).toBe(false);
+  });
+
+  it("BETWEEN requires comparable values — no vacuous match", () => {
+    // `lt` can't order a string against numeric bounds, so the old
+    // `!lt && !lt` form matched any non-comparable value.
+    expect(ev(new Column("model").between(0.1, 0.95), r0)).toBe(false);
+  });
+
   it("AND / OR / NOT", () => {
     const and = new Column("model")
       .eq("gpt-4")

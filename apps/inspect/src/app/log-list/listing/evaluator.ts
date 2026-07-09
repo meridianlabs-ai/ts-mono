@@ -60,6 +60,8 @@ const lt = (a: unknown, b: unknown): boolean => {
   return false;
 };
 
+const lte = (a: unknown, b: unknown): boolean => a === b || lt(a, b);
+
 const toDate = (v: unknown): Date | null =>
   typeof v === "number" || typeof v === "string" || v instanceof Date
     ? new Date(v)
@@ -104,6 +106,10 @@ const applyOperator = (
   if (operator === "IS NULL") return isNullish(rawValue);
   if (operator === "IS NOT NULL") return !isNullish(rawValue);
 
+  // SQL three-valued logic: NULL compared with anything is NULL, which a
+  // WHERE clause drops — negative operators (!=, NOT IN, NOT LIKE) included.
+  if (isNullish(rawValue)) return false;
+
   const value = coerce(rawValue, filterType);
   const right = Array.isArray(rawRight)
     ? rawRight.map((r) => coerce(r, filterType))
@@ -117,11 +123,11 @@ const applyOperator = (
     case "<":
       return lt(value, right);
     case "<=":
-      return value === right || lt(value, right);
+      return lte(value, right);
     case ">":
       return lt(right, value);
     case ">=":
-      return value === right || lt(right, value);
+      return lte(right, value);
     case "IN":
       return Array.isArray(right) && right.includes(value);
     case "NOT IN":
@@ -134,19 +140,21 @@ const applyOperator = (
       return matchesLike(value, right, true);
     case "NOT ILIKE":
       return !matchesLike(value, right, true);
+    // Positive comparisons, not `!lt && !lt` — `lt` returns false for
+    // non-comparable pairs (NaN, mixed types), which would match vacuously.
     case "BETWEEN":
       return (
         Array.isArray(right) &&
         right.length === 2 &&
-        !lt(value, right[0]) &&
-        !lt(right[1], value)
+        lte(right[0], value) &&
+        lte(value, right[1])
       );
     case "NOT BETWEEN":
       return !(
         Array.isArray(right) &&
         right.length === 2 &&
-        !lt(value, right[0]) &&
-        !lt(right[1], value)
+        lte(right[0], value) &&
+        lte(value, right[1])
       );
     default:
       return true;
