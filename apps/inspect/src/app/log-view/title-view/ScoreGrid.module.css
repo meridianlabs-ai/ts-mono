@@ -1,0 +1,132 @@
+/* "Refined Classic" look: hairline rows, no wrapper/column chrome, muted
+   headers, Bootstrap-variable colors so it tracks light/dark mode. */
+
+.gridContainer {
+  max-width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 0;
+}
+
+/* Title-region summary card: size to content, no inner scroll/padding. */
+.cardContainer {
+  max-width: 100%;
+  overflow: visible;
+}
+
+.groupGrid + .groupGrid {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: solid 1px var(--bs-light-border-subtle);
+}
+
+.table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: transparent;
+  color: var(--bs-body-color);
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 12px;
+}
+
+.table td {
+  height: 32px;
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+  font-variant-numeric: tabular-nums;
+  /* Cells aren't interactive — clicking does nothing — so don't imply
+     otherwise with a pointer cursor. */
+  cursor: default;
+}
+
+.table th {
+  height: 28px;
+  border-bottom: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
+  font-weight: normal;
+  text-align: left;
+}
+
+/* Group header row: unlabeled cells (placeholders over ungrouped columns)
+   drop their bottom border so the column reads as one tall header cell. */
+.groupRow th {
+  height: 24px;
+  border-bottom-color: transparent;
+}
+
+.groupRow th.groupLabel {
+  border-bottom-color: var(--bs-border-color);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.numericHeader,
+.numericCell {
+  text-align: right;
+}
+
+/* Scorer column reads as the row label — a touch heavier + higher contrast. */
+.scorerCell {
+  font-weight: 500;
+  color: var(--bs-emphasis-color);
+}
+
+/* Breathing room at the edges so values don't sit flush with the modal
+   border (and so the last column doesn't get overlapped by the vertical
+   scroll bar). */
+.scorerHeader,
+.scorerCell {
+  padding-left: 1rem;
+}
+
+.lastHeader,
+.lastCell {
+  padding-right: 0.5rem;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.headerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.sortIcon {
+  font-size: 10px;
+}
+
+.compact th,
+.compact td {
+  padding: 0 8px;
+}
+
+.compact td {
+  height: 26px;
+}
+
+.compact th {
+  height: 24px;
+  font-size: 11px;
+}
+
+.compact .groupRow th {
+  height: 20px;
+}
+
+.compact .scorerHeader,
+.compact .scorerCell {
+  padding-left: 1rem;
+}
