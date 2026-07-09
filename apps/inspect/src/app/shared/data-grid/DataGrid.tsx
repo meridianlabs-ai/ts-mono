@@ -627,11 +627,25 @@ export function DataGrid<TRow>({
     getItemKey: (index) => rows[index]?.id ?? String(index),
   });
 
-  // Keep the selected row visible when it changes from the outside.
+  // Keep the selected row visible when it changes from the outside. `rows`
+  // is a read, not a trigger: during a live eval every poll tick lands a new
+  // rows identity, and re-scrolling then would yank the viewport back to the
+  // selection whenever the user has scrolled it off-screen. The ref marks a
+  // selection as scrolled-to only once the row is actually found, so a
+  // selection that points at a not-yet-loaded row still scrolls on the tick
+  // where the row arrives.
+  const scrolledToSelectedRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      scrolledToSelectedRef.current = undefined;
+      return;
+    }
+    if (scrolledToSelectedRef.current === selectedId) return;
     const index = rows.findIndex((r) => r.id === selectedId);
-    if (index !== -1) rowVirtualizer.scrollToIndex(index, { align: "auto" });
+    if (index !== -1) {
+      rowVirtualizer.scrollToIndex(index, { align: "auto" });
+      scrolledToSelectedRef.current = selectedId;
+    }
   }, [selectedId, rows, rowVirtualizer]);
 
   const handleRowClick = useCallback(
