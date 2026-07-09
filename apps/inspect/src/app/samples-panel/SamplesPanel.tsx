@@ -364,18 +364,23 @@ export const SamplesPanel: FC = () => {
     [navigateToSampleDetail]
   );
 
-  // Reflect the rendered row set into store-backed displayed-samples state
-  // (drives footer count + cross-tab navigation). Filtering is deferred, so
-  // every flattened row is "displayed".
-  useEffect(() => {
-    const displayed = sampleRows.map((row) => ({
-      logFile: row.logFile,
-      sampleId: row.sampleId,
-      epoch: row.epoch,
-    }));
-    setFilteredSampleCount(displayed.length);
-    setDisplayedSamples(displayed);
-  }, [sampleRows, setFilteredSampleCount, setDisplayedSamples]);
+  // Reflect the grid's post-filter/post-sort rows into store-backed
+  // displayed-samples state (drives the footer count + cross-tab prev/next
+  // navigation). Sourced from the grid — which owns the filter/sort — rather
+  // than the unfiltered input, so both stay in sync with what's rendered.
+  const handleDisplayedRowsChange = useCallback(
+    (rows: SampleRow[]) => {
+      setFilteredSampleCount(rows.length);
+      setDisplayedSamples(
+        rows.map((row) => ({
+          logFile: row.logFile,
+          sampleId: row.sampleId,
+          epoch: row.epoch,
+        }))
+      );
+    },
+    [setFilteredSampleCount, setDisplayedSamples]
+  );
 
   useEffect(() => {
     clearSelectedSample();
@@ -475,6 +480,7 @@ export const SamplesPanel: FC = () => {
             columnFilters={columnFilters}
             onColumnFilterChange={handleColumnFilterChange}
             applyFiltersClientSide
+            onDisplayedRowsChange={handleDisplayedRowsChange}
             defaultSorting={kSamplesPanelDefaultSorting}
             getRowId={getRowId}
             selectedRowId={selectedRowId}

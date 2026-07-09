@@ -1,5 +1,12 @@
 import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
-import { ReactElement, RefObject, useCallback, useMemo, useState } from "react";
+import {
+  ReactElement,
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type {
   ColumnFilter,
@@ -70,6 +77,13 @@ interface SamplesGridProps {
   applyFiltersClientSide?: boolean;
   /** Hide all funnels (forwarded to DataGrid). */
   hideColumnFilters?: boolean;
+  /**
+   * Fires with the grid's rows after filtering and sorting are applied — the
+   * exact set (and order) rendered. Lets an owner drive a filtered count or
+   * cross-sample navigation off the grid's single source of truth rather than
+   * re-deriving it from the unfiltered input.
+   */
+  onDisplayedRowsChange?: (rows: SampleRow[]) => void;
 }
 
 /**
@@ -96,6 +110,7 @@ export const SamplesGrid = ({
   onColumnFilterChange,
   applyFiltersClientSide,
   hideColumnFilters,
+  onDisplayedRowsChange,
 }: SamplesGridProps): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
@@ -156,6 +171,10 @@ export const SamplesGrid = ({
     getComparator,
     getFilterType,
   });
+
+  useEffect(() => {
+    onDisplayedRowsChange?.(items);
+  }, [items, onDisplayedRowsChange]);
 
   const handleColumnFilterChange = useCallback(
     (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
