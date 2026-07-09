@@ -103,7 +103,10 @@ export const deriveSampleData = ({
   // `completed !== false` mirrors the legacy loader: only an explicitly
   // incomplete summary takes the running path.
   if (summary.completed === false) {
-    if (running.data?.finalized === true && finalizedSample.data !== undefined) {
+    if (
+      running.data?.finalized === true &&
+      finalizedSample.data !== undefined
+    ) {
       return settledSampleData(finalizedSample.data);
     }
     if (running.error) {

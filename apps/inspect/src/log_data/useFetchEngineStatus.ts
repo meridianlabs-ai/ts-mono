@@ -14,5 +14,4 @@ export const useFetchEngineStatus = (): FetchEngineStatus =>
   useSyncExternalStore(fetchEngine.subscribeStatus, fetchEngine.getStatus);
 
 /** The local log database's row counts (viewer options popover). */
-export const useDatabaseStats = (): DbStats =>
-  useFetchEngineStatus().dbStats;
+export const useDatabaseStats = (): DbStats => useFetchEngineStatus().dbStats;

@@ -60,7 +60,10 @@ const listedRow = (h: LogHandle): Log => ({
   ...fetchFacts,
 });
 
-const previewedRow = (h: LogHandle, status: Log["status"] = "success"): Log => ({
+const previewedRow = (
+  h: LogHandle,
+  status: Log["status"] = "success"
+): Log => ({
   ...h,
   depth: "previewed",
   status,
@@ -190,7 +193,8 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
 
   const fake = {
     opened: () => true,
-    readLogs: () => Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
+    readLogs: () =>
+      Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
     readLogRow: (file: string) =>
       Promise.resolve(rows[file] ? { ...rows[file] } : null),
     readLogRows: (files: string[]) =>
@@ -355,7 +359,10 @@ describe("FetchEngine.ensure (detailed)", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine({ api: fake.api });
 
-    const first = engine.ensure("a.eval", { depth: "detailed", priority: "user" });
+    const first = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     const second = engine.ensure("a.eval", {
       depth: "detailed",
       priority: "user",
@@ -787,7 +794,10 @@ describe("FetchEngine.applyListing", () => {
     // Enqueued AFTER the details backfill: both are Medium, ties break by
     // insertion order, so the details fetch claims first and the coalesce
     // has this still-queued preview to remove.
-    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
+    void engine.ensure("a.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
 
     void fake.releaseAll();
     await blocker;
@@ -914,7 +924,10 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
+    void engine.ensure("a.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
     const details = engine.ensure("a.eval", {
       depth: "detailed",
       priority: "user",
@@ -1477,9 +1490,10 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
     // The fresh read's data must be what ends up written — not the stale
     // snapshot, and not nothing (the fresh settle must not be dropped).
     await vi.waitFor(() => {
-      const written = sinkCalls.writeDetails.reduce<
-        Record<string, LogDetails>
-      >((acc, batch) => ({ ...acc, ...batch }), {});
+      const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
+        (acc, batch) => ({ ...acc, ...batch }),
+        {}
+      );
       expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
     });
   });
@@ -1515,9 +1529,9 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
     const staleGate = fake.gates.shift();
     fake.gates.shift()?.resolve();
     await vi.waitFor(() => {
-      expect(
-        sinkCalls.writeDetails.some((batch) => "x.eval" in batch)
-      ).toBe(true);
+      expect(sinkCalls.writeDetails.some((batch) => "x.eval" in batch)).toBe(
+        true
+      );
     });
     staleGate?.resolve();
     await tick();
@@ -1650,11 +1664,17 @@ describe("FetchEngine batched flush trailing coalesce (F7)", () => {
     await engine.start({ api: fake.api, database: null, sink: gatedSink });
 
     // a.eval's preview settles → its flush starts and blocks on the gate.
-    void engine.ensure("a.eval", { depth: "previewed", priority: "background" });
+    void engine.ensure("a.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(firstWrite).toBe(false));
 
     // b.eval's preview settles while that flush is in flight.
-    void engine.ensure("b.eval", { depth: "previewed", priority: "background" });
+    void engine.ensure("b.eval", {
+      depth: "previewed",
+      priority: "background",
+    });
     await vi.waitFor(() => expect(fake.summaryCalls.length).toBe(2));
     await tick();
     await tick();
@@ -1678,7 +1698,10 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
     const fake = createFakeApi({ gated: true });
     const { engine } = await createEngine({ api: fake.api });
 
-    const first = engine.ensure("a.eval", { depth: "detailed", priority: "user" });
+    const first = engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+    });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
     // The in-flight attempt already consumed its own fresh flag at read
     // time, so this can't retroactively change ITS cached param — it must

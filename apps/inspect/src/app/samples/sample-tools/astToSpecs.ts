@@ -320,7 +320,10 @@ export function astToSpecs(
 ): Record<string, ColumnFilter> | null {
   const predicates = collectAndPredicates(ast);
 
-  const perColumn = new Map<string, { kind: FilterVarKind; specs: FilterSpec[] }>();
+  const perColumn = new Map<
+    string,
+    { kind: FilterVarKind; specs: FilterSpec[] }
+  >();
 
   for (const pred of predicates) {
     const result = predicateToSpec(pred, registry);

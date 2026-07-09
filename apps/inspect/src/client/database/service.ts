@@ -1,12 +1,7 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import {
-  Log,
-  LogDetails,
-  LogFetchState,
-  LogPreview,
-} from "../api/types";
+import { Log, LogDetails, LogFetchState, LogPreview } from "../api/types";
 import {
   detailTier,
   maxDepth,
@@ -182,11 +177,14 @@ export class DatabaseService {
     const now = new Date().toISOString();
     const files = Object.keys(patches);
     const existing = await db.logs.where("file_path").anyOf(files).toArray();
-    const byPath = new Map(existing.map((record) => [record.file_path, record]));
+    const byPath = new Map(
+      existing.map((record) => [record.file_path, record])
+    );
     const records = files.map<LogRecord>((file) => {
       const patch = patches[file] ?? {};
       const current = byPath.get(file);
-      const base = current ?? toLogRecord(newRow({ name: file }), undefined, now);
+      const base =
+        current ?? toLogRecord(newRow({ name: file }), undefined, now);
       return {
         ...base,
         ...patch,
@@ -267,9 +265,7 @@ export class DatabaseService {
 
   // === RETRIEVAL FACTS ===
 
-  async writeFetchStates(
-    states: Record<string, LogFetchState>
-  ): Promise<void> {
+  async writeFetchStates(states: Record<string, LogFetchState>): Promise<void> {
     log.debug(
       `Merging retrieval facts into ${Object.keys(states).length} log rows`
     );

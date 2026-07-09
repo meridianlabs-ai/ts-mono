@@ -4,14 +4,11 @@ import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LogDetails, SampleSummary } from "../client/api/types";
-import {
-  createDatabaseService,
-  DatabaseService,
-} from "../client/database";
+import { createDatabaseService, DatabaseService } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
-import { useSamplesListing } from "./samplesListing";
 import { clearFile, writeDetails } from "./logsContent";
+import { useSamplesListing } from "./samplesListing";
 
 // The module-under-test reads Dexie through the shared instance; route it to
 // this test's real (fake-indexeddb-backed) service.
@@ -218,8 +215,7 @@ describe("useSamplesListing", () => {
     holder.service = unopened;
 
     const { result } = renderHook(
-      () =>
-        useSamplesListing({ logDir: LOG_DIR, scope: { file: FILE_A } }),
+      () => useSamplesListing({ logDir: LOG_DIR, scope: { file: FILE_A } }),
       { wrapper }
     );
 

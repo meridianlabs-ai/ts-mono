@@ -281,7 +281,9 @@ describe("clientApi.get_log_details running-log caching", () => {
   test("a running log is not re-served from the memoized remote file", async () => {
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
-    openMock.mockImplementation(() => Promise.resolve(remoteFileWith("started")));
+    openMock.mockImplementation(() =>
+      Promise.resolve(remoteFileWith("started"))
+    );
     const client = clientApi(baseApi());
 
     await client.get_log_details("log.eval", true);
@@ -295,7 +297,9 @@ describe("clientApi.get_log_details running-log caching", () => {
   test("a completed log stays memoized across cached reads", async () => {
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
-    openMock.mockImplementation(() => Promise.resolve(remoteFileWith("success")));
+    openMock.mockImplementation(() =>
+      Promise.resolve(remoteFileWith("success"))
+    );
     const client = clientApi(baseApi());
 
     await client.get_log_details("log.eval", true);

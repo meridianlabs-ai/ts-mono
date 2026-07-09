@@ -3,8 +3,8 @@ import { useCallback } from "react";
 import { useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { Log } from "../client/api/types";
 import { useStableValue } from "../app/shared/useStableValue";
+import { Log } from "../client/api/types";
 
 import { useLogs } from "./logsContent";
 
@@ -46,10 +46,7 @@ export const scorerMetricKey = (
  * @param scopePrefix - When set, only logs whose name starts with this
  *   prefix contribute (folder view scoping)
  */
-export function computeScorerMap(
-  logs: Log[],
-  scopePrefix?: string
-): ScorerMap {
+export function computeScorerMap(logs: Log[], scopePrefix?: string): ScorerMap {
   const info: ScorerMap = {};
 
   for (const log of logs) {
@@ -123,9 +120,10 @@ export const useScoreSchema = (
   return useStableValue(
     useMapAsyncData(
       logs,
-      useCallback((rows: Log[]) => computeScorerMap(rows, scopePrefix), [
-        scopePrefix,
-      ])
+      useCallback(
+        (rows: Log[]) => computeScorerMap(rows, scopePrefix),
+        [scopePrefix]
+      )
     ),
     asyncScorerMapsEqual
   );

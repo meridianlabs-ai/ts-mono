@@ -7,7 +7,7 @@ description: Build/launch/drive recipe for verifying apps/inspect changes end-to
 
 ## Handle
 
-- **Dev server:** `pnpm dev` in `apps/inspect` serves the app at `http://localhost:5173` from working-tree source (Vite; no build step needed). Check if one is already running first: `lsof -nP -iTCP:5173 -sTCP:LISTEN` — and confirm its cwd is *this* checkout (`lsof -p <pid> | grep cwd`); a sibling inspect_scout checkout runs a lookalike server.
+- **Dev server:** `pnpm dev` in `apps/inspect` serves the app at `http://localhost:5173` from working-tree source (Vite; no build step needed). Check if one is already running first: `lsof -nP -iTCP:5173 -sTCP:LISTEN` — and confirm its cwd is _this_ checkout (`lsof -p <pid> | grep cwd`); a sibling inspect_scout checkout runs a lookalike server.
 - Point it at real logs by opening the browser at `/` (it lists the log dir the server was started with).
 - **e2e port gotcha:** Playwright e2e uses port 5174 and collides with the sibling inspect_scout checkout — `lsof -ti :5174 | xargs kill` before `pnpm e2e <spec>`.
 

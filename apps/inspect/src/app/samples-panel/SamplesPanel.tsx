@@ -10,10 +10,10 @@ import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
-  type SamplesListingRow,
   useLogListing,
   useLogsSync,
   useSamplesListing,
+  type SamplesListingRow,
 } from "../../log_data";
 import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";

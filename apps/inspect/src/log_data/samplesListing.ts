@@ -100,7 +100,10 @@ const pageOf = (
   const start = params.cursor === undefined ? 0 : Number(params.cursor);
   return params.limit === undefined && start === 0
     ? rows
-    : rows.slice(start, params.limit === undefined ? undefined : start + params.limit);
+    : rows.slice(
+        start,
+        params.limit === undefined ? undefined : start + params.limit
+      );
 };
 
 const readSamplesListing = async (
@@ -112,16 +115,15 @@ const readSamplesListing = async (
     // passive cache container (returning the current value, not []) so a
     // mount-time fetch settling after a push can't clobber it.
     return (
-      queryClient.getQueryData<SamplesListingRow[]>(samplesListingKey(params)) ??
-      EMPTY_ROWS
+      queryClient.getQueryData<SamplesListingRow[]>(
+        samplesListingKey(params)
+      ) ?? EMPTY_ROWS
     );
   }
   const records = await db.readSampleSummaries(params.scope);
   const files = [...new Set(records.map((record) => record.file_path))];
   const rows = await db.readLogRows(files);
-  const contexts = new Map(
-    files.map((file) => [file, rowContext(rows[file])])
-  );
+  const contexts = new Map(files.map((file) => [file, rowContext(rows[file])]));
   return pageOf(
     records.map((record) => ({
       logFile: record.file_path,

@@ -22,9 +22,9 @@ prioritized work into it or consumes results from the media it feeds.
 The companion contract: **a data hook is called, returns data, and the data
 stays current**. How it is kept fresh — polling, streaming, invalidation,
 cache seeding, engine activation — is the implementing layer's private
-concern. Above log_data exactly two imperative verbs survive: *invalidate*
+concern. Above log_data exactly two imperative verbs survive: _invalidate_
 (event handlers requesting freshness — `refreshLog`, `invalidateLogListing`) and
-*initialize* (composition roots). Everything else is declarative
+_initialize_ (composition roots). Everything else is declarative
 subscription; no consumer kicks off lower-layer work from a lifecycle
 effect, and no third party mounts a hook to keep data warm for others.
 
@@ -47,12 +47,12 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 
 **Interior** (sole consumer: config resolution):
 
-| Concern | What it is | Module |
-|---------|------------|--------|
-| Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; parsed exactly once by `resolveBootstrap()`, never consulted after config resolution. | `app_config/urlLogSource.ts` |
-| Backend selection | Choosing the view-server / static-http / vscode api from the invocation. Pure function, invoked once during bootstrap. | `app_config/resolveApi.ts` |
-| Single-file detection | Whether the invocation names a single log file. Exposed downstream only as the `singleFileMode` flag on resolved config. | `app_config/singleFileMode.ts` |
-| Bootstrap config | The sync-knowable prefix of the config: `api`, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path has something honest to read — its only consumer outside resolution is the composition root (`main.tsx`), which is exempt (see below). | `app_config/appConfig.ts` (`getBootstrap`) |
+| Concern               | What it is                                                                                                                                                                                                                                                    | Module                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; parsed exactly once by `resolveBootstrap()`, never consulted after config resolution.                                                                | `app_config/urlLogSource.ts`               |
+| Backend selection     | Choosing the view-server / static-http / vscode api from the invocation. Pure function, invoked once during bootstrap.                                                                                                                                        | `app_config/resolveApi.ts`                 |
+| Single-file detection | Whether the invocation names a single log file. Exposed downstream only as the `singleFileMode` flag on resolved config.                                                                                                                                      | `app_config/singleFileMode.ts`             |
+| Bootstrap config      | The sync-knowable prefix of the config: `api`, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path has something honest to read — its only consumer outside resolution is the composition root (`main.tsx`), which is exempt (see below). | `app_config/appConfig.ts` (`getBootstrap`) |
 
 ### Log-data acquisition
 
@@ -105,13 +105,13 @@ invariant holds.
   (never fetches); else undefined. Absence is a normal answer: the EvalSample
   is resident only while the sample is (recently) loaded. For surfaces that
   must stay fetch-free (e.g. the invalidation banner in the title bar);
-  anything that *wants* the sample uses `useEvalSampleData`.
+  anything that _wants_ the sample uses `useEvalSampleData`.
 - `useLog(logDir, logFile)` (`log_data/log.ts`) — one log at detailed depth:
   its header as `LogDataState<LogHeader>` (`{data, loading, error}`): a
   per-entity db-backed cache entry (evictable; the Dexie row re-seeds on
   remount) whose mount demands detailed depth from the engine (read-through:
   a cached log settles instantly with a background refresh). `error` is the
-  row's recorded *retrieval* failure — eval errors are data inside `data`.
+  row's recorded _retrieval_ failure — eval errors are data inside `data`.
   Refreshing is `imperativeLogData.invalidateLogDetail`, never an imperative
   fetch. `useLogFetchState` reads the same row's retrieval facts.
 - `useDatabaseStats`.
@@ -122,7 +122,7 @@ Membership test: a verb belongs there iff a human or external event issues
 it; a verb another layer needs to run a mechanism is a mis-homed mechanism.
 The verbs: `invalidateLogDetail(logDir, logFile)` (user refresh / edit-save),
 `invalidateLogListing()` (external listing-freshness events), and `clearData()`
-(user-initiated local-data reset). There is no *initialize* verb — the
+(user-initiated local-data reset). There is no _initialize_ verb — the
 subsystem wires itself lazily on first activation, reading the api from
 app_config. Growing the `ImperativeLogData` interface is a design decision,
 not a convenience. (`syncLogs` and `fetchLog` stay in-subsystem as the
@@ -132,22 +132,22 @@ data and it stays current.
 
 **Interior** (sole consumers: each other):
 
-| Concern | What it is | Module |
-|---------|------------|--------|
-| Activation lifecycle | `ensureFetchEngine(logDir)` — open the per-dir database and start the engine, idempotent and coalesced. Runs on demand inside every acquisition entry point (`syncLogs`, `fetchLog`); an ensure for a new dir tears the old activation down. The **sole owner of activation truth** (engine started, `engineDir`, db handle) and of sync concurrency (a module-local trailing-coalesce serializes overlapping listing syncs; scheduling itself is react-query's). No mount/cleanup bracket anywhere; the api arrives via app_config's `getApi()` — no injected copy. | `log_data/replicationControl.ts` |
-| Poll mechanics | Enablement derivations (`shouldPollPendingSamples`, `shouldStreamRunningSample`), cadence (server refresh hint / fixed intervals), etag threading, tick counters, the client-events tick. Polling lifetime = subscriber lifetime; no imperative start/stop. | `log_data/pendingSamples.ts`, `log_data/runningSampleQuery.ts`, `log_data/useLogsSync.ts` |
-| Fetch engine | The item-level fetch mechanism: priority `WorkQueue`s, in-flight dedupe (per-item completion promises), read-through cache over the local database, batched sink writes. Framework-free and dependency-injected (`api`, `database`, sink) — unit-testable with fakes (`log_data/fetchEngine.test.ts`); never imports react-query or zustand. Producer-ignorant: it doesn't know who enqueues. | `log_data/fetchEngine.ts` (singleton) |
-| Local log database | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job). | inside the engine; instance in `log_data/databaseServiceInstance.ts` |
-| Discovery | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode. | `log_data/listingSync.ts` |
-| Engine status | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`. | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts` |
-| Sample queries | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useEvalSampleData`'s path-selection derivation (`deriveSampleData`). | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts` |
-| Sample fetch | Completed EvalSamples: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes. | `log_data/sampleFetch.ts` |
-| Sample streaming | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions. | `log_data/sampleStream.ts` |
+| Concern              | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Module                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Activation lifecycle | `ensureFetchEngine(logDir)` — open the per-dir database and start the engine, idempotent and coalesced. Runs on demand inside every acquisition entry point (`syncLogs`, `fetchLog`); an ensure for a new dir tears the old activation down. The **sole owner of activation truth** (engine started, `engineDir`, db handle) and of sync concurrency (a module-local trailing-coalesce serializes overlapping listing syncs; scheduling itself is react-query's). No mount/cleanup bracket anywhere; the api arrives via app_config's `getApi()` — no injected copy. | `log_data/replicationControl.ts`                                                          |
+| Poll mechanics       | Enablement derivations (`shouldPollPendingSamples`, `shouldStreamRunningSample`), cadence (server refresh hint / fixed intervals), etag threading, tick counters, the client-events tick. Polling lifetime = subscriber lifetime; no imperative start/stop.                                                                                                                                                                                                                                                                                                          | `log_data/pendingSamples.ts`, `log_data/runningSampleQuery.ts`, `log_data/useLogsSync.ts` |
+| Fetch engine         | The item-level fetch mechanism: priority `WorkQueue`s, in-flight dedupe (per-item completion promises), read-through cache over the local database, batched sink writes. Framework-free and dependency-injected (`api`, `database`, sink) — unit-testable with fakes (`log_data/fetchEngine.test.ts`); never imports react-query or zustand. Producer-ignorant: it doesn't know who enqueues.                                                                                                                                                                        | `log_data/fetchEngine.ts` (singleton)                                                     |
+| Local log database   | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job).                                                                                                                                                                                                                                                                                                         | inside the engine; instance in `log_data/databaseServiceInstance.ts`                      |
+| Discovery            | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode.                                                                                                                                    | `log_data/listingSync.ts`                                                                 |
+| Engine status        | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`.                                                                                                                                                                                                                                                                                   | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts`                           |
+| Sample queries       | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useEvalSampleData`'s path-selection derivation (`deriveSampleData`).                                                                                                                                                                                                                                                                                                  | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts`     |
+| Sample fetch         | Completed EvalSamples: `fetchSample` wraps `api.get_log_sample` plus `resolveSample` normalization (attachment/pool-ref expansion, legacy-shape migration). Framework-free, api-injected, unit-tested with fakes.                                                                                                                                                                                                                                                                                                                                                    | `log_data/sampleFetch.ts`                                                                 |
+| Sample streaming     | Per-sample streaming session over `api.get_log_sample_data`: cursors, message/call pools, event mapping, attachment + pool-ref resolution. `tick()` keeps the events-array identity stable across no-op ticks; `shouldFinalizeStreamingSample` / `hasSampleDataUpdates` are the finalize decisions.                                                                                                                                                                                                                                                                  | `log_data/sampleStream.ts`                                                                |
 
 ### Selected-log lifecycle
 
 Everything that follows from "the user is viewing this log" — thin
-*selection bindings*: read the UI selection from zustand, delegate to a
+_selection bindings_: read the UI selection from zustand, delegate to a
 param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
@@ -192,7 +192,7 @@ in `state/hooks.ts`), not in the slice.
   EvalSamples, running-sample streams, pending samples, flow, eval-set,
   versions; never in zustand. The log-list
   collections are fed by acquisition through its sink and read by the UI —
-  two-sided cache entries, so the *medium* belongs to neither. The accessor
+  two-sided cache entries, so the _medium_ belongs to neither. The accessor
   code over those entries (`log_data/logsContent.ts` — the sink implementation
   and the read hooks) lives in acquisition as its output port; consumers read
   the hooks off the barrel.
@@ -279,7 +279,7 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   selection. "The selected log is responsive" is the details query fetching at
   `user` priority, which front-runs queued background work in the same queue.
 - Freshness is engine policy: a cached completed log is served immediately and
-  refreshed in the background; a cached *running* log is never served stale.
+  refreshed in the background; a cached _running_ log is never served stale.
   On-demand refresh is query invalidation, which re-runs the same `fetch()`.
 
 ## Boundaries (outside acquisition, by design)

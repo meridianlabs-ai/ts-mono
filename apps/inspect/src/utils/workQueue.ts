@@ -8,8 +8,7 @@ export enum WorkPriority {
 }
 
 export type WorkResult<TOutput> =
-  | { ok: true; value: TOutput }
-  | { ok: false; error: Error };
+  { ok: true; value: TOutput } | { ok: false; error: Error };
 
 interface WorkItem<T> {
   id: string;

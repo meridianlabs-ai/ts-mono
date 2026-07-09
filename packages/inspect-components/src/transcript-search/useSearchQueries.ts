@@ -93,9 +93,7 @@ export const useCachedSearchResult = ({
       searchId,
     }),
     queryFn:
-      api && searchId
-        ? () => api.getCachedResult(searchId, scope)
-        : skipToken,
+      api && searchId ? () => api.getCachedResult(searchId, scope) : skipToken,
     staleTime: Infinity,
   });
 };

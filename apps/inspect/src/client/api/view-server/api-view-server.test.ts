@@ -142,8 +142,8 @@ describe("viewServerApi.get_eval_set", () => {
     } as unknown as Response);
 
   test("sends no dir param at the listing root", async () => {
-    const fetchMock = vi.fn(
-      (_input: RequestInfo | URL, _init?: RequestInit) => okJson()
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      okJson()
     );
     globalThis.fetch = fetchMock;
 
@@ -157,8 +157,8 @@ describe("viewServerApi.get_eval_set", () => {
   });
 
   test("sends the subdir as dir alongside the configured log_dir", async () => {
-    const fetchMock = vi.fn(
-      (_input: RequestInfo | URL, _init?: RequestInit) => okJson()
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      okJson()
     );
     globalThis.fetch = fetchMock;
 

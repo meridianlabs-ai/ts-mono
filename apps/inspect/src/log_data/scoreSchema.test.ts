@@ -31,12 +31,14 @@ const details = (
 
 describe("computeScorerMap", () => {
   it("collects one entry per (scorer, metric) pair across logs", () => {
-    const map = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.5 } }]),
-      "/dir/b.eval": details([
-        { name: "model_graded", metrics: { accuracy: 0.7, stderr: 0.1 } },
-      ]),
-    }));
+    const map = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.5 } }]),
+        "/dir/b.eval": details([
+          { name: "model_graded", metrics: { accuracy: 0.7, stderr: 0.1 } },
+        ]),
+      })
+    );
     expect(map).toEqual({
       "match/accuracy": {
         scorerName: "match",
@@ -70,21 +72,27 @@ describe("computeScorerMap", () => {
   });
 
   it("skips logs without score results", () => {
-    const map = computeScorerMap(fromMap({
-      "/dir/a.eval": { sampleSummaries: [] } as unknown as LogHeader,
-    }));
+    const map = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": { sampleSummaries: [] } as unknown as LogHeader,
+      })
+    );
     expect(map).toEqual({});
   });
 });
 
 describe("scorerMapsEqual", () => {
   it("treats content-equal maps with distinct identities as equal", () => {
-    const a = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.5 } }]),
-    }));
-    const b = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.9 } }]),
-    }));
+    const a = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.5 } }]),
+      })
+    );
+    const b = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 0.9 } }]),
+      })
+    );
     expect(a).not.toBe(b);
     expect(scorerMapsEqual(a, b)).toBe(true);
   });
@@ -94,37 +102,49 @@ describe("scorerMapsEqual", () => {
   });
 
   it("detects an added (scorer, metric) pair", () => {
-    const a = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 1 } }]),
-    }));
-    const b = computeScorerMap(fromMap({
-      "/dir/a.eval": details([
-        { name: "match", metrics: { accuracy: 1, stderr: 0 } },
-      ]),
-    }));
+    const a = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { accuracy: 1 } }]),
+      })
+    );
+    const b = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([
+          { name: "match", metrics: { accuracy: 1, stderr: 0 } },
+        ]),
+      })
+    );
     expect(scorerMapsEqual(a, b)).toBe(false);
     expect(scorerMapsEqual(b, a)).toBe(false);
   });
 
   it("detects a changed value type for the same pair", () => {
-    const a = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { grade: 1 } }]),
-    }));
-    const b = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "match", metrics: { grade: "I" } }]),
-    }));
+    const a = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { grade: 1 } }]),
+      })
+    );
+    const b = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "match", metrics: { grade: "I" } }]),
+      })
+    );
     expect(scorerMapsEqual(a, b)).toBe(false);
   });
 
   it("ignores key insertion order", () => {
-    const a = computeScorerMap(fromMap({
-      "/dir/a.eval": details([{ name: "one", metrics: { accuracy: 1 } }]),
-      "/dir/b.eval": details([{ name: "two", metrics: { accuracy: 1 } }]),
-    }));
-    const b = computeScorerMap(fromMap({
-      "/dir/b.eval": details([{ name: "two", metrics: { accuracy: 1 } }]),
-      "/dir/a.eval": details([{ name: "one", metrics: { accuracy: 1 } }]),
-    }));
+    const a = computeScorerMap(
+      fromMap({
+        "/dir/a.eval": details([{ name: "one", metrics: { accuracy: 1 } }]),
+        "/dir/b.eval": details([{ name: "two", metrics: { accuracy: 1 } }]),
+      })
+    );
+    const b = computeScorerMap(
+      fromMap({
+        "/dir/b.eval": details([{ name: "two", metrics: { accuracy: 1 } }]),
+        "/dir/a.eval": details([{ name: "one", metrics: { accuracy: 1 } }]),
+      })
+    );
     expect(scorerMapsEqual(a, b)).toBe(true);
   });
 });

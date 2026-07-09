@@ -393,8 +393,7 @@ export const useSelectedEvalSampleData = (): EvalSampleData => {
  * hook.
  */
 export const useSelectedSampleInvalidation = ():
-  | EvalSample["invalidation"]
-  | undefined =>
+  EvalSample["invalidation"] | undefined =>
   usePassiveEvalSampleData(
     useLogDir(),
     useStore((state) => state.log.selectedSampleHandle)

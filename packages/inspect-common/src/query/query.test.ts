@@ -130,9 +130,9 @@ describe("Logical combinators", () => {
   });
 
   it("or combines conditions", () => {
-    expect(col("model").eq("error").or(col("score").gt(3)).toJSON().operator).toBe(
-      "OR"
-    );
+    expect(
+      col("model").eq("error").or(col("score").gt(3)).toJSON().operator
+    ).toBe("OR");
   });
 
   it("not negates condition", () => {
@@ -152,7 +152,12 @@ describe("JSON serialization", () => {
     expect(parsed.filter).toEqual({
       is_compound: true,
       operator: "AND",
-      left: { is_compound: false, left: "model", operator: "=", right: "gpt-4" },
+      left: {
+        is_compound: false,
+        left: "model",
+        operator: "=",
+        right: "gpt-4",
+      },
       right: { is_compound: false, left: "score", operator: ">", right: 0.8 },
     });
   });

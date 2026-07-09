@@ -14,7 +14,10 @@ import { formatDataset } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
-import { useEvalDescriptor, useSelectedSampleInvalidation } from "../../../state/hooks";
+import {
+  useEvalDescriptor,
+  useSelectedSampleInvalidation,
+} from "../../../state/hooks";
 import {
   formatDateTime,
   formatDuration,

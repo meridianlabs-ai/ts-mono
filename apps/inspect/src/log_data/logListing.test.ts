@@ -4,9 +4,7 @@ import { Log } from "../client/api/types";
 
 import { computeLogsWithRetried } from "./logListing";
 
-const log = (
-  overrides: Partial<Log> & Pick<Log, "name">
-): Log => ({
+const log = (overrides: Partial<Log> & Pick<Log, "name">): Log => ({
   task: null,
   task_id: null,
   mtime: null,
@@ -227,4 +225,3 @@ describe("computeLogsWithRetried", () => {
     expect(result.map((r) => r.name)).toEqual(logs.map((l) => l.name));
   });
 });
-

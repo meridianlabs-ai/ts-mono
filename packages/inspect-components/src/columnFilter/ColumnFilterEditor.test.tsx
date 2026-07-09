@@ -73,10 +73,14 @@ describe("ColumnFilterEditor", () => {
         condition={condition({ operator: "=" })}
       />
     );
-    expect(screen.getByRole("combobox", { name: "Filter operator" })).not.toBeNull();
+    expect(
+      screen.getByRole("combobox", { name: "Filter operator" })
+    ).not.toBeNull();
     // number filter renders a spinbutton value input, named directly since it
     // has no visible label.
-    expect(screen.getByRole("spinbutton", { name: "Filter value" })).not.toBeNull();
+    expect(
+      screen.getByRole("spinbutton", { name: "Filter value" })
+    ).not.toBeNull();
   });
 
   it("names range value inputs via the visible Start/End labels", () => {
