@@ -58,8 +58,18 @@ describe("DataGrid keep-selected-visible scrolling", () => {
     expect(baseline).toBeGreaterThan(0); // scrolled to the initial selection
 
     // Live-poll tick: same content, new array identity.
-    rerender(gridWith(rows.map((r) => ({ ...r })), "r2"));
-    rerender(gridWith(rows.map((r) => ({ ...r })), "r2"));
+    rerender(
+      gridWith(
+        rows.map((r) => ({ ...r })),
+        "r2"
+      )
+    );
+    rerender(
+      gridWith(
+        rows.map((r) => ({ ...r })),
+        "r2"
+      )
+    );
 
     expect(scrollTo.mock.calls.length).toBe(baseline);
   });
@@ -83,7 +93,12 @@ describe("DataGrid keep-selected-visible scrolling", () => {
     expect(afterArrival).toBeGreaterThan(baseline);
 
     // Subsequent data ticks don't re-scroll.
-    rerender(gridWith(withR4.map((r) => ({ ...r })), "r4"));
+    rerender(
+      gridWith(
+        withR4.map((r) => ({ ...r })),
+        "r4"
+      )
+    );
     expect(scrollTo.mock.calls.length).toBe(afterArrival);
   });
 
