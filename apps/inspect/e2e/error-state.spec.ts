@@ -104,8 +104,12 @@ test.describe("Server error state", () => {
       .locator("> div");
     await expect(activityBarChild).toBeVisible({ timeout: 5_000 });
 
-    // Grid loading overlay should be visible while loading=1
-    await expect(page.getByText("Loading")).toBeVisible();
+    // Grid loading overlay should be visible while loading=1. Exclude the
+    // grid's visually-hidden aria-live status, which also announces "Loading…"
+    // (and still has a bounding box, so Playwright deems it visible).
+    await expect(
+      page.getByText("Loading").and(page.locator(":not([role='status'])"))
+    ).toBeVisible();
 
     // After the delayed 500 resolves the error panel must appear
     await expect(page.locator("[data-testid='error-panel']")).toBeVisible({
