@@ -139,9 +139,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
     // If editedConfig is null (initial load or after reload), initialize
     if (!editedConfig) {
-      const initialized = initializeEditedConfig(
-        data.config as ProjectConfigInput
-      );
+      const initialized = initializeEditedConfig(data.config);
       // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
       /* eslint-disable react-hooks/set-state-in-effect */
       setEditedConfig(initialized);
@@ -159,9 +157,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     // Etag changed unexpectedly - reinitialize
     // (With current flow this shouldn't happen since external changes
     // are detected via 412 on save, but handle it just in case)
-    const initialized = initializeEditedConfig(
-      data.config as ProjectConfigInput
-    );
+    const initialized = initializeEditedConfig(data.config);
     setEditedConfig(initialized);
     setOriginalConfig(deepCopy(initialized));
     lastSavedEtagRef.current = data.etag;
@@ -193,7 +189,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       const updatedConfig = computeConfigToSave(
         editedConfig,
         originalConfig,
-        data.config as ProjectConfigInput
+        data.config
       );
 
       mutation.mutate(
@@ -236,7 +232,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     const updatedConfig = computeConfigToSave(
       editedConfig,
       originalConfig,
-      data.config as ProjectConfigInput
+      data.config
     );
 
     mutation.mutate(
@@ -275,7 +271,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     const updatedConfig = computeConfigToSave(
       editedConfig,
       originalConfig,
-      data.config as ProjectConfigInput
+      data.config
     );
 
     mutation.mutate(
