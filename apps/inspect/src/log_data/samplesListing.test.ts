@@ -7,7 +7,7 @@ import { LogDetails, SampleSummary } from "../client/api/types";
 import { createDatabaseService, DatabaseService } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
-import { clearFile, writeDetails } from "./logsContent";
+import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
 import { useSamplesListing } from "./samplesListing";
 
 // The module-under-test reads Dexie through the shared instance; route it to
@@ -208,6 +208,35 @@ describe("useSamplesListing", () => {
     );
     await waitFor(() => expect(result.current.data).toHaveLength(1));
     expect(result.current.data?.[0]?.logFile).toBe(FILE_B);
+  });
+
+  it("a query that settled empty before the db opened refetches when the session seeds (warm boot at /#/samples)", async () => {
+    // Prior session's cache.
+    await writeDetails(db, LOG_DIR, {
+      [FILE_A]: payload(FILE_A, "success", [summary("s1"), summary("s2")]),
+    });
+    queryClient.clear();
+
+    // Boot race: the samples listing mounts while openDatabase is still in
+    // flight, so the read sees an unopened service and settles empty
+    // (staleTime: Infinity — it will never refetch on its own).
+    const unopened = createDatabaseService();
+    holder.service = unopened;
+    const { result } = renderHook(
+      () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data ?? []).toHaveLength(0);
+
+    // Activation completes: the db is open and the engine seeds the session
+    // (FetchEngine.start → sink.seedRows). A warm no-change boot performs no
+    // writes after this, so seeding itself must refresh the listing.
+    holder.service = db;
+    const rows = await db.readLogs();
+    createLogsContentSink(db, LOG_DIR).seedRows(rows ?? []);
+
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
   });
 
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {

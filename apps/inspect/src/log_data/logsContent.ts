@@ -361,7 +361,14 @@ export const createLogsContentSink = (
   db: DatabaseService | null,
   logDir: string
 ): LogsContentSink => ({
-  seedRows: (rows) => setRows(logDir, rows),
+  seedRows: (rows) => {
+    setRows(logDir, rows);
+    // A warm session coming online must refresh samples listings: a listing
+    // query mounted before the db opened settled empty (staleTime: Infinity)
+    // and a no-change boot performs none of the writes that would otherwise
+    // invalidate it — so /#/samples as the entry route stayed blank.
+    invalidateSamplesListings(logDir);
+  },
   setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),
   writeListing: (handles) => writeListing(db, logDir, handles),
