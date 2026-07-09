@@ -59,7 +59,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const logDir = useLogDir();
   const listing = useLogListing(logDir);
   const logFiles = listing.data ?? kNoListingRows;
-  const { gridStateByScope, setGridState } = useLogsListing();
+  const { gridStateByScope, patchGridState } = useLogsListing();
 
   const navigate = useNavigate();
 
@@ -279,15 +279,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const hasFilter = filteredFields.length > 0;
 
   const handleResetFilters = useCallback(() => {
-    if (!scopeKey) return;
-    const entry = gridStateByScope[scopeKey];
-    setGridState(scopeKey, {
-      sorting: entry?.sorting ?? [],
-      columnFilters: {},
-      columnSizing: entry?.columnSizing,
-      columnOrder: entry?.columnOrder,
-    });
-  }, [scopeKey, gridStateByScope, setGridState]);
+    if (scopeKey) patchGridState(scopeKey, { columnFilters: {} });
+  }, [scopeKey, patchGridState]);
 
   // The popover only sees `pickerColumns` (the active view mode), so the
   // visibility map it emits is scoped to those fields. Merge it into the full
@@ -297,8 +290,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (newVisibility: Record<string, boolean>) => {
       const merged = { ...currentColumnVisibility, ...newVisibility };
       if (scopeKey) {
-        const entry = gridStateByScope[scopeKey];
-        const cf = entry?.columnFilters;
+        const cf = gridStateByScope[scopeKey]?.columnFilters;
         if (cf) {
           const next = { ...cf };
           let changed = false;
@@ -308,14 +300,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               changed = true;
             }
           }
-          if (changed) {
-            setGridState(scopeKey, {
-              sorting: entry?.sorting ?? [],
-              columnFilters: next,
-              columnSizing: entry?.columnSizing,
-              columnOrder: entry?.columnOrder,
-            });
-          }
+          if (changed) patchGridState(scopeKey, { columnFilters: next });
         }
       }
       setColumnVisibility(merged);
@@ -325,7 +310,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       setColumnVisibility,
       scopeKey,
       gridStateByScope,
-      setGridState,
+      patchGridState,
     ]
   );
 

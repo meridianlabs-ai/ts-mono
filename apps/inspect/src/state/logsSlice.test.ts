@@ -19,6 +19,56 @@ const createHarness = () => {
   return { state };
 };
 
+describe("logsSlice.patchLogsGridState", () => {
+  test("creates a missing scope entry with an empty sort", () => {
+    const { state } = createHarness();
+
+    state.logsActions.patchLogsGridState("logs::/dir", {
+      columnSizing: { task: 200 },
+    });
+
+    expect(state.logs.listing.gridStateByScope["logs::/dir"]).toEqual({
+      sorting: [],
+      columnSizing: { task: 200 },
+    });
+  });
+
+  test("merges without clobbering fields the patch omits", () => {
+    const { state } = createHarness();
+
+    state.logsActions.patchLogsGridState("logs::/dir", {
+      selectedRowId: "row-7",
+      sorting: [{ id: "task", desc: false }],
+    });
+    // Reset Filters writes only columnFilters — the selection and sort
+    // must survive (regression: the old whole-entry setter dropped them).
+    state.logsActions.patchLogsGridState("logs::/dir", { columnFilters: {} });
+
+    const entry = state.logs.listing.gridStateByScope["logs::/dir"];
+    expect(entry?.selectedRowId).toBe("row-7");
+    expect(entry?.sorting).toEqual([{ id: "task", desc: false }]);
+    expect(entry?.columnFilters).toEqual({});
+  });
+
+  test("scopes stay independent", () => {
+    const { state } = createHarness();
+
+    state.logsActions.patchLogsGridState("logs::/a", {
+      selectedRowId: "row-1",
+    });
+    state.logsActions.patchLogsGridState("logs::/b", {
+      selectedRowId: "row-2",
+    });
+
+    expect(state.logs.listing.gridStateByScope["logs::/a"]?.selectedRowId).toBe(
+      "row-1"
+    );
+    expect(state.logs.listing.gridStateByScope["logs::/b"]?.selectedRowId).toBe(
+      "row-2"
+    );
+  });
+});
+
 describe("logsSlice.patchSamplesGridState", () => {
   test("merges partial updates without clobbering other fields", () => {
     const { state } = createHarness();

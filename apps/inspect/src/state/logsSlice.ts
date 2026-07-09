@@ -16,7 +16,14 @@ export interface LogsSlice {
 
     setSelectedRowIndex: (index: number | null) => void;
 
-    setLogsGridState: (scope: string, gridState: LogListGridState) => void;
+    /** Merge a partial grid-state update into the scope entry (created with
+     *  an empty sort if missing). Merging (not replacing) means a write from
+     *  one callback's snapshot can't clobber fields it didn't change —
+     *  e.g. clearing filters must not drop the persisted row selection. */
+    patchLogsGridState: (
+      scope: string,
+      partial: Partial<LogListGridState>
+    ) => void;
     clearLogsGridState: (scope?: string) => void;
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
@@ -125,9 +132,20 @@ export const createLogsSlice = (
           state.logs.listing.selectedRowIndex = index;
         });
       },
-      setLogsGridState: (scope: string, gridState: LogListGridState) => {
+      patchLogsGridState: (
+        scope: string,
+        partial: Partial<LogListGridState>
+      ) => {
         set((state) => {
-          state.logs.listing.gridStateByScope[scope] = gridState;
+          const entry = state.logs.listing.gridStateByScope[scope];
+          if (entry) {
+            Object.assign(entry, partial);
+          } else {
+            state.logs.listing.gridStateByScope[scope] = {
+              sorting: [],
+              ...partial,
+            };
+          }
         });
       },
       clearLogsGridState: (scope?: string) => {

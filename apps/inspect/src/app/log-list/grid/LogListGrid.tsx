@@ -67,7 +67,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   mode = "logs",
   busy,
 }) => {
-  const { gridStateByScope, setGridState } = useLogsListing();
+  const { gridStateByScope, patchGridState } = useLogsListing();
 
   const navigate = useNavigate();
 
@@ -115,23 +115,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleSortingChange = useCallback(
     (next: SortingState) => {
-      if (scopeKey)
-        setGridState(scopeKey, {
-          sorting: next,
-          columnFilters,
-          columnSizing,
-          columnOrder,
-          selectedRowId: persistedSelectedId,
-        });
+      if (scopeKey) patchGridState(scopeKey, { sorting: next });
     },
-    [
-      scopeKey,
-      setGridState,
-      columnFilters,
-      columnSizing,
-      columnOrder,
-      persistedSelectedId,
-    ]
+    [scopeKey, patchGridState]
   );
 
   const handleColumnFilterChange = useCallback(
@@ -143,79 +129,30 @@ export const LogListGrid: FC<LogListGridProps> = ({
       } else {
         next[columnId] = { columnId, filterType, spec };
       }
-      setGridState(scopeKey, {
-        sorting,
-        columnFilters: next,
-        columnSizing,
-        columnOrder,
-        selectedRowId: persistedSelectedId,
-      });
+      patchGridState(scopeKey, { columnFilters: next });
     },
-    [
-      scopeKey,
-      setGridState,
-      sorting,
-      columnFilters,
-      columnSizing,
-      columnOrder,
-      persistedSelectedId,
-    ]
+    [scopeKey, patchGridState, columnFilters]
   );
 
   const handleColumnSizingChange = useCallback(
     (next: Record<string, number>) => {
-      if (scopeKey)
-        setGridState(scopeKey, {
-          sorting,
-          columnFilters,
-          columnSizing: next,
-          columnOrder,
-          selectedRowId: persistedSelectedId,
-        });
+      if (scopeKey) patchGridState(scopeKey, { columnSizing: next });
     },
-    [
-      scopeKey,
-      setGridState,
-      sorting,
-      columnFilters,
-      columnOrder,
-      persistedSelectedId,
-    ]
+    [scopeKey, patchGridState]
   );
 
   const handleColumnOrderChange = useCallback(
     (next: string[]) => {
-      if (scopeKey)
-        setGridState(scopeKey, {
-          sorting,
-          columnFilters,
-          columnSizing,
-          columnOrder: next,
-          selectedRowId: persistedSelectedId,
-        });
+      if (scopeKey) patchGridState(scopeKey, { columnOrder: next });
     },
-    [
-      scopeKey,
-      setGridState,
-      sorting,
-      columnFilters,
-      columnSizing,
-      persistedSelectedId,
-    ]
+    [scopeKey, patchGridState]
   );
 
   const persistSelectedId = useCallback(
     (id: string | undefined) => {
-      if (scopeKey)
-        setGridState(scopeKey, {
-          sorting,
-          columnFilters,
-          columnSizing,
-          columnOrder,
-          selectedRowId: id,
-        });
+      if (scopeKey) patchGridState(scopeKey, { selectedRowId: id });
     },
-    [scopeKey, setGridState, sorting, columnFilters, columnSizing, columnOrder]
+    [scopeKey, patchGridState]
   );
 
   const handleSelectedRowChange = useCallback(

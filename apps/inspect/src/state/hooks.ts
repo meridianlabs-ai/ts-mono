@@ -545,14 +545,16 @@ export const useLogsListing = () => {
   const gridStateByScope = useStore(
     (state) => state.logs.listing.gridStateByScope
   );
-  const setGridState = useStore((state) => state.logsActions.setLogsGridState);
+  const patchGridState = useStore(
+    (state) => state.logsActions.patchLogsGridState
+  );
   const clearGridState = useStore(
     (state) => state.logsActions.clearLogsGridState
   );
 
   return {
     gridStateByScope,
-    setGridState,
+    patchGridState,
     clearGridState,
   };
 };
