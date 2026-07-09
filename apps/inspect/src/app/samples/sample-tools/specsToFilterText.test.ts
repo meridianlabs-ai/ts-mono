@@ -178,6 +178,20 @@ describe("specsToFilterText", () => {
     ).toBe("(tokens > 100 and tokens < 500)");
   });
 
+  it("between in a pair keeps its own parenthesized group", () => {
+    expect(
+      toText({
+        tokens: {
+          operator: "between",
+          value: "100",
+          value2: "500",
+          join: "or",
+          second: { operator: "=", value: "900" },
+        },
+      })
+    ).toBe("((tokens >= 100 and tokens <= 500) or tokens == 900)");
+  });
+
   it("OR pair synthesizes as a parenthesized disjunction", () => {
     expect(
       toText({

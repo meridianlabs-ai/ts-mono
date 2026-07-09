@@ -35,6 +35,7 @@
    - Recognition: (a) a top-level-conjunction leaf that is a binary `or` whose two sides each recognize as conditions on the SAME column → OR pair (different columns → null, cross-column OR stays expression-only); (b) two AND predicates on one column → `between`-fold when they're the `>=`/`<=` pair (unchanged, keeps round-trip stability), otherwise an AND pair (was: null); (c) any column accumulating more than 2 conditions, or an OR-pair leaf plus anything else on that column → null.
    - `samplesOperatorsForKind` unchanged.
 6. **Accepted asymmetry (main parity)**: a pair whose member is a `between` synthesizes fine (`((v >= a and v <= b) and v > c)`) but does NOT recognize back (AND-flattening yields 3 predicates → null → funnels gate off; the string still filters). Main had the identical asymmetry with AG inRange inside combined filters. Not worth the combinatorial fold.
+   - **SUPERSEDED**: the popover offers `between` in pairs, so the asymmetry made a just-applied filter vanish into expression-only mode. Fixed without a combinatorial fold: `astToSpecs` treats the synthesizer's parenthesized between group (`(v >= a and v <= b)`, one variable) as a single leaf — it never flattens, and pair recognition sees it as one condition.
 7. **Negated pairs** (`not (a or b)`) stay expression-only (null), as on main.
 
 ## File structure

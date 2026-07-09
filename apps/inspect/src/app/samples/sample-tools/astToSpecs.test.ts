@@ -262,6 +262,63 @@ describe("astToSpecs / parseFilterSpecs — condition pairs", () => {
     });
   });
 
+  it("between as the first condition of an OR pair", () => {
+    expect(
+      toSpecs("((tokens >= 100 and tokens <= 500) or tokens == 900)")
+    ).toEqual({
+      tokens: entry("tokens", {
+        operator: "between",
+        value: "100",
+        value2: "500",
+        join: "or",
+        second: { operator: "=", value: "900" },
+      }),
+    });
+  });
+
+  it("between as the first condition of an AND pair", () => {
+    expect(
+      toSpecs("((tokens >= 100 and tokens <= 500) and tokens == 900)")
+    ).toEqual({
+      tokens: entry("tokens", {
+        operator: "between",
+        value: "100",
+        value2: "500",
+        join: "and",
+        second: { operator: "=", value: "900" },
+      }),
+    });
+  });
+
+  it("between as the second condition of a pair", () => {
+    expect(
+      toSpecs("(tokens == 900 or (tokens >= 100 and tokens <= 500))")
+    ).toEqual({
+      tokens: entry("tokens", {
+        operator: "=",
+        value: "900",
+        join: "or",
+        second: { operator: "between", value: "100", value2: "500" },
+      }),
+    });
+  });
+
+  it("a pair of two betweens", () => {
+    expect(
+      toSpecs(
+        "((tokens >= 1 and tokens <= 5) or (tokens >= 80 and tokens <= 90))"
+      )
+    ).toEqual({
+      tokens: entry("tokens", {
+        operator: "between",
+        value: "1",
+        value2: "5",
+        join: "or",
+        second: { operator: "between", value: "80", value2: "90" },
+      }),
+    });
+  });
+
   it("same-column OR produces an OR pair", () => {
     expect(toSpecs("epoch == 1 or epoch == 3")).toEqual({
       epoch: entry("epoch", {
@@ -297,8 +354,20 @@ describe("astToSpecs / parseFilterSpecs — condition pairs", () => {
     expect(toSpecs("tokens > 1 and tokens > 2 and tokens > 3")).toBeNull();
   });
 
-  it("a between folded inside a larger AND pair is rejected (plan decision 6)", () => {
-    expect(toSpecs("(tokens >= 1 and tokens <= 5) and tokens > 2")).toBeNull();
+  it("a between grouped inside a larger AND recognizes as a pair (supersedes plan decision 6)", () => {
+    // Decision 6 accepted this as unrepresentable, but the popover offers
+    // `between` in pairs — so a user-built filter must round-trip instead of
+    // dropping to expression-only right after Apply. The parenthesized
+    // between group is a single leaf, not three flattened predicates.
+    expect(toSpecs("(tokens >= 1 and tokens <= 5) and tokens > 2")).toEqual({
+      tokens: entry("tokens", {
+        operator: "between",
+        value: "1",
+        value2: "5",
+        join: "and",
+        second: { operator: ">", value: "2" },
+      }),
+    });
   });
 
   it("OR pair via xxx_contains() on both sides", () => {
@@ -402,6 +471,15 @@ describe("astToSpecs — round-trip stability (text → specs → text)", () => 
     expect(roundTrip('target ~= "foo\\\\\\\\$"')).toBe(
       'target ~= "foo\\\\\\\\$"'
     );
+  });
+
+  it("between inside a pair round-trips through its parenthesized form", () => {
+    expect(
+      roundTrip("((tokens >= 100 and tokens <= 500) or tokens == 900)")
+    ).toBe("((tokens >= 100 and tokens <= 500) or tokens == 900)");
+    expect(
+      roundTrip("((tokens >= 100 and tokens <= 500) and tokens == 900)")
+    ).toBe("((tokens >= 100 and tokens <= 500) and tokens == 900)");
   });
 
   it("filter values with ^ and ] survive", () => {

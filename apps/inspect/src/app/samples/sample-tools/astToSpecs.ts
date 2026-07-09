@@ -21,9 +21,34 @@ const REGEX_META = ".*+?^${}()|[]\\";
 // and must stay unrecognized).
 const META_FOR_CLASS = ".*+?${}()|[";
 
-/** Walk top-level `and` nodes, collecting leaf predicates. */
+/** Match the between shape the synthesizer emits — `(var >= a and var <= b)`
+ *  on one variable (either comparison order). Recognized as a single leaf so
+ *  a between inside an AND/OR condition pair doesn't flatten into three
+ *  same-column predicates (unrepresentable) or break the pair recognizer
+ *  (whose sides must be single predicates). */
+const andAsBetween = (
+  ast: FilterAst
+): { varName: string; low: number; high: number } | null => {
+  if (ast.kind !== "binary" || ast.op !== "and") return null;
+  const bound = (node: FilterAst) =>
+    node.kind === "binary" &&
+    (node.op === ">=" || node.op === "<=") &&
+    node.left.kind === "var" &&
+    node.right.kind === "num"
+      ? { op: node.op, name: node.left.name, value: node.right.value }
+      : null;
+  const a = bound(ast.left);
+  const b = bound(ast.right);
+  if (!a || !b || a.name !== b.name || a.op === b.op) return null;
+  const low = a.op === ">=" ? a.value : b.value;
+  const high = a.op === "<=" ? a.value : b.value;
+  return { varName: a.name, low, high };
+};
+
+/** Walk top-level `and` nodes, collecting leaf predicates. A between-shaped
+ *  `and` is a leaf, not a conjunction to descend into. */
 const collectAndPredicates = (ast: FilterAst): FilterAst[] => {
-  if (ast.kind === "binary" && ast.op === "and") {
+  if (ast.kind === "binary" && ast.op === "and" && !andAsBetween(ast)) {
     return [
       ...collectAndPredicates(ast.left),
       ...collectAndPredicates(ast.right),
@@ -250,7 +275,27 @@ const predicateToSpecInner = (
     return orToPairSpec(ast, registry);
   }
 
-  // 3. var BINARY_OP literal
+  // 3. (var >= a and var <= b) -> between (the synthesizer's between form,
+  //    surfaced as a leaf by collectAndPredicates and pair recognition)
+  if (ast.kind === "binary" && ast.op === "and") {
+    const between = andAsBetween(ast);
+    if (!between) return null;
+    const colId = registry.byVariable.get(between.varName);
+    if (!colId) return null;
+    const mapping = registry.byColId.get(colId);
+    if (!mapping || mapping.kind !== "number") return null;
+    return {
+      colId,
+      kind: mapping.kind,
+      spec: {
+        operator: "between",
+        value: String(between.low),
+        value2: String(between.high),
+      },
+    };
+  }
+
+  // 4. var BINARY_OP literal
   if (ast.kind === "binary") {
     return binaryToSpec(ast, registry);
   }
