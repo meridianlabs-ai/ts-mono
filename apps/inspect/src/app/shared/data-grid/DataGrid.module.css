@@ -358,6 +358,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px !important;
+  /* Re-enable text selection the row-level `user-select: none` suppresses, so
+   * cell contents can be selected and copied (parity with the AG grids'
+   * `enableCellTextSelection`). A click-drag selects text without firing the
+   * row's click handler, so this doesn't interfere with row activation. */
+  user-select: text;
 }
 
 /* Truncate a cell's content with an ellipsis (parity with the AG grid, whose
