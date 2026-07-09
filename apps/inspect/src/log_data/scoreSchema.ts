@@ -29,8 +29,9 @@ export type ScorerMap = Record<string, ScorerMetricInfo>;
  * Build a stable, unique column key for a (scorer, metric) pair. The reducer
  * is intentionally omitted so the same logical metric is one column regardless
  * of whether the log recorded `reducer=null` (default, silently mean) or
- * `reducer="mean"` (explicit). "/" is used as separator because ag-grid treats
- * "." in `field` as nested-object access.
+ * `reducer="mean"` (explicit). "/" is used as separator ("." meant
+ * nested-object access to the original AG grid; the format persists in
+ * stored views, so it stays).
  */
 export const scorerMetricKey = (
   scorerName: string,

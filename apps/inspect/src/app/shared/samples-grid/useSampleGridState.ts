@@ -1,9 +1,8 @@
-import type { ColDef } from "ag-grid-community";
 import { useCallback, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
 import type { SamplesPanelGridState } from "../../types";
-import { getFieldKey } from "../gridUtils";
+import { getFieldKey, type PickerColumn } from "../gridUtils";
 
 interface UseSampleGridStateResult extends SamplesPanelGridState {
   columnVisibility: Record<string, boolean>;
@@ -25,11 +24,11 @@ interface UseSampleGridStateResult extends SamplesPanelGridState {
  * The per-task SampleList scope (`logViewSamples`) flows through
  * `useSamplesView` instead — see `apps/inspect/src/app/samples/list/`.
  */
-export function useSampleGridState<TRow>(
+export function useSampleGridState(
   scope: "samplesPanel",
-  allColumns: ColDef<TRow>[],
+  allColumns: PickerColumn[],
   options?: {
-    defaultsForUnseededColumns?: (col: ColDef<TRow>) => boolean;
+    defaultsForUnseededColumns?: (col: PickerColumn) => boolean;
   }
 ): UseSampleGridStateResult {
   const { defaultsForUnseededColumns } = options ?? {};
