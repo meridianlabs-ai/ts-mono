@@ -1,16 +1,35 @@
-// Re-export from generated types (they're in components.schemas)
-import type { components } from "../types/generated";
-
 /** SQL comparison operators. */
-export type OperatorModel = components["schemas"]["Operator"];
+export type OperatorModel =
+  | "="
+  | "!="
+  | "<"
+  | "<="
+  | ">"
+  | ">="
+  | "IN"
+  | "NOT IN"
+  | "LIKE"
+  | "NOT LIKE"
+  | "ILIKE"
+  | "NOT ILIKE"
+  | "IS NULL"
+  | "IS NOT NULL"
+  | "BETWEEN"
+  | "NOT BETWEEN";
 
 /** Logical operators for combining conditions. */
-export type LogicalOperatorModel = components["schemas"]["LogicalOperator"];
+export type LogicalOperatorModel = "AND" | "OR" | "NOT";
 
-/** JSON representation of a Condition (matches Python Pydantic schema). */
-export type ConditionModel = components["schemas"]["Condition"];
+/** JSON representation of a Condition (produced by `toJSON()`). */
+export interface ConditionModel {
+  is_compound: boolean;
+  left?: string | ConditionModel | null;
+  operator?: OperatorModel | LogicalOperatorModel | null;
+  right?:
+    ConditionModel | ScalarValue[] | [ScalarValue, ScalarValue] | ScalarValue;
+}
 
-/** Scalar values that can be used in conditions (matching Python). */
+/** Scalar values that can be used in conditions. */
 export type ScalarValue = string | number | boolean | null;
 
 /**
@@ -90,8 +109,15 @@ export const isScalarArray = (val: unknown): val is ScalarValue[] =>
 export const isTuple = (val: unknown): val is [ScalarValue, ScalarValue] =>
   Array.isArray(val) && val.length === 2;
 
-/** Sort column specification for ORDER BY clauses (matches Python Pydantic schema). */
-export type OrderByModel = components["schemas"]["OrderBy"];
+/** Sort column specification for ORDER BY clauses. */
+export interface OrderByModel {
+  column: string;
+  direction: "ASC" | "DESC";
+}
 
-/** Cursor-based pagination (matches Python Pydantic schema). */
-export type Pagination = components["schemas"]["Pagination"];
+/** Cursor-based pagination. */
+export interface Pagination {
+  cursor?: Record<string, unknown> | null;
+  direction: "forward" | "backward";
+  limit: number;
+}

@@ -2,9 +2,8 @@
  * Query builder for constructing filter conditions and order-by clauses.
  *
  * Builds `Condition`s that serialize automatically via `JSON.stringify()`
- * (`.toJSON()`), matching the Python Pydantic schema that flows through
- * codegen into the generated types. Shared between inspect and (eventually)
- * scout — see the scout-reconciliation follow-up.
+ * (`.toJSON()`). Shared between inspect and (eventually) scout — see the
+ * scout-reconciliation follow-up.
  *
  * @example
  * ```typescript
