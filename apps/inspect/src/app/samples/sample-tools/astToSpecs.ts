@@ -45,10 +45,16 @@ const parseRegexLiteral = (
     anchorStart = true;
     s = s.slice(1);
   }
-  // Trailing `$` is an anchor unless escaped (`\$`).
-  if (s.endsWith("$") && !s.endsWith("\\$")) {
-    anchorEnd = true;
-    s = s.slice(0, -1);
+  // Trailing `$` is an anchor unless escaped (`\$`). An even run of
+  // backslashes before it is pairs of escaped backslashes (`foo\\$`
+  // ends with a literal `\`), so the `$` is still a real anchor.
+  if (s.endsWith("$")) {
+    let backslashes = 0;
+    for (let j = s.length - 2; j >= 0 && s[j] === "\\"; j--) backslashes++;
+    if (backslashes % 2 === 0) {
+      anchorEnd = true;
+      s = s.slice(0, -1);
+    }
   }
 
   let literal = "";

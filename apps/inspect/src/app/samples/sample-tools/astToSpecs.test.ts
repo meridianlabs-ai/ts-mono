@@ -162,6 +162,20 @@ describe("astToSpecs / parseFilterSpecs — string columns", () => {
     });
   });
 
+  it("ends-with values ending in a backslash keep the $ anchor", () => {
+    // Emitted for ends-with "foo\": the `\\` is an escaped backslash,
+    // so the `$` after it is a real anchor.
+    expect(toSpecs('target ~= "foo\\\\\\\\$"')).toEqual({
+      target: entry("target", { operator: "ends with", value: "foo\\" }),
+    });
+  });
+
+  it("an escaped \\$ is a literal dollar, not an anchor", () => {
+    expect(toSpecs('uuid ~= "foo\\\\$"')).toEqual({
+      sampleUuid: entry("sampleUuid", { operator: "contains", value: "foo$" }),
+    });
+  });
+
   it("~= 'literal' → contains (no anchors)", () => {
     // `uuid` is a registered string column without a contains-fn.
     expect(toSpecs('uuid ~= "abc"')).toEqual({
@@ -382,6 +396,12 @@ describe("astToSpecs — round-trip stability (text → specs → text)", () => 
 
   it("filter values with backslashes survive", () => {
     expect(roundTrip('input == "path\\\\to"')).toBe('input == "path\\\\to"');
+  });
+
+  it("ends-with with a trailing backslash survives", () => {
+    expect(roundTrip('target ~= "foo\\\\\\\\$"')).toBe(
+      'target ~= "foo\\\\\\\\$"'
+    );
   });
 
   it("filter values with ^ and ] survive", () => {

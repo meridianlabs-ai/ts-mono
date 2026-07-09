@@ -103,6 +103,12 @@ describe("specsToFilterText", () => {
     );
   });
 
+  it("ends with a trailing backslash keeps escape and anchor apart", () => {
+    expect(toText({ target: { operator: "ends with", value: "foo\\" } })).toBe(
+      'target ~= "foo\\\\\\\\$"'
+    );
+  });
+
   it("contains falls back to regex for columns without a containsFn", () => {
     expect(toText({ sampleUuid: { operator: "contains", value: "abc" } })).toBe(
       'uuid ~= "abc"'
