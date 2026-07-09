@@ -19,14 +19,11 @@ import {
 const LOG_FILE = "test-virtual.json";
 
 function generateMessages(count: number): ChatMessage[] {
-  return Array.from(
-    { length: count },
-    (_, i): ChatMessage => ({
-      role: i % 2 === 0 ? "user" : "assistant",
-      content: `message-${i}`,
-      source: i % 2 === 0 ? "input" : "generate",
-    })
-  );
+  return Array.from({ length: count }, (_, i): ChatMessage => ({
+    role: i % 2 === 0 ? "user" : "assistant",
+    content: `message-${i}`,
+    source: i % 2 === 0 ? "input" : "generate",
+  }));
 }
 
 async function openSample(

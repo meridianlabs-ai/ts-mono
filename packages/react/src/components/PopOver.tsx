@@ -263,8 +263,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       requires: ["maxSize"],
       fn({ state }) {
         const data = state.modifiersData.maxSize as
-          | { width: number; height: number }
-          | undefined;
+          { width: number; height: number } | undefined;
         if (!data) return;
         state.styles.popper = {
           ...state.styles.popper,

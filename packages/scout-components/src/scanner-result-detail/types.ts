@@ -1,10 +1,5 @@
 export type ValueType =
-  | "boolean"
-  | "number"
-  | "string"
-  | "array"
-  | "object"
-  | "null";
+  "boolean" | "number" | "string" | "array" | "object" | "null";
 
 export interface ScanResultInput {
   identifier?: string;

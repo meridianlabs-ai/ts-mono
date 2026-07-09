@@ -592,10 +592,7 @@ export const clientApi = (
       (
         download_file: string,
         file_contents:
-          | string
-          | Blob
-          | ArrayBuffer
-          | ArrayBufferView<ArrayBuffer>
+          string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
       ) => {
         return api.download_file(download_file, file_contents);
       }

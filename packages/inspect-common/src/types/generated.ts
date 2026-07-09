@@ -1468,6 +1468,8 @@ export interface components {
             time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
             /** Turn Limit */
             turn_limit?: number | null;
             /** Working Limit */

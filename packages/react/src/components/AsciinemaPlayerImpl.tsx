@@ -11,7 +11,7 @@ interface AsciinemaPlayerProps {
   timingUrl: string;
   rows?: number;
   cols?: number;
-  fit?: string;
+  fit?: "width" | "height" | "both" | "none" | false;
   style?: CSSProperties;
   speed?: number;
   autoPlay?: boolean;
