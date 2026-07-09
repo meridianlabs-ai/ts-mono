@@ -75,6 +75,34 @@ describe("buildSampleFilterSpecRegistry", () => {
     );
   });
 
+  it("a score named after a built-in variable is qualified; the built-in keeps its mapping", () => {
+    const reg = buildSampleFilterSpecRegistry(
+      descriptorWith([
+        { name: "epoch", scorer: "grader", scoreType: "numeric" },
+      ])
+    );
+    // Regression: byVariable was last-entry-wins, so the score stole "epoch"
+    // and `epoch == 2` recognized onto the score column.
+    expect(reg.byVariable.get("epoch")).toBe("epoch");
+    expect(reg.byColId.get("score__grader__epoch")?.variable).toBe(
+      "grader.epoch"
+    );
+    expect(reg.byVariable.get("grader.epoch")).toBe("score__grader__epoch");
+  });
+
+  it("a top-level scorer named after a built-in gets no filtrex mapping", () => {
+    // `scorer.name` qualification doesn't exist for a scorer-level score, so
+    // there is no representable variable — the column stays unsynced rather
+    // than emitting a variable that evaluates to the built-in.
+    const reg = buildSampleFilterSpecRegistry(
+      descriptorWith([
+        { name: "tokens", scorer: "tokens", scoreType: "numeric" },
+      ])
+    );
+    expect(reg.byColId.has("score__tokens__tokens")).toBe(false);
+    expect(reg.byVariable.get("tokens")).toBe("tokens");
+  });
+
   it("uses the bare name when the score name equals its scorer", () => {
     const reg = buildSampleFilterSpecRegistry(
       descriptorWith([{ name: "match", scorer: "match", scoreType: "numeric" }])

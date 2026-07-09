@@ -8,7 +8,7 @@ import {
 import { perScorerFieldKey } from "../../shared/samples-grid/columns";
 import { EvalDescriptor } from "../descriptor/types";
 
-import { bannedShortScoreNames } from "./filters";
+import { bannedShortScoreNames, builtinFilterVariables } from "./filters";
 
 export type FilterVarKind = "string" | "number";
 
@@ -73,6 +73,12 @@ export const buildSampleFilterSpecRegistry = (
     const banned = bannedShortScoreNames(evalDescriptor.scores);
     for (const { name, scorer } of evalDescriptor.scores) {
       const colId = perScorerFieldKey({ name, scorer });
+      // A top-level scorer named after a built-in variable has no qualified
+      // fallback — leave the column unsynced rather than emit a variable
+      // that evaluates to the built-in.
+      if (name === scorer && builtinFilterVariables.has(name)) {
+        continue;
+      }
       const variable =
         name === scorer || !banned.has(name) ? name : `${scorer}.${name}`;
       const scoreType = evalDescriptor.scoreDescriptor({

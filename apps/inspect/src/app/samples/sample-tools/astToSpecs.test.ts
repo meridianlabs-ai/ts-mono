@@ -242,6 +242,30 @@ describe("astToSpecs / parseFilterSpecs — score columns", () => {
   });
 });
 
+describe("astToSpecs / parseFilterSpecs — built-in name collisions", () => {
+  it("a score named after a built-in doesn't steal its recognition", () => {
+    const reg = buildSampleFilterSpecRegistry(
+      descriptorWith([
+        { name: "epoch", scorer: "grader", scoreType: "numeric" },
+      ])
+    );
+    expect(parseFilterSpecs("epoch == 2", reg)).toEqual({
+      epoch: {
+        columnId: "epoch",
+        filterType: "number",
+        spec: { operator: "=", value: "2" },
+      },
+    });
+    expect(parseFilterSpecs("grader.epoch > 0.5", reg)).toEqual({
+      score__grader__epoch: {
+        columnId: "score__grader__epoch",
+        filterType: "number",
+        spec: { operator: ">", value: "0.5" },
+      },
+    });
+  });
+});
+
 describe("astToSpecs / parseFilterSpecs — multi-column", () => {
   it("AND of two columns", () => {
     expect(toSpecs("epoch == 1 and tokens > 100")).toEqual({
