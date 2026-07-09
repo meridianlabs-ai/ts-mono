@@ -626,19 +626,6 @@ body[class^="vscode-"] .ansi-display {
   --ansiBrightWhite: var(--vscode-terminal-ansiBrightWhite);
 }
 
-body[class^="vscode-"] .sidebar .list-group {
-  --bs-tertiary-bg: var(--vscode-list-hoverBackground);
-  --bs-secondary-color: var(--vscode-foreground);
-  --bs-list-group-active-bg: var(--vscode-sideBarSectionHeader-background);
-  --bs-list-group-active-border-color: var(
-    --vscode-sideBarSectionHeader-background
-  );
-  --bs-list-group-action-active-bg: var(
-    --vscode-sideBarSectionHeader-background
-  );
-  --bs-list-group-active-color: var(--vscode-sideBarSectionHeader-foreground);
-}
-
 body[class^="vscode-"] .breadcrumb-item {
   --bs-breadcrumb-divider-color: var(--vscode-foreground);
 }
@@ -650,7 +637,6 @@ body[class^="vscode-"] div.ap-control-bar .ap-fullscreen-button {
 :root {
   --bs-navbar-padding-y: 0;
   --bs-navbar-brand-padding-y: 0;
-  --sidebar-width: 550px;
 }
 
 body {
@@ -710,10 +696,6 @@ body {
   padding-bottom: 0px;
 }
 
-#sidebarToggle > i.bi {
-  font-size: 1.5em;
-}
-
 .nav-link.active {
   border-bottom-width: 0 !important;
 }
@@ -723,32 +705,8 @@ body {
   flex-direction: column;
 }
 
-.workspace.full-screen {
-  top: 0;
-}
-
-@media (min-width: 768px) {
-  .workspace {
-    left: var(--sidebar-width);
-  }
-  .workspace.full-screen {
-    left: 0;
-  }
-  .workspace.off-canvas {
-    left: 0;
-  }
-}
-
 .no-last-para-padding > p:last-of-type {
   margin-bottom: 0;
-}
-
-.sidebar .list-group-item {
-  cursor: pointer;
-  border-left-width: none;
-  border-top: none;
-  border-right: none;
-  border-radius: 0;
 }
 
 .btn-tools {
@@ -756,18 +714,6 @@ body {
   --bs-btn-hover-bg: var(--bs-secondary-bg-subtle);
   --bs-btn-border-color: var(--bs-secondary-bg-subtle);
   --bs-btn-hover-border-color: var(--bs-secondary-bg-subtle);
-}
-
-.sidebar .list-group {
-  --bs-list-group-active-color: var(--bs-gray-700);
-  --bs-list-group-active-bg: var(--bs-gray-200);
-  --bs-list-group-active-border-color: var(--bs-gray-200);
-}
-
-[data-bs-theme="dark"] .sidebar .list-group {
-  --bs-list-group-active-color: var(--bs-gray-300);
-  --bs-list-group-active-bg: var(--bs-gray-800);
-  --bs-list-group-active-border-color: var(--bs-gray-800);
 }
 
 .markdown-content pre > code,

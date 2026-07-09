@@ -11,11 +11,12 @@ import {
   type SearchType,
 } from "@tsmono/inspect-components/transcript-search";
 
+import { getApi, useLogDir } from "../../../../app_config";
 import {
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
 } from "../../../../constants";
-import { useApi, useStore } from "../../../../state/store";
+import { useStore } from "../../../../state/store";
 import { useUserSettings } from "../../../../state/userSettings";
 import {
   makeLogsPath,
@@ -63,9 +64,9 @@ export interface InspectSearchContext {
 export const useInspectSearchContext = (
   sample: EvalSample | undefined
 ): InspectSearchContext | null => {
-  const api = useApi();
+  const api = getApi();
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
-  const logDir = useStore((s) => s.logs.logDir);
+  const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
 
   // Depend on the scalar fields, not the sample object: polling a running
@@ -120,7 +121,7 @@ export const useInspectSearchApi = (
   logFile: string,
   transcriptId: string
 ): SearchPanelApi | null => {
-  const api = useApi();
+  const api = getApi();
   return useMemo(() => {
     const { post_search, get_search_result, list_searches } = api;
     if (!post_search || !get_search_result || !list_searches || !transcriptId) {

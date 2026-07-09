@@ -25,6 +25,7 @@ import {
 import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
+import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
@@ -267,7 +268,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
   const logFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const getEventUrl = useCallback(
     (eventId: string) => {

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
 import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";
 
-import { useStore } from "../../state/store";
+import { useLogDir } from "../../app_config";
 import { prettyDirUri } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 
@@ -26,7 +26,7 @@ export const Navbar: FC<NavbarProps> = ({
   currentPath,
   breadcrumbsEnabled,
 }) => {
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const displayDir =
     logDir === "."
       ? basename(

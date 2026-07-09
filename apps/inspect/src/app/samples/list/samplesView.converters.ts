@@ -6,11 +6,27 @@
  * given its inputs, so unit tests can exercise them in isolation. Phase 2
  * wires these into the SampleList store + hook.
  */
+import type { SortingState } from "@tanstack/react-table";
 import type { FilterModel, GridState } from "ag-grid-community";
 
 import type { TaskSamplesView } from "@tsmono/inspect-common/types";
 
 import { defaultSamplesView, type SamplesViewState } from "./samplesView";
+
+// ---------------------------------------------------------------------------
+// Runtime ↔ TanStack SortingState
+// ---------------------------------------------------------------------------
+
+/** `view.sort` → TanStack `SortingState` (the grid's controlled sort). */
+export const viewSortToSorting = (
+  sort: SamplesViewState["sort"]
+): SortingState => sort.map((s) => ({ id: s.colId, desc: s.dir === "desc" }));
+
+/** TanStack `SortingState` → `view.sort` (the persisted descriptor). */
+export const sortingToViewSort = (
+  sorting: SortingState
+): SamplesViewState["sort"] =>
+  sorting.map((s) => ({ colId: s.id, dir: s.desc ? "desc" : "asc" }));
 
 // ---------------------------------------------------------------------------
 // Wire ↔ runtime

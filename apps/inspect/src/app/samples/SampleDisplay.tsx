@@ -57,6 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
+import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -69,12 +70,13 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { setDocumentTitle } from "../../state/actions";
 import {
-  useDocumentTitle,
-  useSampleData,
+  useSelectedEvalSampleData,
+  useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { useApi, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
@@ -110,7 +112,6 @@ interface SampleDisplayProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
   showActivity: boolean;
-  progress?: number;
   focusOnLoad?: boolean;
 }
 
@@ -123,31 +124,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
-  progress,
   focusOnLoad,
 }) => {
   // Tab ids
   const baseId = `sample-display`;
 
   const prefix = useRoutePrefix();
-  const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sampleData = useSelectedEvalSampleData();
+  const sample = sampleData.sample;
   const eventsCleared = sampleData.eventsCleared;
 
   const runningSampleData = sampleData.running;
   const backfilling = sampleData.backfilling;
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
-  const { setDocumentTitle } = useDocumentTitle();
+  const evalSpec = useSelectedLogDetails()?.eval;
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
-  }, [setDocumentTitle, sample, evalSpec]);
+  }, [sample, evalSpec]);
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
+
+  // A sample with no events has no transcript to show; default to the
+  // messages tab when its body settles.
+  useEffect(() => {
+    if (sample !== undefined && sample.events.length < 1) {
+      setSelectedTab(kSampleMessagesTabId);
+    }
+  }, [sample, setSelectedTab]);
 
   // Per-tab scroll positions persist while tabbing within a sample (each tab's
   // VirtualList snapshot is keyed by sample id). Clear them when leaving this
@@ -366,7 +371,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter();
 
-  const api = useApi();
+  const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
@@ -770,7 +775,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             </div>
           </StickyScroll>
         ) : undefined}
-        <ActivityBar animating={showActivity} progress={progress} />
+        <ActivityBar animating={showActivity} />
 
         <div style={tabsContainerStyle}>
           <TabSet
@@ -1248,10 +1253,10 @@ const metadataViewsForSample = (
 const isRunning = (
   sampleSummary?: SampleSummary,
   runningSampleData?: Events,
-  sampleStatus?: string
+  status?: string
 ): boolean => {
   // If a completed sample has been loaded, it's not running
-  if (sampleStatus === "ok") {
+  if (status === "ok") {
     return false;
   }
 

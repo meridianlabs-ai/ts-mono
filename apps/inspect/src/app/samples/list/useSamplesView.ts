@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { type TaskSamplesView } from "@tsmono/inspect-common/types";
 
+import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { getFieldKey } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
@@ -20,10 +21,8 @@ import {
  *  descriptor (after picking an active variant from a multi-view list).
  *  Backs every hook that reads from the wire side. */
 function useEvalDefaultSamplesView(): TaskSamplesView | undefined {
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
+  const evalDefaultField =
+    useSelectedLogDetails()?.eval.viewer?.task_samples_view ?? null;
   return useMemo(() => pickActiveView(evalDefaultField), [evalDefaultField]);
 }
 

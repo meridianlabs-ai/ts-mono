@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
     "./chat/tools": "./src/chat/tools/tool.ts",
+    "./columnFilter": "./src/columnFilter/index.ts",
     "./content": "./src/content/index.ts",
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",

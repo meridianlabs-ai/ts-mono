@@ -6,6 +6,7 @@ import {
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
+import { WorkResult } from "../../utils/workQueue";
 import {
   openRemoteLogFile,
   RemoteLogFile,
@@ -142,7 +143,16 @@ export const clientApi = (
     if (isEvalFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
       if (remoteLogFile) {
-        return await remoteLogFile.readLogSummary();
+        const details = await remoteLogFile.readLogSummary();
+        // A running log's zip is still being appended, so its memoized
+        // snapshot (the central directory at open time) can never see later
+        // flushes — drop it so every read while running re-opens fresh.
+        // Completed logs stay memoized.
+        if (details.status === "started" && loadedEvalFile.file === log_file) {
+          loadedEvalFile.file = undefined;
+          loadedEvalFile.remoteLog = undefined;
+        }
+        return details;
       } else {
         throw new Error("Unable to read remote eval file");
       }
@@ -312,6 +322,47 @@ export const clientApi = (
 
     // Return only the header values in the correct order
     return orderedSummaries.map(({ summary }) => summary);
+  };
+
+  const read_one_summary = async (log_file: string): Promise<LogPreview> => {
+    if (isEvalFile(log_file)) {
+      return read_eval_file_log_summary(log_file);
+    }
+    const summaries = await api.get_log_summaries([log_file]);
+    const summary = summaries[0];
+    if (!summary) {
+      throw new Error(`No summary returned for ${log_file}`);
+    }
+    return summary;
+  };
+
+  // TODO(better fix): /log-headers should return per-file success|error results
+  // (server: fastapi_server.py api_log_headers + read_eval_log_headers_async).
+  // Until then one unreadable file fails the whole batched request, so isolate
+  // failures client-side by falling back to per-file reads, each caught.
+  const get_log_summaries_settled = async (
+    log_files: string[]
+  ): Promise<WorkResult<LogPreview>[]> => {
+    try {
+      const summaries = await api.get_log_summaries(log_files);
+      if (summaries.length === log_files.length) {
+        return summaries.map((value) => ({ ok: true, value }));
+      }
+    } catch {
+      // fall through to per-file reads
+    }
+    return Promise.all(
+      log_files.map(async (file) => {
+        try {
+          return { ok: true as const, value: await read_one_summary(file) };
+        } catch (e) {
+          return {
+            ok: false as const,
+            error: e instanceof Error ? e : new Error(String(e)),
+          };
+        }
+      })
+    );
   };
 
   const get_log_dir = async (): Promise<string | undefined> => {
@@ -507,6 +558,10 @@ export const clientApi = (
       return api.get_flow(dir);
     }),
     get_log_summaries: middleware("get_log_summaries", get_log_summaries),
+    get_log_summaries_settled: middleware(
+      "get_log_summaries_settled",
+      get_log_summaries_settled
+    ),
     get_log_details: middleware(
       "get_log_details",
       async (log_file: string, cached?: boolean): Promise<LogDetails> => {
@@ -524,6 +579,9 @@ export const clientApi = (
         }
         return result;
       }
+    ),
+    get_log_info: middleware("get_log_info", (log_file: string) =>
+      api.get_log_info(encodePathParts(log_file))
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {

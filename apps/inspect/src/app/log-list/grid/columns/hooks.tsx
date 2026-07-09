@@ -1,38 +1,41 @@
-import type {
-  ColDef,
-  ICellRendererParams,
-  ValueGetterParams,
-} from "ag-grid-community";
+import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
+import { useLogDir } from "../../../../app_config";
 import { kModelNone } from "../../../../constants";
+import {
+  useLogListing,
+  useScoreSchema,
+  type LogListingRow,
+  type ScorerMap,
+} from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
-import {
-  formatDateTime,
-  formatTime,
-  valueAsString,
-} from "../../../../utils/format";
+import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
-import sharedStyles from "../../../shared/gridCells.module.css";
 import {
-  comparators,
-  createFolderFirstComparator,
-} from "../../../shared/gridComparators";
-import { getFieldKey } from "../../../shared/gridUtils";
-import { useStableValue } from "../../../shared/useStableValue";
-import { PreformattedTooltip } from "../PreformattedTooltip";
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "../../../shared/data-grid/columnTypes";
+import sharedStyles from "../../../shared/gridCells.module.css";
 
 import localStyles from "./columns.module.css";
-import { computeScorerMap, scorerMapsEqual } from "./scorerMap";
+import { dateCompare, numberCompare } from "./comparators";
+import { completedAtValue } from "./completedAt";
 import { LogListRow } from "./types";
 
 const styles = { ...sharedStyles, ...localStyles };
 
+type LogListColumn = ExtendedColumnDef<LogListRow>;
+
 const EmptyCell = () => <div>-</div>;
+
+const kNoScorerMap: ScorerMap = {};
+const kNoListingRows: LogListingRow[] = [];
 
 const displayModelRoles = (row: LogListRow | undefined): [string, string][] => {
   if (!row) return [];
@@ -71,22 +74,28 @@ export const useLogListColumns = (
   /**
    * View mode for scorer columns:
    *   - "by-metric" (default): one synthetic column per unique metric name,
-   *     aggregating across scorers via valueGetter.
+   *     aggregating across scorers via accessorFn.
    *   - "per-scorer": one column per (scorer, metric) pair, fully qualified.
    */
   viewMode: ScoresViewMode = "by-metric"
 ): {
   /** Full column set for the grid. Both score-column modes are registered;
-   *  visibility is applied by the caller via `applyColumnState` so the
-   *  column-def reference stays stable across visibility toggles (which
-   *  is what lets user-driven width and reorder persist). */
-  columns: ColDef<LogListRow>[];
-  /** Visibility map keyed by `getFieldKey(col)` — pass to
-   *  `<SamplesGrid>` / apply via the grid api. */
+   *  visibility is applied by the DataGrid via its `columnVisibility` state
+   *  so the column-def reference stays stable across visibility toggles. */
+  columns: LogListColumn[];
+  /** Visibility map keyed by column id — passed to the DataGrid. */
   visibility: Record<string, boolean>;
   /** Subset passed to the ColumnSelectorPopover so the picker only lists
-   *  checkboxes for the currently active view mode. */
+   *  checkboxes for the currently active view mode. A lightweight AG-shaped
+   *  shim (`colId` + `headerName`) so the still-AG ColumnSelectorPopover is
+   *  untouched during the migration. */
   pickerColumns: ColDef<LogListRow>[];
+  /** Reads a row's raw value for a column id (for client-side filter/sort). */
+  getValue: (row: LogListRow, columnId: string) => unknown;
+  /** Per-column value comparator (from column meta) for client-side sort. */
+  getComparator: (columnId: string) => ColumnComparator | undefined;
+  /** Per-column filter type (from column meta) for client-side filtering. */
+  getFilterType: (columnId: string) => FilterType | undefined;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -95,20 +104,11 @@ export const useLogListColumns = (
   const setColumnVisibility = useStore(
     (state) => state.logsActions.setLogsColumnVisibility
   );
-  const logDetails = useStore((state) => state.logs.logDetails);
-
-  // `logDetails` gets a new identity on every detail flush while a
-  // directory loads, so the memo alone would return a fresh map (and
-  // cascade fresh column defs into the grid) on every flush. Content
-  // equality keeps the map — and everything keyed on it — stable unless
-  // the scorer columns actually changed.
-  const scorerMap = useStableValue(
-    useMemo(
-      () => computeScorerMap(logDetails, scopePrefix),
-      [logDetails, scopePrefix]
-    ),
-    scorerMapsEqual
-  );
+  const logDir = useLogDir();
+  // Settled schema only: column defs are decorative config — while the
+  // listing loads there are simply no scorer columns yet, and listing errors
+  // render in LogsPanel's error surface.
+  const scorerMap = useScoreSchema(logDir, scopePrefix).data ?? kNoScorerMap;
 
   // Auto-hide scorer columns by default if not explicitly set. Seed defaults
   // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
@@ -142,21 +142,19 @@ export const useLogListColumns = (
     }
   }, [scorerMap, columnVisibility, setColumnVisibility]);
 
-  const allColumns = useMemo((): ColDef<LogListRow>[] => {
-    const baseColumns: ColDef<LogListRow>[] = [
+  const allColumns = useMemo((): LogListColumn[] => {
+    const baseColumns: LogListColumn[] = [
       {
-        field: "type",
-        headerName: "",
-        initialWidth: 32,
-        minWidth: 32,
-        maxWidth: 32,
-        suppressSizeToFit: true,
-        sortable: true,
-        filter: false,
-        resizable: false,
-        pinned: "left",
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const type = params.data?.type;
+        id: "type",
+        header: "",
+        size: 32,
+        minSize: 32,
+        maxSize: 32,
+        enableResizing: false,
+        meta: { align: "center" },
+        accessorFn: (row) => row.type,
+        cell: ({ row }) => {
+          const type = row.original.type;
           const icon =
             type === "file" || type === "pending-task"
               ? ApplicationIcons.inspectFile
@@ -169,25 +167,24 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "task",
-        headerName: "Task",
-        initialWidth: 250,
-        minWidth: 150,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        tooltipValueGetter: (params) => (params.value as string) || undefined,
-        valueGetter: (params) => {
-          const item = params.data;
-          if (!item) return "";
-          if (item.type === "file") {
-            return item.task || parseLogFileName(item.name).name;
+        id: "task",
+        header: "Task",
+        size: 250,
+        minSize: 150,
+        accessorFn: (row) => {
+          if (row.type === "file") {
+            return row.task || parseLogFileName(row.name).name;
           }
-          return item.name;
+          return row.name;
         },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item) return null;
+        titleValue: (row) => {
+          if (row.type === "file") {
+            return row.task || parseLogFileName(row.name).name;
+          }
+          return row.name;
+        },
+        cell: ({ row }) => {
+          const item = row.original;
           let value = item.name;
           if (item.type === "file") {
             value = item.task || parseLogFileName(item.name).name;
@@ -195,6 +192,12 @@ export const useLogListColumns = (
           const href = item.url
             ? `${window.location.pathname}#${item.url}`
             : undefined;
+          const label =
+            item.type === "folder" ? (
+              <span className={styles.folder}>{value}</span>
+            ) : (
+              <span className={styles.taskText}>{value}</span>
+            );
           return (
             <div className={styles.nameCell}>
               {href ? (
@@ -202,7 +205,9 @@ export const useLogListColumns = (
                   href={href}
                   className={styles.rowLink}
                   onClick={(e) => {
-                    // Normal click: prevent <a> navigation, let AG Grid handle
+                    // Normal click: prevent <a> navigation, let the row click
+                    // handle it. Modifier / middle clicks fall through to the
+                    // native <a> for open-in-new-tab.
                     if (
                       !e.metaKey &&
                       !e.ctrlKey &&
@@ -213,51 +218,39 @@ export const useLogListColumns = (
                     }
                   }}
                 >
-                  {item.type === "folder" ? (
-                    <span className={styles.folder}>{value}</span>
-                  ) : (
-                    <span className={styles.taskText}>{value}</span>
-                  )}
+                  {label}
                 </a>
-              ) : item.type === "folder" ? (
-                <span className={styles.folder}>{value}</span>
               ) : (
-                <span className={styles.taskText}>{value}</span>
+                label
               )}
             </div>
           );
         },
       },
       {
-        colId: "model",
-        headerName: "Model",
-        initialWidth: 300,
-        minWidth: 100,
-        maxWidth: 400,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        valueGetter: (params: ValueGetterParams<LogListRow>) =>
-          primaryModelValue(params.data),
-        tooltipValueGetter: (params) => {
-          const roles = displayModelRoles(params.data);
+        id: "model",
+        header: "Model",
+        size: 300,
+        minSize: 100,
+        maxSize: 400,
+        accessorFn: (row) => primaryModelValue(row),
+        titleValue: (row) => {
+          const roles = displayModelRoles(row);
           if (roles.length > 0) {
             return roles.map(([role, model]) => `${role}: ${model}`).join("\n");
           }
-          const model = params.data?.model;
+          const model = row.model;
           return model && model !== kModelNone ? model : undefined;
         },
-        tooltipComponent: PreformattedTooltip,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item) return null;
+        cell: ({ row }) => {
+          const item = row.original;
           if (item.model && item.model !== kModelNone) {
             return <div className={styles.modelCell}>{item.model}</div>;
           }
           const roles = displayModelRoles(item);
-          if (roles.length > 0) {
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            const [, primary] = roles[0];
+          const firstRole = roles[0];
+          if (firstRole) {
+            const primary = firstRole[1];
             const extras = roles.length - 1;
             return (
               <div className={styles.modelCell}>
@@ -272,21 +265,18 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "score",
-        headerName: "Score",
-        initialWidth: 80,
-        minWidth: 60,
-        maxWidth: 120,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        valueFormatter: (params) => {
-          if (params.value === undefined || params.value === null) return "";
-          return formatPrettyDecimal(params.value as number);
-        },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item || item.score === undefined) {
+        id: "score",
+        header: "Score",
+        size: 80,
+        minSize: 60,
+        maxSize: 120,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.score,
+        textValue: (row) =>
+          row.score === undefined ? null : formatPrettyDecimal(row.score),
+        cell: ({ row }) => {
+          const item = row.original;
+          if (item.score === undefined) {
             return <EmptyCell />;
           }
           return (
@@ -297,26 +287,20 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "status",
-        headerName: "Status",
-        initialWidth: 80,
-        minWidth: 60,
-        maxWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        tooltipValueGetter: (params) => {
-          const item = params.data;
-          if (!item) return undefined;
-          if (item.status === "error" && item.errorMessage) {
-            return item.errorMessage;
+        id: "status",
+        header: "Status",
+        size: 80,
+        minSize: 60,
+        maxSize: 100,
+        accessorFn: (row) => row.status,
+        titleValue: (row) => {
+          if (row.status === "error" && row.errorMessage) {
+            return row.errorMessage;
           }
-          return item.status || undefined;
+          return row.status || undefined;
         },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item) return null;
-
+        cell: ({ row }) => {
+          const item = row.original;
           const status = item.status;
 
           if (!status && item.type !== "pending-task") {
@@ -353,54 +337,44 @@ export const useLogListColumns = (
         },
       },
       {
-        field: "completedAt",
-        headerName: "Completed",
-        initialWidth: 130,
-        minWidth: 80,
-        maxWidth: 140,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        cellDataType: "date",
-        filterValueGetter: (params) => {
-          if (!params.data?.completedAt) return undefined;
-          const d = new Date(params.data.completedAt);
-          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        },
-        valueGetter: (params) => {
-          const completed = params.data?.completedAt;
-          if (!completed) return "";
-          return formatDateTime(new Date(completed));
-        },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const completed = params.data?.completedAt;
+        id: "completedAt",
+        header: "Completed",
+        size: 130,
+        minSize: 80,
+        maxSize: 140,
+        meta: { sortComparator: dateCompare },
+        // Raw value for sort/filter; the cell formats from row.original.
+        accessorFn: (row) => completedAtValue(row),
+        cell: ({ row }) => {
+          const completed = row.original.completedAt;
           if (!completed) {
             return <EmptyCell />;
           }
-          const timeStr = formatDateTime(new Date(completed));
-          return <div className={styles.dateCell}>{timeStr}</div>;
+          return (
+            <div className={styles.dateCell}>
+              {formatDateTime(new Date(completed))}
+            </div>
+          );
         },
-        comparator: createFolderFirstComparator<LogListRow>(comparators.date),
       },
       {
-        field: "name",
-        headerName: "File Name",
-        initialWidth: 600,
-        minWidth: 150,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        tooltipValueGetter: (params) => (params.value as string) || undefined,
-        valueGetter: (params) => {
-          const item = params.data;
-          if (!item) return "";
-          if (item.type === "folder") return item.name;
-          if (item.type === "file") return basename(item.name);
+        id: "name",
+        header: "File Name",
+        size: 600,
+        minSize: 150,
+        accessorFn: (row) => {
+          if (row.type === "folder") return row.name;
+          if (row.type === "file") return basename(row.name);
           return "";
         },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item || item.type === "pending-task") {
+        titleValue: (row) => {
+          if (row.type === "folder") return row.name;
+          if (row.type === "file") return basename(row.name);
+          return undefined;
+        },
+        cell: ({ row }) => {
+          const item = row.original;
+          if (item.type === "pending-task") {
             return <EmptyCell />;
           }
           if (item.type === "folder") {
@@ -410,293 +384,255 @@ export const useLogListColumns = (
               </div>
             );
           }
-          const value = basename(item.name);
-          return <div className={styles.nameCell}>{value}</div>;
+          return <div className={styles.nameCell}>{basename(item.name)}</div>;
         },
       },
       {
-        field: "path",
-        headerName: "Path",
-        initialWidth: 300,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        tooltipField: "path",
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const item = params.data;
-          if (!item?.path) return <EmptyCell />;
+        id: "path",
+        header: "Path",
+        size: 300,
+        minSize: 100,
+        accessorFn: (row) => row.path,
+        titleValue: (row) => row.path,
+        cell: ({ row }) => {
+          const item = row.original;
+          if (!item.path) return <EmptyCell />;
           return <div className={styles.nameCell}>{item.path}</div>;
         },
       },
       {
-        field: "totalSamples",
-        headerName: "Samples",
-        initialWidth: 90,
-        minWidth: 60,
-        maxWidth: 120,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+        id: "totalSamples",
+        header: "Samples",
+        size: 90,
+        minSize: 60,
+        maxSize: 120,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.totalSamples,
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value as number)}</div>;
+          return <div>{formatNumber(value)}</div>;
         },
       },
       {
-        field: "completedSamples",
-        headerName: "Completed Samples",
-        initialWidth: 130,
-        minWidth: 80,
-        maxWidth: 160,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+        id: "completedSamples",
+        header: "Completed Samples",
+        size: 130,
+        minSize: 80,
+        maxSize: 160,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.completedSamples,
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value as number)}</div>;
+          return <div>{formatNumber(value)}</div>;
         },
       },
       {
-        field: "sandbox",
-        headerName: "Sandbox",
-        initialWidth: 100,
-        minWidth: 60,
-        maxWidth: 150,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div>{params.value}</div>;
+        id: "sandbox",
+        header: "Sandbox",
+        size: 100,
+        minSize: 60,
+        maxSize: 150,
+        accessorFn: (row) => row.sandbox,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          if (!value) return <EmptyCell />;
+          return <div>{value}</div>;
         },
       },
       {
-        field: "totalTokens",
-        headerName: "Tokens",
-        initialWidth: 100,
-        minWidth: 60,
-        maxWidth: 140,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+        id: "totalTokens",
+        header: "Tokens",
+        size: 100,
+        minSize: 60,
+        maxSize: 140,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.totalTokens,
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value as number)}</div>;
+          return <div>{formatNumber(value)}</div>;
         },
       },
       {
-        field: "duration",
-        headerName: "Duration",
-        initialWidth: 120,
-        minWidth: 70,
-        maxWidth: 160,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        valueFormatter: (params) => {
-          if (params.value === undefined || params.value === null) return "";
-          return formatTime(params.value as number);
-        },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+        id: "duration",
+        header: "Duration",
+        size: 120,
+        minSize: 70,
+        maxSize: 160,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.duration,
+        titleValue: (row) =>
+          row.duration === undefined ? undefined : formatTime(row.duration),
+        textValue: (row) =>
+          row.duration === undefined ? null : formatTime(row.duration),
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatTime(params.value as number)}</div>;
-        },
-        tooltipValueGetter: (params) => {
-          if (params.value === undefined || params.value === null) {
-            return undefined;
-          }
-          return formatTime(params.value as number);
+          return <div>{formatTime(value)}</div>;
         },
       },
       {
-        field: "taskFile",
-        headerName: "Task File",
-        initialWidth: 200,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        tooltipField: "taskFile",
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div className={styles.nameCell}>{params.value}</div>;
+        id: "taskFile",
+        header: "Task File",
+        size: 200,
+        minSize: 100,
+        accessorFn: (row) => row.taskFile,
+        titleValue: (row) => row.taskFile,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          if (!value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{value}</div>;
         },
       },
       {
-        field: "taskArgs",
-        headerName: "Task Args",
-        initialWidth: 200,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div className={styles.nameCell}>{params.value}</div>;
-        },
-        tooltipValueGetter: (params) => {
-          const raw = params.data?.taskArgsRaw;
-          if (!raw) return undefined;
-          return JSON.stringify(raw, null, 2);
-        },
-        tooltipComponent: PreformattedTooltip,
-      },
-      {
-        field: "tags",
-        headerName: "Tags",
-        initialWidth: 80,
-        minWidth: 80,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        valueGetter: (params) => {
-          const tags = params.data?.tags;
-          if (!tags || tags.length === 0) return "";
-          return tags.join(", ");
-        },
-        tooltipValueGetter: (params) => (params.value as string) || undefined,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div className={styles.nameCell}>{params.value}</div>;
+        id: "taskArgs",
+        header: "Task Args",
+        size: 200,
+        minSize: 100,
+        accessorFn: (row) => row.taskArgs,
+        titleValue: (row) =>
+          row.taskArgsRaw
+            ? JSON.stringify(row.taskArgsRaw, null, 2)
+            : undefined,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          if (!value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{value}</div>;
         },
       },
       {
-        field: "percentCompleted",
-        headerName: "% Completed",
-        initialWidth: 110,
-        minWidth: 80,
-        maxWidth: 140,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        valueFormatter: (params) => {
-          if (params.value === undefined || params.value === null) return "";
-          return `${formatPrettyDecimal(params.value as number)}%`;
+        id: "tags",
+        header: "Tags",
+        size: 80,
+        minSize: 80,
+        accessorFn: (row) =>
+          row.tags && row.tags.length > 0 ? row.tags.join(", ") : "",
+        titleValue: (row) =>
+          row.tags && row.tags.length > 0 ? row.tags.join(", ") : undefined,
+        cell: ({ getValue }) => {
+          const value = getValue<string>();
+          if (!value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{value}</div>;
         },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+      },
+      {
+        id: "percentCompleted",
+        header: "% Completed",
+        size: 110,
+        minSize: 80,
+        maxSize: 140,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.percentCompleted,
+        textValue: (row) =>
+          row.percentCompleted === undefined
+            ? null
+            : `${formatPrettyDecimal(row.percentCompleted)}%`,
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatPrettyDecimal(params.value as number)}%</div>;
+          return <div>{formatPrettyDecimal(value)}%</div>;
         },
       },
       {
-        field: "sampleErrors",
-        headerName: "Sample Errors",
-        initialWidth: 110,
-        minWidth: 60,
-        maxWidth: 140,
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (params.value === undefined || params.value === null) {
+        id: "sampleErrors",
+        header: "Sample Errors",
+        size: 110,
+        minSize: 60,
+        maxSize: 140,
+        meta: { sortComparator: numberCompare },
+        accessorFn: (row) => row.sampleErrors,
+        cell: ({ getValue }) => {
+          const value = getValue<number | undefined>();
+          if (value === undefined || value === null) {
             return <EmptyCell />;
           }
-          return <div>{formatNumber(params.value as number)}</div>;
+          return <div>{formatNumber(value)}</div>;
         },
       },
       {
-        field: "sampleLimits",
-        headerName: "Sample Limits",
-        initialWidth: 140,
-        minWidth: 80,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div>{params.value}</div>;
+        id: "sampleLimits",
+        header: "Sample Limits",
+        size: 140,
+        minSize: 80,
+        accessorFn: (row) => row.sampleLimits,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          if (!value) return <EmptyCell />;
+          return <div>{value}</div>;
         },
       },
       {
-        field: "errorMessage",
-        headerName: "Error",
-        initialWidth: 300,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        valueGetter: (params) => {
-          const msg = params.data?.errorMessage;
-          if (!msg) return "";
-          return msg.split("\n")[0];
-        },
-        tooltipValueGetter: (params) => params.data?.errorMessage || undefined,
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          if (!params.value) return <EmptyCell />;
-          return <div className={styles.nameCell}>{params.value}</div>;
+        id: "errorMessage",
+        header: "Error",
+        size: 300,
+        minSize: 100,
+        accessorFn: (row) =>
+          row.errorMessage ? row.errorMessage.split("\n")[0] : "",
+        titleValue: (row) => row.errorMessage || undefined,
+        cell: ({ getValue }) => {
+          const value = getValue<string>();
+          if (!value) return <EmptyCell />;
+          return <div className={styles.nameCell}>{value}</div>;
         },
       },
     ];
 
     // Per-scorer columns: one per (scorer, metric) pair. Alphabetical key
     // order so the column sequence is stable regardless of log iteration.
-    const scorerKeys = Object.keys(scorerMap).sort((a, b) =>
-      a.localeCompare(b)
-    );
-    const perScorerColumns: ColDef<LogListRow>[] = scorerKeys.map((key) => {
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      const { scorerName, metricName, valueType } = scorerMap[key];
-      const scoreType = valueType; // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- TODO: pre-existing noUncheckedIndexedAccess fallout
-      return {
-        field: `score_${key}`,
-        headerName: scorerMetricHeader(scorerName, metricName), // eslint-disable-line @typescript-eslint/no-unsafe-argument -- TODO: pre-existing noUncheckedIndexedAccess fallout
-        initialWidth: 100,
-        minWidth: 100,
-        sortable: true,
-        filter:
-          scoreType === "number"
-            ? "agNumberColumnFilter"
-            : "agTextColumnFilter",
-        resizable: true,
-        valueFormatter: (params) => {
-          const value = params.value as
-            string | number | boolean | null | undefined;
-          if (value === "" || value === null || value === undefined) {
-            return "";
-          }
-          if (typeof value === "number") {
-            return formatPrettyDecimal(value);
-          }
-          return String(value);
-        },
-        cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-          const value = params.value as unknown;
-          if (value === undefined || value === null || value === "") {
-            return <EmptyCell />;
-          }
-          return (
-            <div className={styles.scoreCell}>
-              {formatPrettyDecimal(value as number)}
-            </div>
-          );
-        },
-        comparator: createFolderFirstComparator<LogListRow>((valA, valB) => {
-          if (typeof valA === "number" && typeof valB === "number") {
-            return valA - valB;
-          }
-          return valueAsString(valA || "").localeCompare(
-            valueAsString(valB || "")
-          );
-        }),
-      } as ColDef<LogListRow>;
-    });
+    const perScorerColumns: LogListColumn[] = Object.entries(scorerMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, { scorerName, metricName, valueType }]) => {
+        return {
+          id: `score_${key}`,
+          header: scorerMetricHeader(scorerName, metricName),
+          size: 100,
+          minSize: 100,
+          meta:
+            valueType === "number"
+              ? { sortComparator: numberCompare }
+              : undefined,
+          accessorFn: (row) => row[`score_${key}`],
+          textValue: (row) => {
+            const value = row[`score_${key}`];
+            if (typeof value === "number") return formatPrettyDecimal(value);
+            if (typeof value === "boolean") return String(value);
+            return typeof value === "string" && value !== "" ? value : null;
+          },
+          cell: ({ getValue }) => {
+            const value = getValue<
+              string | number | boolean | null | undefined
+            >();
+            if (value === undefined || value === null || value === "") {
+              return <EmptyCell />;
+            }
+            return (
+              <div className={styles.scoreCell}>
+                {typeof value === "number"
+                  ? formatPrettyDecimal(value)
+                  : String(value)}
+              </div>
+            );
+          },
+        };
+      });
 
     // By-metric columns: one synthetic column per unique metric name across
-    // all scorers. Each column's valueGetter reads the row's per-scorer fields
+    // all scorers. Each column's accessorFn reads the row's per-scorer fields
     // in alphabetical scorer order and returns the first non-empty value.
-    // The cellRenderer additionally renders a "+N" badge with a tooltip when
-    // more than one scorer on the same row produced the metric.
+    // The cell additionally renders a "+N" badge with a tooltip when more
+    // than one scorer on the same row produced the metric.
     const metricGroups = new Map<
       string,
       { scorerName: string; valueType: string }[]
@@ -709,7 +645,7 @@ export const useLogListColumns = (
       metricGroups.set(metricName, list);
     }
 
-    const byMetricColumns: ColDef<LogListRow>[] = [...metricGroups.entries()]
+    const byMetricColumns: LogListColumn[] = [...metricGroups.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([metricName, entries]) => {
         const scorerOrder = entries
@@ -719,47 +655,42 @@ export const useLogListColumns = (
 
         const readContributors = (
           row: LogListRow | undefined
-        ): { scorer: string; value: unknown }[] => {
+        ): { scorer: string; value: string | number | boolean }[] => {
           if (!row) return [];
-          const contributors: { scorer: string; value: unknown }[] = [];
+          const contributors: {
+            scorer: string;
+            value: string | number | boolean;
+          }[] = [];
           for (const scorer of scorerOrder) {
             const v = row[`score_${scorer}/${metricName}`];
             if (v !== undefined && v !== null && v !== "") {
-              contributors.push({ scorer, value: v });
+              contributors.push({
+                scorer,
+                value: v as string | number | boolean,
+              });
             }
           }
           return contributors;
         };
 
         return {
-          field: byMetricField(metricName),
-          headerName: metricName,
-          initialWidth: 100,
-          minWidth: 100,
-          sortable: true,
-          filter: allNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
-          resizable: true,
-          valueGetter: (params: ValueGetterParams<LogListRow>) => {
-            const first = readContributors(params.data)[0];
-            return first?.value;
+          id: byMetricField(metricName),
+          header: metricName,
+          size: 100,
+          minSize: 100,
+          meta: allNumeric ? { sortComparator: numberCompare } : undefined,
+          accessorFn: (row) => readContributors(row)[0]?.value,
+          textValue: (row) => {
+            const first = readContributors(row)[0];
+            if (!first) return null;
+            return typeof first.value === "number"
+              ? formatPrettyDecimal(first.value)
+              : String(first.value);
           },
-          valueFormatter: (params) => {
-            const value = params.value as
-              string | number | boolean | null | undefined;
-            if (value === "" || value === null || value === undefined) {
-              return "";
-            }
-            if (typeof value === "number") {
-              return formatPrettyDecimal(value);
-            }
-            return String(value);
-          },
-          cellRenderer: (params: ICellRendererParams<LogListRow>) => {
-            const contributors = readContributors(params.data);
-            if (contributors.length === 0) return <EmptyCell />;
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            const primary = contributors[0].value;
-            const extras = contributors.slice(1);
+          cell: ({ row }) => {
+            const [first, ...extras] = readContributors(row.original);
+            if (!first) return <EmptyCell />;
+            const primary = first.value;
             const primaryText =
               typeof primary === "number"
                 ? formatPrettyDecimal(primary)
@@ -786,26 +717,17 @@ export const useLogListColumns = (
               </div>
             );
           },
-          comparator: createFolderFirstComparator<LogListRow>((valA, valB) => {
-            if (typeof valA === "number" && typeof valB === "number") {
-              return valA - valB;
-            }
-            return valueAsString(valA || "").localeCompare(
-              valueAsString(valB || "")
-            );
-          }),
-        } as ColDef<LogListRow>;
+        };
       });
 
     // Always include BOTH score-column sets so the grid's column structure
-    // is stable across view-mode toggles — switching just flips `hide` on
-    // each column rather than swapping in an entirely new column array,
-    // which keeps ag-grid from reflowing base-column widths.
+    // is stable across view-mode toggles — switching just flips visibility
+    // on each column rather than swapping in an entirely new column array.
     const allCols = [...baseColumns, ...perScorerColumns, ...byMetricColumns];
 
     if (mode === "tasks") {
       // Tasks view: remove the type icon column (no folders in flat view)
-      const typeIdx = allCols.findIndex((col) => col.field === "type");
+      const typeIdx = allCols.findIndex((col) => col.id === "type");
       if (typeIdx >= 0) {
         allCols.splice(typeIdx, 1);
       }
@@ -832,44 +754,62 @@ export const useLogListColumns = (
         "taskFile",
       ];
       allCols.sort((a, b) => {
-        const aIdx = tasksFieldOrder.indexOf(a.field || "");
-        const bIdx = tasksFieldOrder.indexOf(b.field || "");
-        // Fields in the order list come first, in specified order
-        // Fields not in the list (scorer columns) go after
+        const aIdx = tasksFieldOrder.indexOf(a.id || "");
+        const bIdx = tasksFieldOrder.indexOf(b.id || "");
+        // Fields in the order list come first, in specified order.
+        // Fields not in the list (scorer columns) go after.
         const aOrder = aIdx >= 0 ? aIdx : tasksFieldOrder.length;
         const bOrder = bIdx >= 0 ? bIdx : tasksFieldOrder.length;
         return aOrder - bOrder;
       });
     } else {
-      // Logs view: move "name" (File Name) to be the second column (after the type icon)
-      const nameIdx = allCols.findIndex((col) => col.field === "name");
+      // Logs view: move "name" (File Name) to be the second column (after
+      // the type icon)
+      const nameIdx = allCols.findIndex((col) => col.id === "name");
       if (nameIdx > 1) {
         const [nameCol] = allCols.splice(nameIdx, 1);
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        allCols.splice(1, 0, nameCol);
+        if (nameCol) allCols.splice(1, 0, nameCol);
       }
 
       // move "status" to be right after the name column
-      const statusIdx = allCols.findIndex((col) => col.field === "status");
+      const statusIdx = allCols.findIndex((col) => col.id === "status");
       if (statusIdx > 2) {
         const [statusCol] = allCols.splice(statusIdx, 1);
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        allCols.splice(2, 0, statusCol);
+        if (statusCol) allCols.splice(2, 0, statusCol);
       }
+    }
+
+    // Every column except the type icon is filterable (matches origin/main's
+    // `defaultColDef.filter: true` with the type column opted out). Derive the
+    // filter type from the sort comparator: numeric / date columns get their
+    // typed editors; everything else filters as text.
+    for (const col of allCols) {
+      if (col.id === "type") continue;
+      const cmp = col.meta?.sortComparator;
+      const filterType: FilterType =
+        cmp === numberCompare
+          ? "number"
+          : cmp === dateCompare
+            ? "date"
+            : "string";
+      col.meta = { ...col.meta, filterable: true, filterType };
     }
 
     return allCols;
   }, [scorerMap, mode]);
 
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
-  // has a sample that ended with a limit.
-  const hasSampleLimits = useMemo(() => {
-    for (const [logName, details] of Object.entries(logDetails)) {
-      if (scopePrefix && !logName.startsWith(scopePrefix)) continue;
-      if (details.sampleSummaries?.some((s) => s.limit)) return true;
-    }
-    return false;
-  }, [logDetails, scopePrefix]);
+  // has a sample that ended with a limit (an ingestion-derived header fact).
+  const listingRows = useLogListing(logDir).data ?? kNoListingRows;
+  const hasSampleLimits = useMemo(
+    () =>
+      listingRows.some(
+        (row) =>
+          (!scopePrefix || row.name.startsWith(scopePrefix)) &&
+          (row.header?.sampleLimits.length ?? 0) > 0
+      ),
+    [listingRows, scopePrefix]
+  );
 
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {
@@ -905,12 +845,11 @@ export const useLogListColumns = (
     return true;
   };
 
-  // Visibility map keyed by field. Caller applies via api so column defs
-  // themselves stay stable.
+  // Visibility map keyed by column id, consumed by the DataGrid.
   const visibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const field = getFieldKey(col);
+      const field = col.id as string;
       const isScoreColumn =
         field.startsWith("score_") || field.startsWith("metric_");
       const defaultVisible = isScoreColumn
@@ -925,14 +864,55 @@ export const useLogListColumns = (
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
   const pickerColumns = useMemo((): ColDef<LogListRow>[] => {
-    return allColumns.filter((col) => matchesActiveMode(getFieldKey(col)));
+    return allColumns
+      .filter((col) => matchesActiveMode(col.id as string))
+      .map((col) => ({
+        colId: col.id as string,
+        headerName: typeof col.header === "string" ? col.header : "",
+      }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
+
+  // Lookup by column id for the client-side listing query's value/comparator
+  // accessors.
+  const columnsById = useMemo(() => {
+    const byId = new Map<string, LogListColumn>();
+    for (const col of allColumns) {
+      if (col.id) byId.set(col.id, col);
+    }
+    return byId;
+  }, [allColumns]);
+
+  const getValue = useCallback(
+    (row: LogListRow, columnId: string): unknown => {
+      const col = columnsById.get(columnId);
+      if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
+        return col.accessorFn(row, 0);
+      }
+      return row[columnId];
+    },
+    [columnsById]
+  );
+
+  const getComparator = useCallback(
+    (columnId: string): ColumnComparator | undefined =>
+      columnsById.get(columnId)?.meta?.sortComparator,
+    [columnsById]
+  );
+
+  const getFilterType = useCallback(
+    (columnId: string): FilterType | undefined =>
+      columnsById.get(columnId)?.meta?.filterType,
+    [columnsById]
+  );
 
   return {
     columns: allColumns,
     visibility,
     pickerColumns,
+    getValue,
+    getComparator,
+    getFilterType,
     setColumnVisibility,
   };
 };

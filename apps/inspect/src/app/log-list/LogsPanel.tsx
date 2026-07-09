@@ -1,14 +1,5 @@
-import { AgGridReact } from "ag-grid-react";
 import clsx from "clsx";
-import {
-  FC,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
@@ -16,28 +7,26 @@ import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { dirname, isInDirectory } from "@tsmono/util";
 
-import { useClientEvents } from "../../state/clientEvents";
-import {
-  useDocumentTitle,
-  useLogs,
-  useLogsListing,
-  useLogsWithretried,
-} from "../../state/hooks";
+import { useLogDir } from "../../app_config";
+import { useLogListing, useLogsSync, type LogListingRow } from "../../log_data";
+import { setDocumentTitle } from "../../state/actions";
+import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { directoryRelativeUrl, join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerData } from "../flow/hooks";
+import { useFlowQuery } from "../flow/hooks";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
+import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
-import { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
+import { useLogListData } from "./grid/useLogListData";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
@@ -45,6 +34,8 @@ import styles from "./LogsPanel.module.css";
 const rootName = (relativePath: string) => {
   return relativePath.split("/")[0] ?? "";
 };
+
+const kNoListingRows: LogListingRow[] = [];
 
 export type LogsPanelMode = "logs" | "tasks";
 
@@ -57,8 +48,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   maybeShowSingleLog,
   mode = "logs",
 }) => {
-  const { loadLogs } = useLogs();
-  const gridRef = useRef<AgGridReact<LogListRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
@@ -67,22 +56,24 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs
   );
-  const logDir = useStore((state) => state.logs.logDir);
-  const logFiles = useLogsWithretried();
-  const evalSet = useStore((state) => state.logs.evalSet);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-  // Defer previews so the burst of preview flushes during initial sync
-  // can't block input — see the matching note in LogListGrid.
-  const deferredLogPreviews = useDeferredValue(logPreviews);
-  const { filteredCount, gridStateByScope } = useLogsListing();
+  const logDir = useLogDir();
+  const listing = useLogListing(logDir);
+  const logFiles = listing.data ?? kNoListingRows;
+  const { gridStateByScope, patchGridState } = useLogsListing();
 
-  const syncing = useStore((state) => state.app.status.syncing);
-  const error = useStore((state) => state.app.status.error);
-
-  const watchedLogs = useStore((state) => state.logs.listing.watchedLogs);
   const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
+  const evalSet = useEvalSet(logPath || "").data;
+  // Sync the listing for this panel's scope; the error panel and busy
+  // indications derive from its status folded with the listing read's own
+  // loading/error.
+  const sync = useLogsSync(logDir, logPath ?? "");
+  const busy = sync.busy || listing.loading;
+  // The navbar bar tracks the sync round-trip only — engine background
+  // fetching (`busy`) stays in the footer/overlay indications.
+  const navbarLoading = sync.loading || listing.loading;
+  const error = sync.error ?? listing.error;
 
   const currentDir = join(logPath || "", logDir);
 
@@ -95,44 +86,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a half-initialized scope.
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
-  useFlowServerData(logPath || "");
-  const flowData = useStore((state) => state.logs.flow);
+  const flowData = useFlowQuery(logPath || "").data;
 
-  const { startPolling, stopPolling } = useClientEvents();
-
-  const { setDocumentTitle } = useDocumentTitle();
   useEffect(() => {
     setDocumentTitle({
       logDir: logDir,
     });
-  }, [setDocumentTitle, logDir]);
-
-  const previousWatchedLogs = useRef<typeof watchedLogs>(undefined);
-
-  useEffect(() => {
-    // Only restart polling if the watched logs have actually changed
-    const current =
-      watchedLogs
-        ?.map((log) => log.name)
-        .sort()
-        .join(",") || "";
-    const previous =
-      previousWatchedLogs.current === undefined
-        ? undefined
-        : previousWatchedLogs.current
-            ?.map((log) => log.name)
-            .sort()
-            .join(",") || "";
-
-    if (current !== previous) {
-      stopPolling();
-
-      if (watchedLogs !== undefined) {
-        startPolling();
-      }
-      previousWatchedLogs.current = watchedLogs;
-    }
-  }, [watchedLogs, startPolling, stopPolling]);
+  }, [logDir]);
 
   const [logItems, hasRetriedLogs]: [
     Array<FileLogItem | FolderLogItem | PendingTaskItem>,
@@ -163,7 +123,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: tasksUrl(decodedPath, logDir),
             log: logFile,
-            logPreview: deferredLogPreviews[logFile.name],
           });
         }
       }
@@ -240,7 +199,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
             type: "file",
             url: logsUrl(path, logDir),
             log: logFile,
-            logPreview: deferredLogPreviews[logFile.name],
           });
         }
       } else if (name.startsWith(dirWithSlash)) {
@@ -272,15 +230,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     );
 
     return [_logFiles, _hasRetriedLogs];
-  }, [
-    mode,
-    evalSet,
-    logFiles,
-    currentDir,
-    logDir,
-    deferredLogPreviews,
-    showRetriedLogs,
-  ]);
+  }, [mode, evalSet, logFiles, currentDir, logDir, showRetriedLogs]);
 
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.
@@ -299,49 +249,69 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // LogsPanel uses `pickerColumns` for the popover so it only shows the
   // active view mode's checkboxes; the grid (LogListGrid) reads `columns`
   // from its own `useLogListColumns` call and gets both sets for stability.
-  const { pickerColumns, visibility, setColumnVisibility } = useLogListColumns(
-    mode,
-    scopePrefix,
-    scoresViewMode
-  );
+  const {
+    pickerColumns,
+    visibility,
+    setColumnVisibility,
+    getValue,
+    getComparator,
+    getFilterType,
+  } = useLogListColumns(mode, scopePrefix, scoresViewMode);
+
+  const listData = useLogListData({
+    items: logItems,
+    scopeKey,
+    getValue,
+    getComparator,
+    getFilterType,
+  });
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
   );
 
-  // Wrapper that clears filters for columns that are being hidden. Because
-  // the popover only sees `pickerColumns` (the active view mode), the
-  // visibility map it emits is scoped to those fields. Merge it into the
-  // full stored map so toggles in one view don't wipe the other view's
-  // entries.
+  // Active per-column filters for this scope (drives the Reset button + the
+  // Columns popover's filter markers).
+  const filteredFields = useMemo(
+    () => Object.keys(listData.columnFilters ?? {}),
+    [listData.columnFilters]
+  );
+  const hasFilter = filteredFields.length > 0;
+
+  const handleResetFilters = useCallback(() => {
+    if (scopeKey) patchGridState(scopeKey, { columnFilters: {} });
+  }, [scopeKey, patchGridState]);
+
+  // The popover only sees `pickerColumns` (the active view mode), so the
+  // visibility map it emits is scoped to those fields. Merge it into the full
+  // stored map. Hiding a column also clears any active filter on it (matches
+  // the prior grid — a hidden column shouldn't keep filtering invisibly).
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      const mergedVisibility = {
-        ...currentColumnVisibility,
-        ...newVisibility,
-      };
-
-      if (gridRef.current?.api) {
-        const currentFilterModel = gridRef.current.api.getFilterModel() || {};
-        let filtersRemoved = false;
-        const newFilterModel: Record<string, unknown> = {};
-
-        for (const [field, filter] of Object.entries(currentFilterModel)) {
-          if (mergedVisibility[field] === false) {
-            filtersRemoved = true;
-          } else {
-            newFilterModel[field] = filter;
+      const merged = { ...currentColumnVisibility, ...newVisibility };
+      if (scopeKey) {
+        const cf = gridStateByScope[scopeKey]?.columnFilters;
+        if (cf) {
+          const next = { ...cf };
+          let changed = false;
+          for (const id of Object.keys(cf)) {
+            if (merged[id] === false) {
+              delete next[id];
+              changed = true;
+            }
           }
-        }
-
-        if (filtersRemoved) {
-          gridRef.current.api.setFilterModel(newFilterModel);
+          if (changed) patchGridState(scopeKey, { columnFilters: next });
         }
       }
-
-      setColumnVisibility(mergedVisibility);
+      setColumnVisibility(merged);
     },
-    [currentColumnVisibility, setColumnVisibility]
+    [
+      currentColumnVisibility,
+      setColumnVisibility,
+      scopeKey,
+      gridStateByScope,
+      patchGridState,
+    ]
   );
 
   const progress = useMemo(() => {
@@ -350,10 +320,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     for (const item of logItems) {
       if (item.type === "file" || item.type === "pending-task") {
         total += 1;
-        if (
-          item.type === "pending-task" ||
-          item.logPreview?.status === "started"
-        ) {
+        if (item.type === "pending-task" || item.log?.status === "started") {
           pending += 1;
         }
       }
@@ -363,24 +330,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       total,
     };
   }, [logItems]);
-
-  useEffect(() => {
-    void loadLogs(logPath);
-  }, [loadLogs, logPath]);
-
-  const handleResetFilters = () => {
-    if (gridRef.current?.api) {
-      gridRef.current.api.setFilterModel(null);
-    }
-  };
-
-  // Derived from the store's persisted grid state (kept fresh by the
-  // grid's onStateUpdated) rather than read off the grid api during
-  // render — the api read only appeared live because unrelated renders
-  // happened to coincide with filter changes.
-  const scopeGridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
-  const filteredFields = Object.keys(scopeGridState?.filter?.filterModel ?? {});
-  const hasFilter = filteredFields.length > 0;
 
   useEffect(() => {
     const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
@@ -394,7 +343,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       <ApplicationNavbar
         fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
         currentPath={mode === "tasks" ? undefined : logPath}
-        showActivity="log"
+        loading={navbarLoading}
       >
         {hasFilter && (
           <NavbarButton
@@ -462,17 +411,20 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
             <LogListGrid
-              items={logItems}
+              rows={listData.rows}
+              totalRowCount={listData.totalRowCount}
+              sorting={listData.sorting}
+              columnFilters={listData.columnFilters}
               currentPath={currentDir}
               scopeKey={scopeKey}
-              gridRef={gridRef}
               mode={mode}
+              busy={busy}
             />
           </div>
           <LogListFooter
             itemCount={logItems.length}
-            filteredCount={filteredCount}
-            progressText={syncing ? "Syncing data" : undefined}
+            filteredCount={listData.filteredCount}
+            progressText={busy ? "Syncing data" : undefined}
             progressBar={
               progress.total !== progress.complete ? (
                 <ProgressBar

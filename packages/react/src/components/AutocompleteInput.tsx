@@ -22,6 +22,9 @@ export interface AutocompleteInputProps {
   onCancel?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  /** Accessible name for the input when there's no visible <label> associated
+   *  with it (the placeholder is not a reliable accessible name). */
+  ariaLabel?: string;
   suggestions: Array<string | number | boolean | null>;
   autoFocus?: boolean;
   maxSuggestions?: number;
@@ -42,6 +45,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   disabled,
   suggestions,
   placeholder = "Filter",
+  ariaLabel,
   maxSuggestions = 10,
   charactersBeforeSuggesting = 1,
   maxSuggestionWidth = 300,
@@ -295,6 +299,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         spellCheck="false"
         autoComplete="off"
         role="combobox"

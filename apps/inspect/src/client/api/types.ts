@@ -47,10 +47,11 @@ import {
   EvalSampleScore,
   EvalSampleTarget,
 } from "../../@types/extraInspect";
+import { WorkResult } from "../../utils/workQueue";
 
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
-export type { CallPoolData, MessagePoolData };
+export type { CallPoolData, LogInfo, MessagePoolData };
 
 // Hand-coded — references the local EventData with typed event union
 export interface SampleData {
@@ -187,7 +188,6 @@ export interface Capabilities {
   downloadLogs: boolean;
   webWorkers: boolean;
   streamSamples: boolean;
-  streamSampleData: boolean;
 }
 
 export interface LogViewAPI {
@@ -318,7 +318,15 @@ export interface ClientAPI {
   get_flow: (dir?: string) => Promise<string | undefined>;
 
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
+  // Per-file settled results, aligned with `log_files` — one unreadable file
+  // never fails the others. See client-api.ts for the fallback that backs it.
+  get_log_summaries_settled: (
+    log_files: string[]
+  ) => Promise<WorkResult<LogPreview>[]>;
   get_log_details: (log_file: string, cached?: boolean) => Promise<LogDetails>;
+  // Cheap stat of the log file (size, plus etag where the backend provides
+  // one) — the change probe live-watch polling re-reads details on.
+  get_log_info: (log_file: string) => Promise<LogInfo>;
 
   // Sample retrieval
   get_log_sample: (
@@ -430,6 +438,71 @@ export interface LogPreview {
 
   primary_metric?: EvalMetric;
 }
+
+/**
+ * The stored/cached form of one log's content: the details payload minus its
+ * sample summaries (those are their own store — see
+ * design/migration/log-data-summaries-entity.md), plus facts about the log's
+ * samples derived once at ingestion. Deriving at write time is what keeps
+ * whole-dir summary scans off every read path — these facts are listing
+ * columns (Sample Errors / Sample Limits) and the zero-samples check.
+ */
+export interface LogHeader extends EvalHeader {
+  etag?: string;
+  sampleCount: number;
+  sampleErrorCount: number;
+  /** Distinct limit kinds across the log's samples, sorted. */
+  sampleLimits: string[];
+}
+
+/** How much of a Log's content has been acquired. Ratchets upward within a
+ *  row's lifetime; an mtime invalidation resets it (identity kept, content
+ *  dropped). A column on the row — never a different type or store. */
+export type LogDepth = "listed" | "previewed" | "detailed";
+
+/**
+ * The Log entity row — identity plus header attributes at progressive
+ * depth, plus retrieval facts. The one shape the store, the cache, and the
+ * listing share (see design/migration/log-data-summaries-entity.md, phase
+ * 3). Flat attribute columns arrive at `previewed` depth and are refreshed
+ * at `detailed`; `header` is the deep form.
+ */
+export interface Log extends LogHandle {
+  depth: LogDepth;
+
+  status?: EvalLogStatus;
+  error?: EvalError | null;
+  version?: EvalLogVersion;
+  eval_id?: string;
+  run_id?: string;
+  task_version?: EvalSpec["task_version"];
+  model?: string;
+  model_roles?: Record<string, string> | null;
+  started_at?: string;
+  completed_at?: string;
+  primary_metric?: EvalMetric;
+
+  header?: LogHeader;
+
+  // Retrieval (fetch) facts about the row — a domain separate from eval
+  // status/error. Attempts gate backfill retries; the settled seq is the
+  // session-local "landed" counter waitered fetches bump.
+  preview_fetch_error?: string;
+  preview_attempts: number;
+  details_fetch_error?: string;
+  details_attempts: number;
+  details_settled_seq: number;
+}
+
+/** The retrieval-facts slice of a Log row (what fetch outcomes update). */
+export type LogFetchState = Pick<
+  Log,
+  | "preview_fetch_error"
+  | "preview_attempts"
+  | "details_fetch_error"
+  | "details_attempts"
+  | "details_settled_seq"
+>;
 
 export interface LogRoot {
   logs: LogHandle[];

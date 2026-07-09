@@ -1,37 +1,41 @@
-import type {
-  ColDef,
-  GetRowIdParams,
-  GridApi,
-  GridState,
-} from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import type { SortingState } from "@tanstack/react-table";
+import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { ProgressBar } from "@tsmono/react/components";
+import type {
+  ColumnFilter,
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
+import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
+import { useLogDir } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
-import { useClientEvents } from "../../state/clientEvents";
 import {
-  LogHandleWithretried,
-  useLogs,
-  useLogsWithretried,
-} from "../../state/hooks";
+  LogListingRow,
+  useLogListing,
+  useLogsSync,
+  useSamplesListing,
+  type SamplesListingRow,
+} from "../../log_data";
+import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
-import { useFlowServerData } from "../flow/hooks";
+import { useFlowQuery } from "../flow/hooks";
 import { LogListFooter } from "../log-list/LogListFooter";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
-import { useSamplesGridNavigation } from "../routing/sampleNavigation";
+import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
 import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
-import { getFieldKey } from "../shared/gridUtils";
+import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -39,9 +43,18 @@ import {
 import { SamplesGrid } from "../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../shared/samples-grid/types";
 import { useSampleGridState } from "../shared/samples-grid/useSampleGridState";
-import { DisplayedSample } from "../types";
 
 import styles from "./SamplesPanel.module.css";
+
+// Cross-log default: most-recently-completed first (matches the prior AG view).
+const kSamplesPanelDefaultSorting: SortingState = [
+  { id: "completed_at", desc: true },
+];
+
+// Stable empties for unseeded persisted state — a fresh `{}` per render would
+// invalidate the grid's memos every render.
+const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
+const kNoColumnSizing: Record<string, number> = Object.freeze({});
 
 const sampleRowId = (
   logFile: string,
@@ -49,29 +62,30 @@ const sampleRowId = (
   epoch: number
 ) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
 
-const gridDisplayedSamples = (api: GridApi<SampleRow>): DisplayedSample[] => {
-  const out: DisplayedSample[] = [];
-  const count = api.getDisplayedRowCount();
-  for (let i = 0; i < count; i++) {
-    const node = api.getDisplayedRowAtIndex(i);
-    if (node?.data) {
-      out.push({
-        logFile: node.data.logFile,
-        sampleId: node.data.sampleId,
-        epoch: node.data.epoch,
-      });
-    }
-  }
-  return out;
+// AG-shaped shim of the column list for the still-AG `useSampleGridState` /
+// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
+const toPickerColumns = (
+  columns: ExtendedColumnDef<SampleRow>[]
+): ColDef<SampleRow>[] =>
+  columns.map((col) => ({
+    colId: col.id,
+    headerName: typeof col.header === "string" ? col.header : "",
+  }));
+
+const completedAtTime = (row: SampleRow): number => {
+  const v = row.data?.completed_at;
+  return v ? new Date(v).getTime() : 0;
 };
+
+const kNoSamplesRows: SamplesListingRow[] = [];
+const kNoLogRows: LogListingRow[] = [];
 
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
-  const { loadLogs } = useLogs();
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
-  const loading = useStore((state) => state.app.status.loading);
-  const syncing = useStore((state) => state.app.status.syncing);
+  // Sync the listing for this panel's scope; busy/error derive from its status.
+  const listing = useLogsSync(logDir, samplesPath ?? "");
   const showRetriedLogs = useUserSettings((state) => state.showRetriedLogs);
   const setShowRetriedLogs = useUserSettings(
     (state) => state.setShowRetriedLogs
@@ -99,35 +113,30 @@ export const SamplesPanel: FC = () => {
     (state) => state.logsActions.setPreviousSamplesPath
   );
 
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
 
-  const gridRef = useRef<AgGridReact<SampleRow>>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
 
-  const logDetails = useStore((state) => state.logs.logDetails);
-
-  // Polling for updated log files.
-  const { startPolling, stopPolling } = useClientEvents();
-  useEffect(() => {
-    startPolling();
-    return () => {
-      stopPolling();
-    };
-  }, [startPolling, stopPolling]);
-
-  useFlowServerData(samplesPath || "");
-  const flowData = useStore((state) => state.logs.flow);
+  const flowData = useFlowQuery(samplesPath || "").data;
 
   const currentDir = join(samplesPath || "", logDir);
 
-  const evalSet = useStore((state) => state.logs.evalSet);
-  const logFiles = useLogsWithretried();
-  const logPreviews = useStore((state) => state.logs.logPreviews);
+  // Every sample summary under this panel's scope, each row carrying its
+  // log's display context (the subsystem joins; no by-name lookups here).
+  const samplesListing = useSamplesListing({
+    logDir,
+    scope: { prefix: currentDir },
+  });
+  const scopedSamples = samplesListing.data ?? kNoSamplesRows;
+
+  const evalSet = useEvalSet(samplesPath || "").data;
+  const logListing = useLogListing(logDir);
+  const logFiles = logListing.data ?? kNoLogRows;
+  const error = listing.error ?? samplesListing.error ?? logListing.error;
 
   const currentDirLogFiles = useMemo(() => {
     const files = [];
@@ -155,32 +164,12 @@ export const SamplesPanel: FC = () => {
   const completedTaskCount = useMemo(() => {
     let count = 0;
     for (const logFile of currentDirLogFiles) {
-      const preview = logPreviews[logFile.name];
-      if (preview && preview.status !== "started") {
+      if (logFile.status !== undefined && logFile.status !== "started") {
         count++;
       }
     }
     return count;
-  }, [logPreviews, currentDirLogFiles]);
-
-  useEffect(() => {
-    void loadLogs(samplesPath);
-  }, [loadLogs, samplesPath]);
-
-  // Filter logDetails based on samplesPath.
-  const logDetailsInPath = useMemo(() => {
-    if (!samplesPath) return logDetails;
-    const samplesPathAbs = join(samplesPath, logDir);
-    return Object.entries(logDetails).reduce(
-      (acc, [logFile, details]) => {
-        if (logFile.startsWith(samplesPathAbs)) {
-          acc[logFile] = details;
-        }
-        return acc;
-      },
-      {} as typeof logDetails
-    );
-  }, [logDetails, logDir, samplesPath]);
+  }, [currentDirLogFiles]);
 
   // Build the superset of columns.
   const allColumns = useMemo(
@@ -188,9 +177,14 @@ export const SamplesPanel: FC = () => {
       buildSampleColumns({
         viewMode: "grid",
         multiLog: true,
-        logDetails: logDetailsInPath,
+        samples: scopedSamples.map((row) => row.summary),
       }),
-    [logDetailsInPath]
+    [scopedSamples]
+  );
+
+  const pickerColumns = useMemo(
+    () => toPickerColumns(allColumns),
+    [allColumns]
   );
 
   // Default visibility for unseeded columns. `error`/`limit`/`retries`/
@@ -201,17 +195,15 @@ export const SamplesPanel: FC = () => {
       limit = false,
       retries = false,
       fallbacks = false;
-    outer: for (const details of Object.values(logDetailsInPath)) {
-      for (const sample of details.sampleSummaries) {
-        if (sample.error) error = true;
-        if (sample.limit) limit = true;
-        if (sample.retries) retries = true;
-        if (sample.model_fallbacks?.length) fallbacks = true;
-        if (error && limit && retries && fallbacks) break outer;
-      }
+    for (const { summary } of scopedSamples) {
+      if (summary.error) error = true;
+      if (summary.limit) limit = true;
+      if (summary.retries) retries = true;
+      if (summary.model_fallbacks?.length) fallbacks = true;
+      if (error && limit && retries && fallbacks) break;
     }
     return { error, limit, retries, fallbacks };
-  }, [logDetailsInPath]);
+  }, [scopedSamples]);
 
   const defaultsForUnseededColumns = useCallback(
     (col: ColDef<SampleRow>) => {
@@ -228,50 +220,82 @@ export const SamplesPanel: FC = () => {
     [optionalHasData]
   );
 
-  const { columnVisibility, setColumnVisibility, gridState, setGridState } =
-    useSampleGridState<SampleRow>("samplesPanel", allColumns, {
-      defaultsForUnseededColumns,
-      gridRef,
-    });
+  const {
+    columnVisibility,
+    setColumnVisibility,
+    sorting: persistedSorting,
+    columnFilters: persistedFilters,
+    columnSizing: persistedSizing,
+    patchGridState,
+  } = useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
+    defaultsForUnseededColumns,
+  });
 
-  // Visibility is applied inside `<SamplesGrid>` via the ag-grid api so
-  // the column defs themselves stay stable across visibility changes —
-  // necessary for user-driven width/reorder to persist.
+  // Store-backed (rather than left to SamplesGrid's local state) so the
+  // navbar's Reset Filters button and the column-selector's filter markers can
+  // react to the active per-column filters, and so filters/sort/widths survive
+  // the panel unmounting on sample navigation. The grid still filters
+  // client-side via `applyFiltersClientSide` — there's no upstream filtrex
+  // pass in this view.
+  const columnFilters = persistedFilters ?? kNoColumnFilters;
+  const sorting = persistedSorting ?? kSamplesPanelDefaultSorting;
+  const columnSizing = persistedSizing ?? kNoColumnSizing;
+
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      const next = { ...columnFilters };
+      if (spec === null) delete next[columnId];
+      else next[columnId] = { columnId, filterType, spec };
+      patchGridState({ columnFilters: next });
+    },
+    [columnFilters, patchGridState]
+  );
+  const handleSortingChange = useCallback(
+    (next: SortingState) => patchGridState({ sorting: next }),
+    [patchGridState]
+  );
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => patchGridState({ columnSizing: next }),
+    [patchGridState]
+  );
+  const filteredFields = useMemo(
+    () => Object.keys(columnFilters),
+    [columnFilters]
+  );
+  const hasFilter = filteredFields.length > 0;
+  const handleResetFilters = useCallback(
+    () => patchGridState({ columnFilters: {} }),
+    [patchGridState]
+  );
+
+  // Hiding a column also drops any active filter on it — a hidden column
+  // shouldn't keep filtering invisibly (matches the log list's behavior).
+  const handleColumnVisibilityChange = useCallback(
+    (newVisibility: Record<string, boolean>) => {
+      const next = { ...columnFilters };
+      let changed = false;
+      for (const id of Object.keys(columnFilters)) {
+        if (newVisibility[id] === false) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      if (changed) patchGridState({ columnFilters: next });
+      setColumnVisibility(newVisibility);
+    },
+    [columnFilters, patchGridState, setColumnVisibility]
+  );
+
+  // Controlled visibility map keyed by column id, consumed by the DataGrid.
   const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const key = getFieldKey(col);
+      const key = col.id ?? "";
       const seeded = columnVisibility[key];
-      v[key] = seeded === undefined ? !col.hide : seeded;
+      v[key] = seeded === undefined ? true : seeded;
     }
     return v;
   }, [allColumns, columnVisibility]);
-
-  // Drop the persisted filter when samplesPath changes — surviving
-  // column / sort settings are still useful, but a filter scoped to the
-  // prior directory isn't. Pure: state mutations live in the effects
-  // below.
-  const initialState = useMemo<GridState | undefined>(() => {
-    const base =
-      previousSamplesPath !== undefined && previousSamplesPath !== samplesPath
-        ? (() => {
-            const result = { ...gridState };
-            delete result?.filter;
-            return result;
-          })()
-        : gridState;
-
-    // Default sort: completed desc when nothing is persisted. Once the
-    // user changes it, the new sort gets persisted into gridState and
-    // takes over from here.
-    if (!base?.sort?.sortModel?.length) {
-      return {
-        ...base,
-        sort: { sortModel: [{ colId: "completed_at", sort: "desc" }] },
-      };
-    }
-    return base;
-  }, [previousSamplesPath, samplesPath, gridState]);
 
   useEffect(() => {
     if (samplesPath === previousSamplesPath) return;
@@ -284,23 +308,24 @@ export const SamplesPanel: FC = () => {
     setPreviousSamplesPath,
   ]);
 
-  // Transform logDetails into flat rows.
+  // Transform the scoped samples into flat grid rows, pre-sorted by
+  // completion time (descending) since interactive sorting is deferred.
   const [sampleRows, hasRetriedLogs] = useMemo(() => {
-    const allRows: SampleRow[] = [];
     let displayIndex = 1;
 
-    let anyLogInCurrentDirCouldBeSkipped = false;
+    const anyLogInCurrentDirCouldBeSkipped = currentDirLogFiles.some(
+      (log) => log.retried
+    );
     const logInCurrentDirByName = currentDirLogFiles.reduce(
-      (acc: Record<string, LogHandleWithretried>, log) => {
-        if (log.retried) anyLogInCurrentDirCouldBeSkipped = true;
+      (acc: Record<string, LogListingRow>, log) => {
         acc[log.name] = log;
         return acc;
       },
       {}
     );
 
-    Object.entries(logDetailsInPath).forEach(([logFile, logDetail]) => {
-      logDetail.sampleSummaries.forEach((sample) => {
+    const allRows: SampleRow[] = scopedSamples.map(
+      ({ logFile, summary: sample, log }) => {
         const tokens = sample.model_usage
           ? Object.values(sample.model_usage).reduce(
               (sum, u) => sum + (u.total_tokens ?? 0),
@@ -312,11 +337,10 @@ export const SamplesPanel: FC = () => {
           sampleId: sample.id,
           epoch: sample.epoch,
           data: sample,
-          displayIndex: displayIndex++,
-          created: logDetail.eval.created,
-          task: logDetail.eval.task || "",
-          model: logDetail.eval.model || "",
-          status: logDetail.status,
+          created: log.created ?? "",
+          task: log.task || "",
+          model: log.model || "",
+          status: log.status,
           input: inputString(sample.input).join("\n"),
           target: Array.isArray(sample.target)
             ? sample.target.join(", ")
@@ -334,76 +358,77 @@ export const SamplesPanel: FC = () => {
             row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = score.value;
           }
         }
-        allRows.push(row);
-      });
-    });
+        return row;
+      }
+    );
 
     const _sampleRows = allRows.filter(
       (row) => row.logFile in logInCurrentDirByName
     );
+    // Sort by completion time descending, then assign the display index so
+    // the `#` column matches the rendered order.
+    _sampleRows.sort((a, b) => completedAtTime(b) - completedAtTime(a));
+    for (const row of _sampleRows) {
+      row.displayIndex = displayIndex++;
+    }
     const _hasRetriedLogs =
       _sampleRows.length < allRows.length || anyLogInCurrentDirCouldBeSkipped;
 
     return [_sampleRows, _hasRetriedLogs];
-  }, [logDetailsInPath, currentDirLogFiles]);
+  }, [scopedSamples, currentDirLogFiles]);
 
-  const { navigateToSampleDetail } = useSamplesGridNavigation();
+  const { navigateToSampleDetail } = useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
-    (row: SampleRow, opts: { newWindow: boolean }) => {
-      navigateToSampleDetail(
-        row.logFile,
-        row.sampleId,
-        row.epoch,
-        opts.newWindow
-      );
+    (row: SampleRow) => {
+      navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);
     },
     [navigateToSampleDetail]
   );
 
-  // Tracked here (not read straight off `gridRef.current.api`) so the
-  // navbar's Reset Filters button and the column-selector's filter-icon
-  // re-render when filters actually change.
-  const [filteredFields, setFilteredFields] = useState<string[]>([]);
-  const hasFilter = filteredFields.length > 0;
-
-  const updateDisplayedFromApi = useCallback(
-    (api: GridApi<SampleRow>) => {
-      const displayed = gridDisplayedSamples(api);
-      setFilteredSampleCount(displayed.length);
-      setDisplayedSamples(displayed);
-      setFilteredFields(Object.keys(api.getFilterModel() ?? {}));
+  // Reflect the grid's post-filter/post-sort rows into store-backed
+  // displayed-samples state (drives the footer count + cross-tab prev/next
+  // navigation). Sourced from the grid — which owns the filter/sort — rather
+  // than the unfiltered input, so both stay in sync with what's rendered.
+  const handleDisplayedRowsChange = useCallback(
+    (rows: SampleRow[]) => {
+      setFilteredSampleCount(rows.length);
+      setDisplayedSamples(
+        rows.map((row) => ({
+          logFile: row.logFile,
+          sampleId: row.sampleId,
+          epoch: row.epoch,
+        }))
+      );
     },
     [setFilteredSampleCount, setDisplayedSamples]
   );
 
-  const handleFirstDataRendered = useCallback(
-    (api: GridApi<SampleRow>) => {
-      updateDisplayedFromApi(api);
-      clearSelectedSample();
-    },
-    [updateDisplayedFromApi, clearSelectedSample]
-  );
+  useEffect(() => {
+    clearSelectedSample();
+  }, [samplesPath, clearSelectedSample]);
 
   const getRowId = useCallback(
-    (params: GetRowIdParams<SampleRow>) =>
-      sampleRowId(params.data.logFile, params.data.sampleId, params.data.epoch),
+    (row: SampleRow) => sampleRowId(row.logFile, row.sampleId, row.epoch),
     []
   );
 
-  const selectedRowId =
-    selectedSampleHandle && selectedLogFile
-      ? sampleRowId(
-          selectedLogFile,
-          selectedSampleHandle.id,
-          selectedSampleHandle.epoch
-        )
-      : undefined;
+  const selectedRowId = selectedSampleHandle
+    ? sampleRowId(
+        selectedSampleHandle.logFile,
+        selectedSampleHandle.id,
+        selectedSampleHandle.epoch
+      )
+    : undefined;
 
-  const isEmptyAndLoading = sampleRows.length === 0 && (loading > 0 || syncing);
+  // Keyboard/click selection moves flow to the selection's owner (zustand),
+  // which feeds back through selectedRowId — the grid never shadows it.
+  const handleRowSelect = useCallback(
+    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    []
+  );
 
-  const handleResetFilters = () => {
-    if (gridRef.current?.api) gridRef.current.api.setFilterModel(null);
-  };
+  const isEmptyAndLoading =
+    sampleRows.length === 0 && (listing.busy || samplesListing.loading);
 
   return (
     <div className={clsx(styles.panel)}>
@@ -430,13 +455,6 @@ export const SamplesPanel: FC = () => {
             subtle
             onClick={() => {
               setShowRetriedLogs(!showRetriedLogs);
-              setTimeout(() => {
-                if (gridRef.current) {
-                  setFilteredSampleCount(
-                    gridRef.current.api.getDisplayedRowCount()
-                  );
-                }
-              }, 10);
             }}
           />
         )}
@@ -460,42 +478,48 @@ export const SamplesPanel: FC = () => {
       <ColumnSelectorPopover
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
-        columns={allColumns}
+        columns={pickerColumns}
         visibility={visibilityForGrid}
-        onVisibilityChange={setColumnVisibility}
+        onVisibilityChange={handleColumnVisibilityChange}
         positionEl={columnButtonEl}
         filteredFields={filteredFields}
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={!!loading} />
+      <ActivityBar animating={listing.busy} />
       <div className={clsx(styles.list, "text-size-smaller")}>
-        <SamplesGrid<SampleRow>
-          rowData={sampleRows}
-          columnDefs={allColumns}
-          columnVisibility={visibilityForGrid}
-          defaultColDef={{ sortable: true, filter: true, resizable: true }}
-          viewMode="grid"
-          gridRef={gridRef}
-          getRowId={getRowId}
-          selectedRowId={selectedRowId}
-          onRowOpen={handleRowOpen}
-          initialState={initialState}
-          onStateUpdated={setGridState}
-          onFilterChanged={updateDisplayedFromApi}
-          onFirstDataRendered={handleFirstDataRendered}
-          loading={isEmptyAndLoading}
-          autoSizeStrategy={{
-            type: "fitGridWidth",
-          }}
-        />
+        {error ? (
+          <ErrorPanel
+            title="Error"
+            error={{ message: error.message, stack: error.stack }}
+          />
+        ) : (
+          <SamplesGrid
+            rowData={sampleRows}
+            columnDefs={allColumns}
+            columnVisibility={visibilityForGrid}
+            columnFilters={columnFilters}
+            onColumnFilterChange={handleColumnFilterChange}
+            applyFiltersClientSide
+            onDisplayedRowsChange={handleDisplayedRowsChange}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            columnSizing={columnSizing}
+            onColumnSizingChange={handleColumnSizingChange}
+            getRowId={getRowId}
+            selectedRowId={selectedRowId}
+            onRowSelect={handleRowSelect}
+            onRowOpen={handleRowOpen}
+            loading={isEmptyAndLoading}
+          />
+        )}
       </div>
 
       <LogListFooter
         itemCount={filteredSamplesCount ?? 0}
         itemCountLabel={filteredSamplesCount === 1 ? "sample" : "samples"}
         progressText={
-          syncing
+          listing.busy
             ? `Syncing${filteredSamplesCount ? ` (${filteredSamplesCount.toLocaleString()} samples)` : ""}`
             : undefined
         }

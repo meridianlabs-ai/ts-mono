@@ -13,6 +13,8 @@ import {
   partitionFilterModel,
   pickActiveView,
   resolveSamplesView,
+  sortingToViewSort,
+  viewSortToSorting,
   viewToGridState,
   type LegacyScopeState,
 } from "./samplesView.converters";
@@ -569,5 +571,25 @@ describe("legacyToView", () => {
       dsl: "has_error",
       extraColumnFilters: { tokens: { type: "greaterThan", filter: 100 } },
     });
+  });
+});
+
+describe("viewSortToSorting / sortingToViewSort", () => {
+  test("view sort maps to TanStack SortingState and back", () => {
+    const viewSort: SamplesViewState["sort"] = [
+      { colId: "score", dir: "desc" },
+      { colId: "id", dir: "asc" },
+    ];
+    const sorting = viewSortToSorting(viewSort);
+    expect(sorting).toEqual([
+      { id: "score", desc: true },
+      { id: "id", desc: false },
+    ]);
+    expect(sortingToViewSort(sorting)).toEqual(viewSort);
+  });
+
+  test("empty sorts round-trip to empty", () => {
+    expect(viewSortToSorting([])).toEqual([]);
+    expect(sortingToViewSort([])).toEqual([]);
   });
 });
