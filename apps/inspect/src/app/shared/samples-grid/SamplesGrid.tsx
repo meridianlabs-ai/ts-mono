@@ -36,9 +36,22 @@ interface SamplesGridProps {
   columnVisibility?: Record<string, boolean>;
   /** `true` = list-style tall rows; otherwise compact. Affects row height. */
   multiline?: boolean;
-  /** Initial sort applied until the user clicks a header (e.g. the cross-log
-   *  panel seeds Completed-desc). */
+  /** Initial sort applied until the user clicks a header. Uncontrolled mode
+   *  only — ignored when `sorting` is provided. */
   defaultSorting?: SortingState;
+  /**
+   * Controlled sort. When provided, the grid renders this order and reports
+   * header clicks via `onSortingChange` WITHOUT applying them itself — the
+   * owner persists the sort and feeds it back (both consumers do, so sort
+   * survives the grid unmounting on sample navigation). Same
+   * choose-a-mode-for-the-lifetime convention as `columnFilters`.
+   */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  /** Controlled column widths (keyed by column id) — same contract as
+   *  `sorting`. */
+  columnSizing?: ColumnSizingState;
+  onColumnSizingChange?: (sizing: ColumnSizingState) => void;
   getRowId: (row: SampleRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
@@ -100,6 +113,10 @@ export const SamplesGrid = ({
   columnVisibility,
   multiline,
   defaultSorting,
+  sorting: sortingProp,
+  onSortingChange,
+  columnSizing: columnSizingProp,
+  onColumnSizingChange,
   getRowId,
   selectedRowId,
   onRowSelect,
@@ -114,14 +131,34 @@ export const SamplesGrid = ({
 }: SamplesGridProps): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
-  const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
+  const [localSorting, setLocalSorting] = useState<SortingState>(
+    defaultSorting ?? []
+  );
   const [localFilters, setLocalFilters] = useState<
     Record<string, ColumnFilter>
   >({});
-  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [localSizing, setLocalSizing] = useState<ColumnSizingState>({});
 
   const controlled = columnFilters !== undefined;
   const effectiveFilters = controlled ? columnFilters : localFilters;
+
+  const sorting = sortingProp ?? localSorting;
+  const handleSortingChange = useCallback(
+    (next: SortingState) => {
+      if (onSortingChange) onSortingChange(next);
+      else setLocalSorting(next);
+    },
+    [onSortingChange]
+  );
+
+  const columnSizing = columnSizingProp ?? localSizing;
+  const handleColumnSizingChange = useCallback(
+    (next: ColumnSizingState) => {
+      if (onColumnSizingChange) onColumnSizingChange(next);
+      else setLocalSizing(next);
+    },
+    [onColumnSizingChange]
+  );
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
@@ -199,12 +236,12 @@ export const SamplesGrid = ({
       getRowId={getRowId}
       columnVisibility={columnVisibility}
       sorting={sorting}
-      onSortingChange={setSorting}
+      onSortingChange={handleSortingChange}
       columnFilters={effectiveFilters}
       onColumnFilterChange={handleColumnFilterChange}
       hideColumnFilters={hideColumnFilters}
       columnSizing={columnSizing}
-      onColumnSizingChange={setColumnSizing}
+      onColumnSizingChange={handleColumnSizingChange}
       selectedRowId={selectedRowId}
       onSelectedRowChange={onRowSelect}
       scrollRef={scrollRef}

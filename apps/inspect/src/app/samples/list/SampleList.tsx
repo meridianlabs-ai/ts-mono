@@ -1,4 +1,4 @@
-import type { SortingState } from "@tanstack/react-table";
+import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
 import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
@@ -27,8 +27,13 @@ interface SampleListProps {
   items: SampleRow[];
   columns: ExtendedColumnDef<SampleRow>[];
   columnVisibility?: Record<string, boolean>;
-  /** Initial row sort (eval-author default from `task_samples_view.sort`). */
-  defaultSorting?: SortingState;
+  /** Controlled row sort (persisted via the per-log samples view) —
+   *  forwarded to the grid's controlled sorting mode. */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  /** Controlled column widths — same per-log persistence path. */
+  columnSizing?: ColumnSizingState;
+  onColumnSizingChange?: (sizing: ColumnSizingState) => void;
   earlyStopping?: EarlyStoppingSummary | null;
   totalItemCount: number;
   running: boolean;
@@ -58,7 +63,10 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     items,
     columns,
     columnVisibility,
-    defaultSorting,
+    sorting,
+    onSortingChange,
+    columnSizing,
+    onColumnSizingChange,
     earlyStopping,
     totalItemCount,
     running,
@@ -165,7 +173,10 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         rowData={items}
         columnDefs={columns}
         columnVisibility={columnVisibility}
-        defaultSorting={defaultSorting}
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        columnSizing={columnSizing}
+        onColumnSizingChange={onColumnSizingChange}
         multiline={multiline}
         getRowId={getRowId}
         selectedRowId={selectedRowId}

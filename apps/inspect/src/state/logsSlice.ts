@@ -1,7 +1,10 @@
-import { GridState } from "ag-grid-community";
-
 import type { SamplesViewState } from "../app/samples/list/samplesView";
-import { DisplayedSample, LogListGridState, LogsState } from "../app/types";
+import {
+  DisplayedSample,
+  LogListGridState,
+  LogsState,
+  SamplesPanelGridState,
+} from "../app/types";
 
 import { StoreState } from "./store";
 
@@ -18,8 +21,13 @@ export interface LogsSlice {
     setLogsColumnVisibility: (visibility: Record<string, boolean>) => void;
 
     // SamplesPanel scope only; logViewSamples goes through setSampleListView.
-    setSamplesGridState: (scope: "samplesPanel", gridState: GridState) => void;
-    clearSamplesGridState: (scope: "samplesPanel") => void;
+    /** Merge a partial grid-state update into the scope entry. Merging (not
+     *  replacing) means a sorting write can't clobber filters written from a
+     *  different callback's snapshot. */
+    patchSamplesGridState: (
+      scope: "samplesPanel",
+      partial: Partial<SamplesPanelGridState>
+    ) => void;
     setSamplesColumnVisibility: (
       scope: "samplesPanel",
       visibility: Record<string, boolean>
@@ -62,17 +70,12 @@ export const createLogsSlice = (
 
     // Actions
     logsActions: {
-      setSamplesGridState: (
+      patchSamplesGridState: (
         scope: "samplesPanel",
-        gridState: GridState | undefined
+        partial: Partial<SamplesPanelGridState>
       ) => {
         set((state) => {
-          state.logs.samplesListState.byScope[scope].gridState = gridState;
-        });
-      },
-      clearSamplesGridState: (scope: "samplesPanel") => {
-        set((state) => {
-          state.logs.samplesListState.byScope[scope].gridState = undefined;
+          Object.assign(state.logs.samplesListState.byScope[scope], partial);
         });
       },
       setSampleListView: (logFile: string, view: SamplesViewState) => {

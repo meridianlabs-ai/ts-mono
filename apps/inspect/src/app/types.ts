@@ -1,5 +1,4 @@
 import { SortingState } from "@tanstack/react-table";
-import { GridState } from "ag-grid-community";
 
 import {
   ApprovalEvent,
@@ -80,8 +79,7 @@ export interface LogsState {
     byScope: {
       samplesPanel: {
         columnVisibility: Record<string, boolean>;
-        gridState?: GridState;
-      };
+      } & SamplesPanelGridState;
     };
     /** Per-log TaskSamplesView descriptors keyed by log file path. Missing
      *  entries fall through to the eval-author default and then the
@@ -90,6 +88,17 @@ export interface LogsState {
     displayedSamples?: Array<DisplayedSample>;
     previousSamplesPath?: string;
   };
+}
+
+/** Persisted cross-log samples-panel grid state (TanStack). All fields are
+ *  optional so a fresh (or pre-refactor rehydrated) scope entry means "no
+ *  customization yet" and the panel's defaults apply. */
+export interface SamplesPanelGridState {
+  sorting?: SortingState;
+  /** Active per-column filters, keyed by column id. */
+  columnFilters?: Record<string, ColumnFilter>;
+  /** User-resized column widths, keyed by column id. */
+  columnSizing?: Record<string, number>;
 }
 
 /** Per-scope log-list grid state (TanStack). */

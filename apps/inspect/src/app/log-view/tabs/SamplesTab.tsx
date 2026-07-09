@@ -48,6 +48,10 @@ import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import {
+  sortingToViewSort,
+  viewSortToSorting,
+} from "../../samples/list/samplesView.converters.ts";
+import {
   useSamplesView,
   useSamplesViewColorScalesEnabled,
   useSamplesViewCompactScores,
@@ -81,6 +85,9 @@ const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
 // Stable empty fallback: a fresh `{}` per render (while the representability
 // gate is active) would defeat SampleList's memo.
 const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
+
+// Stable empty fallback for logs with no persisted column widths.
+const kNoColumnSizing: Record<string, number> = Object.freeze({});
 
 // AG-shaped shim of the column list for the still-AG `useSamplesView` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
@@ -319,10 +326,15 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [shape, epochs]
   );
 
-  const { view, columnVisibility, setColumnVisibility, resetColumns } =
-    useSamplesView<SampleRow>(pickerColumns, {
-      seedDefaultVisibility: defaultsForUnseededColumns,
-    });
+  const {
+    view,
+    columnVisibility,
+    setColumnVisibility,
+    patchView,
+    resetColumns,
+  } = useSamplesView<SampleRow>(pickerColumns, {
+    seedDefaultVisibility: defaultsForUnseededColumns,
+  });
 
   // Apply the eval-author's initial column order + row sort from
   // `task_samples_view` (the AG grid did this via `initialState`). Columns are
@@ -341,9 +353,20 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       .map((x) => x.col);
   }, [allColumns, view.columns]);
 
-  const defaultSorting = useMemo<SortingState>(
-    () => view.sort.map((s) => ({ id: s.colId, desc: s.dir === "desc" })),
+  // Controlled sort/widths, persisted per log in the samples-view descriptor
+  // so they survive the grid unmounting (opening a sample, switching tabs).
+  const sorting = useMemo<SortingState>(
+    () => viewSortToSorting(view.sort),
     [view.sort]
+  );
+  const handleSortingChange = useCallback(
+    (next: SortingState) => patchView({ sort: sortingToViewSort(next) }),
+    [patchView]
+  );
+  const columnSizing = view.columnWidths ?? kNoColumnSizing;
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => patchView({ columnWidths: next }),
+    [patchView]
   );
 
   // Score column visibility comes from `selectedScores` (so toggling a
@@ -477,7 +500,10 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           items={items}
           columns={orderedColumns}
           columnVisibility={visibilityForGrid}
-          defaultSorting={defaultSorting}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          columnSizing={columnSizing}
+          onColumnSizingChange={handleColumnSizingChange}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}

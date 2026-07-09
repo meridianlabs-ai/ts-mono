@@ -3,12 +3,12 @@ import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
+import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import type {
   ColumnFilter,
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
@@ -50,6 +50,11 @@ import styles from "./SamplesPanel.module.css";
 const kSamplesPanelDefaultSorting: SortingState = [
   { id: "completed_at", desc: true },
 ];
+
+// Stable empties for unseeded persisted state — a fresh `{}` per render would
+// invalidate the grid's memos every render.
+const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
+const kNoColumnSizing: Record<string, number> = Object.freeze({});
 
 const sampleRowId = (
   logFile: string,
@@ -115,31 +120,6 @@ export const SamplesPanel: FC = () => {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
     useState<HTMLButtonElement | null>(null);
-
-  // Owned here (rather than left to SamplesGrid's local state) so the navbar's
-  // Reset Filters button and the column-selector's filter markers can react to
-  // the active per-column filters. The grid still filters client-side via
-  // `applyFiltersClientSide` — there's no upstream filtrex pass in this view.
-  const [columnFilters, setColumnFilters] = useState<
-    Record<string, ColumnFilter>
-  >({});
-  const handleColumnFilterChange = useCallback(
-    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
-      setColumnFilters((prev) => {
-        const next = { ...prev };
-        if (spec === null) delete next[columnId];
-        else next[columnId] = { columnId, filterType, spec };
-        return next;
-      });
-    },
-    []
-  );
-  const filteredFields = useMemo(
-    () => Object.keys(columnFilters),
-    [columnFilters]
-  );
-  const hasFilter = filteredFields.length > 0;
-  const handleResetFilters = useCallback(() => setColumnFilters({}), []);
 
   const flowData = useFlowQuery(samplesPath || "").data;
 
@@ -240,29 +220,70 @@ export const SamplesPanel: FC = () => {
     [optionalHasData]
   );
 
-  const { columnVisibility, setColumnVisibility } =
-    useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
-      defaultsForUnseededColumns,
-    });
+  const {
+    columnVisibility,
+    setColumnVisibility,
+    sorting: persistedSorting,
+    columnFilters: persistedFilters,
+    columnSizing: persistedSizing,
+    patchGridState,
+  } = useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
+    defaultsForUnseededColumns,
+  });
+
+  // Store-backed (rather than left to SamplesGrid's local state) so the
+  // navbar's Reset Filters button and the column-selector's filter markers can
+  // react to the active per-column filters, and so filters/sort/widths survive
+  // the panel unmounting on sample navigation. The grid still filters
+  // client-side via `applyFiltersClientSide` — there's no upstream filtrex
+  // pass in this view.
+  const columnFilters = persistedFilters ?? kNoColumnFilters;
+  const sorting = persistedSorting ?? kSamplesPanelDefaultSorting;
+  const columnSizing = persistedSizing ?? kNoColumnSizing;
+
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      const next = { ...columnFilters };
+      if (spec === null) delete next[columnId];
+      else next[columnId] = { columnId, filterType, spec };
+      patchGridState({ columnFilters: next });
+    },
+    [columnFilters, patchGridState]
+  );
+  const handleSortingChange = useCallback(
+    (next: SortingState) => patchGridState({ sorting: next }),
+    [patchGridState]
+  );
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => patchGridState({ columnSizing: next }),
+    [patchGridState]
+  );
+  const filteredFields = useMemo(
+    () => Object.keys(columnFilters),
+    [columnFilters]
+  );
+  const hasFilter = filteredFields.length > 0;
+  const handleResetFilters = useCallback(
+    () => patchGridState({ columnFilters: {} }),
+    [patchGridState]
+  );
 
   // Hiding a column also drops any active filter on it — a hidden column
   // shouldn't keep filtering invisibly (matches the log list's behavior).
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      setColumnFilters((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        for (const id of Object.keys(prev)) {
-          if (newVisibility[id] === false) {
-            delete next[id];
-            changed = true;
-          }
+      const next = { ...columnFilters };
+      let changed = false;
+      for (const id of Object.keys(columnFilters)) {
+        if (newVisibility[id] === false) {
+          delete next[id];
+          changed = true;
         }
-        return changed ? next : prev;
-      });
+      }
+      if (changed) patchGridState({ columnFilters: next });
       setColumnVisibility(newVisibility);
     },
-    [setColumnVisibility]
+    [columnFilters, patchGridState, setColumnVisibility]
   );
 
   // Controlled visibility map keyed by column id, consumed by the DataGrid.
@@ -481,7 +502,10 @@ export const SamplesPanel: FC = () => {
             onColumnFilterChange={handleColumnFilterChange}
             applyFiltersClientSide
             onDisplayedRowsChange={handleDisplayedRowsChange}
-            defaultSorting={kSamplesPanelDefaultSorting}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            columnSizing={columnSizing}
+            onColumnSizingChange={handleColumnSizingChange}
             getRowId={getRowId}
             selectedRowId={selectedRowId}
             onRowSelect={handleRowSelect}

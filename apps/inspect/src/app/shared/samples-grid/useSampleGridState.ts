@@ -1,44 +1,23 @@
-import type { ColDef, GridApi, GridState } from "ag-grid-community";
-import type { AgGridReact } from "ag-grid-react";
-import { RefObject, useCallback, useEffect, useMemo } from "react";
+import type { ColDef } from "ag-grid-community";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
+import type { SamplesPanelGridState } from "../../types";
 import { getFieldKey } from "../gridUtils";
 
-/** Removes any active filter for a field whose visibility map says
- *  hidden. Exported so callers (e.g. `SamplesTab`) that split visibility
- *  across multiple stores can still trigger filter-clearing on the full
- *  map. */
-export function clearFiltersForHiddenColumns<TRow>(
-  api: GridApi<TRow>,
-  visibility: Record<string, boolean>
-): void {
-  const current = api.getFilterModel() ?? {};
-  const next: Record<string, unknown> = {};
-  let removed = false;
-  for (const [field, filter] of Object.entries(current)) {
-    if (visibility[field] === false) {
-      removed = true;
-    } else {
-      next[field] = filter;
-    }
-  }
-  if (removed) api.setFilterModel(next);
-}
-
-interface UseSampleGridStateResult {
+interface UseSampleGridStateResult extends SamplesPanelGridState {
   columnVisibility: Record<string, boolean>;
-  /** Wraps the underlying setter: filters for columns being hidden are
-   *  cleared first so they don't linger as invisible state. */
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
-  gridState: GridState | undefined;
-  setGridState: (state: GridState) => void;
-  clearGridState: () => void;
+  /** Merge a partial sorting/filters/sizing update into the persisted
+   *  scope entry (see `patchSamplesGridState`). */
+  patchGridState: (partial: Partial<SamplesPanelGridState>) => void;
 }
 
 /**
  * Persistence for the cross-log SamplesPanel grid. Owns its own
- * column-visibility map and ag-grid GridState — defaults are seeded from
+ * column-visibility map plus the TanStack grid state (sorting, per-column
+ * filters, column widths), all store-backed so they survive the panel
+ * unmounting on sample navigation. Visibility defaults are seeded from
  * `defaultsForUnseededColumns` the first time a column is encountered
  * with no entry, after which user toggles win.
  *
@@ -50,25 +29,26 @@ export function useSampleGridState<TRow>(
   allColumns: ColDef<TRow>[],
   options?: {
     defaultsForUnseededColumns?: (col: ColDef<TRow>) => boolean;
-    /** Used to clear ag-grid filters for columns being hidden. */
-    gridRef?: RefObject<AgGridReact<TRow> | null>;
   }
 ): UseSampleGridStateResult {
-  const { defaultsForUnseededColumns, gridRef } = options ?? {};
+  const { defaultsForUnseededColumns } = options ?? {};
   const columnVisibility = useStore(
     (state) => state.logs.samplesListState.byScope[scope].columnVisibility
   );
-  const gridState = useStore(
-    (state) => state.logs.samplesListState.byScope[scope].gridState
+  const sorting = useStore(
+    (state) => state.logs.samplesListState.byScope[scope].sorting
+  );
+  const columnFilters = useStore(
+    (state) => state.logs.samplesListState.byScope[scope].columnFilters
+  );
+  const columnSizing = useStore(
+    (state) => state.logs.samplesListState.byScope[scope].columnSizing
   );
   const setSamplesColumnVisibility = useStore(
     (state) => state.logsActions.setSamplesColumnVisibility
   );
-  const setSamplesGridState = useStore(
-    (state) => state.logsActions.setSamplesGridState
-  );
-  const clearSamplesGridState = useStore(
-    (state) => state.logsActions.clearSamplesGridState
+  const patchSamplesGridState = useStore(
+    (state) => state.logsActions.patchSamplesGridState
   );
 
   // Seed visibility for any column not yet in the map, the first time we
@@ -97,38 +77,34 @@ export function useSampleGridState<TRow>(
 
   const setColumnVisibility = useCallback(
     (visibility: Record<string, boolean>) => {
-      const api = gridRef?.current?.api;
-      if (api) clearFiltersForHiddenColumns(api, visibility);
       setSamplesColumnVisibility(scope, visibility);
     },
-    [gridRef, scope, setSamplesColumnVisibility]
+    [scope, setSamplesColumnVisibility]
   );
 
-  const setGridState = useCallback(
-    (state: GridState) => {
-      setSamplesGridState(scope, state);
+  const patchGridState = useCallback(
+    (partial: Partial<SamplesPanelGridState>) => {
+      patchSamplesGridState(scope, partial);
     },
-    [scope, setSamplesGridState]
+    [scope, patchSamplesGridState]
   );
-
-  const clearGridState = useCallback(() => {
-    clearSamplesGridState(scope);
-  }, [scope, clearSamplesGridState]);
 
   return useMemo(
     () => ({
       columnVisibility,
       setColumnVisibility,
-      gridState,
-      setGridState,
-      clearGridState,
+      sorting,
+      columnFilters,
+      columnSizing,
+      patchGridState,
     }),
     [
       columnVisibility,
       setColumnVisibility,
-      gridState,
-      setGridState,
-      clearGridState,
+      sorting,
+      columnFilters,
+      columnSizing,
+      patchGridState,
     ]
   );
 }
