@@ -12,10 +12,12 @@ import type {
 // so `\.` / `\+` / etc. are *invalid* and would be rejected by the
 // filtrex lexer. To match a literal regex metachar inside a filtrex
 // string, we emit a single-element character class (`[.]`, `[+]`, …).
-// Backslash is the exception — its regex form `\\` is always written as
-// two characters and survives filtrex's string escape rules cleanly.
+// Three metachars can't use that scheme and get a backslash escape
+// instead (which survives filtrex because `stringLiteral` doubles the
+// backslash into the valid `\\` escape): `^` (`[^]` matches ANY char),
+// `]` (`[]]` never matches), and `\` itself.
 const regexEscape = (s: string): string =>
-  s.replace(/\\/g, "\\\\").replace(/[.*+?^${}()|[\]]/g, "[$&]");
+  s.replace(/[\\^\]]/g, "\\$&").replace(/[.*+?${}()|[]/g, "[$&]");
 
 // Filtrex's lexer recognizes only two string escapes: `\"` and `\\`.
 // JSON.stringify additionally encodes control chars (`\n`, `\t`, …) which

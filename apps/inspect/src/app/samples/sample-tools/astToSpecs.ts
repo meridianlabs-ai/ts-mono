@@ -16,9 +16,10 @@ interface PredicateResult {
 const REGEX_META = ".*+?^${}()|[]\\";
 
 // Match the synthesizer's style: regex metachars are wrapped as `[X]`,
-// literal backslash is written as `\\`. We don't accept bare `\X` for
-// metachars because filtrex's lexer rejects them anyway.
-const META_FOR_CLASS = ".*+?^${}()|[]";
+// except `^`, `]`, and `\` which it backslash-escapes (`[^]` matches ANY
+// char and `[]]` never matches, so those class forms are NOT literals
+// and must stay unrecognized).
+const META_FOR_CLASS = ".*+?${}()|[";
 
 /** Walk top-level `and` nodes, collecting leaf predicates. */
 const collectAndPredicates = (ast: FilterAst): FilterAst[] => {
@@ -66,9 +67,10 @@ const parseRegexLiteral = (
       i += 3;
       continue;
     }
-    // `\\` for a literal backslash.
-    if (ch === "\\" && next === "\\") {
-      literal += "\\";
+    // `\X` for a literal metachar (the synthesizer emits `\\`, `\^`,
+    // and `\]`; hand-typed escapes of other metachars are literal too).
+    if (ch === "\\" && REGEX_META.includes(next)) {
+      literal += next;
       i += 2;
       continue;
     }

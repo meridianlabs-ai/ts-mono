@@ -86,6 +86,23 @@ describe("specsToFilterText", () => {
     ).toBe('not error_contains("boom")');
   });
 
+  it("escapes ^ and ] with a backslash, not a character class", () => {
+    // `[^]` matches ANY character and `[]]` never matches, so these two
+    // metachars can't use the single-char-class scheme.
+    expect(toText({ input: { operator: "contains", value: "a^b" } })).toBe(
+      'input_contains("a\\\\^b")'
+    );
+    expect(toText({ input: { operator: "contains", value: "a]b" } })).toBe(
+      'input_contains("a\\\\]b")'
+    );
+    expect(toText({ target: { operator: "starts with", value: "^up" } })).toBe(
+      'target ~= "^\\\\^up"'
+    );
+    expect(toText({ target: { operator: "ends with", value: "x]" } })).toBe(
+      'target ~= "x\\\\]$"'
+    );
+  });
+
   it("contains falls back to regex for columns without a containsFn", () => {
     expect(toText({ sampleUuid: { operator: "contains", value: "abc" } })).toBe(
       'uuid ~= "abc"'

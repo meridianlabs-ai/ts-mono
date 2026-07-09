@@ -134,6 +134,22 @@ describe("astToSpecs / parseFilterSpecs — string columns", () => {
     });
   });
 
+  it("backslash-escaped ^ and ] unescape round-trip", () => {
+    expect(toSpecs('input_contains("a\\\\^b")')).toEqual({
+      input: entry("input", { operator: "contains", value: "a^b" }),
+    });
+    expect(toSpecs('input_contains("a\\\\]b")')).toEqual({
+      input: entry("input", { operator: "contains", value: "a]b" }),
+    });
+  });
+
+  it("character-class forms of ^ and ] are not literal matches", () => {
+    // `[^]` matches ANY character and `[]]` never matches — recognizing
+    // them as literal `^`/`]` would misrepresent the expression.
+    expect(toSpecs('input_contains("a[^]b")')).toBeNull();
+    expect(toSpecs('input_contains("a[]]b")')).toBeNull();
+  });
+
   it("~= '^prefix' → starts with", () => {
     expect(toSpecs('target ~= "^pre"')).toEqual({
       target: entry("target", { operator: "starts with", value: "pre" }),
@@ -366,6 +382,15 @@ describe("astToSpecs — round-trip stability (text → specs → text)", () => 
 
   it("filter values with backslashes survive", () => {
     expect(roundTrip('input == "path\\\\to"')).toBe('input == "path\\\\to"');
+  });
+
+  it("filter values with ^ and ] survive", () => {
+    expect(roundTrip('input_contains("a\\\\^b")')).toBe(
+      'input_contains("a\\\\^b")'
+    );
+    expect(roundTrip('input_contains("a\\\\]b")')).toBe(
+      'input_contains("a\\\\]b")'
+    );
   });
 
   it("multi-column AND survives", () => {
