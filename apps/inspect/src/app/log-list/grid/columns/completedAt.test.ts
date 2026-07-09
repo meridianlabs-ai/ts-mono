@@ -14,14 +14,14 @@ const fileRow = (name: string, completedAt?: string): LogListRow => ({
 });
 
 // Mirrors the grid's Completed-column wiring: `completedAtValue` accessor +
-// `comparators.date`, applied DESC (the log list's default sort).
+// `comparators.date`, applied DESC.
 const byCompletedDesc = compareByOrderBy<LogListRow>(
   [{ column: "completedAt", direction: "DESC" }],
   (row) => completedAtValue(row),
   () => (a, b) => comparators.date(a, b)
 );
 
-describe("completedAtValue ordering (default Completed-desc sort)", () => {
+describe("completedAtValue ordering (Completed-desc sort)", () => {
   it("slots never-completed logs by their file-name timestamp", () => {
     const running = fileRow(
       "2026-07-04T19-37-16-00-00_live-survey_HGnSppsNeU2oCcRKHGCsg9.eval"

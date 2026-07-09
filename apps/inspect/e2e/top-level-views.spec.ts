@@ -310,7 +310,7 @@ test.describe("Sorting", () => {
       .first()
       .textContent();
 
-  test("defaults to a Completed (descending) sort indicator on load", async ({
+  test("shows no sort indicator on load (natural server order)", async ({
     page,
     network,
   }) => {
@@ -318,10 +318,10 @@ test.describe("Sorting", () => {
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
-    // Sort arrow is aria-hidden, so locate it within the Completed header by
-    // class.
-    const completedHeader = columnHeader(page, "Completed");
-    await expect(completedHeader.locator("i.bi-arrow-down")).toBeVisible();
+    // Sort arrows are aria-hidden, so locate them by class.
+    const headers = page.getByRole("columnheader");
+    await expect(headers.locator("i.bi-arrow-down")).toHaveCount(0);
+    await expect(headers.locator("i.bi-arrow-up")).toHaveCount(0);
   });
 
   test("clicking the Task header sorts rows ascending then descending", async ({

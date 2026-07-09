@@ -17,8 +17,7 @@
  *
  * Tests drive the TanStack DataGrid via column-header sort clicks (sort
  * state shows as caret icons in the header) and via each column's filter
- * funnel popover. Note the grid defaults to a Completed-descending sort, so
- * "no sort" here means "no sort caret on the Task column" specifically.
+ * funnel popover.
  */
 import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
