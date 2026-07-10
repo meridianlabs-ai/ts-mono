@@ -23,6 +23,7 @@ import {
   useSelectedLogDetails,
   useSelectedScores,
 } from "../../state/hooks";
+import { ScoreLabel } from "../../app/types";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
@@ -164,12 +165,15 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
-  const visibleScores = selectedScores.filter((scoreLabel) => {
-    const rendered = sampleDescriptor.evalDescriptor
-      .score(sample, scoreLabel)
-      ?.render();
-    return rendered !== undefined && rendered !== "";
-  });
+  // The score selection is rehydrated from persisted storage and can be
+  // unset despite the declared type.
+  const visibleScores =
+    (selectedScores as ScoreLabel[] | undefined)?.filter((scoreLabel) => {
+      const rendered = sampleDescriptor.evalDescriptor
+        .score(sample, scoreLabel)
+        ?.render();
+      return rendered !== undefined && rendered !== "";
+    }) ?? [];
   const scoreCount = visibleScores.length;
 
   // Two-column grid widens the right side once the score panel needs

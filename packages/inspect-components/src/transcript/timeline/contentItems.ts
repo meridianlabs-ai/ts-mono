@@ -151,8 +151,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
       // output (and its choices) can be absent at runtime despite the
       // generated types
       const output = event.output as
-        | { choices?: (typeof event.output)["choices"] }
-        | undefined;
+        { choices?: (typeof event.output)["choices"] } | undefined;
       const outMsg = output?.choices?.[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;

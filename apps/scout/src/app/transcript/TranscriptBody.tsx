@@ -101,8 +101,13 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const eventParam = searchParams.get("event");
   const messageParam = searchParams.get("message");
 
-  // Selected tab — default to Events when the transcript has events
-  const hasEvents = transcript.events.length > 0;
+  // Selected tab — default to Events when the transcript has events.
+  // The transcript is deserialized from disk, so fields the schema marks
+  // required can still be missing at runtime.
+  const transcriptEvents = transcript.events as
+    | Transcript["events"]
+    | undefined;
+  const hasEvents = transcriptEvents && transcriptEvents.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
     : kTranscriptMessagesTabId;
