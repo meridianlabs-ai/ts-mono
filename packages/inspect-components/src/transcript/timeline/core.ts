@@ -40,8 +40,11 @@ interface SpanNode {
 type TreeItem = SpanNode | Event;
 
 function isSpanNode(item: TreeItem): item is SpanNode {
+  // events originate from serialized logs, so guard against a literal null
+  // (typeof null === "object" would make the `in` check throw)
   return (
     typeof item === "object" &&
+    (item as TreeItem | null) !== null &&
     "children" in item &&
     Array.isArray(item.children)
   );
@@ -357,10 +360,14 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
-  const content = server.content
+  // content/branches are required in the generated type but the span comes
+  // from serialized server data, so tolerate their absence at runtime
+  const content = ((server.content as typeof server.content | undefined) ?? [])
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = server.branches
+  const branches = (
+    (server.branches as typeof server.branches | undefined) ?? []
+  )
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0 || b.branches.length > 0);
 
@@ -484,10 +491,11 @@ function getEventTokens(event: Event): number {
     // output can be absent at runtime despite the generated types (errored calls)
     const usage = (event.output as ModelEvent["output"] | undefined)?.usage;
     if (usage) {
-      const inputTokens = usage.input_tokens;
+      // token counts come from serialized logs; default any absent field to 0
+      const inputTokens = (usage.input_tokens as number | undefined) ?? 0;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
       const cacheWrite = usage.input_tokens_cache_write ?? 0;
-      const outputTokens = usage.output_tokens;
+      const outputTokens = (usage.output_tokens as number | undefined) ?? 0;
       return inputTokens + cacheRead + cacheWrite + outputTokens;
     }
   }

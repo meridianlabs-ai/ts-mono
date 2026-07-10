@@ -326,7 +326,10 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
-    return JSON.stringify(call.request, undefined, 2);
+    // request is required in the generated type but the call comes from
+    // serialized logs, so tolerate its absence at runtime
+    const request = call.request as ModelCall["request"] | undefined;
+    return request === undefined ? "" : JSON.stringify(request, undefined, 2);
   }, [call.request]);
 
   const responseCode = useMemo(() => {
