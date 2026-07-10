@@ -22,8 +22,10 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
 - [x] `src/app/App.tsx:173` (fixed: 33d318cb) — **app-init** — startup-blob dispatch + `new ClipboardJS()` keyed on `[onMessage]`;
       re-runs and leaks a ClipboardJS instance per identity change. Fix: run-once (module scope or empty-deps
       effect with `destroy()` cleanup); guard embedded-state dispatch with run-once ref.
-- [x] `src/app/shared/samples-grid/useSampleGridState.ts:56` (fixed: 73518c9d) — **derived-state** — seeds default column
-      visibility into persisted store. Fix: `useMemo` merge `{...defaults, ...persisted}`; write only on user toggle.
+- [x] `src/app/shared/samples-grid/useSampleGridState.ts:56` (fixed: 73518c9d, follow-up cb9edcb1) — **derived-state** — seeds
+      default column visibility into persisted store. Fix: `useMemo` merge `{...defaults, ...persisted}`; write only on
+      user toggle. Follow-up: popover emits the full map, so the write path must persist only changed keys or one
+      toggle freezes every derived default.
 - [x] `src/app/shared/data-grid/DataGrid.tsx:255` (fixed: 6750b600) — **adjust-state-on-prop-change** — mirrors `selectedRowId`
       prop into `internalSelectedId`; stale frame paints first. Fix: render-adjust pattern (prev-value state,
       set during render).
@@ -112,6 +114,9 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
       when children re-render.
 - [ ] `src/app/log-list/LogsPanel.tsx:334` — single-log auto-redirect can fire on transient length-1 listing
       mid-sync; safer as `<Navigate>` on settled data.
+- [ ] `src/app/log-list/LogsPanel.tsx:290` — same full-map persist hazard as cb9edcb1: `handleColumnVisibilityChange`
+      merges the popover's full active-mode map into the stored map, freezing mode-dependent defaults (the single
+      stored map spans tasks/logs modes, whose default-hidden sets differ — e.g. `name`). Persist only changed keys.
 
 ## Appropriate (no action)
 
