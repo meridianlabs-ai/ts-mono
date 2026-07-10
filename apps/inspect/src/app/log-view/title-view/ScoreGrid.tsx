@@ -1,10 +1,10 @@
 import {
   ColumnDef,
-  Header,
-  SortingState,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  Header,
+  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import clsx from "clsx";
