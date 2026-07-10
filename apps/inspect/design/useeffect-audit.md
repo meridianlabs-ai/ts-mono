@@ -113,8 +113,14 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
       null); later scroll timeout never cleared on unmount. Fix: read ref in cleanup.
 - [x] `src/components/MorePopOver.tsx:20` (deleted) — deps `[title, customClass]`; popover kept stale cloned children
       when children re-render. Moot: component had zero callers since its 2024 introduction — deleted instead of fixed.
-- [ ] `src/app/log-list/LogsPanel.tsx:334` — single-log auto-redirect can fire on transient length-1 listing
-      mid-sync; safer as `<Navigate>` on settled data.
+- [x] `src/app/log-list/LogsPanel.tsx:334` (partial: 0abd830b) — single-log auto-redirect converted to render-time
+      `<Navigate replace>` (fixes back-button trap + flash frame; same trigger condition as before, so no new
+      transients).
+- [ ] `src/app/log-list/LogsPanel.tsx` single-log redirect, settled gate — NOT shipped with the `<Navigate>` fix,
+      needs deliberate decisions: gating on `sync.loading` regresses warm-cache redirect latency (full `syncLogs`
+      round trip before hop), and `useLogListing`'s `useDeferredValue` means settled flags can disagree with
+      `logItems` for a frame, so a naive gate doesn't fully close the transient hole. The concrete risk it would
+      fix (stale cache seeded with a single row) is theoretical so far.
 - [x] `src/app/log-list/LogsPanel.tsx:290` (fixed: e3cc661b) — same full-map persist hazard as cb9edcb1:
       `handleColumnVisibilityChange` merged the popover's full active-mode map into the stored map, freezing
       mode-dependent defaults (the single stored map spans tasks/logs modes, whose default-hidden sets differ —
