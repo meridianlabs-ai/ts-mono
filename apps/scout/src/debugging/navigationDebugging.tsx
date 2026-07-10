@@ -10,7 +10,7 @@ import {
 } from "react-router-dom";
 
 // Debug flag; toggle manually when diagnosing navigation issues
-let NAVIGATION_LOGGING_ENABLED = false;
+const navigationLoggingEnabled = (): boolean => false;
 
 const timestamp = () => new Date().toISOString().slice(11, 23);
 
