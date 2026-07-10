@@ -50,7 +50,9 @@ export const buildConfigsByRole = (
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
   for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-    acc[role] = stripNullish(rc.config);
+    // config can be absent in logs despite the generated type
+    const config = rc.config as typeof rc.config | undefined;
+    if (config) acc[role] = stripNullish(config);
   }
   return finalize(acc);
 };
@@ -75,7 +77,9 @@ export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
   for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-    acc[role] = stripNullish(rc.args);
+    // args can be absent in logs despite the generated type
+    const args = rc.args as typeof rc.args | undefined;
+    if (args) acc[role] = stripNullish(args);
   }
   return finalize(acc);
 };

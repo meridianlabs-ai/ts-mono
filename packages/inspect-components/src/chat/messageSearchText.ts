@@ -21,7 +21,11 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
       if (toolCall.function) {
         texts.push(toolCall.function);
       }
-      texts.push(JSON.stringify(toolCall.arguments));
+      // arguments can be absent in logs despite the generated type
+      const args = toolCall.arguments as typeof toolCall.arguments | undefined;
+      if (args) {
+        texts.push(JSON.stringify(args));
+      }
     }
   }
 

@@ -52,12 +52,18 @@ const messageToStr = (
 
     for (const tool of message.tool_calls) {
       const funcName = tool.function;
-      const args = tool.arguments;
+      // arguments comes from serialized logs, where it may not be an object
+      // despite the declared type
+      const args: unknown = tool.arguments;
 
-      const argsText = Object.entries(args)
-        .map(([k, v]) => `${k}: ${String(v)}`)
-        .join("\n");
-      entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
+      if (typeof args === "object" && args !== null) {
+        const argsText = Object.entries(args)
+          .map(([k, v]) => `${k}: ${String(v)}`)
+          .join("\n");
+        entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
+      } else {
+        entry += `\nTool Call: ${funcName}\n`;
+      }
     }
 
     return entry;

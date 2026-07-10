@@ -42,7 +42,9 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 
   // Generate the route to the scan result using the current scan path and the entry's uuid
-  const isNavigable = !!scansDir;
+  // Arrow rows may lack an identifier despite the declared type
+  const isNavigable =
+    (summary.identifier as string | undefined) !== undefined && !!scansDir;
   const scanResultUrl = isNavigable
     ? scanResultRoute(scansDir, scanPath, summary.identifier, searchParams)
     : "";
@@ -130,13 +132,11 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
       </div>
       {hasValidations && (
         <div className={clsx("text-size-smaller")}>
-          {summary.validationResult != null && (
-            <ValidationResult
-              result={summary.validationResult}
-              target={summary.validationTarget}
-              label={summary.label}
-            />
-          )}
+          <ValidationResult
+            result={summary.validationResult ?? null}
+            target={summary.validationTarget}
+            label={summary.label}
+          />
         </div>
       )}
       {hasErrors && (

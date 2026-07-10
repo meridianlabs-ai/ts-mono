@@ -7,7 +7,8 @@ import type { EvalRetryError } from "@tsmono/inspect-common";
  * so callers can omit the chip rather than render garbage.
  */
 export function deriveErrorType(retry: EvalRetryError): string | null {
-  const tb = retry.traceback.trimEnd();
+  // Traceback comes from log data, which may omit it.
+  const tb = (retry.traceback as string | undefined)?.trimEnd();
   if (!tb) return null;
   const lines = tb.split("\n");
   const last = lines[lines.length - 1]?.trim() ?? "";

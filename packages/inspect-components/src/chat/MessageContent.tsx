@@ -103,18 +103,22 @@ export const MessageContent: FC<MessageContentProps> = ({
           references
         );
       } else {
-        const renderer = messageRenderers[content.type];
-        if (renderer) {
-          return renderer.render(
-            `text-${content.type}-${index}`,
-            content,
-            index === contents.length - 1,
-            context,
-            displayMode,
-            references
-          );
-        } else {
-          console.error(`Unknown message content type '${content.type}'`);
+        // content entries come from serialized logs, which can contain null
+        // entries despite the declared type
+        if (content as ContentObject | null | undefined) {
+          const renderer = messageRenderers[content.type];
+          if (renderer) {
+            return renderer.render(
+              `text-${content.type}-${index}`,
+              content,
+              index === contents.length - 1,
+              context,
+              displayMode,
+              references
+            );
+          } else {
+            console.error(`Unknown message content type '${content.type}'`);
+          }
         }
       }
     });
