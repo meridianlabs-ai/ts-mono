@@ -155,8 +155,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [scopeKey, patchGridState]
   );
 
+  // Armed while the find band is open with an active match; closing the band
+  // or unmounting persists it as the selection (see below). An explicit row
+  // selection disarms it so the stale match can't clobber the user's click —
+  // navigating matches again re-arms via the sync effect.
+  const openBandMatchIdRef = useRef<string | undefined>(undefined);
+
   const handleSelectedRowChange = useCallback(
-    (row: LogListRow) => persistSelectedId(row.id),
+    (row: LogListRow) => {
+      openBandMatchIdRef.current = undefined;
+      persistSelectedId(row.id);
+    },
     [persistSelectedId]
   );
 
@@ -212,21 +221,23 @@ export const LogListGrid: FC<LogListGridProps> = ({
     matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
 
   const closeFind = useCallback(() => {
-    // Persist the final match as the selection so closing the band doesn't
+    // Persist the armed match as the selection so closing the band doesn't
     // snap back to the prior row (matches the AG grid). Display prefers
     // `activeMatchId` while the band is open, so the persisted value only
-    // matters from this point on.
-    if (activeMatchId !== undefined) persistSelectedId(activeMatchId);
+    // matters from this point on. Reads the ref (not `activeMatchId`) so a
+    // row click since the last match navigation wins instead.
+    const id = openBandMatchIdRef.current;
+    if (id !== undefined) persistSelectedId(id);
+    openBandMatchIdRef.current = undefined;
     setShowFind(false);
     setFindTerm("");
     setCurrentMatchIndex(0);
-  }, [activeMatchId, persistSelectedId]);
+  }, [persistSelectedId]);
 
   // Same persistence for the leave-without-closing path: unmounting (e.g.
   // navigating away) with the band still open. Ref carries the latest match
   // so the cleanup — which runs long after this render — doesn't act on a
   // stale closure.
-  const openBandMatchIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
   }, [showFind, activeMatchId]);
