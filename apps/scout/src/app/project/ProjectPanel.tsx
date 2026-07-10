@@ -111,7 +111,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         // Guard against double-save during pending mutation
         if (!mutation.isPending) {
           // Capture focused element ID for restoration after save
-          const el = document.activeElement as HTMLElement;
+          const el = document.activeElement as HTMLElement | null;
           if (el && el !== document.body && el.id) {
             focusedFieldIdRef.current = el.id;
           } else {

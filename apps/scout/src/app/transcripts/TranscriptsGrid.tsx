@@ -74,8 +74,9 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   const rowSelection = useStore(
     (state) => state.transcriptsTableState.rowSelection
   );
-  const columnFilters =
-    useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
+  const columnFilters = useStore(
+    (state) => state.transcriptsTableState.columnFilters
+  );
   const focusedRowId = useStore(
     (state) => state.transcriptsTableState.focusedRowId
   );
@@ -129,7 +130,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
 
   // Compute effective column order: use explicit order if set, otherwise derive from DEFAULT_COLUMN_ORDER
   const effectiveColumnOrder = useMemo(() => {
-    if (columnOrder && columnOrder.length > 0) {
+    if (columnOrder.length > 0) {
       return columnOrder;
     }
     // Filter DEFAULT_COLUMN_ORDER to only include visible columns

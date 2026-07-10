@@ -328,7 +328,7 @@ export const SamplesPanel: FC = () => {
       ({ logFile, summary: sample, log }) => {
         const tokens = sample.model_usage
           ? Object.values(sample.model_usage).reduce(
-              (sum, u) => sum + (u.total_tokens ?? 0),
+              (sum, u) => sum + u.total_tokens,
               0
             )
           : undefined;

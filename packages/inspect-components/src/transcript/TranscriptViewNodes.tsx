@@ -103,9 +103,7 @@ const kSettleStableFrames = 8;
 const kStickyMinWidthRatio = 0.4;
 
 const escapeAttr = (id: string): string =>
-  typeof CSS !== "undefined" && CSS.escape
-    ? CSS.escape(id)
-    : id.replace(/"/g, '\\"');
+  typeof CSS !== "undefined" ? CSS.escape(id) : id.replace(/"/g, '\\"');
 
 /** Worst-case bottom edge of the top-pinned sticky bar (relative to the
  *  scroll container's top), based on each sticky element's CSS `top` +
@@ -481,7 +479,7 @@ export const TranscriptViewNodes = forwardRef<
       index: idx,
       container,
       targetSelector,
-      getStickyOffset: () => offsetTopRef.current ?? 0,
+      getStickyOffset: () => offsetTopRef.current,
       paddingBelowSticky: kPaddingBelowSticky,
     });
   }, [scrollEventId, initialMessageId, flattenedNodes, scrollRef]);

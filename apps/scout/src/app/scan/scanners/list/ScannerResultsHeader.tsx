@@ -55,7 +55,7 @@ const ColumnHeader: FC<{
       const nextSortDirection =
         sort?.direction === undefined
           ? "asc"
-          : sort?.direction === "asc"
+          : sort.direction === "asc"
             ? "desc"
             : undefined;
 
@@ -101,7 +101,7 @@ const ColumnHeader: FC<{
       {sort && (
         <i
           className={clsx(
-            sort?.direction === "asc"
+            sort.direction === "asc"
               ? ApplicationIcons.arrows.up
               : ApplicationIcons.arrows.down
           )}
