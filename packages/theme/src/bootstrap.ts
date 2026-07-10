@@ -249,11 +249,13 @@ const isVscodeWebview = (): boolean =>
   "function";
 
 const installBodyClassObserver = (): void => {
-  if (
-    bodyClassObserverInstalled ||
-    typeof MutationObserver === "undefined" ||
-    !document.body
-  ) {
+  if (bodyClassObserverInstalled || typeof MutationObserver === "undefined") {
+    return;
+  }
+  // lib.dom types document.body as non-null, but this runs early enough in
+  // bootstrap that <body> may not be parsed yet.
+  const body = document.body as HTMLElement | null;
+  if (!body) {
     return;
   }
 
@@ -310,7 +312,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       if (result.hostIsDark !== null) {
         setDocumentBaseScheme(result.hostIsDark);
       }
-    } else if (result.kind === "apply") {
+    } else {
       // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
       // Splitting elements here is deliberate — keep them in lockstep.
@@ -331,7 +333,12 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       // Adding `vscode-light` would activate the bridge in light mode and
       // silently re-skin every `--bs-*` token.
       if (result.toggleBodyClass) {
-        document.body?.classList.toggle("vscode-dark", result.isDark);
+        // lib.dom types document.body as non-null, but applyTheme can run
+        // before <body> is parsed.
+        (document.body as HTMLElement | null)?.classList.toggle(
+          "vscode-dark",
+          result.isDark
+        );
       }
     }
     // No explicit React notification needed: the resolved theme lives in

@@ -26,7 +26,7 @@ export const deriveSearchReferenceLabels = (
     if (!ref.cite) continue;
     if (ref.type === "message") {
       messageLabels[ref.id] = ref.cite;
-    } else if (ref.type === "event") {
+    } else {
       eventLabels[ref.id] = ref.cite;
     }
   }

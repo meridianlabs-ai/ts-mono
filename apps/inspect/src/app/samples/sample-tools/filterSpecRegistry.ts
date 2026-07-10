@@ -84,7 +84,7 @@ export const buildSampleFilterSpecRegistry = (
       const scoreType = evalDescriptor.scoreDescriptor({
         name,
         scorer,
-      })?.scoreType;
+      }).scoreType;
       // Only sync score column filters where the column's text/number
       // filter operates on values that match the runtime filtrex
       // variable type. Booleans (filtrex sees `true`/`false`, the

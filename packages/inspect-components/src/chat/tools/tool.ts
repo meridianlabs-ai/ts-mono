@@ -690,13 +690,6 @@ const extractInput = (
     return `${key}: ${quotedValue}`;
   };
 
-  // No args
-  if (!args) {
-    return {
-      args: [],
-    };
-  }
-
   // Use the input descriptor to snip apart args
   if (inputDescriptor) {
     const filterKeys = new Set<string>();

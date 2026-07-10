@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-const NAVIGATION_LOGGING_ENABLED = false;
+const NAVIGATION_LOGGING_ENABLED: boolean = false;
 
 const timestamp = () => new Date().toISOString().slice(11, 23);
 

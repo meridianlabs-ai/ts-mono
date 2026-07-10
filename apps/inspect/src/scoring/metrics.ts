@@ -18,9 +18,9 @@ export const metricDisplayName = (metric: MetricSummary): string => {
 };
 
 export const firstMetric = (results: EvalResults) => {
-  const scores = results.scores || [];
-  const firstScore = scores.length > 0 ? results.scores?.[0] : undefined;
-  if (firstScore === undefined || firstScore.metrics === undefined) {
+  const scores = results.scores;
+  const firstScore = scores.length > 0 ? scores[0] : undefined;
+  if (firstScore === undefined) {
     return undefined;
   }
 

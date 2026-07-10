@@ -54,14 +54,10 @@ const messageToStr = (
       const funcName = tool.function;
       const args = tool.arguments;
 
-      if (typeof args === "object" && args !== null) {
-        const argsText = Object.entries(args)
-          .map(([k, v]) => `${k}: ${String(v)}`)
-          .join("\n");
-        entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
-      } else {
-        entry += `\nTool Call: ${funcName}\n`;
-      }
+      const argsText = Object.entries(args)
+        .map(([k, v]) => `${k}: ${String(v)}`)
+        .join("\n");
+      entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
     }
 
     return entry;
