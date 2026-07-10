@@ -182,7 +182,7 @@ export const apiScoutServer = (
     getTranscriptsColumnValues: async (
       transcriptsDir: string,
       column: string,
-      filter: Condition
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const result = await requestApi.fetchString(
         "POST",
@@ -268,7 +268,7 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
       );
       const parsed = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] }
+        ScannerInputResponse & { scan_events: Event[] | null }
       >(raw);
 
       return {

@@ -5,10 +5,10 @@ export function toLogOverview(header: EvalHeader): LogPreview {
 
   // Get the first metric from the first score's metrics
   let primary_metric = undefined;
-  const firstScore = results?.scores?.[0];
+  const firstScore = results?.scores[0];
   if (firstScore) {
     // Get the first metric from the score's metrics object
-    const metricsValues = Object.values(firstScore.metrics || {});
+    const metricsValues = Object.values(firstScore.metrics);
     if (metricsValues.length > 0) {
       primary_metric = metricsValues[0];
     }

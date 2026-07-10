@@ -4,11 +4,7 @@
 export const clearDocumentSelection = () => {
   const sel = window.getSelection();
   if (sel) {
-    if (sel.removeAllRanges) {
-      sel.removeAllRanges();
-    } else if (sel.empty) {
-      sel.empty();
-    }
+    sel.removeAllRanges();
   }
 };
 

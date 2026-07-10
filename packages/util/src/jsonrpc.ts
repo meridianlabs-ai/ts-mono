@@ -190,7 +190,7 @@ function isJsonRpcMessage(message: unknown): message is JsonRpcMessage {
 }
 
 function isJsonRpcRequest(message: JsonRpcMessage): message is JsonRpcRequest {
-  return (message as JsonRpcRequest).method !== undefined;
+  return (message as Partial<JsonRpcRequest>).method !== undefined;
 }
 
 function asJsonRpcMessage(data: unknown): JsonRpcMessage | null {

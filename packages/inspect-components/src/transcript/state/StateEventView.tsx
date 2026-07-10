@@ -125,10 +125,7 @@ const generatePreview = (
         const op = change.op;
         switch (op) {
           case "add":
-            if (
-              changeType.signature.add &&
-              changeType.signature.add.length > 0
-            ) {
+            if (changeType.signature.add.length > 0) {
               changeType.signature.add.forEach((signature) => {
                 if (change.path.match(signature)) {
                   matchingOps++;

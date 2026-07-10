@@ -170,12 +170,8 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
 const entryRecords = (
   entries: { name: string; value: unknown }[] | Record<string, unknown>
 ): { name: string; value: unknown }[] => {
-  if (!entries) {
-    return [];
-  }
-
   if (!Array.isArray(entries)) {
-    return Object.entries(entries || {}).map(([key, value]) => {
+    return Object.entries(entries).map(([key, value]) => {
       return { name: key, value };
     });
   } else {

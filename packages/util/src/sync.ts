@@ -20,15 +20,15 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let previous = 0;
 
+  // Read via a call: func may re-enter throttled and reschedule timeout,
+  // which TS's narrowing can't see through a direct read.
+  const hasTimeout = () => timeout !== null;
+
   const later = (): void => {
     previous = options.leading === false ? 0 : Date.now();
     timeout = null;
     result = func(...(args === null ? [] : args)) as ReturnType<T>;
-    // TODO: eslint thinks that the conditional is unnecessary, but it seems that
-    // the call to func could have a side effect of mutating timeout if it makes
-    // a call to throttled below
-
-    if (!timeout) {
+    if (!hasTimeout()) {
       args = null;
     }
   };
@@ -77,6 +77,10 @@ export function debounce<T extends (...args: any[]) => unknown>(
   let result: ReturnType<T>;
   let lastCallTime: number | null = null;
 
+  // Read via a call: func may re-enter debounced and reschedule timeout,
+  // which TS's narrowing can't see through a direct read.
+  const hasTimeout = () => timeout !== null;
+
   const later = (): void => {
     const last = Date.now() - (lastCallTime || 0);
 
@@ -86,11 +90,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
       timeout = null;
       if (!options.leading) {
         result = func(...args) as ReturnType<T>;
-        // TODO: eslint thinks that the conditional is unnecessary, but it seems
-        // that the call to func could have a side effect of mutating timeout if
-        // it makes a call to debounced below
-
-        if (!timeout) {
+        if (!hasTimeout()) {
           args = null!;
         }
       }

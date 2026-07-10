@@ -229,18 +229,19 @@ const maybeCodeExecution = (
     return undefined;
   }
   try {
-    const parsed = JSON.parse(content.result) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(content.result);
     if (typeof parsed !== "object" || parsed === null) {
       return undefined;
     }
+    const obj = parsed as Record<string, unknown>;
     // The execution payload nests under `content` (Anthropic's
     // code_execution_tool_result shape); fall back to the top level.
     const payload =
-      typeof parsed.content === "object" &&
-      parsed.content !== null &&
-      !Array.isArray(parsed.content)
-        ? (parsed.content as Record<string, unknown>)
-        : parsed;
+      typeof obj.content === "object" &&
+      obj.content !== null &&
+      !Array.isArray(obj.content)
+        ? (obj.content as Record<string, unknown>)
+        : obj;
     const str = (value: unknown): string | undefined =>
       typeof value === "string" && value.length > 0 ? value : undefined;
     return {
@@ -258,26 +259,18 @@ const maybeCodeExecution = (
 };
 
 const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  if (typeof content.arguments === "string") {
-    // See if this looks like a JSON object
-    if (isJson(content.arguments)) {
-      try {
-        return JSON.parse(content.arguments) as Record<string, unknown>;
-      } catch (e) {
-        console.warn("Failed to parse arguments as JSON", e);
-      }
+  // See if this looks like a JSON object
+  if (isJson(content.arguments)) {
+    try {
+      return JSON.parse(content.arguments) as Record<string, unknown>;
+    } catch (e) {
+      console.warn("Failed to parse arguments as JSON", e);
     }
-    if (content.arguments) {
-      return { arguments: content.arguments };
-    }
-    return {};
-  } else if (typeof content.arguments === "object") {
-    return content.arguments;
-  } else if (content.arguments) {
-    return { arguments: content.arguments };
-  } else {
-    return {};
   }
+  if (content.arguments) {
+    return { arguments: content.arguments };
+  }
+  return {};
 };
 
 /** Single-line header summary: the lone arg's value (the query for
@@ -297,9 +290,7 @@ const argsSummary = (args: Record<string, unknown>): string => {
 };
 
 const hasResultContent = (result: ContentToolUse["result"]): boolean => {
-  if (result === null || result === undefined) return false;
-  if (typeof result === "string") return result.trim().length > 0;
-  return true;
+  return result.trim().length > 0;
 };
 
 const maybeWebSearchResult = (
