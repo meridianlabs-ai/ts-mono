@@ -55,17 +55,13 @@ export function computeScorerMap(logs: Log[], scopePrefix?: string): ScorerMap {
     }
     if (log.header?.results?.scores) {
       for (const evalScore of log.header.results.scores) {
-        if (evalScore.metrics) {
-          for (const [metricName, metric] of Object.entries(
-            evalScore.metrics
-          )) {
-            const key = scorerMetricKey(evalScore.name, metricName);
-            info[key] = {
-              scorerName: evalScore.name,
-              metricName,
-              valueType: typeof metric.value,
-            };
-          }
+        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+          const key = scorerMetricKey(evalScore.name, metricName);
+          info[key] = {
+            scorerName: evalScore.name,
+            metricName,
+            valueType: typeof metric.value,
+          };
         }
       }
     }

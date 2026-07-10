@@ -67,7 +67,7 @@ export const resolveSingleFileLogDir = async (
 ): Promise<string> => {
   const own = dirname(fileRef);
   if (own !== "") return own;
-  const fromApi = await api.get_log_dir?.();
+  const fromApi = await api.get_log_dir();
   if (fromApi) return fromApi;
   return pageBaseDir(fileRef);
 };

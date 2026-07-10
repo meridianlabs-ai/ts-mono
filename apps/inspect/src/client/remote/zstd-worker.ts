@@ -146,8 +146,8 @@ function getZstdWorker(): Promise<Worker> {
 
     // Wait for init confirmation before resolving
     const initHandler = (event: MessageEvent) => {
-      const message = event.data as ZstdInitMessage;
-      if (message.type === "init_complete") {
+      const message = event.data as ZstdInitMessage | ZstdDecompressMessage;
+      if ("type" in message) {
         zstdWorker!.removeEventListener("message", initHandler);
         if (message.success) {
           resolve(zstdWorker!);
