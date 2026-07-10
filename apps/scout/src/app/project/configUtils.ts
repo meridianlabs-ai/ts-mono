@@ -213,7 +213,7 @@ export function initializeEditedConfig(
 ): Partial<ProjectConfigInput> {
   return {
     transcripts: serverConfig.transcripts ?? null,
-    filter: serverConfig.filter ?? null,
+    filter: serverConfig.filter,
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,
     max_processes: serverConfig.max_processes ?? null,

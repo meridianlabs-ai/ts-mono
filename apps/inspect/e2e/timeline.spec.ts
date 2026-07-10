@@ -93,7 +93,7 @@ function makeServerSpan(
     agent_result: null,
     outline: null,
     ...overrides,
-  } as ServerTimelineSpan;
+  };
 }
 
 function createSampleTimeline(eventUuids: string[]): Timeline {

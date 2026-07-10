@@ -51,9 +51,7 @@ export const LogViewLayout: FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault(); // Always prevent browser find
         e.stopPropagation();
-        if (setShowFind) {
-          setShowFind(true);
-        }
+        setShowFind(true);
       } else if (e.key === "Escape") {
         hideFind();
       }

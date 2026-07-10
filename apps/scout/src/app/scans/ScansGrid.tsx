@@ -131,7 +131,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
-    if (columnOrder && columnOrder.length > 0) {
+    if (columnOrder.length > 0) {
       return columnOrder;
     }
     return DEFAULT_COLUMN_ORDER;

@@ -1198,7 +1198,7 @@ function RotatedHeaderCell<TRow>({
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}
-              operators={columnDef.meta?.operators}
+              operators={columnDef.meta.operators}
               spec={filterSpec}
               anchorEl={anchorEl}
               placement="bottom-start"

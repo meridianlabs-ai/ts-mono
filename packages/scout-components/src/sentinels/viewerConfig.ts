@@ -135,8 +135,9 @@ function scannerResultViewEntries(
   if (!viewer) return [];
   // Widened: the generated type marks scanner_result_view required, but
   // deserialized configs (e.g. older eval logs) may omit it.
-  const raw: ViewerConfig["scanner_result_view"] | undefined =
-    viewer.scanner_result_view;
+  const raw = viewer.scanner_result_view as
+    | ViewerConfig["scanner_result_view"]
+    | undefined;
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];

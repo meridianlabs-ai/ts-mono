@@ -78,8 +78,8 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   status: "started",
   eval: start.eval,
   plan: start.plan,
-  tags: start.eval?.tags ?? [],
-  metadata: start.eval?.metadata ?? {},
+  tags: start.eval.tags ?? [],
+  metadata: start.eval.metadata ?? {},
 });
 
 /**
