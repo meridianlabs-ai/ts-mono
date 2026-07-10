@@ -252,11 +252,15 @@ export function DataGrid<TRow>({
   const [internalSelectedId, setInternalSelectedId] = useState<
     string | undefined
   >(selectedRowId);
-  useEffect(() => {
+  // Adjust-on-prop-change during render (react.dev pattern) rather than in an
+  // effect, so a changed `selectedRowId` never paints a stale-selection frame.
+  const [prevSelectedRowId, setPrevSelectedRowId] = useState(selectedRowId);
+  if (selectedRowId !== prevSelectedRowId) {
+    setPrevSelectedRowId(selectedRowId);
     if (onSelectedRowChange === undefined && selectedRowId !== undefined) {
       setInternalSelectedId(selectedRowId);
     }
-  }, [selectedRowId, onSelectedRowChange]);
+  }
   const selectedId = onSelectedRowChange ? selectedRowId : internalSelectedId;
 
   // Focus the grid on mount when requested so arrow-key navigation is live
