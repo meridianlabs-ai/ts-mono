@@ -148,7 +148,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
-      const outMsg = event.output?.choices?.[0]?.message;
+      const outMsg = event.output.choices[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;
       }
@@ -165,7 +165,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     const item = items[i];
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
-    if (event.event === "model" && event.input) {
+    if (event.event === "model") {
       const input = event.input as Array<Record<string, unknown>>;
       for (const msg of input) {
         if (typeof msg.id === "string" && msg.id === messageId) {

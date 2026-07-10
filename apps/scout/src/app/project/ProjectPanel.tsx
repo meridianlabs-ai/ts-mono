@@ -77,7 +77,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   // Capture focused element ID on mousedown (before click moves focus to button)
   // We store the ID since React may recreate the DOM element
   const handleSaveMouseDown = useCallback(() => {
-    const el = document.activeElement as HTMLElement;
+    const el = document.activeElement as HTMLElement | null;
     if (el && el !== document.body && el.id) {
       focusedFieldIdRef.current = el.id;
     } else {

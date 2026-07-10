@@ -18,6 +18,7 @@ import {
   valueAsString,
 } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
+import { ScoreDescriptor } from "../../samples/descriptor/types";
 import {
   samplesOperatorsForKind,
   type SampleFilterSpecRegistry,
@@ -538,7 +539,10 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     return scores.map((label): SampleColumn => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
-      const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
+      // Widened: scoreDescriptor's declared return type hides that the
+      // descriptor map has no entry for scores with no usable values.
+      const scoreDesc: ScoreDescriptor | undefined =
+        descriptor.evalDescriptor.scoreDescriptor(label);
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured

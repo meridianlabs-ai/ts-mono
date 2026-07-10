@@ -115,11 +115,11 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
           ""
         )}
 
-        {event.edit.metadata && event.edit.metadata !== kUnchangedSentinel ? (
+        {event.edit.metadata !== kUnchangedSentinel ? (
           <div data-name="Metadata">
             <RecordTree
               id={`${eventNode.id}-score-metadata`}
-              record={event.edit.metadata || {}}
+              record={event.edit.metadata}
               className={styles.metadataTree}
               defaultExpandLevel={0}
               copyButton={true}
