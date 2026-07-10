@@ -75,12 +75,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // → markdown. Raw mode keeps the original message content.
   let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
   let toolMarkdown: string | undefined;
-  if (
-    displayMode === "rendered" &&
-    isNonSubagentTool &&
-    message.role === "tool" &&
-    message.function
-  ) {
+  if (displayMode === "rendered" && isNonSubagentTool && message.function) {
     if (message.function === "tool_search") {
       toolSearchNamespaces = parseToolSearchCatalog(message.content);
     } else {
@@ -210,7 +205,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               {segment.contents.length > 0 ? (
                 <ExpandablePanel
                   id={`${id}-message-${index}`}
-                  collapse={collapse}
+                  collapse={true}
                   lines={25}
                 >
                   <MessageContent
@@ -255,15 +250,13 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
       >
         <ExpandablePanel
           id={`${id}-message`}
-          collapse={collapse}
+          collapse={true}
           lines={
             message.role === "tool"
               ? 30
               : message.role === "assistant"
                 ? 25
-                : collapse
-                  ? 15
-                  : 25
+                : 15
           }
         >
           {isNonSubagentTool ? (

@@ -136,7 +136,10 @@ export const createEvalDescriptor = (
               return Object.keys(sample.scores).includes(scoreLabel.name);
             }
           })
-          .map((sample) => {
+          // Dict score members can be null at runtime (Score["value"] dict
+          // values include null) even though scoreValue's declared type
+          // doesn't say so — hence the widened annotation and null filter.
+          .map((sample): ScoreValue | null | undefined => {
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
@@ -176,15 +179,20 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scoreLabel: ScoreLabel
   ): ReactNode => {
-    const descriptor = scoreDescriptor(scoreLabel);
-    const score = scoreValue(sample, scoreLabel);
+    const descriptor = scoreDescriptorMap[scoreLabelKey(scoreLabel)];
+    // Widened: dict score members can be null at runtime despite
+    // scoreValue's declared return type.
+    const score: ScoreValue | null | undefined = scoreValue(
+      sample,
+      scoreLabel
+    );
     if (score === null) {
       return "null";
     } else if (score === undefined) {
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
-    } else if (descriptor && descriptor.render) {
+    } else if (descriptor) {
       return descriptor.render(score);
     } else {
       return <span>{valueAsString(score)}</span>;
@@ -206,10 +214,10 @@ export const createEvalDescriptor = (
         return scoreAnswer(sample, scoreLabel) || "";
       },
       scores: () => {
-        if (!sample || !sample.scores) {
+        if (!sample.scores) {
           return [];
         }
-        const myScoreDescriptor = scoreDescriptor(scoreLabel);
+        const myScoreDescriptor = scoreDescriptorMap[scoreLabelKey(scoreLabel)];
         if (!myScoreDescriptor) {
           return [];
         }
@@ -366,7 +374,7 @@ export const createSamplesDescriptor = (
     }
   );
 
-  const firstSelectedScore = selectedScores?.[0];
+  const firstSelectedScore = selectedScores[0];
 
   return {
     evalDescriptor,
@@ -383,5 +391,5 @@ export const createSamplesDescriptor = (
 };
 
 const scoreLabelKey = (scoreLabel: ScoreLabel) => {
-  return `${scoreLabel?.scorer}.${scoreLabel.name}`;
+  return `${scoreLabel.scorer}.${scoreLabel.name}`;
 };

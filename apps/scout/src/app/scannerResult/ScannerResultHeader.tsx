@@ -49,7 +49,7 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   if (collapsed) {
     if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
 
-    const sourceUri = resultData.transcriptSourceUri ?? "";
+    const sourceUri = resultData.transcriptSourceUri;
     let resolvedSourceUrl = sourceUri;
     if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
       resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -162,7 +162,7 @@ const transcriptHeadings = (
   if (!resultData) return [];
 
   // Source info
-  const sourceUri = resultData.transcriptSourceUri ?? "";
+  const sourceUri = resultData.transcriptSourceUri;
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
     resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -277,7 +277,7 @@ const messageHeadings = (
     headings.push({ label: "Model", value: message.model });
     headings.push({
       label: "Tool Calls",
-      value: ((message.tool_calls as []) || []).length,
+      value: (message.tool_calls ?? []).length,
     });
   } else {
     headings.push({ label: "Role", value: message.role });

@@ -114,7 +114,7 @@ const InputRenderer: FC<InputRendererProps> = ({
           labels={{ highlight: highlightLabeled, messageLabels: labels }}
         />
       );
-    } else if (inputData.input.events && inputData.input.events.length > 0) {
+    } else if (inputData.input.events.length > 0) {
       return (
         <TimelineEventsView
           events={inputData.input.events}
