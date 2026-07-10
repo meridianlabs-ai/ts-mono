@@ -187,10 +187,7 @@ describe("buildContentItems", () => {
 
       const agentNames = items
         .filter((i) => i.type === "agent_card")
-        .map((i) => {
-          if (i.type !== "agent_card") throw new Error("unreachable");
-          return i.agentNode.name;
-        });
+        .map((i) => i.agentNode.name);
 
       // S2: explore1, plan1, explore2, plan2, build, scoring
       expect(agentNames).toEqual([

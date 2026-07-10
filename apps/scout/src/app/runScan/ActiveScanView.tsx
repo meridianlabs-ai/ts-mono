@@ -79,7 +79,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
-    (name) => (summary.scanners[name]?.validation?.entries?.length ?? 0) > 0
+    (name) => (summary.scanners[name]?.validation?.entries.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
     (name) => summary.scanners[name]?.metrics !== null
@@ -91,7 +91,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const scanner = summary.scanners[name];
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
-          (sum, usage) => sum + (usage.total_tokens ?? 0),
+          (sum, usage) => sum + usage.total_tokens,
           0
         )
       : 0;
@@ -301,7 +301,7 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
           text="Scan not found"
         />
       )}
-      {scanInfo && !error && <ActiveScanCard info={scanInfo} />}
+      {scanInfo && <ActiveScanCard info={scanInfo} />}
     </div>
   );
 };

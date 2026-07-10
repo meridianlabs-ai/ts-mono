@@ -220,11 +220,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   if (fields.limit) {
     metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
   }
-  if (
-    fields.retries !== undefined &&
-    fields.retries !== null &&
-    fields.retries > 0
-  ) {
+  if (fields.retries !== undefined && fields.retries > 0) {
     metaItems.push({ key: "retries", content: `Retries: ${fields.retries}` });
   }
   if (fields.cancelled) {

@@ -7,7 +7,9 @@ import type {
 } from "react";
 
 export interface VirtualListStateSnapshot {
-  version: 1;
+  // `number`, not the literal `1`: snapshots are read back from persisted
+  // state, so older/newer versions can appear at runtime.
+  version: number;
   scrollOffset: number;
   totalCount: number;
 }
