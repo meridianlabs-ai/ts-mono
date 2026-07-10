@@ -86,7 +86,7 @@ export const FindBand: FC = () => {
       }
       setMatchCount(total > 0 ? total : null);
 
-      const focusedElement = document.activeElement as HTMLElement;
+      const focusedElement = document.activeElement as HTMLElement | null;
 
       const selection = window.getSelection();
       let savedRange: Range | null = null;
@@ -184,9 +184,7 @@ export const FindBand: FC = () => {
       if (scrollTimeout !== null) {
         window.clearTimeout(scrollTimeout);
       }
-      if (focusTimeout !== null) {
-        window.clearTimeout(focusTimeout);
-      }
+      window.clearTimeout(focusTimeout);
       setFindTarget(null);
     };
   }, [setFindTarget]);
