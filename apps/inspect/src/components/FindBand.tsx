@@ -177,12 +177,13 @@ export const FindBand: FC = () => {
       searchBoxRef.current?.select();
     }, 10);
 
-    const scrollTimeout = scrollTimeoutRef.current;
     const focusTimeout = focusTimeoutRef.current;
 
     return () => {
-      if (scrollTimeout !== null) {
-        window.clearTimeout(scrollTimeout);
+      // Read at teardown, not setup: handleSearch schedules the scroll
+      // timeout long after mount, so a setup-time capture is always null.
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
       }
       if (focusTimeout !== null) {
         window.clearTimeout(focusTimeout);
@@ -233,15 +234,27 @@ export const FindBand: FC = () => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  // Created in an effect (not useMemo) because runDebouncedSearch reads refs,
-  // and the compiler can't prove debounce() won't invoke it during render.
-  const debouncedSearchRef = useRef<(() => void) | null>(null);
+  // The debounced fn is created once (below, lazily in the change handler)
+  // wrapping this latest-callback ref, so a recreated runDebouncedSearch never
+  // leaves a superseded debounce pending. Nulling on cleanup cancels any
+  // pending run at unmount.
+  const latestRunSearchRef = useRef<(() => Promise<void>) | null>(
+    runDebouncedSearch
+  );
   useEffect(() => {
-    debouncedSearchRef.current = debounce(() => void runDebouncedSearch(), 100);
+    latestRunSearchRef.current = runDebouncedSearch;
+    return () => {
+      latestRunSearchRef.current = null;
+    };
   }, [runDebouncedSearch]);
 
+  const debouncedSearchRef = useRef<(() => void) | null>(null);
   const handleInputChange = useCallback(() => {
-    debouncedSearchRef.current?.();
+    debouncedSearchRef.current ??= debounce(
+      () => void latestRunSearchRef.current?.(),
+      100
+    );
+    debouncedSearchRef.current();
   }, []);
 
   const handleBeforeInput = useCallback(() => {
