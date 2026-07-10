@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
@@ -60,8 +60,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const listing = useLogListing(logDir);
   const logFiles = listing.data ?? kNoListingRows;
   const { gridStateByScope, patchGridState } = useLogsListing();
-
-  const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
   const evalSet = useEvalSet(logPath || "").data;
@@ -336,12 +334,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     };
   }, [logItems]);
 
-  useEffect(() => {
-    const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
-    if (maybeShowSingleLog && onlyItem?.url) {
-      void navigate(onlyItem.url);
-    }
-  }, [logItems, maybeShowSingleLog, navigate]);
+  // Single-log workspaces skip the pointless one-row list. `replace` keeps
+  // this page out of history so back from the log doesn't bounce forward
+  // again. Deliberately not gated on sync settling — see the audit doc.
+  const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
+  if (maybeShowSingleLog && onlyItem?.url) {
+    return <Navigate to={onlyItem.url} replace />;
+  }
 
   return (
     <div className={clsx(styles.panel)}>
