@@ -81,6 +81,7 @@ import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
   sampleMessageUrl,
+  toFullUrl,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
@@ -253,9 +254,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const setNativeFind = useStore((state) => state.appActions.setNativeFind);
 
+  // Absolute URL (origin + host path + hash route): ChatMessage copies this
+  // value to the clipboard as a shareable link.
   const getMessageUrl = useCallback(
     (messageId: string) => {
-      return urlLogPath
+      const route = urlLogPath
         ? sampleMessageUrl(
             sampleUrlBuilder,
             messageId,
@@ -264,6 +267,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             urlEpoch
           )
         : undefined;
+      return route ? toFullUrl(route) : undefined;
     },
     [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
   );

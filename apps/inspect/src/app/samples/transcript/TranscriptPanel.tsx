@@ -30,6 +30,7 @@ import { ApplicationIcons } from "../../appearance/icons";
 import {
   makeLogsPath,
   sampleEventUrl,
+  toFullUrl,
   useLogOrSampleRouteParams,
   useLogRouteParams,
   useSampleUrlBuilder,
@@ -285,16 +286,29 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
+  // Absolute variant for the copy-link buttons: shared components treat
+  // `getEventUrl` as a shareable URL (see Scout's getFullEventUrl), so it
+  // must include the host page's origin/path, not just the hash route.
+  const getFullEventUrl = useCallback(
+    (eventId: string) => {
+      const route = getEventUrl(eventId);
+      return route ? toFullUrl(route) : undefined;
+    },
+    [getEventUrl]
+  );
+
   // Outline link clicks are in-view navigation (jumping to an event in the
-  // same transcript), so use `replace` to keep the back button clean.
-  const renderLink = useCallback(
-    (url: string, children: ReactNode) => (
-      <Link to={url} replace>
+  // same transcript), so recover the hash route from the absolute URL and
+  // use `replace` to keep the back button clean.
+  const renderLink = useCallback((url: string, children: ReactNode) => {
+    const hashIndex = url.indexOf("#");
+    const route = hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
+    return (
+      <Link to={route} replace>
         {children}
       </Link>
-    ),
-    []
-  );
+    );
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Marker navigation (branch markers, error markers, etc.)
@@ -347,7 +361,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       listId={id}
       initialEventId={initialEventId}
       initialMessageId={initialMessageId}
-      getEventUrl={getEventUrl}
+      getEventUrl={getFullEventUrl}
       linkingEnabled={true}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
