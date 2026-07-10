@@ -2,8 +2,9 @@ import type { ModelFallback } from "../types";
 
 // The generated type declares `count: number` (schema default 1), but logs
 // serialized without defaulted fields can omit it, so widen before reading.
-const fallbackCount = (f: ModelFallback): number =>
-  (f.count as number | undefined) ?? 1;
+const fallbackCount = (
+  f: Omit<ModelFallback, "count"> & { count?: number }
+): number => f.count ?? 1;
 
 /**
  * Total generate calls served via fallback across a sample's rollup.

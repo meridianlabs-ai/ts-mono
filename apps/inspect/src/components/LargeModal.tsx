@@ -63,11 +63,6 @@ export const LargeModal: FC<LargeModalProps> = ({
     ""
   );
 
-  // Support restoring the scroll position
-  // but only do this for the first time that the children are set
-  const modalRef = useRef(null);
-  scrollRef = scrollRef || modalRef;
-
   // Focus the modal when it becomes visible
   const dialogRef = useRef<HTMLDivElement>(null);
 
