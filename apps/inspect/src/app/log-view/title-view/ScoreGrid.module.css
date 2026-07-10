@@ -48,12 +48,16 @@
 
 /* Header surface matches the DataGrid's (subtle bg + muted text) so all
    grids read consistently. */
+/* 0.8rem / 500 matches what the AG grid actually rendered (its theme's
+   headerFontSize param never took effect; headers inherited the app's
+   0.8rem with AG's default 500 header weight). */
 .table th {
   height: 28px;
   border-bottom: 1px solid var(--bs-border-color);
   background-color: var(--bs-light-bg-subtle);
   color: var(--bs-secondary);
-  font-weight: normal;
+  font-size: 0.8rem;
+  font-weight: 500;
   text-align: left;
 }
 
@@ -127,7 +131,6 @@
    under the last row. */
 .compact th {
   height: 24px;
-  font-size: 11px;
   background-color: transparent;
 }
 
