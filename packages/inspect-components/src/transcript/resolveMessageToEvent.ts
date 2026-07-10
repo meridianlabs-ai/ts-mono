@@ -271,7 +271,9 @@ function matchEvent(
 
     // Priority 1: ModelEvent output
     for (const choice of output?.choices ?? []) {
-      if (choice.message.id === messageId) {
+      // message is required in the generated type but can be absent in
+      // serialized logs
+      if ((choice.message as typeof choice.message | undefined)?.id === messageId) {
         matches.push({
           priority: PRIORITY_MODEL_OUTPUT,
           eventId: uuid,

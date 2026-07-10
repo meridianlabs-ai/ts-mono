@@ -116,8 +116,11 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (toolEvent.function) {
         fields.push(["function", toolEvent.function]);
       }
-      // Tool arguments
-      fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
+      // Tool arguments (can be absent in logs despite the generated type)
+      const args = toolEvent.arguments as typeof toolEvent.arguments | undefined;
+      if (args) {
+        fields.push(["arguments", JSON.stringify(args)]);
+      }
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
@@ -137,23 +140,27 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
-      if (errorEvent.error.message) {
-        fields.push(["message", errorEvent.error.message]);
+      // error can be absent in logs despite the generated type
+      const error = errorEvent.error as typeof errorEvent.error | undefined;
+      if (error?.message) {
+        fields.push(["message", error.message]);
       }
-      if (errorEvent.error.traceback) {
-        fields.push(["traceback", errorEvent.error.traceback]);
+      if (error?.traceback) {
+        fields.push(["traceback", error.traceback]);
       }
       break;
     }
 
     case "logger": {
       const loggerEvent = event;
-      if (loggerEvent.message.message) {
-        fields.push(["message", loggerEvent.message.message]);
+      // message can be absent in logs despite the generated type
+      const message = loggerEvent.message as typeof loggerEvent.message | undefined;
+      if (message?.message) {
+        fields.push(["message", message.message]);
       }
       // Filename shown in the view
-      if (loggerEvent.message.filename) {
-        fields.push(["filename", loggerEvent.message.filename]);
+      if (message?.filename) {
+        fields.push(["filename", message.filename]);
       }
       break;
     }
@@ -229,8 +236,12 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (subtaskEvent.type) {
         fields.push(["type", subtaskEvent.type]);
       }
-      // Input/result shown in summary
-      fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
+      // Input/result shown in summary (input can be absent in logs despite
+      // the generated type)
+      const input = subtaskEvent.input as typeof subtaskEvent.input | undefined;
+      if (input) {
+        fields.push(["input", sanitizeStringify(input)]);
+      }
       if (subtaskEvent.result) {
         fields.push(["result", sanitizeStringify(subtaskEvent.result)]);
       }
@@ -257,11 +268,16 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
-      const val = scoreEvent.score.value;
-      fields.push([
-        "value",
-        typeof val === "string" ? val : JSON.stringify(val),
-      ]);
+      // value can be absent in logs despite the generated type
+      const val = scoreEvent.score.value as
+        | typeof scoreEvent.score.value
+        | undefined;
+      if (val !== undefined) {
+        fields.push([
+          "value",
+          typeof val === "string" ? val : JSON.stringify(val),
+        ]);
+      }
       if (scoreEvent.target) {
         if (typeof scoreEvent.target === "string") {
           fields.push(["target", scoreEvent.target]);
@@ -315,7 +331,13 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
-      fields.push(["type", sampleLimitEvent.type]);
+      // type can be absent in logs despite the generated type
+      const limitType = sampleLimitEvent.type as
+        | typeof sampleLimitEvent.type
+        | undefined;
+      if (limitType) {
+        fields.push(["type", limitType]);
+      }
       break;
     }
 
@@ -348,7 +370,13 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
-      fields.push(["decision", approvalEvent.decision]);
+      // decision can be absent in logs despite the generated type
+      const decision = approvalEvent.decision as
+        | typeof approvalEvent.decision
+        | undefined;
+      if (decision) {
+        fields.push(["decision", decision]);
+      }
       if (approvalEvent.explanation) {
         fields.push(["explanation", approvalEvent.explanation]);
       }
@@ -360,7 +388,13 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
-      fields.push(["action", sandboxEvent.action]);
+      // action can be absent in logs despite the generated type
+      const action = sandboxEvent.action as
+        | typeof sandboxEvent.action
+        | undefined;
+      if (action) {
+        fields.push(["action", action]);
+      }
       if (sandboxEvent.cmd) {
         fields.push(["cmd", sandboxEvent.cmd]);
       }
@@ -378,12 +412,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
-        fields.push([
-          "value",
-          typeof change.value === "string"
-            ? change.value
-            : sanitizeStringify(change.value),
-        ]);
+        // value can be absent in logs despite the generated type
+        const value = change.value as typeof change.value | undefined;
+        if (value !== undefined) {
+          fields.push([
+            "value",
+            typeof value === "string" ? value : sanitizeStringify(value),
+          ]);
+        }
       }
       break;
     }

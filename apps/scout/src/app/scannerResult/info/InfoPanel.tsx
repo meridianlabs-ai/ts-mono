@@ -20,6 +20,16 @@ interface InfoPanelProps {
 }
 
 export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
+  // Parsed from arrow columns; may be null/undefined at runtime despite the
+  // declared type
+  const scanModelUsage = resultData?.scanModelUsage as
+    | ScanResultData["scanModelUsage"]
+    | null
+    | undefined;
+  const scanMetadata = resultData?.scanMetadata as
+    | ScanResultData["scanMetadata"]
+    | null
+    | undefined;
   return (
     resultData && (
       <div className={clsx(styles.container)}>
@@ -37,21 +47,21 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           </CardBody>
         </Card>
 
-        {Object.keys(resultData.scanModelUsage).length > 0 && (
+        {scanModelUsage && Object.keys(scanModelUsage).length > 0 && (
           <Card>
             <CardHeader label="Model Usage" type="modern" />
             <CardBody>
-              <ModelTokenTable model_usage={resultData.scanModelUsage} />
+              <ModelTokenTable model_usage={scanModelUsage} />
             </CardBody>
           </Card>
         )}
-        {Object.keys(resultData.scanMetadata).length > 0 && (
+        {scanMetadata && Object.keys(scanMetadata).length > 0 && (
           <Card>
             <CardHeader label="Metadata" type="modern" />
             <CardBody>
               <RecordTree
                 id={`scan-metadata-${resultData.identifier}`}
-                record={resultData.scanMetadata}
+                record={scanMetadata}
                 copyButton={true}
               />
             </CardBody>

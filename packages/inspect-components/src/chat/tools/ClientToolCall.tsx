@@ -132,6 +132,10 @@ const inlineArgs = (functionCall: string, tool: string): string | undefined => {
 
 /** Whether the tool output has anything worth an output well. */
 const hasOutputContent = (output: ToolCallViewProps["output"]): boolean => {
+  // output ultimately comes from serialized logs, where it can be
+  // null/absent despite the declared type
+  const value = output as typeof output | null | undefined;
+  if (value === undefined || value === null) return false;
   if (typeof output === "string") return output.trim().length > 0;
   if (typeof output === "number" || typeof output === "boolean") return true;
   const items = Array.isArray(output) ? output : [output];

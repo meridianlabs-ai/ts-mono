@@ -4,7 +4,13 @@
 export const clearDocumentSelection = () => {
   const sel = window.getSelection();
   if (sel) {
-    sel.removeAllRanges();
+    // Legacy WebKit Selection objects expose empty() but not removeAllRanges().
+    const s = sel as Partial<Pick<Selection, "removeAllRanges" | "empty">>;
+    if (s.removeAllRanges) {
+      s.removeAllRanges();
+    } else if (s.empty) {
+      s.empty();
+    }
   }
 };
 

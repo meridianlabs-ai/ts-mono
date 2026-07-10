@@ -357,8 +357,13 @@ function assertScoringSpanMatches(
   expect(scorerSpans.length).toBe(1);
   const scoring = scorerSpans[0]!;
 
-  const actualUuids = getDirectEventUuids(scoring);
-  expect(actualUuids).toEqual(expected.event_uuids);
+  // required in the local fixture type, but fixture JSON from the parent
+  // repo may omit it
+  const expectedUuids = expected.event_uuids as string[] | undefined;
+  if (expectedUuids !== undefined) {
+    const actualUuids = getDirectEventUuids(scoring);
+    expect(actualUuids).toEqual(expectedUuids);
+  }
 }
 
 function assertSpanMatches(
@@ -373,7 +378,10 @@ function assertSpanMatches(
   expect(actual!.id).toBe(expected.id);
   expect(actual!.name).toBe(expected.name);
 
-  if (expected.source) {
+  // fixture JSON from the parent repo may use source values beyond the
+  // local type's "span" | "tool"
+  const expectedSource = expected.source?.source as string | undefined;
+  if (expectedSource === "span" || expectedSource === "tool") {
     expect(actual!.spanType).toBe("agent");
   }
 
@@ -451,7 +459,8 @@ function assertSpanMatches(
         if (expectedItem.name) {
           expect(spanItem.name).toBe(expectedItem.name);
         }
-        if (expectedItem.source) {
+        const itemSource = expectedItem.source?.source as string | undefined;
+        if (itemSource === "span" || itemSource === "tool") {
           expect(spanItem.spanType).toBe("agent");
         }
         if (expectedItem.nested_uuids) {
@@ -574,7 +583,8 @@ function assertTimelineMatches(
           if (expectedItem.name) {
             expect(spanItem.name).toBe(expectedItem.name);
           }
-          if (expectedItem.source) {
+          const itemSource = expectedItem.source?.source as string | undefined;
+          if (itemSource === "span" || itemSource === "tool") {
             expect(spanItem.spanType).toBe("agent");
           }
           if (expectedItem.nested_uuids) {

@@ -259,18 +259,29 @@ const maybeCodeExecution = (
 };
 
 const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  // See if this looks like a JSON object
-  if (isJson(content.arguments)) {
-    try {
-      return JSON.parse(content.arguments) as Record<string, unknown>;
-    } catch (e) {
-      console.warn("Failed to parse arguments as JSON", e);
+  // arguments is typed as string but the content comes from serialized logs,
+  // where it can also be an object (or absent)
+  const args: unknown = content.arguments;
+  if (typeof args === "string") {
+    // See if this looks like a JSON object
+    if (isJson(args)) {
+      try {
+        return JSON.parse(args) as Record<string, unknown>;
+      } catch (e) {
+        console.warn("Failed to parse arguments as JSON", e);
+      }
     }
+    if (args) {
+      return { arguments: args };
+    }
+    return {};
+  } else if (typeof args === "object") {
+    return args as Record<string, unknown>;
+  } else if (args) {
+    return { arguments: args };
+  } else {
+    return {};
   }
-  if (content.arguments) {
-    return { arguments: content.arguments };
-  }
-  return {};
 };
 
 /** Single-line header summary: the lone arg's value (the query for
@@ -290,7 +301,12 @@ const argsSummary = (args: Record<string, unknown>): string => {
 };
 
 const hasResultContent = (result: ContentToolUse["result"]): boolean => {
-  return result.trim().length > 0;
+  // result is typed as string but comes from serialized logs, where it can
+  // be null/absent or a non-string value
+  const value: unknown = result;
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  return true;
 };
 
 const maybeWebSearchResult = (

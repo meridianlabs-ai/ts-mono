@@ -78,9 +78,13 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   }, []);
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
-  const hasValidations = info.scanner_names.some(
-    (name) => (summary.scanners[name]?.validation?.entries.length ?? 0) > 0
-  );
+  const hasValidations = info.scanner_names.some((name) => {
+    // Server responses may omit entries despite the generated type
+    const entries = summary.scanners[name]?.validation?.entries as
+      | ValidationResults["entries"]
+      | undefined;
+    return (entries?.length ?? 0) > 0;
+  });
   const hasMetrics = info.scanner_names.some(
     (name) => summary.scanners[name]?.metrics !== null
   );
@@ -91,7 +95,8 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const scanner = summary.scanners[name];
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
-          (sum, usage) => sum + usage.total_tokens,
+          // Server responses may omit total_tokens despite the generated type
+          (sum, usage) => sum + ((usage.total_tokens as number | undefined) ?? 0),
           0
         )
       : 0;
