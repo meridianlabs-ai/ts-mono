@@ -240,9 +240,9 @@ export function buildSampleColumns(
   cols.push({
     id: "sampleId",
     header: "Id",
-    size: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
+    size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
-    accessorFn: (row) => String(row.sampleId ?? ""),
+    accessorFn: (row) => String(row.sampleId),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
@@ -340,7 +340,7 @@ export function buildSampleColumns(
     accessorFn: (row) => row.tokens,
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
@@ -358,12 +358,10 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
     titleValue: (row) =>
-      row.duration === undefined || row.duration === null
-        ? undefined
-        : formatTime(row.duration),
+      row.duration === undefined ? undefined : formatTime(row.duration),
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatTime(value)}</div>
@@ -403,7 +401,7 @@ export function buildSampleColumns(
     {
       id: "limit",
       header: "Limit",
-      size: shape ? (shape.limitSize ?? 1) * 16 : 100,
+      size: shape ? shape.limitSize * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
       cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
@@ -411,7 +409,7 @@ export function buildSampleColumns(
     {
       id: "retries",
       header: "Retries",
-      size: shape ? (shape.retriesSize ?? 1) * 16 : 80,
+      size: shape ? shape.retriesSize * 16 : 80,
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,

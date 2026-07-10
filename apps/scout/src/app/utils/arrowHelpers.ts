@@ -24,7 +24,7 @@ export const parseScanResultData = async (
     "transcript_agent_args",
     0
   );
-  const transcript_score_raw = getOptionalColumn<string>(
+  const transcript_score_raw = getOptionalColumn<string | null>(
     filtered,
     "transcript_score",
     0
@@ -57,7 +57,7 @@ export const parseScanResultData = async (
     parseJson(filtered.get("scan_model_usage", 0) as string),
     parseJson(filtered.get("scan_tags", 0) as string),
     parseJson(filtered.get("scanner_params", 0) as string),
-    tryParseJson<Record<string, JsonValue>>(
+    tryParseJson<Record<string, JsonValue> | null>(
       filtered.get("transcript_metadata", 0)
     ),
     tryParseJson<boolean | Record<string, boolean>>(
@@ -222,7 +222,7 @@ export const parseScanResultSummaries = async (
       ] = await Promise.all([
         tryParseJson<boolean | Record<string, boolean>>(r.validation_result),
         tryParseJson<JsonValue>(r.validation_target),
-        tryParseJson<Record<string, JsonValue>>(r.transcript_metadata),
+        tryParseJson<Record<string, JsonValue> | null>(r.transcript_metadata),
         parseJson(r.event_references as string),
         parseJson(r.message_references as string),
         parseSimpleValue(r.value, valueType),

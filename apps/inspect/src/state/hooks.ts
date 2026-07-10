@@ -145,7 +145,7 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
-      dir: stored.dir ?? "asc",
+      dir: stored.dir,
     };
   }, [stored]);
 };
@@ -279,7 +279,7 @@ export const useEvalDescriptor = () => {
   const scores = useScores();
   const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
-    return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
+    return createEvalDescriptor(scores, sampleSummaries);
   }, [scores, sampleSummaries]);
 };
 
