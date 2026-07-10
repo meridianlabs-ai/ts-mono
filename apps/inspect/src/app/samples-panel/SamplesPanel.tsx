@@ -103,9 +103,6 @@ export const SamplesPanel: FC = () => {
   const clearDisplayedSamples = useStore(
     (state) => state.logsActions.clearDisplayedSamples
   );
-  const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample
-  );
   const previousSamplesPath = useStore(
     (state) => state.logs.samplesListState.previousSamplesPath
   );
@@ -403,15 +400,15 @@ export const SamplesPanel: FC = () => {
     [setFilteredSampleCount, setDisplayedSamples]
   );
 
-  useEffect(() => {
-    clearSelectedSample();
-  }, [samplesPath, clearSelectedSample]);
-
   const getRowId = useCallback(
     (row: SampleRow) => sampleRowId(row.logFile, row.sampleId, row.epoch),
     []
   );
 
+  // No clearing of the handle on mount/scope change: row ids embed the
+  // logFile and rows are scope-filtered, so a handle from another scope
+  // matches nothing (inert), while returning from the detail view keeps the
+  // selection highlighted.
   const selectedRowId = selectedSampleHandle
     ? sampleRowId(
         selectedSampleHandle.logFile,
