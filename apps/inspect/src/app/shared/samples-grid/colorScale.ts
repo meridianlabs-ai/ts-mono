@@ -103,10 +103,7 @@ const isPaletteName = (s: string): s is ScoreColorPalette =>
 // where we can return null rather than silently falling through to the
 // categorical branch and producing a nonsense `{ kind: "categorical",
 // colors: { palette: undefined } }` shape).
-// Accepts null since wire data may carry it despite the static type.
-const isScaleObject = (
-  s: WireScoreColorScale | null
-): s is ScoreColorScaleObject =>
+const isScaleObject = (s: WireScoreColorScale): s is ScoreColorScaleObject =>
   typeof s === "object" && s !== null && "palette" in s;
 
 /**

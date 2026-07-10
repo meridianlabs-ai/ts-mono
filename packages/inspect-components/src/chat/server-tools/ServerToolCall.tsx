@@ -229,19 +229,19 @@ const maybeCodeExecution = (
     return undefined;
   }
   try {
-    const parsed: unknown = JSON.parse(content.result);
+    const parsed = JSON.parse(content.result) as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.parse can return null despite the cast
     if (typeof parsed !== "object" || parsed === null) {
       return undefined;
     }
-    const obj = parsed as Record<string, unknown>;
     // The execution payload nests under `content` (Anthropic's
     // code_execution_tool_result shape); fall back to the top level.
     const payload =
-      typeof obj.content === "object" &&
-      obj.content !== null &&
-      !Array.isArray(obj.content)
-        ? (obj.content as Record<string, unknown>)
-        : obj;
+      typeof parsed.content === "object" &&
+      parsed.content !== null &&
+      !Array.isArray(parsed.content)
+        ? (parsed.content as Record<string, unknown>)
+        : parsed;
     const str = (value: unknown): string | undefined =>
       typeof value === "string" && value.length > 0 ? value : undefined;
     return {
@@ -259,26 +259,24 @@ const maybeCodeExecution = (
 };
 
 const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  // arguments is typed as string but the content comes from serialized logs,
-  // where it can also be an object (or absent)
-  const args: unknown = content.arguments;
-  if (typeof args === "string") {
+  if (typeof content.arguments === "string") {
     // See if this looks like a JSON object
-    if (isJson(args)) {
+    if (isJson(content.arguments)) {
       try {
-        return JSON.parse(args) as Record<string, unknown>;
+        return JSON.parse(content.arguments) as Record<string, unknown>;
       } catch (e) {
         console.warn("Failed to parse arguments as JSON", e);
       }
     }
-    if (args) {
-      return { arguments: args };
+    if (content.arguments) {
+      return { arguments: content.arguments };
     }
     return {};
-  } else if (typeof args === "object") {
-    return args as Record<string, unknown>;
-  } else if (args) {
-    return { arguments: args };
+  } else if (typeof content.arguments === "object") {
+    return content.arguments;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments is typed as string but serialized logs can carry other values
+  } else if (content.arguments) {
+    return { arguments: content.arguments };
   } else {
     return {};
   }
@@ -301,11 +299,9 @@ const argsSummary = (args: Record<string, unknown>): string => {
 };
 
 const hasResultContent = (result: ContentToolUse["result"]): boolean => {
-  // result is typed as string but comes from serialized logs, where it can
-  // be null/absent or a non-string value
-  const value: unknown = result;
-  if (value === null || value === undefined) return false;
-  if (typeof value === "string") return value.trim().length > 0;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- result is typed as string but can be null/absent in serialized logs
+  if (result === null || result === undefined) return false;
+  if (typeof result === "string") return result.trim().length > 0;
   return true;
 };
 

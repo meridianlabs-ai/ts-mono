@@ -14,20 +14,21 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
         (b.value as unknown as unknown[]).length
       );
     },
-    render: (score: ScoreValue | null | undefined) => {
+    render: (score) => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- score values come from eval logs and can be null despite the declared ScoreValue type
       if (score === null || score === undefined) {
         return "[null]";
       }
 
-      if (!Array.isArray(score)) {
-        throw new Error(
-          "Unexpected use of list score descriptor for non-lisß object"
-        );
-      }
-
       const formattedScores: string[] = [];
-      score.forEach((value) => {
+      (score as []).forEach((value) => {
+        if (!Array.isArray(score)) {
+          throw new Error(
+            "Unexpected use of list score descriptor for non-lisß object"
+          );
+        }
         const formattedValue =
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the `[]` cast types elements as never; runtime list entries come from log score values and can be nullish
           value && isNumeric(value)
             ? formatPrettyDecimal(
                 typeof value === "number"

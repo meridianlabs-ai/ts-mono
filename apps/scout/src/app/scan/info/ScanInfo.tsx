@@ -48,17 +48,11 @@ const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
   if (selectedScan.spec.revision?.commit) {
     record["Commit"] = selectedScan.spec.revision.commit;
   }
-  // The scan spec is deserialized from disk, so fields the schema marks
-  // required can still be missing at runtime.
-  const packages = selectedScan.spec.packages as
-    Status["spec"]["packages"] | undefined;
-  if (packages) {
-    record["Packages"] = packages;
+  if (selectedScan.spec.packages) {
+    record["Packages"] = selectedScan.spec.packages;
   }
-  const options = selectedScan.spec.options as
-    Status["spec"]["options"] | undefined;
-  if (options) {
-    record["Options"] = options;
+  if (selectedScan.spec.options) {
+    record["Options"] = selectedScan.spec.options;
   }
 
   return (

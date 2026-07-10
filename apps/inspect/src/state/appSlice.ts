@@ -383,9 +383,7 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
-    // Rehydrated persisted storage may lack the slice despite the static type.
-    const app = state.app as AppState | undefined;
-    if (!app) {
+    if (!state.app) {
       state.app = initialState;
     }
   });

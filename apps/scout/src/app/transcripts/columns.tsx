@@ -131,13 +131,10 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
       if (config.cell) {
         return config.cell(value);
       }
-      // Row data comes from a serialized source; null can appear at runtime
-      // even where the declared type excludes it
-      const scalar = value as TranscriptInfo[K] | null | undefined;
-      if (scalar === undefined || scalar === null) {
+      if (value === undefined || value === null) {
         return "-";
       }
-      return valueAsString(scalar);
+      return valueAsString(value);
     },
   };
 }

@@ -134,11 +134,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
-  // Status is deserialized from disk; fields the schema marks required can
-  // still be missing at runtime
-  const scanners =
-    (status.summary.scanners as Status["summary"]["scanners"] | undefined) ||
-    {};
+  const scanners = status.summary.scanners || {};
   for (const scanner of Object.keys(scanners)) {
     // The summary
     const summary = scanners[scanner];
@@ -148,8 +144,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
-      const params =
-        (scanInfo.params as (typeof scanInfo)["params"] | undefined) || {};
+      const params = scanInfo.params || {};
       for (const [key, value] of Object.entries(params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
       }
@@ -198,23 +193,18 @@ const resolveValidations = (
   const m = validation.metrics;
   const result: Record<string, number> = {};
 
-  // Add metrics in display order: accuracy, precision, recall, f1.
-  // Metrics are deserialized from disk, so fields may be missing at runtime.
-  const accuracy = m.accuracy as number | null | undefined;
-  if (accuracy !== null && accuracy !== undefined) {
-    result["accuracy"] = accuracy;
+  // Add metrics in display order: accuracy, precision, recall, f1
+  if (m.accuracy !== null && m.accuracy !== undefined) {
+    result["accuracy"] = m.accuracy;
   }
-  const precision = m.precision as number | null | undefined;
-  if (precision !== null && precision !== undefined) {
-    result["precision"] = precision;
+  if (m.precision !== null && m.precision !== undefined) {
+    result["precision"] = m.precision;
   }
-  const recall = m.recall as number | null | undefined;
-  if (recall !== null && recall !== undefined) {
-    result["recall"] = recall;
+  if (m.recall !== null && m.recall !== undefined) {
+    result["recall"] = m.recall;
   }
-  const f1 = m.f1 as number | null | undefined;
-  if (f1 !== null && f1 !== undefined) {
-    result["f1"] = f1;
+  if (m.f1 !== null && m.f1 !== undefined) {
+    result["f1"] = m.f1;
   }
 
   // Return undefined if we couldn't extract any metrics

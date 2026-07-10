@@ -35,12 +35,10 @@ export const createEvalDescriptor = (
     return undefined;
   }
 
-  // null included in the return type: dict score members are
-  // `string | number | boolean | null`, so extracting one can yield null.
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): ScoreValue | null | undefined => {
+  ): ScoreValue | undefined => {
     // no scores, no value
     if (
       !sample.scores ||
@@ -60,7 +58,7 @@ export const createEvalDescriptor = (
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const temp = sample.scores[scoreLabel.scorer].value;
-        return (temp as Record<string, ScoreValue | null>)[scoreLabel.name];
+        return (temp as Record<string, ScoreValue>)[scoreLabel.name];
       } else {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;
@@ -142,6 +140,7 @@ export const createEvalDescriptor = (
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dict score members can be null at runtime even though scoreValue's declared return type omits it
             return value !== null;
           })
           .filter((value) => {
@@ -178,15 +177,17 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scoreLabel: ScoreLabel
   ): ReactNode => {
-    const descriptor = scoreDescriptorMap[scoreLabelKey(scoreLabel)];
+    const descriptor = scoreDescriptor(scoreLabel);
     const score = scoreValue(sample, scoreLabel);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dict score members can be null at runtime even though scoreValue's declared return type omits it
     if (score === null) {
       return "null";
     } else if (score === undefined) {
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
-    } else if (descriptor) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scoreDescriptor's declared return type hides that the map has no entry for scores with no usable values
+    } else if (descriptor && descriptor.render) {
       return descriptor.render(score);
     } else {
       return <span>{valueAsString(score)}</span>;
@@ -211,7 +212,8 @@ export const createEvalDescriptor = (
         if (!sample.scores) {
           return [];
         }
-        const myScoreDescriptor = scoreDescriptorMap[scoreLabelKey(scoreLabel)];
+        const myScoreDescriptor = scoreDescriptor(scoreLabel);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scoreDescriptor's declared return type hides that the map has no entry for scores with no usable values
         if (!myScoreDescriptor) {
           return [];
         }
@@ -283,9 +285,7 @@ export const createEvalDescriptor = (
       return undefined;
     }
     return {
-      // SelectedScore.value's declared type omits null, but null dict score
-      // members flow through here at runtime and consumers render them.
-      value: scoreValue(sample, scoreLabel) as ScoreValue | undefined,
+      value: scoreValue(sample, scoreLabel),
       render: () => {
         return scoreRendered(sample, scoreLabel);
       },

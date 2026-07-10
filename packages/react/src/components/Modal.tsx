@@ -101,10 +101,7 @@ export const Modal: FC<ModalProps> = ({
   // focused element on close.
   useEffect(() => {
     if (!show || !modalRef.current) return;
-    // activeElement isn't guaranteed to be an HTMLElement (e.g. SVG/MathML
-    // hosts), so treat focus() as optional.
-    const previouslyFocused: (Element & { focus?: () => void }) | null =
-      document.activeElement;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const modal = modalRef.current;
     // Small delay to ensure web components are ready before focusing.
     const timer = window.setTimeout(() => {
@@ -120,6 +117,7 @@ export const Modal: FC<ModalProps> = ({
     }, 0);
     return () => {
       window.clearTimeout(timer);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeElement may be an SVG/MathML element without focus() despite the HTMLElement cast
       previouslyFocused?.focus?.();
     };
   }, [show]);

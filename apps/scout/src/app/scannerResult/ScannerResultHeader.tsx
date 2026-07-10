@@ -49,9 +49,8 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   if (collapsed) {
     if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
 
-    // Arrow rows may carry a null/undefined source uri despite the declared type
-    const sourceUri =
-      (resultData.transcriptSourceUri as string | null | undefined) ?? "";
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
+    const sourceUri = resultData.transcriptSourceUri ?? "";
     let resolvedSourceUrl = sourceUri;
     if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
       resolvedSourceUrl = `file://${resolvedSourceUrl}`;
@@ -164,9 +163,8 @@ const transcriptHeadings = (
   if (!resultData) return [];
 
   // Source info
-  // Arrow rows may carry a null/undefined source uri despite the declared type
-  const sourceUri =
-    (resultData.transcriptSourceUri as string | null | undefined) ?? "";
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
+  const sourceUri = resultData.transcriptSourceUri ?? "";
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
     resolvedSourceUrl = `file://${resolvedSourceUrl}`;

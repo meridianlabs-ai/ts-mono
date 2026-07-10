@@ -20,12 +20,6 @@ interface InfoPanelProps {
 }
 
 export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
-  // Parsed from arrow columns; may be null/undefined at runtime despite the
-  // declared type
-  const scanModelUsage = resultData?.scanModelUsage as
-    ScanResultData["scanModelUsage"] | null | undefined;
-  const scanMetadata = resultData?.scanMetadata as
-    ScanResultData["scanMetadata"] | null | undefined;
   return (
     resultData && (
       <div className={clsx(styles.container)}>
@@ -43,26 +37,28 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           </CardBody>
         </Card>
 
-        {scanModelUsage && Object.keys(scanModelUsage).length > 0 && (
-          <Card>
-            <CardHeader label="Model Usage" type="modern" />
-            <CardBody>
-              <ModelTokenTable model_usage={scanModelUsage} />
-            </CardBody>
-          </Card>
-        )}
-        {scanMetadata && Object.keys(scanMetadata).length > 0 && (
-          <Card>
-            <CardHeader label="Metadata" type="modern" />
-            <CardBody>
-              <RecordTree
-                id={`scan-metadata-${resultData.identifier}`}
-                record={scanMetadata}
-                copyButton={true}
-              />
-            </CardBody>
-          </Card>
-        )}
+        {resultData?.scanModelUsage &&
+          Object.keys(resultData?.scanModelUsage).length > 0 && (
+            <Card>
+              <CardHeader label="Model Usage" type="modern" />
+              <CardBody>
+                <ModelTokenTable model_usage={resultData.scanModelUsage} />
+              </CardBody>
+            </Card>
+          )}
+        {resultData?.scanMetadata &&
+          Object.keys(resultData.scanMetadata).length > 0 && (
+            <Card>
+              <CardHeader label="Metadata" type="modern" />
+              <CardBody>
+                <RecordTree
+                  id={`scan-metadata-${resultData?.identifier}`}
+                  record={resultData?.scanMetadata || {}}
+                  copyButton={true}
+                />
+              </CardBody>
+            </Card>
+          )}
       </div>
     )
   );

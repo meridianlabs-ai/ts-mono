@@ -2,7 +2,7 @@ import { FC, useEffect, useMemo, useRef } from "react";
 
 import { ScalarValue } from "../../api/api";
 import { transcriptRoute } from "../../router/url";
-import { TranscriptsTableState, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import { DataGrid } from "../components/dataGrid";
 
@@ -74,14 +74,8 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   const rowSelection = useStore(
     (state) => state.transcriptsTableState.rowSelection
   );
-  // Table state is rehydrated from persisted storage; snapshots written by
-  // older builds may lack fields the type declares as required.
   const columnFilters =
-    useStore(
-      (state) =>
-        state.transcriptsTableState.columnFilters as
-          TranscriptsTableState["columnFilters"] | undefined
-    ) ?? {};
+    useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
   const focusedRowId = useStore(
     (state) => state.transcriptsTableState.focusedRowId
   );
@@ -135,11 +129,8 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
 
   // Compute effective column order: use explicit order if set, otherwise derive from DEFAULT_COLUMN_ORDER
   const effectiveColumnOrder = useMemo(() => {
-    // Persisted table state from older builds may lack this field
-    const order = columnOrder as
-      TranscriptsTableState["columnOrder"] | undefined;
-    if (order && order.length > 0) {
-      return order;
+    if (columnOrder && columnOrder.length > 0) {
+      return columnOrder;
     }
     // Filter DEFAULT_COLUMN_ORDER to only include visible columns
     return DEFAULT_COLUMN_ORDER.filter((col) => visibleColumns.includes(col));

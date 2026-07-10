@@ -102,14 +102,10 @@ const kSettleStableFrames = 8;
  *  width — filters out the (also-sticky) outline / right-pane side panels. */
 const kStickyMinWidthRatio = 0.4;
 
-const escapeAttr = (id: string): string => {
-  // CSS.escape can be missing in older runtimes despite lib.dom's types
-  const escape =
-    typeof CSS !== "undefined"
-      ? (CSS.escape as typeof CSS.escape | undefined)
-      : undefined;
-  return escape ? escape(id) : id.replace(/"/g, '\\"');
-};
+const escapeAttr = (id: string): string =>
+  typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(id)
+    : id.replace(/"/g, '\\"');
 
 /** Worst-case bottom edge of the top-pinned sticky bar (relative to the
  *  scroll container's top), based on each sticky element's CSS `top` +
@@ -485,7 +481,7 @@ export const TranscriptViewNodes = forwardRef<
       index: idx,
       container,
       targetSelector,
-      getStickyOffset: () => offsetTopRef.current,
+      getStickyOffset: () => offsetTopRef.current ?? 0,
       paddingBelowSticky: kPaddingBelowSticky,
     });
   }, [scrollEventId, initialMessageId, flattenedNodes, scrollRef]);

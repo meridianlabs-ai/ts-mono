@@ -70,7 +70,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       // Capture the curently focused element so we can restore focus later
-      const focusedElement = document.activeElement as HTMLElement | null;
+      const focusedElement = document.activeElement as HTMLElement;
 
       // Find the term in the DOM
       const result = await findExtendedInDOM(
@@ -116,6 +116,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.activeElement is null when nothing has focus despite the cast-derived type
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm]

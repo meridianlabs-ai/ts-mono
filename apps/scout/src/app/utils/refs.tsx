@@ -12,7 +12,7 @@ import { MarkdownReference } from "@tsmono/react/components";
 
 import { scanResultRoute } from "../../router/url";
 import { useStore } from "../../state/store";
-import { ScannerInput, Transcript } from "../../types/api-types";
+import { ScannerInput } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
   isEventInput,
@@ -185,26 +185,20 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
-    // Transcripts are deserialized artifacts; events/messages may be missing
-    // despite the generated type
-    const events = inputData.input.events as Transcript["events"] | undefined;
-    const messages = inputData.input.messages as
-      Transcript["messages"] | undefined;
-    const eventRefs = (events || []).reduce<Record<string, () => ReactNode>>(
-      (acc, event) => {
-        if (event.uuid) {
-          acc[event.uuid] = () => {
-            return (
-              <TranscriptView id={"input-event-preview"} events={[event]} />
-            );
-          };
-        }
-        return acc;
-      },
-      {}
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- deserialized transcript; events may be missing at runtime despite the generated type
+    const eventRefs = (inputData.input.events || []).reduce<
+      Record<string, () => ReactNode>
+    >((acc, event) => {
+      if (event.uuid) {
+        acc[event.uuid] = () => {
+          return <TranscriptView id={"input-event-preview"} events={[event]} />;
+        };
+      }
+      return acc;
+    }, {});
 
-    const messageRefs = (messages || []).reduce<
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- deserialized transcript; messages may be missing at runtime despite the generated type
+    const messageRefs = (inputData.input.messages || []).reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {
       if (msg.id) {

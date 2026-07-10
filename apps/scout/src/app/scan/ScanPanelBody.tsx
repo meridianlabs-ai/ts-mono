@@ -105,11 +105,10 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
       return [];
     }
 
-    const hasLabel = visibleScannerResults.some((summary) => {
-      // Arrow rows may surface SQL NULL labels despite the declared type
-      const label = summary.label as string | null | undefined;
-      return label !== undefined && label !== null;
-    });
+    const hasLabel = visibleScannerResults.some(
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
+      (summary) => summary.label !== undefined && summary.label !== null
+    );
 
     const logCount = visibleScannerResults.reduce((logs, summary) => {
       const log = resultLog(summary);

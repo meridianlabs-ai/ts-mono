@@ -49,10 +49,7 @@ interface PendingFailed {
 function toolChoiceEqual(a: ToolChoice, b: ToolChoice): boolean {
   if (a === b) return true;
   if (typeof a === "string" || typeof b === "string") return a === b;
-  // tool_choice is log data — can be null despite the generated type
-  const af = a as typeof a | null | undefined;
-  const bf = b as typeof b | null | undefined;
-  return af?.name === bf?.name;
+  return a?.name === b?.name;
 }
 
 function toolsEqual(a: ModelEvent["tools"], b: ModelEvent["tools"]): boolean {

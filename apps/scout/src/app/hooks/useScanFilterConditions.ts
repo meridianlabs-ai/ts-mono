@@ -1,20 +1,15 @@
 import { Condition } from "../../query";
 import { SimpleCondition } from "../../query/types";
-import { ScansTableState, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 
 /**
  * Build a combined filter condition from scans column filters.
  * @param excludeColumnId - Optional column ID to exclude from the condition
  */
 export const useScanFilterConditions = (excludeColumnId?: string) => {
-  // The applied filters. Table state is rehydrated from persisted storage;
-  // snapshots written by older builds may lack this field.
+  // The applied filters
   const columnFilters =
-    useStore(
-      (state) =>
-        state.scansTableState.columnFilters as
-          ScansTableState["columnFilters"] | undefined
-    ) ?? {};
+    useStore((state) => state.scansTableState.columnFilters) ?? {};
 
   // Get conditions, optionally excluding a specific column
   const filterConditions = Object.values(columnFilters)

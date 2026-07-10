@@ -129,8 +129,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
   timing,
   className,
 }) => {
-  // usage is log data and can be absent at runtime despite the prop type
-  if (!(usage as ModelUsageData | undefined)) return null;
+  if (!usage) return null;
 
   const categories = buildCategories(usage);
   const composeTotal = categories.reduce((a, c) => a + c.value, 0);

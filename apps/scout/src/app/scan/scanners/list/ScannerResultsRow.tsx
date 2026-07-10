@@ -42,9 +42,8 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 
   // Generate the route to the scan result using the current scan path and the entry's uuid
-  // Arrow rows may lack an identifier despite the declared type
-  const isNavigable =
-    (summary.identifier as string | undefined) !== undefined && !!scansDir;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; identifier may be missing at runtime despite the declared type
+  const isNavigable = summary.identifier !== undefined && !!scansDir;
   const scanResultUrl = isNavigable
     ? scanResultRoute(scansDir, scanPath, summary.identifier, searchParams)
     : "";

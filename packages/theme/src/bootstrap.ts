@@ -228,12 +228,9 @@ let mediaListenerInstalled = false;
 let bodyClassObserverInstalled = false;
 
 const hostIsDarkFromBody = (): boolean | null => {
-  if (typeof document === "undefined") return null;
-  // lib.dom types document.body as non-null, but this runs early enough in
-  // bootstrap that <body> may not be parsed yet.
-  const body = document.body as HTMLElement | null;
-  if (!body) return null;
-  const cls = body.classList;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.body is typed non-null but this can run before <body> is parsed
+  if (typeof document === "undefined" || !document.body) return null;
+  const cls = document.body.classList;
   // VS Code high contrast: `vscode-high-contrast` is the HC-dark theme,
   // `vscode-high-contrast-light` the HC-light. Both classes are independent
   // tokens (classList is set-based), so order doesn't matter for correctness.
@@ -249,13 +246,12 @@ const isVscodeWebview = (): boolean =>
   "function";
 
 const installBodyClassObserver = (): void => {
-  if (bodyClassObserverInstalled || typeof MutationObserver === "undefined") {
-    return;
-  }
-  // lib.dom types document.body as non-null, but this runs early enough in
-  // bootstrap that <body> may not be parsed yet.
-  const body = document.body as HTMLElement | null;
-  if (!body) {
+  if (
+    bodyClassObserverInstalled ||
+    typeof MutationObserver === "undefined" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.body is typed non-null but this can run before <body> is parsed
+    !document.body
+  ) {
     return;
   }
 
@@ -333,12 +329,8 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       // Adding `vscode-light` would activate the bridge in light mode and
       // silently re-skin every `--bs-*` token.
       if (result.toggleBodyClass) {
-        // lib.dom types document.body as non-null, but applyTheme can run
-        // before <body> is parsed.
-        (document.body as HTMLElement | null)?.classList.toggle(
-          "vscode-dark",
-          result.isDark
-        );
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.body is typed non-null but applyTheme can run before <body> is parsed
+        document.body?.classList.toggle("vscode-dark", result.isDark);
       }
     }
     // No explicit React notification needed: the resolved theme lives in

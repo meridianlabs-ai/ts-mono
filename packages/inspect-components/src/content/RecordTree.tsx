@@ -270,7 +270,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
       // wide ripple for a non-firing bug. Suppress until that migration
       // happens or a real symptom appears.
       // eslint-disable-next-line react-hooks/refs
-      customScrollParent={scrollRef.current ? scrollRef.current : undefined}
+      customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}
       data={items}
@@ -317,9 +317,7 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
-  // records are typically log metadata and can be null/undefined at runtime
-  // despite the declared type
-  if (!(record as Record<string, unknown> | null | undefined)) {
+  if (!record) {
     return [];
   }
 
@@ -383,7 +381,7 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
-  } else if (typeof value === "object") {
+  } else if (typeof value === "object" && value !== null) {
     processChildren = true;
     childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;
@@ -436,7 +434,7 @@ const processNodeRecursive = (
           );
         });
       }
-    } else if (typeof value === "object") {
+    } else if (typeof value === "object" && value !== null) {
       // Process object properties
       Object.entries(value as Record<string, unknown>).forEach(
         ([childKey, childValue], index) => {

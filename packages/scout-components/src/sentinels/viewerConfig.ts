@@ -133,10 +133,8 @@ function scannerResultViewEntries(
   viewer: ViewerConfig | null | undefined
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
-  // The generated type marks scanner_result_view required, but deserialized
-  // configs (e.g. older eval logs) may omit it.
-  const raw = viewer.scanner_result_view as
-    ViewerConfig["scanner_result_view"] | undefined;
+  const raw = viewer.scanner_result_view;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- generated type marks scanner_result_view required, but deserialized configs (older eval logs) may omit it
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];

@@ -101,14 +101,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const eventParam = searchParams.get("event");
   const messageParam = searchParams.get("message");
 
-  // Selected tab — default to Events when the transcript has events.
-  // The transcript is deserialized from disk, so fields the schema marks
-  // required can still be missing at runtime.
-  const transcriptEvents = transcript.events as
-    Transcript["events"] | undefined;
-  const transcriptMessages = transcript.messages as
-    Transcript["messages"] | undefined;
-  const hasEvents = transcriptEvents && transcriptEvents.length > 0;
+  // Selected tab — default to Events when the transcript has events
+  const hasEvents = transcript.events && transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
     : kTranscriptMessagesTabId;
@@ -407,7 +401,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={"transcript-id"}
-              messages={transcriptMessages || []}
+              messages={transcript.messages || []}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
@@ -494,9 +488,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
-  const transcriptMetadata = transcript.metadata as
-    Transcript["metadata"] | undefined;
-  if (transcriptMetadata && Object.keys(transcriptMetadata).length > 0) {
+  if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
@@ -512,7 +504,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            entries={transcriptMetadata}
+            entries={transcript.metadata || {}}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
@@ -577,10 +569,7 @@ const CopyToolbarButton: FC<{
     setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
   }, []);
 
-  // The transcript is deserialized from disk, so it (and fields the schema
-  // marks required) can still be missing at runtime.
-  const maybeTranscript = transcript as Transcript | undefined;
-  if (!maybeTranscript) {
+  if (!transcript) {
     return undefined;
   }
 
@@ -601,10 +590,10 @@ const CopyToolbarButton: FC<{
           }
         },
         Transcript: () => {
-          const messages = transcript.messages as
-            Transcript["messages"] | undefined;
-          if (messages) {
-            void navigator.clipboard.writeText(messagesToStr(messages));
+          if (transcript.messages) {
+            void navigator.clipboard.writeText(
+              messagesToStr(transcript.messages)
+            );
             showCopyConfirmation();
           }
         },

@@ -52,7 +52,8 @@ export const transformTree = (roots: EventNode[]): EventNode[] => {
     }
 
     // Return all processed nodes
-    return currentNodes.length === 1 && currentNodes[0]
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- currentNodes is always an array; defensive truthiness check kept
+    return currentNodes && currentNodes.length === 1 && currentNodes[0]
       ? currentNodes[0]
       : currentNodes;
   };
@@ -65,7 +66,8 @@ export const transformTree = (roots: EventNode[]): EventNode[] => {
   for (const transformer of treeNodeTransformers) {
     if (transformer.flush) {
       const flushResults = transformer.flush();
-      if (flushResults.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- flush() is typed to always return an array; defensive check kept
+      if (flushResults && flushResults.length > 0) {
         flushedNodes.push(...flushResults);
       }
     }
@@ -101,7 +103,8 @@ const transformers = () => {
         node.event["type"] === TYPE_SOLVER &&
         node.children.length === 2 &&
         node.children[0]?.event.event === SPAN_BEGIN &&
-        node.children[0].event.type === TYPE_AGENT &&
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
+        node.children[0]?.event.type === TYPE_AGENT &&
         node.children[1]?.event.event === STATE,
 
       process: (node) => skipFirstChildNode(node),
@@ -113,7 +116,8 @@ const transformers = () => {
         node.event["type"] === TYPE_SOLVER &&
         node.children.length === 3 &&
         node.children[0]?.event.event === SPAN_BEGIN &&
-        node.children[0].event.type === TYPE_AGENT &&
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
+        node.children[0]?.event.type === TYPE_AGENT &&
         node.children[1]?.event.event === STATE &&
         node.children[2]?.event.event === STORE,
       process: (node) => skipFirstChildNode(node),
@@ -132,16 +136,20 @@ const transformers = () => {
         if (node.children.length === 1) {
           return (
             node.children[0]?.event.event === TOOL &&
-            !!node.children[0].event.agent
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
+            !!node.children[0]?.event.agent
           );
         } else {
           return (
             node.children.length === 2 &&
             node.children[0]?.event.event === TOOL &&
             node.children[1]?.event.event === STORE &&
-            node.children[0].children.length === 2 &&
-            node.children[0].children[0]?.event.event === SPAN_BEGIN &&
-            node.children[0].children[0].event.type === TYPE_AGENT
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
+            node.children[0]?.children.length === 2 &&
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
+            node.children[0]?.children[0]?.event.event === SPAN_BEGIN &&
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjuncts; optional chains kept so clause reordering stays safe
+            node.children[0]?.children[0]?.event.type === TYPE_AGENT
           );
         }
       },

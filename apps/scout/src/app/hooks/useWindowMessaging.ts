@@ -115,9 +115,7 @@ export const useWindowMessaging = (): void => {
   const setSingleFileMode = useStore((state) => state.setSingleFileMode);
   const setSelectedScanner = useStore((state) => state.setSelectedScanner);
   const selectedScanner = useStore((state) => state.selectedScanner);
-  // App config is deserialized from the server; the dir may be missing at
-  // runtime despite the declared type
-  const scansDir = useAppConfig().scans.dir as string | null | undefined;
+  const scansDir = useAppConfig().scans.dir;
 
   const context: MessageContext = useMemo(() => {
     return {

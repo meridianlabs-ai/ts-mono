@@ -4,7 +4,7 @@ import { toRelativePath } from "@tsmono/util";
 
 import { ScalarValue } from "../../api/api";
 import { scanRoute } from "../../router/url";
-import { ScansTableState, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
 import { DataGrid } from "../components/dataGrid";
 
@@ -131,10 +131,8 @@ export const ScansGrid: FC<ScansGridProps> = ({
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
-    // Persisted table state from older builds may lack this field
-    const order = columnOrder as ScansTableState["columnOrder"] | undefined;
-    if (order && order.length > 0) {
-      return order;
+    if (columnOrder && columnOrder.length > 0) {
+      return columnOrder;
     }
     return DEFAULT_COLUMN_ORDER;
   }, [columnOrder]);

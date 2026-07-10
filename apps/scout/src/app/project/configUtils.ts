@@ -211,13 +211,10 @@ export function computeConfigToSave(
 export function initializeEditedConfig(
   serverConfig: ProjectConfigInput
 ): Partial<ProjectConfigInput> {
-  // Server responses may omit filter despite the generated type; normalize it
-  // to null like every other field (the final assertion mirrors the declared
-  // type, which does not admit null)
-  const filter = serverConfig.filter as string | string[] | null | undefined;
   return {
     transcripts: serverConfig.transcripts ?? null,
-    filter: (filter ?? null) as string | string[],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server config JSON may omit filter despite the generated type
+    filter: serverConfig.filter ?? null,
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,
     max_processes: serverConfig.max_processes ?? null,

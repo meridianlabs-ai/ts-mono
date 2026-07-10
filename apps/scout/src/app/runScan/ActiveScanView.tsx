@@ -78,11 +78,10 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   }, []);
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
-  const hasValidations = info.scanner_names.some((name) => {
-    // Server responses may omit entries despite the generated type
-    const entries = summary.scanners[name]?.validation?.entries;
-    return (entries?.length ?? 0) > 0;
-  });
+  const hasValidations = info.scanner_names.some(
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server summary JSON may omit validation entries despite the generated type
+    (name) => (summary.scanners[name]?.validation?.entries?.length ?? 0) > 0
+  );
   const hasMetrics = info.scanner_names.some(
     (name) => summary.scanners[name]?.metrics !== null
   );
@@ -93,9 +92,8 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const scanner = summary.scanners[name];
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
-          // Server responses may omit total_tokens despite the generated type
-          (sum, usage) =>
-            sum + ((usage.total_tokens as number | undefined) ?? 0),
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server model usage JSON may omit total_tokens despite the generated type
+          (sum, usage) => sum + (usage.total_tokens ?? 0),
           0
         )
       : 0;

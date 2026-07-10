@@ -1,20 +1,14 @@
-import { EvalScore } from "@tsmono/inspect-common/types";
-
 import { EvalHeader, LogPreview } from "../api/types";
 
 export function toLogOverview(header: EvalHeader): LogPreview {
   const { eval: evalSpec, version, status, error, stats, results } = header;
 
-  // Get the first metric from the first score's metrics.
-  // Log data may omit scores/metrics despite the static types.
+  // Get the first metric from the first score's metrics
   let primary_metric = undefined;
-  const scores = results?.scores;
-  const firstScore = scores?.[0];
+  const firstScore = results?.scores?.[0];
   if (firstScore) {
     // Get the first metric from the score's metrics object
-    const metricsValues = Object.values(
-      (firstScore.metrics as EvalScore["metrics"] | undefined) || {}
-    );
+    const metricsValues = Object.values(firstScore.metrics || {});
     if (metricsValues.length > 0) {
       primary_metric = metricsValues[0];
     }

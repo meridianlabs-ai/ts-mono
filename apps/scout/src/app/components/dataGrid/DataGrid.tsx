@@ -209,11 +209,8 @@ export function DataGrid<
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
-    // Table state may be rehydrated from persisted storage written by older
-    // builds that lacked this field.
-    const order = columnOrder as typeof columnOrder | undefined;
-    if (order && order.length > 0) {
-      return order;
+    if (columnOrder && columnOrder.length > 0) {
+      return columnOrder;
     }
     // Default to column order from column definitions
     return columns.map(

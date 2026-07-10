@@ -171,9 +171,8 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     "outlineCollapsed",
     { defaultValue: !defaultOutlineExpanded }
   );
-  // Persisted properties may hold null/undefined despite the declared type
-  const userOutlineCollapsed =
-    (outlineCollapsed as boolean | null | undefined) ?? !defaultOutlineExpanded;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted property value; may be null/undefined at runtime despite the declared type
+  const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
   const setSelectedOutlineId = useStore(

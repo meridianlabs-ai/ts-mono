@@ -1,4 +1,4 @@
-import type { Content, ModelEvent } from "@tsmono/inspect-common/types";
+import type { Content } from "@tsmono/inspect-common/types";
 
 import type { EventType } from "./types";
 import { EventNode } from "./types";
@@ -64,21 +64,19 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Despite the generated types, output/input can be absent at runtime
-      // (e.g. errored model calls) — see the same note in ModelEventView.
-      const output = modelEvent.output as ModelEvent["output"] | undefined;
-      const input = modelEvent.input as ModelEvent["input"] | undefined;
       // Extract text from model output
-      if (output?.choices) {
-        for (const choice of output.choices) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
+      if (modelEvent.output?.choices) {
+        for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
             fields.push(["output", text]);
           }
         }
       }
       // Extract text from user/system input messages shown in the view
-      if (input) {
-        for (const msg of input) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent in logs
+      if (modelEvent.input) {
+        for (const msg of modelEvent.input) {
           if (msg.role === "user" || msg.role === "system") {
             for (const text of extractContentText(msg.content)) {
               fields.push([msg.role, text]);
@@ -116,11 +114,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (toolEvent.function) {
         fields.push(["function", toolEvent.function]);
       }
-      // Tool arguments (can be absent in logs despite the generated type)
-      const args = toolEvent.arguments as
-        typeof toolEvent.arguments | undefined;
-      if (args) {
-        fields.push(["arguments", JSON.stringify(args)]);
+      // Tool arguments
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments is required in the generated type but can be absent in logs
+      if (toolEvent.arguments) {
+        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
       // Tool result
       if (toolEvent.result) {
@@ -141,28 +138,27 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
-      // error can be absent in logs despite the generated type
-      const error = errorEvent.error as typeof errorEvent.error | undefined;
-      if (error?.message) {
-        fields.push(["message", error.message]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- error is required in the generated type but can be absent in logs
+      if (errorEvent.error?.message) {
+        fields.push(["message", errorEvent.error.message]);
       }
-      if (error?.traceback) {
-        fields.push(["traceback", error.traceback]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- error is required in the generated type but can be absent in logs
+      if (errorEvent.error?.traceback) {
+        fields.push(["traceback", errorEvent.error.traceback]);
       }
       break;
     }
 
     case "logger": {
       const loggerEvent = event;
-      // message can be absent in logs despite the generated type
-      const message = loggerEvent.message as
-        typeof loggerEvent.message | undefined;
-      if (message?.message) {
-        fields.push(["message", message.message]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- message is required in the generated type but can be absent in logs
+      if (loggerEvent.message?.message) {
+        fields.push(["message", loggerEvent.message.message]);
       }
       // Filename shown in the view
-      if (message?.filename) {
-        fields.push(["filename", message.filename]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- message is required in the generated type but can be absent in logs
+      if (loggerEvent.message?.filename) {
+        fields.push(["filename", loggerEvent.message.filename]);
       }
       break;
     }
@@ -238,11 +234,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (subtaskEvent.type) {
         fields.push(["type", subtaskEvent.type]);
       }
-      // Input/result shown in summary (input can be absent in logs despite
-      // the generated type)
-      const input = subtaskEvent.input as typeof subtaskEvent.input | undefined;
-      if (input) {
-        fields.push(["input", sanitizeStringify(input)]);
+      // Input/result shown in summary
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent in logs
+      if (subtaskEvent.input) {
+        fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       }
       if (subtaskEvent.result) {
         fields.push(["result", sanitizeStringify(subtaskEvent.result)]);
@@ -270,10 +265,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
-      // value can be absent in logs despite the generated type
-      const val = scoreEvent.score.value as
-        typeof scoreEvent.score.value | undefined;
-      if (val !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- value is required in the generated type but can be absent in logs
+      if (scoreEvent.score.value !== undefined) {
+        const val = scoreEvent.score.value;
         fields.push([
           "value",
           typeof val === "string" ? val : JSON.stringify(val),
@@ -332,11 +326,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
-      // type can be absent in logs despite the generated type
-      const limitType = sampleLimitEvent.type as
-        typeof sampleLimitEvent.type | undefined;
-      if (limitType) {
-        fields.push(["type", limitType]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- type is required in the generated type but can be absent in logs
+      if (sampleLimitEvent.type) {
+        fields.push(["type", sampleLimitEvent.type]);
       }
       break;
     }
@@ -370,11 +362,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
-      // decision can be absent in logs despite the generated type
-      const decision = approvalEvent.decision as
-        typeof approvalEvent.decision | undefined;
-      if (decision) {
-        fields.push(["decision", decision]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- decision is required in the generated type but can be absent in logs
+      if (approvalEvent.decision) {
+        fields.push(["decision", approvalEvent.decision]);
       }
       if (approvalEvent.explanation) {
         fields.push(["explanation", approvalEvent.explanation]);
@@ -387,11 +377,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
-      // action can be absent in logs despite the generated type
-      const action = sandboxEvent.action as
-        typeof sandboxEvent.action | undefined;
-      if (action) {
-        fields.push(["action", action]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- action is required in the generated type but can be absent in logs
+      if (sandboxEvent.action) {
+        fields.push(["action", sandboxEvent.action]);
       }
       if (sandboxEvent.cmd) {
         fields.push(["cmd", sandboxEvent.cmd]);
@@ -410,12 +398,13 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
-        // value can be absent in logs despite the generated type
-        const value = change.value as typeof change.value | undefined;
-        if (value !== undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- value is required in the generated JsonChange type but can be absent in logs
+        if (change.value !== undefined) {
           fields.push([
             "value",
-            typeof value === "string" ? value : sanitizeStringify(value),
+            typeof change.value === "string"
+              ? change.value
+              : sanitizeStringify(change.value),
           ]);
         }
       }

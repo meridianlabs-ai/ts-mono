@@ -531,7 +531,7 @@ export function viewServerApi(
 
   const get_user_info = async (): Promise<UserInfo> => {
     const result = await requestApi.fetchString("GET", "/user-info");
-    return (result.parsed as UserInfo | null | undefined) ?? {};
+    return (result.parsed as UserInfo) ?? {};
   };
 
   const get_app_config = async (): Promise<AppConfig> => {

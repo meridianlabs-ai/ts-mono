@@ -259,8 +259,8 @@ function createEvent(data: JsonEvent): Event | null {
       return {
         ...baseFields,
         event: "compaction",
-        type:
-          (data.type as "summary" | "edit" | "trim" | undefined) ?? "summary",
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may omit type despite the cast's non-optional union
+        type: (data.type as "summary" | "edit" | "trim") ?? "summary",
         span_id: data.span_id ?? null,
         source: null,
         tokens_before: null,
@@ -357,12 +357,10 @@ function assertScoringSpanMatches(
   expect(scorerSpans.length).toBe(1);
   const scoring = scorerSpans[0]!;
 
-  // required in the local fixture type, but fixture JSON from the parent
-  // repo may omit it
-  const expectedUuids = expected.event_uuids as string[] | undefined;
-  if (expectedUuids !== undefined) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- event_uuids is required in the fixture type but parent-repo fixture JSON may omit it
+  if (expected.event_uuids !== undefined) {
     const actualUuids = getDirectEventUuids(scoring);
-    expect(actualUuids).toEqual(expectedUuids);
+    expect(actualUuids).toEqual(expected.event_uuids);
   }
 }
 
@@ -378,10 +376,11 @@ function assertSpanMatches(
   expect(actual!.id).toBe(expected.id);
   expect(actual!.name).toBe(expected.name);
 
-  // fixture JSON from the parent repo may use source values beyond the
-  // local type's "span" | "tool"
-  const expectedSource = expected.source?.source as string | undefined;
-  if (expectedSource === "span" || expectedSource === "tool") {
+  if (
+    expected.source &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
+    (expected.source.source === "span" || expected.source.source === "tool")
+  ) {
     expect(actual!.spanType).toBe("agent");
   }
 
@@ -459,9 +458,14 @@ function assertSpanMatches(
         if (expectedItem.name) {
           expect(spanItem.name).toBe(expectedItem.name);
         }
-        const itemSource = expectedItem.source?.source as string | undefined;
-        if (itemSource === "span" || itemSource === "tool") {
-          expect(spanItem.spanType).toBe("agent");
+        if (expectedItem.source) {
+          if (
+            expectedItem.source.source === "span" ||
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
+            expectedItem.source.source === "tool"
+          ) {
+            expect(spanItem.spanType).toBe("agent");
+          }
         }
         if (expectedItem.nested_uuids) {
           const allUuids = getAllEventUuids(spanItem);
@@ -583,9 +587,14 @@ function assertTimelineMatches(
           if (expectedItem.name) {
             expect(spanItem.name).toBe(expectedItem.name);
           }
-          const itemSource = expectedItem.source?.source as string | undefined;
-          if (itemSource === "span" || itemSource === "tool") {
-            expect(spanItem.spanType).toBe("agent");
+          if (expectedItem.source) {
+            if (
+              expectedItem.source.source === "span" ||
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
+              expectedItem.source.source === "tool"
+            ) {
+              expect(spanItem.spanType).toBe("agent");
+            }
           }
           if (expectedItem.nested_uuids) {
             const allUuids = getAllEventUuids(spanItem);

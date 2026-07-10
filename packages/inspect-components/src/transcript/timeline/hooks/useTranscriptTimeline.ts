@@ -173,7 +173,7 @@ export function useTranscriptTimeline(
           priorSelected: timelineProps?.selected ?? null,
         },
       ]);
-      timelineProps?.onSelect(null);
+      timelineProps?.onSelect?.(null);
     },
     [baseTimeline.root, timelineProps]
   );
@@ -181,7 +181,7 @@ export function useTranscriptTimeline(
     const top = viewStack.at(-1);
     if (!top) return;
     setViewStack((s) => s.slice(0, -1));
-    timelineProps?.onSelect(top.priorSelected);
+    timelineProps?.onSelect?.(top.priorSelected);
   }, [viewStack, timelineProps]);
 
   const state = useTimeline(timeline, timelineOptions, timelineProps);
@@ -310,7 +310,7 @@ export function useTranscriptTimeline(
     keys.set(rowKey, 100);
 
     let childKey = rowKey;
-    for (;;) {
+    while (true) {
       const parentKey = getParentKeyFromBranch(childKey);
       if (!parentKey) break;
 
@@ -331,7 +331,9 @@ export function useTranscriptTimeline(
   const hasTimeline =
     timeline.root.content.length > 0 &&
     (timeline.root.content.some(
-      (item) => item.type === "span" || item.event.event === "span_begin"
+      (item) =>
+        item.type === "span" ||
+        (item.type === "event" && item.event.event === "span_begin")
     ) ||
       timeline.root.branches.length > 0);
 
@@ -414,7 +416,7 @@ function computeBranchMappings(
   // Nearest ancestor row whose logical start has been computed.
   const nearestAncestor = (key: string): SwimlaneRow | undefined => {
     let k = key;
-    for (;;) {
+    while (true) {
       const i = k.lastIndexOf("/");
       if (i < 0) return root;
       k = k.slice(0, i);

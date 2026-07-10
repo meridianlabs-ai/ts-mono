@@ -146,7 +146,7 @@ function collectEventMarkers(
   for (const item of node.content) {
     if (item.type === "event") {
       addEventMarker(item, markers);
-    } else if (shouldDescend(depth, currentLevel)) {
+    } else if (item.type === "span" && shouldDescend(depth, currentLevel)) {
       collectEventMarkers(item, depth, currentLevel + 1, markers);
     }
   }

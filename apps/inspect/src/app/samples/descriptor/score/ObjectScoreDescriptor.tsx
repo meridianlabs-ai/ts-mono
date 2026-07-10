@@ -33,7 +33,8 @@ export const objectScoreDescriptor = (
     compare: () => {
       return 0;
     },
-    render: (score: ScoreValue | null | undefined) => {
+    render: (score) => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- score values come from eval logs and can be null despite the declared ScoreValue type
       if (score === null || score === undefined) {
         return "[null]";
       }

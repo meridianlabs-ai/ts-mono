@@ -36,9 +36,8 @@ export const ScannerDataframeCopyCSVButton: FC = () => {
   const handleCopy = useCallback(() => {
     if (!gridApi) return;
 
-    // Check clipboard API availability (not available in non-secure contexts,
-    // despite lib.dom typing it as always present)
-    if (!(navigator as { clipboard?: Clipboard }).clipboard) {
+    // Check clipboard API availability (not available in non-secure contexts)
+    if (!navigator.clipboard) {
       console.error("Clipboard API not available (requires HTTPS)");
       setStatus("error");
       return;

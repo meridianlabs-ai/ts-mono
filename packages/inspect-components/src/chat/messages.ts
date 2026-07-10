@@ -56,6 +56,7 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
       if (resolvedMessages.length > 0) {
         const msg = resolvedMessages[resolvedMessages.length - 1];
         if (msg) {
+          msg.toolMessages = msg.toolMessages || [];
           msg.toolMessages.push(resolved);
         }
       }
@@ -106,7 +107,7 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
   };
 
   // Converge them
-  if (systemMessage.content.length > 0) {
+  if (systemMessage && systemMessage.content.length > 0) {
     collapsedMessages.unshift({ message: systemMessage, toolMessages: [] });
   }
   return collapsedMessages;

@@ -242,9 +242,7 @@ const buildToolLabels = (
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
-      // input can be absent at runtime despite the generated types
-      const input = event.input as typeof event.input | undefined;
-      for (const message of input ?? []) {
+      for (const message of event.input ?? []) {
         if (message.role !== "tool" || !message.id) continue;
         const label = messageLabels[message.id];
         if (label && message.tool_call_id) {
@@ -270,16 +268,11 @@ const scopeMessageLabels = (
   const present = new Set<string>();
   for (const event of events) {
     if (event.event === "model") {
-      // input/output can be absent at runtime despite the generated types
-      const input = event.input as typeof event.input | undefined;
-      const output = event.output as typeof event.output | undefined;
-      for (const message of input ?? []) {
+      for (const message of event.input ?? []) {
         if (message.id) present.add(message.id);
       }
-      for (const choice of output?.choices ?? []) {
-        // message can be absent in logs despite the generated type
-        const message = choice.message as typeof choice.message | undefined;
-        if (message?.id) present.add(message.id);
+      for (const choice of event.output?.choices ?? []) {
+        if (choice.message?.id) present.add(choice.message.id);
       }
     } else if (event.event === "tool" && event.message_id) {
       present.add(event.message_id);
@@ -824,7 +817,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     }
     if (bulkCollapse === "expand") {
       onSetTranscriptCollapsed({});
-    } else {
+    } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
@@ -834,11 +827,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // (store scope is empty), seed the store with defaults before applying the
   // toggle so that all other nodes retain their default collapsed state.
   const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
-  const collapsedTranscript = collapseState?.transcript;
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!collapsedTranscript) {
+      if (!collapseState?.transcript) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
           ...defaultCollapsedIds,
@@ -851,7 +843,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [
       onCollapseTranscriptRaw,
       onSetTranscriptCollapsed,
-      collapsedTranscript,
+      collapseState?.transcript,
       defaultCollapsedIds,
     ]
   );
@@ -862,11 +854,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
-      const next = { ...(collapsedTranscript ?? defaultCollapsedIds) };
+      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);
     },
-    [onSetTranscriptCollapsed, collapsedTranscript, defaultCollapsedIds]
+    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
   );
 
   // ---------------------------------------------------------------------------
