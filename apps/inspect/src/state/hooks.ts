@@ -143,10 +143,11 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
   const stored = useSelectedLogDetails()?.eval.viewer?.sample_score_view?.sort;
   return useMemo(() => {
     if (!stored) return undefined;
+    // Log data may omit dir despite the static type.
+    const storedDir = stored.dir as ScorePanelSortState["dir"] | undefined;
     return {
       column: stored.column ?? null,
-      // Log data may omit dir despite the static type.
-      dir: (stored.dir as ScorePanelSortState["dir"] | undefined) ?? "asc",
+      dir: storedDir ?? "asc",
     };
   }, [stored]);
 };
