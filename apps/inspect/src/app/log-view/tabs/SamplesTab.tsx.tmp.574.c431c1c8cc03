@@ -440,7 +440,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     return sampleSummaries.map((sample): SampleRow => {
       const tokens = sample.model_usage
         ? Object.values(sample.model_usage).reduce(
-            (sum, u) => sum + u.total_tokens,
+            // total_tokens originates in log data, which can omit it at
+            // runtime despite the generated type
+            (sum, u) => sum + ((u.total_tokens as number | undefined) ?? 0),
             0
           )
         : undefined;
