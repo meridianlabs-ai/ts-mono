@@ -55,6 +55,14 @@ const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 const stringCompare: ColumnComparator = (a, b) =>
   valueAsString(a ?? "").localeCompare(valueAsString(b ?? ""));
 
+// EvalDescriptor.scoreDescriptor's declared return type hides that the
+// descriptor map has no entry for scores with no usable values; widen at
+// the boundary so callers handle the runtime-missing case.
+const lookupScoreDescriptor = (
+  evalDescriptor: EvalDescriptor,
+  scoreLabel: ScoreLabel
+): ScoreDescriptor | undefined => evalDescriptor.scoreDescriptor(scoreLabel);
+
 export interface SampleGridContext {
   viewMode: SampleGridViewMode;
   multiLog: boolean;
@@ -539,10 +547,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     return scores.map((label): SampleColumn => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
-      // Widened: scoreDescriptor's declared return type hides that the
-      // descriptor map has no entry for scores with no usable values.
-      const scoreDesc: ScoreDescriptor | undefined =
-        descriptor.evalDescriptor.scoreDescriptor(label);
+      const scoreDesc = lookupScoreDescriptor(descriptor.evalDescriptor, label);
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured
