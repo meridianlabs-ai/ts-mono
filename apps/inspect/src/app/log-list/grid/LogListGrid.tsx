@@ -88,7 +88,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleRowActivate = useCallback(
     (row: LogListRow) => {
-      if (row.url) void navigate(row.url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      if (row.url) navigate(row.url);
     },
     [navigate]
   );

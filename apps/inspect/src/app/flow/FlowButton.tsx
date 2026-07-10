@@ -21,7 +21,8 @@ export const FlowButton = forwardRef<HTMLButtonElement>((_, ref) => {
     const flowPath = logPath
       ? `${routePrefix}/${logPath}/flow.yaml`
       : `${routePrefix}/flow.yaml`;
-    void navigateRouter(flowPath);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    navigateRouter(flowPath);
   };
 
   return (

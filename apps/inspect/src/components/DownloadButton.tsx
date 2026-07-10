@@ -20,7 +20,8 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
     <button
       className={"btn btn-outline-primary download-button"}
       onClick={() => {
-        void api.download_file(fileName, fileContents);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        api.download_file(fileName, fileContents);
       }}
     >
       {label}

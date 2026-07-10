@@ -93,7 +93,8 @@ const ThemePreferenceSyncController: FC = () => {
         // Re-apply CSS for this tab (the bootstrap reads the freshly-written
         // value) and pull the new preference into the store.
         window.__APPLY_BROWSER_THEME__?.();
-        void useUserSettings.persist.rehydrate();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        useUserSettings.persist.rehydrate();
       }
     };
     window.addEventListener("storage", onStorage);
@@ -150,7 +151,8 @@ export const AppContent: FC = () => {
             if (log_dir === logDir) {
               selectLogFile(decodedUrl);
             } else {
-              void api.open_log_file(e.data.url, e.data.log_dir);
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              api.open_log_file(e.data.url, e.data.log_dir);
             }
           } else {
             imperativeLogData.invalidateLogListing();

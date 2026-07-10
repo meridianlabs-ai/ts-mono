@@ -83,7 +83,8 @@ export const ScannerResultsBody: FC<{
                     identifier,
                     searchParams
                   );
-                  void navigate(route);
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                  navigate(route);
                 }
               }}
               onVisibleRowCountChanged={setVisibleScannerResultsCount}

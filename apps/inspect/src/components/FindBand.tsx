@@ -197,10 +197,12 @@ export const FindBand: FC = () => {
       if (e.key === "Escape") {
         storeHideFind();
       } else if (e.key === "Enter") {
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
@@ -210,11 +212,13 @@ export const FindBand: FC = () => {
   );
 
   const findPrevious = useCallback(() => {
-    void handleSearch(true);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(true);
   }, [handleSearch]);
 
   const findNext = useCallback(() => {
-    void handleSearch(false);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(false);
   }, [handleSearch]);
 
   const restoreCursor = useCallback(() => {
@@ -273,7 +277,8 @@ export const FindBand: FC = () => {
       // F3: Find next/previous
       if (e.key === "F3") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 
@@ -290,7 +295,8 @@ export const FindBand: FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === "g") {
         e.preventDefault();
         e.stopPropagation();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 

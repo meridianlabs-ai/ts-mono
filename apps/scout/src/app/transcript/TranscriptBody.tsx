@@ -159,7 +159,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      void navigate(url, { replace: true });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );
@@ -585,15 +586,15 @@ const CopyToolbarButton: FC<{
       items={{
         UUID: () => {
           if (transcript.transcript_id) {
-            void navigator.clipboard.writeText(transcript.transcript_id);
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            navigator.clipboard.writeText(transcript.transcript_id);
             showCopyConfirmation();
           }
         },
         Transcript: () => {
           if (transcript.messages) {
-            void navigator.clipboard.writeText(
-              messagesToStr(transcript.messages)
-            );
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            navigator.clipboard.writeText(messagesToStr(transcript.messages));
             showCopyConfirmation();
           }
         },

@@ -291,7 +291,8 @@ function processEvents(
         };
 
         if (api.log_message) {
-          void api.log_message(
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          api.log_message(
             logFile,
             `Unable to resolve attachment ${attachmentId}\n` +
               JSON.stringify(snapshot)

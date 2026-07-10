@@ -754,7 +754,8 @@ export class FetchEngine {
     }
     const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
-    void this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
     return waiter.promise;
   }
 
@@ -1095,7 +1096,8 @@ export class FetchEngine {
       this._flushingPreviews = false;
       // Trailing coalesce — see flushDetailWrites.
       if (Object.keys(this._pendingPreviewWrites).length > 0) {
-        void this.flushPreviewWrites();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.flushPreviewWrites();
       }
     }
   }
@@ -1120,7 +1122,8 @@ export class FetchEngine {
       // in flight had its own flush attempt swallowed by the guard above —
       // without a re-run those writes sit staged indefinitely.
       if (Object.keys(this._pendingDetailWrites).length > 0) {
-        void this.flushDetailWrites();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.flushDetailWrites();
       }
     }
   }
