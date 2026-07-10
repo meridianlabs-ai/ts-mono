@@ -133,8 +133,8 @@ function scannerResultViewEntries(
   viewer: ViewerConfig | null | undefined
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
-  // Widened: the generated type marks scanner_result_view required, but
-  // deserialized configs (e.g. older eval logs) may omit it.
+  // The generated type marks scanner_result_view required, but deserialized
+  // configs (e.g. older eval logs) may omit it.
   const raw = viewer.scanner_result_view as
     ViewerConfig["scanner_result_view"] | undefined;
   if (!raw) return [];
@@ -234,8 +234,8 @@ function coerceField(
     }
     return null;
   }
-  // switch rather than if-chain: unknown kinds (hand-edited eval logs) must
-  // still fall through to null even though the declared union says they can't.
+  // Unknown kinds (hand-edited eval logs) must fall through to null even
+  // though the declared union says they can't occur.
   switch (entry.kind) {
     case "builtin":
       if (!kBuiltinNames.has(entry.name)) return null;

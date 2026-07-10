@@ -164,7 +164,7 @@ class MarkdownRenderQueue {
   } {
     let cancelled = false;
     // Read via a call: `cancel` flips the flag across `await`, which TS's
-    // narrowing (and no-unnecessary-condition) can't see through directly.
+    // narrowing can't see through a direct read.
     const isCancelled = () => cancelled;
 
     const promise = new Promise<T>((resolve, reject) => {
