@@ -176,10 +176,9 @@ export const createLogsSlice = (
 export const initializeLogsSlice = <T extends LogsSlice>(
   set: (fn: (state: T) => void) => void
 ) => {
-  set((state) => {
-    if (!state.logs) {
-      state.logs = initialState;
-    }
+  set(() => {
+    // `logs` is seeded by createLogsSlice and persist merges over it —
+    // nothing to initialize.
   });
 };
 
