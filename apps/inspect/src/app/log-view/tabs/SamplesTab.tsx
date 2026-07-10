@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import type { EvalConfig } from "@tsmono/inspect-common/types";
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import type {
   ColumnFilter,
@@ -230,9 +231,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   );
   // config originates in log data, which can omit it at runtime despite
   // the generated type (old or hand-edited logs)
-  const evalConfig = selectedLogDetails?.eval.config as
-    | EvalConfig
-    | undefined;
+  const evalConfig = selectedLogDetails
+    ? (selectedLogDetails.eval.config as EvalConfig | undefined)
+    : undefined;
   const epochs = evalConfig?.epochs || 1;
 
   // Build the superset of available columns once. Score columns are
@@ -440,7 +441,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     return sampleSummaries.map((sample): SampleRow => {
       const tokens = sample.model_usage
         ? Object.values(sample.model_usage).reduce(
-            (sum, u) => sum + u.total_tokens,
+            // total_tokens originates in log data, which can omit it at
+            // runtime despite the generated type
+            (sum, u) => sum + ((u.total_tokens as number | undefined) ?? 0),
             0
           )
         : undefined;
