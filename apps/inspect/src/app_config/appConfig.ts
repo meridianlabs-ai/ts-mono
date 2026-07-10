@@ -1,4 +1,5 @@
 import { ClientAPI, LogRoot } from "../client/api/types";
+import { selectLogFile } from "../state/actions";
 import { queryClient } from "../state/queryClient";
 
 import { APP_CONFIG_KEY } from "./hooks";
@@ -138,7 +139,15 @@ let appConfig: AppConfig | undefined;
  * but you're better off with the hooks.
  */
 export const resolveAppConfig = async (): Promise<AppConfig> => {
-  appConfig ??= await loadResolvedAppConfig(getBootstrap());
+  if (!appConfig) {
+    appConfig = await loadResolvedAppConfig(getBootstrap());
+    // The `?log_file=` deep-link selection is a once-per-session startup fact,
+    // so it lives here rather than in a mounted component. After the singleton
+    // assignment: selectLogFile absolutizes against the resolved logDir.
+    if (appConfig.logFile !== undefined) {
+      selectLogFile(appConfig.logFile);
+    }
+  }
   return appConfig;
 };
 

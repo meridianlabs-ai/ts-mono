@@ -155,8 +155,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [scopeKey, patchGridState]
   );
 
+  // Armed while the find band is open with an active match; closing the band
+  // or unmounting persists it as the selection (see below). An explicit row
+  // selection disarms it so the stale match can't clobber the user's click —
+  // navigating matches again re-arms via the sync effect.
+  const openBandMatchIdRef = useRef<string | undefined>(undefined);
+
   const handleSelectedRowChange = useCallback(
-    (row: LogListRow) => persistSelectedId(row.id),
+    (row: LogListRow) => {
+      openBandMatchIdRef.current = undefined;
+      persistSelectedId(row.id);
+    },
     [persistSelectedId]
   );
 
@@ -167,12 +176,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const [findTerm, setFindTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
-
-  const closeFind = useCallback(() => {
-    setShowFind(false);
-    setFindTerm("");
-    setCurrentMatchIndex(0);
-  }, []);
 
   const searchColumns = useMemo(
     () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
@@ -217,15 +220,34 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const activeMatchId =
     matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
 
-  // Persist each active find match as the selection so the last match stays
-  // selected once the band closes (matches the AG grid). `selectedRowId`
-  // already prefers `activeMatchId` while the band is open; this keeps the
-  // persisted value in step so closing it doesn't snap back to the prior row.
+  const closeFind = useCallback(() => {
+    // Persist the armed match as the selection so closing the band doesn't
+    // snap back to the prior row (matches the AG grid). Display prefers
+    // `activeMatchId` while the band is open, so the persisted value only
+    // matters from this point on. Reads the ref (not `activeMatchId`) so a
+    // row click since the last match navigation wins instead.
+    const id = openBandMatchIdRef.current;
+    if (id !== undefined) persistSelectedId(id);
+    openBandMatchIdRef.current = undefined;
+    setShowFind(false);
+    setFindTerm("");
+    setCurrentMatchIndex(0);
+  }, [persistSelectedId]);
+
+  // Same persistence for the leave-without-closing path: unmounting (e.g.
+  // navigating away) with the band still open. Ref carries the latest match
+  // so the cleanup — which runs long after this render — doesn't act on a
+  // stale closure.
   useEffect(() => {
-    if (showFind && activeMatchId !== undefined) {
-      persistSelectedId(activeMatchId);
-    }
-  }, [showFind, activeMatchId, persistSelectedId]);
+    openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
+  }, [showFind, activeMatchId]);
+  useEffect(
+    () => () => {
+      const id = openBandMatchIdRef.current;
+      if (id !== undefined) persistSelectedId(id);
+    },
+    [persistSelectedId]
+  );
 
   const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {

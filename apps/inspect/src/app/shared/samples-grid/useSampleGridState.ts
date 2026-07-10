@@ -1,5 +1,5 @@
 import type { ColDef } from "ag-grid-community";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { useStore } from "../../../state/store";
 import type { SamplesPanelGridState } from "../../types";
@@ -17,9 +17,10 @@ interface UseSampleGridStateResult extends SamplesPanelGridState {
  * Persistence for the cross-log SamplesPanel grid. Owns its own
  * column-visibility map plus the TanStack grid state (sorting, per-column
  * filters, column widths), all store-backed so they survive the panel
- * unmounting on sample navigation. Visibility defaults are seeded from
- * `defaultsForUnseededColumns` the first time a column is encountered
- * with no entry, after which user toggles win.
+ * unmounting on sample navigation. The returned visibility map merges
+ * `defaultsForUnseededColumns` under the persisted entries — defaults are
+ * derived, not written to the store, so only user toggles persist and a
+ * never-toggled column's default keeps tracking the data.
  *
  * The per-task SampleList scope (`logViewSamples`) flows through
  * `useSamplesView` instead — see `apps/inspect/src/app/samples/list/`.
@@ -32,7 +33,7 @@ export function useSampleGridState<TRow>(
   }
 ): UseSampleGridStateResult {
   const { defaultsForUnseededColumns } = options ?? {};
-  const columnVisibility = useStore(
+  const persistedVisibility = useStore(
     (state) => state.logs.samplesListState.byScope[scope].columnVisibility
   );
   const sorting = useStore(
@@ -51,35 +52,37 @@ export function useSampleGridState<TRow>(
     (state) => state.logsActions.patchSamplesGridState
   );
 
-  // Seed visibility for any column not yet in the map, the first time we
-  // see it. After that the persisted value wins.
-  useEffect(() => {
-    if (!defaultsForUnseededColumns) return;
-    const additions: Record<string, boolean> = {};
-    let changed = false;
-    for (const col of allColumns) {
-      const key = getFieldKey(col);
-      if (!(key in columnVisibility)) {
-        additions[key] = defaultsForUnseededColumns(col);
-        changed = true;
-      }
-    }
-    if (changed) {
-      setSamplesColumnVisibility(scope, { ...columnVisibility, ...additions });
-    }
-  }, [
-    allColumns,
-    columnVisibility,
-    defaultsForUnseededColumns,
-    scope,
-    setSamplesColumnVisibility,
-  ]);
+  const columnVisibility = useMemo(() => {
+    const defaults = defaultsForUnseededColumns
+      ? Object.fromEntries(
+          allColumns.map((col) => [
+            getFieldKey(col),
+            defaultsForUnseededColumns(col),
+          ])
+        )
+      : {};
+    return { ...defaults, ...persistedVisibility };
+  }, [allColumns, defaultsForUnseededColumns, persistedVisibility]);
 
   const setColumnVisibility = useCallback(
     (visibility: Record<string, boolean>) => {
-      setSamplesColumnVisibility(scope, visibility);
+      // ColumnSelectorPopover emits the full effective map, but persisting it
+      // wholesale would freeze the derived defaults of every untouched column
+      // (e.g. error/limit auto-promote when data appears). Persist only the
+      // entries that differ from the current effective visibility.
+      const changed = Object.fromEntries(
+        Object.entries(visibility).filter(
+          ([key, visible]) => columnVisibility[key] !== visible
+        )
+      );
+      if (Object.keys(changed).length > 0) {
+        setSamplesColumnVisibility(scope, {
+          ...persistedVisibility,
+          ...changed,
+        });
+      }
     },
-    [scope, setSamplesColumnVisibility]
+    [scope, setSamplesColumnVisibility, columnVisibility, persistedVisibility]
   );
 
   const patchGridState = useCallback(

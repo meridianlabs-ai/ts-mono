@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
@@ -60,8 +60,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const listing = useLogListing(logDir);
   const logFiles = listing.data ?? kNoListingRows;
   const { gridStateByScope, patchGridState } = useLogsListing();
-
-  const navigate = useNavigate();
 
   const { logPath } = useLogRouteParams();
   const evalSet = useEvalSet(logPath || "").data;
@@ -282,30 +280,35 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     if (scopeKey) patchGridState(scopeKey, { columnFilters: {} });
   }, [scopeKey, patchGridState]);
 
-  // The popover only sees `pickerColumns` (the active view mode), so the
-  // visibility map it emits is scoped to those fields. Merge it into the full
-  // stored map. Hiding a column also clears any active filter on it (matches
-  // the prior grid — a hidden column shouldn't keep filtering invisibly).
+  // The popover only sees `pickerColumns` (the active view mode) and emits a
+  // full map for them, so persist only the entries that differ from the
+  // effective visibility — persisting the whole map would freeze untouched
+  // columns' mode-dependent defaults (one stored map spans tasks/logs modes).
+  // Hiding a column also clears any active filter on it (matches the prior
+  // grid — a hidden column shouldn't keep filtering invisibly).
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      const merged = { ...currentColumnVisibility, ...newVisibility };
+      const changed = Object.fromEntries(
+        Object.entries(newVisibility).filter(
+          ([field, visible]) => visibility[field] !== visible
+        )
+      );
+      if (Object.keys(changed).length === 0) return;
       if (scopeKey) {
         const cf = gridStateByScope[scopeKey]?.columnFilters;
         if (cf) {
-          const next = { ...cf };
-          let changed = false;
-          for (const id of Object.keys(cf)) {
-            if (merged[id] === false) {
-              delete next[id];
-              changed = true;
-            }
+          const next = Object.fromEntries(
+            Object.entries(cf).filter(([id]) => changed[id] !== false)
+          );
+          if (Object.keys(next).length !== Object.keys(cf).length) {
+            patchGridState(scopeKey, { columnFilters: next });
           }
-          if (changed) patchGridState(scopeKey, { columnFilters: next });
         }
       }
-      setColumnVisibility(merged);
+      setColumnVisibility({ ...currentColumnVisibility, ...changed });
     },
     [
+      visibility,
       currentColumnVisibility,
       setColumnVisibility,
       scopeKey,
@@ -331,12 +334,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     };
   }, [logItems]);
 
-  useEffect(() => {
-    const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
-    if (maybeShowSingleLog && onlyItem?.url) {
-      void navigate(onlyItem.url);
-    }
-  }, [logItems, maybeShowSingleLog, navigate]);
+  // Single-log workspaces skip the pointless one-row list. `replace` keeps
+  // this page out of history so back from the log doesn't bounce forward
+  // again. Deliberately not gated on sync settling — see the audit doc.
+  const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
+  if (maybeShowSingleLog && onlyItem?.url) {
+    return <Navigate to={onlyItem.url} replace />;
+  }
 
   return (
     <div className={clsx(styles.panel)}>

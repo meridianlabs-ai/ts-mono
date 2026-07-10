@@ -1,6 +1,6 @@
 import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
@@ -109,38 +109,6 @@ export const useLogListColumns = (
   // listing loads there are simply no scorer columns yet, and listing errors
   // render in LogsPanel's error surface.
   const scorerMap = useScoreSchema(logDir, scopePrefix).data ?? kNoScorerMap;
-
-  // Auto-hide scorer columns by default if not explicitly set. Seed defaults
-  // for BOTH the per-scorer fields (`score_<scorer>/<metric>`) and the
-  // synthetic by-metric fields (`metric_<metric>`) so switching view modes
-  // never produces an un-initialised column, and a user's toggles in each
-  // mode persist independently.
-  useEffect(() => {
-    const scorerKeys = Object.keys(scorerMap);
-    if (scorerKeys.length === 0) return;
-
-    const metricNames = new Set<string>();
-    for (const { metricName } of Object.values(scorerMap)) {
-      metricNames.add(metricName);
-    }
-
-    const allFields = [
-      ...scorerKeys.map((key) => `score_${key}`),
-      ...[...metricNames].map(byMetricField),
-    ];
-
-    const needsUpdate = allFields.some((field) => !(field in columnVisibility));
-
-    if (needsUpdate) {
-      const newVisibility = { ...columnVisibility };
-      for (const field of allFields) {
-        if (!(field in columnVisibility)) {
-          newVisibility[field] = false;
-        }
-      }
-      setColumnVisibility(newVisibility);
-    }
-  }, [scorerMap, columnVisibility, setColumnVisibility]);
 
   const allColumns = useMemo((): LogListColumn[] => {
     const baseColumns: LogListColumn[] = [

@@ -17,7 +17,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
-import { FC, useCallback, useEffect, useLayoutEffect } from "react";
+import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import {
@@ -170,17 +170,25 @@ export const AppContent: FC = () => {
     };
   }, [onMessage]);
 
+  // Embedded state (VS Code) is the host-message bootstrap and feeds the same
+  // onMessage bridge as live postMessage events. The URL-param single-file
+  // deep link (`?log_file=`) is selected at app-config resolution
+  // (`resolveAppConfig`). Ref-guarded: onMessage's identity changes with its
+  // reactive inputs, but the startup blob must be dispatched exactly once.
+  const embeddedDispatched = useRef(false);
   useEffect(() => {
-    // Embedded state (VS Code) is the host-message bootstrap and feeds the same
-    // onMessage bridge as live postMessage events. The URL-param single-file
-    // deep link (`?log_file=`) is handled by <LoaderHost>.
+    if (embeddedDispatched.current) return;
+    embeddedDispatched.current = true;
     const embedded = readEmbeddedStartupState();
     if (embedded) {
       onMessage({ data: embedded });
     }
-
-    new ClipboardJS(".clipboard-button,.copy-button");
   }, [onMessage]);
+
+  useEffect(() => {
+    const clipboard = new ClipboardJS(".clipboard-button,.copy-button");
+    return () => clipboard.destroy();
+  }, []);
 
   return (
     <>
