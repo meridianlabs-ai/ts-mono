@@ -31,9 +31,10 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
       set during render).
 - [x] `src/app/log-list/grid/columns/hooks.tsx:118` (fixed: 5fb00924) — **derived-state** — seeds explicit `false` visibility
       entries already covered by `?? defaultVisible` fallback; double-fires (hook mounted twice). Fix: delete.
-- [x] `src/app/log-list/grid/LogListGrid.tsx:224` (fixed: 7254a0a8) — **event-logic-in-effect** — persists `activeMatchId` →
-      `selectedRowId` per keystroke while find band open; only observed after close. Fix: persist once in `closeFind`
-      (+ unmount cleanup if band open on navigate-away).
+- [x] `src/app/log-list/grid/LogListGrid.tsx:224` (fixed: 7254a0a8, follow-up be3adbb1) — **event-logic-in-effect** — persists
+      `activeMatchId` → `selectedRowId` per keystroke while find band open; only observed after close. Fix: persist
+      once in `closeFind` (+ unmount cleanup if band open on navigate-away). Follow-up: an explicit row click while
+      the band is open disarms the match persistence so close/unmount can't clobber it.
 - [x] `src/app/samples/SampleDisplay.tsx:462` (fixed: dd56432d) — **adjust-state-on-prop-change** — ref-guarded effect writes
       `"scans"` dock default into persisted store. Fix: derive `storedDock ?? (hasScans ? "scans" : "none")` in render.
 - [x] `src/app/samples-panel/SamplesPanel.tsx:406` (fixed: a98654ad) — **reset-state-on-prop-change** — `clearSelectedSample()`
