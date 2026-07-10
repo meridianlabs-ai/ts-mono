@@ -20,6 +20,14 @@ export interface SampleFilterItem {
   scoreType?: string;
 }
 
+// EvalDescriptor.scoreDescriptor's declared return type hides that the
+// descriptor map has no entry for scores with no usable values; widen at
+// the boundary so callers handle the runtime-missing case.
+const lookupScoreDescriptor = (
+  evalDescriptor: EvalDescriptor,
+  scoreLabel: ScoreLabel
+): ScoreDescriptor | undefined => evalDescriptor.scoreDescriptor(scoreLabel);
+
 /**
  * Coerces a value to the type expected by the score.
  */
@@ -217,10 +225,7 @@ export const sampleFilterItems = (
     if (!canonicalName) {
       throw new Error("Unable to create a canonical name for a score");
     }
-    // Widened: scoreDescriptor's declared return type hides that the
-    // descriptor map has no entry for scores with no usable values.
-    const descriptor: ScoreDescriptor | undefined =
-      evalDescriptor.scoreDescriptor(scoreLabel);
+    const descriptor = lookupScoreDescriptor(evalDescriptor, scoreLabel);
     if (!descriptor) {
       items.push({
         shortName,

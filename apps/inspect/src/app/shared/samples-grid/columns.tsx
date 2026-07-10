@@ -18,7 +18,7 @@ import {
   valueAsString,
 } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
-import { ScoreDescriptor } from "../../samples/descriptor/types";
+import { EvalDescriptor, ScoreDescriptor } from "../../samples/descriptor/types";
 import {
   samplesOperatorsForKind,
   type SampleFilterSpecRegistry,

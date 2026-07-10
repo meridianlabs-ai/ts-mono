@@ -283,7 +283,10 @@ export const createEvalDescriptor = (
       return undefined;
     }
     return {
-      value: scoreValue(sample, scoreLabel),
+      // SelectedScore.value's declared type omits null but consumers have
+      // always received null for null dict score members — keep passing it
+      // through rather than silently mapping to undefined.
+      value: scoreValue(sample, scoreLabel) as ScoreValue | undefined,
       render: () => {
         return scoreRendered(sample, scoreLabel);
       },
