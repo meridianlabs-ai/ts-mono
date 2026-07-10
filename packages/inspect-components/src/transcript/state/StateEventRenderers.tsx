@@ -214,12 +214,10 @@ const renderTools = (
   }
 
   // Show either all tools or just the specific tools
-  const tools = resolvedState.tools as [];
+  const tools = resolvedState.tools as ToolDefinition[];
   if (tools.length > 0) {
     if (toolIndexes.length === 0) {
-      toolsInfo["Tools"] = (
-        <Tools toolDefinitions={resolvedState.tools as ToolDefinition[]} />
-      );
+      toolsInfo["Tools"] = <Tools toolDefinitions={tools} />;
     } else {
       const filtered = tools.filter((_, index) => {
         return toolIndexes.includes(index.toString());

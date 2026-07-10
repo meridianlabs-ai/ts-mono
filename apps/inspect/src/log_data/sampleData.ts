@@ -37,8 +37,7 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   status: "ok",
   error: undefined,
   running: kNoRunningEvents,
-  eventsCleared:
-    sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+  eventsCleared: sample.events.length === 0 && sample.messages.length > 0,
   backfilling: false,
 });
 
@@ -151,7 +150,7 @@ export const deriveSampleData = ({
   }
   return {
     sample: undefined,
-    status: query.loading ? "loading" : query.error ? "error" : "ok",
+    status: query.loading ? "loading" : "error",
     error: query.loading ? undefined : query.error,
     running: kNoRunningEvents,
     eventsCleared: false,

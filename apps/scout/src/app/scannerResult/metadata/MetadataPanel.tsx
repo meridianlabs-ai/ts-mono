@@ -19,7 +19,7 @@ interface MetadataPanelProps {
 
 export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
   const hasMetadata =
-    resultData && Object.keys(resultData?.metadata).length > 0;
+    resultData && Object.keys(resultData.metadata).length > 0;
   return (
     resultData && (
       <div className={clsx(styles.container, "text-size-base")}>

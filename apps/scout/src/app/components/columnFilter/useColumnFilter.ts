@@ -108,7 +108,7 @@ const formatScalarValue = (
   value: ScalarValue,
   filterType?: FilterType
 ): string => {
-  if (value === null || value === undefined) {
+  if (value === null) {
     return "";
   }
   // For date/datetime types, ensure ISO format for native inputs

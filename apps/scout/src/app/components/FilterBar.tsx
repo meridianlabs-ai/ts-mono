@@ -143,7 +143,7 @@ export const FilterBar: FC<FilterBarProps> = ({
       <ChipGroup className={styles.filterBar}>
         {filterEntries.length > 0
           ? filterEntries.map((filter) => {
-              if (!filter || !filter.condition) {
+              if (!filter.condition) {
                 return null;
               }
               return (

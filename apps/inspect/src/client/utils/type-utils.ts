@@ -102,7 +102,7 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
 const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
-  const firstScore = evalResults?.scores?.[0];
+  const firstScore = evalResults?.scores[0];
   if (firstScore) {
     const metrics = Object.values(firstScore.metrics);
     if (metrics.length > 0) {
