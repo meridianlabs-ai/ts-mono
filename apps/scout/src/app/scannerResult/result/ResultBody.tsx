@@ -95,7 +95,15 @@ const InputRenderer: FC<InputRendererProps> = ({
   onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
-    if (inputData.input.messages.length > 0) {
+    // The transcript input is deserialized from disk, so fields the schema
+    // marks required can still be missing at runtime.
+    const messages = inputData.input.messages as
+      | (typeof inputData.input)["messages"]
+      | undefined;
+    const events = inputData.input.events as
+      | (typeof inputData.input)["events"]
+      | undefined;
+    if (messages && messages.length > 0) {
       const labels = resultData?.messageReferences.reduce((acc, ref) => {
         if (ref.cite) {
           acc[ref.id] = ref.cite;
@@ -105,7 +113,7 @@ const InputRenderer: FC<InputRendererProps> = ({
 
       return (
         <ChatViewVirtualList
-          messages={inputData.input.messages}
+          messages={messages}
           id={"scan-input-virtual-list"}
           display={{ indented: true }}
           className={className}
@@ -114,10 +122,10 @@ const InputRenderer: FC<InputRendererProps> = ({
           labels={{ highlight: highlightLabeled, messageLabels: labels }}
         />
       );
-    } else if (inputData.input.events.length > 0) {
+    } else if (events && events.length > 0) {
       return (
         <TimelineEventsView
-          events={inputData.input.events}
+          events={events}
           timelines={inputData.input.timelines}
           scrollRef={scrollRef}
           id="scan-input-events"
