@@ -310,8 +310,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (state) => state.log.selectedSampleHandle
   );
   const printLogPath = urlLogPath || selectedLogFile;
-  const printSampleId = urlSampleId || selectedSampleHandle?.id.toString();
-  const printEpoch = urlEpoch || selectedSampleHandle?.epoch.toString();
+  // The handle is rehydrated from persisted storage, which can predate the
+  // declared shape.
+  const printSampleId =
+    urlSampleId ||
+    (
+      selectedSampleHandle?.id as string | number | null | undefined
+    )?.toString();
+  const printEpoch =
+    urlEpoch ||
+    (selectedSampleHandle?.epoch as number | null | undefined)?.toString();
 
   const handlePrintClick = useCallback(() => {
     if (printLogPath && printSampleId && printEpoch) {
@@ -558,7 +566,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 
   if (downloadFiles && sample) {
-    const sampleId = sample.id;
+    // Samples are read from serialized logs; a damaged or hand-edited log
+    // can omit fields despite the generated type.
+    const sampleId =
+      (sample.id as EvalSample["id"] | null | undefined) ?? "sample";
     tools.push(
       <ToolDropdownButton
         key="sample-download"
@@ -574,10 +585,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             );
           },
           Messages: () => {
-            if (sample.messages.length > 0) {
+            const messages = sample.messages as
+              | EvalSample["messages"]
+              | null
+              | undefined;
+            if (messages && messages.length > 0) {
               void api.download_file(
                 `${sampleId}-messages.txt`,
-                messagesToStr(sample.messages)
+                messagesToStr(messages)
               );
             }
           },
@@ -793,7 +808,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               )}
               title="Transcript"
               onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleTranscriptTabId}
+              selected={
+                effectiveSelectedTab === kSampleTranscriptTabId ||
+                // Tab state is rehydrated from persisted storage and can be
+                // unset despite the declared type.
+                (effectiveSelectedTab as string | undefined) === undefined
+              }
               scrollable={false}
             >
               <TranscriptFilterPopover
@@ -1109,11 +1129,22 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
     sample.completed_at,
   ]);
 
+  // Usage maps are read from serialized logs; older logs can omit them
+  // despite the generated type.
+  const modelUsage = sample.model_usage as
+    | EvalSample["model_usage"]
+    | null
+    | undefined;
+  const roleUsage = sample.role_usage as
+    | EvalSample["role_usage"]
+    | null
+    | undefined;
+
   return (
     <UsagePanel
       key={`sample-usage-${id}`}
-      model_usage={sample.model_usage}
-      role_usage={sample.role_usage}
+      model_usage={modelUsage ?? undefined}
+      role_usage={roleUsage ?? undefined}
       configs_by_model={configsByModel}
       configs_by_role={configsByRole}
       args_by_model={argsByModel}
@@ -1132,9 +1163,20 @@ const usageViewsForSample = (
   if (!sample) return [];
   const views = [];
 
+  // Usage maps are read from serialized logs; older logs can omit them
+  // despite the generated type.
+  const modelUsage = sample.model_usage as
+    | EvalSample["model_usage"]
+    | null
+    | undefined;
+  const roleUsage = sample.role_usage as
+    | EvalSample["role_usage"]
+    | null
+    | undefined;
+
   if (
-    Object.keys(sample.model_usage).length > 0 ||
-    Object.keys(sample.role_usage).length > 0
+    (modelUsage && Object.keys(modelUsage).length > 0) ||
+    (roleUsage && Object.keys(roleUsage).length > 0)
   ) {
     views.push(
       <SampleUsagePanel
@@ -1181,8 +1223,14 @@ const metadataViewsForSample = (
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (Object.keys(sample.invalidation.metadata).length > 0) {
-      invalidationRecord["Metadata"] = sample.invalidation.metadata;
+    // Invalidation records are read from serialized logs; `metadata` can be
+    // absent despite the generated type.
+    const invalidationMetadata = sample.invalidation.metadata as
+      | Record<string, unknown>
+      | null
+      | undefined;
+    if (invalidationMetadata && Object.keys(invalidationMetadata).length > 0) {
+      invalidationRecord["Metadata"] = invalidationMetadata;
     }
 
     sampleMetadatas.push(

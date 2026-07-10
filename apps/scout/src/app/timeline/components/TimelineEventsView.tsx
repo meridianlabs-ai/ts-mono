@@ -171,7 +171,9 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     "outlineCollapsed",
     { defaultValue: !defaultOutlineExpanded }
   );
-  const userOutlineCollapsed = outlineCollapsed;
+  // Persisted properties may hold null/undefined despite the declared type
+  const userOutlineCollapsed =
+    (outlineCollapsed as boolean | null | undefined) ?? !defaultOutlineExpanded;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
   const setSelectedOutlineId = useStore(

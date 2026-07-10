@@ -167,13 +167,19 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
 const totalTokens = (sample: SampleSummary): number | null => {
   if (!sample.model_usage) return null;
   return Object.values(sample.model_usage).reduce(
-    (sum, u) => sum + u.total_tokens,
+    // total_tokens originates in log data, which can omit it at runtime
+    // despite the generated type
+    (sum, u) => sum + ((u.total_tokens as number | undefined) ?? 0),
     0
   );
 };
 
+// target originates in log data, which can hold null at runtime despite
+// the generated type
 const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target) ? target.join(", ") : target;
+  Array.isArray(target)
+    ? target.join(", ")
+    : ((target as string | null | undefined) ?? "");
 
 export const sampleVariables = (
   sample: SampleSummary,
