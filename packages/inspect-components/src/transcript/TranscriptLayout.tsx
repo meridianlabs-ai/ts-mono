@@ -827,10 +827,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // (store scope is empty), seed the store with defaults before applying the
   // toggle so that all other nodes retain their default collapsed state.
   const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
+  const collapsedTranscript = collapseState?.transcript;
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!collapseState.transcript) {
+      if (!collapsedTranscript) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
           ...defaultCollapsedIds,
@@ -843,7 +844,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [
       onCollapseTranscriptRaw,
       onSetTranscriptCollapsed,
-      collapseState?.transcript,
+      collapsedTranscript,
       defaultCollapsedIds,
     ]
   );
@@ -854,11 +855,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
-      const next = { ...(collapseState.transcript ?? defaultCollapsedIds) };
+      const next = { ...(collapsedTranscript ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);
     },
-    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
+    [onSetTranscriptCollapsed, collapsedTranscript, defaultCollapsedIds]
   );
 
   // ---------------------------------------------------------------------------
