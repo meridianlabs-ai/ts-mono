@@ -317,6 +317,12 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
+  // records are typically log metadata and can be null/undefined at runtime
+  // despite the declared type
+  if (!(record as Record<string, unknown> | null | undefined)) {
+    return [];
+  }
+
   // Apply any record processors
   if (recordProcessors.length > 0) {
     for (const processor of recordProcessors) {

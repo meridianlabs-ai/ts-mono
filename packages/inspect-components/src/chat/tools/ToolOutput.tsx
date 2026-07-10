@@ -62,9 +62,11 @@ export const ToolOutput: FC<ToolOutputProps> = ({
           outputs.push(<ToolTextOutput text={out.reasoning} key={key} />);
         }
       } else if (out.type === "data") {
-        outputs.push(
-          <ToolTextOutput text={JSON.stringify(out.data)} key={key} />
-        );
+        // data can be absent in logs despite the generated type
+        const data = out.data as typeof out.data | undefined;
+        if (data) {
+          outputs.push(<ToolTextOutput text={JSON.stringify(data)} key={key} />);
+        }
       }
     });
   } else {

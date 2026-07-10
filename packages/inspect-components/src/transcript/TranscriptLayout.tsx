@@ -277,7 +277,9 @@ const scopeMessageLabels = (
         if (message.id) present.add(message.id);
       }
       for (const choice of output?.choices ?? []) {
-        if (choice.message.id) present.add(choice.message.id);
+        // message can be absent in logs despite the generated type
+        const message = choice.message as typeof choice.message | undefined;
+        if (message?.id) present.add(message.id);
       }
     } else if (event.event === "tool" && event.message_id) {
       present.add(event.message_id);

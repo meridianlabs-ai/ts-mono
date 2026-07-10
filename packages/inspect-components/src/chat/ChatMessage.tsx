@@ -68,6 +68,14 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.function !== "task" &&
     message.function !== "Agent" &&
     message.function !== "agent";
+  // role is log data — logs from other writers can carry roles outside the
+  // generated union, and those messages should not collapse
+  const role: string = message.role;
+  const collapse =
+    role === "system" ||
+    role === "user" ||
+    role === "assistant" ||
+    role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
   // Codex tool results get friendlier rendering in rendered mode:
@@ -205,7 +213,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
               {segment.contents.length > 0 ? (
                 <ExpandablePanel
                   id={`${id}-message-${index}`}
-                  collapse={true}
+                  collapse={collapse}
                   lines={25}
                 >
                   <MessageContent
@@ -250,13 +258,15 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
       >
         <ExpandablePanel
           id={`${id}-message`}
-          collapse={true}
+          collapse={collapse}
           lines={
             message.role === "tool"
               ? 30
               : message.role === "assistant"
                 ? 25
-                : 15
+                : collapse
+                  ? 15
+                  : 25
           }
         >
           {isNonSubagentTool ? (

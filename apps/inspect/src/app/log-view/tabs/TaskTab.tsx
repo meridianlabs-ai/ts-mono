@@ -76,7 +76,9 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    const revisionKey = `${toTitleCase(revision.type)} Revision`;
+    // Logs from other writers may omit the constant `type` field.
+    const revisionType = revision.type as string | undefined;
+    const revisionKey = `${revisionType ? `${toTitleCase(revisionType)} ` : ""}Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
       ? { _html: <a href={commitUrl}>{revision.commit}</a> }

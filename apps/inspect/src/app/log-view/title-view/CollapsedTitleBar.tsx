@@ -110,10 +110,15 @@ const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
   const items: { key: string; label: string; value: string }[] = [];
   scorers.forEach((scorer, scorerIdx) => {
     scorer.metrics.forEach((metric, metricIdx) => {
+      // Metric values originate in log data, which may lack them.
+      const metricValue = metric.value as number | null | undefined;
       items.push({
         key: `${scorerIdx}-${metricIdx}`,
         label: metricDisplayName(metric),
-        value: formatPrettyDecimal(metric.value),
+        value:
+          metricValue !== undefined && metricValue !== null
+            ? formatPrettyDecimal(metricValue)
+            : "n/a",
       });
     });
   });

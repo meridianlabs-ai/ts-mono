@@ -103,7 +103,7 @@ export const resultLog = (summary: ScanResultSummary): string | undefined => {
  * Handles all valueType variants so search covers the displayed result content.
  */
 export const stringifyValue = (s: ScanResultSummary): string => {
-  if (s.value == null) return "";
+  if (s.value === null) return "";
   if (isStringValue(s)) return s.value;
   if (isNumberValue(s) || isBooleanValue(s)) return String(s.value);
   if (isArrayValue(s)) return s.value.map(String).join(" ");
@@ -126,13 +126,13 @@ export const sortValue = (
   b: ScanResultSummary
 ): number => {
   // Nulls sort last (after all other types)
-  if (a.value == null || a.valueType === "null") {
-    if (b.value == null || b.valueType === "null") {
+  if (a.value === null || a.valueType === "null") {
+    if (b.value === null || b.valueType === "null") {
       return 0;
     }
     return 1;
   }
-  if (b.value == null || b.valueType === "null") {
+  if (b.value === null || b.valueType === "null") {
     return -1;
   }
 

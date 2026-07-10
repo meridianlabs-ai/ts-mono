@@ -23,6 +23,8 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
+  // metadata can be absent in logs despite the generated type
+  const metadata = event.edit.metadata as typeof event.edit.metadata | undefined;
 
   const subtitle = event.edit.provenance
     ? `[${event.edit.provenance.timestamp ? formatDateTime(new Date(event.edit.provenance.timestamp)) : undefined}] ${event.edit.provenance.author}: ${event.edit.provenance.reason || ""}`
@@ -115,11 +117,11 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
           ""
         )}
 
-        {event.edit.metadata !== kUnchangedSentinel ? (
+        {metadata && metadata !== kUnchangedSentinel ? (
           <div data-name="Metadata">
             <RecordTree
               id={`${eventNode.id}-score-metadata`}
-              record={event.edit.metadata}
+              record={metadata}
               className={styles.metadataTree}
               defaultExpandLevel={0}
               copyButton={true}

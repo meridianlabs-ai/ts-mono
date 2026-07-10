@@ -54,10 +54,13 @@ export const LogSampleDetailView: FC = () => {
     (state) => state.log.selectedSampleHandle
   );
 
-  // Use route params if available, otherwise fall back to state
+  // Use route params if available, otherwise fall back to state.
+  // The handle is rehydrated from persisted storage, so fields may be absent.
+  const handleId = selectedSampleHandle?.id as string | number | undefined;
+  const handleEpoch = selectedSampleHandle?.epoch as number | undefined;
   const logPath = routeLogPath || selectedLogFile;
-  const sampleId = routeSampleId || selectedSampleHandle?.id.toString();
-  const epoch = routeEpoch || selectedSampleHandle?.epoch.toString();
+  const sampleId = routeSampleId || handleId?.toString();
+  const epoch = routeEpoch || handleEpoch?.toString();
 
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)
