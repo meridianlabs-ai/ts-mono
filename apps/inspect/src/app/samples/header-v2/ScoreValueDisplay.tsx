@@ -148,8 +148,9 @@ function toneMiniPillClass(tone: Tone): string | undefined {
   return styles.miniPillNeutral;
 }
 
-function formatPlainValue(v: ScoreValue | undefined): string {
-  if (v === undefined) return "";
+// Score values are read from serialized logs and can be null at runtime.
+function formatPlainValue(v: ScoreValue | null | undefined): string {
+  if (v === undefined || v === null) return "";
   if (Array.isArray(v)) return v.join(", ");
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);

@@ -497,7 +497,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
-  if (Object.keys(transcript.metadata).length > 0) {
+  const transcriptMetadata = transcript.metadata as
+    | Transcript["metadata"]
+    | undefined;
+  if (transcriptMetadata && Object.keys(transcriptMetadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
@@ -513,7 +516,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            entries={transcript.metadata}
+            entries={transcriptMetadata}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
