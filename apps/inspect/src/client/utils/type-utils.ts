@@ -102,7 +102,9 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
 const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
-  const firstScore = evalResults?.scores[0];
+  // Log data may omit scores despite the static type.
+  const scores = evalResults?.scores as EvalResults["scores"] | undefined;
+  const firstScore = scores?.[0];
   if (firstScore) {
     const metrics = Object.values(firstScore.metrics);
     if (metrics.length > 0) {
