@@ -1,16 +1,17 @@
 import { FC, useEffect, useLayoutEffect, useRef } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Navigate,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile, unloadLog } from "../../state/actions";
-import { useEvalSpec, useSelectedSampleSummaries } from "../../state/hooks";
+import { useEvalSpec } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import {
-  baseUrl,
-  logSamplesUrl,
-  useLogRouteParams,
-  type RoutePrefix,
-} from "../routing/url";
+import { useSampleUuidRedirectUrl } from "../routing/sampleNavigation";
+import { baseUrl, useLogRouteParams, type RoutePrefix } from "../routing/url";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -37,8 +38,15 @@ export const LogViewContainer: FC = () => {
   const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
     ? "/tasks"
     : "/logs";
-  const sampleSummaries = useSelectedSampleSummaries();
   const [searchParams] = useSearchParams();
+
+  // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
+  const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({
+    logPath,
+    sampleUuid,
+    sampleTabId,
+    prefix,
+  });
 
   // Unload the log when this is mounted. This prevents the old log
   // data from being displayed when navigating back to the logs panel
@@ -48,36 +56,6 @@ export const LogViewContainer: FC = () => {
       unloadLog();
     };
   }, []);
-
-  useEffect(() => {
-    // Redirect to an id/epoch url if a sampleUuid is provided
-    if (logPath && sampleUuid && sampleSummaries.data) {
-      // Find the sample with the matching UUID
-      const sample = sampleSummaries.data.find((s) => s.uuid === sampleUuid);
-      if (sample) {
-        const url = logSamplesUrl(
-          logPath,
-          sample.id,
-          sample.epoch,
-          sampleTabId,
-          prefix
-        );
-        const finalUrl = searchParams.toString()
-          ? `${url}?${searchParams.toString()}`
-          : url;
-        void navigate(finalUrl);
-        return;
-      }
-    }
-  }, [
-    sampleSummaries,
-    logPath,
-    sampleUuid,
-    searchParams,
-    sampleTabId,
-    navigate,
-    prefix,
-  ]);
 
   useEffect(() => {
     if (initialState && !evalSpec) {
@@ -120,6 +98,18 @@ export const LogViewContainer: FC = () => {
       selectLogFile(logPath);
     }
   }, [logPath]);
+
+  if (sampleUuidRedirectUrl) {
+    const search = searchParams.toString();
+    return (
+      <Navigate
+        to={
+          search ? `${sampleUuidRedirectUrl}?${search}` : sampleUuidRedirectUrl
+        }
+        replace
+      />
+    );
+  }
 
   return <LogViewLayout />;
 };

@@ -1,18 +1,15 @@
 import { FC, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile, selectSample } from "../../state/actions";
-import { useSelectedSampleSummaries } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { useLogSampleNavigationActions } from "../routing/sampleNavigation";
 import {
-  logSamplesUrl,
-  logsUrl,
-  useLogRouteParams,
-  useRoutePrefix,
-} from "../routing/url";
+  useLogSampleNavigationActions,
+  useSampleUuidRedirectUrl,
+} from "../routing/sampleNavigation";
+import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
 
 /**
@@ -43,11 +40,8 @@ export const LogSampleDetailView: FC = () => {
 
   const { singleFileMode } = useAppConfig();
 
-  const navigate = useNavigate();
   const prefix = useRoutePrefix();
 
-  // Get store state and actions for log loading
-  const sampleSummaries = useSelectedSampleSummaries();
   // Fall back to state for VSCode restored state scenario
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
@@ -73,24 +67,13 @@ export const LogSampleDetailView: FC = () => {
     }
   }, [routeLogPath, routeSampleId, routeEpoch]);
 
-  // Handle UUID routes by redirecting to id/epoch URL
-  useEffect(() => {
-    const summaries = sampleSummaries.data;
-    if (logPath && sampleUuid && summaries && summaries.length > 0) {
-      // Find the sample with the matching UUID
-      const sample = summaries.find((s) => s.uuid === sampleUuid);
-      if (sample) {
-        const url = logSamplesUrl(
-          logPath,
-          sample.id,
-          sample.epoch,
-          sampleTabId,
-          prefix
-        );
-        void navigate(url, { replace: true });
-      }
-    }
-  }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate, prefix]);
+  // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
+  const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({
+    logPath,
+    sampleUuid,
+    sampleTabId,
+    prefix,
+  });
 
   // Get navigation handlers from the hook
   const { onPrevious, onNext, hasPrevious, hasNext } =
@@ -126,6 +109,10 @@ export const LogSampleDetailView: FC = () => {
     },
     [logPath, prefix]
   );
+
+  if (sampleUuidRedirectUrl) {
+    return <Navigate to={sampleUuidRedirectUrl} replace />;
+  }
 
   return (
     <SampleDetailComponent
