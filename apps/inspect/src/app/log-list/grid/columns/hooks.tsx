@@ -409,8 +409,8 @@ export const useLogListColumns = (
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -425,8 +425,8 @@ export const useLogListColumns = (
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -454,8 +454,8 @@ export const useLogListColumns = (
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -474,8 +474,8 @@ export const useLogListColumns = (
         textValue: (row) =>
           row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatTime(value)}</div>;
@@ -538,8 +538,8 @@ export const useLogListColumns = (
             ? null
             : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatPrettyDecimal(value)}%</div>;
@@ -554,8 +554,8 @@ export const useLogListColumns = (
         meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
-          const value = getValue<number | null | undefined>();
-          if (value === undefined || value === null) {
+          const value = getValue<number | undefined>();
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
