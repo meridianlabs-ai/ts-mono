@@ -129,8 +129,6 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
   timing,
   className,
 }) => {
-  if (!usage) return null;
-
   const categories = buildCategories(usage);
   const composeTotal = categories.reduce((a, c) => a + c.value, 0);
   const total = usage.total_tokens || composeTotal;

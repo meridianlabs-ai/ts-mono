@@ -171,7 +171,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     "outlineCollapsed",
     { defaultValue: !defaultOutlineExpanded }
   );
-  const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
+  const userOutlineCollapsed = outlineCollapsed;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
   const setSelectedOutlineId = useStore(

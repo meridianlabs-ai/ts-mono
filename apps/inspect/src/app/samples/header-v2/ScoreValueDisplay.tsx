@@ -149,7 +149,7 @@ function toneMiniPillClass(tone: Tone): string | undefined {
 }
 
 function formatPlainValue(v: ScoreValue | undefined): string {
-  if (v === undefined || v === null) return "";
+  if (v === undefined) return "";
   if (Array.isArray(v)) return v.join(", ");
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);

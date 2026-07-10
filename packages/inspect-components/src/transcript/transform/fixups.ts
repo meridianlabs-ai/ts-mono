@@ -45,7 +45,7 @@ const processPendingEvents = (events: Event[], filter: boolean): Event[] => {
           lastIndex >= 0 &&
           event.uuid != null &&
           acc[lastIndex]?.pending &&
-          acc[lastIndex]?.uuid === event.uuid
+          acc[lastIndex].uuid === event.uuid
         ) {
           acc[lastIndex] = event;
         } else {
