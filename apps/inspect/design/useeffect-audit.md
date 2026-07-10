@@ -19,32 +19,32 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
 
 ## Surgical
 
-- [ ] `src/app/App.tsx:173` — **app-init** — startup-blob dispatch + `new ClipboardJS()` keyed on `[onMessage]`;
+- [x] `src/app/App.tsx:173` (fixed: 33d318cb) — **app-init** — startup-blob dispatch + `new ClipboardJS()` keyed on `[onMessage]`;
       re-runs and leaks a ClipboardJS instance per identity change. Fix: run-once (module scope or empty-deps
       effect with `destroy()` cleanup); guard embedded-state dispatch with run-once ref.
-- [ ] `src/app/shared/samples-grid/useSampleGridState.ts:56` — **derived-state** — seeds default column
+- [x] `src/app/shared/samples-grid/useSampleGridState.ts:56` (fixed: 73518c9d) — **derived-state** — seeds default column
       visibility into persisted store. Fix: `useMemo` merge `{...defaults, ...persisted}`; write only on user toggle.
-- [ ] `src/app/shared/data-grid/DataGrid.tsx:255` — **adjust-state-on-prop-change** — mirrors `selectedRowId`
+- [x] `src/app/shared/data-grid/DataGrid.tsx:255` (fixed: 6750b600) — **adjust-state-on-prop-change** — mirrors `selectedRowId`
       prop into `internalSelectedId`; stale frame paints first. Fix: render-adjust pattern (prev-value state,
       set during render).
-- [ ] `src/app/log-list/grid/columns/hooks.tsx:118` — **derived-state** — seeds explicit `false` visibility
+- [x] `src/app/log-list/grid/columns/hooks.tsx:118` (fixed: 5fb00924) — **derived-state** — seeds explicit `false` visibility
       entries already covered by `?? defaultVisible` fallback; double-fires (hook mounted twice). Fix: delete.
-- [ ] `src/app/log-list/grid/LogListGrid.tsx:224` — **event-logic-in-effect** — persists `activeMatchId` →
+- [x] `src/app/log-list/grid/LogListGrid.tsx:224` (fixed: 7254a0a8) — **event-logic-in-effect** — persists `activeMatchId` →
       `selectedRowId` per keystroke while find band open; only observed after close. Fix: persist once in `closeFind`
       (+ unmount cleanup if band open on navigate-away).
-- [ ] `src/app/samples/SampleDisplay.tsx:462` — **adjust-state-on-prop-change** — ref-guarded effect writes
+- [x] `src/app/samples/SampleDisplay.tsx:462` (fixed: dd56432d) — **adjust-state-on-prop-change** — ref-guarded effect writes
       `"scans"` dock default into persisted store. Fix: derive `storedDock ?? (hasScans ? "scans" : "none")` in render.
-- [ ] `src/app/samples-panel/SamplesPanel.tsx:406` — **reset-state-on-prop-change** — `clearSelectedSample()`
+- [x] `src/app/samples-panel/SamplesPanel.tsx:406` (fixed: a98654ad) — **reset-state-on-prop-change** — `clearSelectedSample()`
       on every `samplesPath` change and every mount (wipes highlight returning from detail). Fix: clear in
       navigation action or validate scope at read time.
-- [ ] `src/app/routing/loaders/LoaderHost.tsx:39` — **app-init** — `SelectUrlLogFile` applies static
+- [x] `src/app/routing/loaders/LoaderHost.tsx:39` (fixed: be73e212) — **app-init** — `SelectUrlLogFile` applies static
       `?log_file=` config per mount. Fix: invoke `selectLogFile` at app-config resolution; delete component.
-- [ ] `src/components/FindBand.tsx:239` — **derived-state** (borderline) — builds `debounce()` into a ref via
+- [x] `src/components/FindBand.tsx:239` (fixed: eaac7d22) — **derived-state** (borderline) — builds `debounce()` into a ref via
       effect (compiler-lint dodge); superseded debounced fn never cancelled. Fix: lazy-init ref wrapping a
       latest-callback trampoline.
-- [ ] `src/app/log-view/LogViewContainer.tsx:52` — **adjust-state** (borderline) — UUID→id/epoch redirect via
+- [x] `src/app/log-view/LogViewContainer.tsx:52` (fixed: 38beffc4) — **adjust-state** (borderline) — UUID→id/epoch redirect via
       effect, missing `replace` (back-button bounce). Fix: render `<Navigate replace>`.
-- [ ] `src/app/log-view/LogSampleDetailView.tsx:77` — **adjust-state** (borderline) — same UUID redirect (has
+- [x] `src/app/log-view/LogSampleDetailView.tsx:77` (fixed: 38beffc4) — **adjust-state** (borderline) — same UUID redirect (has
       `replace`). Fix: shared `<Navigate replace>` component with the above.
 
 ## Moderate
@@ -106,7 +106,7 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
 
 ## Latent bugs in otherwise-appropriate effects
 
-- [ ] `src/components/FindBand.tsx:174` — cleanup captures `scrollTimeoutRef.current` at effect setup (always
+- [x] `src/components/FindBand.tsx:174` (fixed: eaac7d22) — cleanup captures `scrollTimeoutRef.current` at effect setup (always
       null); later scroll timeout never cleared on unmount. Fix: read ref in cleanup.
 - [ ] `src/components/MorePopOver.tsx:20` — deps `[title, customClass]`; popover keeps stale cloned children
       when children re-render.
