@@ -114,9 +114,10 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
       when children re-render.
 - [ ] `src/app/log-list/LogsPanel.tsx:334` — single-log auto-redirect can fire on transient length-1 listing
       mid-sync; safer as `<Navigate>` on settled data.
-- [ ] `src/app/log-list/LogsPanel.tsx:290` — same full-map persist hazard as cb9edcb1: `handleColumnVisibilityChange`
-      merges the popover's full active-mode map into the stored map, freezing mode-dependent defaults (the single
-      stored map spans tasks/logs modes, whose default-hidden sets differ — e.g. `name`). Persist only changed keys.
+- [x] `src/app/log-list/LogsPanel.tsx:290` (fixed: e3cc661b) — same full-map persist hazard as cb9edcb1:
+      `handleColumnVisibilityChange` merged the popover's full active-mode map into the stored map, freezing
+      mode-dependent defaults (the single stored map spans tasks/logs modes, whose default-hidden sets differ —
+      e.g. `name`). Now persists only changed keys.
 
 ## Appropriate (no action)
 
