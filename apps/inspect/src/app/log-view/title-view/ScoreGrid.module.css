@@ -68,8 +68,10 @@
   letter-spacing: 0.6px;
 }
 
-.numericHeader,
-.numericCell {
+/* `.table th`/`.table td` outrank single-class selectors, so these
+   per-column overrides repeat the element for equal-or-higher specificity. */
+.table th.numericHeader,
+.table td.numericCell {
   text-align: right;
 }
 
@@ -82,13 +84,13 @@
 /* Breathing room at the edges so values don't sit flush with the modal
    border (and so the last column doesn't get overlapped by the vertical
    scroll bar). */
-.scorerHeader,
-.scorerCell {
+.table th.scorerHeader,
+.table td.scorerCell {
   padding-left: 1rem;
 }
 
-.lastHeader,
-.lastCell {
+.table th.lastHeader,
+.table td.lastCell {
   padding-right: 0.5rem;
 }
 
@@ -124,9 +126,4 @@
 
 .compact .groupRow th {
   height: 20px;
-}
-
-.compact .scorerHeader,
-.compact .scorerCell {
-  padding-left: 1rem;
 }
