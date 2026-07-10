@@ -362,9 +362,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             // App config is deserialized from the server; project_dir may be
             // missing at runtime despite the declared type
             const projectDir = appConfig?.project_dir as
-              | string
-              | null
-              | undefined;
+              string | null | undefined;
             const displayDir = projectDir?.startsWith("file://")
               ? projectDir.slice(7)
               : projectDir;

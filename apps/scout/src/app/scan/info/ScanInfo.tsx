@@ -51,14 +51,12 @@ const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
   // The scan spec is deserialized from disk, so fields the schema marks
   // required can still be missing at runtime.
   const packages = selectedScan.spec.packages as
-    | Status["spec"]["packages"]
-    | undefined;
+    Status["spec"]["packages"] | undefined;
   if (packages) {
     record["Packages"] = packages;
   }
   const options = selectedScan.spec.options as
-    | Status["spec"]["options"]
-    | undefined;
+    Status["spec"]["options"] | undefined;
   if (options) {
     record["Options"] = options;
   }

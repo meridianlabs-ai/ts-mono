@@ -98,11 +98,9 @@ const InputRenderer: FC<InputRendererProps> = ({
     // The transcript input is deserialized from disk, so fields the schema
     // marks required can still be missing at runtime.
     const messages = inputData.input.messages as
-      | (typeof inputData.input)["messages"]
-      | undefined;
+      (typeof inputData.input)["messages"] | undefined;
     const events = inputData.input.events as
-      | (typeof inputData.input)["events"]
-      | undefined;
+      (typeof inputData.input)["events"] | undefined;
     if (messages && messages.length > 0) {
       const labels = resultData?.messageReferences.reduce((acc, ref) => {
         if (ref.cite) {

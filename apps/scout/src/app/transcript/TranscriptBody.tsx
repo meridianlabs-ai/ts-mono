@@ -105,11 +105,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // The transcript is deserialized from disk, so fields the schema marks
   // required can still be missing at runtime.
   const transcriptEvents = transcript.events as
-    | Transcript["events"]
-    | undefined;
+    Transcript["events"] | undefined;
   const transcriptMessages = transcript.messages as
-    | Transcript["messages"]
-    | undefined;
+    Transcript["messages"] | undefined;
   const hasEvents = transcriptEvents && transcriptEvents.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
@@ -497,8 +495,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
   const transcriptMetadata = transcript.metadata as
-    | Transcript["metadata"]
-    | undefined;
+    Transcript["metadata"] | undefined;
   if (transcriptMetadata && Object.keys(transcriptMetadata).length > 0) {
     tabPanels.push(
       <TabPanel
@@ -605,8 +602,7 @@ const CopyToolbarButton: FC<{
         },
         Transcript: () => {
           const messages = transcript.messages as
-            | Transcript["messages"]
-            | undefined;
+            Transcript["messages"] | undefined;
           if (messages) {
             void navigator.clipboard.writeText(messagesToStr(messages));
             showCopyConfirmation();

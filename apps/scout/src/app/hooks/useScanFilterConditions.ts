@@ -13,8 +13,7 @@ export const useScanFilterConditions = (excludeColumnId?: string) => {
     useStore(
       (state) =>
         state.scansTableState.columnFilters as
-          | ScansTableState["columnFilters"]
-          | undefined
+          ScansTableState["columnFilters"] | undefined
     ) ?? {};
 
   // Get conditions, optionally excluding a specific column

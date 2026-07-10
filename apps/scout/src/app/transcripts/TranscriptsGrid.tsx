@@ -80,8 +80,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
     useStore(
       (state) =>
         state.transcriptsTableState.columnFilters as
-          | TranscriptsTableState["columnFilters"]
-          | undefined
+          TranscriptsTableState["columnFilters"] | undefined
     ) ?? {};
   const focusedRowId = useStore(
     (state) => state.transcriptsTableState.focusedRowId
@@ -138,8 +137,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   const effectiveColumnOrder = useMemo(() => {
     // Persisted table state from older builds may lack this field
     const order = columnOrder as
-      | TranscriptsTableState["columnOrder"]
-      | undefined;
+      TranscriptsTableState["columnOrder"] | undefined;
     if (order && order.length > 0) {
       return order;
     }
