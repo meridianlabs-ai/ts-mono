@@ -36,7 +36,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
       <CardHeader label="Models" />
       <CardBody id={"task-model-card-body"}>
         <div className={styles.container}>
-          {Object.keys(modelsInfo || {}).map((modelKey) => {
+          {Object.keys(modelsInfo).map((modelKey) => {
             const modelInfo = modelsInfo[modelKey];
             if (modelInfo === undefined) {
               return null;
@@ -66,8 +66,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
                 <div className={clsx(styles.sep)} />
                 <div className={clsx("text-style-label")}>Configuration</div>
                 <div className="text-size-small">
-                  {modelInfo.config &&
-                  Object.keys(modelInfo.config).length > 0 ? (
+                  {Object.keys(modelInfo.config).length > 0 ? (
                     <MetaDataGrid entries={modelInfo.config} />
                   ) : (
                     noneEl

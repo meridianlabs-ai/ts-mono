@@ -14,11 +14,12 @@ export const resolveAttachments = <T>(
   // Handle arrays recursively
   if (Array.isArray(value)) {
     let hasChanged = false;
-    const resolvedArray = (value as unknown[]).map((v) => {
+    const resolvedArray: unknown[] = [];
+    for (const v of value as unknown[]) {
       const resolved = resolveAttachments(v, attachments);
       if (resolved !== v) hasChanged = true;
-      return resolved;
-    });
+      resolvedArray.push(resolved);
+    }
 
     // Only return the new array if something actually changed
     return hasChanged ? (resolvedArray as unknown as T) : value;

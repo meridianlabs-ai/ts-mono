@@ -229,7 +229,6 @@ const injectScorersSpan = (events: Event[]): Event[] => {
       };
 
       collectedScorerEvents.length = 0;
-      hasCollectedScorers = true;
       return [beginSpan, ...scoreEvents, endSpan];
     }
     return [];
@@ -253,7 +252,11 @@ const injectScorersSpan = (events: Event[]): Event[] => {
     if (collecting) {
       if (event.event === SPAN_END && event.span_id === collecting) {
         collecting = null;
-        results.push(...flushCollected());
+        const flushed = flushCollected();
+        if (flushed.length > 0) {
+          hasCollectedScorers = true;
+        }
+        results.push(...flushed);
         results.push(event);
       } else {
         collectedScorerEvents.push(event);
