@@ -14,14 +14,14 @@ export const resolveAttachments = <T>(
   // Handle arrays recursively
   if (Array.isArray(value)) {
     let hasChanged = false;
-    const resolvedArray: unknown[] = [];
-    for (const v of value as unknown[]) {
+    const resolvedArray = (value as unknown[]).map((v) => {
       const resolved = resolveAttachments(v, attachments);
       if (resolved !== v) hasChanged = true;
-      resolvedArray.push(resolved);
-    }
+      return resolved;
+    });
 
     // Only return the new array if something actually changed
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hasChanged is set inside the map callback; the rule's narrowing cannot see the closure write
     return hasChanged ? (resolvedArray as unknown as T) : value;
   }
 

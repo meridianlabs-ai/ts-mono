@@ -202,9 +202,6 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
   scoredSamples,
   unscoredSamples,
 }) => {
-  // Metric values are read from serialized log results; older logs can
-  // carry null despite the declared type.
-  const value = metric.value as number | null | undefined;
   return (
     <div style={{ paddingLeft: isFirst ? "0" : "1em" }}>
       <div
@@ -240,8 +237,9 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
           styles.verticalMetricValue
         )}
       >
-        {value !== undefined && value !== null
-          ? formatPrettyDecimal(value)
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metric values read from serialized results can be null despite the declared type */}
+        {metric.value !== undefined && metric.value !== null
+          ? formatPrettyDecimal(metric.value)
           : "n/a"}
       </div>
     </div>
