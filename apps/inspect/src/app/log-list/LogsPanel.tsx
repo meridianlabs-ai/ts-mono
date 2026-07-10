@@ -282,30 +282,35 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     if (scopeKey) patchGridState(scopeKey, { columnFilters: {} });
   }, [scopeKey, patchGridState]);
 
-  // The popover only sees `pickerColumns` (the active view mode), so the
-  // visibility map it emits is scoped to those fields. Merge it into the full
-  // stored map. Hiding a column also clears any active filter on it (matches
-  // the prior grid — a hidden column shouldn't keep filtering invisibly).
+  // The popover only sees `pickerColumns` (the active view mode) and emits a
+  // full map for them, so persist only the entries that differ from the
+  // effective visibility — persisting the whole map would freeze untouched
+  // columns' mode-dependent defaults (one stored map spans tasks/logs modes).
+  // Hiding a column also clears any active filter on it (matches the prior
+  // grid — a hidden column shouldn't keep filtering invisibly).
   const handleColumnVisibilityChange = useCallback(
     (newVisibility: Record<string, boolean>) => {
-      const merged = { ...currentColumnVisibility, ...newVisibility };
+      const changed = Object.fromEntries(
+        Object.entries(newVisibility).filter(
+          ([field, visible]) => visibility[field] !== visible
+        )
+      );
+      if (Object.keys(changed).length === 0) return;
       if (scopeKey) {
         const cf = gridStateByScope[scopeKey]?.columnFilters;
         if (cf) {
-          const next = { ...cf };
-          let changed = false;
-          for (const id of Object.keys(cf)) {
-            if (merged[id] === false) {
-              delete next[id];
-              changed = true;
-            }
+          const next = Object.fromEntries(
+            Object.entries(cf).filter(([id]) => changed[id] !== false)
+          );
+          if (Object.keys(next).length !== Object.keys(cf).length) {
+            patchGridState(scopeKey, { columnFilters: next });
           }
-          if (changed) patchGridState(scopeKey, { columnFilters: next });
         }
       }
-      setColumnVisibility(merged);
+      setColumnVisibility({ ...currentColumnVisibility, ...changed });
     },
     [
+      visibility,
       currentColumnVisibility,
       setColumnVisibility,
       scopeKey,
