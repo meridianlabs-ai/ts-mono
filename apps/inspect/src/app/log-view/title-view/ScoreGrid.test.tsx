@@ -92,9 +92,7 @@ describe("ScoreGrid", () => {
   test("shows reducer alongside the scorer name when showReducer is set", () => {
     render(
       <ScoreGrid
-        scoreGroups={[
-          [{ ...flatScores[0]!, reducer: "mean" } as ScoreSummary],
-        ]}
+        scoreGroups={[[{ ...flatScores[0]!, reducer: "mean" }]]}
         showReducer
       />
     );
