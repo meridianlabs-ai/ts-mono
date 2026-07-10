@@ -66,9 +66,23 @@ export function useSampleGridState<TRow>(
 
   const setColumnVisibility = useCallback(
     (visibility: Record<string, boolean>) => {
-      setSamplesColumnVisibility(scope, visibility);
+      // ColumnSelectorPopover emits the full effective map, but persisting it
+      // wholesale would freeze the derived defaults of every untouched column
+      // (e.g. error/limit auto-promote when data appears). Persist only the
+      // entries that differ from the current effective visibility.
+      const changed = Object.fromEntries(
+        Object.entries(visibility).filter(
+          ([key, visible]) => columnVisibility[key] !== visible
+        )
+      );
+      if (Object.keys(changed).length > 0) {
+        setSamplesColumnVisibility(scope, {
+          ...persistedVisibility,
+          ...changed,
+        });
+      }
     },
-    [scope, setSamplesColumnVisibility]
+    [scope, setSamplesColumnVisibility, columnVisibility, persistedVisibility]
   );
 
   const patchGridState = useCallback(
