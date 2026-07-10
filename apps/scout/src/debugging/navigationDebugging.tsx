@@ -9,12 +9,13 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-const NAVIGATION_LOGGING_ENABLED = false;
+// Debug flag; toggle manually when diagnosing navigation issues
+const navigationLoggingEnabled = (): boolean => false;
 
 const timestamp = () => new Date().toISOString().slice(11, 23);
 
 export const navigationLog = (description: string) => {
-  if (NAVIGATION_LOGGING_ENABLED) {
+  if (navigationLoggingEnabled()) {
     console.log(`[${timestamp()}] ${description}`);
   }
 };

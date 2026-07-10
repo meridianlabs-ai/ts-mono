@@ -146,6 +146,7 @@ function collectEventMarkers(
   for (const item of node.content) {
     if (item.type === "event") {
       addEventMarker(item, markers);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- explicit discriminant check kept; the item union currently has only span and event
     } else if (item.type === "span" && shouldDescend(depth, currentLevel)) {
       collectEventMarkers(item, depth, currentLevel + 1, markers);
     }

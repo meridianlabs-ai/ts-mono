@@ -237,6 +237,7 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
           styles.verticalMetricValue
         )}
       >
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metric values read from serialized results can be null despite the declared type */}
         {metric.value !== undefined && metric.value !== null
           ? formatPrettyDecimal(metric.value)
           : "n/a"}

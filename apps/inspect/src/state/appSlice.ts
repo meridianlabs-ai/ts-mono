@@ -383,6 +383,7 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- state rehydrated from persisted storage can lack the app slice despite the type
     if (!state.app) {
       state.app = initialState;
     }

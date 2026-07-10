@@ -131,6 +131,7 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
       if (config.cell) {
         return config.cell(value);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- row values come from serialized arrow data; null appears at runtime despite the declared type
       if (value === undefined || value === null) {
         return "-";
       }

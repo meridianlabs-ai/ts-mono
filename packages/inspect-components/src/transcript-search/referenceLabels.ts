@@ -26,6 +26,7 @@ export const deriveSearchReferenceLabels = (
     if (!ref.cite) continue;
     if (ref.type === "message") {
       messageLabels[ref.id] = ref.cite;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ref.type comes from the search API and can hold values beyond the declared union
     } else if (ref.type === "event") {
       eventLabels[ref.id] = ref.cite;
     }

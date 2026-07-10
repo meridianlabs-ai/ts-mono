@@ -835,7 +835,7 @@ export function DataGrid<TRow>({
                     <ColumnFilterControl
                       columnId={header.column.id}
                       filterType={filterType}
-                      operators={columnDef.meta?.operators}
+                      operators={columnDef.meta.operators}
                       spec={filterSpec}
                       placement="bottom-start"
                       onChange={(spec) =>
@@ -1202,7 +1202,7 @@ function RotatedHeaderCell<TRow>({
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}
-              operators={columnDef.meta?.operators}
+              operators={columnDef.meta.operators}
               spec={filterSpec}
               anchorEl={anchorEl}
               placement="bottom-start"

@@ -122,6 +122,7 @@ export const useWindowMessaging = (): void => {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- app config is deserialized from the server; scans.dir can be absent at runtime
       scansDir: scansDir ?? "",
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);

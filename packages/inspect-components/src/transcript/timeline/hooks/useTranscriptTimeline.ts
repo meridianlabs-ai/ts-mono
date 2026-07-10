@@ -173,6 +173,7 @@ export function useTranscriptTimeline(
           priorSelected: timelineProps?.selected ?? null,
         },
       ]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- onSelect is required in the props type; defensive optional call kept
       timelineProps?.onSelect?.(null);
     },
     [baseTimeline.root, timelineProps]
@@ -181,6 +182,7 @@ export function useTranscriptTimeline(
     const top = viewStack.at(-1);
     if (!top) return;
     setViewStack((s) => s.slice(0, -1));
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- onSelect is required in the props type; defensive optional call kept
     timelineProps?.onSelect?.(top.priorSelected);
   }, [viewStack, timelineProps]);
 
@@ -310,6 +312,7 @@ export function useTranscriptTimeline(
     keys.set(rowKey, 100);
 
     let childKey = rowKey;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop; exits via break
     while (true) {
       const parentKey = getParentKeyFromBranch(childKey);
       if (!parentKey) break;
@@ -333,6 +336,7 @@ export function useTranscriptTimeline(
     (timeline.root.content.some(
       (item) =>
         item.type === "span" ||
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- explicit discriminant check kept; the item union currently has only span and event
         (item.type === "event" && item.event.event === "span_begin")
     ) ||
       timeline.root.branches.length > 0);
@@ -416,6 +420,7 @@ function computeBranchMappings(
   // Nearest ancestor row whose logical start has been computed.
   const nearestAncestor = (key: string): SwimlaneRow | undefined => {
     let k = key;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop; exits via return
     while (true) {
       const i = k.lastIndexOf("/");
       if (i < 0) return root;

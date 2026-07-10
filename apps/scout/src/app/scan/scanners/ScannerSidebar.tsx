@@ -134,6 +134,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scan status is deserialized from disk; fields required in the generated type can be absent
   const scanners = status.summary.scanners || {};
   for (const scanner of Object.keys(scanners)) {
     // The summary
@@ -144,6 +145,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scan spec is deserialized from disk; fields required in the generated type can be absent
       const params = scanInfo.params || {};
       for (const [key, value] of Object.entries(params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
@@ -194,15 +196,19 @@ const resolveValidations = (
   const result: Record<string, number> = {};
 
   // Add metrics in display order: accuracy, precision, recall, f1
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation metrics are deserialized from disk and can be null despite the declared type
   if (m.accuracy !== null && m.accuracy !== undefined) {
     result["accuracy"] = m.accuracy;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation metrics are deserialized from disk and can be null despite the declared type
   if (m.precision !== null && m.precision !== undefined) {
     result["precision"] = m.precision;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation metrics are deserialized from disk and can be null despite the declared type
   if (m.recall !== null && m.recall !== undefined) {
     result["recall"] = m.recall;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation metrics are deserialized from disk and can be null despite the declared type
   if (m.f1 !== null && m.f1 !== undefined) {
     result["f1"] = m.f1;
   }

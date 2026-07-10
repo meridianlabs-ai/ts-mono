@@ -4,8 +4,10 @@
 export const clearDocumentSelection = () => {
   const sel = window.getSelection();
   if (sel) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- legacy WebKit Selection objects lack removeAllRanges() despite the lib.dom type
     if (sel.removeAllRanges) {
       sel.removeAllRanges();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- legacy WebKit Selection objects expose empty() but not removeAllRanges()
     } else if (sel.empty) {
       sel.empty();
     }

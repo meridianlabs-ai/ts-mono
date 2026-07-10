@@ -19,6 +19,10 @@ import {
 } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
+  EvalDescriptor,
+  ScoreDescriptor,
+} from "../../samples/descriptor/types";
+import {
   samplesOperatorsForKind,
   type SampleFilterSpecRegistry,
 } from "../../samples/sample-tools/filterSpecRegistry";
@@ -53,6 +57,14 @@ const numberCompare: ColumnComparator = (a, b, isDescending) =>
 const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 const stringCompare: ColumnComparator = (a, b) =>
   valueAsString(a ?? "").localeCompare(valueAsString(b ?? ""));
+
+// EvalDescriptor.scoreDescriptor's declared return type hides that the
+// descriptor map has no entry for scores with no usable values; widen at
+// the boundary so callers handle the runtime-missing case.
+const lookupScoreDescriptor = (
+  evalDescriptor: EvalDescriptor,
+  scoreLabel: ScoreLabel
+): ScoreDescriptor | undefined => evalDescriptor.scoreDescriptor(scoreLabel);
 
 export interface SampleGridContext {
   viewMode: SampleGridViewMode;
@@ -240,8 +252,9 @@ export function buildSampleColumns(
   cols.push({
     id: "sampleId",
     header: "Id",
-    size: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
+    size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- sampleId is required in the declared type but can be absent in rows built from log data
     accessorFn: (row) => String(row.sampleId ?? ""),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
@@ -339,7 +352,7 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.tokens,
     cell: ({ getValue }) => {
-      const value = getValue<number | undefined>();
+      const value = getValue<number | null | undefined>();
       return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
@@ -358,11 +371,12 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
     titleValue: (row) =>
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- duration's declared type omits null but rows built from log data can hold it
       row.duration === undefined || row.duration === null
         ? undefined
         : formatTime(row.duration),
     cell: ({ getValue }) => {
-      const value = getValue<number | undefined>();
+      const value = getValue<number | null | undefined>();
       return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
@@ -403,7 +417,7 @@ export function buildSampleColumns(
     {
       id: "limit",
       header: "Limit",
-      size: shape ? (shape.limitSize ?? 1) * 16 : 100,
+      size: shape ? shape.limitSize * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
       cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
@@ -411,7 +425,7 @@ export function buildSampleColumns(
     {
       id: "retries",
       header: "Retries",
-      size: shape ? (shape.retriesSize ?? 1) * 16 : 80,
+      size: shape ? shape.retriesSize * 16 : 80,
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,
@@ -540,7 +554,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     return scores.map((label): SampleColumn => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
-      const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
+      const scoreDesc = lookupScoreDescriptor(descriptor.evalDescriptor, label);
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured

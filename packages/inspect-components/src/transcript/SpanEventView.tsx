@@ -96,20 +96,11 @@ const spanDescriptor = (
     return { ...rootStepDescriptor };
   } else if (event.type === "scorer") {
     return { ...rootStepDescriptor };
-  } else if (event.event === "span_begin") {
-    if (event.span_id === kSandboxSignalName) {
-      return { ...rootStepDescriptor, name: "Sandbox Events" };
-    } else if (event.name === "init") {
-      return { ...rootStepDescriptor, name: "Init" };
-    } else {
-      return { ...rootStepDescriptor };
-    }
+  } else if (event.span_id === kSandboxSignalName) {
+    return { ...rootStepDescriptor, name: "Sandbox Events" };
+  } else if (event.name === "init") {
+    return { ...rootStepDescriptor, name: "Init" };
   } else {
-    switch (event.name) {
-      case "sample_init":
-        return { ...rootStepDescriptor, name: "Sample Init" };
-      default:
-        return { endSpace: false };
-    }
+    return { ...rootStepDescriptor };
   }
 };

@@ -277,6 +277,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
       const highlighted = listRef.current.children[
         highlightedIndex
       ] as HTMLElement;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- highlightedIndex can outrun the live DOM children, so the indexed access yields undefined despite the cast
       highlighted?.scrollIntoView({ block: "nearest" });
     }
   }, [highlightedIndex, showDropdown]);

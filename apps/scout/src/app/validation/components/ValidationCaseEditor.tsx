@@ -156,6 +156,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
       {!error && (
         <>
           <LoadingBar loading={loading} />
+          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation sets are fetched from the server; data is undefined until loaded despite the declared type */}
           {showPanel && setsData && (
             <ValidationCaseEditorComponent
               key={validatedSetUri}
@@ -393,7 +394,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       const newUri = `${config.project_dir}/${filename}`;
 
       // Check for duplicates
-      if (validationSets?.includes(newUri)) {
+      if (validationSets.includes(newUri)) {
         setCreateError("A validation set with this name already exists");
         return;
       }
@@ -437,7 +438,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
 
   const isEditable =
     caseData?.target === undefined ||
-    caseData?.target === null ||
+    caseData.target === null ||
     (!Array.isArray(caseData.target) && typeof caseData.target !== "object");
 
   const hasCaseData =
@@ -475,7 +476,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
           <SecondaryDisplayValue label="ID" value={transcriptId} />
           <Field label="Validation Set">
             <ValidationSetSelector
-              validationSets={validationSets || []}
+              validationSets={validationSets}
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}

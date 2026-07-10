@@ -20,7 +20,7 @@ export const DatasetDetailView: FC<DatasetDetailViewProps> = ({
     Object.entries(dataset).filter(([key]) => key !== "sample_ids")
   );
 
-  if (!dataset || Object.keys(filtered).length === 0) {
+  if (Object.keys(filtered).length === 0) {
     return (
       <span className={clsx("text-size-base", styles.item)} style={style}>
         No dataset information available

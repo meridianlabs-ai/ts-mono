@@ -78,7 +78,9 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   status: "started",
   eval: start.eval,
   plan: start.plan,
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated type but a partial start.json from an in-flight write can omit it
   tags: start.eval?.tags ?? [],
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated type but a partial start.json from an in-flight write can omit it
   metadata: start.eval?.metadata ?? {},
 });
 

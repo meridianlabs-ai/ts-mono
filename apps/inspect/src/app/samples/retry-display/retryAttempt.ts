@@ -7,6 +7,7 @@ import type { EvalRetryError } from "@tsmono/inspect-common";
  * so callers can omit the chip rather than render garbage.
  */
 export function deriveErrorType(retry: EvalRetryError): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- traceback is required in the generated type but can be absent in log data
   const tb = retry.traceback?.trimEnd();
   if (!tb) return null;
   const lines = tb.split("\n");

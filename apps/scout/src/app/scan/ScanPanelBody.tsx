@@ -101,11 +101,12 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
 
   // Figure out whether grouping should be shown
   const groupOptions: Array<ResultGroup> = useMemo(() => {
-    if (!visibleScannerResults || visibleScannerResults.length === 0) {
+    if (visibleScannerResults.length === 0) {
       return [];
     }
 
     const hasLabel = visibleScannerResults.some(
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
       (summary) => summary.label !== undefined && summary.label !== null
     );
 

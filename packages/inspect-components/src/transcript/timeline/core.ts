@@ -42,6 +42,7 @@ type TreeItem = SpanNode | Event;
 function isSpanNode(item: TreeItem): item is SpanNode {
   return (
     typeof item === "object" &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- items come from serialized logs and can be a literal null at runtime
     item !== null &&
     "children" in item &&
     Array.isArray(item.children)
@@ -358,9 +359,11 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- content is required in the generated type but absent in some serialized server spans
   const content = (server.content ?? [])
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- branches is required in the generated type but absent in some serialized server spans
   const branches = (server.branches ?? [])
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0 || b.branches.length > 0);
@@ -482,11 +485,14 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
  */
 function getEventTokens(event: Event): number {
   if (event.event === "model") {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
     const usage = event.output?.usage;
     if (usage) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input_tokens is required in the generated type but absent in some logs
       const inputTokens = usage.input_tokens ?? 0;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
       const cacheWrite = usage.input_tokens_cache_write ?? 0;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output_tokens is required in the generated type but absent in some logs
       const outputTokens = usage.output_tokens ?? 0;
       return inputTokens + cacheRead + cacheWrite + outputTokens;
     }
@@ -1251,6 +1257,7 @@ function normalizeSystemPrompt(prompt: string): string {
  */
 function getSystemPromptForEvent(event: ModelEvent): string | null {
   const input = event.input;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
   if (!input) return null;
   for (const msg of input) {
     if (msg.role === "system") {
@@ -1276,7 +1283,9 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
   const choices = event.output?.choices;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- choices can be undefined when output is absent at runtime
   if (choices && choices.length > 0) {
     const msg = choices[0]!.message;
     if (msg.tool_calls && msg.tool_calls.length > 0) {
@@ -1399,11 +1408,13 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- config is required in the generated type but absent in logs for some model calls
   if (event.config?.max_tokens == null || event.config.max_tokens > 1) {
     return false;
   }
   // Check that the last user message is a single word
   const input = event.input;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
   if (!input) return false;
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i];
@@ -1428,6 +1439,7 @@ function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
       const input = item.event.input;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
       if (input) {
         for (const msg of input) {
           if (msg.role === "system") {
@@ -1666,6 +1678,7 @@ function extractAgentResults(parent: TimelineSpan): void {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
           if (modelEvent.input) {
             for (const msg of modelEvent.input) {
               if (

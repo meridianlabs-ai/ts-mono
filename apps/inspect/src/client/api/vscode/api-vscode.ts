@@ -348,7 +348,7 @@ async function get_user_info(): Promise<UserInfo> {
     // See the matching note on `edit_log` above.
     const info =
       typeof response === "string"
-        ? JSON5.parse<UserInfo>(response)
+        ? JSON5.parse<UserInfo | null>(response)
         : (response as UserInfo);
     return info ?? {};
   } catch (e: unknown) {

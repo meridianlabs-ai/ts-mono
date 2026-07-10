@@ -68,7 +68,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             if (!col) {
               return undefined;
             }
-            const sampleValue = col?.at(0) as unknown;
+            const sampleValue = col.at(0) as unknown;
 
             // Create value formatter based on truncation options and data type
             const valueFormatter = options
@@ -96,7 +96,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
               maxWidth: 800,
               cellDataType:
                 typeof sampleValue === "boolean" ? false : undefined,
-              hide: !columnNames?.includes(name) || false,
+              hide: !columnNames.includes(name) || false,
               valueFormatter,
               wrapText: wrapText,
               autoHeight: wrapText,
@@ -112,7 +112,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             headerName: "",
             valueGetter: (params) => {
               return params.node?.rowIndex !== undefined &&
-                params.node?.rowIndex !== null
+                params.node.rowIndex !== null
                 ? params.node.rowIndex + 1
                 : "";
             },
@@ -131,7 +131,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             },
             onCellClicked: (params) => {
               if (params.data && onRowDoubleClicked) {
-                if (params.rowIndex !== null && params.rowIndex !== undefined) {
+                if (params.rowIndex !== null) {
                   setSelectedDataframeRow(params.rowIndex);
                 }
                 onRowDoubleClicked(params.data as object);
@@ -162,7 +162,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
   useEffect(() => {
     if (gridRef.current?.api && gridState && !gridState.filter) {
       const currentFilterModel = gridRef.current.api.getFilterModel();
-      if (currentFilterModel && Object.keys(currentFilterModel).length > 0) {
+      if (Object.keys(currentFilterModel).length > 0) {
         gridRef.current.api.setFilterModel(null);
       }
     }

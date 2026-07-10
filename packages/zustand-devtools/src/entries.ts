@@ -92,6 +92,7 @@ export const toClipboardJson = (value: unknown): string => {
   };
   try {
     return (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for top-level values with no JSON representation (undefined, symbols), despite lib.es5 typing it string
       JSON.stringify(value, (_key, v: unknown) => replace(v), 2) ?? "undefined"
     );
   } catch (error) {

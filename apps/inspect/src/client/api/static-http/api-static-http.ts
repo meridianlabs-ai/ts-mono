@@ -83,20 +83,18 @@ function staticHttpApiForLog(logInfo: {
       // First check based upon the log dir
       if (log_dir) {
         const manifest = await getManifest();
-        if (manifest) {
-          const logs = Object.entries(manifest).map(([key, preview]) => {
-            return {
-              name: joinURI(log_dir, key),
-              task: preview.task,
-              task_id: preview.task_id,
-            };
-          });
-          return Promise.resolve({
-            logs: logs,
-            log_dir,
-            abs_log_dir,
-          });
-        }
+        const logs = Object.entries(manifest).map(([key, preview]) => {
+          return {
+            name: joinURI(log_dir, key),
+            task: preview.task,
+            task_id: preview.task_id,
+          };
+        });
+        return Promise.resolve({
+          logs: logs,
+          log_dir,
+          abs_log_dir,
+        });
       }
 
       return undefined;
@@ -173,15 +171,13 @@ function staticHttpApiForLog(logInfo: {
     },
     get_log_summary: async (log_file: string) => {
       const manifest = await getManifest();
-      if (manifest) {
-        const manifestAbs: Record<string, LogPreview> = {};
-        Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(log_dir || "", key)] = preview;
-        });
-        const header = manifestAbs[log_file];
-        if (header) {
-          return header;
-        }
+      const manifestAbs: Record<string, LogPreview> = {};
+      Object.entries(manifest).forEach(([key, preview]) => {
+        manifestAbs[joinURI(log_dir || "", key)] = preview;
+      });
+      const header = manifestAbs[log_file];
+      if (header) {
+        return header;
       }
       throw new Error(`Unable to load eval log header for ${log_file}`);
     },
@@ -192,20 +188,18 @@ function staticHttpApiForLog(logInfo: {
 
       if (log_dir) {
         const manifest = await getManifest();
-        if (manifest) {
-          const keys = Object.keys(manifest);
-          const result: LogPreview[] = [];
-          files.forEach((file) => {
-            const fileKey = keys.find((key) => {
-              return file.endsWith(key);
-            });
-            if (fileKey) {
-              // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-              result.push(manifest[fileKey]);
-            }
+        const keys = Object.keys(manifest);
+        const result: LogPreview[] = [];
+        files.forEach((file) => {
+          const fileKey = keys.find((key) => {
+            return file.endsWith(key);
           });
-          return result;
-        }
+          if (fileKey) {
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+            result.push(manifest[fileKey]);
+          }
+        });
+        return result;
       }
 
       // No log.json could be found, and there isn't a log file,

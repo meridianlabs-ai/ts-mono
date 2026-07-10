@@ -50,25 +50,23 @@ export const resolveApi = (source: UrlLogSource): ClientAPI => {
     if (scriptEl) {
       // Read the contents
       const context = scriptEl.textContent;
-      if (context !== null) {
-        const data = JSON5.parse<LogDirContext>(context);
-        if (data.log_dir || data.log_file) {
-          const log_dir = data.log_dir || dirname(data.log_file ?? "");
-          const app_config: AppConfig | undefined =
-            data.inspect_version !== undefined
-              ? {
-                  inspect_version: data.inspect_version,
-                  scout_version: null,
-                }
-              : undefined;
-          const api = staticHttpApi(
-            log_dir,
-            data.log_file,
-            data.abs_log_dir,
-            app_config
-          );
-          return clientApi(api, data.log_file, debug);
-        }
+      const data = JSON5.parse<LogDirContext>(context);
+      if (data.log_dir || data.log_file) {
+        const log_dir = data.log_dir || dirname(data.log_file ?? "");
+        const app_config: AppConfig | undefined =
+          data.inspect_version !== undefined
+            ? {
+                inspect_version: data.inspect_version,
+                scout_version: null,
+              }
+            : undefined;
+        const api = staticHttpApi(
+          log_dir,
+          data.log_file,
+          data.abs_log_dir,
+          app_config
+        );
+        return clientApi(api, data.log_file, debug);
       }
     }
 

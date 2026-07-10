@@ -66,7 +66,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
 
   const editable = false;
   const filterText =
-    filter && !filter?.startsWith("(")
+    filter && !filter.startsWith("(")
       ? `(${filter})`
       : filter
         ? filter
@@ -92,11 +92,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
               : undefined
           }
           onPathChanged={setTranscriptsDir}
-          placeholder={
-            editable
-              ? "Select Transcripts Folder"
-              : "No transcripts directory configured."
-          }
+          placeholder="No transcripts directory configured."
           className="text-size-smallest"
           editable={editable}
         />

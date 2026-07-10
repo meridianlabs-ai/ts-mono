@@ -75,7 +75,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: ScoreLabel
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer.scorer];
       if (sampleScore && sampleScore.answer) {
         return sampleScore.answer;
@@ -89,7 +89,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.explanation) {
         return sampleScore.explanation;
@@ -103,7 +103,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): Record<string, unknown> | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.metadata) {
         return sampleScore.metadata;
@@ -119,11 +119,6 @@ export const createEvalDescriptor = (
         samples
           .filter((sample) => !!sample.scores)
           .filter((sample) => {
-            // There is no selected scorer, so include this value
-            if (!scoreLabel) {
-              return true;
-            }
-
             // There are no scores, so exclude this
             if (!sample.scores) {
               return false;
@@ -145,6 +140,7 @@ export const createEvalDescriptor = (
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dict score members can be null at runtime even though scoreValue's declared return type omits it
             return value !== null;
           })
           .filter((value) => {
@@ -183,12 +179,14 @@ export const createEvalDescriptor = (
   ): ReactNode => {
     const descriptor = scoreDescriptor(scoreLabel);
     const score = scoreValue(sample, scoreLabel);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dict score members can be null at runtime even though scoreValue's declared return type omits it
     if (score === null) {
       return "null";
     } else if (score === undefined) {
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scoreDescriptor's declared return type hides that the map has no entry for scores with no usable values
     } else if (descriptor && descriptor.render) {
       return descriptor.render(score);
     } else {
@@ -211,10 +209,11 @@ export const createEvalDescriptor = (
         return scoreAnswer(sample, scoreLabel) || "";
       },
       scores: () => {
-        if (!sample || !sample.scores) {
+        if (!sample.scores) {
           return [];
         }
         const myScoreDescriptor = scoreDescriptor(scoreLabel);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scoreDescriptor's declared return type hides that the map has no entry for scores with no usable values
         if (!myScoreDescriptor) {
           return [];
         }
@@ -371,7 +370,7 @@ export const createSamplesDescriptor = (
     }
   );
 
-  const firstSelectedScore = selectedScores?.[0];
+  const firstSelectedScore = selectedScores[0];
 
   return {
     evalDescriptor,
@@ -388,5 +387,5 @@ export const createSamplesDescriptor = (
 };
 
 const scoreLabelKey = (scoreLabel: ScoreLabel) => {
-  return `${scoreLabel?.scorer}.${scoreLabel.name}`;
+  return `${scoreLabel.scorer}.${scoreLabel.name}`;
 };

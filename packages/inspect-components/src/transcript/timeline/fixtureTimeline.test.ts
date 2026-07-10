@@ -259,6 +259,7 @@ function createEvent(data: JsonEvent): Event | null {
       return {
         ...baseFields,
         event: "compaction",
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may omit type despite the cast's non-optional union
         type: (data.type as "summary" | "edit" | "trim") ?? "summary",
         span_id: data.span_id ?? null,
         source: null,
@@ -356,6 +357,7 @@ function assertScoringSpanMatches(
   expect(scorerSpans.length).toBe(1);
   const scoring = scorerSpans[0]!;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- event_uuids is required in the fixture type but parent-repo fixture JSON may omit it
   if (expected.event_uuids !== undefined) {
     const actualUuids = getDirectEventUuids(scoring);
     expect(actualUuids).toEqual(expected.event_uuids);
@@ -376,6 +378,7 @@ function assertSpanMatches(
 
   if (
     expected.source &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
     (expected.source.source === "span" || expected.source.source === "tool")
   ) {
     expect(actual!.spanType).toBe("agent");
@@ -458,6 +461,7 @@ function assertSpanMatches(
         if (expectedItem.source) {
           if (
             expectedItem.source.source === "span" ||
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
             expectedItem.source.source === "tool"
           ) {
             expect(spanItem.spanType).toBe("agent");
@@ -586,6 +590,7 @@ function assertTimelineMatches(
           if (expectedItem.source) {
             if (
               expectedItem.source.source === "span" ||
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fixture JSON may carry source values outside the local "span" | "tool" union
               expectedItem.source.source === "tool"
             ) {
               expect(spanItem.spanType).toBe("agent");

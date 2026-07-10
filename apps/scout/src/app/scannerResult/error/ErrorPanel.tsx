@@ -11,7 +11,7 @@ import {
 import styles from "./ErrorPanel.module.css";
 
 interface ErrorPanelProps {
-  error?: string;
+  error?: string | null;
   traceback?: string;
 }
 

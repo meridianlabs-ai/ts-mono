@@ -117,6 +117,7 @@ export const Modal: FC<ModalProps> = ({
     }, 0);
     return () => {
       window.clearTimeout(timer);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeElement may be an SVG/MathML element without focus() despite the HTMLElement cast
       previouslyFocused?.focus?.();
     };
   }, [show]);

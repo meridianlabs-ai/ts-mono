@@ -12,7 +12,9 @@ import styles from "./StopReasonBadge.module.css";
 type StopReason = ChatCompletionChoice["stop_reason"];
 
 // Tone is a design call (kept subtle); unmapped reasons fall back to gray.
-const STOP_TONE: Record<StopReason, keyof typeof TONE_CLASS> = {
+// Partial because `reason` comes from logs — newer logs may carry stop
+// reasons this build's generated union doesn't know about.
+const STOP_TONE: Partial<Record<StopReason, keyof typeof TONE_CLASS>> = {
   stop: "neutral",
   max_tokens: "amber",
   model_length: "amber",

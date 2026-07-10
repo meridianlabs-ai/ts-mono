@@ -67,7 +67,9 @@ export function buildScanReferencePreviews(
     }
 
     if (event.event === "model") {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent on errored model calls in logs
       for (const msg of event.input ?? []) addMessage(msg);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but can be absent on errored model calls in logs
       for (const choice of event.output?.choices ?? []) {
         addMessage(choice.message);
       }

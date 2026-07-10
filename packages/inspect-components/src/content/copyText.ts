@@ -25,6 +25,7 @@ export const copyValueText = (value: unknown): string => {
   // Circular structures (or exotic objects JSON can't represent) have no
   // sensible text form — copy an empty string rather than "[object Object]".
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for values with no JSON representation (e.g. a toJSON returning undefined), despite lib.es5 typing it string
     return JSON.stringify(value, null, 2) ?? "";
   } catch {
     return "";

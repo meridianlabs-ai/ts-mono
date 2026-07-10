@@ -17,13 +17,24 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  scoreType?: string;
 }
+
+// EvalDescriptor.scoreDescriptor's declared return type hides that the
+// descriptor map has no entry for scores with no usable values; widen at
+// the boundary so callers handle the runtime-missing case.
+const lookupScoreDescriptor = (
+  evalDescriptor: EvalDescriptor,
+  scoreLabel: ScoreLabel
+): ScoreDescriptor | undefined => evalDescriptor.scoreDescriptor(scoreLabel);
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -156,12 +167,14 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
 const totalTokens = (sample: SampleSummary): number | null => {
   if (!sample.model_usage) return null;
   return Object.values(sample.model_usage).reduce(
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- total_tokens is required in the generated type but can be absent in logs from older writers
     (sum, u) => sum + (u.total_tokens ?? 0),
     0
   );
 };
 
 const targetString = (target: SampleSummary["target"]): string =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- target is required in the generated type but can be null in log data
   Array.isArray(target) ? target.join(", ") : (target ?? "");
 
 export const sampleVariables = (
@@ -214,14 +227,7 @@ export const sampleFilterItems = (
     if (!canonicalName) {
       throw new Error("Unable to create a canonical name for a score");
     }
-    const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
-
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor?.scoreType;
+    const descriptor = lookupScoreDescriptor(evalDescriptor, scoreLabel);
     if (!descriptor) {
       items.push({
         shortName,
@@ -229,10 +235,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {

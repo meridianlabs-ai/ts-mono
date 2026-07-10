@@ -4,7 +4,7 @@ import { FC } from "react";
 import styles from "./ValidationResult.module.css";
 
 interface ValidationResultProps {
-  result: boolean | Record<string, boolean>;
+  result: boolean | Record<string, boolean> | null;
   target?: unknown;
   label?: string;
 }

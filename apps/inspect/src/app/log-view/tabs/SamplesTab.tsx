@@ -228,6 +228,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const setSelectedScores = useStore(
     (state) => state.logActions.setSelectedScores
   );
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- config is required in the generated type but can be absent in logs from older writers
   const epochs = selectedLogDetails?.eval.config?.epochs || 1;
 
   // Build the superset of available columns once. Score columns are
@@ -435,6 +436,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     return sampleSummaries.map((sample): SampleRow => {
       const tokens = sample.model_usage
         ? Object.values(sample.model_usage).reduce(
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- total_tokens is required in the generated type but can be absent in logs from older writers
             (sum, u) => sum + (u.total_tokens ?? 0),
             0
           )

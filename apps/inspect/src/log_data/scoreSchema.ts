@@ -55,6 +55,7 @@ export function computeScorerMap(logs: Log[], scopePrefix?: string): ScorerMap {
     }
     if (log.header?.results?.scores) {
       for (const evalScore of log.header.results.scores) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in logs from older writers
         if (evalScore.metrics) {
           for (const [metricName, metric] of Object.entries(
             evalScore.metrics

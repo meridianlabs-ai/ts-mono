@@ -265,7 +265,7 @@ function computeBarFromMapping(
 export function spanHasEvents(span: TimelineSpan): boolean {
   for (const item of span.content) {
     if (item.type === "event") return true;
-    if (item.type === "span" && spanHasEvents(item)) return true;
+    if (spanHasEvents(item)) return true;
   }
   return false;
 }

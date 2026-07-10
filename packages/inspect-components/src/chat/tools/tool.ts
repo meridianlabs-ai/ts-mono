@@ -691,6 +691,7 @@ const extractInput = (
   };
 
   // No args
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tool arguments come from serialized logs, where they can be absent despite the declared type
   if (!args) {
     return {
       args: [],

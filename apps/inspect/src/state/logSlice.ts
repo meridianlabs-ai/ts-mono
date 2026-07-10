@@ -159,6 +159,7 @@ export const initalializeLogSlice = (
   set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- rehydrated persisted state replaces the slice wholesale, so an old or corrupt blob can leave it unset despite the declared type
     if (!state.log) {
       state.log = initialState;
     }

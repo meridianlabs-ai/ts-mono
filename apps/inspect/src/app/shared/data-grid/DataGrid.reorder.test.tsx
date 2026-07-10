@@ -60,9 +60,7 @@ const dragHeader = async (from: string, to: string) => {
 };
 
 const headerOrder = () =>
-  screen
-    .getAllByRole("columnheader")
-    .map((cell) => cell.textContent?.trim() ?? "");
+  screen.getAllByRole("columnheader").map((cell) => cell.textContent.trim());
 
 describe("DataGrid column reorder", () => {
   test("dropping a header on another column reorders and reports the order", async () => {

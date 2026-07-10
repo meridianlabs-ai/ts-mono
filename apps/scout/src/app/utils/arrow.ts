@@ -88,7 +88,7 @@ export async function expandResultsetRows(
     try {
       // Get the result set value
       const valueStr = row.value as string;
-      const results = valueStr ? JSON5.parse<Result[]>(valueStr) : [];
+      const results = valueStr ? JSON5.parse<Result[] | null>(valueStr) : [];
 
       // If the row has an empty result set, just leave it
       // intact

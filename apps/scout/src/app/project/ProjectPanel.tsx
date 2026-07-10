@@ -78,6 +78,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   // We store the ID since React may recreate the DOM element
   const handleSaveMouseDown = useCallback(() => {
     const el = document.activeElement as HTMLElement;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.activeElement is null when nothing has focus despite the cast-derived type
     if (el && el !== document.body && el.id) {
       focusedFieldIdRef.current = el.id;
     } else {
@@ -112,6 +113,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         if (!mutation.isPending) {
           // Capture focused element ID for restoration after save
           const el = document.activeElement as HTMLElement;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.activeElement is null when nothing has focus despite the cast-derived type
           if (el && el !== document.body && el.id) {
             focusedFieldIdRef.current = el.id;
           } else {

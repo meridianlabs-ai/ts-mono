@@ -162,7 +162,7 @@ export const clientApi = (
        * @type {import("./Types.js").SampleSummary[]}
        */
       const sampleSummaries = logContents.parsed.samples
-        ? logContents.parsed.samples?.map((sample) => {
+        ? logContents.parsed.samples.map((sample) => {
             return {
               id: sample.id,
               epoch: sample.epoch,
@@ -397,17 +397,15 @@ export const clientApi = (
     } else if (log_file) {
       // Is there an explicitly passed log file?
       const summary = await get_log_details(log_file);
-      if (summary) {
-        return {
-          logs: [
-            {
-              name: log_file,
-              task: summary.eval.task,
-              task_id: summary.eval.task_id,
-            },
-          ],
-        };
-      }
+      return {
+        logs: [
+          {
+            name: log_file,
+            task: summary.eval.task,
+            task_id: summary.eval.task_id,
+          },
+        ],
+      };
     }
     throw new Error("Unable to determine log paths.");
   };

@@ -150,7 +150,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         msg: `INFO: ${limitCount} of ${sampleCount} samples (${formatNoDecimal(percentLimit)}%) completed due to exceeding a limit.`,
       });
     }
-    if (earlyStopping?.early_stops && earlyStopping?.early_stops?.length > 0) {
+    if (earlyStopping?.early_stops && earlyStopping.early_stops.length > 0) {
       result.push({
         type: "info",
         msg: `Skipped ${earlyStopping.early_stops.length} samples due to early stopping (${earlyStopping.manager}). `,

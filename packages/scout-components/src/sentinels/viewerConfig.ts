@@ -134,6 +134,7 @@ function scannerResultViewEntries(
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
   const raw = viewer.scanner_result_view;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- generated type marks scanner_result_view required, but deserialized configs (older eval logs) may omit it
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
@@ -231,10 +232,15 @@ function coerceField(
     }
     return null;
   }
-  if (entry.kind === "builtin") {
-    if (!kBuiltinNames.has(entry.name)) return null;
-    return entry;
+  // Unknown kinds (hand-edited eval logs) must fall through to null even
+  // though the declared union says they can't occur.
+  switch (entry.kind) {
+    case "builtin":
+      if (!kBuiltinNames.has(entry.name)) return null;
+      return entry;
+    case "metadata":
+      return entry;
+    default:
+      return null;
   }
-  if (entry.kind === "metadata") return entry;
-  return null;
 }

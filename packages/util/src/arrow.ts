@@ -142,7 +142,7 @@ function castColumns(table: ColumnTable): ColumnTable {
     derivations.scan_error_refusal = escape(
       (d: { scan_error_refusal: string }) => {
         if (typeof d.scan_error_refusal === "string") {
-          return d.scan_error_refusal?.toLowerCase() === "true";
+          return d.scan_error_refusal.toLowerCase() === "true";
         }
 
         return !!d.scan_error_refusal;

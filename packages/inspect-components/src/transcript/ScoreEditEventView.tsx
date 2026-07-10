@@ -115,10 +115,12 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
           ""
         )}
 
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metadata is required in the generated type but can be absent in logs */}
         {event.edit.metadata && event.edit.metadata !== kUnchangedSentinel ? (
           <div data-name="Metadata">
             <RecordTree
               id={`${eventNode.id}-score-metadata`}
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metadata is required in the generated type but can be absent in logs
               record={event.edit.metadata || {}}
               className={styles.metadataTree}
               defaultExpandLevel={0}

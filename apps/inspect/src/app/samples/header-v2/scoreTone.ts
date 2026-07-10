@@ -14,7 +14,9 @@ export type Tone = "pass" | "fail" | "warn" | "neutral";
  * vocabulary.
  */
 export function scoreTone(
-  value: ScoreValue | undefined,
+  // null included: dict score members can be null at runtime even though
+  // SelectedScore.value's declared type omits it.
+  value: ScoreValue | null | undefined,
   scoreType: string
 ): Tone {
   if (value === undefined || value === null) return "neutral";

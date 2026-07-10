@@ -166,6 +166,7 @@ export const FindBand: FC = () => {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeElement is null when nothing is focused; the cast above narrows it optimistically
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm, countAllMatches]
@@ -185,9 +186,7 @@ export const FindBand: FC = () => {
       if (scrollTimeoutRef.current !== null) {
         window.clearTimeout(scrollTimeoutRef.current);
       }
-      if (focusTimeout !== null) {
-        window.clearTimeout(focusTimeout);
-      }
+      window.clearTimeout(focusTimeout);
       setFindTarget(null);
     };
   }, [setFindTarget]);

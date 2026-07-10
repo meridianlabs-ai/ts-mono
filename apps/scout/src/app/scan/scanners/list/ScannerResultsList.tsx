@@ -47,6 +47,7 @@ interface ResultGroup {
 const isResultGroup = (
   entry: ResultGroup | ScanResultSummary
 ): entry is ResultGroup => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- summary rows are deserialized arrow data and can carry a "type" key, so the value must be checked
   return "type" in entry && entry.type === "group";
 };
 
@@ -485,6 +486,7 @@ const optimalColumnLayout = (
         return Math.max(max, len);
       } else {
         const valStr =
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row values can be undefined at runtime despite the declared type
           s.value !== undefined && s.value !== null
             ? valueAsString(s.value)
             : "";

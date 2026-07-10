@@ -252,7 +252,7 @@ export const ScannerResultPanel: FC = () => {
 
   const hasError =
     selectedResult?.scanError !== undefined &&
-    selectedResult?.scanError !== null;
+    selectedResult.scanError !== null;
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
   const setHighlightLabeled = useStore((state) => state.setHighlightLabeled);
@@ -284,7 +284,7 @@ export const ScannerResultPanel: FC = () => {
     if (
       selectedTab === kTabIdInput &&
       selectedResult?.inputType === "transcript" &&
-      selectedResult?.messageReferences.length > 0
+      selectedResult.messageReferences.length > 0
     ) {
       toolButtons.push(
         <ToolButton
@@ -373,10 +373,7 @@ export const ScannerResultPanel: FC = () => {
       {!hasError ? (
         <TabPanel
           id={kTabIdResult}
-          selected={
-            selectedTab === kTabIdResult ||
-            (!hasError && selectedTab === undefined)
-          }
+          selected={selectedTab === kTabIdResult || selectedTab === undefined}
           title="Result"
           scrollable={false}
           onSelected={() => {
@@ -384,7 +381,7 @@ export const ScannerResultPanel: FC = () => {
           }}
           className={styles.fullHeight}
         >
-          {resultData && inputData && (
+          {inputData && (
             <ResultPanel resultData={resultData} inputData={inputData} />
           )}
         </TabPanel>

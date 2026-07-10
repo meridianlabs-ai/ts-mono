@@ -38,6 +38,7 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   error: undefined,
   running: kNoRunningEvents,
   eventsCleared:
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- messages is required in the generated type but can be absent in logs from older writers
     sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
   backfilling: false,
 });
@@ -151,7 +152,7 @@ export const deriveSampleData = ({
   }
   return {
     sample: undefined,
-    status: query.loading ? "loading" : query.error ? "error" : "ok",
+    status: query.loading ? "loading" : "error",
     error: query.loading ? undefined : query.error,
     running: kNoRunningEvents,
     eventsCleared: false,

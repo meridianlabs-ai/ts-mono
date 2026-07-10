@@ -37,7 +37,9 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           </CardBody>
         </Card>
 
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanModelUsage is parsed from an arrow column; may be null at runtime despite the declared type */}
         {resultData?.scanModelUsage &&
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanModelUsage is parsed from an arrow column; may be null at runtime despite the declared type
           Object.keys(resultData?.scanModelUsage).length > 0 && (
             <Card>
               <CardHeader label="Model Usage" type="modern" />
@@ -46,13 +48,16 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
               </CardBody>
             </Card>
           )}
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanMetadata is parsed from an arrow column; may be null at runtime despite the declared type */}
         {resultData?.scanMetadata &&
           Object.keys(resultData.scanMetadata).length > 0 && (
             <Card>
               <CardHeader label="Metadata" type="modern" />
               <CardBody>
                 <RecordTree
+                  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive optional chain on arrow-derived result data
                   id={`scan-metadata-${resultData?.identifier}`}
+                  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanMetadata is parsed from an arrow column; may be null at runtime despite the declared type
                   record={resultData?.scanMetadata || {}}
                   copyButton={true}
                 />
@@ -69,8 +74,8 @@ export const ScannerInfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
     <div className={clsx("text-size-small")}>
       <div className={clsx(styles.scanInfo)}>
         <LabeledValue label="Name">{resultData?.scannerName}</LabeledValue>
-        {resultData?.scannerFile && resultData.scannerFile !== null && (
-          <LabeledValue label="File">{resultData?.scannerFile}</LabeledValue>
+        {resultData?.scannerFile && (
+          <LabeledValue label="File">{resultData.scannerFile}</LabeledValue>
         )}
         {(resultData?.scanTotalTokens || 0) > 0 && (
           <LabeledValue label="Tokens">
@@ -82,15 +87,15 @@ export const ScannerInfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
       </div>
       {resultData?.scanTags && resultData.scanTags.length > 0 && (
         <LabeledValue label="Tags">
-          {(resultData?.scanTags || []).join(", ")}
+          {resultData.scanTags.join(", ")}
         </LabeledValue>
       )}
       {resultData?.scannerParams &&
         Object.keys(resultData.scannerParams).length > 0 && (
           <LabeledValue label="Params">
             <RecordTree
-              id={`scanner-params-${resultData?.identifier}`}
-              record={resultData?.scannerParams}
+              id={`scanner-params-${resultData.identifier}`}
+              record={resultData.scannerParams}
             />
           </LabeledValue>
         )}

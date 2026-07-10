@@ -9,6 +9,7 @@ import { useStore } from "../../state/store";
 export const useFilterConditions = (excludeColumnId?: string) => {
   // The applied filters
   const columnFilters =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted zustand table state from older app versions may lack columnFilters
     useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
 
   // Get conditions, optionally excluding a specific column

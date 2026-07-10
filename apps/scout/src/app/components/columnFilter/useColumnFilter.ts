@@ -105,7 +105,7 @@ const OPERATORS_WITH_RANGE_VALUE = new Set<OperatorModel>([
  * Formats a single scalar value for display in an input field.
  */
 const formatScalarValue = (
-  value: ScalarValue,
+  value: ScalarValue | undefined,
   filterType?: FilterType
 ): string => {
   if (value === null || value === undefined) {

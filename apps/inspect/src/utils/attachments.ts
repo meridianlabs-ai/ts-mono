@@ -21,6 +21,7 @@ export const resolveAttachments = <T>(
     });
 
     // Only return the new array if something actually changed
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hasChanged is set inside the map callback; the rule's narrowing cannot see the closure write
     return hasChanged ? (resolvedArray as unknown as T) : value;
   }
 

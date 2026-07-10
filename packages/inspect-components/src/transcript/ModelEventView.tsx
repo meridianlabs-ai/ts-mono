@@ -62,11 +62,14 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const isCancelled = isCancelError(event.error);
   const isFailed = !!event.error && !isCancelled;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
   const totalUsage = event.output?.usage?.total_tokens;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
   const callTime = event.output?.time;
 
   // Note: despite the type system saying otherwise, this has appeared empirically
   // to sometimes be undefined
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output/choices are required in the generated type but absent in logs for errored model calls
   const outputMessages = event.output?.choices?.map((choice) => {
     return choice.message;
   });
@@ -77,6 +80,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   // Stop reason / refusal detail for the (primary) generated choice. `category`
   // and `explanation` are only present on a refusal/content-filter stop. Skip the
   // panel for a plain "stop" with no details — otherwise it shows on every call.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output/choices are required in the generated type but absent in logs for errored model calls
   const firstChoice = event.output?.choices?.[0];
   const stopDetails = firstChoice?.stop_details;
   const showStopReason =
@@ -133,8 +137,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     // "no visible content".
     const outputs =
       event.pending || isCancelled
-        ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
-        : outputMessages || [];
+        ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- outputMessages is undefined when output is absent (errored model calls)
+          (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+        : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- outputMessages is undefined when output is absent (errored model calls)
+          outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
@@ -163,6 +169,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
       : formatTitle(panelTitle, totalUsage, callTime);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
   const fallback = event.output?.fallback;
   const fallbackBadge = fallback ? (
     <span className={styles.fallbackBadge}>
@@ -283,7 +290,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       <div data-name="Messages" className={styles.container}>
         <ChatView
           id={`${eventNode.id}-model-input-full`}
-          messages={[...event.input, ...(outputMessages || [])]}
+          messages={
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- outputMessages is undefined when output is absent (errored model calls)
+            [...event.input, ...(outputMessages || [])]
+          }
           tools={{
             collapseToolMessages: context?.hasToolEvents !== false,
           }}
@@ -324,10 +334,12 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for values with no JSON representation, despite lib.es5 typing it string
     return JSON.stringify(call.request, undefined, 2) ?? "";
   }, [call.request]);
 
   const responseCode = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for values with no JSON representation, despite lib.es5 typing it string
     return JSON.stringify(call.response, undefined, 2) ?? "";
   }, [call.response]);
 

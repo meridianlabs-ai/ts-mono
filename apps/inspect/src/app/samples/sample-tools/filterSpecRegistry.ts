@@ -84,6 +84,7 @@ export const buildSampleFilterSpecRegistry = (
       const scoreType = evalDescriptor.scoreDescriptor({
         name,
         scorer,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scoreDescriptor is an unchecked map lookup; scores whose values defy categorization have no descriptor despite the declared return type
       })?.scoreType;
       // Only sync score column filters where the column's text/number
       // filter operates on values that match the runtime filtrex

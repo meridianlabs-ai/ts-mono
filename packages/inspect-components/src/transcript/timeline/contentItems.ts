@@ -148,6 +148,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output/choices are required in the generated type but absent in logs for errored model calls
       const outMsg = event.output?.choices?.[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;
@@ -165,6 +166,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     const item = items[i];
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
     if (event.event === "model" && event.input) {
       const input = event.input as Array<Record<string, unknown>>;
       for (const msg of input) {

@@ -80,9 +80,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // Folders at the root are distinct scopes, so toggling between them
   // restores each side's state instead of clearing. Folder drill-down is
   // a different scope (different dir), so each folder also remembers its
-  // own state. `undefined` until logDir hydrates so we never write under
-  // a half-initialized scope.
-  const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
+  // own state.
+  const scopeKey = `${mode}::${currentDir}`;
 
   const flowData = useFlowQuery(logPath || "").data;
 
@@ -323,7 +322,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     for (const item of logItems) {
       if (item.type === "file" || item.type === "pending-task") {
         total += 1;
-        if (item.type === "pending-task" || item.log?.status === "started") {
+        if (item.type === "pending-task" || item.log.status === "started") {
           pending += 1;
         }
       }

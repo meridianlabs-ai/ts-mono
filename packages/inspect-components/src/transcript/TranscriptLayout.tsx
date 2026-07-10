@@ -242,6 +242,7 @@ const buildToolLabels = (
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent in logs
       for (const message of event.input ?? []) {
         if (message.role !== "tool" || !message.id) continue;
         const label = messageLabels[message.id];
@@ -268,10 +269,13 @@ const scopeMessageLabels = (
   const present = new Set<string>();
   for (const event of events) {
     if (event.event === "model") {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent in logs
       for (const message of event.input ?? []) {
         if (message.id) present.add(message.id);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
       for (const choice of event.output?.choices ?? []) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- message is required in the generated type but can be absent in logs
         if (choice.message?.id) present.add(choice.message.id);
       }
     } else if (event.event === "tool" && event.message_id) {
@@ -817,6 +821,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     }
     if (bulkCollapse === "expand") {
       onSetTranscriptCollapsed({});
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- explicit check of the only remaining variant, kept in case bulkCollapse grows new modes
     } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
@@ -830,6 +835,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- TS narrows collapseState through the aliased guard above; optional chain kept
       if (!collapseState?.transcript) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
@@ -854,6 +860,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- TS narrows collapseState through the aliased guard above; optional chain kept
       const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);

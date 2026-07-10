@@ -230,6 +230,7 @@ const maybeCodeExecution = (
   }
   try {
     const parsed = JSON.parse(content.result) as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.parse can return null despite the cast
     if (typeof parsed !== "object" || parsed === null) {
       return undefined;
     }
@@ -273,6 +274,7 @@ const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
     return {};
   } else if (typeof content.arguments === "object") {
     return content.arguments;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments is typed as string but serialized logs can carry other values
   } else if (content.arguments) {
     return { arguments: content.arguments };
   } else {
@@ -297,6 +299,7 @@ const argsSummary = (args: Record<string, unknown>): string => {
 };
 
 const hasResultContent = (result: ContentToolUse["result"]): boolean => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- result is typed as string but can be null/absent in serialized logs
   if (result === null || result === undefined) return false;
   if (typeof result === "string") return result.trim().length > 0;
   return true;

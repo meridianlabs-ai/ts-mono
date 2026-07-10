@@ -50,10 +50,12 @@ export const liftEvalView = (
   return {
     name: wire.name,
     columns: wire.columns
-      ? wire.columns.map((c) => ({ id: c.id, visible: c.visible ?? true }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- visible is required in the generated wire type but can be absent in views from writers that predate its server-side default
+        wire.columns.map((c) => ({ id: c.id, visible: c.visible ?? true }))
       : fallback.columns,
     sort: wire.sort
-      ? wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dir is required in the generated wire type but can be absent in views from writers that predate its server-side default
+        wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
       : fallback.sort,
     filters: { dsl: "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,
@@ -104,7 +106,12 @@ export const pickActiveView = (
  * stale `true` lifted from a previous eval.
  */
 export const resolveSamplesView = (
-  stored: SamplesViewState | undefined,
+  // Persisted slots written before `userOverrides` landed lack the field,
+  // so accept it as absent here even though the runtime type requires it.
+  stored:
+    | (Omit<SamplesViewState, "userOverrides"> &
+        Partial<Pick<SamplesViewState, "userOverrides">>)
+    | undefined,
   evalDefault: TaskSamplesView | undefined | null
 ): SamplesViewState => {
   if (!stored) return liftEvalView(evalDefault);
@@ -112,6 +119,7 @@ export const resolveSamplesView = (
   const overrides = stored.userOverrides ?? {};
   return {
     ...stored,
+    userOverrides: overrides,
     multiline: overrides.multiline ?? lifted.multiline,
     compactScores: overrides.compactScores ?? lifted.compactScores,
     colorScalesEnabled:

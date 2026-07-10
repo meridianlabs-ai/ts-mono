@@ -40,14 +40,15 @@ interface CanonicalNameCompletionProps {
   autoSpaceIf?: (item: SampleFilterItem) => boolean;
 }
 
-const isLiteral = (token: Token): boolean =>
-  ["string", "unterminatedString", "number"].includes(token?.type);
+const isLiteral = (token: Token | undefined): boolean =>
+  token !== undefined &&
+  ["string", "unterminatedString", "number"].includes(token.type);
 
-const isLogicalOp = (token: Token): boolean =>
-  ["and", "or", "not"].includes(token?.text);
+const isLogicalOp = (token: Token | undefined): boolean =>
+  token !== undefined && ["and", "or", "not"].includes(token.text);
 
 const autocompleteImmediatelyAfter = (token: Token): boolean =>
-  ["(", "."].includes(token?.text);
+  ["(", "."].includes(token.text);
 
 const applyWithCall = (
   view: EditorView,
@@ -160,7 +161,7 @@ const getMemberScoreItems = (
   filterItems: SampleFilterItem[],
   scorer: string
 ): SampleFilterItem[] =>
-  filterItems.filter((item) => item?.qualifiedName?.startsWith(`${scorer}.`));
+  filterItems.filter((item) => item.qualifiedName?.startsWith(`${scorer}.`));
 
 const getSampleIds = (samples: SampleSummary[]): Set<string | number> => {
   const ids = new Set<string | number>();
@@ -448,21 +449,23 @@ export function getCompletions(
     ? tokens.length - 1
     : tokens.length;
 
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const prevToken = (index: number): Token => tokens[currentTokenIndex - index];
+  const prevToken = (index: number): Token | undefined =>
+    tokens[currentTokenIndex - index];
   const currentToken = prevToken(0);
   const completionStart = currentToken ? currentToken.from : context.pos;
   const completingAtEnd = context.pos === doc.length;
 
   const findFilterItem = (endIndex: number): SampleFilterItem | undefined => {
-    if (prevToken(endIndex)?.type !== "variable") return undefined;
+    const endToken = prevToken(endIndex);
+    if (endToken?.type !== "variable") return undefined;
 
-    let name = prevToken(endIndex).text;
+    let name = endToken.text;
     let i = endIndex;
 
     while (prevToken(i + 1)?.text === ".") {
-      if (prevToken(i + 2)?.type === "variable") {
-        name = `${prevToken(i + 2).text}.${name}`;
+      const scorerToken = prevToken(i + 2);
+      if (scorerToken?.type === "variable") {
+        name = `${scorerToken.text}.${name}`;
         i += 2;
       } else {
         break;
@@ -748,6 +751,7 @@ export function getCompletions(
     // Epoch value completions (suggest actual epoch numbers from loaded samples)
     if (varName === "epoch" && samples) {
       const epochValues = Array.from(
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- epoch is required in SampleSummary but can be absent in summaries from older log writers
         new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined))
       ).sort((a, b) => a - b);
       const epochCompletions = epochValues.map((e) =>
@@ -759,7 +763,7 @@ export function getCompletions(
     }
 
     const item = findFilterItem(2);
-    if (item?.categories?.length) {
+    if (item?.categories.length) {
       return rhsCompletions(item.categories);
     }
     return variableCompletions();

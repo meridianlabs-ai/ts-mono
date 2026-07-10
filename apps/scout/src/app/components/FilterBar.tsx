@@ -142,7 +142,9 @@ export const FilterBar: FC<FilterBarProps> = ({
       </div>
       <ChipGroup className={styles.filterBar}>
         {filterEntries.length > 0
-          ? filterEntries.map((filter) => {
+          ? // Filters are rehydrated from persisted storage, so entries may
+            // be missing despite the declared type
+            filterEntries.map((filter: ColumnFilter | undefined) => {
               if (!filter || !filter.condition) {
                 return null;
               }

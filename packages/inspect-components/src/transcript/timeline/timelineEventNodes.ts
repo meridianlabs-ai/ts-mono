@@ -457,7 +457,7 @@ function collectFromContent(
       // already shown on the AgentCard, so don't duplicate them inline.
       if (item.event.event === "model" && pendingToolCallIds.size > 0) {
         const modelEvent = item.event;
-        if (modelEvent.input && Array.isArray(modelEvent.input)) {
+        if (Array.isArray(modelEvent.input)) {
           const filteredInput = (
             modelEvent.input as Array<Record<string, unknown>>
           ).filter(
@@ -673,11 +673,11 @@ function buildPath(rows: SwimlaneRow[], selectedKey: string): PathSegment[] {
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const keys: string[] = [selectedKey];
   let k = selectedKey;
-  while (true) {
-    const parent = getParentKeyFromBranch(k);
-    if (!parent || !byKey.has(parent)) break;
+  let parent = getParentKeyFromBranch(k);
+  while (parent && byKey.has(parent)) {
     keys.unshift(parent);
     k = parent;
+    parent = getParentKeyFromBranch(k);
   }
   const segs: PathSegment[] = [];
   for (let i = 0; i < keys.length; i++) {

@@ -33,7 +33,7 @@ export function buildSearchIndex<TRow>(
       let text: string | null = null;
       if (column.textValue) {
         text = column.textValue(row);
-      } else if ("accessorFn" in column && column.accessorFn) {
+      } else if ("accessorFn" in column) {
         text = primitiveText(column.accessorFn(row, 0));
       }
       if (text) parts.push(text);

@@ -87,10 +87,7 @@ const resolveSample = (
   }
 
   const target = sample.target;
-  const answer =
-    sample && sampleDescriptor
-      ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
-      : undefined;
+  const answer = sampleDescriptor.selectedScorerDescriptor(sample)?.answer();
   const limit = isEvalSample(sample) ? sample.limit?.type : undefined;
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
@@ -168,6 +165,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
   const visibleScores =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the score selection is rehydrated from persisted storage and can be unset despite the declared type
     selectedScores?.filter((scoreLabel) => {
       const rendered = sampleDescriptor.evalDescriptor
         .score(sample, scoreLabel)
@@ -224,11 +222,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   if (fields.limit) {
     metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
   }
-  if (
-    fields.retries !== undefined &&
-    fields.retries !== null &&
-    fields.retries > 0
-  ) {
+  if (fields.retries !== undefined && fields.retries > 0) {
     metaItems.push({ key: "retries", content: `Retries: ${fields.retries}` });
   }
   if (fields.cancelled) {

@@ -54,6 +54,7 @@ const messageToStr = (
       const funcName = tool.function;
       const args = tool.arguments;
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments comes from serialized logs, where it can be null despite the declared type
       if (typeof args === "object" && args !== null) {
         const argsText = Object.entries(args)
           .map(([k, v]) => `${k}: ${String(v)}`)

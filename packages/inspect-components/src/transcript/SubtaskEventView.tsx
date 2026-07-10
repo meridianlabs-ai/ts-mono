@@ -81,6 +81,7 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
       <div className={clsx("text-style-label", "text-size-small")}>Input</div>
       <div className={clsx("text-size-large", styles.subtaskLabel)}></div>
       <div className={clsx("text-style-label", "text-size-small")}>Output</div>
+      {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input comes from serialized logs, where it can be absent despite the declared type */}
       {input ? <Rendered values={input} /> : undefined}
       <div className={clsx("text-size-title-secondary", styles.subtaskLabel)}>
         <i className={kArrowRightIcon} />

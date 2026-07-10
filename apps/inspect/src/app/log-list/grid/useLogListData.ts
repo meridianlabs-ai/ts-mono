@@ -40,7 +40,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
 
   // Compute duration in seconds
   let duration: number | undefined;
-  if (details?.stats?.started_at && details?.stats?.completed_at) {
+  if (details?.stats?.started_at && details.stats.completed_at) {
     const start = new Date(details.stats.started_at).getTime();
     const end = new Date(details.stats.completed_at).getTime();
     if (start && end && end > start) {
@@ -52,6 +52,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // actually supplied at the call site) over `task_args` (which
   // would also include defaulted values).
   const taskArgsSource =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
     details?.eval?.task_args_passed ?? details?.eval?.task_args;
   let taskArgs: string | undefined;
   if (taskArgsSource) {
@@ -106,9 +107,11 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
     path: item.type === "file" ? item.name : undefined,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
     sandbox: details?.eval?.sandbox?.type,
     totalTokens,
     duration,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
     taskFile: details?.eval?.task_file ?? undefined,
     taskArgs,
     taskArgsRaw: taskArgsSource ?? undefined,
@@ -126,6 +129,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // same column since the underlying computation is identical.
   if (details?.results?.scores) {
     for (const evalScore of details.results.scores) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in older logs
       if (evalScore.metrics) {
         for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
           row[`score_${evalScore.name}/${metricName}`] = metric.value;

@@ -72,6 +72,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "system" ||
     message.role === "user" ||
     message.role === "assistant" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- role comes from logs; other writers can carry roles outside the generated union
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
@@ -80,12 +81,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // → markdown. Raw mode keeps the original message content.
   let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
   let toolMarkdown: string | undefined;
-  if (
-    displayMode === "rendered" &&
-    isNonSubagentTool &&
-    message.role === "tool" &&
-    message.function
-  ) {
+  if (displayMode === "rendered" && isNonSubagentTool && message.function) {
     if (message.function === "tool_search") {
       toolSearchNamespaces = parseToolSearchCatalog(message.content);
     } else {

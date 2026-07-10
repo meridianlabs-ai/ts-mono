@@ -209,6 +209,7 @@ export function DataGrid<
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- column order comes from persisted table state; older snapshots can lack it
     if (columnOrder && columnOrder.length > 0) {
       return columnOrder;
     }

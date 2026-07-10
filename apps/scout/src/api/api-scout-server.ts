@@ -182,7 +182,7 @@ export const apiScoutServer = (
     getTranscriptsColumnValues: async (
       transcriptsDir: string,
       column: string,
-      filter: Condition
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const result = await requestApi.fetchString(
         "POST",
@@ -280,6 +280,7 @@ export const apiScoutServer = (
             parsed.input_data
           ),
         },
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server sends SQL NULL scan_events when the scan recorded no events
         scanEvents: parsed.scan_events ?? [],
       };
     },

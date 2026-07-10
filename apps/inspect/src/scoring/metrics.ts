@@ -18,8 +18,11 @@ export const metricDisplayName = (metric: MetricSummary): string => {
 };
 
 export const firstMetric = (results: EvalResults) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
   const scores = results.scores || [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
   const firstScore = scores.length > 0 ? results.scores?.[0] : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in logs from older writers
   if (firstScore === undefined || firstScore.metrics === undefined) {
     return undefined;
   }

@@ -272,7 +272,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             : undefined
         )}
       >
-        {filteredArrChildren?.map((child, index) => {
+        {filteredArrChildren.map((child, index) => {
           const id = pillId(index);
           const isSelected = id === selectedNav;
 
@@ -285,7 +285,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             <div
               key={`children-${id}-${index}`}
               id={id}
-              className={clsx("tab-pane", "show", isSelected ? "active" : "")}
+              className={clsx("tab-pane", "show", "active")}
             >
               {child}
             </div>

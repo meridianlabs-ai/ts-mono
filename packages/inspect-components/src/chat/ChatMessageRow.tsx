@@ -121,7 +121,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     resolvedMessage.message.tool_calls &&
     resolvedMessage.message.tool_calls.length
   ) {
-    const toolMessages = resolvedMessage.toolMessages || [];
+    const toolMessages = resolvedMessage.toolMessages;
     let idx = 0;
     for (const tool_call of resolvedMessage.message.tool_calls) {
       // Extract tool input

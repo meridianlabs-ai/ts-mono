@@ -79,6 +79,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server summary JSON may omit validation entries despite the generated type
     (name) => (summary.scanners[name]?.validation?.entries?.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
@@ -91,6 +92,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const scanner = summary.scanners[name];
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server model usage JSON may omit total_tokens despite the generated type
           (sum, usage) => sum + (usage.total_tokens ?? 0),
           0
         )
@@ -301,7 +303,7 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
           text="Scan not found"
         />
       )}
-      {scanInfo && !error && <ActiveScanCard info={scanInfo} />}
+      {scanInfo && <ActiveScanCard info={scanInfo} />}
     </div>
   );
 };

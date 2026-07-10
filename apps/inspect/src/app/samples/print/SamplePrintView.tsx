@@ -120,6 +120,7 @@ export const SamplePrintView: FC = () => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- messages is required in the generated type but can be absent in logs from older writers
   const sampleMessages = sample.messages || [];
 
   return (
@@ -194,6 +195,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
     if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metadata is required in the generated type but can be absent in logs from older writers
       sample.invalidation.metadata &&
       Object.keys(sample.invalidation.metadata).length > 0
     ) {
@@ -209,6 +211,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- model_usage is required in the generated type but can be absent in logs from older writers
   if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
@@ -241,23 +244,23 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key="print-metadata">
         <CardHeader label="Metadata" />
         <CardBody>
-          <MetaDataGrid entries={sample?.metadata} />
+          <MetaDataGrid entries={sample.metadata} />
         </CardBody>
       </Card>
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key="print-store">
         <CardHeader label="Store" />
         <CardBody>
-          <MetaDataGrid entries={sample?.store} />
+          <MetaDataGrid entries={sample.store} />
         </CardBody>
       </Card>
     );

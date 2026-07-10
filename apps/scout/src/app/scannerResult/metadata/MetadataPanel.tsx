@@ -18,8 +18,7 @@ interface MetadataPanelProps {
 }
 
 export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
-  const hasMetadata =
-    resultData && Object.keys(resultData?.metadata).length > 0;
+  const hasMetadata = resultData && Object.keys(resultData.metadata).length > 0;
   return (
     resultData && (
       <div className={clsx(styles.container, "text-size-base")}>
@@ -30,7 +29,7 @@ export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
             <CardBody>
               <RecordTree
                 id={`result-metadata-${resultData.identifier}`}
-                record={resultData.metadata || {}}
+                record={resultData.metadata}
                 copyButton={true}
               />
             </CardBody>

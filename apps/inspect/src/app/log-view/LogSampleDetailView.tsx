@@ -50,7 +50,9 @@ export const LogSampleDetailView: FC = () => {
 
   // Use route params if available, otherwise fall back to state
   const logPath = routeLogPath || selectedLogFile;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handle is rehydrated from persisted storage, where id can be absent despite the type
   const sampleId = routeSampleId || selectedSampleHandle?.id?.toString();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handle is rehydrated from persisted storage, where epoch can be absent despite the type
   const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
 
   // Load the log and select the sample when route params change

@@ -49,6 +49,7 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   if (collapsed) {
     if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
     const sourceUri = resultData.transcriptSourceUri ?? "";
     let resolvedSourceUrl = sourceUri;
     if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
@@ -162,6 +163,7 @@ const transcriptHeadings = (
   if (!resultData) return [];
 
   // Source info
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arrow row value; SQL NULL surfaces as null at runtime despite the declared type
   const sourceUri = resultData.transcriptSourceUri ?? "";
   let resolvedSourceUrl = sourceUri;
   if (resolvedSourceUrl && resolvedSourceUrl.startsWith("/")) {
@@ -277,7 +279,7 @@ const messageHeadings = (
     headings.push({ label: "Model", value: message.model });
     headings.push({
       label: "Tool Calls",
-      value: ((message.tool_calls as []) || []).length,
+      value: (message.tool_calls || []).length,
     });
   } else {
     headings.push({ label: "Role", value: message.role });

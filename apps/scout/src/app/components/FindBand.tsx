@@ -116,6 +116,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.activeElement is null when nothing has focus despite the cast-derived type
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm]

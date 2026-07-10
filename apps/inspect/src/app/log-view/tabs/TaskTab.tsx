@@ -76,6 +76,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- type is a constant in the generated type but can be absent in logs from other writers
     const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
@@ -104,14 +105,14 @@ export const TaskTab: FC<TaskTabProps> = ({
   }
 
   if (evalSpec?.sandbox) {
-    if (Array.isArray(evalSpec?.sandbox)) {
+    if (Array.isArray(evalSpec.sandbox)) {
       taskInformation["sandbox"] = evalSpec.sandbox[0];
       if (evalSpec.sandbox[1]) {
         taskInformation["sandbox_config"] = evalSpec.sandbox[1];
       }
     } else {
-      taskInformation["sandbox"] = evalSpec?.sandbox.type;
-      taskInformation["sandbox_config"] = evalSpec?.sandbox.config;
+      taskInformation["sandbox"] = evalSpec.sandbox.type;
+      taskInformation["sandbox_config"] = evalSpec.sandbox.config;
     }
   }
 

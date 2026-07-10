@@ -13,6 +13,7 @@ export default tseslint.config(
     },
     rules: {
       "import/no-duplicates": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
     },
     settings: {
       "import/resolver": {

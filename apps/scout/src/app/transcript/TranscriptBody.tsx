@@ -102,6 +102,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const messageParam = searchParams.get("message");
 
   // Selected tab — default to Events when the transcript has events
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript fields are required in the generated type but can be absent in serialized artifacts
   const hasEvents = transcript.events && transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
@@ -401,7 +402,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={"transcript-id"}
-              messages={transcript.messages || []}
+              messages={
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript fields are required in the generated type but can be absent in serialized artifacts
+                transcript.messages || []
+              }
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
@@ -488,6 +492,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript fields are required in the generated type but can be absent in serialized artifacts
   if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
@@ -504,7 +509,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            entries={transcript.metadata || {}}
+            entries={
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript fields are required in the generated type but can be absent in serialized artifacts
+              transcript.metadata || {}
+            }
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
@@ -569,6 +577,7 @@ const CopyToolbarButton: FC<{
     setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript is deserialized from disk and can be undefined at runtime despite the prop type
   if (!transcript) {
     return undefined;
   }
@@ -590,6 +599,7 @@ const CopyToolbarButton: FC<{
           }
         },
         Transcript: () => {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript fields are required in the generated type but can be absent in serialized artifacts
           if (transcript.messages) {
             void navigator.clipboard.writeText(
               messagesToStr(transcript.messages)

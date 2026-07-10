@@ -185,6 +185,7 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- deserialized transcript; events may be missing at runtime despite the generated type
     const eventRefs = (inputData.input.events || []).reduce<
       Record<string, () => ReactNode>
     >((acc, event) => {
@@ -196,6 +197,7 @@ const referenceTable = (
       return acc;
     }, {});
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- deserialized transcript; messages may be missing at runtime despite the generated type
     const messageRefs = (inputData.input.messages || []).reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {

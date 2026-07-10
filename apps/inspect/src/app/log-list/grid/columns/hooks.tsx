@@ -378,7 +378,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -394,7 +394,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -423,7 +423,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -443,7 +443,7 @@ export const useLogListColumns = (
           row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatTime(value)}</div>;
@@ -507,7 +507,7 @@ export const useLogListColumns = (
             : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatPrettyDecimal(value)}%</div>;
@@ -523,7 +523,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;

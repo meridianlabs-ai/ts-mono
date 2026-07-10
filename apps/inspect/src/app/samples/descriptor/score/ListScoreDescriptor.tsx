@@ -15,6 +15,7 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
       );
     },
     render: (score) => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- score values come from eval logs and can be null despite the declared ScoreValue type
       if (score === null || score === undefined) {
         return "[null]";
       }
@@ -27,6 +28,7 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
           );
         }
         const formattedValue =
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the `[]` cast types elements as never; runtime list entries come from log score values and can be nullish
           value && isNumeric(value)
             ? formatPrettyDecimal(
                 typeof value === "number"

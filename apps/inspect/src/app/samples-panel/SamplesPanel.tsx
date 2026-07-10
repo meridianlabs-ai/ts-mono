@@ -325,6 +325,7 @@ export const SamplesPanel: FC = () => {
       ({ logFile, summary: sample, log }) => {
         const tokens = sample.model_usage
           ? Object.values(sample.model_usage).reduce(
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- total_tokens is required in the generated ModelUsage type but can be absent in logs from older writers
               (sum, u) => sum + (u.total_tokens ?? 0),
               0
             )

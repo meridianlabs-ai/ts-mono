@@ -265,8 +265,10 @@ function matchEvent(
     if (!uuid) return matches;
 
     // Priority 1: ModelEvent output
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for errored model calls
     if (event.output?.choices) {
       for (const choice of event.output.choices) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- message is required in the generated type but can be absent in serialized logs
         if (choice.message?.id === messageId) {
           matches.push({
             priority: PRIORITY_MODEL_OUTPUT,
@@ -280,6 +282,7 @@ function matchEvent(
     // Priority 2: Agent card result via bridge flow
     // Priority 3.5: Tool call bridge — tool-role message whose tool_call_id
     // matches a sibling ToolEvent's id. Redirects to the ToolEvent.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
     if (event.input) {
       for (const msg of event.input) {
         if (msg.role === "tool" && msg.id === messageId) {
@@ -313,6 +316,7 @@ function matchEvent(
     }
 
     // Priority 4: ModelEvent input
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
     if (event.input) {
       for (const msg of event.input) {
         if (msg.id === messageId) {

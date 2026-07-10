@@ -31,7 +31,8 @@ export interface ScanResultSummary {
   messageReferences: ScanResultReference[];
 
   // Validation
-  validationResult: boolean | Record<string, boolean>;
+  // null/undefined when the row has no validation data in the arrow table
+  validationResult?: boolean | Record<string, boolean> | null;
   validationTarget: JsonValue;
 
   // Value
@@ -39,7 +40,8 @@ export interface ScanResultSummary {
   valueType: ScanResultValueType;
 
   // Scan metadata
-  scanError?: string;
+  // scanError comes from arrow row data where SQL NULL surfaces as null
+  scanError?: string | null;
   scanErrorRefusal?: boolean;
 
   // Transcript info
@@ -56,7 +58,7 @@ export interface ScanResultData extends ScanResultSummary {
   answer?: string;
   inputIds: string[];
   metadata: Record<string, JsonValue>;
-  scanError?: string;
+  scanError?: string | null;
   scanErrorTraceback?: string;
   scanErrorRefusal?: boolean;
   scanEvents?: Event[];

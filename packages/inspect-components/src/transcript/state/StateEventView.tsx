@@ -125,10 +125,7 @@ const generatePreview = (
         const op = change.op;
         switch (op) {
           case "add":
-            if (
-              changeType.signature.add &&
-              changeType.signature.add.length > 0
-            ) {
+            if (changeType.signature.add.length > 0) {
               changeType.signature.add.forEach((signature) => {
                 if (change.path.match(signature)) {
                   matchingOps++;
@@ -137,10 +134,7 @@ const generatePreview = (
             }
             break;
           case "remove":
-            if (
-              changeType.signature.remove &&
-              changeType.signature.remove.length > 0
-            ) {
+            if (changeType.signature.remove.length > 0) {
               changeType.signature.remove.forEach((signature) => {
                 if (change.path.match(signature)) {
                   matchingOps++;
@@ -149,10 +143,7 @@ const generatePreview = (
             }
             break;
           case "replace":
-            if (
-              changeType.signature.replace &&
-              changeType.signature.replace.length > 0
-            ) {
+            if (changeType.signature.replace.length > 0) {
               changeType.signature.replace.forEach((signature) => {
                 if (change.path.match(signature)) {
                   matchingOps++;
