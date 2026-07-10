@@ -12,7 +12,7 @@ import { MarkdownReference } from "@tsmono/react/components";
 
 import { scanResultRoute } from "../../router/url";
 import { useStore } from "../../state/store";
-import { ScannerInput } from "../../types/api-types";
+import { ScannerInput, Transcript } from "../../types/api-types";
 import { useScanRoute } from "../hooks/useScanRoute";
 import {
   isEventInput,
@@ -185,7 +185,13 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
-    const eventRefs = inputData.input.events.reduce<
+    // Transcripts are deserialized artifacts; events/messages may be missing
+    // despite the generated type
+    const events = inputData.input.events as Transcript["events"] | undefined;
+    const messages = inputData.input.messages as
+      | Transcript["messages"]
+      | undefined;
+    const eventRefs = (events || []).reduce<
       Record<string, () => ReactNode>
     >((acc, event) => {
       if (event.uuid) {
@@ -196,7 +202,7 @@ const referenceTable = (
       return acc;
     }, {});
 
-    const messageRefs = inputData.input.messages.reduce<
+    const messageRefs = (messages || []).reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {
       if (msg.id) {

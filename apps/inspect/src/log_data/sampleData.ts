@@ -37,7 +37,11 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   status: "ok",
   error: undefined,
   running: kNoRunningEvents,
-  eventsCleared: sample.events.length === 0 && sample.messages.length > 0,
+  // Samples are read from serialized logs; older logs can omit `messages`
+  // despite the generated type.
+  eventsCleared:
+    sample.events.length === 0 &&
+    ((sample.messages as EvalSample["messages"] | undefined)?.length ?? 0) > 0,
   backfilling: false,
 });
 

@@ -134,7 +134,11 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
-  const scanners = status.summary.scanners;
+  // Status is deserialized from disk; fields the schema marks required can
+  // still be missing at runtime
+  const scanners =
+    (status.summary.scanners as Status["summary"]["scanners"] | undefined) ||
+    {};
   for (const scanner of Object.keys(scanners)) {
     // The summary
     const summary = scanners[scanner];
@@ -144,7 +148,8 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
-      const params = scanInfo.params;
+      const params =
+        (scanInfo.params as (typeof scanInfo)["params"] | undefined) || {};
       for (const [key, value] of Object.entries(params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
       }
@@ -193,18 +198,23 @@ const resolveValidations = (
   const m = validation.metrics;
   const result: Record<string, number> = {};
 
-  // Add metrics in display order: accuracy, precision, recall, f1
-  if (m.accuracy !== null) {
-    result["accuracy"] = m.accuracy;
+  // Add metrics in display order: accuracy, precision, recall, f1.
+  // Metrics are deserialized from disk, so fields may be missing at runtime.
+  const accuracy = m.accuracy as number | null | undefined;
+  if (accuracy !== null && accuracy !== undefined) {
+    result["accuracy"] = accuracy;
   }
-  if (m.precision !== null) {
-    result["precision"] = m.precision;
+  const precision = m.precision as number | null | undefined;
+  if (precision !== null && precision !== undefined) {
+    result["precision"] = precision;
   }
-  if (m.recall !== null) {
-    result["recall"] = m.recall;
+  const recall = m.recall as number | null | undefined;
+  if (recall !== null && recall !== undefined) {
+    result["recall"] = recall;
   }
-  if (m.f1 !== null) {
-    result["f1"] = m.f1;
+  const f1 = m.f1 as number | null | undefined;
+  if (f1 !== null && f1 !== undefined) {
+    result["f1"] = f1;
   }
 
   // Return undefined if we couldn't extract any metrics
