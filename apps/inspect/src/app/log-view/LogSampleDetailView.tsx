@@ -56,8 +56,8 @@ export const LogSampleDetailView: FC = () => {
 
   // Use route params if available, otherwise fall back to state
   const logPath = routeLogPath || selectedLogFile;
-  const sampleId = routeSampleId || selectedSampleHandle?.id?.toString();
-  const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
+  const sampleId = routeSampleId || selectedSampleHandle?.id.toString();
+  const epoch = routeEpoch || selectedSampleHandle?.epoch.toString();
 
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)

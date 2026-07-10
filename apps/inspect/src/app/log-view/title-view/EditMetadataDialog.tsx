@@ -307,7 +307,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const inFlightRef = useRef(false);
 
   const handleSave = async () => {
-    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+    if (!canSave || inFlightRef.current || !api.edit_log) return;
     inFlightRef.current = true;
     // Don't clear `error` here — see EditTagsDialog for the no-flash
     // rationale. Delayed "Saving…" indicator likewise.

@@ -68,11 +68,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.function !== "task" &&
     message.function !== "Agent" &&
     message.function !== "agent";
-  const collapse =
-    message.role === "system" ||
-    message.role === "user" ||
-    message.role === "assistant" ||
-    message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
   // Codex tool results get friendlier rendering in rendered mode:

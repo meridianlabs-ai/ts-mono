@@ -75,7 +75,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: ScoreLabel
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer.scorer];
       if (sampleScore && sampleScore.answer) {
         return sampleScore.answer;
@@ -89,7 +89,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.explanation) {
         return sampleScore.explanation;
@@ -103,7 +103,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): Record<string, unknown> | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.metadata) {
         return sampleScore.metadata;
@@ -119,11 +119,6 @@ export const createEvalDescriptor = (
         samples
           .filter((sample) => !!sample.scores)
           .filter((sample) => {
-            // There is no selected scorer, so include this value
-            if (!scoreLabel) {
-              return true;
-            }
-
             // There are no scores, so exclude this
             if (!sample.scores) {
               return false;

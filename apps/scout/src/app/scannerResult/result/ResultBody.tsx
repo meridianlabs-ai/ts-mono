@@ -95,7 +95,7 @@ const InputRenderer: FC<InputRendererProps> = ({
   onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
-    if (inputData.input.messages && inputData.input.messages.length > 0) {
+    if (inputData.input.messages.length > 0) {
       const labels = resultData?.messageReferences.reduce((acc, ref) => {
         if (ref.cite) {
           acc[ref.id] = ref.cite;
@@ -105,7 +105,7 @@ const InputRenderer: FC<InputRendererProps> = ({
 
       return (
         <ChatViewVirtualList
-          messages={inputData.input.messages || []}
+          messages={inputData.input.messages}
           id={"scan-input-virtual-list"}
           display={{ indented: true }}
           className={className}
