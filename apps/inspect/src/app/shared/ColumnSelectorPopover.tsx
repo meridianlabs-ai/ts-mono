@@ -84,7 +84,7 @@ export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
   // Group columns by category - merge optional into base for this dialog.
   // When `splitScores` is false, all columns are shown as a single list.
   const columnGroups = useMemo(() => {
-    if (!splitScores) return { base: columns, scores: [] as PickerColumn[] };
+    if (!splitScores) return { base: columns, scores: [] };
     return {
       base: columns.filter((col) => !isScoreField(getFieldKey(col))),
       scores: columns.filter((col) => isScoreField(getFieldKey(col))),
