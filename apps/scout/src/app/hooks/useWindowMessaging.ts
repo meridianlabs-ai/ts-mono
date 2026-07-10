@@ -122,7 +122,9 @@ export const useWindowMessaging = (): void => {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
-      scansDir,
+      // App config is deserialized from the server; the dir may be missing
+      // at runtime despite the declared type
+      scansDir: (scansDir as string | null | undefined) ?? "",
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);
 
