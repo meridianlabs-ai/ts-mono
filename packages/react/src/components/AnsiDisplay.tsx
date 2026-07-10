@@ -154,85 +154,85 @@ const computeCSSProperties = (outputRun: ANSIOutputRun) => {
 const computeStyles = (styles: ANSIStyle[]) => {
   let cssProperties = {};
   styles.forEach((style) => {
-      switch (style) {
-        // Bold.
-        case ANSIStyle.Bold:
-          cssProperties = { ...cssProperties, ...{ fontWeight: "bold" } };
-          break;
+    switch (style) {
+      // Bold.
+      case ANSIStyle.Bold:
+        cssProperties = { ...cssProperties, ...{ fontWeight: "bold" } };
+        break;
 
-        // Dim.
-        case ANSIStyle.Dim:
-          cssProperties = { ...cssProperties, ...{ fontWeight: "lighter" } };
-          break;
+      // Dim.
+      case ANSIStyle.Dim:
+        cssProperties = { ...cssProperties, ...{ fontWeight: "lighter" } };
+        break;
 
-        // Italic.
-        case ANSIStyle.Italic:
-          cssProperties = { ...cssProperties, ...{ fontStyle: "italic" } };
-          break;
+      // Italic.
+      case ANSIStyle.Italic:
+        cssProperties = { ...cssProperties, ...{ fontStyle: "italic" } };
+        break;
 
-        // Underlined.
-        case ANSIStyle.Underlined:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "underline",
-              textDecorationStyle: "solid",
-            },
-          };
-          break;
+      // Underlined.
+      case ANSIStyle.Underlined:
+        cssProperties = {
+          ...cssProperties,
+          ...{
+            textDecorationLine: "underline",
+            textDecorationStyle: "solid",
+          },
+        };
+        break;
 
-        // Slow blink.
-        case ANSIStyle.SlowBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 1s linear infinite" },
-          };
-          break;
+      // Slow blink.
+      case ANSIStyle.SlowBlink:
+        cssProperties = {
+          ...cssProperties,
+          ...{ animation: "ansi-display-run-blink 1s linear infinite" },
+        };
+        break;
 
-        // Rapid blink.
-        case ANSIStyle.RapidBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 0.5s linear infinite" },
-          };
-          break;
+      // Rapid blink.
+      case ANSIStyle.RapidBlink:
+        cssProperties = {
+          ...cssProperties,
+          ...{ animation: "ansi-display-run-blink 0.5s linear infinite" },
+        };
+        break;
 
-        // Hidden.
-        case ANSIStyle.Hidden:
-          cssProperties = { ...cssProperties, ...{ visibility: "hidden" } };
-          break;
+      // Hidden.
+      case ANSIStyle.Hidden:
+        cssProperties = { ...cssProperties, ...{ visibility: "hidden" } };
+        break;
 
-        // CrossedOut.
-        case ANSIStyle.CrossedOut:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "line-through",
-              textDecorationStyle: "solid",
-            },
-          };
-          break;
+      // CrossedOut.
+      case ANSIStyle.CrossedOut:
+        cssProperties = {
+          ...cssProperties,
+          ...{
+            textDecorationLine: "line-through",
+            textDecorationStyle: "solid",
+          },
+        };
+        break;
 
-        // TODO Fraktur
+      // TODO Fraktur
 
-        // DoubleUnderlined.
-        case ANSIStyle.DoubleUnderlined:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "underline",
-              textDecorationStyle: "double",
-            },
-          };
-          break;
+      // DoubleUnderlined.
+      case ANSIStyle.DoubleUnderlined:
+        cssProperties = {
+          ...cssProperties,
+          ...{
+            textDecorationLine: "underline",
+            textDecorationStyle: "double",
+          },
+        };
+        break;
 
-        // TODO Framed
-        // TODO Encircled
-        // TODO Overlined
-        // TODO Superscript
-        // TODO Subscript
-      }
-    });
+      // TODO Framed
+      // TODO Encircled
+      // TODO Overlined
+      // TODO Superscript
+      // TODO Subscript
+    }
+  });
 
   return cssProperties;
 };

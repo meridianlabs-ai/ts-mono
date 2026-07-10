@@ -259,7 +259,8 @@ function createEvent(data: JsonEvent): Event | null {
       return {
         ...baseFields,
         event: "compaction",
-        type: (data.type as "summary" | "edit" | "trim") ?? "summary",
+        type:
+          (data.type as "summary" | "edit" | "trim" | undefined) ?? "summary",
         span_id: data.span_id ?? null,
         source: null,
         tokens_before: null,
@@ -356,10 +357,8 @@ function assertScoringSpanMatches(
   expect(scorerSpans.length).toBe(1);
   const scoring = scorerSpans[0]!;
 
-  if (expected.event_uuids !== undefined) {
-    const actualUuids = getDirectEventUuids(scoring);
-    expect(actualUuids).toEqual(expected.event_uuids);
-  }
+  const actualUuids = getDirectEventUuids(scoring);
+  expect(actualUuids).toEqual(expected.event_uuids);
 }
 
 function assertSpanMatches(
@@ -374,10 +373,7 @@ function assertSpanMatches(
   expect(actual!.id).toBe(expected.id);
   expect(actual!.name).toBe(expected.name);
 
-  if (
-    expected.source &&
-    (expected.source.source === "span" || expected.source.source === "tool")
-  ) {
+  if (expected.source) {
     expect(actual!.spanType).toBe("agent");
   }
 
@@ -456,12 +452,7 @@ function assertSpanMatches(
           expect(spanItem.name).toBe(expectedItem.name);
         }
         if (expectedItem.source) {
-          if (
-            expectedItem.source.source === "span" ||
-            expectedItem.source.source === "tool"
-          ) {
-            expect(spanItem.spanType).toBe("agent");
-          }
+          expect(spanItem.spanType).toBe("agent");
         }
         if (expectedItem.nested_uuids) {
           const allUuids = getAllEventUuids(spanItem);
@@ -584,12 +575,7 @@ function assertTimelineMatches(
             expect(spanItem.name).toBe(expectedItem.name);
           }
           if (expectedItem.source) {
-            if (
-              expectedItem.source.source === "span" ||
-              expectedItem.source.source === "tool"
-            ) {
-              expect(spanItem.spanType).toBe("agent");
-            }
+            expect(spanItem.spanType).toBe("agent");
           }
           if (expectedItem.nested_uuids) {
             const allUuids = getAllEventUuids(spanItem);

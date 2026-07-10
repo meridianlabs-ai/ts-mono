@@ -197,7 +197,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;
-    if (api?.get_user_info) {
+    if (api.get_user_info) {
       api
         .get_user_info()
         .then((info) => {
@@ -301,7 +301,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   };
 
   const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
+    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
 
   // Re-entry guard (see EditTagsDialog for rationale).
   const inFlightRef = useRef(false);

@@ -70,32 +70,32 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
   md.use(markdownitMathjax3);
 
-    // Wrap math renderers to unescape HTML entities in TeX content
-    // before MathJax processes them. HTML chars in LaTeX blocks are
-    // entity-encoded by the pipeline for XSS safety, but MathJax needs
-    // the raw characters (e.g. < for \lt comparisons). This is safe
-    // because MathJax renders to SVG, not to injectable HTML.
-    const origInline = md.renderer.rules.math_inline;
-    const origBlock = md.renderer.rules.math_block;
+  // Wrap math renderers to unescape HTML entities in TeX content
+  // before MathJax processes them. HTML chars in LaTeX blocks are
+  // entity-encoded by the pipeline for XSS safety, but MathJax needs
+  // the raw characters (e.g. < for \lt comparisons). This is safe
+  // because MathJax renders to SVG, not to injectable HTML.
+  const origInline = md.renderer.rules.math_inline;
+  const origBlock = md.renderer.rules.math_block;
 
-    if (origInline) {
-      md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
-        const token = tokens[idx];
-        if (token) {
-          token.content = unescapeHtmlForMath(token.content);
-        }
-        return origInline(tokens, idx, options, env, self);
-      };
-    }
-    if (origBlock) {
-      md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
-        const token = tokens[idx];
-        if (token) {
-          token.content = unescapeHtmlForMath(token.content);
-        }
-        return origBlock(tokens, idx, options, env, self);
-      };
-    }
+  if (origInline) {
+    md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      if (token) {
+        token.content = unescapeHtmlForMath(token.content);
+      }
+      return origInline(tokens, idx, options, env, self);
+    };
+  }
+  if (origBlock) {
+    md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      if (token) {
+        token.content = unescapeHtmlForMath(token.content);
+      }
+      return origBlock(tokens, idx, options, env, self);
+    };
+  }
   mdInstanceCache[renderer] = md;
 
   return md;

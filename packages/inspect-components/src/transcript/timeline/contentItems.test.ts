@@ -233,9 +233,7 @@ describe("buildContentItems", () => {
       const agentCards = items.filter((i) => i.type === "agent_card");
       expect(agentCards.length).toBe(4); // 4 utility spans
 
-      const utilityCards = agentCards.filter(
-        (i) => i.type === "agent_card" && i.agentNode.utility
-      );
+      const utilityCards = agentCards.filter((i) => i.agentNode.utility);
       expect(utilityCards).toHaveLength(4);
     });
   });
@@ -256,10 +254,7 @@ describe("buildContentItems", () => {
       const items = buildContentItems(buildSpan!);
       const agentNames = items
         .filter((i) => i.type === "agent_card")
-        .map((i) => {
-          if (i.type !== "agent_card") throw new Error("unreachable");
-          return i.agentNode.name;
-        });
+        .map((i) => i.agentNode.name);
 
       expect(agentNames).toEqual(["Code", "Test", "Fix"]);
     });

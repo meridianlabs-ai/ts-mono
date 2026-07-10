@@ -47,7 +47,7 @@ interface ResultGroup {
 const isResultGroup = (
   entry: ResultGroup | ScanResultSummary
 ): entry is ResultGroup => {
-  return "type" in entry && entry.type === "group";
+  return "type" in entry;
 };
 
 interface ScannerResultsListProps {
@@ -484,10 +484,7 @@ const optimalColumnLayout = (
         }, 0);
         return Math.max(max, len);
       } else {
-        const valStr =
-          s.value !== undefined && s.value !== null
-            ? valueAsString(s.value)
-            : "";
+        const valStr = s.value !== null ? valueAsString(s.value) : "";
         return Math.max(max, valStr.length);
       }
     }, 0);

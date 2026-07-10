@@ -36,7 +36,7 @@ export const ResultSidebar: FC<ResultSidebarProps> = ({
           answer: resultData.answer,
           explanation: resultData.explanation,
           metadata: resultData.metadata,
-          validationResult: resultData.validationResult,
+          validationResult: resultData.validationResult ?? undefined,
           validationTarget: resultData.validationTarget,
         }}
         references={refs}

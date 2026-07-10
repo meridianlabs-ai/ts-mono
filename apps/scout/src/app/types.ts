@@ -31,7 +31,8 @@ export interface ScanResultSummary {
   messageReferences: ScanResultReference[];
 
   // Validation
-  validationResult: boolean | Record<string, boolean>;
+  // null/undefined when the row has no validation data in the arrow table
+  validationResult?: boolean | Record<string, boolean> | null;
   validationTarget: JsonValue;
 
   // Value

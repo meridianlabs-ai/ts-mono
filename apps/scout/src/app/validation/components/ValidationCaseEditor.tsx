@@ -156,7 +156,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
       {!error && (
         <>
           <LoadingBar loading={loading} />
-          {showPanel && setsData && (
+          {showPanel && (
             <ValidationCaseEditorComponent
               key={validatedSetUri}
               transcriptId={transcriptId}
