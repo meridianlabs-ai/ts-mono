@@ -98,7 +98,7 @@ export const EditableText: FC<EditableTextProps> = ({
 
   const commitChanges = useCallback(() => {
     if (spanRef.current) {
-      const newValue = spanRef.current.textContent?.trim() || "";
+      const newValue = spanRef.current.textContent.trim() || "";
       if (newValue !== "" && newValue !== initialValueRef.current) {
         onValueChanged(newValue);
       } else if (newValue === "") {

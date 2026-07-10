@@ -21,9 +21,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
       if (toolCall.function) {
         texts.push(toolCall.function);
       }
-      if (toolCall.arguments) {
-        texts.push(JSON.stringify(toolCall.arguments));
-      }
+      texts.push(JSON.stringify(toolCall.arguments));
     }
   }
 

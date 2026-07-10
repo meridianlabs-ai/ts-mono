@@ -61,7 +61,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
         if (out.reasoning) {
           outputs.push(<ToolTextOutput text={out.reasoning} key={key} />);
         }
-      } else if (out.type === "data" && out.data) {
+      } else if (out.type === "data") {
         outputs.push(
           <ToolTextOutput text={JSON.stringify(out.data)} key={key} />
         );

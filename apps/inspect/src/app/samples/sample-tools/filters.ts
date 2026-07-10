@@ -17,13 +17,16 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  scoreType?: string;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -156,13 +159,13 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
 const totalTokens = (sample: SampleSummary): number | null => {
   if (!sample.model_usage) return null;
   return Object.values(sample.model_usage).reduce(
-    (sum, u) => sum + (u.total_tokens ?? 0),
+    (sum, u) => sum + u.total_tokens,
     0
   );
 };
 
 const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target) ? target.join(", ") : (target ?? "");
+  Array.isArray(target) ? target.join(", ") : target;
 
 export const sampleVariables = (
   sample: SampleSummary,
@@ -214,14 +217,10 @@ export const sampleFilterItems = (
     if (!canonicalName) {
       throw new Error("Unable to create a canonical name for a score");
     }
-    const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
-
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor?.scoreType;
+    // Widened: scoreDescriptor's declared return type hides that the
+    // descriptor map has no entry for scores with no usable values.
+    const descriptor: ScoreDescriptor | undefined =
+      evalDescriptor.scoreDescriptor(scoreLabel);
     if (!descriptor) {
       items.push({
         shortName,
@@ -229,10 +228,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {
