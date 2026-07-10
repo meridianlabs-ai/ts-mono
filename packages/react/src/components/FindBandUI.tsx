@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
 
-import { ApplicationIcons } from "../app/appearance/icons";
+import { baseApplicationIcons } from "../icons";
 
 import "./FindBand.css";
 
@@ -37,7 +37,6 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
 
-  // Build input props — only include `value` when controlled
   const inputProps: React.InputHTMLAttributes<HTMLInputElement> = {
     type: "text",
     placeholder: "Find",
@@ -75,7 +74,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         onClick={onPrevious}
         disabled={disableNav}
       >
-        <i className={ApplicationIcons.arrows.up} />
+        <i className={baseApplicationIcons.arrows.up} />
       </button>
       <button
         type="button"
@@ -84,7 +83,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         onClick={onNext}
         disabled={disableNav}
       >
-        <i className={ApplicationIcons.arrows.down} />
+        <i className={baseApplicationIcons.arrows.down} />
       </button>
       <button
         type="button"
@@ -92,7 +91,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         className="btn close"
         onClick={onClose}
       >
-        <i className={ApplicationIcons.close} />
+        <i className={baseApplicationIcons.close} />
       </button>
     </div>
   );

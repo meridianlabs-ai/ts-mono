@@ -47,7 +47,7 @@
   padding: 0;
   border: none;
   background: none;
-  font-size: var(--inspect-fond-size-larger);
+  font-size: var(--inspect-font-size-larger);
 }
 
 .findBand .btn.close {

@@ -4,12 +4,12 @@ import { FC, useEffect, useRef } from "react";
 import {
   ErrorPanel,
   ExtendedFindProvider,
+  FindBand,
   FindTargetProvider,
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
-import { FindBand } from "../../components/FindBand";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -79,7 +79,7 @@ export const LogViewLayout: FC = () => {
           )}
           tabIndex={0}
         >
-          {showFind ? <FindBand /> : ""}
+          {showFind ? <FindBand onClose={hideFind} /> : ""}
           {!singleFileMode ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}

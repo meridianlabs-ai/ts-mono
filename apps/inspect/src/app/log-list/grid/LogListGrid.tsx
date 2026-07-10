@@ -16,9 +16,9 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { FindBandUI } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { FindBandUI } from "../../../components/FindBandUI";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {

@@ -7,13 +7,12 @@ import {
   useState,
 } from "react";
 
-import { useExtendedFind, useFindTargetSetter } from "@tsmono/react/components";
 import { debounce } from "@tsmono/util";
 
-import { useStore } from "../state/store";
-import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
-
+import { useExtendedFind } from "./ExtendedFindContext";
+import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
 import { FindBandUI } from "./FindBandUI";
+import { useFindTargetSetter } from "./FindTargetContext";
 
 const findConfig = {
   caseSensitive: false,
@@ -23,9 +22,12 @@ const findConfig = {
   showDialog: false,
 };
 
-export const FindBand: FC = () => {
+interface FindBandProps {
+  onClose: () => void;
+}
+
+export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
-  const storeHideFind = useStore((state) => state.appActions.hideFind);
   const { extendedFindTerm, countAllMatches } = useExtendedFind();
   const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
@@ -195,7 +197,7 @@ export const FindBand: FC = () => {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
-        storeHideFind();
+        onClose();
       } else if (e.key === "Enter") {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
@@ -208,7 +210,7 @@ export const FindBand: FC = () => {
         searchBoxRef.current?.select();
       }
     },
-    [storeHideFind, handleSearch]
+    [onClose, handleSearch]
   );
 
   const findPrevious = useCallback(() => {
@@ -343,7 +345,7 @@ export const FindBand: FC = () => {
   return (
     <FindBandUI
       inputRef={searchBoxRef}
-      onClose={storeHideFind}
+      onClose={onClose}
       onNext={findNext}
       onPrevious={findPrevious}
       onKeyDown={handleKeyDown}

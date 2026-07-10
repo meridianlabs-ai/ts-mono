@@ -1,0 +1,128 @@
+// @vitest-environment jsdom
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { FC, ReactNode, useEffect } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ExtendedFindProvider, useExtendedFind } from "./ExtendedFindContext";
+import { FindBand } from "./FindBand";
+import { FindTargetProvider } from "./FindTargetContext";
+
+const Providers: FC<{ children: ReactNode }> = ({ children }) => (
+  <ExtendedFindProvider>
+    <FindTargetProvider>{children}</FindTargetProvider>
+  </ExtendedFindProvider>
+);
+
+const MatchCounter: FC<{ count: number }> = ({ count }) => {
+  const { registerMatchCounter } = useExtendedFind();
+
+  useEffect(
+    () => registerMatchCounter("find-band-test", () => count),
+    [count, registerMatchCounter]
+  );
+
+  return null;
+};
+
+const renderFindBand = (onClose = vi.fn(), children?: ReactNode) => {
+  render(
+    <Providers>
+      <FindBand onClose={onClose} />
+      {children}
+    </Providers>
+  );
+  const input = screen.getByPlaceholderText<HTMLInputElement>("Find");
+  input.value = "needle";
+  return { input, onClose };
+};
+
+describe("FindBand", () => {
+  let windowFind: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    windowFind = vi.fn(() => false);
+    Object.defineProperty(window, "find", {
+      configurable: true,
+      value: windowFind,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    window.getSelection()?.removeAllRanges();
+    vi.restoreAllMocks();
+  });
+
+  it("closes on Escape", () => {
+    const onClose = vi.fn();
+    const { input } = renderFindBand(onClose);
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { key: "Enter", shiftKey: false, backwards: false },
+    { key: "Enter", shiftKey: true, backwards: true },
+    { key: "g", ctrlKey: true, shiftKey: false, backwards: false },
+    { key: "g", ctrlKey: true, shiftKey: true, backwards: true },
+    { key: "F3", shiftKey: false, backwards: false },
+    { key: "F3", shiftKey: true, backwards: true },
+  ])(
+    "searches with backwards=$backwards for $key",
+    async ({ key, ctrlKey, shiftKey, backwards }) => {
+      const { input } = renderFindBand();
+
+      fireEvent.keyDown(input, { key, ctrlKey, shiftKey });
+
+      await waitFor(() => expect(windowFind).toHaveBeenCalled());
+      expect(windowFind.mock.calls.every((call) => call[2] === backwards)).toBe(
+        true
+      );
+    }
+  );
+
+  it("shows no-results state when DOM and extended search both miss", async () => {
+    const { input } = renderFindBand();
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+  });
+
+  it("shows the registered match count and current index", async () => {
+    windowFind.mockImplementation(() => {
+      const textNode = screen.getByTestId("search-content").firstChild;
+      if (!textNode) return false;
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 6);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return true;
+    });
+    const { input } = renderFindBand(
+      vi.fn(),
+      <>
+        <MatchCounter count={2} />
+        <div data-testid="search-content">needle needle</div>
+      </>
+    );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(screen.getByText("1 of 2").style.visibility).toBe("visible")
+    );
+  });
+});

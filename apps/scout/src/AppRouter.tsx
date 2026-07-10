@@ -6,10 +6,12 @@ import {
   useParams,
 } from "react-router-dom";
 
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  FindBand,
+} from "@tsmono/react/components";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
-import { FindBand } from "./app/components/FindBand";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
