@@ -81,7 +81,7 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
       <div className={clsx("text-style-label", "text-size-small")}>Input</div>
       <div className={clsx("text-size-large", styles.subtaskLabel)}></div>
       <div className={clsx("text-style-label", "text-size-small")}>Output</div>
-      {input ? <Rendered values={input} /> : undefined}
+      <Rendered values={input} />
       <div className={clsx("text-size-title-secondary", styles.subtaskLabel)}>
         <i className={kArrowRightIcon} />
       </div>
