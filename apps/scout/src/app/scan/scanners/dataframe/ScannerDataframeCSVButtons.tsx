@@ -37,6 +37,7 @@ export const ScannerDataframeCopyCSVButton: FC = () => {
     if (!gridApi) return;
 
     // Check clipboard API availability (not available in non-secure contexts)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Clipboard API is absent in non-secure contexts despite lib.dom's non-optional typing
     if (!navigator.clipboard) {
       console.error("Clipboard API not available (requires HTTPS)");
       setStatus("error");

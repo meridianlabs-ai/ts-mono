@@ -52,10 +52,9 @@ const messageToStr = (
 
     for (const tool of message.tool_calls) {
       const funcName = tool.function;
-      // arguments comes from serialized logs, where it may not be an object
-      // despite the declared type
-      const args: unknown = tool.arguments;
+      const args = tool.arguments;
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments comes from serialized logs, where it can be null despite the declared type
       if (typeof args === "object" && args !== null) {
         const argsText = Object.entries(args)
           .map(([k, v]) => `${k}: ${String(v)}`)

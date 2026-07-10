@@ -86,7 +86,7 @@ export const FindBand: FC = () => {
       }
       setMatchCount(total > 0 ? total : null);
 
-      const focusedElement = document.activeElement as HTMLElement | null;
+      const focusedElement = document.activeElement as HTMLElement;
 
       const selection = window.getSelection();
       let savedRange: Range | null = null;
@@ -166,6 +166,7 @@ export const FindBand: FC = () => {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeElement is null when nothing is focused; the cast above narrows it optimistically
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm, countAllMatches]

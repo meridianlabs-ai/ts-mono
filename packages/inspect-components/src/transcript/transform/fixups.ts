@@ -45,6 +45,7 @@ const processPendingEvents = (events: Event[], filter: boolean): Event[] => {
           lastIndex >= 0 &&
           event.uuid != null &&
           acc[lastIndex]?.pending &&
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowed by the preceding conjunct; optional chain kept so clause reordering stays safe
           acc[lastIndex]?.uuid === event.uuid
         ) {
           acc[lastIndex] = event;

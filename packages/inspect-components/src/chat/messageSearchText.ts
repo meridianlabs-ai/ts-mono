@@ -21,6 +21,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
       if (toolCall.function) {
         texts.push(toolCall.function);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- arguments is required in the generated type but can be absent in logs
       if (toolCall.arguments) {
         texts.push(JSON.stringify(toolCall.arguments));
       }

@@ -95,6 +95,7 @@ const InputRenderer: FC<InputRendererProps> = ({
   onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript input is deserialized from disk; fields required in the generated type can be absent
     if (inputData.input.messages && inputData.input.messages.length > 0) {
       const labels = resultData?.messageReferences.reduce((acc, ref) => {
         if (ref.cite) {
@@ -105,7 +106,10 @@ const InputRenderer: FC<InputRendererProps> = ({
 
       return (
         <ChatViewVirtualList
-          messages={inputData.input.messages || []}
+          messages={
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript input is deserialized from disk; fields required in the generated type can be absent
+            inputData.input.messages || []
+          }
           id={"scan-input-virtual-list"}
           display={{ indented: true }}
           className={className}
@@ -114,7 +118,9 @@ const InputRenderer: FC<InputRendererProps> = ({
           labels={{ highlight: highlightLabeled, messageLabels: labels }}
         />
       );
-    } else if (inputData.input.events && inputData.input.events.length > 0) {
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- transcript input is deserialized from disk; fields required in the generated type can be absent
+    else if (inputData.input.events && inputData.input.events.length > 0) {
       return (
         <TimelineEventsView
           events={inputData.input.events}

@@ -156,6 +156,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
       {!error && (
         <>
           <LoadingBar loading={loading} />
+          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- validation sets are fetched from the server; data is undefined until loaded despite the declared type */}
           {showPanel && setsData && (
             <ValidationCaseEditorComponent
               key={validatedSetUri}

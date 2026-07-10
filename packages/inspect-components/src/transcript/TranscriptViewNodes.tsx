@@ -103,6 +103,7 @@ const kSettleStableFrames = 8;
 const kStickyMinWidthRatio = 0.4;
 
 const escapeAttr = (id: string): string =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- CSS.escape can be missing in older runtimes despite lib.dom's types
   typeof CSS !== "undefined" && CSS.escape
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
@@ -481,6 +482,7 @@ export const TranscriptViewNodes = forwardRef<
       index: idx,
       container,
       targetSelector,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ref always holds a number; defensive fallback kept
       getStickyOffset: () => offsetTopRef.current ?? 0,
       paddingBelowSticky: kPaddingBelowSticky,
     });

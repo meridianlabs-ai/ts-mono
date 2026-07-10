@@ -127,6 +127,7 @@ const human_baseline_session: ChangeType = {
 
     // Collect raw parts keyed by timestamp, then keep only entries with required fields
     const partial = new Map<string, Partial<SessionLog>>();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- state values come from logs; the asserted type is a best guess and the key can be absent
     if (rawSessions) {
       for (const key of Object.keys(rawSessions)) {
         const value = rawSessions[key] as string;

@@ -103,9 +103,8 @@ export const MessageContent: FC<MessageContentProps> = ({
           references
         );
       } else {
-        // content entries come from serialized logs, which can contain null
-        // entries despite the declared type
-        if (content as ContentObject | null | undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- content entries come from serialized logs, which can contain null entries despite the declared type
+        if (content) {
           const renderer = messageRenderers[content.type];
           if (renderer) {
             return renderer.render(

@@ -48,9 +48,11 @@ const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
   if (selectedScan.spec.revision?.commit) {
     record["Commit"] = selectedScan.spec.revision.commit;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scan spec is deserialized from disk; fields required in the generated type can be absent
   if (selectedScan.spec.packages) {
     record["Packages"] = selectedScan.spec.packages;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scan spec is deserialized from disk; fields required in the generated type can be absent
   if (selectedScan.spec.options) {
     record["Options"] = selectedScan.spec.options;
   }

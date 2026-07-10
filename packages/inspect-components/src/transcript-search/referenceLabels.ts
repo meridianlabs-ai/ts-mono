@@ -24,12 +24,10 @@ export const deriveSearchReferenceLabels = (
   const eventLabels: Record<string, string> = {};
   for (const ref of result?.references ?? []) {
     if (!ref.cite) continue;
-    // the result arrives from the search API, so ref.type can hold values
-    // beyond the declared union
-    const refType = ref.type as string;
-    if (refType === "message") {
+    if (ref.type === "message") {
       messageLabels[ref.id] = ref.cite;
-    } else if (refType === "event") {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ref.type comes from the search API and can hold values beyond the declared union
+    } else if (ref.type === "event") {
       eventLabels[ref.id] = ref.cite;
     }
   }

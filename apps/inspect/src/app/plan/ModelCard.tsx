@@ -41,10 +41,6 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
             if (modelInfo === undefined) {
               return null;
             }
-            // config originates in log data, which can omit it at runtime
-            // despite the generated type
-            const modelConfig = modelInfo.config as
-              ModelConfig["config"] | undefined;
             return (
               <div
                 key={modelKey}
@@ -70,8 +66,10 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
                 <div className={clsx(styles.sep)} />
                 <div className={clsx("text-style-label")}>Configuration</div>
                 <div className="text-size-small">
-                  {modelConfig && Object.keys(modelConfig).length > 0 ? (
-                    <MetaDataGrid entries={modelConfig} />
+                  {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- config is required in the generated type but can be absent in logs from older writers */}
+                  {modelInfo.config &&
+                  Object.keys(modelInfo.config).length > 0 ? (
+                    <MetaDataGrid entries={modelInfo.config} />
                   ) : (
                     noneEl
                   )}

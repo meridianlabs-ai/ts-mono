@@ -49,19 +49,13 @@ export const liftEvalView = (
   if (!wire) return fallback;
   return {
     name: wire.name,
-    // Wire views written before `visible` / `dir` had server-side defaults
-    // can omit them despite the generated type.
     columns: wire.columns
-      ? wire.columns.map((c) => ({
-          id: c.id,
-          visible: (c.visible as boolean | null | undefined) ?? true,
-        }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- visible is required in the generated wire type but can be absent in views from writers that predate its server-side default
+        wire.columns.map((c) => ({ id: c.id, visible: c.visible ?? true }))
       : fallback.columns,
     sort: wire.sort
-      ? wire.sort.map((s) => ({
-          colId: s.column,
-          dir: (s.dir as "asc" | "desc" | null | undefined) ?? "asc",
-        }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dir is required in the generated wire type but can be absent in views from writers that predate its server-side default
+        wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
       : fallback.sort,
     filters: { dsl: "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,

@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 
-import type { EvalScore } from "@tsmono/inspect-common/types";
 import { useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
@@ -56,11 +55,11 @@ export function computeScorerMap(logs: Log[], scopePrefix?: string): ScorerMap {
     }
     if (log.header?.results?.scores) {
       for (const evalScore of log.header.results.scores) {
-        // metrics originates in log data, which can omit it at runtime
-        // despite the generated type (old or hand-edited logs)
-        const metrics = evalScore.metrics as EvalScore["metrics"] | undefined;
-        if (metrics) {
-          for (const [metricName, metric] of Object.entries(metrics)) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in logs from older writers
+        if (evalScore.metrics) {
+          for (const [metricName, metric] of Object.entries(
+            evalScore.metrics
+          )) {
             const key = scorerMetricKey(evalScore.name, metricName);
             info[key] = {
               scorerName: evalScore.name,

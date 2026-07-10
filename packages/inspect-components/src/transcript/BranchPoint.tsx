@@ -79,6 +79,7 @@ const Segment: FC<SegmentProps> = ({
 }) => {
   const interactive = !!onSelect && !isCurrent;
   const handleClick = (e: MouseEvent<HTMLButtonElement>): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- TS narrows onSelect through the aliased `interactive` const; explicit check kept
     if (interactive && onSelect) {
       onSelect(branch, e.currentTarget);
     }

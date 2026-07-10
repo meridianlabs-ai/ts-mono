@@ -49,6 +49,7 @@ interface PendingFailed {
 function toolChoiceEqual(a: ToolChoice, b: ToolChoice): boolean {
   if (a === b) return true;
   if (typeof a === "string" || typeof b === "string") return a === b;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tool_choice comes from logs and can be null despite the generated type
   return a?.name === b?.name;
 }
 

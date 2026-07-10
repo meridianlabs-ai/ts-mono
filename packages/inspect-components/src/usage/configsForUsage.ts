@@ -50,6 +50,7 @@ export const buildConfigsByRole = (
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
   for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- config is required in the generated type but can be absent in logs
     if (rc.config) acc[role] = stripNullish(rc.config);
   }
   return finalize(acc);
@@ -75,6 +76,7 @@ export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
   for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- args is required in the generated type but can be absent in logs
     if (rc.args) acc[role] = stripNullish(rc.args);
   }
   return finalize(acc);

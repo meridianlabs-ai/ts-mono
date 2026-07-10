@@ -129,6 +129,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
   timing,
   className,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- usage is log data and can be absent at runtime despite the prop type
   if (!usage) return null;
 
   const categories = buildCategories(usage);

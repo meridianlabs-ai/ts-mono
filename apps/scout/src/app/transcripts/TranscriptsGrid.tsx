@@ -75,6 +75,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
     (state) => state.transcriptsTableState.rowSelection
   );
   const columnFilters =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- table state is rehydrated from persisted storage; older snapshots can lack this field
     useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
   const focusedRowId = useStore(
     (state) => state.transcriptsTableState.focusedRowId
@@ -129,6 +130,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
 
   // Compute effective column order: use explicit order if set, otherwise derive from DEFAULT_COLUMN_ORDER
   const effectiveColumnOrder = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- table state is rehydrated from persisted storage; older snapshots can lack this field
     if (columnOrder && columnOrder.length > 0) {
       return columnOrder;
     }

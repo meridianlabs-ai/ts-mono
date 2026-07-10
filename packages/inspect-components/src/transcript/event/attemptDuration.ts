@@ -9,10 +9,8 @@ import type { ModelEvent } from "@tsmono/inspect-common/types";
  * dependable duration can be derived.
  */
 export function attemptDurationSec(event: ModelEvent): number | null {
-  // output can be absent at runtime despite the generated types (failed calls)
-  const explicit =
-    (event.output as ModelEvent["output"] | undefined)?.time ??
-    event.working_time;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but absent in logs for failed model calls
+  const explicit = event.output?.time ?? event.working_time;
   if (typeof explicit === "number" && !Number.isNaN(explicit)) {
     return explicit;
   }

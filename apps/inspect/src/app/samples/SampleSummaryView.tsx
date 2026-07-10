@@ -14,7 +14,6 @@ import {
   EvalSampleTarget,
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
-import { ScoreLabel } from "../../app/types";
 import { SampleSummary } from "../../client/api/types";
 import {
   resolveScorePanelView,
@@ -165,10 +164,9 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
-  // The score selection is rehydrated from persisted storage and can be
-  // unset despite the declared type.
   const visibleScores =
-    (selectedScores as ScoreLabel[] | undefined)?.filter((scoreLabel) => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the score selection is rehydrated from persisted storage and can be unset despite the declared type
+    selectedScores?.filter((scoreLabel) => {
       const rendered = sampleDescriptor.evalDescriptor
         .score(sample, scoreLabel)
         ?.render();
