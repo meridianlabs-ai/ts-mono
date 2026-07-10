@@ -131,7 +131,7 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
       if (config.cell) {
         return config.cell(value);
       }
-      if (value === undefined || value === null) {
+      if (value == null) {
         return "-";
       }
       return valueAsString(value);

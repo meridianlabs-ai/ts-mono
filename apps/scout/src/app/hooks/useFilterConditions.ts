@@ -8,8 +8,9 @@ import { useStore } from "../../state/store";
  */
 export const useFilterConditions = (excludeColumnId?: string) => {
   // The applied filters
-  const columnFilters =
-    useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
+  const columnFilters = useStore(
+    (state) => state.transcriptsTableState.columnFilters
+  );
 
   // Get conditions, optionally excluding a specific column
   const filterConditions = Object.values(columnFilters)

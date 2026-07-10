@@ -17,10 +17,9 @@ export const sizingStrategies: Record<ColumnSizingStrategyKey, SizingStrategy> =
 
 /**
  * Get a sizing strategy by key.
- * Falls back to default strategy if key is not found.
  */
 export function getSizingStrategy(
   key: ColumnSizingStrategyKey
 ): SizingStrategy {
-  return sizingStrategies[key] ?? sizingStrategies.default;
+  return sizingStrategies[key];
 }

@@ -88,7 +88,7 @@ export const useEventNodes = (
       eventNodes: EventNode<EventType>[]
     ): EventNode<EventType>[] => {
       return eventNodes.filter((node) => {
-        if (node.children && node.children.length > 0) {
+        if (node.children.length > 0) {
           node.children = filterEmpty(node.children);
         }
         // Preserve nodes with a sourceSpan (e.g. agent cards)
@@ -101,7 +101,7 @@ export const useEventNodes = (
         }
         return (
           (node.event.event !== "span_begin" && node.event.event !== "step") ||
-          (node.children && node.children.length > 0)
+          node.children.length > 0
         );
       });
     };
