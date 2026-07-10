@@ -51,8 +51,8 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // Format task args. Prefer `task_args_passed` (the args the user
   // actually supplied at the call site) over `task_args` (which
   // would also include defaulted values).
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
   const taskArgsSource =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
     details?.eval?.task_args_passed ?? details?.eval?.task_args;
   let taskArgs: string | undefined;
   if (taskArgsSource) {

@@ -1,4 +1,4 @@
-import { EvalResults, EvalScore } from "@tsmono/inspect-common/types";
+import { EvalResults } from "@tsmono/inspect-common/types";
 
 import { EvalScores } from "../@types/extraInspect";
 
@@ -18,18 +18,16 @@ export const metricDisplayName = (metric: MetricSummary): string => {
 };
 
 export const firstMetric = (results: EvalResults) => {
-  // scores/metrics come from serialized logs, which can omit them at
-  // runtime despite the generated types (old or hand-edited logs)
-  const scores = (results.scores as EvalScore[] | undefined) ?? [];
-  const firstScore = scores.length > 0 ? scores[0] : undefined;
-  if (firstScore === undefined) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
+  const scores = results.scores || [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
+  const firstScore = scores.length > 0 ? results.scores?.[0] : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in logs from older writers
+  if (firstScore === undefined || firstScore.metrics === undefined) {
     return undefined;
   }
 
-  const metrics = firstScore.metrics as EvalScore["metrics"] | undefined;
-  if (metrics === undefined) {
-    return undefined;
-  }
+  const metrics = firstScore.metrics;
   if (Object.keys(metrics).length === 0) {
     return undefined;
   }
