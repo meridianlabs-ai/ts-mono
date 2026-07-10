@@ -122,9 +122,17 @@
   height: 26px;
 }
 
+/* Inline card sits on the title-bar surface — let it show through rather
+   than painting its own header chrome, and don't leave a floating rule
+   under the last row. */
 .compact th {
   height: 24px;
   font-size: 11px;
+  background-color: transparent;
+}
+
+.compact tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .compact .groupRow th {
