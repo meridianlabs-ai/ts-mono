@@ -35,10 +35,12 @@ export const createEvalDescriptor = (
     return undefined;
   }
 
+  // null included in the return type: dict score members are
+  // `string | number | boolean | null`, so extracting one can yield null.
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): ScoreValue | undefined => {
+  ): ScoreValue | null | undefined => {
     // no scores, no value
     if (
       !sample.scores ||
@@ -58,7 +60,7 @@ export const createEvalDescriptor = (
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const temp = sample.scores[scoreLabel.scorer].value;
-        return (temp as Record<string, ScoreValue>)[scoreLabel.name];
+        return (temp as Record<string, ScoreValue | null>)[scoreLabel.name];
       } else {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;
@@ -136,10 +138,7 @@ export const createEvalDescriptor = (
               return Object.keys(sample.scores).includes(scoreLabel.name);
             }
           })
-          // Dict score members can be null at runtime (Score["value"] dict
-          // values include null) even though scoreValue's declared type
-          // doesn't say so — hence the widened annotation and null filter.
-          .map((sample): ScoreValue | null | undefined => {
+          .map((sample) => {
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
@@ -180,12 +179,7 @@ export const createEvalDescriptor = (
     scoreLabel: ScoreLabel
   ): ReactNode => {
     const descriptor = scoreDescriptorMap[scoreLabelKey(scoreLabel)];
-    // Widened: dict score members can be null at runtime despite
-    // scoreValue's declared return type.
-    const score: ScoreValue | null | undefined = scoreValue(
-      sample,
-      scoreLabel
-    );
+    const score = scoreValue(sample, scoreLabel);
     if (score === null) {
       return "null";
     } else if (score === undefined) {
