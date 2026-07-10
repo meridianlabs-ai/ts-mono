@@ -309,27 +309,25 @@ function matchEvent(
     }
 
     // Priority 4: ModelEvent input
-    if (event.input) {
-      for (const msg of event.input) {
-        if (msg.id === messageId) {
-          // Skip if already matched as agent card result or tool bridge
-          if (
-            matches.some(
-              (m) =>
-                (m.priority === PRIORITY_AGENT_CARD_RESULT ||
-                  m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
-                m.eventId !== uuid
-            )
-          ) {
-            continue;
-          }
-          matches.push({
-            priority: PRIORITY_MODEL_INPUT,
-            eventId: uuid,
-            agentSpanId: agentContext,
-          });
-          break; // One input match is sufficient
+    for (const msg of event.input) {
+      if (msg.id === messageId) {
+        // Skip if already matched as agent card result or tool bridge
+        if (
+          matches.some(
+            (m) =>
+              (m.priority === PRIORITY_AGENT_CARD_RESULT ||
+                m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
+              m.eventId !== uuid
+          )
+        ) {
+          continue;
         }
+        matches.push({
+          priority: PRIORITY_MODEL_INPUT,
+          eventId: uuid,
+          agentSpanId: agentContext,
+        });
+        break; // One input match is sufficient
       }
     }
   } else if (event.event === "tool") {

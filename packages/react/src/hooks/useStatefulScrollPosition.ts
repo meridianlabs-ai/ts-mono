@@ -106,18 +106,10 @@ export function useStatefulScrollPosition<
       }
     }
 
-    if (element.addEventListener) {
-      element.addEventListener("scroll", handleScroll);
-    } else {
-      log.warn("Element has no way to add event listener", element);
-    }
+    element.addEventListener("scroll", handleScroll);
 
     return () => {
-      if (element.removeEventListener) {
-        element.removeEventListener("scroll", handleScroll);
-      } else {
-        log.warn("Element has no way to remove event listener", element);
-      }
+      element.removeEventListener("scroll", handleScroll);
     };
   }, [elementKey, elementRef, handleScroll, scrollable]);
 
