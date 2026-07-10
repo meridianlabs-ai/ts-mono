@@ -373,9 +373,7 @@ export const ScannerResultPanel: FC = () => {
       {!hasError ? (
         <TabPanel
           id={kTabIdResult}
-          selected={
-            selectedTab === kTabIdResult || selectedTab === undefined
-          }
+          selected={selectedTab === kTabIdResult || selectedTab === undefined}
           title="Result"
           scrollable={false}
           onSelected={() => {

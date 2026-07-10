@@ -264,8 +264,13 @@ function matchEvent(
     const uuid = event.uuid;
     if (!uuid) return matches;
 
+    // input/output can be absent at runtime despite the generated types
+    // (errored model calls) — see the same note in ModelEventView.
+    const output = event.output as typeof event.output | undefined;
+    const input = event.input as typeof event.input | undefined;
+
     // Priority 1: ModelEvent output
-    for (const choice of event.output.choices) {
+    for (const choice of output?.choices ?? []) {
       if (choice.message.id === messageId) {
         matches.push({
           priority: PRIORITY_MODEL_OUTPUT,
@@ -278,7 +283,7 @@ function matchEvent(
     // Priority 2: Agent card result via bridge flow
     // Priority 3.5: Tool call bridge — tool-role message whose tool_call_id
     // matches a sibling ToolEvent's id. Redirects to the ToolEvent.
-    for (const msg of event.input) {
+    for (const msg of input ?? []) {
       if (msg.role === "tool" && msg.id === messageId) {
         const toolCallId = (msg as { tool_call_id?: string | null })
           .tool_call_id;
@@ -309,7 +314,7 @@ function matchEvent(
     }
 
     // Priority 4: ModelEvent input
-    for (const msg of event.input) {
+    for (const msg of input ?? []) {
       if (msg.id === messageId) {
         // Skip if already matched as agent card result or tool bridge
         if (

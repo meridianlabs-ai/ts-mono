@@ -148,7 +148,9 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
-      const outMsg = event.output.choices[0]?.message;
+      // output can be absent at runtime despite the generated types
+      const output = event.output as typeof event.output | undefined;
+      const outMsg = output?.choices[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;
       }
@@ -166,8 +168,9 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
-      const input = event.input as Array<Record<string, unknown>>;
-      for (const msg of input) {
+      // input can be absent at runtime despite the generated types
+      const input = event.input as Array<Record<string, unknown>> | undefined;
+      for (const msg of input ?? []) {
         if (typeof msg.id === "string" && msg.id === messageId) {
           // Walk backward to find the previous event item
           for (let j = i - 1; j >= 0; j--) {

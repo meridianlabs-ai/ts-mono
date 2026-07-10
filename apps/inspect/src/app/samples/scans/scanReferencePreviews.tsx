@@ -67,8 +67,12 @@ export function buildScanReferencePreviews(
     }
 
     if (event.event === "model") {
-      for (const msg of event.input) addMessage(msg);
-      for (const choice of event.output.choices) {
+      // input/output can be absent at runtime despite the generated types
+      // (errored model calls)
+      const input = event.input as typeof event.input | undefined;
+      const output = event.output as typeof event.output | undefined;
+      for (const msg of input ?? []) addMessage(msg);
+      for (const choice of output?.choices ?? []) {
         addMessage(choice.message);
       }
     }

@@ -1,4 +1,4 @@
-import type { Content } from "@tsmono/inspect-common/types";
+import type { Content, ModelEvent } from "@tsmono/inspect-common/types";
 
 import type { EventType } from "./types";
 import { EventNode } from "./types";
@@ -64,17 +64,25 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
+      // Despite the generated types, output/input can be absent at runtime
+      // (e.g. errored model calls) — see the same note in ModelEventView.
+      const output = modelEvent.output as ModelEvent["output"] | undefined;
+      const input = modelEvent.input as ModelEvent["input"] | undefined;
       // Extract text from model output
-      for (const choice of modelEvent.output.choices) {
-        for (const text of extractContentText(choice.message.content)) {
-          fields.push(["output", text]);
+      if (output?.choices) {
+        for (const choice of output.choices) {
+          for (const text of extractContentText(choice.message.content)) {
+            fields.push(["output", text]);
+          }
         }
       }
       // Extract text from user/system input messages shown in the view
-      for (const msg of modelEvent.input) {
-        if (msg.role === "user" || msg.role === "system") {
-          for (const text of extractContentText(msg.content)) {
-            fields.push([msg.role, text]);
+      if (input) {
+        for (const msg of input) {
+          if (msg.role === "user" || msg.role === "system") {
+            for (const text of extractContentText(msg.content)) {
+              fields.push([msg.role, text]);
+            }
           }
         }
       }

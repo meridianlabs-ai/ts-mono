@@ -242,7 +242,9 @@ const buildToolLabels = (
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
-      for (const message of event.input) {
+      // input can be absent at runtime despite the generated types
+      const input = event.input as typeof event.input | undefined;
+      for (const message of input ?? []) {
         if (message.role !== "tool" || !message.id) continue;
         const label = messageLabels[message.id];
         if (label && message.tool_call_id) {
@@ -268,10 +270,13 @@ const scopeMessageLabels = (
   const present = new Set<string>();
   for (const event of events) {
     if (event.event === "model") {
-      for (const message of event.input) {
+      // input/output can be absent at runtime despite the generated types
+      const input = event.input as typeof event.input | undefined;
+      const output = event.output as typeof event.output | undefined;
+      for (const message of input ?? []) {
         if (message.id) present.add(message.id);
       }
-      for (const choice of event.output.choices) {
+      for (const choice of output?.choices ?? []) {
         if (choice.message.id) present.add(choice.message.id);
       }
     } else if (event.event === "tool" && event.message_id) {

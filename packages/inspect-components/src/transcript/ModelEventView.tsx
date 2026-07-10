@@ -62,14 +62,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const isCancelled = isCancelError(event.error);
   const isFailed = !!event.error && !isCancelled;
 
-  const totalUsage = event.output.usage?.total_tokens;
-  const callTime = event.output.time;
+  // Note: despite the type system saying otherwise, output (and its choices)
+  // has appeared empirically to sometimes be undefined
+  const output = event.output as ModelEvent["output"] | undefined;
+  const totalUsage = output?.usage?.total_tokens;
+  const callTime = output?.time;
 
-  // Note: despite the type system saying otherwise, this has appeared empirically
-  // to sometimes be undefined
-  const choices = event.output.choices as
-    | ModelEvent["output"]["choices"]
-    | undefined;
+  const choices = output?.choices;
   const outputMessages = choices?.map((choice) => {
     return choice.message;
   });
@@ -166,7 +165,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
       : formatTitle(panelTitle, totalUsage, callTime);
 
-  const fallback = event.output.fallback;
+  const fallback = output?.fallback;
   const fallbackBadge = fallback ? (
     <span className={styles.fallbackBadge}>
       · fallback → {fallback.fallback_model}

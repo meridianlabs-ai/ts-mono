@@ -481,7 +481,8 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
  */
 function getEventTokens(event: Event): number {
   if (event.event === "model") {
-    const usage = event.output.usage;
+    // output can be absent at runtime despite the generated types (errored calls)
+    const usage = (event.output as ModelEvent["output"] | undefined)?.usage;
     if (usage) {
       const inputTokens = usage.input_tokens;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
@@ -1249,7 +1250,9 @@ function normalizeSystemPrompt(prompt: string): string {
  * Extract and normalize the system prompt from a single ModelEvent.
  */
 function getSystemPromptForEvent(event: ModelEvent): string | null {
-  for (const msg of event.input) {
+  const input = event.input as ModelEvent["input"] | undefined;
+  if (!input) return null;
+  for (const msg of input) {
     if (msg.role === "system") {
       if (typeof msg.content === "string") {
         return normalizeSystemPrompt(msg.content);
@@ -1273,8 +1276,8 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
-  const choices = event.output.choices;
-  if (choices.length > 0) {
+  const choices = (event.output as ModelEvent["output"] | undefined)?.choices;
+  if (choices && choices.length > 0) {
     const msg = choices[0]!.message;
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       return true;
@@ -1396,11 +1399,15 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
-  if (event.config.max_tokens == null || event.config.max_tokens > 1) {
+  // Despite the generated types, config/input can be absent at runtime
+  // (e.g. errored model calls) — see the same note in ModelEventView.
+  const config = event.config as ModelEvent["config"] | undefined;
+  if (config?.max_tokens == null || config.max_tokens > 1) {
     return false;
   }
   // Check that the last user message is a single word
-  const input = event.input;
+  const input = event.input as ModelEvent["input"] | undefined;
+  if (!input) return false;
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i];
     if (msg?.role === "user") {
@@ -1423,7 +1430,8 @@ function isWarmupCall(event: ModelEvent): boolean {
 function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
-      for (const msg of item.event.input) {
+      const input = item.event.input as ModelEvent["input"] | undefined;
+      for (const msg of input ?? []) {
         if (msg.role === "system") {
           if (typeof msg.content === "string") {
             return normalizeSystemPrompt(msg.content);
@@ -1659,7 +1667,9 @@ function extractAgentResults(parent: TimelineSpan): void {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;
-          for (const msg of modelEvent.input) {
+          const modelInput = modelEvent.input as
+            ModelEvent["input"] | undefined;
+          for (const msg of modelInput ?? []) {
             if (
               msg.role === "tool" &&
               "tool_call_id" in msg &&
