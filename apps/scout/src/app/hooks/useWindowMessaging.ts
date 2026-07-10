@@ -115,16 +115,16 @@ export const useWindowMessaging = (): void => {
   const setSingleFileMode = useStore((state) => state.setSingleFileMode);
   const setSelectedScanner = useStore((state) => state.setSelectedScanner);
   const selectedScanner = useStore((state) => state.selectedScanner);
-  const scansDir = useAppConfig().scans.dir;
+  // App config is deserialized from the server; the dir may be missing at
+  // runtime despite the declared type
+  const scansDir = useAppConfig().scans.dir as string | null | undefined;
 
   const context: MessageContext = useMemo(() => {
     return {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
-      // App config is deserialized from the server; the dir may be missing
-      // at runtime despite the declared type
-      scansDir: (scansDir as string | null | undefined) ?? "",
+      scansDir: scansDir ?? "",
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);
 

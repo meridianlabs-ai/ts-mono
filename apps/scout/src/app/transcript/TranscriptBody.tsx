@@ -107,6 +107,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const transcriptEvents = transcript.events as
     | Transcript["events"]
     | undefined;
+  const transcriptMessages = transcript.messages as
+    | Transcript["messages"]
+    | undefined;
   const hasEvents = transcriptEvents && transcriptEvents.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
@@ -406,11 +409,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={"transcript-id"}
-              messages={
-                (transcript.messages as
-                  | Transcript["messages"]
-                  | undefined) || []
-              }
+              messages={transcriptMessages || []}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
