@@ -24,8 +24,10 @@ export const copyValueText = (value: unknown): string => {
   }
   // Circular structures (or exotic objects JSON can't represent) have no
   // sensible text form — copy an empty string rather than "[object Object]".
+  // JSON.stringify's lib type omits the undefined case (e.g. toJSON
+  // returning undefined), so widen it explicitly.
   try {
-    return JSON.stringify(value, null, 2) ?? "";
+    return (JSON.stringify(value, null, 2) as string | undefined) ?? "";
   } catch {
     return "";
   }

@@ -70,7 +70,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       // Capture the curently focused element so we can restore focus later
-      const focusedElement = document.activeElement as HTMLElement;
+      const focusedElement = document.activeElement as HTMLElement | null;
 
       // Find the term in the DOM
       const result = await findExtendedInDOM(

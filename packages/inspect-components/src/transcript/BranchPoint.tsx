@@ -79,7 +79,7 @@ const Segment: FC<SegmentProps> = ({
 }) => {
   const interactive = !!onSelect && !isCurrent;
   const handleClick = (e: MouseEvent<HTMLButtonElement>): void => {
-    if (interactive && onSelect) {
+    if (interactive) {
       onSelect(branch, e.currentTarget);
     }
   };

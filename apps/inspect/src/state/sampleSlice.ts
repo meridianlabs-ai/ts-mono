@@ -182,11 +182,7 @@ export const createSampleSlice = (
 };
 
 export const initializeSampleSlice = (
-  set: (fn: (state: StoreState) => void) => void
+  _set: (fn: (state: StoreState) => void) => void
 ) => {
-  set((state) => {
-    if (!state.sample) {
-      state.sample = initialState;
-    }
-  });
+  // sample state is fully populated by createSampleSlice; nothing to restore
 };

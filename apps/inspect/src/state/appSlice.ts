@@ -383,8 +383,5 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
-    if (!state.app) {
-      state.app = initialState;
-    }
   });
 };

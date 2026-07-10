@@ -237,9 +237,7 @@ const VerticalMetric: FC<VerticalMetricProps> = ({
           styles.verticalMetricValue
         )}
       >
-        {metric.value !== undefined && metric.value !== null
-          ? formatPrettyDecimal(metric.value)
-          : "n/a"}
+        {formatPrettyDecimal(metric.value)}
       </div>
     </div>
   );
