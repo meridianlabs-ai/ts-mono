@@ -182,7 +182,13 @@ export const createSampleSlice = (
 };
 
 export const initializeSampleSlice = (
-  _set: (fn: (state: StoreState) => void) => void
+  set: (fn: (state: StoreState) => void) => void
 ) => {
-  // sample state is fully populated by createSampleSlice; nothing to restore
+  set((state) => {
+    // Rehydrated persisted storage may lack the slice despite the static type.
+    const sample = state.sample as SampleState | undefined;
+    if (!sample) {
+      state.sample = initialState;
+    }
+  });
 };
