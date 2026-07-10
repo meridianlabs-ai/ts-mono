@@ -118,8 +118,8 @@ export const ModelTab: FC<ModelTabProps> = ({
         }}
       >
         <UsagePanel
-          model_usage={hasModelUsage ? evalStats?.model_usage : undefined}
-          role_usage={hasRoleUsage ? evalStats?.role_usage : undefined}
+          model_usage={hasModelUsage ? evalStats.model_usage : undefined}
+          role_usage={hasRoleUsage ? evalStats.role_usage : undefined}
           configs_by_model={configsByModel}
           configs_by_role={configsByRole}
           args_by_model={argsByModel}

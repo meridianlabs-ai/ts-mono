@@ -9,7 +9,7 @@ export interface ScanResultInput {
   answer?: string;
   explanation?: string;
   metadata?: Record<string, unknown>;
-  validationResult?: boolean | Record<string, boolean>;
+  validationResult?: boolean | Record<string, boolean> | null;
   validationTarget?: unknown;
 }
 
@@ -24,9 +24,11 @@ export function isStringValue<T extends ValueOnly>(
   return r.valueType === "string";
 }
 
+// value may be null even when tagged "number" (e.g. NaN/None in the source
+// data serializes to JSON null), so callers must narrow before using it.
 export function isNumberValue<T extends ValueOnly>(
   r: T
-): r is T & { valueType: "number"; value: number } {
+): r is T & { valueType: "number"; value: number | null } {
   return r.valueType === "number";
 }
 

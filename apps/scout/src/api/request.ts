@@ -88,7 +88,7 @@ export function serverRequestApi(
     const baseHeaders = request?.enableBrowserCache
       ? {
           Accept: "application/json",
-          ...request?.headers,
+          ...request.headers,
         }
       : {
           Accept: "application/json",
