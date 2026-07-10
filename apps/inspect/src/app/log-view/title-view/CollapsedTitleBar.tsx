@@ -110,14 +110,13 @@ const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
   const items: { key: string; label: string; value: string }[] = [];
   scorers.forEach((scorer, scorerIdx) => {
     scorer.metrics.forEach((metric, metricIdx) => {
-      // Metric values originate in log data, which may lack them.
-      const metricValue = metric.value as number | null | undefined;
       items.push({
         key: `${scorerIdx}-${metricIdx}`,
         label: metricDisplayName(metric),
         value:
-          metricValue !== undefined && metricValue !== null
-            ? formatPrettyDecimal(metricValue)
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metric values originate in log data and can be null/absent despite the type
+          metric.value !== undefined && metric.value !== null
+            ? formatPrettyDecimal(metric.value)
             : "n/a",
       });
     });

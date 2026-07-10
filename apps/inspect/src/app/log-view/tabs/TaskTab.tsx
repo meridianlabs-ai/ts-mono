@@ -76,9 +76,8 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    // Logs from other writers may omit the constant `type` field.
-    const revisionType = revision.type as string | undefined;
-    const revisionKey = `${revisionType ? `${toTitleCase(revisionType)} ` : ""}Revision`;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- type is a constant in the generated type but can be absent in logs from other writers
+    const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
       ? { _html: <a href={commitUrl}>{revision.commit}</a> }

@@ -97,10 +97,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
 
   const showError = !!event.error && event.error.type !== "approval";
 
-  // result is required in the generated type but the event comes from
-  // serialized logs, so it can be absent at runtime
-  const result = (event.result as typeof event.result | undefined) ?? "";
-
   // The shared tool block grammar: collapsible header with the input zone and
   // output well stacked beneath.
   const toolCallView = (
@@ -112,7 +108,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       input={input}
       description={description}
       contentType={contentType}
-      output={result}
+      output={
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- result is required in the generated type but absent in serialized logs for unfinished tool calls
+        event.result ?? ""
+      }
       error={showError ? event.error! : undefined}
       view={resolvedView}
     />

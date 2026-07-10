@@ -102,6 +102,7 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
 const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
   const firstScore = evalResults?.scores?.[0];
   if (firstScore) {
     const metrics = Object.values(firstScore.metrics);

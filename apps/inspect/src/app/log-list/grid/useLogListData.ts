@@ -1,7 +1,6 @@
 import type { SortingState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
-import type { EvalScore, EvalSpec } from "@tsmono/inspect-common/types";
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
 import { LogListingRow } from "../../../log_data";
@@ -29,9 +28,6 @@ const rowForItem = (item: LogListItem): LogListingRow | undefined =>
 const buildLogListRow = (item: LogListItem): LogListRow => {
   const log = rowForItem(item);
   const details = log?.header;
-  // Headers are read from serialized logs; partial or older headers can
-  // omit `eval` despite the generated type, so keep accesses behind `?.`.
-  const evalSpec: EvalSpec | undefined = details?.eval;
 
   // Compute total tokens across all models
   let totalTokens: number | undefined;
@@ -55,7 +51,9 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // Format task args. Prefer `task_args_passed` (the args the user
   // actually supplied at the call site) over `task_args` (which
   // would also include defaulted values).
-  const taskArgsSource = evalSpec?.task_args_passed ?? evalSpec?.task_args;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
+  const taskArgsSource =
+    details?.eval?.task_args_passed ?? details?.eval?.task_args;
   let taskArgs: string | undefined;
   if (taskArgsSource) {
     const entries = Object.entries(taskArgsSource);
@@ -109,10 +107,12 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
     path: item.type === "file" ? item.name : undefined,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
-    sandbox: evalSpec?.sandbox?.type,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
+    sandbox: details?.eval?.sandbox?.type,
     totalTokens,
     duration,
-    taskFile: evalSpec?.task_file ?? undefined,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- eval is required in the generated header type but partial or older headers can omit it
+    taskFile: details?.eval?.task_file ?? undefined,
     taskArgs,
     taskArgsRaw: taskArgsSource ?? undefined,
     tags: details?.tags,
@@ -129,11 +129,9 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // same column since the underlying computation is identical.
   if (details?.results?.scores) {
     for (const evalScore of details.results.scores) {
-      // Older logs can omit `metrics` despite the generated type.
-      const metrics = evalScore.metrics as
-        EvalScore["metrics"] | null | undefined;
-      if (metrics) {
-        for (const [metricName, metric] of Object.entries(metrics)) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in older logs
+      if (evalScore.metrics) {
+        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
           row[`score_${evalScore.name}/${metricName}`] = metric.value;
         }
       }

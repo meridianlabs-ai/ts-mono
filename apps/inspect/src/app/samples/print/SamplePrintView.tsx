@@ -120,10 +120,8 @@ export const SamplePrintView: FC = () => {
     );
   }
 
-  // messages can be absent at runtime despite the generated type
-  // (old or hand-edited logs)
-  const sampleMessages =
-    (sample.messages as EvalSample["messages"] | undefined) || [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- messages is required in the generated type but can be absent in logs from older writers
+  const sampleMessages = sample.messages || [];
 
   return (
     <div className={styles.container} ref={contentRef}>
@@ -196,12 +194,12 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    // metadata can be absent at runtime despite the generated type
-    // (old or hand-edited logs)
-    const invalidationMetadata = sample.invalidation.metadata as
-      Record<string, unknown> | undefined;
-    if (invalidationMetadata && Object.keys(invalidationMetadata).length > 0) {
-      invalidationRecord["Metadata"] = invalidationMetadata;
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metadata is required in the generated type but can be absent in logs from older writers
+      sample.invalidation.metadata &&
+      Object.keys(sample.invalidation.metadata).length > 0
+    ) {
+      invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
     sampleMetadatas.push(
       <Card key="print-invalidation">
@@ -213,16 +211,13 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  // model_usage can be absent at runtime despite the generated type
-  // (old or hand-edited logs)
-  const modelUsage = sample.model_usage as
-    EvalSample["model_usage"] | undefined;
-  if (modelUsage && Object.keys(modelUsage).length > 0) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- model_usage is required in the generated type but can be absent in logs from older writers
+  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
         <CardHeader label="Usage" />
         <CardBody>
-          <ModelTokenTable model_usage={modelUsage} />
+          <ModelTokenTable model_usage={sample.model_usage} />
         </CardBody>
       </Card>
     );

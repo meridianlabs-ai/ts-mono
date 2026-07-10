@@ -56,6 +56,7 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
       if (resolvedMessages.length > 0) {
         const msg = resolvedMessages[resolvedMessages.length - 1];
         if (msg) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- toolMessages is always initialized on push; defensive re-init kept
           msg.toolMessages = msg.toolMessages || [];
           msg.toolMessages.push(resolved);
         }
@@ -107,6 +108,7 @@ export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
   };
 
   // Converge them
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- systemMessage is a literal built above; defensive truthiness check kept
   if (systemMessage && systemMessage.content.length > 0) {
     collapsedMessages.unshift({ message: systemMessage, toolMessages: [] });
   }

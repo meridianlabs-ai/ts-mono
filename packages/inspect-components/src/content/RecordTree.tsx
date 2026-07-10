@@ -269,7 +269,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
       // `useScrollDirection`), SampleScoresGrid, and their parents —
       // wide ripple for a non-firing bug. Suppress until that migration
       // happens or a real symptom appears.
-      // eslint-disable-next-line react-hooks/refs
+      // eslint-disable-next-line react-hooks/refs, @typescript-eslint/no-unnecessary-condition -- scrollRef is required in the props type; defensive optional chain kept
       customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
       id={id}
       style={{ width: "100%", height: "100%" }}
@@ -317,6 +317,7 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- records are log metadata and can be null/undefined at runtime despite the declared type
   if (!record) {
     return [];
   }
@@ -381,6 +382,7 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- typeof null is "object"; null guard kept even though isPrimitiveOrNull already filtered null
   } else if (typeof value === "object" && value !== null) {
     processChildren = true;
     childCount = Object.keys(value).length;
@@ -434,6 +436,7 @@ const processNodeRecursive = (
           );
         });
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- typeof null is "object"; null guard kept even though isPrimitiveOrNull already filtered null
     } else if (typeof value === "object" && value !== null) {
       // Process object properties
       Object.entries(value as Record<string, unknown>).forEach(

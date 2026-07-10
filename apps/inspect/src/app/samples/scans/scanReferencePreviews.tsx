@@ -67,12 +67,10 @@ export function buildScanReferencePreviews(
     }
 
     if (event.event === "model") {
-      // input/output can be absent at runtime despite the generated types
-      // (errored model calls)
-      const input = event.input as typeof event.input | undefined;
-      const output = event.output as typeof event.output | undefined;
-      for (const msg of input ?? []) addMessage(msg);
-      for (const choice of output?.choices ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but can be absent on errored model calls in logs
+      for (const msg of event.input ?? []) addMessage(msg);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output is required in the generated type but can be absent on errored model calls in logs
+      for (const choice of event.output?.choices ?? []) {
         addMessage(choice.message);
       }
     }

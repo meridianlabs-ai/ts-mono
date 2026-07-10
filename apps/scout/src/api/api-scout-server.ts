@@ -268,7 +268,7 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
       );
       const parsed = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] | null }
+        ScannerInputResponse & { scan_events: Event[] }
       >(raw);
 
       return {
@@ -280,6 +280,7 @@ export const apiScoutServer = (
             parsed.input_data
           ),
         },
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- server sends SQL NULL scan_events when the scan recorded no events
         scanEvents: parsed.scan_events ?? [],
       };
     },

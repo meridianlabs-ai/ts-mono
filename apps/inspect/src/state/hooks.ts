@@ -143,11 +143,10 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
   const stored = useSelectedLogDetails()?.eval.viewer?.sample_score_view?.sort;
   return useMemo(() => {
     if (!stored) return undefined;
-    // Log data may omit dir despite the static type.
-    const storedDir = stored.dir as ScorePanelSortState["dir"] | undefined;
     return {
       column: stored.column ?? null,
-      dir: storedDir ?? "asc",
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dir is required in the generated type but can be absent in view state from older logs
+      dir: stored.dir ?? "asc",
     };
   }, [stored]);
 };

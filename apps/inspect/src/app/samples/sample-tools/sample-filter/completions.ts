@@ -750,13 +750,9 @@ export function getCompletions(
 
     // Epoch value completions (suggest actual epoch numbers from loaded samples)
     if (varName === "epoch" && samples) {
-      // Summaries come from log data, which may omit epoch.
       const epochValues = Array.from(
-        new Set(
-          samples
-            .map((s) => s.epoch as number | undefined)
-            .filter((e) => e !== undefined)
-        )
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- epoch is required in SampleSummary but can be absent in summaries from older log writers
+        new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined))
       ).sort((a, b) => a - b);
       const epochCompletions = epochValues.map((e) =>
         makeLiteralCompletion(String(e))

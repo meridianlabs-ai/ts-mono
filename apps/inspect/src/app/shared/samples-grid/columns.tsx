@@ -370,14 +370,11 @@ export function buildSampleColumns(
     maxSize: 160,
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
-    titleValue: (row) => {
-      // duration originates in log data, which can hold null at runtime
-      // despite the declared type
-      const duration = row.duration as number | null | undefined;
-      return duration === undefined || duration === null
+    titleValue: (row) =>
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- duration's declared type omits null but rows built from log data can hold it
+      row.duration === undefined || row.duration === null
         ? undefined
-        : formatTime(duration);
-    },
+        : formatTime(row.duration),
     cell: ({ getValue }) => {
       const value = getValue<number | null | undefined>();
       return value === undefined || value === null ? (

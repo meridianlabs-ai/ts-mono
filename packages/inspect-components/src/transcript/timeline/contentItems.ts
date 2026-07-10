@@ -148,11 +148,8 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
-      // output (and its choices) can be absent at runtime despite the
-      // generated types
-      const output = event.output as
-        { choices?: (typeof event.output)["choices"] } | undefined;
-      const outMsg = output?.choices?.[0]?.message;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- output/choices are required in the generated type but absent in logs for errored model calls
+      const outMsg = event.output?.choices?.[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;
       }
@@ -169,10 +166,10 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     const item = items[i];
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
-    if (event.event === "model") {
-      // input can be absent at runtime despite the generated types
-      const input = event.input as Array<Record<string, unknown>> | undefined;
-      for (const msg of input ?? []) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- input is required in the generated type but absent in some serialized logs
+    if (event.event === "model" && event.input) {
+      const input = event.input as Array<Record<string, unknown>>;
+      for (const msg of input) {
         if (typeof msg.id === "string" && msg.id === messageId) {
           // Walk backward to find the previous event item
           for (let j = i - 1; j >= 0; j--) {

@@ -167,19 +167,15 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
 const totalTokens = (sample: SampleSummary): number | null => {
   if (!sample.model_usage) return null;
   return Object.values(sample.model_usage).reduce(
-    // total_tokens originates in log data, which can omit it at runtime
-    // despite the generated type
-    (sum, u) => sum + ((u.total_tokens as number | undefined) ?? 0),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- total_tokens is required in the generated type but can be absent in logs from older writers
+    (sum, u) => sum + (u.total_tokens ?? 0),
     0
   );
 };
 
-// target originates in log data, which can hold null at runtime despite
-// the generated type
-const targetString = (target: SampleSummary["target"]): string => {
-  const value = target as string | string[] | null | undefined;
-  return Array.isArray(value) ? value.join(", ") : (value ?? "");
-};
+const targetString = (target: SampleSummary["target"]): string =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- target is required in the generated type but can be null in log data
+  Array.isArray(target) ? target.join(", ") : (target ?? "");
 
 export const sampleVariables = (
   sample: SampleSummary,

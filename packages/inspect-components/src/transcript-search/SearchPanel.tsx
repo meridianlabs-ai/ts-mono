@@ -731,19 +731,17 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    // the result arrives from the search API, so references can be absent
-    // and ref.type can hold values beyond the declared union
-    const references = result.references as Result["references"] | undefined;
-    for (const ref of references ?? []) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- references is required in the type but the result arrives from the search API, where it can be absent
+    for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
-        const refType = ref.type as string;
         const route =
-          refType === "message"
+          ref.type === "message"
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : refType === "event"
+            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ref.type comes from the search API and can hold values beyond the declared union
+              ref.type === "event"
               ? getEventUrl(ref.id)
               : undefined;
         refs.push({

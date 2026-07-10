@@ -185,6 +185,7 @@ export const initializeSampleSlice = (
   set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- state rehydrated from persisted storage can lack the sample slice despite the type
     if (!state.sample) {
       state.sample = initialState;
     }

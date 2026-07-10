@@ -37,7 +37,9 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           </CardBody>
         </Card>
 
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanModelUsage is parsed from an arrow column; may be null at runtime despite the declared type */}
         {resultData?.scanModelUsage &&
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanModelUsage is parsed from an arrow column; may be null at runtime despite the declared type
           Object.keys(resultData?.scanModelUsage).length > 0 && (
             <Card>
               <CardHeader label="Model Usage" type="modern" />
@@ -46,13 +48,16 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
               </CardBody>
             </Card>
           )}
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanMetadata is parsed from an arrow column; may be null at runtime despite the declared type */}
         {resultData?.scanMetadata &&
           Object.keys(resultData.scanMetadata).length > 0 && (
             <Card>
               <CardHeader label="Metadata" type="modern" />
               <CardBody>
                 <RecordTree
+                  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive optional chain on arrow-derived result data
                   id={`scan-metadata-${resultData?.identifier}`}
+                  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scanMetadata is parsed from an arrow column; may be null at runtime despite the declared type
                   record={resultData?.scanMetadata || {}}
                   copyButton={true}
                 />

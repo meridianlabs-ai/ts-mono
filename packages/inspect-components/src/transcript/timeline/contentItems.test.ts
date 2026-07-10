@@ -188,6 +188,7 @@ describe("buildContentItems", () => {
       const agentNames = items
         .filter((i) => i.type === "agent_card")
         .map((i) => {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime re-check of the filter invariant; TS already narrows via the filter predicate
           if (i.type !== "agent_card") throw new Error("unreachable");
           return i.agentNode.name;
         });
@@ -237,6 +238,7 @@ describe("buildContentItems", () => {
       expect(agentCards.length).toBe(4); // 4 utility spans
 
       const utilityCards = agentCards.filter(
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime re-check of the filter invariant; TS already narrows via the filter predicate
         (i) => i.type === "agent_card" && i.agentNode.utility
       );
       expect(utilityCards).toHaveLength(4);
@@ -260,6 +262,7 @@ describe("buildContentItems", () => {
       const agentNames = items
         .filter((i) => i.type === "agent_card")
         .map((i) => {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime re-check of the filter invariant; TS already narrows via the filter predicate
           if (i.type !== "agent_card") throw new Error("unreachable");
           return i.agentNode.name;
         });

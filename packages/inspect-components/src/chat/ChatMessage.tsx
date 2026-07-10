@@ -72,6 +72,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "system" ||
     message.role === "user" ||
     message.role === "assistant" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- role comes from logs; other writers can carry roles outside the generated union
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 

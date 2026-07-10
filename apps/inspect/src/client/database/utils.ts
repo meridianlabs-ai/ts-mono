@@ -5,9 +5,11 @@ export function toLogOverview(header: EvalHeader): LogPreview {
 
   // Get the first metric from the first score's metrics
   let primary_metric = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- scores is required in the generated type but can be absent in logs from older writers
   const firstScore = results?.scores?.[0];
   if (firstScore) {
     // Get the first metric from the score's metrics object
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metrics is required in the generated type but can be absent in logs from older writers
     const metricsValues = Object.values(firstScore.metrics || {});
     if (metricsValues.length > 0) {
       primary_metric = metricsValues[0];
