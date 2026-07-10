@@ -257,6 +257,16 @@ const LeafHeader = ({
   const sorted = header.column.getIsSorted();
   const canSort = header.column.getCanSort();
   const isScorer = header.column.id === "scorer";
+  const label = flexRender(header.column.columnDef.header, header.getContext());
+  const arrow = sorted && (
+    <i
+      className={clsx(
+        sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
+        styles.sortIcon
+      )}
+      aria-hidden="true"
+    />
+  );
   return (
     <th
       className={clsx(
@@ -269,16 +279,20 @@ const LeafHeader = ({
       }
       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
     >
+      {/* Arrow goes on the label's un-anchored side — left for right-aligned
+          numeric headers, right for the left-aligned scorer — so the text
+          doesn't shift when a sort pops the arrow in. */}
       <span className={styles.headerLabel}>
-        {flexRender(header.column.columnDef.header, header.getContext())}
-        {sorted && (
-          <i
-            className={clsx(
-              sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
-              styles.sortIcon
-            )}
-            aria-hidden="true"
-          />
+        {isScorer ? (
+          <>
+            {label}
+            {arrow}
+          </>
+        ) : (
+          <>
+            {arrow}
+            {label}
+          </>
         )}
       </span>
     </th>
