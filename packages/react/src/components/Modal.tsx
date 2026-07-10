@@ -117,7 +117,7 @@ export const Modal: FC<ModalProps> = ({
     }, 0);
     return () => {
       window.clearTimeout(timer);
-      previouslyFocused?.focus?.();
+      previouslyFocused?.focus();
     };
   }, [show]);
 

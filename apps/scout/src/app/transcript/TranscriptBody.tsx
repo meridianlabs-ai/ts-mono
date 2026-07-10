@@ -102,7 +102,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const messageParam = searchParams.get("message");
 
   // Selected tab — default to Events when the transcript has events
-  const hasEvents = transcript.events && transcript.events.length > 0;
+  const hasEvents = transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
     : kTranscriptMessagesTabId;
@@ -401,7 +401,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={"transcript-id"}
-              messages={transcript.messages || []}
+              messages={transcript.messages}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
@@ -488,7 +488,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
-  if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
+  if (Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
@@ -504,7 +504,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            entries={transcript.metadata || {}}
+            entries={transcript.metadata}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
@@ -569,10 +569,6 @@ const CopyToolbarButton: FC<{
     setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
   }, []);
 
-  if (!transcript) {
-    return undefined;
-  }
-
   return (
     <ToolDropdownButton
       key="sample-copy"
@@ -590,12 +586,10 @@ const CopyToolbarButton: FC<{
           }
         },
         Transcript: () => {
-          if (transcript.messages) {
-            void navigator.clipboard.writeText(
-              messagesToStr(transcript.messages)
-            );
-            showCopyConfirmation();
-          }
+          void navigator.clipboard.writeText(
+            messagesToStr(transcript.messages)
+          );
+          showCopyConfirmation();
         },
       }}
     />

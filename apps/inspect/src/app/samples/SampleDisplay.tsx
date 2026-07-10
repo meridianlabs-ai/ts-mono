@@ -195,11 +195,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     if (sample?.messages) {
       messagesRef.current = null;
       return sample.messages;
-    } else if (runningSampleData) {
-      return messagesFromEvents(runningSampleData, messagesRef);
     } else {
-      messagesRef.current = null;
-      return [];
+      return messagesFromEvents(runningSampleData, messagesRef);
     }
     /* eslint-enable react-hooks/refs */
   }, [sample?.messages, runningSampleData]);
@@ -313,8 +310,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (state) => state.log.selectedSampleHandle
   );
   const printLogPath = urlLogPath || selectedLogFile;
-  const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
+  const printSampleId = urlSampleId || selectedSampleHandle?.id.toString();
+  const printEpoch = urlEpoch || selectedSampleHandle?.epoch.toString();
 
   const handlePrintClick = useCallback(() => {
     if (printLogPath && printSampleId && printEpoch) {
@@ -548,7 +545,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           }
         },
         Transcript: () => {
-          if (sampleEvents && sampleEvents.length > 0) {
+          if (sampleEvents.length > 0) {
             void navigator.clipboard.writeText(eventsToStr(sampleEvents));
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
@@ -560,8 +557,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (downloadFiles && sample && api.download_file) {
-    const sampleId = sample.id ?? "sample";
+  if (downloadFiles && sample) {
+    const sampleId = sample.id;
     tools.push(
       <ToolDropdownButton
         key="sample-download"
@@ -577,7 +574,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             );
           },
           Messages: () => {
-            if (sample.messages && sample.messages.length > 0) {
+            if (sample.messages.length > 0) {
               void api.download_file(
                 `${sampleId}-messages.txt`,
                 messagesToStr(sample.messages)
@@ -585,7 +582,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }
           },
           Transcript: () => {
-            if (sampleEvents && sampleEvents.length > 0) {
+            if (sampleEvents.length > 0) {
               void api.download_file(
                 `${sampleId}-transcript.txt`,
                 eventsToStr(sampleEvents)
@@ -796,10 +793,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               )}
               title="Transcript"
               onSelected={onSelectedTab}
-              selected={
-                effectiveSelectedTab === kSampleTranscriptTabId ||
-                effectiveSelectedTab === undefined
-              }
+              selected={effectiveSelectedTab === kSampleTranscriptTabId}
               scrollable={false}
             >
               <TranscriptFilterPopover
@@ -808,7 +802,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 positionEl={filterButtonEl}
               />
 
-              {!sampleEvents || sampleEvents.length === 0 ? (
+              {sampleEvents.length === 0 ? (
                 sampleData.status === "loading" ? null : (
                   <NoContentsPanel
                     text={
@@ -942,21 +936,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
-                  {sample?.error ? (
-                    <Card key={`sample-error}`}>
-                      <CardHeader label={`Sample Error`} />
-                      <CardBody>
-                        <ANSIDisplay
-                          output={sample.error.traceback_ansi}
-                          className={clsx("text-size-small", styles.ansi)}
-                          style={{
-                            fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
-                            margin: "0.5em 0",
-                          }}
-                        />
-                      </CardBody>
-                    </Card>
-                  ) : undefined}
+                  <Card key={`sample-error}`}>
+                    <CardHeader label={`Sample Error`} />
+                    <CardBody>
+                      <ANSIDisplay
+                        output={sample.error.traceback_ansi}
+                        className={clsx("text-size-small", styles.ansi)}
+                        style={{
+                          fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
+                          margin: "0.5em 0",
+                        }}
+                      />
+                    </CardBody>
+                  </Card>
                 </div>
               </TabPanel>
             )}
@@ -1120,8 +1112,8 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   return (
     <UsagePanel
       key={`sample-usage-${id}`}
-      model_usage={sample.model_usage ?? undefined}
-      role_usage={sample.role_usage ?? undefined}
+      model_usage={sample.model_usage}
+      role_usage={sample.role_usage}
       configs_by_model={configsByModel}
       configs_by_role={configsByRole}
       args_by_model={argsByModel}
@@ -1141,8 +1133,8 @@ const usageViewsForSample = (
   const views = [];
 
   if (
-    (sample.model_usage && Object.keys(sample.model_usage).length > 0) ||
-    (sample.role_usage && Object.keys(sample.role_usage).length > 0)
+    Object.keys(sample.model_usage).length > 0 ||
+    Object.keys(sample.role_usage).length > 0
   ) {
     views.push(
       <SampleUsagePanel
@@ -1189,10 +1181,7 @@ const metadataViewsForSample = (
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (
-      sample.invalidation.metadata &&
-      Object.keys(sample.invalidation.metadata).length > 0
-    ) {
+    if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
 
@@ -1212,14 +1201,14 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-metadata-${id}`}>
         <CardHeader label="Metadata" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-metadata-${id}`}
-            record={sample?.metadata}
+            record={sample.metadata}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             copyButton={true}
@@ -1229,14 +1218,14 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-store-${id}`}>
         <CardHeader label="Store" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-store-${id}`}
-            record={sample?.store}
+            record={sample.store}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}

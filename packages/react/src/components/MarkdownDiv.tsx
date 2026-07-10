@@ -163,21 +163,24 @@ class MarkdownRenderQueue {
     cancel: () => void;
   } {
     let cancelled = false;
+    // Read via a call: `cancel` flips the flag across `await`, which TS's
+    // narrowing (and no-unnecessary-condition) can't see through directly.
+    const isCancelled = () => cancelled;
 
     const promise = new Promise<T>((resolve, reject) => {
       const wrappedTask = async () => {
         // Skip if cancelled before execution
-        if (cancelled) {
+        if (isCancelled()) {
           return;
         }
 
         try {
           const result = await task();
-          if (!cancelled) {
+          if (!isCancelled()) {
             resolve(result);
           }
         } catch (error) {
-          if (!cancelled) {
+          if (!isCancelled()) {
             reject(error instanceof Error ? error : new Error(String(error)));
           }
         }

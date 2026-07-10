@@ -65,20 +65,16 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["model", modelEvent.model]);
       }
       // Extract text from model output
-      if (modelEvent.output?.choices) {
-        for (const choice of modelEvent.output.choices) {
-          for (const text of extractContentText(choice.message.content)) {
-            fields.push(["output", text]);
-          }
+      for (const choice of modelEvent.output.choices) {
+        for (const text of extractContentText(choice.message.content)) {
+          fields.push(["output", text]);
         }
       }
       // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
+      for (const msg of modelEvent.input) {
+        if (msg.role === "user" || msg.role === "system") {
+          for (const text of extractContentText(msg.content)) {
+            fields.push([msg.role, text]);
           }
         }
       }
@@ -113,9 +109,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["function", toolEvent.function]);
       }
       // Tool arguments
-      if (toolEvent.arguments) {
-        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
-      }
+      fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
@@ -135,10 +129,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
-      if (errorEvent.error?.message) {
+      if (errorEvent.error.message) {
         fields.push(["message", errorEvent.error.message]);
       }
-      if (errorEvent.error?.traceback) {
+      if (errorEvent.error.traceback) {
         fields.push(["traceback", errorEvent.error.traceback]);
       }
       break;
@@ -146,11 +140,11 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "logger": {
       const loggerEvent = event;
-      if (loggerEvent.message?.message) {
+      if (loggerEvent.message.message) {
         fields.push(["message", loggerEvent.message.message]);
       }
       // Filename shown in the view
-      if (loggerEvent.message?.filename) {
+      if (loggerEvent.message.filename) {
         fields.push(["filename", loggerEvent.message.filename]);
       }
       break;
@@ -228,9 +222,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["type", subtaskEvent.type]);
       }
       // Input/result shown in summary
-      if (subtaskEvent.input) {
-        fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
-      }
+      fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       if (subtaskEvent.result) {
         fields.push(["result", sanitizeStringify(subtaskEvent.result)]);
       }
@@ -257,13 +249,11 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
-      if (scoreEvent.score.value !== undefined) {
-        const val = scoreEvent.score.value;
-        fields.push([
-          "value",
-          typeof val === "string" ? val : JSON.stringify(val),
-        ]);
-      }
+      const val = scoreEvent.score.value;
+      fields.push([
+        "value",
+        typeof val === "string" ? val : JSON.stringify(val),
+      ]);
       if (scoreEvent.target) {
         if (typeof scoreEvent.target === "string") {
           fields.push(["target", scoreEvent.target]);
@@ -317,9 +307,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
-      if (sampleLimitEvent.type) {
-        fields.push(["type", sampleLimitEvent.type]);
-      }
+      fields.push(["type", sampleLimitEvent.type]);
       break;
     }
 
@@ -352,9 +340,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
-      if (approvalEvent.decision) {
-        fields.push(["decision", approvalEvent.decision]);
-      }
+      fields.push(["decision", approvalEvent.decision]);
       if (approvalEvent.explanation) {
         fields.push(["explanation", approvalEvent.explanation]);
       }
@@ -366,9 +352,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
-      if (sandboxEvent.action) {
-        fields.push(["action", sandboxEvent.action]);
-      }
+      fields.push(["action", sandboxEvent.action]);
       if (sandboxEvent.cmd) {
         fields.push(["cmd", sandboxEvent.cmd]);
       }
@@ -386,14 +370,12 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
-        if (change.value !== undefined) {
-          fields.push([
-            "value",
-            typeof change.value === "string"
-              ? change.value
-              : sanitizeStringify(change.value),
-          ]);
-        }
+        fields.push([
+          "value",
+          typeof change.value === "string"
+            ? change.value
+            : sanitizeStringify(change.value),
+        ]);
       }
       break;
     }

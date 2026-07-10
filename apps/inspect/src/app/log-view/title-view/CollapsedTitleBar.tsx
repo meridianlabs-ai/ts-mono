@@ -47,7 +47,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
     ? displayScorersFromRunningMetrics(runningMetrics)
     : toDisplayScorers(evalResults?.scores);
 
-  const expandedScorers = expandGroupedMetrics(scorers ?? []);
+  const expandedScorers = expandGroupedMetrics(scorers);
   const totalMetrics = expandedScorers.reduce(
     (n, s) => n + s.metrics.length,
     0
@@ -113,10 +113,7 @@ const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
       items.push({
         key: `${scorerIdx}-${metricIdx}`,
         label: metricDisplayName(metric),
-        value:
-          metric.value !== undefined && metric.value !== null
-            ? formatPrettyDecimal(metric.value)
-            : "n/a",
+        value: formatPrettyDecimal(metric.value),
       });
     });
   });

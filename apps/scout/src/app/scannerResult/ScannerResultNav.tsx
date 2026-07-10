@@ -18,9 +18,6 @@ export const ScannerResultNav: FC = () => {
   );
 
   const currentIndex = useMemo(() => {
-    if (!visibleScannerResults) {
-      return -1;
-    }
     return visibleScannerResults.findIndex(
       (s) => s.identifier === scanResultUuid
     );
@@ -28,12 +25,10 @@ export const ScannerResultNav: FC = () => {
 
   const hasPrevious = currentIndex > 0;
   const hasNext =
-    visibleScannerResults &&
-    currentIndex >= 0 &&
-    currentIndex < visibleScannerResults.length - 1;
+    currentIndex >= 0 && currentIndex < visibleScannerResults.length - 1;
 
   const handlePrevious = () => {
-    if (!hasPrevious || !visibleScannerResults) {
+    if (!hasPrevious) {
       return;
     }
     const previousResult = visibleScannerResults[currentIndex - 1];
@@ -50,7 +45,7 @@ export const ScannerResultNav: FC = () => {
   };
 
   const handleNext = () => {
-    if (!hasNext || !visibleScannerResults) {
+    if (!hasNext) {
       return;
     }
     const nextResult = visibleScannerResults[currentIndex + 1];
@@ -67,9 +62,7 @@ export const ScannerResultNav: FC = () => {
   };
 
   const result =
-    visibleScannerResults && currentIndex !== -1
-      ? visibleScannerResults[currentIndex]
-      : undefined;
+    currentIndex !== -1 ? visibleScannerResults[currentIndex] : undefined;
 
   return (
     <NextPreviousNav
@@ -79,7 +72,7 @@ export const ScannerResultNav: FC = () => {
       hasNext={!!hasNext}
     >
       <span className="text-size-smallest">
-        {visibleScannerResults && currentIndex !== -1
+        {currentIndex !== -1
           ? printIdentifier(resultIdentifier(result), result?.label)
           : undefined}
       </span>

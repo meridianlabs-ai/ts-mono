@@ -153,8 +153,7 @@ const computeCSSProperties = (outputRun: ANSIOutputRun) => {
 
 const computeStyles = (styles: ANSIStyle[]) => {
   let cssProperties = {};
-  if (styles) {
-    styles.forEach((style) => {
+  styles.forEach((style) => {
       switch (style) {
         // Bold.
         case ANSIStyle.Bold:
@@ -234,7 +233,6 @@ const computeStyles = (styles: ANSIStyle[]) => {
         // TODO Subscript
       }
     });
-  }
 
   return cssProperties;
 };

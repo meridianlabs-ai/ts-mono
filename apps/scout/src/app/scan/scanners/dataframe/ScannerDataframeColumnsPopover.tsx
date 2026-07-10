@@ -82,10 +82,10 @@ const useDataframeColumns = () => {
     (state) => state.setDataframeFilterColumns
   );
   const isDefaultFilter =
-    filteredColumns?.length === defaultColumns.length &&
+    filteredColumns.length === defaultColumns.length &&
     filteredColumns.every((col) => defaultColumns.includes(col));
-  const isAllFilter = filteredColumns?.length === allColumns.length;
-  const isNoneFilter = filteredColumns?.length === 0;
+  const isAllFilter = filteredColumns.length === allColumns.length;
+  const isNoneFilter = filteredColumns.length === 0;
   const setDefaultFilter = () => {
     setFilteredColumns(defaultColumns);
   };
@@ -97,10 +97,10 @@ const useDataframeColumns = () => {
   };
   const filterColumn = useCallback(
     (column: string, show: boolean) => {
-      if (show && !filteredColumns?.includes(column)) {
-        setFilteredColumns([...(filteredColumns || []), column]);
+      if (show && !filteredColumns.includes(column)) {
+        setFilteredColumns([...filteredColumns, column]);
       } else if (!show) {
-        setFilteredColumns(filteredColumns?.filter((c) => c !== column) || []);
+        setFilteredColumns(filteredColumns.filter((c) => c !== column));
       }
     },
     [filteredColumns, setFilteredColumns]
@@ -180,7 +180,7 @@ const useDataframeColumns = () => {
     setAllFilter,
     setNoneFilter,
     filterColumn,
-    filtered: filteredColumns || [],
+    filtered: filteredColumns,
     arrangedColumns,
   };
 };

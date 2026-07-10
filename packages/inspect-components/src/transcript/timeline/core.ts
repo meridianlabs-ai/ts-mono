@@ -42,7 +42,6 @@ type TreeItem = SpanNode | Event;
 function isSpanNode(item: TreeItem): item is SpanNode {
   return (
     typeof item === "object" &&
-    item !== null &&
     "children" in item &&
     Array.isArray(item.children)
   );
@@ -358,10 +357,10 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
-  const content = (server.content ?? [])
+  const content = server.content
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  const branches = (server.branches ?? [])
+  const branches = server.branches
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0 || b.branches.length > 0);
 
@@ -482,12 +481,12 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
  */
 function getEventTokens(event: Event): number {
   if (event.event === "model") {
-    const usage = event.output?.usage;
+    const usage = event.output.usage;
     if (usage) {
-      const inputTokens = usage.input_tokens ?? 0;
+      const inputTokens = usage.input_tokens;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
       const cacheWrite = usage.input_tokens_cache_write ?? 0;
-      const outputTokens = usage.output_tokens ?? 0;
+      const outputTokens = usage.output_tokens;
       return inputTokens + cacheRead + cacheWrite + outputTokens;
     }
   }
@@ -1250,9 +1249,7 @@ function normalizeSystemPrompt(prompt: string): string {
  * Extract and normalize the system prompt from a single ModelEvent.
  */
 function getSystemPromptForEvent(event: ModelEvent): string | null {
-  const input = event.input;
-  if (!input) return null;
-  for (const msg of input) {
+  for (const msg of event.input) {
     if (msg.role === "system") {
       if (typeof msg.content === "string") {
         return normalizeSystemPrompt(msg.content);
@@ -1276,8 +1273,8 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
-  const choices = event.output?.choices;
-  if (choices && choices.length > 0) {
+  const choices = event.output.choices;
+  if (choices.length > 0) {
     const msg = choices[0]!.message;
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       return true;
@@ -1399,12 +1396,11 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
-  if (event.config?.max_tokens == null || event.config.max_tokens > 1) {
+  if (event.config.max_tokens == null || event.config.max_tokens > 1) {
     return false;
   }
   // Check that the last user message is a single word
   const input = event.input;
-  if (!input) return false;
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i];
     if (msg?.role === "user") {
@@ -1427,25 +1423,22 @@ function isWarmupCall(event: ModelEvent): boolean {
 function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
-      const input = item.event.input;
-      if (input) {
-        for (const msg of input) {
-          if (msg.role === "system") {
-            if (typeof msg.content === "string") {
-              return normalizeSystemPrompt(msg.content);
-            }
-            if (Array.isArray(msg.content)) {
-              const parts: string[] = [];
-              for (const c of msg.content) {
-                if ("text" in c && typeof c.text === "string") {
-                  parts.push(c.text);
-                }
+      for (const msg of item.event.input) {
+        if (msg.role === "system") {
+          if (typeof msg.content === "string") {
+            return normalizeSystemPrompt(msg.content);
+          }
+          if (Array.isArray(msg.content)) {
+            const parts: string[] = [];
+            for (const c of msg.content) {
+              if ("text" in c && typeof c.text === "string") {
+                parts.push(c.text);
               }
-              if (parts.length > 0) {
-                return normalizeSystemPrompt(parts.join("\n"));
-              }
-              return null;
             }
+            if (parts.length > 0) {
+              return normalizeSystemPrompt(parts.join("\n"));
+            }
+            return null;
           }
         }
       }
@@ -1666,21 +1659,19 @@ function extractAgentResults(parent: TimelineSpan): void {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;
-          if (modelEvent.input) {
-            for (const msg of modelEvent.input) {
-              if (
-                msg.role === "tool" &&
-                "tool_call_id" in msg &&
-                (msg as { tool_call_id?: string }).tool_call_id === toolCallId
-              ) {
-                const text = extractToolEventResult(msg.content);
-                if (text) {
-                  item.agentResult = codexResultText(
-                    (msg as { function?: string }).function,
-                    msg.content,
-                    text
-                  );
-                }
+          for (const msg of modelEvent.input) {
+            if (
+              msg.role === "tool" &&
+              "tool_call_id" in msg &&
+              (msg as { tool_call_id?: string }).tool_call_id === toolCallId
+            ) {
+              const text = extractToolEventResult(msg.content);
+              if (text) {
+                item.agentResult = codexResultText(
+                  (msg as { function?: string }).function,
+                  msg.content,
+                  text
+                );
               }
             }
           }
