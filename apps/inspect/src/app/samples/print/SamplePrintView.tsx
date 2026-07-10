@@ -196,8 +196,13 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (Object.keys(sample.invalidation.metadata).length > 0) {
-      invalidationRecord["Metadata"] = sample.invalidation.metadata;
+    // metadata can be absent at runtime despite the generated type
+    // (old or hand-edited logs)
+    const invalidationMetadata = sample.invalidation.metadata as
+      | Record<string, unknown>
+      | undefined;
+    if (invalidationMetadata && Object.keys(invalidationMetadata).length > 0) {
+      invalidationRecord["Metadata"] = invalidationMetadata;
     }
     sampleMetadatas.push(
       <Card key="print-invalidation">
@@ -209,12 +214,17 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (Object.keys(sample.model_usage).length > 0) {
+  // model_usage can be absent at runtime despite the generated type
+  // (old or hand-edited logs)
+  const modelUsage = sample.model_usage as
+    | EvalSample["model_usage"]
+    | undefined;
+  if (modelUsage && Object.keys(modelUsage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
         <CardHeader label="Usage" />
         <CardBody>
-          <ModelTokenTable model_usage={sample.model_usage} />
+          <ModelTokenTable model_usage={modelUsage} />
         </CardBody>
       </Card>
     );

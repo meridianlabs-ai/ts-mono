@@ -24,9 +24,12 @@ export const deriveSearchReferenceLabels = (
   const eventLabels: Record<string, string> = {};
   for (const ref of result?.references ?? []) {
     if (!ref.cite) continue;
-    if (ref.type === "message") {
+    // the result arrives from the search API, so ref.type can hold values
+    // beyond the declared union
+    const refType = ref.type as string;
+    if (refType === "message") {
       messageLabels[ref.id] = ref.cite;
-    } else {
+    } else if (refType === "event") {
       eventLabels[ref.id] = ref.cite;
     }
   }
