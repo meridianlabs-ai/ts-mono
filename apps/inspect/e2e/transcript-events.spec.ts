@@ -121,7 +121,7 @@ function createModelEvent(overrides?: {
       output_tokens: Math.floor(tokens * 0.4),
       total_tokens: tokens,
     },
-    time: overrides?.endSec ? overrides.endSec - (overrides?.startSec ?? 0) : 3,
+    time: overrides?.endSec ? overrides.endSec - (overrides.startSec ?? 0) : 3,
   };
 
   return {
@@ -136,7 +136,7 @@ function createModelEvent(overrides?: {
     timestamp: "2025-01-15T10:00:00Z",
     working_start: overrides?.startSec ?? 0,
     working_time: overrides?.endSec
-      ? overrides.endSec - (overrides?.startSec ?? 0)
+      ? overrides.endSec - (overrides.startSec ?? 0)
       : 3,
     error: overrides?.error ?? null,
     traceback_ansi: overrides?.traceback_ansi ?? null,

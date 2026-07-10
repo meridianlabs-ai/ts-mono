@@ -185,7 +185,7 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
-    const eventRefs = (inputData.input.events || []).reduce<
+    const eventRefs = inputData.input.events.reduce<
       Record<string, () => ReactNode>
     >((acc, event) => {
       if (event.uuid) {
@@ -196,7 +196,7 @@ const referenceTable = (
       return acc;
     }, {});
 
-    const messageRefs = (inputData.input.messages || []).reduce<
+    const messageRefs = inputData.input.messages.reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {
       if (msg.id) {

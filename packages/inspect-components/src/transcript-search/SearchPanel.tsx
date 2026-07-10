@@ -731,7 +731,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    for (const ref of result.references ?? []) {
+    for (const ref of result.references) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
         const route =
@@ -739,9 +739,7 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : ref.type === "event"
-              ? getEventUrl(ref.id)
-              : undefined;
+            : getEventUrl(ref.id);
         refs.push({
           id: ref.id,
           cite: ref.cite,

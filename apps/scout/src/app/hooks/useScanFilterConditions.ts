@@ -8,8 +8,9 @@ import { useStore } from "../../state/store";
  */
 export const useScanFilterConditions = (excludeColumnId?: string) => {
   // The applied filters
-  const columnFilters =
-    useStore((state) => state.scansTableState.columnFilters) ?? {};
+  const columnFilters = useStore(
+    (state) => state.scansTableState.columnFilters
+  );
 
   // Get conditions, optionally excluding a specific column
   const filterConditions = Object.values(columnFilters)

@@ -122,7 +122,7 @@ export const useWindowMessaging = (): void => {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
-      scansDir: scansDir ?? "",
+      scansDir,
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);
 

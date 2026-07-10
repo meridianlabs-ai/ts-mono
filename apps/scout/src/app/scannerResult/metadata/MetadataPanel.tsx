@@ -30,7 +30,7 @@ export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
             <CardBody>
               <RecordTree
                 id={`result-metadata-${resultData.identifier}`}
-                record={resultData.metadata || {}}
+                record={resultData.metadata}
                 copyButton={true}
               />
             </CardBody>
