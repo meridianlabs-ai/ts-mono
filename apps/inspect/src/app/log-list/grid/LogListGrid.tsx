@@ -168,12 +168,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
 
-  const closeFind = useCallback(() => {
-    setShowFind(false);
-    setFindTerm("");
-    setCurrentMatchIndex(0);
-  }, []);
-
   const searchColumns = useMemo(
     () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
     [columns, visibility]
@@ -217,15 +211,32 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const activeMatchId =
     matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
 
-  // Persist each active find match as the selection so the last match stays
-  // selected once the band closes (matches the AG grid). `selectedRowId`
-  // already prefers `activeMatchId` while the band is open; this keeps the
-  // persisted value in step so closing it doesn't snap back to the prior row.
+  const closeFind = useCallback(() => {
+    // Persist the final match as the selection so closing the band doesn't
+    // snap back to the prior row (matches the AG grid). Display prefers
+    // `activeMatchId` while the band is open, so the persisted value only
+    // matters from this point on.
+    if (activeMatchId !== undefined) persistSelectedId(activeMatchId);
+    setShowFind(false);
+    setFindTerm("");
+    setCurrentMatchIndex(0);
+  }, [activeMatchId, persistSelectedId]);
+
+  // Same persistence for the leave-without-closing path: unmounting (e.g.
+  // navigating away) with the band still open. Ref carries the latest match
+  // so the cleanup — which runs long after this render — doesn't act on a
+  // stale closure.
+  const openBandMatchIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (showFind && activeMatchId !== undefined) {
-      persistSelectedId(activeMatchId);
-    }
-  }, [showFind, activeMatchId, persistSelectedId]);
+    openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
+  }, [showFind, activeMatchId]);
+  useEffect(
+    () => () => {
+      const id = openBandMatchIdRef.current;
+      if (id !== undefined) persistSelectedId(id);
+    },
+    [persistSelectedId]
+  );
 
   const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
