@@ -103,7 +103,7 @@ const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
   // Log data may omit scores despite the static type.
-  const scores = evalResults?.scores as EvalResults["scores"] | undefined;
+  const scores = evalResults?.scores;
   const firstScore = scores?.[0];
   if (firstScore) {
     const metrics = Object.values(firstScore.metrics);

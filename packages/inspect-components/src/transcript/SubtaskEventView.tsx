@@ -76,12 +76,15 @@ interface SubtaskSummaryProps {
 
 const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
   const output = typeof result === "object" ? result : { result };
+  // input comes from serialized logs, where it can be absent despite the
+  // declared type
+  const inputValue = input as SubtaskSummaryProps["input"] | null | undefined;
   return (
     <div className={clsx(styles.subtaskSummary)}>
       <div className={clsx("text-style-label", "text-size-small")}>Input</div>
       <div className={clsx("text-size-large", styles.subtaskLabel)}></div>
       <div className={clsx("text-style-label", "text-size-small")}>Output</div>
-      <Rendered values={input} />
+      {inputValue ? <Rendered values={inputValue} /> : undefined}
       <div className={clsx("text-size-title-secondary", styles.subtaskLabel)}>
         <i className={kArrowRightIcon} />
       </div>

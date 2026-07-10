@@ -254,7 +254,10 @@ export function buildSampleColumns(
     header: "Id",
     size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
-    accessorFn: (row) => String(row.sampleId),
+    // sampleId originates in log data, which can omit it at runtime
+    // despite the declared type
+    accessorFn: (row) =>
+      String((row.sampleId as string | number | undefined) ?? ""),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
@@ -351,8 +354,8 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.tokens,
     cell: ({ getValue }) => {
-      const value = getValue<number | undefined>();
-      return value === undefined ? (
+      const value = getValue<number | null | undefined>();
+      return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
@@ -369,11 +372,17 @@ export function buildSampleColumns(
     maxSize: 160,
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
-    titleValue: (row) =>
-      row.duration === undefined ? undefined : formatTime(row.duration),
+    titleValue: (row) => {
+      // duration originates in log data, which can hold null at runtime
+      // despite the declared type
+      const duration = row.duration as number | null | undefined;
+      return duration === undefined || duration === null
+        ? undefined
+        : formatTime(duration);
+    },
     cell: ({ getValue }) => {
-      const value = getValue<number | undefined>();
-      return value === undefined ? (
+      const value = getValue<number | null | undefined>();
+      return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
         <div>{formatTime(value)}</div>

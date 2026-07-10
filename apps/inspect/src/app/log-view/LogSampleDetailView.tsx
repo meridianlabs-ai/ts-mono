@@ -56,8 +56,8 @@ export const LogSampleDetailView: FC = () => {
 
   // Use route params if available, otherwise fall back to state.
   // The handle is rehydrated from persisted storage, so fields may be absent.
-  const handleId = selectedSampleHandle?.id as string | number | undefined;
-  const handleEpoch = selectedSampleHandle?.epoch as number | undefined;
+  const handleId = selectedSampleHandle?.id;
+  const handleEpoch = selectedSampleHandle?.epoch;
   const logPath = routeLogPath || selectedLogFile;
   const sampleId = routeSampleId || handleId?.toString();
   const epoch = routeEpoch || handleEpoch?.toString();
